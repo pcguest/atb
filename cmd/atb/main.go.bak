@@ -37,7 +37,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Print(`ATB — Agent Trace Bundle
+	fmt.Println(`ATB — Agent Trace Bundle
 
 Usage:
   atb <command> [flags]
