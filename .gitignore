@@ -51,3 +51,9 @@ htmlcov/
 .env.local
 .env.*.local
 *.pem
+
+# Build artifacts
+atb
+*.bak
+/dist
+/build
