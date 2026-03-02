@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Build Go CLI
+        run: go build -v ./...
+      
+      - name: Test Go packages
+        run: go test -v ./...
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Python SDK
+        run: |
+          cd sdk/python
+          pip install -e .
+          pip install pytest
+      
+      - name: Test Python SDK
+        run: |
+          cd sdk/python
+          pytest
+      
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Typecheck TypeScript SDK
+        run: |
+          cd sdk/typescript
+          npm ci
+          npm run typecheck
+      
+      - name: Cross-language golden test
+        run: |
+          cd test/golden
+          go run generate.go && python3 verify.py
+      
+      - name: Notify Discord
+        if: always()
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d "{\"content\": \"CI Build ${{ job.status }}: ${{ github.workflow }} #${{ github.run_number }}\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+        continue-on-error: true

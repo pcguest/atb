@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Build binaries
+        run: |
+          GOOS=linux GOARCH=amd64 go build -o atb-linux-amd64 ./cmd/atb
+          GOOS=darwin GOARCH=amd64 go build -o atb-darwin-amd64 ./cmd/atb
+          GOOS=darwin GOARCH=arm64 go build -o atb-darwin-arm64 ./cmd/atb
+          GOOS=windows GOARCH=amd64 go build -o atb-windows-amd64.exe ./cmd/atb
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            atb-linux-amd64
+            atb-darwin-amd64
+            atb-darwin-arm64
+            atb-windows-amd64.exe
+          generate_release_notes: true
+      
+      - name: Notify Discord
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d "{\"content\": \"🎉 Release ${{ github.ref_name }} published!\"}" \
+            ${{ secrets.DISCORD_WEBHOOK_URL }}
+        continue-on-error: true
