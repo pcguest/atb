@@ -1,0 +1,58 @@
+name: Integration Request
+description: Request a new integration with an AI framework, tool, or platform.
+title: "[Integration]: "
+labels: ["integration", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ATB aims to integrate with the most popular AI frameworks and platforms.
+        Let us know what integration would be most valuable to you.
+
+  - type: input
+    id: framework
+    attributes:
+      label: Framework / Tool / Platform
+      description: Name of the framework or tool you want ATB to integrate with.
+      placeholder: "e.g. LangChain, LlamaIndex, CrewAI, AutoGen, Haystack"
+    validations:
+      required: true
+
+  - type: input
+    id: framework_url
+    attributes:
+      label: Framework URL
+      placeholder: "https://github.com/..."
+    validations:
+      required: false
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: How would you use this integration? What events should ATB record?
+    validations:
+      required: true
+
+  - type: textarea
+    id: example
+    attributes:
+      label: Example Usage
+      description: Show how you would ideally use ATB with this framework.
+      render: python
+    validations:
+      required: false
+
+  - type: dropdown
+    id: sdk
+    attributes:
+      label: SDK
+      description: Which SDK should this integration target?
+      options:
+        - Python SDK
+        - TypeScript SDK
+        - Both
+    validations:
+      required: true

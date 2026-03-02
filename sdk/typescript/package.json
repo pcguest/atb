@@ -1,0 +1,39 @@
+{
+  "name": "@atb-dev/sdk",
+  "version": "0.1.0",
+  "description": "ATB (Agent Trace Bundle) TypeScript SDK — tamper-evident audit trails for AI agent workflows",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["audit", "ai", "agents", "tracing", "observability", "atb"],
+  "author": "Manus",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pcguest/atb.git",
+    "directory": "sdk/typescript"
+  },
+  "homepage": "https://atb.dev",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

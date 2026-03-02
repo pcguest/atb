@@ -1,0 +1,53 @@
+# Go
+/dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+.env
+*.pyc
+
+# Node.js
+node_modules/
+.pnpm-store/
+.next/
+out/
+.vercel/
+
+# ATB bundles (local development only — do not commit run.atb/)
+run.atb/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Coverage
+coverage.out
+coverage.html
+.coverage
+htmlcov/
+
+# Secrets
+.env.local
+.env.*.local
+*.pem

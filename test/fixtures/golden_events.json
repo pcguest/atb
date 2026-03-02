@@ -1,0 +1,37 @@
+[
+  {
+    "event": {
+      "seq": 1,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "dev.session",
+      "data": {
+        "date": "2025-01-15",
+        "features_built": ["hash chaining", "CLI init"],
+        "blockers": ["RFC 8785 library compatibility"],
+        "github_commits": ["abc123", "def456"]
+      }
+    }
+  },
+  {
+    "event": {
+      "seq": 2,
+      "type": "decision",
+      "data": {
+        "choice": "Go over Rust for CLI",
+        "reason": "Solo founder velocity",
+        "alternatives": ["Rust", "Python-only"]
+      }
+    }
+  },
+  {
+    "event": {
+      "seq": 3,
+      "type": "release",
+      "data": {
+        "version": "v1.0.0",
+        "github_release_url": "https://github.com/pcguest/atb/releases/tag/v1.0.0",
+        "downloads": 0
+      }
+    }
+  }
+]
