@@ -12,8 +12,8 @@
 
 ## Manual External Steps
 
-- [ ] Push local commits to `main`
-- [ ] Confirm GitHub Actions is green on `main`
+- [x] Push local commits to `main`
+- [x] Confirm GitHub Actions is green on `main`
 - [ ] Add `DISCORD_WEBHOOK_URL` repository secret (if notifications desired)
 - [ ] Deploy landing page to Vercel (`web/` root)
 - [ ] Add deployed URL + waitlist URL to README
