@@ -55,6 +55,7 @@ jobs:
           npm run typecheck
       
       - name: Cross-language golden test
+        shell: bash
         run: |
           if [ -d test/golden ]; then
             cd test/golden
