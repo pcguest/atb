@@ -45,7 +45,8 @@
 
 ## Week 3 Priorities
 
-- [ ] Publish Python SDK to PyPI (`pip install atb-sdk`)
+- [ ] Publish Python SDK to PyPI (`pip install atb-sdk`)  
+  Note: `v0.1.0` publish attempt failed (`invalid-publisher`) because no PyPI trusted publisher and no `PYPI_API_TOKEN` secret are configured yet.
 - [ ] Send first 5 user outreach DMs and record outcomes
 - [x] Create `atb push` MVP implementation checklist (`docs/implementation/atb-push-checklist.md`)
 - [x] Add TypeScript npm publish workflow (`.github/workflows/npm.yml`)

@@ -49,7 +49,11 @@ Use conventional commits:
 
 The `Publish Python SDK` workflow runs on git tags matching `v*`.
 
-1. Ensure repository secret `PYPI_API_TOKEN` is configured.
+1. Configure one publishing path:
+
+- Token-based: set repository secret `PYPI_API_TOKEN`.
+- Trusted publishing: create a matching publisher in PyPI for
+  `pcguest/atb/.github/workflows/pypi.yml` with tag refs.
 2. Validate package locally:
 
 ```bash
