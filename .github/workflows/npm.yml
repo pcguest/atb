@@ -1,8 +1,9 @@
 name: Publish TypeScript SDK to npm
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
 
 jobs:
@@ -27,6 +28,17 @@ jobs:
         run: |
           cd sdk/typescript
           npm run build
+
+      - name: Validate tag matches package version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cd sdk/typescript
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) does not match package.json version ($PKG_VERSION)."
+            exit 1
+          fi
 
       - name: Publish to npm
         if: ${{ env.NPM_TOKEN != '' }}
