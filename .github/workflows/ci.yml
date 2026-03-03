@@ -60,7 +60,7 @@ jobs:
           go run generate.go && python3 verify.py
       
       - name: Notify Discord
-        if: always()
+        if: ${{ always() && secrets.DISCORD_WEBHOOK_URL != '' }}
         run: |
           curl -H "Content-Type: application/json" \
             -d "{\"content\": \"CI Build ${{ job.status }}: ${{ github.workflow }} #${{ github.run_number }}\"}" \
