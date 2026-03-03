@@ -53,7 +53,7 @@ htmlcov/
 *.pem
 
 # Build artifacts
-atb
+/atb
 *.bak
 /dist
 /build

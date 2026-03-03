@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
@@ -23,8 +26,12 @@ func main() {
 		cmdInit()
 	case "append":
 		cmdAppend()
+	case "snapshot":
+		cmdSnapshot()
 	case "verify":
 		cmdVerify()
+	case "view":
+		cmdView()
 	case "version", "--version", "-v":
 		fmt.Printf("atb %s\n", version)
 	case "help", "--help", "-h":
@@ -44,14 +51,19 @@ Usage:
 
 Commands:
   init              Initialise a new ATB bundle in ./run.atb/
-  append <type> <json>  Append an event to the current bundle
-  verify            Verify the integrity of the current bundle
+  append <type> <json|--data <json>>  Append an event to the current bundle
+  snapshot <name> --gate <pass|fail>  Append a snapshot event
+  verify [bundle_path]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
+  view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
   version           Print the ATB version
 
 Examples:
   atb init
   atb append dev.session '{"features_built":["hash chaining"]}'
+  atb append feature --data '{"name":"atb view"}'
+  atb snapshot build --gate pass
   atb verify
+  atb view
 `)
 }
 
@@ -73,11 +85,15 @@ func cmdInit() {
 // cmdAppend appends a new event to the existing bundle.
 func cmdAppend() {
 	if len(os.Args) < 4 {
-		fmt.Fprintln(os.Stderr, "Usage: atb append <type> <json>")
+		fmt.Fprintln(os.Stderr, "Usage: atb append <type> <json|--data <json>>")
 		os.Exit(1)
 	}
 	eventType := os.Args[2]
-	rawJSON := os.Args[3]
+	rawJSON, err := parseAppendPayload(os.Args[3:])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
+		os.Exit(1)
+	}
 
 	var data interface{}
 	if err := json.Unmarshal([]byte(rawJSON), &data); err != nil {
@@ -85,30 +101,97 @@ func cmdAppend() {
 		os.Exit(1)
 	}
 
-	path := bundle.DefaultPath()
-	b, err := bundle.Load(path)
+	last, err := appendToDefaultBundle(eventType, data)
 	if err != nil {
-		// If the file doesn't exist, initialise automatically.
-		b = bundle.New()
-	}
-
-	if err := b.Append(eventType, data); err != nil {
 		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("✓ Appended event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
+}
 
+func parseAppendPayload(args []string) (string, error) {
+	if len(args) == 0 {
+		return "", fmt.Errorf("missing event JSON payload")
+	}
+	if len(args) == 1 {
+		if args[0] == "--data" {
+			return "", fmt.Errorf("missing JSON after --data")
+		}
+		return args[0], nil
+	}
+	if len(args) == 2 && args[0] == "--data" {
+		return args[1], nil
+	}
+	return "", fmt.Errorf("expected <json> or --data <json>")
+}
+
+func appendToDefaultBundle(eventType string, data interface{}) (bundle.Record, error) {
+	path := bundle.DefaultPath()
+	b, err := bundle.Load(path)
+	if err != nil {
+		b = bundle.New()
+	}
+	if err := b.Append(eventType, data); err != nil {
+		return bundle.Record{}, err
+	}
 	if err := b.Save(path); err != nil {
-		fmt.Fprintf(os.Stderr, "atb append: save: %v\n", err)
+		return bundle.Record{}, fmt.Errorf("save: %w", err)
+	}
+	return b.Records[len(b.Records)-1], nil
+}
+
+func cmdSnapshot() {
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "Usage: atb snapshot <name> [--gate <pass|fail>]")
 		os.Exit(1)
 	}
+	name := strings.TrimSpace(os.Args[2])
+	if name == "" {
+		fmt.Fprintln(os.Stderr, "atb snapshot: snapshot name cannot be empty")
+		os.Exit(1)
+	}
+	gate := "pass"
+	if len(os.Args) > 3 {
+		if len(os.Args) != 5 || os.Args[3] != "--gate" {
+			fmt.Fprintln(os.Stderr, "Usage: atb snapshot <name> [--gate <pass|fail>]")
+			os.Exit(1)
+		}
+		g := strings.ToLower(strings.TrimSpace(os.Args[4]))
+		if g != "pass" && g != "fail" {
+			fmt.Fprintln(os.Stderr, "atb snapshot: --gate must be pass or fail")
+			os.Exit(1)
+		}
+		gate = g
+	}
+	eventType := fmt.Sprintf("snapshot.%s", name)
+	data := map[string]string{
+		"gate":      gate,
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+	}
+	last, err := appendToDefaultBundle(eventType, data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "atb snapshot: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("✓ Appended snapshot #%d [%s] gate=%s hash=%s\n", last.Event.Sequence, last.Event.Type, gate, last.Hash[:16]+"...")
+}
 
-	last := b.Records[len(b.Records)-1]
-	fmt.Printf("✓ Appended event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
+func normalizeBundlePath(raw string) string {
+	if raw == "" {
+		return bundle.DefaultPath()
+	}
+	if info, err := os.Stat(raw); err == nil && info.IsDir() {
+		return filepath.Join(raw, bundle.BundleFile)
+	}
+	return raw
 }
 
 // cmdVerify verifies the integrity of the current bundle.
 func cmdVerify() {
 	path := bundle.DefaultPath()
+	if len(os.Args) >= 3 {
+		path = normalizeBundlePath(os.Args[2])
+	}
 	b, err := bundle.Load(path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
