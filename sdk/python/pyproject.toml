@@ -7,13 +7,13 @@ name = "atb-sdk"
 version = "0.1.0"
 description = "ATB (Agent Trace Bundle) Python SDK — tamper-evident audit trails for AI agent workflows"
 readme = "README.md"
-license = { file = "LICENSE" }
-authors = [{ name = "Manus", email = "dev@atb.dev" }]
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Paddy Guest", email = "patrickcguest@proton.me" }]
 keywords = ["audit", "ai", "agents", "tracing", "observability"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -30,9 +30,9 @@ llamaindex = ["llama-index>=0.10.0"]
 dev = ["pytest>=7.0", "black", "mypy", "ruff"]
 
 [project.urls]
-Homepage = "https://atb.dev"
+Homepage = "https://github.com/pcguest/atb"
 Repository = "https://github.com/pcguest/atb"
-Documentation = "https://atb.dev/docs"
+Documentation = "https://github.com/pcguest/atb/blob/main/docs"
 
 [tool.setuptools.packages.find]
 where = ["."]
