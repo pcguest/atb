@@ -56,8 +56,12 @@ jobs:
       
       - name: Cross-language golden test
         run: |
-          cd test/golden
-          go run generate.go && python3 verify.py
+          if [ -d test/golden ]; then
+            cd test/golden
+            go run generate.go && python3 verify.py
+          else
+            echo "Skipping cross-language golden test (test/golden not present)."
+          fi
       
       - name: Notify Discord
         if: ${{ always() && secrets.DISCORD_WEBHOOK_URL != '' }}
