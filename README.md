@@ -5,6 +5,7 @@
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-indigo.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](go.mod)
+[![PyPI](https://img.shields.io/pypi/v/atb-sdk)](https://pypi.org/project/atb-sdk/)
 [![Python SDK](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python)](sdk/python/)
 [![TypeScript SDK](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript)](sdk/typescript/)
 
@@ -44,12 +45,18 @@ go build -o atb ./cmd/atb
 # Verify integrity
 ./atb verify
 # ✓ Bundle verified: 2 events, chain intact.
+
+# Open a local timeline viewer
+./atb view --port 8080
 ```
 
 ### Python SDK
 
 ```bash
-# PyPI package is planned. Use source install for now:
+# Install from PyPI (or source install for local development):
+pip install atb-sdk
+
+# Local source install:
 cd sdk/python
 python3 -m venv venv
 source venv/bin/activate
@@ -148,7 +155,8 @@ The first event uses a genesis hash of 64 zeros. This creates a cryptographic ch
 ├── internal/
 │   ├── canonicalize/     # RFC 8785 JSON canonicalization
 │   ├── hash/             # SHA-256 hash chaining algorithm
-│   └── bundle/           # NDJSON bundle read/write
+│   ├── bundle/           # NDJSON bundle read/write
+│   └── viewer/           # Local HTML timeline rendering
 ├── pkg/                  # Public Go packages (future)
 ├── sdk/
 │   ├── python/           # Python SDK (source install; PyPI planned)
@@ -217,3 +225,5 @@ ATB is used to track its own development. The `dev-log/` directory contains ATB 
 atb verify dev-log/v0.1.0-bootstrap.atb
 # ✓ Bundle verified: 5 events, chain intact.
 ```
+
+For an end-to-end onboarding guide, see [docs/quickstart.md](docs/quickstart.md).

@@ -26,10 +26,19 @@
 - [ ] DM 5 potential early users
 - [ ] Monitor GitHub Issues and Discord for first 24 hours
 
+## Post-Launch: Feedback Loop
+
+- [ ] Enable issue auto-labeling workflow
+- [ ] Enable weekly feedback digest workflow
+- [ ] Send first 3 early-user DMs (use `docs/feedback/dm-template.md`)
+- [ ] Track blockers in Discord (`impact:blocker`)
+- [ ] Review Monday digest and prioritize top 3 asks
+
 ## Week 2 Priorities
 
-- [ ] Add `atb view` local HTML viewer command
-- [ ] Publish Python SDK to PyPI
+- [x] Add `atb view` local HTML viewer command
+- [ ] Publish Python SDK to PyPI (workflow ready; first tag pending)
+- [x] Publish quickstart tutorial (`docs/quickstart.md`)
 - [ ] Publish TypeScript SDK to npm
-- [ ] Add `atb push` cloud-sharing prototype
+- [x] Draft `atb push` v1.1 cloud-sharing spec (`docs/spec/atb-push-v1.1.md`)
 - [ ] Ship first pro-tier onboarding flow
