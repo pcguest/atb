@@ -42,3 +42,11 @@
 - [ ] Publish TypeScript SDK to npm
 - [x] Draft `atb push` v1.1 cloud-sharing spec (`docs/spec/atb-push-v1.1.md`)
 - [ ] Ship first pro-tier onboarding flow
+
+## Week 3 Priorities
+
+- [ ] Publish Python SDK to PyPI (`pip install atb-sdk`)
+- [ ] Send first 5 user outreach DMs and record outcomes
+- [x] Create `atb push` MVP implementation checklist (`docs/implementation/atb-push-checklist.md`)
+- [x] Add TypeScript npm publish workflow (`.github/workflows/npm.yml`)
+- [ ] Publish "How I Built ATB" blog post
