@@ -64,9 +64,11 @@ jobs:
           fi
       
       - name: Notify Discord
-        if: ${{ always() && secrets.DISCORD_WEBHOOK_URL != '' }}
+        if: ${{ always() && env.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           curl -H "Content-Type: application/json" \
             -d "{\"content\": \"CI Build ${{ job.status }}: ${{ github.workflow }} #${{ github.run_number }}\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
+            "$DISCORD_WEBHOOK_URL"
         continue-on-error: true
