@@ -23,6 +23,48 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build -o atb-darwin-amd64 ./cmd/atb
           GOOS=darwin GOARCH=arm64 go build -o atb-darwin-arm64 ./cmd/atb
           GOOS=windows GOARCH=amd64 go build -o atb-windows-amd64.exe ./cmd/atb
+
+      - name: Generate release notes from conventional commits
+        run: |
+          set -euo pipefail
+          current_tag="${GITHUB_REF_NAME}"
+          previous_tag="$(git tag --sort=-creatordate | grep -v "^${current_tag}$" | head -n 1 || true)"
+          if [ -n "${previous_tag}" ]; then
+            range="${previous_tag}..${current_tag}"
+          else
+            range="${current_tag}"
+          fi
+
+          format_section() {
+            local pattern="$1"
+            local heading="$2"
+            local items
+            items="$(git log --pretty=format:'%s (%h)' "${range}" | grep -E "^${pattern}" || true)"
+            if [ -n "${items}" ]; then
+              echo "## ${heading}" >> RELEASE_NOTES.md
+              echo "${items}" | sed 's/^/- /' >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+            fi
+          }
+
+          {
+            echo "# ATB ${current_tag}"
+            echo ""
+            echo "Generated from conventional commits in \`${range}\`."
+            echo ""
+          } > RELEASE_NOTES.md
+
+          format_section 'feat(\(|:)' 'Features'
+          format_section 'fix(\(|:)' 'Fixes'
+          format_section 'docs(\(|:)' 'Documentation'
+          format_section 'test(\(|:)' 'Tests'
+          format_section 'chore(\(|:)' 'Chores'
+          format_section 'refactor(\(|:)' 'Refactors'
+
+          if [ ! -s RELEASE_NOTES.md ] || [ "$(wc -l < RELEASE_NOTES.md)" -le 4 ]; then
+            echo "## Changes" >> RELEASE_NOTES.md
+            git log --pretty=format:'- %s (%h)' "${range}" >> RELEASE_NOTES.md
+          fi
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -32,11 +74,15 @@ jobs:
             atb-darwin-amd64
             atb-darwin-arm64
             atb-windows-amd64.exe
-          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
       
       - name: Notify Discord
+        if: ${{ env.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
+          highlights="$(head -n 20 RELEASE_NOTES.md | sed ':a;N;$!ba;s/\n/\\n/g')"
           curl -H "Content-Type: application/json" \
-            -d "{\"content\": \"🎉 Release ${{ github.ref_name }} published!\"}" \
-            ${{ secrets.DISCORD_WEBHOOK_URL }}
+            -d "{\"content\": \"🎉 Release ${{ github.ref_name }} published!\\n\\n${highlights}\"}" \
+            "$DISCORD_WEBHOOK_URL"
         continue-on-error: true

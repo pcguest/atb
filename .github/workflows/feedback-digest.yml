@@ -1,0 +1,81 @@
+name: Weekly Feedback Digest
+
+on:
+  schedule:
+    - cron: '0 15 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build feedback digest
+        id: digest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sinceDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            const allIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              since: sinceDate,
+              per_page: 100,
+            });
+
+            const issues = allIssues.filter((issue) => !issue.pull_request);
+            const opened = issues.filter((i) => i.state === 'open');
+            const blockers = issues.filter((i) =>
+              (i.labels || []).some((l) => (l.name || '').toLowerCase() === 'impact:blocker')
+            );
+
+            const lines = [];
+            lines.push('## Weekly ATB Feedback Digest');
+            lines.push('');
+            lines.push(`Window start: ${sinceDate}`);
+            lines.push(`Total issues touched: ${issues.length}`);
+            lines.push(`Open issues: ${opened.length}`);
+            lines.push(`Blockers: ${blockers.length}`);
+            lines.push('');
+            lines.push('### Recent Issues');
+
+            const recent = issues.slice(0, 10);
+            if (recent.length === 0) {
+              lines.push('- No new issues in this window.');
+            } else {
+              for (const issue of recent) {
+                lines.push(`- #${issue.number} ${issue.title} (${issue.state})`);
+              }
+            }
+
+            lines.push('');
+            lines.push('### Social Mentions');
+            lines.push('- HN: manual review pending');
+            lines.push('- Twitter/X: manual review pending');
+
+            const summary = lines.join('\n');
+            core.setOutput('summary', summary);
+            core.setOutput('blockers', String(blockers.length));
+
+      - name: Write job summary
+        run: |
+          cat << 'EOF_SUMMARY' >> "$GITHUB_STEP_SUMMARY"
+          ${{ steps.digest.outputs.summary }}
+          EOF_SUMMARY
+
+      - name: Send digest to Discord
+        if: ${{ env.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          summary=$(cat << 'EOF_MSG'
+          ${{ steps.digest.outputs.summary }}
+          EOF_MSG
+          )
+          payload=$(jq -Rn --arg content "$summary" '{content: $content}')
+          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
+        continue-on-error: true

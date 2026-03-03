@@ -53,6 +53,21 @@ jobs:
           cd sdk/typescript
           npm ci
           npm run typecheck
+
+      - name: Docs sync smoke check
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f docs/quickstart.md
+          test -f docs/spec/atb-push-v1.1.md
+
+          go run ./cmd/atb --help > /tmp/atb-help.txt
+
+          grep -q "view \\[bundle_path\\]" /tmp/atb-help.txt
+          grep -q "snapshot <name>" /tmp/atb-help.txt
+          grep -q "atb view" README.md
+          grep -q "atb view" docs/quickstart.md
+          grep -q "atb push" docs/spec/atb-push-v1.1.md
       
       - name: Cross-language golden test
         shell: bash

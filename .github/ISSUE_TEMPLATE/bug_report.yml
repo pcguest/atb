@@ -29,8 +29,20 @@ body:
     id: version
     attributes:
       label: ATB Version
-      description: Output of `atb version` or SDK version.
-      placeholder: "e.g. v0.1.0"
+      description: Output of `atb version` (CLI) or SDK version.
+      placeholder: "e.g. v0.1.0 (`atb version`)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: How severe is this issue for your workflow?
+      options:
+        - Blocker
+        - Nice-to-have
+        - Question
     validations:
       required: true
 
@@ -81,3 +93,12 @@ body:
         Python: 3.11.0
     validations:
       required: false
+
+  - type: checkboxes
+    id: trace_bundle_attached
+    attributes:
+      label: Trace Bundle Attached?
+      description: Attach a redacted `.atb` bundle if possible.
+      options:
+        - label: I attached an ATB trace bundle (or sanitized excerpt) that reproduces this issue.
+          required: false

@@ -51,12 +51,30 @@ body:
       required: false
 
   - type: dropdown
-    id: priority
+    id: impact
     attributes:
-      label: Priority
+      label: Impact
       options:
-        - Low — Nice to have
-        - Medium — Would significantly improve my workflow
-        - High — Blocking my use case
+        - Blocker
+        - Nice-to-have
+        - Question
     validations:
       required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: ATB Version
+      description: Output of `atb version` (CLI) or SDK version.
+      placeholder: "e.g. v0.1.0 (`atb version`)"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: trace_bundle_attached
+    attributes:
+      label: Trace Bundle Attached?
+      description: Attach a trace if this request is based on a concrete run.
+      options:
+        - label: I attached an ATB trace bundle (or sanitized excerpt).
+          required: false
