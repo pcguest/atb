@@ -159,8 +159,8 @@ The first event uses a genesis hash of 64 zeros. This creates a cryptographic ch
 │   └── viewer/           # Local HTML timeline rendering
 ├── pkg/                  # Public Go packages (future)
 ├── sdk/
-│   ├── python/           # Python SDK (source install; PyPI planned)
-│   └── typescript/       # TypeScript SDK (source install; npm publish planned)
+│   ├── python/           # Python SDK (PyPI workflow ready)
+│   └── typescript/       # TypeScript SDK (npm workflow ready)
 ├── web/                  # Next.js 14 landing page & platform
 ├── docs/                 # Specification + documentation
 ├── dev-log/              # ATB bundles recording ATB's own development

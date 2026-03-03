@@ -64,15 +64,43 @@ python -m build
 twine check dist/*
 ```
 
-3. Create and push a tag:
+3. Create and push an annotated tag (match package version):
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag -a v0.1.1 -m "Release v0.1.1"
+git push origin v0.1.1
 ```
 
 4. Confirm publish status in GitHub Actions and verify:
 
 ```bash
 pip install atb-sdk
+```
+
+## TypeScript SDK Release to npm
+
+The `Publish TypeScript SDK to npm` workflow also runs on git tags matching `v*`.
+
+1. Set repository secret `NPM_TOKEN` (publish token).
+2. Validate package locally:
+
+```bash
+cd sdk/typescript
+npm ci
+npm run typecheck
+npm run build
+npm pack
+```
+
+3. Push a tag that matches `sdk/typescript/package.json` version:
+
+```bash
+git tag -a v0.1.1 -m "Release v0.1.1"
+git push origin v0.1.1
+```
+
+4. Confirm publish status and verify:
+
+```bash
+npm install @atb-dev/sdk
 ```

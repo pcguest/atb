@@ -51,3 +51,11 @@
 - [x] Create `atb push` MVP implementation checklist (`docs/implementation/atb-push-checklist.md`)
 - [x] Add TypeScript npm publish workflow (`.github/workflows/npm.yml`)
 - [ ] Publish "How I Built ATB" blog post
+
+## Week 4 Priorities
+
+- [ ] Set `PYPI_API_TOKEN` and publish `atb-sdk` (`v0.1.1`)
+- [ ] Set `NPM_TOKEN` and publish `@atb-dev/sdk` (`v0.1.1`)
+- [x] Add release runbook (`docs/release/week4-publish-runbook.md`)
+- [ ] Send first 5 user DMs and summarize feedback in `docs/feedback/week3-feedback-log.md`
+- [ ] Validate `atb push` pull signal (>=3 explicit user requests) before implementation

@@ -4,7 +4,7 @@
 
 - [ ] Validate demand (3+ users request cloud sharing)
 - [ ] Confirm Cloudflare R2 free tier limits (10GB storage, 10M ops/month)
-- [ ] Finalize key derivation strategy (Argon2id + per-upload salt)
+- [ ] Finalize key derivation strategy (PBKDF2 + per-upload salt)
 - [ ] Finalize URL format (`https://atb.dev/share/<id>#<password_fragment>`)
 
 ## Core Implementation
