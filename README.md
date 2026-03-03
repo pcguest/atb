@@ -28,25 +28,33 @@ AI agents are making consequential decisions in production. When something goes 
 ### CLI (Go)
 
 ```bash
-# Install
-go install github.com/pcguest/atb/cmd/atb@latest
+# From source
+git clone https://github.com/pcguest/atb.git
+cd atb
+go build -o atb ./cmd/atb
+./atb version
 
 # Initialise a new bundle
-atb init
+./atb init
 
 # Append events
-atb append dev.session '{"date":"2025-01-15","features":["hash chaining"]}'
-atb append decision '{"choice":"Go over Rust","reason":"Solo founder velocity"}'
+./atb append dev.session '{"date":"2025-01-15","features":["hash chaining"]}'
+./atb append decision '{"choice":"Go over Rust","reason":"Solo founder velocity"}'
 
 # Verify integrity
-atb verify
+./atb verify
 # ✓ Bundle verified: 2 events, chain intact.
 ```
 
 ### Python SDK
 
 ```bash
-pip install atb-sdk
+# PyPI package is planned. Use source install for now:
+cd sdk/python
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .
+pytest -v
 ```
 
 ```python
@@ -73,7 +81,10 @@ print(f"✓ Verified {len(b)} events — chain intact.")
 ### TypeScript SDK
 
 ```bash
-npm install @atb-dev/sdk
+cd sdk/typescript
+npm ci
+npm run build
+npm run typecheck
 ```
 
 ```typescript
@@ -140,8 +151,8 @@ The first event uses a genesis hash of 64 zeros. This creates a cryptographic ch
 │   └── bundle/           # NDJSON bundle read/write
 ├── pkg/                  # Public Go packages (future)
 ├── sdk/
-│   ├── python/           # Python SDK (pip: atb-sdk)
-│   └── typescript/       # TypeScript SDK (npm: @atb-dev/sdk)
+│   ├── python/           # Python SDK (source install; PyPI planned)
+│   └── typescript/       # TypeScript SDK (source install; npm publish planned)
 ├── web/                  # Next.js 14 landing page & platform
 ├── docs/                 # Specification + documentation
 ├── dev-log/              # ATB bundles recording ATB's own development
