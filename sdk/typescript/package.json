@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "keywords": ["audit", "ai", "agents", "tracing", "observability", "atb"],
-  "author": "Manus",
+  "author": "Paddy Guest <patrickcguest@proton.me>",
   "license": "MIT",
   "repository": {
     "type": "git",
