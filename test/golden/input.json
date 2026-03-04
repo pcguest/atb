@@ -1,0 +1,16 @@
+{
+  "ts": "2026-03-03T00:00:00Z",
+  "type": "agent.think",
+  "actor": "golden-test",
+  "data": {
+    "model": "gpt-4",
+    "prompt": "What is 2+2?",
+    "temperature": 0.0,
+    "nested": {
+      "array": [1, 2, 3],
+      "bool": true,
+      "null": null,
+      "unicode": "Hello 世界 🌍"
+    }
+  }
+}

@@ -68,17 +68,7 @@ jobs:
           grep -q "atb view" README.md
           grep -q "atb view" docs/quickstart.md
           grep -q "atb push" docs/spec/atb-push-v1.1.md
-      
-      - name: Cross-language golden test
-        shell: bash
-        run: |
-          if [ -d test/golden ]; then
-            cd test/golden
-            go run generate.go && python3 verify.py
-          else
-            echo "Skipping cross-language golden test (test/golden not present)."
-          fi
-      
+
       - name: Notify Discord
         if: ${{ always() && env.DISCORD_WEBHOOK_URL != '' }}
         env:
@@ -88,3 +78,54 @@ jobs:
             -d "{\"content\": \"CI Build ${{ job.status }}: ${{ github.workflow }} #${{ github.run_number }}\"}" \
             "$DISCORD_WEBHOOK_URL"
         continue-on-error: true
+
+  golden-test:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build TypeScript SDK
+        run: |
+          cd sdk/typescript
+          npm ci
+          npm run build
+
+      - name: Run Go golden test
+        run: |
+          cd test/golden
+          go test -v -run TestGoldenCanonicalization
+
+      - name: Run Python golden verification
+        run: |
+          cd test/golden
+          python3 verify.py
+
+      - name: Run TypeScript golden verification
+        run: |
+          cd test/golden
+          node verify.js
+
+      - name: Compare canonical JSON and hashes
+        run: |
+          cd test/golden
+          diff output-go.json output-python.json
+          diff output-python.json output-typescript.json
+          diff hash-go.txt hash-python.txt
+          diff hash-python.txt hash-typescript.txt
+          echo "✅ all language outputs are byte-identical"
