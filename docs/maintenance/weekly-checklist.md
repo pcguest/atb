@@ -44,3 +44,4 @@ node verify.js
 - [ ] Review dependency/security advisories (Go, Python, TypeScript, GitHub Actions)
 - [ ] Update `docs/quickstart.md` if CLI/SDK flows changed
 - [ ] Publish a monthly progress update (blog + social)
+- [ ] Run quarterly disaster recovery drill from `docs/maintenance/disaster-recovery.md` (once per quarter)

@@ -1,11 +1,11 @@
 /**
- * @atb-dev/sdk — ATB (Agent Trace Bundle) TypeScript SDK
+ * @pcguest/atb-sdk — ATB (Agent Trace Bundle) TypeScript SDK
  *
  * Tamper-evident, replayable audit trails for AI agent workflows.
  *
  * @example
  * ```ts
- * import { Bundle } from "@atb-dev/sdk";
+ * import { Bundle } from "@pcguest/atb-sdk";
  *
  * const bundle = new Bundle();
  * bundle.append("dev.session", { date: "2025-01-15" });

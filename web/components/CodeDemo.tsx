@@ -55,7 +55,7 @@ print(f"✓ Verified {len(b)} events — chain intact.")
 from atb.integrations.langchain import ATBCallbackHandler
 handler = ATBCallbackHandler(bundle, auto_save=True)
 llm = ChatOpenAI(callbacks=[handler])`,
-  typescript: `import { Bundle } from "@atb-dev/sdk";
+  typescript: `import { Bundle } from "@pcguest/atb-sdk";
 
 // Create a new bundle
 const bundle = new Bundle();
@@ -222,7 +222,7 @@ export default function CodeDemo() {
           {[
             { label: "Go CLI", cmd: "go install github.com/pcguest/atb/cmd/atb@latest" },
             { label: "Python SDK", cmd: "pip install atb-sdk" },
-            { label: "TypeScript SDK", cmd: "npm install @atb-dev/sdk" },
+            { label: "TypeScript SDK", cmd: "npm install @pcguest/atb-sdk" },
           ].map((item) => (
             <div
               key={item.label}

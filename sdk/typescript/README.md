@@ -1,19 +1,19 @@
-# @atb-dev/sdk — ATB TypeScript SDK
+# @pcguest/atb-sdk — ATB TypeScript SDK
 
 The official TypeScript/JavaScript SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb).
 
 ## Installation
 
 ```bash
-npm install @atb-dev/sdk
+npm install @pcguest/atb-sdk
 # or
-pnpm add @atb-dev/sdk
+pnpm add @pcguest/atb-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { Bundle } from "@atb-dev/sdk";
+import { Bundle } from "@pcguest/atb-sdk";
 
 const bundle = new Bundle();
 

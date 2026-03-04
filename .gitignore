@@ -33,6 +33,7 @@ out/
 
 # ATB bundles (local development only — do not commit run.atb/)
 run.atb/
+run.atb/*.atb
 
 # IDE
 .vscode/
@@ -51,6 +52,8 @@ htmlcov/
 .env.local
 .env.*.local
 *.pem
+*.key
+credentials.json
 
 # Build artifacts
 /atb

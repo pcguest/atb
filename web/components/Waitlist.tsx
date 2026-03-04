@@ -17,8 +17,7 @@ export default function Waitlist() {
 
     setStatus("loading");
 
-    // TODO: Replace with actual Supabase integration
-    // For now, simulate a successful submission
+    // Placeholder submit path until backend waitlist integration is enabled.
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     setStatus("success");

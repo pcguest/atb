@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -85,20 +84,14 @@ func TestBuildViewHandlerServesTimeline(t *testing.T) {
 		t.Fatalf("buildViewHandler error: %v", err)
 	}
 
-	ts := httptest.NewServer(handler)
-	defer ts.Close()
-
-	resp, err := http.Get(ts.URL + "/")
-	if err != nil {
-		t.Fatalf("GET timeline: %v", err)
-	}
-	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read body: %v", err)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d", rr.Code, http.StatusOK)
 	}
 
-	html := string(body)
+	html := rr.Body.String()
 	checks := []string{
 		"ATB Trace Viewer",
 		"snapshot.build",

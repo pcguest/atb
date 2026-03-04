@@ -102,5 +102,5 @@ git push origin v0.1.1
 4. Confirm publish status and verify:
 
 ```bash
-npm install @atb-dev/sdk
+npm install @pcguest/atb-sdk
 ```

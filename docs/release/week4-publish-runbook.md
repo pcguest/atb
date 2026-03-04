@@ -72,8 +72,8 @@ rm -rf /tmp/atb-py-test
 # TypeScript
 mkdir -p /tmp/atb-ts-test && cd /tmp/atb-ts-test
 npm init -y
-npm install @atb-dev/sdk
-node -e "const { Bundle } = require('@atb-dev/sdk'); console.log(typeof Bundle)"
+npm install @pcguest/atb-sdk
+node -e "const { Bundle } = require('@pcguest/atb-sdk'); console.log(typeof Bundle)"
 rm -rf /tmp/atb-ts-test
 ```
 
@@ -85,7 +85,7 @@ cd ~/atb
   "component": "sdk",
   "version": "0.1.1",
   "action": "published to pypi and npm",
-  "channels": ["https://pypi.org/project/atb-sdk/", "https://www.npmjs.com/package/@atb-dev/sdk"]
+  "channels": ["https://pypi.org/project/atb-sdk/", "https://www.npmjs.com/package/@pcguest/atb-sdk"]
 }'
 ./atb snapshot build --gate pass
 ./atb verify

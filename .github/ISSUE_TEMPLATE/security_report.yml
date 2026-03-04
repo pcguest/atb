@@ -1,0 +1,63 @@
+name: Security Report
+description: Report a potential security vulnerability (private email path preferred).
+title: "[Security]: "
+labels: ["security", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not disclose exploitable details publicly.
+        Preferred channel: security@pcguest.dev (response target: 48 hours).
+
+  - type: dropdown
+    id: affected_component
+    attributes:
+      label: Affected Component
+      options:
+        - CLI (Go)
+        - Python SDK
+        - TypeScript SDK
+        - CI/CD
+        - Documentation
+        - Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Vulnerability Summary
+      description: High-level summary without secret or exploit payload details.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Suspected Severity
+      options:
+        - Critical
+        - High
+        - Medium
+        - Low
+        - Unsure
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps
+      description: Minimal reproducible steps and prerequisites.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact
+      description: Confidentiality, integrity, or availability impact.
+    validations:
+      required: true

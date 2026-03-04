@@ -95,7 +95,7 @@ npm run typecheck
 ```
 
 ```typescript
-import { Bundle } from "@atb-dev/sdk";
+import { Bundle } from "@pcguest/atb-sdk";
 
 const bundle = new Bundle();
 bundle.append("dev.session", { date: "2025-01-15" });
@@ -157,7 +157,6 @@ The first event uses a genesis hash of 64 zeros. This creates a cryptographic ch
 │   ├── hash/             # SHA-256 hash chaining algorithm
 │   ├── bundle/           # NDJSON bundle read/write
 │   └── viewer/           # Local HTML timeline rendering
-├── pkg/                  # Public Go packages (future)
 ├── sdk/
 │   ├── python/           # Python SDK (PyPI workflow ready)
 │   └── typescript/       # TypeScript SDK (npm workflow ready)
@@ -208,6 +207,8 @@ Contributions are welcome. Please open an issue first to discuss what you would 
 4. Run `go test ./...` and ensure all tests pass.
 5. Submit a pull request using the provided template.
 
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community expectations.
+
 ---
 
 ## License
@@ -227,3 +228,10 @@ atb verify dev-log/v0.1.0-bootstrap.atb
 ```
 
 For an end-to-end onboarding guide, see [docs/quickstart.md](docs/quickstart.md).
+
+## Security
+
+- Responsible disclosure: [SECURITY.md](SECURITY.md)
+- Security model and control mapping: [docs/security.md](docs/security.md)
+- Incident handling: [docs/incident-response.md](docs/incident-response.md)
+- Configuration and secrets: [docs/config.md](docs/config.md)

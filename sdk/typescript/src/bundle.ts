@@ -26,7 +26,7 @@ export class ATBVerificationError extends Error {
  *
  * @example
  * ```ts
- * import { Bundle } from "@atb-dev/sdk";
+ * import { Bundle } from "@pcguest/atb-sdk";
  *
  * const bundle = new Bundle();
  * bundle.append("dev.session", { date: "2025-01-15" });
