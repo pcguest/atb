@@ -11,9 +11,27 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/hash"
 )
 
-const version = "v0.1.0-dev"
+const (
+	version          = "v0.1.0-dev"
+	verifyFormatText = "text"
+	verifyFormatJSON = "json"
+	verifyAlgorithm  = "SHA-256||RFC8785"
+)
+
+type verifyResult struct {
+	Status      string `json:"status"`
+	ChainLength int    `json:"chain_length"`
+	GenesisHash string `json:"genesis_hash"`
+	HeadHash    string `json:"head_hash,omitempty"`
+	VerifiedAt  string `json:"verified_at"`
+	Algorithm   string `json:"algorithm"`
+	Path        string `json:"path,omitempty"`
+	Error       string `json:"error,omitempty"`
+	Message     string `json:"message,omitempty"`
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -53,7 +71,7 @@ Commands:
   init              Initialise a new ATB bundle in ./run.atb/
   append <type> <json|--data <json>>  Append an event to the current bundle
   snapshot <name> --gate <pass|fail>  Append a snapshot event
-  verify [bundle_path]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
+  verify [bundle_path] [--format text|json]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
   view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
   version           Print the ATB version
 
@@ -63,6 +81,7 @@ Examples:
   atb append feature --data '{"name":"atb view"}'
   atb snapshot build --gate pass
   atb verify
+  atb verify --format json
   atb view
 `)
 }
@@ -186,24 +205,103 @@ func normalizeBundlePath(raw string) string {
 	return raw
 }
 
+func parseVerifyArgs(args []string) (string, string, error) {
+	path := ""
+	format := verifyFormatText
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--format":
+			if i+1 >= len(args) {
+				return "", "", fmt.Errorf("missing value for --format (expected text|json)")
+			}
+			format = strings.ToLower(strings.TrimSpace(args[i+1]))
+			i++
+		case strings.HasPrefix(arg, "--format="):
+			format = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
+		case strings.HasPrefix(arg, "--"):
+			return "", "", fmt.Errorf("unknown flag %q", arg)
+		default:
+			if path != "" {
+				return "", "", fmt.Errorf("verify accepts at most one bundle path")
+			}
+			path = normalizeBundlePath(arg)
+		}
+	}
+	if path == "" {
+		path = bundle.DefaultPath()
+	}
+	if format != verifyFormatText && format != verifyFormatJSON {
+		return "", "", fmt.Errorf("invalid format %q (expected text|json)", format)
+	}
+	return path, format, nil
+}
+
+func newVerifyResult(path string, b *bundle.Bundle, status string) verifyResult {
+	result := verifyResult{
+		Status:      status,
+		ChainLength: 0,
+		GenesisHash: hash.GenesisHash,
+		VerifiedAt:  time.Now().UTC().Format(time.RFC3339),
+		Algorithm:   verifyAlgorithm,
+		Path:        path,
+	}
+	if b == nil {
+		return result
+	}
+	result.ChainLength = len(b.Records)
+	if len(b.Records) > 0 {
+		result.HeadHash = b.Records[len(b.Records)-1].Hash
+	}
+	return result
+}
+
+func printVerifyJSON(result verifyResult) {
+	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
+		fmt.Fprintf(os.Stderr, "atb verify: encode json output: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 // cmdVerify verifies the integrity of the current bundle.
 func cmdVerify() {
-	path := bundle.DefaultPath()
-	if len(os.Args) >= 3 {
-		path = normalizeBundlePath(os.Args[2])
-	}
-	b, err := bundle.Load(path)
+	path, outputFormat, err := parseVerifyArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
 		os.Exit(1)
 	}
+	b, err := bundle.Load(path)
+	if err != nil {
+		if outputFormat == verifyFormatJSON {
+			result := newVerifyResult(path, nil, "error")
+			result.Error = err.Error()
+			printVerifyJSON(result)
+		}
+		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
+		os.Exit(1)
+	}
 	if len(b.Records) == 0 {
+		if outputFormat == verifyFormatJSON {
+			result := newVerifyResult(path, b, "empty")
+			result.Message = "bundle is empty — nothing to verify"
+			printVerifyJSON(result)
+			return
+		}
 		fmt.Println("atb verify: bundle is empty — nothing to verify.")
 		return
 	}
 	if err := b.Verify(); err != nil {
+		if outputFormat == verifyFormatJSON {
+			result := newVerifyResult(path, b, "invalid")
+			result.Error = err.Error()
+			printVerifyJSON(result)
+		}
 		fmt.Fprintf(os.Stderr, "✗ VERIFICATION FAILED: %v\n", err)
 		os.Exit(1)
+	}
+	if outputFormat == verifyFormatJSON {
+		printVerifyJSON(newVerifyResult(path, b, "valid"))
+		return
 	}
 	fmt.Printf("✓ Bundle verified: %d events, chain intact.\n", len(b.Records))
 }
