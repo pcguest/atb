@@ -104,3 +104,23 @@ git push origin v0.1.1
 ```bash
 npm install @pcguest/atb-sdk
 ```
+
+## Link Verification
+
+To verify external links:
+
+```bash
+grep -roE 'https?://[^\s\)"`]+' README.md docs/ | grep -v "github.com/pcguest/atb" | sort -u | xargs -n1 curl -sI | grep -E "HTTP|404|500"
+```
+
+Portable fallback:
+
+```bash
+rg --no-filename -o 'https?://[^\s)"`]+' README.md docs/ | grep -v "github.com/pcguest/atb" | sort -u | while read -r url; do curl -sI "$url" | head -1; done
+```
+
+Note: `www.npmjs.com` may return `403` to automated `HEAD` requests; confirm package availability with:
+
+```bash
+curl -sI https://registry.npmjs.org/@pcguest/atb-sdk | head -1
+```
