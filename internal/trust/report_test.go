@@ -3,6 +3,7 @@ package trust
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -55,6 +56,52 @@ func TestBuildReportIncludesAllCategories(t *testing.T) {
 	}
 	if report.HeadHash == "" {
 		t.Fatalf("expected non-empty head hash")
+	}
+	if report.Gate.Status != StatusPass {
+		t.Fatalf("expected gate status pass, got %q", report.Gate.Status)
+	}
+	if report.Gate.BlockingFailures != 0 {
+		t.Fatalf("expected zero blocking failures, got %d", report.Gate.BlockingFailures)
+	}
+	if report.Summary.Total == 0 {
+		t.Fatalf("expected non-zero summary total")
+	}
+	if report.Summary.Total != report.Summary.Pass+report.Summary.Warn+report.Summary.Fail {
+		t.Fatalf("summary counts do not add up: %+v", report.Summary)
+	}
+}
+
+func TestBuildReportGateFailsOnTamperedChain(t *testing.T) {
+	root := t.TempDir()
+
+	mustWriteFile(t, filepath.Join(root, "docs/spec-v1.0.md"), "spec")
+	bundlePath := filepath.Join(root, "run.atb", "bundle.atb")
+
+	b := bundle.New()
+	if err := b.Append("agent.session", map[string]interface{}{"id": "tamper-test"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	b.Records[0].Hash = strings.Repeat("0", 64)
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	report := BuildReport(root, bundlePath)
+	if report.Gate.Status != StatusFail {
+		t.Fatalf("expected gate status fail, got %q", report.Gate.Status)
+	}
+	if report.Gate.BlockingFailures < 1 {
+		t.Fatalf("expected blocking failures, got %d", report.Gate.BlockingFailures)
+	}
+	found := false
+	for _, id := range report.Gate.FailedChecks {
+		if id == "cryptographic_integrity.hash_chain" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected failed blocking check cryptographic_integrity.hash_chain, got %v", report.Gate.FailedChecks)
 	}
 }
 

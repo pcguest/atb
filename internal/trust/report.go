@@ -14,6 +14,9 @@ const (
 	StatusPass = "pass"
 	StatusFail = "fail"
 	StatusWarn = "warn"
+
+	SeverityCritical = "critical"
+	SeverityAdvisory = "advisory"
 )
 
 // Check captures one auditable trust check with optional evidence paths.
@@ -21,6 +24,8 @@ type Check struct {
 	ID       string   `json:"id"`
 	Title    string   `json:"title"`
 	Status   string   `json:"status"`
+	Severity string   `json:"severity"`
+	Blocking bool     `json:"blocking"`
 	Details  string   `json:"details"`
 	Evidence []string `json:"evidence,omitempty"`
 }
@@ -33,6 +38,21 @@ type Category struct {
 	Checks []Check `json:"checks"`
 }
 
+// Gate captures whether all blocking checks passed.
+type Gate struct {
+	Status           string   `json:"status"`
+	BlockingFailures int      `json:"blocking_failures"`
+	FailedChecks     []string `json:"failed_checks,omitempty"`
+}
+
+// Summary aggregates report check counts.
+type Summary struct {
+	Total int `json:"total"`
+	Pass  int `json:"pass"`
+	Warn  int `json:"warn"`
+	Fail  int `json:"fail"`
+}
+
 // Report is the machine-readable trust report envelope.
 type Report struct {
 	Status      string     `json:"status"`
@@ -40,6 +60,8 @@ type Report struct {
 	BundlePath  string     `json:"bundle_path"`
 	ChainLength int        `json:"chain_length"`
 	HeadHash    string     `json:"head_hash,omitempty"`
+	Gate        Gate       `json:"gate"`
+	Summary     Summary    `json:"summary"`
 	Categories  []Category `json:"categories"`
 }
 
@@ -55,6 +77,8 @@ func BuildReport(repoRoot string, bundlePath string) Report {
 		Status:      aggregateStatus(categories),
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 		BundlePath:  bundlePath,
+		Gate:        evaluateGate(categories),
+		Summary:     summarizeChecks(categories),
 		Categories:  categories,
 	}
 	for _, category := range categories {
@@ -84,16 +108,20 @@ func cryptoCategory(bundlePath string, repoRoot string) Category {
 			filepath.Join(repoRoot, "docs/spec-v1.0.md"),
 			"RFC8785-compatible canonicalization spec is present.",
 			"RFC8785-compatible canonicalization spec is missing (expected docs/spec-v1.0.md).",
+			SeverityAdvisory,
+			false,
 		),
 	}
 
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
 		checks = append(checks, Check{
-			ID:      "hash_chain",
-			Title:   "Hash Chain Verification",
-			Status:  StatusFail,
-			Details: fmt.Sprintf("Unable to load bundle for verification: %v", err),
+			ID:       "hash_chain",
+			Title:    "Hash Chain Verification",
+			Status:   StatusFail,
+			Severity: SeverityCritical,
+			Blocking: true,
+			Details:  fmt.Sprintf("Unable to load bundle for verification: %v", err),
 			Evidence: []string{
 				bundlePath,
 			},
@@ -107,30 +135,36 @@ func cryptoCategory(bundlePath string, repoRoot string) Category {
 	}
 	if len(b.Records) == 0 {
 		checks = append(checks, Check{
-			ID:      "hash_chain",
-			Title:   "Hash Chain Verification",
-			Status:  StatusWarn,
-			Details: "Bundle is empty; no events available for chain verification.",
+			ID:       "hash_chain",
+			Title:    "Hash Chain Verification",
+			Status:   StatusFail,
+			Severity: SeverityCritical,
+			Blocking: true,
+			Details:  "Bundle is empty; no events available for chain verification.",
 			Evidence: []string{
 				bundlePath,
 			},
 		})
 	} else if err := b.Verify(); err != nil {
 		checks = append(checks, Check{
-			ID:      "hash_chain",
-			Title:   "Hash Chain Verification",
-			Status:  StatusFail,
-			Details: fmt.Sprintf("Hash chain verification failed: %v", err),
+			ID:       "hash_chain",
+			Title:    "Hash Chain Verification",
+			Status:   StatusFail,
+			Severity: SeverityCritical,
+			Blocking: true,
+			Details:  fmt.Sprintf("Hash chain verification failed: %v", err),
 			Evidence: []string{
 				bundlePath,
 			},
 		})
 	} else {
 		checks = append(checks, Check{
-			ID:      "hash_chain",
-			Title:   "Hash Chain Verification",
-			Status:  StatusPass,
-			Details: fmt.Sprintf("Verified %d event(s); chain is intact.", len(b.Records)),
+			ID:       "hash_chain",
+			Title:    "Hash Chain Verification",
+			Status:   StatusPass,
+			Severity: SeverityCritical,
+			Blocking: true,
+			Details:  fmt.Sprintf("Verified %d event(s); chain is intact.", len(b.Records)),
 			Evidence: []string{
 				bundlePath,
 			},
@@ -153,6 +187,8 @@ func operationalSafetyCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "SECURITY.md"),
 			"Repository includes a public security policy.",
 			"Security policy is missing (expected SECURITY.md).",
+			SeverityAdvisory,
+			false,
 		),
 		presenceCheck(
 			"incident_response",
@@ -160,6 +196,8 @@ func operationalSafetyCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "incident-response.md"),
 			"Repository includes an incident response runbook.",
 			"Incident response runbook is missing (expected incident-response.md).",
+			SeverityAdvisory,
+			false,
 		),
 		presenceCheck(
 			"security_docs",
@@ -167,6 +205,8 @@ func operationalSafetyCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "docs/security.md"),
 			"Operational security guidance is documented.",
 			"Operational security guidance is missing (expected docs/security.md).",
+			SeverityAdvisory,
+			false,
 		),
 	}
 	return Category{
@@ -185,6 +225,8 @@ func testCoverageCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "cmd/atb/main_test.go"),
 			"Core CLI package includes Go tests.",
 			"Core CLI test file is missing (expected cmd/atb/main_test.go).",
+			SeverityAdvisory,
+			false,
 		),
 		presenceCheck(
 			"cross_language_oracle",
@@ -192,6 +234,8 @@ func testCoverageCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "test/golden/golden_test.go"),
 			"Cross-language canonicalization oracle test exists.",
 			"Cross-language oracle test is missing (expected test/golden/golden_test.go).",
+			SeverityAdvisory,
+			false,
 		),
 		presenceCheck(
 			"python_property_tests",
@@ -199,6 +243,8 @@ func testCoverageCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "sdk/python/tests/test_properties.py"),
 			"Property-based test template is available for AI extension.",
 			"Property-based test template is missing (expected sdk/python/tests/test_properties.py).",
+			SeverityAdvisory,
+			false,
 		),
 	}
 	return Category{
@@ -217,6 +263,8 @@ func documentationCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "docs/quickstart.md"),
 			"End-user quickstart documentation is present.",
 			"Quickstart guide is missing (expected docs/quickstart.md).",
+			SeverityAdvisory,
+			false,
 		),
 		presenceCheck(
 			"ai_integration",
@@ -224,6 +272,8 @@ func documentationCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "docs/ai-integration.md"),
 			"AI integration contract documentation is present.",
 			"AI integration contract doc is missing (expected docs/ai-integration.md).",
+			SeverityAdvisory,
+			false,
 		),
 		presenceCheck(
 			"event_schema",
@@ -231,6 +281,8 @@ func documentationCategory(repoRoot string) Category {
 			filepath.Join(repoRoot, "schemas/event.v1.json"),
 			"Event JSON schema is available.",
 			"Event schema is missing (expected schemas/event.v1.json).",
+			SeverityAdvisory,
+			false,
 		),
 	}
 	return Category{
@@ -273,12 +325,22 @@ func aggregateChecksStatus(checks []Check) string {
 	return StatusPass
 }
 
-func presenceCheck(id string, title string, path string, passDetails string, warnDetails string) Check {
+func presenceCheck(
+	id string,
+	title string,
+	path string,
+	passDetails string,
+	warnDetails string,
+	severity string,
+	blocking bool,
+) Check {
 	check := Check{
-		ID:      id,
-		Title:   title,
-		Status:  StatusWarn,
-		Details: warnDetails,
+		ID:       id,
+		Title:    title,
+		Status:   StatusWarn,
+		Severity: severity,
+		Blocking: blocking,
+		Details:  warnDetails,
 	}
 	if fileExists(path) {
 		check.Status = StatusPass
@@ -286,6 +348,38 @@ func presenceCheck(id string, title string, path string, passDetails string, war
 		check.Evidence = []string{path}
 	}
 	return check
+}
+
+func evaluateGate(categories []Category) Gate {
+	gate := Gate{Status: StatusPass}
+	for _, category := range categories {
+		for _, check := range category.Checks {
+			if check.Blocking && check.Status != StatusPass {
+				gate.Status = StatusFail
+				gate.BlockingFailures++
+				gate.FailedChecks = append(gate.FailedChecks, fmt.Sprintf("%s.%s", category.Key, check.ID))
+			}
+		}
+	}
+	return gate
+}
+
+func summarizeChecks(categories []Category) Summary {
+	summary := Summary{}
+	for _, category := range categories {
+		for _, check := range category.Checks {
+			summary.Total++
+			switch check.Status {
+			case StatusPass:
+				summary.Pass++
+			case StatusWarn:
+				summary.Warn++
+			case StatusFail:
+				summary.Fail++
+			}
+		}
+	}
+	return summary
 }
 
 func fileExists(path string) bool {

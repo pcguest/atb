@@ -95,17 +95,27 @@ func printTrustReportMarkdown(report trust.Report) {
 	fmt.Println("# ATB Trust Report")
 	fmt.Println()
 	fmt.Printf("- Verdict: **%s**\n", strings.ToUpper(report.Status))
+	fmt.Printf("- CI Gate: **%s**\n", strings.ToUpper(report.Gate.Status))
+	fmt.Printf("- Blocking failures: %d\n", report.Gate.BlockingFailures)
 	fmt.Printf("- Generated: %s\n", report.GeneratedAt)
 	fmt.Printf("- Bundle: `%s`\n", report.BundlePath)
 	fmt.Printf("- Chain length: %d\n", report.ChainLength)
 	if report.HeadHash != "" {
 		fmt.Printf("- Head hash: `%s`\n", report.HeadHash)
 	}
+	fmt.Printf("- Checks: total=%d pass=%d warn=%d fail=%d\n", report.Summary.Total, report.Summary.Pass, report.Summary.Warn, report.Summary.Fail)
+	if len(report.Gate.FailedChecks) > 0 {
+		fmt.Printf("- Failed blocking checks: `%s`\n", strings.Join(report.Gate.FailedChecks, "`, `"))
+	}
 	fmt.Println()
 	for _, category := range report.Categories {
 		fmt.Printf("## %s (%s)\n\n", category.Title, strings.ToUpper(category.Status))
 		for _, check := range category.Checks {
-			fmt.Printf("- [%s] %s: %s\n", strings.ToUpper(check.Status), check.Title, check.Details)
+			blocking := "non-blocking"
+			if check.Blocking {
+				blocking = "blocking"
+			}
+			fmt.Printf("- [%s] (%s, %s) %s: %s\n", strings.ToUpper(check.Status), check.Severity, blocking, check.Title, check.Details)
 			if len(check.Evidence) > 0 {
 				fmt.Printf("  Evidence: `%s`\n", relativeOrOriginal(report.BundlePath, check.Evidence[0]))
 			}

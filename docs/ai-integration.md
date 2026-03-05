@@ -66,7 +66,22 @@ Example valid event:
 - `bundle_path`: bundle file path used for evaluation
 - `chain_length`: event count when load succeeds
 - `head_hash`: last event hash when available
+- `gate`: blocking-check gate object
+- `summary`: aggregate check counts
 - `categories[]`: category objects
+
+Gate object:
+
+- `status`: `pass|fail` (blocking checks only)
+- `blocking_failures`: number of failing blocking checks
+- `failed_checks[]` (optional): fully qualified check ids (e.g. `cryptographic_integrity.hash_chain`)
+
+Summary object:
+
+- `total`: total checks
+- `pass`: passing checks
+- `warn`: warning checks
+- `fail`: failing checks
 
 Category object:
 
@@ -80,6 +95,8 @@ Check object:
 - `id`: stable machine identifier
 - `title`: human-readable check label
 - `status`: `pass|warn|fail`
+- `severity`: `critical|advisory`
+- `blocking`: whether check failure should fail the CI gate
 - `details`: assertion explanation
 - `evidence[]` (optional): file paths or bundle path
 
@@ -88,6 +105,7 @@ Check object:
 ```bash
 atb verify --format json | jq -e '.status == "valid"'
 atb trust-report --format json > trust-report.json
+jq -e '.gate.status == "pass"' trust-report.json
 jq -e '.categories[] | select(.key=="cryptographic_integrity") | .status == "pass"' trust-report.json
 ```
 
