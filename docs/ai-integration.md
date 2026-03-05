@@ -8,6 +8,7 @@ This guide defines a stable contract for AI agents that read, verify, and extend
 
 - `atb verify --format json`
 - `atb trust-report --format json`
+- `atb verify --trace` (debug hash-step logging to stderr)
 
 If a command does not support `--format json`, treat its output as human-only text.
 

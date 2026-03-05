@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,7 +75,7 @@ Commands:
   init [--dry-run]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
   append <type> <json|--data <json>> [--dry-run]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run]  Append a snapshot event
-  verify [bundle_path] [--format text|json]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
+  verify [bundle_path] [--format text|json] [--trace]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
   trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
   view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
   version           Print the ATB version
@@ -95,6 +96,7 @@ Examples:
   atb snapshot build --gate pass --dry-run
   atb verify
   atb verify --format json
+  atb verify --trace
   atb trust-report --format markdown
   atb trust-report --format json
   atb view
@@ -301,25 +303,28 @@ func normalizeBundlePath(raw string) string {
 	return raw
 }
 
-func parseVerifyArgs(args []string) (string, string, error) {
+func parseVerifyArgs(args []string) (string, string, bool, error) {
 	path := ""
 	format := verifyFormatText
+	trace := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "--format":
 			if i+1 >= len(args) {
-				return "", "", fmt.Errorf("missing value for --format (expected text|json)")
+				return "", "", false, fmt.Errorf("missing value for --format (expected text|json)")
 			}
 			format = strings.ToLower(strings.TrimSpace(args[i+1]))
 			i++
 		case strings.HasPrefix(arg, "--format="):
 			format = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
+		case arg == "--trace":
+			trace = true
 		case strings.HasPrefix(arg, "--"):
-			return "", "", fmt.Errorf("unknown flag %q", arg)
+			return "", "", false, fmt.Errorf("unknown flag %q", arg)
 		default:
 			if path != "" {
-				return "", "", fmt.Errorf("verify accepts at most one bundle path")
+				return "", "", false, fmt.Errorf("verify accepts at most one bundle path")
 			}
 			path = normalizeBundlePath(arg)
 		}
@@ -328,9 +333,9 @@ func parseVerifyArgs(args []string) (string, string, error) {
 		path = bundle.DefaultPath()
 	}
 	if format != verifyFormatText && format != verifyFormatJSON {
-		return "", "", fmt.Errorf("invalid format %q (expected text|json)", format)
+		return "", "", false, fmt.Errorf("invalid format %q (expected text|json)", format)
 	}
-	return path, format, nil
+	return path, format, trace, nil
 }
 
 func newVerifyResult(path string, b *bundle.Bundle, status string) verifyResult {
@@ -359,9 +364,46 @@ func printVerifyJSON(result verifyResult) {
 	}
 }
 
+func verifyWithTrace(b *bundle.Bundle, out io.Writer) error {
+	prev := hash.GenesisHash
+	for i, record := range b.Records {
+		event := record.Event
+		event.PrevHash = prev
+		event.Sequence = i + 1
+
+		computed, err := hash.Compute(event)
+		if err != nil {
+			return fmt.Errorf("hash: verify at index %d: %w", i, err)
+		}
+
+		match := computed == record.Hash
+		fmt.Fprintf(
+			out,
+			"trace: event_index=%d seq=%d prev_hash=%s stored_hash=%s computed_hash=%s match=%t\n",
+			i,
+			event.Sequence,
+			prev,
+			record.Hash,
+			computed,
+			match,
+		)
+		if !match {
+			return fmt.Errorf(
+				"hash: verify: tamper detected at event %d (seq %d): expected %s, got %s",
+				i,
+				event.Sequence,
+				record.Hash,
+				computed,
+			)
+		}
+		prev = computed
+	}
+	return nil
+}
+
 // cmdVerify verifies the integrity of the current bundle.
 func cmdVerify() {
-	path, outputFormat, err := parseVerifyArgs(os.Args[2:])
+	path, outputFormat, trace, err := parseVerifyArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
 		os.Exit(exitUserError)
@@ -387,13 +429,19 @@ func cmdVerify() {
 		fmt.Println("atb verify: bundle is empty — nothing to verify.")
 		return
 	}
-	if err := b.Verify(); err != nil {
+	verifyErr := error(nil)
+	if trace {
+		verifyErr = verifyWithTrace(b, os.Stderr)
+	} else {
+		verifyErr = b.Verify()
+	}
+	if verifyErr != nil {
 		if outputFormat == verifyFormatJSON {
 			result := newVerifyResult(path, b, "invalid")
-			result.Error = err.Error()
+			result.Error = verifyErr.Error()
 			printVerifyJSON(result)
 		}
-		fmt.Fprintf(os.Stderr, "✗ VERIFICATION FAILED: %v\n", err)
+		fmt.Fprintf(os.Stderr, "✗ VERIFICATION FAILED: %v\n", verifyErr)
 		os.Exit(exitIntegrityFailure)
 	}
 	if outputFormat == verifyFormatJSON {

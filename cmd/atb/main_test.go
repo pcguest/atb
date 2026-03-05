@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -62,6 +64,7 @@ func TestParseVerifyArgs(t *testing.T) {
 		args       []string
 		wantPath   string
 		wantFormat string
+		wantTrace  bool
 		wantErr    bool
 	}{
 		{
@@ -69,30 +72,49 @@ func TestParseVerifyArgs(t *testing.T) {
 			args:       nil,
 			wantPath:   bundle.DefaultPath(),
 			wantFormat: verifyFormatText,
+			wantTrace:  false,
 		},
 		{
 			name:       "path only",
 			args:       []string{custom},
 			wantPath:   custom,
 			wantFormat: verifyFormatText,
+			wantTrace:  false,
 		},
 		{
 			name:       "json format flag",
 			args:       []string{"--format", "json"},
 			wantPath:   bundle.DefaultPath(),
 			wantFormat: verifyFormatJSON,
+			wantTrace:  false,
 		},
 		{
 			name:       "json format equals syntax",
 			args:       []string{"--format=json"},
 			wantPath:   bundle.DefaultPath(),
 			wantFormat: verifyFormatJSON,
+			wantTrace:  false,
 		},
 		{
 			name:       "path and format",
 			args:       []string{custom, "--format", "json"},
 			wantPath:   custom,
 			wantFormat: verifyFormatJSON,
+			wantTrace:  false,
+		},
+		{
+			name:       "trace flag",
+			args:       []string{"--trace"},
+			wantPath:   bundle.DefaultPath(),
+			wantFormat: verifyFormatText,
+			wantTrace:  true,
+		},
+		{
+			name:       "path format and trace",
+			args:       []string{custom, "--format", "json", "--trace"},
+			wantPath:   custom,
+			wantFormat: verifyFormatJSON,
+			wantTrace:  true,
 		},
 		{
 			name:    "missing format value",
@@ -118,7 +140,7 @@ func TestParseVerifyArgs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			gotPath, gotFormat, err := parseVerifyArgs(tc.args)
+			gotPath, gotFormat, gotTrace, err := parseVerifyArgs(tc.args)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error")
@@ -133,6 +155,9 @@ func TestParseVerifyArgs(t *testing.T) {
 			}
 			if gotFormat != tc.wantFormat {
 				t.Fatalf("unexpected format: got %q want %q", gotFormat, tc.wantFormat)
+			}
+			if gotTrace != tc.wantTrace {
+				t.Fatalf("unexpected trace value: got %v want %v", gotTrace, tc.wantTrace)
 			}
 		})
 	}
@@ -239,5 +264,26 @@ func TestAppendToDefaultBundleRejectsCorruptExistingBundle(t *testing.T) {
 	var loadErr mutationLoadError
 	if !errors.As(err, &loadErr) {
 		t.Fatalf("expected mutationLoadError, got %T", err)
+	}
+}
+
+func TestVerifyWithTraceIncludesPerEventLogs(t *testing.T) {
+	b := bundle.New()
+	if err := b.Append("dev.session", map[string]any{"ok": true}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	b.Records[0].Hash = strings.Repeat("0", 64)
+
+	var trace bytes.Buffer
+	err := verifyWithTrace(b, &trace)
+	if err == nil {
+		t.Fatalf("expected verification error")
+	}
+	out := trace.String()
+	if !strings.Contains(out, "trace: event_index=0") {
+		t.Fatalf("expected trace output to include event_index, got %q", out)
+	}
+	if !strings.Contains(out, "match=false") {
+		t.Fatalf("expected trace output to include mismatch result, got %q", out)
 	}
 }
