@@ -1,6 +1,7 @@
 # ATB — Agent Trace Bundle
 
 [![Tests](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
+[![Security Gate (HIGH/CRITICAL=0)](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
 [![PyPI](https://img.shields.io/pypi/v/atb-sdk?label=PyPI)](https://pypi.org/project/atb-sdk/)
 [![npm](https://img.shields.io/npm/v/%40pcguest%2Fatb-sdk?label=npm)](https://www.npmjs.com/package/@pcguest/atb-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-indigo.svg)](LICENSE)
