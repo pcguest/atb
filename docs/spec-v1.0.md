@@ -31,7 +31,10 @@ Each line in a bundle file is a JSON object with the following schema:
     "seq": 1,
     "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
     "type": "dev.session",
-    "data": {}
+    "data": {},
+    "actor_id": "paddy",
+    "org_id": "pcguest",
+    "workspace_id": "local"
   },
   "hash": "cdc87dac2d8d61bf8a8b8e9f2a4c5d6e..."
 }
@@ -43,6 +46,9 @@ Each line in a bundle file is a JSON object with the following schema:
 | `event.prev_hash` | string | Hex-encoded SHA-256 hash of the preceding event |
 | `event.type` | string | Dot-namespaced event type identifier |
 | `event.data` | object | Arbitrary JSON-serialisable payload |
+| `event.actor_id` | string (optional) | Actor identifier for multi-tenant attribution |
+| `event.org_id` | string (optional) | Organization identifier for multi-tenant attribution |
+| `event.workspace_id` | string (optional) | Workspace identifier for multi-tenant attribution |
 | `hash` | string | Hex-encoded SHA-256 hash of this event |
 
 ---
@@ -67,7 +73,7 @@ hash(n) = SHA256( UTF8(hex(hash(n-1))) || RFC8785(event(n)) )
 
 Where:
 - `UTF8(hex(hash(n-1)))` is the UTF-8 encoding of the previous event's hex hash string.
-- `RFC8785(event(n))` is the RFC 8785 canonical JSON encoding of the event object (including `seq`, `prev_hash`, `type`, and `data`).
+- `RFC8785(event(n))` is the RFC 8785 canonical JSON encoding of the event object (including `seq`, `prev_hash`, `type`, `data`, and any optional identity fields that are set).
 - `||` denotes byte concatenation.
 
 ### 3.3 RFC 8785 Canonicalization
@@ -80,6 +86,8 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 - No whitespace between tokens.
 
 This ensures that the same event produces the same hash in every language and runtime.
+
+Unset optional fields are omitted from canonicalization output. For example, if `actor_id`, `org_id`, or `workspace_id` are not set, they are excluded from the canonical JSON bytes before hashing.
 
 ---
 
@@ -131,6 +139,43 @@ ATB Pro supports encrypted cloud storage via Cloudflare R2. Bundles are encrypte
 
 ---
 
-## 7. Versioning
+## 7. Schema Evolution (v1.0+)
+
+ATB v1.0+ supports optional identity fields on events:
+
+- `actor_id`
+- `org_id`
+- `workspace_id`
+
+Compatibility rules:
+
+- Old bundles (created before optional identity fields were added) verify unchanged with newer SDKs.
+- New bundles that set optional identity fields produce different hashes (expected, because those fields are included in canonicalization).
+- Unset optional identity fields are omitted from canonicalization (`omitempty` behavior), preserving canonical byte compatibility with legacy events that did not define these fields.
+
+### TypeScript SDK
+
+Optional fields (`actor_id`, `org_id`, `workspace_id`) are omitted from canonicalization when `undefined`. This ensures backward compatibility with bundles created before v1.0+.
+
+```ts
+// Omitted when undefined
+const event: Event = {
+  seq: 1,
+  prev_hash: "0000...",
+  type: "test",
+  data: { x: 1 },
+};
+
+// Included when set
+const eventWithActor: Event = {
+  seq: 1,
+  prev_hash: "0000...",
+  type: "test",
+  data: { x: 1 },
+  actor_id: "user",
+};
+```
+
+## 8. Versioning
 
 This document describes ATB specification version **1.0**. Future versions will be backwards-compatible unless a major version increment is made.
