@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/pcguest/atb/schemas/event.v1.json",
+  "title": "ATB Event v1",
+  "description": "Canonical ATB event object used for hash computation and verification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "seq",
+    "prev_hash",
+    "type",
+    "data"
+  ],
+  "properties": {
+    "seq": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1-based event sequence within the bundle."
+    },
+    "prev_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Hex-encoded hash of the previous event, or 64 zeros for genesis."
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dot-namespaced event type identifier."
+    },
+    "data": {
+      "description": "Arbitrary JSON payload.",
+      "type": [
+        "object",
+        "array",
+        "string",
+        "number",
+        "integer",
+        "boolean",
+        "null"
+      ]
+    }
+  }
+}
