@@ -33,20 +33,20 @@ jobs:
       
       - name: Build Go CLI
         run: go build -v ./...
-      
-      - name: Test Go packages
-        run: go test -v ./...
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install Python SDK
         run: |
           cd sdk/python
           pip install -e .
           pip install pytest
+      
+      - name: Test Go packages
+        run: go test -v ./...
       
       - name: Test Python SDK
         run: |
