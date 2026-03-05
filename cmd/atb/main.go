@@ -48,6 +48,8 @@ func main() {
 		cmdSnapshot()
 	case "verify":
 		cmdVerify()
+	case "trust-report":
+		cmdTrustReport()
 	case "view":
 		cmdView()
 	case "version", "--version", "-v":
@@ -72,6 +74,7 @@ Commands:
   append <type> <json|--data <json>>  Append an event to the current bundle
   snapshot <name> --gate <pass|fail>  Append a snapshot event
   verify [bundle_path] [--format text|json]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
+  trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
   view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
   version           Print the ATB version
 
@@ -82,6 +85,8 @@ Examples:
   atb snapshot build --gate pass
   atb verify
   atb verify --format json
+  atb trust-report --format markdown
+  atb trust-report --format json
   atb view
 `)
 }
