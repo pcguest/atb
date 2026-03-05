@@ -45,6 +45,8 @@ type mutationResult struct {
 	Gate      string `json:"gate,omitempty"`
 	Hash      string `json:"hash,omitempty"`
 	Message   string `json:"message,omitempty"`
+	Error     string `json:"error,omitempty"`
+	ExitCode  int    `json:"exit_code,omitempty"`
 }
 
 type helpCommand struct {
@@ -245,10 +247,32 @@ Examples:
 func cmdInit() {
 	args, outputFormat, dryRun, err := parseMutationFlags(os.Args[2:])
 	if err != nil {
+		if strings.Contains(strings.Join(os.Args[2:], " "), "--format json") || strings.Contains(strings.Join(os.Args[2:], " "), "--format=json") {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "init",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    err.Error(),
+				ExitCode: exitUserError,
+			}, "init")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintf(os.Stderr, "atb init: %v\n", err)
 		os.Exit(exitUserError)
 	}
 	if len(args) > 0 {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "init",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    "usage: atb init [--dry-run] [--format text|json]",
+				ExitCode: exitUserError,
+			}, "init")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintln(os.Stderr, "Usage: atb init [--dry-run] [--format text|json]")
 		os.Exit(exitUserError)
 	}
@@ -281,6 +305,17 @@ func cmdInit() {
 		fmt.Printf("atb init: bundle already exists at %s (no changes).\n", path)
 		return
 	} else if !errors.Is(err, os.ErrNotExist) {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "init",
+				DryRun:   dryRun,
+				Path:     path,
+				Error:    fmt.Sprintf("stat %s: %v", path, err),
+				ExitCode: exitSystemError,
+			}, "init")
+			os.Exit(exitSystemError)
+		}
 		fmt.Fprintf(os.Stderr, "atb init: stat %s: %v\n", path, err)
 		os.Exit(exitSystemError)
 	}
@@ -300,6 +335,17 @@ func cmdInit() {
 	}
 	b := bundle.New()
 	if err := b.Save(path); err != nil {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "init",
+				DryRun:   dryRun,
+				Path:     path,
+				Error:    err.Error(),
+				ExitCode: exitSystemError,
+			}, "init")
+			os.Exit(exitSystemError)
+		}
 		fmt.Fprintf(os.Stderr, "atb init: %v\n", err)
 		os.Exit(exitSystemError)
 	}
@@ -320,22 +366,68 @@ func cmdInit() {
 func cmdAppend() {
 	args, outputFormat, dryRun, err := parseMutationFlags(os.Args[2:])
 	if err != nil {
+		if strings.Contains(strings.Join(os.Args[2:], " "), "--format json") || strings.Contains(strings.Join(os.Args[2:], " "), "--format=json") {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "append",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    err.Error(),
+				ExitCode: exitUserError,
+			}, "append")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
 		os.Exit(exitUserError)
 	}
 	if len(args) < 2 {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "append",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    "usage: atb append <type> <json|--data <json>> [--dry-run] [--format text|json]",
+				ExitCode: exitUserError,
+			}, "append")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintln(os.Stderr, "Usage: atb append <type> <json|--data <json>> [--dry-run] [--format text|json]")
 		os.Exit(exitUserError)
 	}
 	eventType := args[0]
 	rawJSON, err := parseAppendPayload(args[1:])
 	if err != nil {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:    "error",
+				Action:    "append",
+				DryRun:    dryRun,
+				Path:      bundle.DefaultPath(),
+				EventType: eventType,
+				Error:     err.Error(),
+				ExitCode:  exitUserError,
+			}, "append")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
 		os.Exit(exitUserError)
 	}
 
 	var data interface{}
 	if err := json.Unmarshal([]byte(rawJSON), &data); err != nil {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:    "error",
+				Action:    "append",
+				DryRun:    dryRun,
+				Path:      bundle.DefaultPath(),
+				EventType: eventType,
+				Error:     fmt.Sprintf("invalid JSON: %v", err),
+				ExitCode:  exitUserError,
+			}, "append")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintf(os.Stderr, "atb append: invalid JSON: %v\n", err)
 		os.Exit(exitUserError)
 	}
@@ -346,6 +438,18 @@ func cmdAppend() {
 		var loadErr mutationLoadError
 		if errors.As(err, &loadErr) {
 			exitCode = classifyBundleLoadError(err)
+		}
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:    "error",
+				Action:    "append",
+				DryRun:    dryRun,
+				Path:      bundle.DefaultPath(),
+				EventType: eventType,
+				Error:     err.Error(),
+				ExitCode:  exitCode,
+			}, "append")
+			os.Exit(exitCode)
 		}
 		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
 		os.Exit(exitCode)
@@ -464,32 +568,89 @@ func appendToDefaultBundle(eventType string, data interface{}, dryRun bool) (bun
 func cmdSnapshot() {
 	args, outputFormat, dryRun, err := parseMutationFlags(os.Args[2:])
 	if err != nil {
+		if strings.Contains(strings.Join(os.Args[2:], " "), "--format json") || strings.Contains(strings.Join(os.Args[2:], " "), "--format=json") {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "snapshot",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    err.Error(),
+				ExitCode: exitUserError,
+			}, "snapshot")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintf(os.Stderr, "atb snapshot: %v\n", err)
 		os.Exit(exitUserError)
 	}
 	if len(args) < 1 {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "snapshot",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    "usage: atb snapshot <name> [--gate <pass|fail>] [--dry-run] [--format text|json]",
+				ExitCode: exitUserError,
+			}, "snapshot")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintln(os.Stderr, "Usage: atb snapshot <name> [--gate <pass|fail>] [--dry-run] [--format text|json]")
 		os.Exit(exitUserError)
 	}
 	name := strings.TrimSpace(args[0])
 	if name == "" {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "snapshot",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    "snapshot name cannot be empty",
+				ExitCode: exitUserError,
+			}, "snapshot")
+			os.Exit(exitUserError)
+		}
 		fmt.Fprintln(os.Stderr, "atb snapshot: snapshot name cannot be empty")
 		os.Exit(exitUserError)
 	}
+	eventType := fmt.Sprintf("snapshot.%s", name)
 	gate := "pass"
 	if len(args) > 1 {
 		if len(args) != 3 || args[1] != "--gate" {
+			if outputFormat == verifyFormatJSON {
+				printMutationJSON(mutationResult{
+					Status:    "error",
+					Action:    "snapshot",
+					DryRun:    dryRun,
+					Path:      bundle.DefaultPath(),
+					EventType: eventType,
+					Error:     "usage: atb snapshot <name> [--gate <pass|fail>] [--dry-run] [--format text|json]",
+					ExitCode:  exitUserError,
+				}, "snapshot")
+				os.Exit(exitUserError)
+			}
 			fmt.Fprintln(os.Stderr, "Usage: atb snapshot <name> [--gate <pass|fail>] [--dry-run] [--format text|json]")
 			os.Exit(exitUserError)
 		}
 		g := strings.ToLower(strings.TrimSpace(args[2]))
 		if g != "pass" && g != "fail" {
+			if outputFormat == verifyFormatJSON {
+				printMutationJSON(mutationResult{
+					Status:    "error",
+					Action:    "snapshot",
+					DryRun:    dryRun,
+					Path:      bundle.DefaultPath(),
+					EventType: eventType,
+					Error:     "--gate must be pass or fail",
+					ExitCode:  exitUserError,
+				}, "snapshot")
+				os.Exit(exitUserError)
+			}
 			fmt.Fprintln(os.Stderr, "atb snapshot: --gate must be pass or fail")
 			os.Exit(exitUserError)
 		}
 		gate = g
 	}
-	eventType := fmt.Sprintf("snapshot.%s", name)
 	data := map[string]string{
 		"gate":      gate,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
@@ -500,6 +661,19 @@ func cmdSnapshot() {
 		var loadErr mutationLoadError
 		if errors.As(err, &loadErr) {
 			exitCode = classifyBundleLoadError(err)
+		}
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:    "error",
+				Action:    "snapshot",
+				DryRun:    dryRun,
+				Path:      bundle.DefaultPath(),
+				EventType: eventType,
+				Gate:      gate,
+				Error:     err.Error(),
+				ExitCode:  exitCode,
+			}, "snapshot")
+			os.Exit(exitCode)
 		}
 		fmt.Fprintf(os.Stderr, "atb snapshot: %v\n", err)
 		os.Exit(exitCode)
