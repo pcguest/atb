@@ -28,13 +28,13 @@ func cmdTrustReport() {
 		}
 		fmt.Fprintf(os.Stderr, "atb trust-report: %v\n", err)
 		printTrustReportUsage()
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb trust-report: current directory: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitSystemError)
 	}
 
 	report := trust.BuildReport(cwd, cfg.BundlePath)
@@ -42,13 +42,13 @@ func cmdTrustReport() {
 	case "json":
 		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
 			fmt.Fprintf(os.Stderr, "atb trust-report: encode json: %v\n", err)
-			os.Exit(1)
+			os.Exit(exitSystemError)
 		}
 	case "markdown":
 		printTrustReportMarkdown(report)
 	default:
 		fmt.Fprintf(os.Stderr, "atb trust-report: unsupported format %q\n", cfg.Format)
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 }
 

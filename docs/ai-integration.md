@@ -13,13 +13,6 @@ If a command does not support `--format json`, treat its output as human-only te
 
 ### Exit codes
 
-Current behavior:
-
-- `0`: success
-- `1`: command or verification error
-
-Planned contract (not fully implemented yet):
-
 - `0`: success
 - `1`: user/input error
 - `2`: integrity failure

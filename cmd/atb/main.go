@@ -36,7 +36,7 @@ type verifyResult struct {
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 	cmd := os.Args[1]
 	switch cmd {
@@ -59,7 +59,7 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "atb: unknown command %q\n", cmd)
 		printUsage()
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 }
 
@@ -77,6 +77,12 @@ Commands:
   trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
   view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
   version           Print the ATB version
+
+Exit codes:
+  0  success
+  1  user/input error
+  2  integrity verification failure
+  3  system/runtime error
 
 Examples:
   atb init
@@ -96,12 +102,12 @@ func cmdInit() {
 	path := bundle.DefaultPath()
 	if _, err := os.Stat(path); err == nil {
 		fmt.Fprintf(os.Stderr, "atb init: bundle already exists at %s\n", path)
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 	b := bundle.New()
 	if err := b.Save(path); err != nil {
 		fmt.Fprintf(os.Stderr, "atb init: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitSystemError)
 	}
 	fmt.Printf("✓ Initialised ATB bundle at %s\n", path)
 }
@@ -110,25 +116,25 @@ func cmdInit() {
 func cmdAppend() {
 	if len(os.Args) < 4 {
 		fmt.Fprintln(os.Stderr, "Usage: atb append <type> <json|--data <json>>")
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 	eventType := os.Args[2]
 	rawJSON, err := parseAppendPayload(os.Args[3:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 
 	var data interface{}
 	if err := json.Unmarshal([]byte(rawJSON), &data); err != nil {
 		fmt.Fprintf(os.Stderr, "atb append: invalid JSON: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 
 	last, err := appendToDefaultBundle(eventType, data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitSystemError)
 	}
 	fmt.Printf("✓ Appended event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
 }
@@ -167,23 +173,23 @@ func appendToDefaultBundle(eventType string, data interface{}) (bundle.Record, e
 func cmdSnapshot() {
 	if len(os.Args) < 3 {
 		fmt.Fprintln(os.Stderr, "Usage: atb snapshot <name> [--gate <pass|fail>]")
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 	name := strings.TrimSpace(os.Args[2])
 	if name == "" {
 		fmt.Fprintln(os.Stderr, "atb snapshot: snapshot name cannot be empty")
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 	gate := "pass"
 	if len(os.Args) > 3 {
 		if len(os.Args) != 5 || os.Args[3] != "--gate" {
 			fmt.Fprintln(os.Stderr, "Usage: atb snapshot <name> [--gate <pass|fail>]")
-			os.Exit(1)
+			os.Exit(exitUserError)
 		}
 		g := strings.ToLower(strings.TrimSpace(os.Args[4]))
 		if g != "pass" && g != "fail" {
 			fmt.Fprintln(os.Stderr, "atb snapshot: --gate must be pass or fail")
-			os.Exit(1)
+			os.Exit(exitUserError)
 		}
 		gate = g
 	}
@@ -195,7 +201,7 @@ func cmdSnapshot() {
 	last, err := appendToDefaultBundle(eventType, data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb snapshot: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitSystemError)
 	}
 	fmt.Printf("✓ Appended snapshot #%d [%s] gate=%s hash=%s\n", last.Event.Sequence, last.Event.Type, gate, last.Hash[:16]+"...")
 }
@@ -264,7 +270,7 @@ func newVerifyResult(path string, b *bundle.Bundle, status string) verifyResult 
 func printVerifyJSON(result verifyResult) {
 	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
 		fmt.Fprintf(os.Stderr, "atb verify: encode json output: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitSystemError)
 	}
 }
 
@@ -273,17 +279,18 @@ func cmdVerify() {
 	path, outputFormat, err := parseVerifyArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 	b, err := bundle.Load(path)
 	if err != nil {
+		exitCode := classifyBundleLoadError(err)
 		if outputFormat == verifyFormatJSON {
 			result := newVerifyResult(path, nil, "error")
 			result.Error = err.Error()
 			printVerifyJSON(result)
 		}
 		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitCode)
 	}
 	if len(b.Records) == 0 {
 		if outputFormat == verifyFormatJSON {
@@ -302,7 +309,7 @@ func cmdVerify() {
 			printVerifyJSON(result)
 		}
 		fmt.Fprintf(os.Stderr, "✗ VERIFICATION FAILED: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitIntegrityFailure)
 	}
 	if outputFormat == verifyFormatJSON {
 		printVerifyJSON(newVerifyResult(path, b, "valid"))

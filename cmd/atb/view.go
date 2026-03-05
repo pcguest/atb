@@ -35,19 +35,19 @@ func cmdView() {
 		}
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		printViewUsage()
-		os.Exit(1)
+		os.Exit(exitUserError)
 	}
 
 	bundlePath, err := resolveBundlePath(cfg.BundlePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: resolve bundle path: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitSystemError)
 	}
 
 	handler, page, err := buildViewHandler(bundlePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
-		os.Exit(1)
+		os.Exit(classifyBundleLoadError(err))
 	}
 
 	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
@@ -70,7 +70,7 @@ func cmdView() {
 
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintf(os.Stderr, "atb view: server error: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitSystemError)
 	}
 
 	fmt.Println("atb view: stopped")
