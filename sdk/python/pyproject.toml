@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"  # ✅ Modern standard backend
 
 [project]
 name = "atb-sdk"
-version = "0.1.1"
+version = "0.1.2"
 description = "ATB (Agent Trace Bundle) Python SDK — tamper-evident audit trails for AI agent workflows"
 readme = "README.md"
 license = "MIT"

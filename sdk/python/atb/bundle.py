@@ -41,6 +41,24 @@ class Bundle:
         b.verify()
     """
 
+    def __init__(
+        self,
+        goal: str | None = None,
+        name: str | None = None,
+        records: list[Record] | None = None,
+    ):
+        """Initialize a new ATB bundle.
+
+        Args:
+            goal: Optional goal/description for the bundle (alias for name)
+            name: Optional name for the bundle
+            records: Optional list of initial records
+        """
+        object.__setattr__(self, 'name', goal or name or "untitled")
+        object.__setattr__(self, 'records', records if records is not None else [])
+
+    name: str = "untitled"
+
     records: list[Record] = field(default_factory=list)
 
     # ------------------------------------------------------------------
