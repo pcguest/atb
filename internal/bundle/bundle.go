@@ -31,6 +31,13 @@ type Bundle struct {
 	Records []Record
 }
 
+// AppendOptions carries optional identity metadata for multi-tenant event contexts.
+type AppendOptions struct {
+	ActorID     *string
+	OrgID       *string
+	WorkspaceID *string
+}
+
 // New creates a new empty bundle.
 func New() *Bundle {
 	return &Bundle{}
@@ -38,6 +45,11 @@ func New() *Bundle {
 
 // Append adds a new event to the bundle, computing its hash automatically.
 func (b *Bundle) Append(eventType string, data interface{}) error {
+	return b.AppendWithOptions(eventType, data, nil)
+}
+
+// AppendWithOptions adds a new event with optional identity metadata.
+func (b *Bundle) AppendWithOptions(eventType string, data interface{}, opts *AppendOptions) error {
 	prevHash := hash.GenesisHash
 	if len(b.Records) > 0 {
 		prevHash = b.Records[len(b.Records)-1].Hash
@@ -48,9 +60,14 @@ func (b *Bundle) Append(eventType string, data interface{}) error {
 		Type:     eventType,
 		Data:     data,
 	}
+	if opts != nil {
+		e.ActorID = opts.ActorID
+		e.OrgID = opts.OrgID
+		e.WorkspaceID = opts.WorkspaceID
+	}
 	h, err := hash.Compute(e)
 	if err != nil {
-		return fmt.Errorf("bundle: append: %w", err)
+		return fmt.Errorf("bundle: append with options: %w", err)
 	}
 	b.Records = append(b.Records, Record{Event: e, Hash: h})
 	return nil

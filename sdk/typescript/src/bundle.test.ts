@@ -30,8 +30,8 @@ describe("Bundle", () => {
 
     const loaded = Bundle.load(path);
     expect(loaded.length).toBe(2);
-    expect(loaded.records[0].event.prevHash).toBe(GENESIS_HASH);
-    expect(loaded.records[1].event.prevHash).toBe(loaded.records[0].hash);
+    expect(loaded.records[0].event.prev_hash).toBe(GENESIS_HASH);
+    expect(loaded.records[1].event.prev_hash).toBe(loaded.records[0].hash);
     expect(() => loaded.verify()).not.toThrow();
   });
 

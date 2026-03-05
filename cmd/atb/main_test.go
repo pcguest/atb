@@ -43,6 +43,90 @@ func TestParseAppendPayload(t *testing.T) {
 	}
 }
 
+func TestParseAppendCommandArgs(t *testing.T) {
+	tests := []struct {
+		name            string
+		args            []string
+		wantJSON        string
+		wantActorID     string
+		wantOrgID       string
+		wantWorkspaceID string
+		wantErr         bool
+	}{
+		{
+			name:            "json positional with metadata flags",
+			args:            []string{`{"ok":true}`, "--actor-id", "paddy", "--org-id=pcguest", "--workspace-id", "local"},
+			wantJSON:        `{"ok":true}`,
+			wantActorID:     "paddy",
+			wantOrgID:       "pcguest",
+			wantWorkspaceID: "local",
+		},
+		{
+			name:            "data flag",
+			args:            []string{"--data", `{"x":1}`, "--actor-id=actor-1"},
+			wantJSON:        `{"x":1}`,
+			wantActorID:     "actor-1",
+			wantOrgID:       "",
+			wantWorkspaceID: "",
+		},
+		{
+			name:    "missing actor id",
+			args:    []string{"--data", `{"x":1}`, "--actor-id"},
+			wantErr: true,
+		},
+		{
+			name:    "unknown flag",
+			args:    []string{"--data", `{"x":1}`, "--wat", "x"},
+			wantErr: true,
+		},
+		{
+			name:    "missing payload",
+			args:    []string{"--actor-id", "paddy"},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parseAppendCommandArgs(tc.args)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got.RawJSON != tc.wantJSON {
+				t.Fatalf("unexpected json payload: got %q want %q", got.RawJSON, tc.wantJSON)
+			}
+
+			gotActor := ""
+			if got.Options.ActorID != nil {
+				gotActor = *got.Options.ActorID
+			}
+			gotOrg := ""
+			if got.Options.OrgID != nil {
+				gotOrg = *got.Options.OrgID
+			}
+			gotWorkspace := ""
+			if got.Options.WorkspaceID != nil {
+				gotWorkspace = *got.Options.WorkspaceID
+			}
+			if gotActor != tc.wantActorID {
+				t.Fatalf("unexpected actor_id: got %q want %q", gotActor, tc.wantActorID)
+			}
+			if gotOrg != tc.wantOrgID {
+				t.Fatalf("unexpected org_id: got %q want %q", gotOrg, tc.wantOrgID)
+			}
+			if gotWorkspace != tc.wantWorkspaceID {
+				t.Fatalf("unexpected workspace_id: got %q want %q", gotWorkspace, tc.wantWorkspaceID)
+			}
+		})
+	}
+}
+
 func TestNormalizeBundlePath(t *testing.T) {
 	tmp := t.TempDir()
 	if got := normalizeBundlePath(tmp); got != filepath.Join(tmp, bundle.BundleFile) {

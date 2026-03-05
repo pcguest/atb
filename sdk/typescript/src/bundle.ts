@@ -5,10 +5,35 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { decryptBundle, encryptBundle } from "./encrypt.js";
+import {
+  normalizeOptionalIdentity,
+  parseEvent,
+  type AppendIdentityOptions,
+  type Event,
+} from "./event.js";
 import { GENESIS_HASH, computeHash } from "./hash.js";
-import type { ATBEvent, ATBRecord, BundleOptions } from "./types.js";
+import type { ATBRecord, BundleOptions } from "./types.js";
 
 const DEFAULT_PATH = "run.atb/bundle.atb";
+
+function withDerivedChain(event: Event, seq: number, prevHash: string): Event {
+  const out: Event = {
+    seq,
+    prev_hash: prevHash,
+    type: event.type,
+    data: event.data,
+  };
+  if (event.actor_id !== undefined) {
+    out.actor_id = event.actor_id;
+  }
+  if (event.org_id !== undefined) {
+    out.org_id = event.org_id;
+  }
+  if (event.workspace_id !== undefined) {
+    out.workspace_id = event.workspace_id;
+  }
+  return out;
+}
 
 export class ATBVerificationError extends Error {
   constructor(
@@ -46,18 +71,34 @@ export class Bundle {
   }
 
   /** Append a new event to the bundle. */
-  append(type: string, data: unknown): ATBRecord {
+  append(
+    type: string,
+    data: unknown,
+    options: AppendIdentityOptions = {}
+  ): ATBRecord {
     const prevHash =
       this.records.length > 0
         ? this.records[this.records.length - 1].hash
         : GENESIS_HASH;
 
-    const event: ATBEvent = {
+    const event: Event = {
       seq: this.records.length + 1,
-      prevHash,
+      prev_hash: prevHash,
       type,
       data,
     };
+    const actorID = normalizeOptionalIdentity(options.actorId);
+    const orgID = normalizeOptionalIdentity(options.orgId);
+    const workspaceID = normalizeOptionalIdentity(options.workspaceId);
+    if (actorID !== undefined) {
+      event.actor_id = actorID;
+    }
+    if (orgID !== undefined) {
+      event.org_id = orgID;
+    }
+    if (workspaceID !== undefined) {
+      event.workspace_id = workspaceID;
+    }
 
     const hash = computeHash(event, prevHash);
     const record: ATBRecord = { event, hash };
@@ -70,7 +111,7 @@ export class Bundle {
     let prev = GENESIS_HASH;
     for (let i = 0; i < this.records.length; i++) {
       const record = this.records[i];
-      const event = { ...record.event, seq: i + 1, prevHash: prev };
+      const event = withDerivedChain(record.event, i + 1, prev);
       const computed = computeHash(event, prev);
       if (computed !== record.hash) {
         throw new ATBVerificationError(
@@ -97,11 +138,24 @@ export class Bundle {
     const target = path ?? DEFAULT_PATH;
     const bundle = new Bundle({ path: target });
     const content = readFileSync(target, "utf8");
-    for (const line of content.split("\n")) {
+    const lines = content.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmed = line.trim();
       if (!trimmed) continue;
-      const record = JSON.parse(trimmed) as ATBRecord;
-      bundle.records.push(record);
+      const raw = JSON.parse(trimmed) as Record<string, unknown>;
+      if (
+        !raw ||
+        typeof raw !== "object" ||
+        typeof raw.hash !== "string" ||
+        raw.event === undefined
+      ) {
+        throw new TypeError(`invalid record at line ${i + 1}`);
+      }
+      bundle.records.push({
+        event: parseEvent(raw.event),
+        hash: raw.hash,
+      });
     }
     return bundle;
   }

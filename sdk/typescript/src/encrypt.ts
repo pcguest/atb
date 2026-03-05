@@ -6,6 +6,7 @@ import {
   randomBytes,
 } from "node:crypto";
 import { canonicalize } from "./canonicalize.js";
+import { parseEvent, prepareForCanonical, type Event } from "./event.js";
 import { computeHash, GENESIS_HASH } from "./hash.js";
 import type { ATBRecord } from "./types.js";
 
@@ -31,15 +32,8 @@ export interface EncryptOptions {
   nonce?: Uint8Array;
 }
 
-interface WireEvent {
-  seq: number;
-  prev_hash: string;
-  type: string;
-  data: unknown;
-}
-
 interface WireRecord {
-  event: WireEvent;
+  event: Event;
   hash: string;
 }
 
@@ -63,10 +57,10 @@ function deriveKey(password: string, salt: Uint8Array): Buffer {
   return pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_SIZE, "sha256");
 }
 
-function computeWireHash(event: WireEvent, prevHash: string): string {
+function computeWireHash(event: Event, prevHash: string): string {
   return createHash("sha256")
     .update(prevHash, "utf8")
-    .update(canonicalize(event), "utf8")
+    .update(canonicalize(prepareForCanonical(event)), "utf8")
     .digest("hex");
 }
 
@@ -145,16 +139,25 @@ function toWirePayload(records: readonly ATBRecord[]): WirePayload {
   const wireRecords: WireRecord[] = [];
   let prev = GENESIS_HASH;
   for (let i = 0; i < records.length; i++) {
-    const event = records[i].event as unknown as Record<string, unknown>;
-    if (typeof event.type !== "string") {
+    const source = records[i].event;
+    if (typeof source.type !== "string") {
       throw new EncryptError("record event is missing type");
     }
-    const wireEvent: WireEvent = {
+    const wireEvent: Event = {
       seq: i + 1,
       prev_hash: prev,
-      type: event.type,
-      data: event.data,
+      type: source.type,
+      data: source.data,
     };
+    if (source.actor_id !== undefined) {
+      wireEvent.actor_id = source.actor_id;
+    }
+    if (source.org_id !== undefined) {
+      wireEvent.org_id = source.org_id;
+    }
+    if (source.workspace_id !== undefined) {
+      wireEvent.workspace_id = source.workspace_id;
+    }
     const wireHash = computeWireHash(wireEvent, prev);
     wireRecords.push({
       event: wireEvent,
@@ -192,22 +195,14 @@ function fromWirePayload(payload: unknown): DecryptedBundlePayload {
     if (typeof record.hash !== "string" || !record.event || typeof record.event !== "object") {
       throw new EncryptError("record must include event object and hash string");
     }
-    const eventRaw = record.event as Record<string, unknown>;
-    if (
-      typeof eventRaw.seq !== "number" ||
-      typeof eventRaw.prev_hash !== "string" ||
-      typeof eventRaw.type !== "string"
-    ) {
+    let event: Event;
+    try {
+      event = parseEvent(record.event);
+    } catch {
       throw new EncryptError("record event must include seq, prev_hash, and type");
     }
-
     return {
-      event: {
-        seq: eventRaw.seq,
-        prev_hash: eventRaw.prev_hash,
-        type: eventRaw.type,
-        data: eventRaw.data,
-      },
+      event,
       hash: record.hash,
     };
   });
@@ -216,12 +211,21 @@ function fromWirePayload(payload: unknown): DecryptedBundlePayload {
   let prevWire = GENESIS_HASH;
   for (let i = 0; i < parsedRecords.length; i++) {
     const record = parsedRecords[i];
-    const event = {
+    const event: Event = {
       seq: i + 1,
       prev_hash: prevWire,
       type: record.event.type,
       data: record.event.data,
     };
+    if (record.event.actor_id !== undefined) {
+      event.actor_id = record.event.actor_id;
+    }
+    if (record.event.org_id !== undefined) {
+      event.org_id = record.event.org_id;
+    }
+    if (record.event.workspace_id !== undefined) {
+      event.workspace_id = record.event.workspace_id;
+    }
     if (record.event.seq !== i + 1 || record.event.prev_hash !== prevWire) {
       throw new EncryptError("decrypted payload failed hash-chain verification");
     }
@@ -242,12 +246,21 @@ function fromWirePayload(payload: unknown): DecryptedBundlePayload {
   let prevTS = GENESIS_HASH;
   for (let i = 0; i < parsedRecords.length; i++) {
     const wire = parsedRecords[i];
-    const event = {
+    const event: Event = {
       seq: i + 1,
-      prevHash: prevTS,
+      prev_hash: prevTS,
       type: wire.event.type,
       data: wire.event.data,
     };
+    if (wire.event.actor_id !== undefined) {
+      event.actor_id = wire.event.actor_id;
+    }
+    if (wire.event.org_id !== undefined) {
+      event.org_id = wire.event.org_id;
+    }
+    if (wire.event.workspace_id !== undefined) {
+      event.workspace_id = wire.event.workspace_id;
+    }
     const hash = computeHash(event, prevTS);
     records.push({ event, hash });
     prevTS = hash;

@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from atb.event import Event
 from atb.exceptions import ATBVerificationError
 from atb.hash import GENESIS_HASH, compute_hash
 
@@ -65,23 +66,38 @@ class Bundle:
     # Mutation
     # ------------------------------------------------------------------
 
-    def append(self, event_type: str, data: Any) -> Record:
+    def append(
+        self,
+        event_type: str,
+        data: Any,
+        *,
+        actor_id: str | None = None,
+        org_id: str | None = None,
+        workspace_id: str | None = None,
+    ) -> Record:
         """Append a new event to the bundle.
 
         Args:
             event_type: A dot-namespaced event type string (e.g. ``"dev.session"``).
             data: Arbitrary JSON-serialisable payload.
+            actor_id: Optional actor identifier.
+            org_id: Optional organization identifier.
+            workspace_id: Optional workspace identifier.
 
         Returns:
             The newly created :class:`Record`.
         """
         prev_hash = self.records[-1].hash if self.records else GENESIS_HASH
-        event: dict[str, Any] = {
-            "seq": len(self.records) + 1,
-            "prev_hash": prev_hash,
-            "type": event_type,
-            "data": data,
-        }
+        event_obj = Event(
+            seq=len(self.records) + 1,
+            prev_hash=prev_hash,
+            type=event_type,
+            data=data,
+            actor_id=_normalize_optional_identity(actor_id),
+            org_id=_normalize_optional_identity(org_id),
+            workspace_id=_normalize_optional_identity(workspace_id),
+        )
+        event = event_obj.to_dict()
         h = compute_hash(event, prev_hash)
         record = Record(event=event, hash=h)
         self.records.append(record)
@@ -182,3 +198,13 @@ class Bundle:
 
     def __repr__(self) -> str:
         return f"Bundle(records={len(self.records)})"
+
+
+def _normalize_optional_identity(value: str | None) -> str | None:
+    """Treat None/empty identity values as unset for canonical compatibility."""
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if trimmed == "":
+        return None
+    return trimmed

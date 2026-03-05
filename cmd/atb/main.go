@@ -88,9 +88,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "append",
-				Usage:       "atb append <type> <json|--data <json>> [--dry-run] [--format text|json]",
+				Usage:       "atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]",
 				Description: "Append an event to the current bundle.",
-				Flags:       []string{"--data", "--dry-run", "--format"},
+				Flags:       []string{"--data", "--actor-id", "--org-id", "--workspace-id", "--dry-run", "--format"},
 				Mutating:    true,
 			},
 			{
@@ -119,6 +119,27 @@ func usageJSON() helpOutput {
 				Usage:       "atb decrypt <encrypted_path> --password <password>",
 				Description: "Decrypt an encrypted ATB bundle.",
 				Flags:       []string{"--password"},
+				Mutating:    true,
+			},
+			{
+				Name:        "archive",
+				Usage:       "atb archive [--before YYYY-MM-DD] [--dry-run]",
+				Description: "Archive old bundles and append tamper-evident ledger entries.",
+				Flags:       []string{"--before", "--dry-run"},
+				Mutating:    true,
+			},
+			{
+				Name:        "export",
+				Usage:       "atb export --format compliance --output <path.zip> [--dry-run]",
+				Description: "Export local compliance evidence bundle.",
+				Flags:       []string{"--format", "--output", "--dry-run"},
+				Mutating:    false,
+			},
+			{
+				Name:        "config",
+				Usage:       "atb config retention --days <n>",
+				Description: "Set local ATB configuration values.",
+				Flags:       []string{"--days"},
 				Mutating:    true,
 			},
 			{
@@ -196,6 +217,12 @@ func main() {
 		cmdEncrypt()
 	case "decrypt":
 		cmdDecrypt()
+	case "archive":
+		cmdArchive()
+	case "export":
+		cmdExport()
+	case "config":
+		cmdConfig()
 	case "trust-report":
 		cmdTrustReport()
 	case "view":
@@ -228,11 +255,14 @@ Usage:
 
 Commands:
   init [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
-  append <type> <json|--data <json>> [--dry-run] [--format text|json]  Append an event to the current bundle
+  append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   verify [bundle_path] [--format text|json] [--trace]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
   encrypt [bundle_path] --password <password>  Encrypt bundle file to <bundle_path>.enc
   decrypt <encrypted_path> --password <password>  Decrypt encrypted bundle back to .atb
+  archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
+  export --format compliance --output <path.zip> [--dry-run]  Export auditor-friendly local evidence bundle
+  config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
   view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
   version           Print the ATB version
@@ -249,6 +279,7 @@ Examples:
   atb init --format json
   atb append dev.session '{"features_built":["hash chaining"]}'
   atb append feature --data '{"name":"atb view"}'
+  atb append dev.session --data '{"x":1}' --actor-id paddy --org-id pcguest --workspace-id local
   atb append dev.session '{"ok":true}' --dry-run
   atb append dev.session '{"ok":true}' --format json
   atb snapshot build --gate pass
@@ -259,6 +290,9 @@ Examples:
   atb verify --trace
   atb encrypt run.atb/bundle.atb --password test123
   atb decrypt run.atb/bundle.atb.enc --password test123
+  atb archive --before 2025-01-01 --dry-run
+  atb export --format compliance --output evidence.zip --dry-run
+  atb config retention --days 90
   atb trust-report --format markdown
   atb trust-report --format json
   atb view
@@ -409,16 +443,16 @@ func cmdAppend() {
 				Action:   "append",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
-				Error:    "usage: atb append <type> <json|--data <json>> [--dry-run] [--format text|json]",
+				Error:    "usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]",
 				ExitCode: exitUserError,
 			}, "append")
 			os.Exit(exitUserError)
 		}
-		fmt.Fprintln(os.Stderr, "Usage: atb append <type> <json|--data <json>> [--dry-run] [--format text|json]")
+		fmt.Fprintln(os.Stderr, "Usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]")
 		os.Exit(exitUserError)
 	}
 	eventType := args[0]
-	rawJSON, err := parseAppendPayload(args[1:])
+	appendInput, err := parseAppendCommandArgs(args[1:])
 	if err != nil {
 		if outputFormat == verifyFormatJSON {
 			printMutationJSON(mutationResult{
@@ -435,6 +469,7 @@ func cmdAppend() {
 		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
 		os.Exit(exitUserError)
 	}
+	rawJSON := appendInput.RawJSON
 
 	var data interface{}
 	if err := json.Unmarshal([]byte(rawJSON), &data); err != nil {
@@ -454,7 +489,7 @@ func cmdAppend() {
 		os.Exit(exitUserError)
 	}
 
-	last, err := appendToDefaultBundle(eventType, data, dryRun)
+	last, err := appendToDefaultBundle(eventType, data, dryRun, appendInput.Options)
 	if err != nil {
 		exitCode := exitSystemError
 		var loadErr mutationLoadError
@@ -503,19 +538,103 @@ func cmdAppend() {
 }
 
 func parseAppendPayload(args []string) (string, error) {
-	if len(args) == 0 {
-		return "", fmt.Errorf("missing event JSON payload")
+	input, err := parseAppendCommandArgs(args)
+	if err != nil {
+		return "", err
 	}
-	if len(args) == 1 {
-		if args[0] == "--data" {
-			return "", fmt.Errorf("missing JSON after --data")
+	return input.RawJSON, nil
+}
+
+type appendCommandInput struct {
+	RawJSON string
+	Options bundle.AppendOptions
+}
+
+func parseAppendCommandArgs(args []string) (appendCommandInput, error) {
+	result := appendCommandInput{}
+	setIDField := func(flagName string, target **string, value string) error {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return fmt.Errorf("%s cannot be empty", flagName)
 		}
-		return args[0], nil
+		v := trimmed
+		*target = &v
+		return nil
 	}
-	if len(args) == 2 && args[0] == "--data" {
-		return args[1], nil
+
+	if len(args) == 0 {
+		return result, fmt.Errorf("missing event JSON payload")
 	}
-	return "", fmt.Errorf("expected <json> or --data <json>")
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--data":
+			if i+1 >= len(args) {
+				return result, fmt.Errorf("missing JSON after --data")
+			}
+			if result.RawJSON != "" {
+				return result, fmt.Errorf("expected <json> or --data <json>")
+			}
+			result.RawJSON = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "--data="):
+			if result.RawJSON != "" {
+				return result, fmt.Errorf("expected <json> or --data <json>")
+			}
+			result.RawJSON = strings.TrimPrefix(arg, "--data=")
+			if result.RawJSON == "" {
+				return result, fmt.Errorf("missing JSON after --data")
+			}
+		case arg == "--actor-id":
+			if i+1 >= len(args) {
+				return result, fmt.Errorf("missing value for --actor-id")
+			}
+			if err := setIDField("--actor-id", &result.Options.ActorID, args[i+1]); err != nil {
+				return result, err
+			}
+			i++
+		case strings.HasPrefix(arg, "--actor-id="):
+			if err := setIDField("--actor-id", &result.Options.ActorID, strings.TrimPrefix(arg, "--actor-id=")); err != nil {
+				return result, err
+			}
+		case arg == "--org-id":
+			if i+1 >= len(args) {
+				return result, fmt.Errorf("missing value for --org-id")
+			}
+			if err := setIDField("--org-id", &result.Options.OrgID, args[i+1]); err != nil {
+				return result, err
+			}
+			i++
+		case strings.HasPrefix(arg, "--org-id="):
+			if err := setIDField("--org-id", &result.Options.OrgID, strings.TrimPrefix(arg, "--org-id=")); err != nil {
+				return result, err
+			}
+		case arg == "--workspace-id":
+			if i+1 >= len(args) {
+				return result, fmt.Errorf("missing value for --workspace-id")
+			}
+			if err := setIDField("--workspace-id", &result.Options.WorkspaceID, args[i+1]); err != nil {
+				return result, err
+			}
+			i++
+		case strings.HasPrefix(arg, "--workspace-id="):
+			if err := setIDField("--workspace-id", &result.Options.WorkspaceID, strings.TrimPrefix(arg, "--workspace-id=")); err != nil {
+				return result, err
+			}
+		case strings.HasPrefix(arg, "--"):
+			return result, fmt.Errorf("unknown flag %q", arg)
+		default:
+			if result.RawJSON != "" {
+				return result, fmt.Errorf("expected <json> or --data <json>")
+			}
+			result.RawJSON = arg
+		}
+	}
+	if result.RawJSON == "" {
+		return result, fmt.Errorf("missing event JSON payload")
+	}
+	return result, nil
 }
 
 type mutationLoadError struct {
@@ -564,7 +683,7 @@ func parseMutationFlags(args []string) ([]string, string, bool, error) {
 	return filtered, outputFormat, dryRun, nil
 }
 
-func appendToDefaultBundle(eventType string, data interface{}, dryRun bool) (bundle.Record, error) {
+func appendToDefaultBundle(eventType string, data interface{}, dryRun bool, opts ...bundle.AppendOptions) (bundle.Record, error) {
 	path := bundle.DefaultPath()
 	b, err := bundle.Load(path)
 	if err != nil {
@@ -574,7 +693,11 @@ func appendToDefaultBundle(eventType string, data interface{}, dryRun bool) (bun
 			return bundle.Record{}, mutationLoadError{err: err}
 		}
 	}
-	if err := b.Append(eventType, data); err != nil {
+	var appendOpts *bundle.AppendOptions
+	if len(opts) > 0 {
+		appendOpts = &opts[0]
+	}
+	if err := b.AppendWithOptions(eventType, data, appendOpts); err != nil {
 		return bundle.Record{}, err
 	}
 	last := b.Records[len(b.Records)-1]

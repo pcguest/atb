@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/pcguest/atb/internal/canonicalize"
+	"github.com/pcguest/atb/internal/event"
 )
 
 const (
@@ -16,18 +17,8 @@ const (
 	GenesisHash = "0000000000000000000000000000000000000000000000000000000000000000"
 )
 
-// Event represents a single auditable event in an ATB bundle.
-type Event struct {
-	// Sequence is the 1-based position of this event in the bundle.
-	Sequence int `json:"seq"`
-	// PrevHash is the hex-encoded SHA-256 hash of the preceding event.
-	// For the first event this MUST equal GenesisHash.
-	PrevHash string `json:"prev_hash"`
-	// Type is the event type identifier (e.g. "dev.session", "decision").
-	Type string `json:"type"`
-	// Data is the arbitrary payload associated with this event.
-	Data interface{} `json:"data"`
-}
+// Event is the canonical ATB event model used by hashing and bundle records.
+type Event = event.Event
 
 // Compute returns the hex-encoded SHA-256 hash for the given event.
 // The hash is computed as: SHA256(prevHash || canonicalJSON(event))

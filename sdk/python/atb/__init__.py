@@ -20,12 +20,14 @@ Quick start::
 
 from atb.bundle import Bundle
 from atb.encrypt import ATBDecryptionError, ATBEncryptionError, decrypt_bundle, encrypt_bundle
+from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
 
 __version__ = "0.1.1"
 __all__ = [
     "Bundle",
+    "Event",
     "ATBError",
     "ATBVerificationError",
     "ATBEncryptionError",
