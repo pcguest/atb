@@ -92,11 +92,7 @@ The viewer shows:
 ./atb view
 ```
 
-## 5. Coming Soon (v1.1)
+## 5. Cloud and Compliance Notes
 
-```bash
-# Planned cloud sharing workflow
-atb push my-trace.atb --share
-```
-
-`atb push` is intentionally not shipped in v1.0.x to keep the core local-first.
+- Local workflows are fully supported in v1.0.x.
+- Compliance and export documentation for Phase 3 will be published under `docs/compliance/`.

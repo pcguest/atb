@@ -19,7 +19,7 @@ If a command does not support `--format json`, treat its output as human-only te
 For JSON-enabled mutating commands (`init`, `append`, `snapshot`), both success and error responses use a JSON envelope:
 
 - `status`: `ok|error`
-- `action`: operation identifier (`init`, `append`, `snapshot`, preview variants)
+- `action`: operation identifier (`init`, `append`, `snapshot`, `preview_append`, `preview_snapshot`, `noop`)
 - `dry_run`: boolean
 - `path`: target bundle path
 - `message` (success) or `error` (failure)

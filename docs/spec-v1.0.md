@@ -45,7 +45,7 @@ Each line in a bundle file is a JSON object with the following schema:
 | `event.seq` | integer | 1-based sequence number within the bundle |
 | `event.prev_hash` | string | Hex-encoded SHA-256 hash of the preceding event |
 | `event.type` | string | Dot-namespaced event type identifier |
-| `event.data` | object | Arbitrary JSON-serialisable payload |
+| `event.data` | any JSON value | Arbitrary JSON-serialisable payload |
 | `event.actor_id` | string (optional) | Actor identifier for multi-tenant attribution |
 | `event.org_id` | string (optional) | Organization identifier for multi-tenant attribution |
 | `event.workspace_id` | string (optional) | Workspace identifier for multi-tenant attribution |
@@ -133,9 +133,15 @@ To verify a bundle, a verifier must:
 
 The default storage location is `run.atb/bundle.atb` relative to the current working directory. This directory should be excluded from version control (`.gitignore`).
 
-### 6.2 Cloud Storage (Pro)
+### 6.2 Optional Encrypted Payloads
 
-ATB Pro supports encrypted cloud storage via Cloudflare R2. Bundles are encrypted client-side before upload using AES-256-GCM.
+ATB supports optional client-side bundle encryption via `atb encrypt` / `atb decrypt`.
+
+- Cipher: AES-256-GCM
+- Key derivation: PBKDF2-SHA256 (`100000` iterations)
+- Wire format: `ATBE` magic + version + salt + nonce + auth tag + ciphertext
+
+Cloud push/pull workflows are specified separately in `docs/spec/atb-push-v1.1.md`.
 
 ---
 

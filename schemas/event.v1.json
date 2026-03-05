@@ -38,6 +38,21 @@
         "boolean",
         "null"
       ]
+    },
+    "actor_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional actor identifier for multi-tenant attribution."
+    },
+    "org_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional organization identifier for multi-tenant attribution."
+    },
+    "workspace_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional workspace identifier for multi-tenant attribution."
     }
   }
 }
