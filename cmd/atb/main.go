@@ -35,6 +35,120 @@ type verifyResult struct {
 	Message     string `json:"message,omitempty"`
 }
 
+type helpCommand struct {
+	Name        string   `json:"name"`
+	Usage       string   `json:"usage"`
+	Description string   `json:"description"`
+	Flags       []string `json:"flags,omitempty"`
+	Mutating    bool     `json:"mutating"`
+}
+
+type helpOutput struct {
+	Name        string            `json:"name"`
+	Version     string            `json:"version"`
+	Description string            `json:"description"`
+	Usage       string            `json:"usage"`
+	ExitCodes   map[string]string `json:"exit_codes"`
+	Commands    []helpCommand     `json:"commands"`
+}
+
+func usageJSON() helpOutput {
+	return helpOutput{
+		Name:        "atb",
+		Version:     version,
+		Description: "ATB — Agent Trace Bundle",
+		Usage:       "atb <command> [flags]",
+		ExitCodes: map[string]string{
+			"0": "success",
+			"1": "user/input error",
+			"2": "integrity verification failure",
+			"3": "system/runtime error",
+		},
+		Commands: []helpCommand{
+			{
+				Name:        "init",
+				Usage:       "atb init [--dry-run]",
+				Description: "Initialise a new ATB bundle (idempotent).",
+				Flags:       []string{"--dry-run"},
+				Mutating:    true,
+			},
+			{
+				Name:        "append",
+				Usage:       "atb append <type> <json|--data <json>> [--dry-run]",
+				Description: "Append an event to the current bundle.",
+				Flags:       []string{"--data", "--dry-run"},
+				Mutating:    true,
+			},
+			{
+				Name:        "snapshot",
+				Usage:       "atb snapshot <name> [--gate <pass|fail>] [--dry-run]",
+				Description: "Append a snapshot event to the current bundle.",
+				Flags:       []string{"--gate", "--dry-run"},
+				Mutating:    true,
+			},
+			{
+				Name:        "verify",
+				Usage:       "atb verify [bundle_path] [--format text|json] [--trace]",
+				Description: "Verify bundle hash-chain integrity.",
+				Flags:       []string{"--format", "--trace"},
+				Mutating:    false,
+			},
+			{
+				Name:        "trust-report",
+				Usage:       "atb trust-report [bundle_path] [--format markdown|json]",
+				Description: "Generate trust report sections for audit.",
+				Flags:       []string{"--format"},
+				Mutating:    false,
+			},
+			{
+				Name:        "view",
+				Usage:       "atb view [bundle_path] [--port 8080]",
+				Description: "Open local HTML timeline viewer.",
+				Flags:       []string{"--port"},
+				Mutating:    false,
+			},
+			{
+				Name:        "version",
+				Usage:       "atb version",
+				Description: "Print ATB version.",
+				Mutating:    false,
+			},
+		},
+	}
+}
+
+func printUsageJSON() {
+	if err := json.NewEncoder(os.Stdout).Encode(usageJSON()); err != nil {
+		fmt.Fprintf(os.Stderr, "atb help: encode json output: %v\n", err)
+		os.Exit(exitSystemError)
+	}
+}
+
+func parseHelpArgs(args []string) (string, error) {
+	format := "text"
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--format":
+			if i+1 >= len(args) {
+				return "", fmt.Errorf("missing value for --format (expected text|json)")
+			}
+			format = strings.ToLower(strings.TrimSpace(args[i+1]))
+			i++
+		case strings.HasPrefix(arg, "--format="):
+			format = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
+		case strings.HasPrefix(arg, "-"):
+			return "", fmt.Errorf("unknown flag %q", arg)
+		default:
+			return "", fmt.Errorf("unexpected argument %q", arg)
+		}
+	}
+	if format != "text" && format != "json" {
+		return "", fmt.Errorf("invalid format %q (expected text|json)", format)
+	}
+	return format, nil
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		printUsage()
@@ -57,6 +171,15 @@ func main() {
 	case "version", "--version", "-v":
 		fmt.Printf("atb %s\n", version)
 	case "help", "--help", "-h":
+		format, err := parseHelpArgs(os.Args[2:])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "atb help: %v\n", err)
+			os.Exit(exitUserError)
+		}
+		if format == "json" {
+			printUsageJSON()
+			return
+		}
 		printUsage()
 	default:
 		fmt.Fprintf(os.Stderr, "atb: unknown command %q\n", cmd)

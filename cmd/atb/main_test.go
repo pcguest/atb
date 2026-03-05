@@ -287,3 +287,83 @@ func TestVerifyWithTraceIncludesPerEventLogs(t *testing.T) {
 		t.Fatalf("expected trace output to include mismatch result, got %q", out)
 	}
 }
+
+func TestParseHelpArgs(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "defaults to text",
+			args: nil,
+			want: "text",
+		},
+		{
+			name: "json format split",
+			args: []string{"--format", "json"},
+			want: "json",
+		},
+		{
+			name: "json format equals",
+			args: []string{"--format=json"},
+			want: "json",
+		},
+		{
+			name:    "missing format value",
+			args:    []string{"--format"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid format",
+			args:    []string{"--format", "yaml"},
+			wantErr: true,
+		},
+		{
+			name:    "unknown flag",
+			args:    []string{"--wat"},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := parseHelpArgs(tc.args)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("unexpected format: got %q want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestUsageJSONIncludesVerifyTraceAndExitCodes(t *testing.T) {
+	got := usageJSON()
+	if got.Name != "atb" {
+		t.Fatalf("unexpected name: got %q", got.Name)
+	}
+	if got.ExitCodes["2"] != "integrity verification failure" {
+		t.Fatalf("missing exit code mapping for 2")
+	}
+	found := false
+	for _, cmd := range got.Commands {
+		if cmd.Name == "verify" {
+			found = true
+			if !strings.Contains(cmd.Usage, "--trace") {
+				t.Fatalf("verify usage missing --trace flag: %q", cmd.Usage)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("verify command missing from usage JSON")
+	}
+}
