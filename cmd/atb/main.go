@@ -731,10 +731,11 @@ func normalizeBundlePath(raw string) string {
 	if raw == "" {
 		return bundle.DefaultPath()
 	}
-	if info, err := os.Stat(raw); err == nil && info.IsDir() {
-		return filepath.Join(raw, bundle.BundleFile)
+	clean := filepath.Clean(raw)
+	if info, err := os.Stat(clean); err == nil && info.IsDir() {
+		return filepath.Join(clean, bundle.BundleFile) // #nosec G703 -- path is cleaned; bundle filename is constant
 	}
-	return raw
+	return clean
 }
 
 func parseVerifyArgs(args []string) (string, string, bool, error) {

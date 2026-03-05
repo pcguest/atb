@@ -83,7 +83,7 @@ func cmdEncrypt() {
 		os.Exit(exitSystemError)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cfg.OutputPath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(cfg.OutputPath), 0750); err != nil { // #nosec G301 -- tightened to 0750 per gosec
 		fmt.Fprintf(os.Stderr, "atb encrypt: mkdir output dir: %v\n", err)
 		os.Exit(exitSystemError)
 	}

@@ -69,10 +69,10 @@ func (b *Bundle) Verify() error {
 
 // Save writes the bundle to the given file path in NDJSON format.
 func (b *Bundle) Save(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil { // #nosec G301 -- tightened to 0750 per gosec
 		return fmt.Errorf("bundle: save: mkdir: %w", err)
 	}
-	f, err := os.Create(path)
+	f, err := os.Create(filepath.Clean(path)) // #nosec G304 -- path is user-specified for CLI; caller validates
 	if err != nil {
 		return fmt.Errorf("bundle: save: create: %w", err)
 	}
@@ -88,7 +88,7 @@ func (b *Bundle) Save(path string) error {
 
 // Load reads a bundle from the given file path.
 func Load(path string) (*Bundle, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(filepath.Clean(path)) // #nosec G304 -- path is user-specified for CLI; caller validates
 	if err != nil {
 		return nil, fmt.Errorf("bundle: load: open: %w", err)
 	}
