@@ -1,30 +1,45 @@
 # ATB — Agent Trace Bundle
 
-**Tamper-evident, replayable audit trails for AI agent workflows.**
-
-[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
+[![Tests](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/atb-sdk?label=PyPI)](https://pypi.org/project/atb-sdk/)
+[![npm](https://img.shields.io/npm/v/%40pcguest%2Fatb-sdk?label=npm)](https://www.npmjs.com/package/@pcguest/atb-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-indigo.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go)](go.mod)
-[![PyPI](https://img.shields.io/pypi/v/atb-sdk)](https://pypi.org/project/atb-sdk/)
-[![Python SDK](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python)](sdk/python/)
-[![TypeScript SDK](https://img.shields.io/badge/TypeScript-5.0+-3178C6?logo=typescript)](sdk/typescript/)
 
-ATB is an **audit-first AI workflow runtime**. Every decision, every tool call, every output from your AI agents is recorded in a hash-chained bundle — tamper-evident, locally stored, and verifiable by anyone with the file.
-
----
+> Cryptographically verifiable audit trails for AI agent workflows.
 
 ## Why ATB?
 
-AI agents are making consequential decisions in production. When something goes wrong — or when a regulator asks — you need a complete, verifiable record of what happened. ATB provides:
-
-- **Tamper-evidence**: SHA-256 hash chaining means any modification to any event breaks the entire chain.
-- **Replayability**: Every event is stored with its full payload, enabling exact replay and debugging.
-- **Cross-language consistency**: RFC 8785 (JCS) canonicalization ensures identical hashes in Go, Python, and TypeScript.
-- **Zero infrastructure**: Bundles are plain NDJSON files stored locally in `run.atb/`. No database, no server.
+- **Zero-knowledge by default:** secrets and keys remain client-side.
+- **Tamper-evident by design:** SHA-256 hash chaining with RFC 8785 canonicalization.
+- **Local-first operation:** works offline with plain files; cloud is optional.
 
 ---
 
-## Quick Start
+## Try It in 60 Seconds
+
+```bash
+pip install atb-sdk
+git clone https://github.com/pcguest/atb.git
+cd atb
+GOBIN="$PWD/.bin" go install ./cmd/atb
+export PATH="$PWD/.bin:$PATH"
+
+atb init
+atb append agent.step --data '{"input":"hello","output":"world"}'
+atb verify
+```
+
+## Learn More
+
+- [Quickstart](docs/quickstart.md)
+- [Security Model](docs/security.md)
+- [AI Integration](docs/ai-integration.md)
+- [Specification](docs/spec-v1.0.md)
+
+---
+
+## Developer Setup
 
 ### CLI (Go)
 

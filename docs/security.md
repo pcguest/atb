@@ -19,6 +19,18 @@ ATB is designed for tamper evidence first and local-first operation.
 4. Zero custom cryptography
 - Hashing and cryptographic primitives rely on standard language libraries and audited dependencies.
 
+## Client-Side Security Flow
+
+```mermaid
+graph LR
+    A["Your App"] --> B["ATB SDK/CLI"]
+    B --> C["Client-Side Encryption"]
+    C --> D["Encrypted Blob to R2 (Optional)"]
+    D --> E["Server Storage (Ciphertext Only)"]
+    style C fill:#9f9,stroke:#393
+    style E fill:#f9f,stroke:#939
+```
+
 ## Data Classification
 
 ATB stores user-provided event payloads exactly as supplied.
