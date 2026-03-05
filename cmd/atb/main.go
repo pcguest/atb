@@ -71,7 +71,7 @@ Usage:
   atb <command> [flags]
 
 Commands:
-  init [--dry-run]  Initialise a new ATB bundle in ./run.atb/
+  init [--dry-run]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
   append <type> <json|--data <json>> [--dry-run]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run]  Append a snapshot event
   verify [bundle_path] [--format text|json]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
@@ -118,8 +118,11 @@ func cmdInit() {
 			fmt.Printf("~ Dry run: bundle already exists at %s (no changes).\n", path)
 			return
 		}
-		fmt.Fprintf(os.Stderr, "atb init: bundle already exists at %s\n", path)
-		os.Exit(exitUserError)
+		fmt.Printf("atb init: bundle already exists at %s (no changes).\n", path)
+		return
+	} else if !errors.Is(err, os.ErrNotExist) {
+		fmt.Fprintf(os.Stderr, "atb init: stat %s: %v\n", path, err)
+		os.Exit(exitSystemError)
 	}
 	if dryRun {
 		fmt.Printf("~ Dry run: would initialise ATB bundle at %s.\n", path)

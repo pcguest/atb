@@ -19,6 +19,8 @@ Mutating commands support `--dry-run` previews with no filesystem side effects:
 - `atb append ... --dry-run`
 - `atb snapshot ... --dry-run`
 
+`atb init` is idempotent by default. If the bundle already exists, it returns success with a warning message and makes no changes.
+
 ### Exit codes
 
 - `0`: success
