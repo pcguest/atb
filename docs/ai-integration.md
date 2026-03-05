@@ -11,6 +11,14 @@ This guide defines a stable contract for AI agents that read, verify, and extend
 
 If a command does not support `--format json`, treat its output as human-only text.
 
+### Mutation safety
+
+Mutating commands support `--dry-run` previews with no filesystem side effects:
+
+- `atb init --dry-run`
+- `atb append ... --dry-run`
+- `atb snapshot ... --dry-run`
+
 ### Exit codes
 
 - `0`: success
