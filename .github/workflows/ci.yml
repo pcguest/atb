@@ -12,51 +12,48 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21'
+          go-version: "1.22"
 
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: Install TypeScript SDK dependencies
-        run: |
-          cd sdk/typescript
-          npm ci
-      
+        working-directory: sdk/typescript
+        run: npm ci
+
       - name: Build Go CLI
         run: go build -v ./...
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Python SDK
+        working-directory: sdk/python
         run: |
-          cd sdk/python
           pip install -e .
           pip install pytest
-      
+
       - name: Test Go packages
         run: go test -v ./...
-      
+
       - name: Test Python SDK
-        run: |
-          cd sdk/python
-          pytest
-      
+        working-directory: sdk/python
+        run: pytest
+
       - name: Typecheck TypeScript SDK
-        run: |
-          cd sdk/typescript
-          npm run typecheck
+        working-directory: sdk/typescript
+        run: npm run typecheck
 
       - name: Docs sync smoke check
         shell: bash
@@ -110,29 +107,35 @@ jobs:
           node-version: "20"
 
       - name: Build TypeScript SDK
+        working-directory: sdk/typescript
         run: |
-          cd sdk/typescript
           npm ci
           npm run build
 
-      - name: Run Go golden test
-        run: |
-          cd test/golden
-          go test -v -run TestGoldenCanonicalization
+      - name: Run golden canonicalization test
+        run: go test ./test/golden/... -run TestGoldenCanonicalization -v
+
+      - name: Run schema parity test
+        env:
+          ATB_PYTHON_BIN: python
+        run: go test ./test/golden/... -run TestSchemaParity_AllSDKs -v
+
+      - name: Run encryption parity test
+        env:
+          ATB_PYTHON_BIN: python
+        run: go test ./test/golden/... -run TestEncryptParity_AllSDKs -v
 
       - name: Run Python golden verification
-        run: |
-          cd test/golden
-          python3 verify.py
+        working-directory: test/golden
+        run: python3 verify.py
 
       - name: Run TypeScript golden verification
-        run: |
-          cd test/golden
-          node verify.js
+        working-directory: test/golden
+        run: node verify.js
 
       - name: Compare canonical JSON and hashes
+        working-directory: test/golden
         run: |
-          cd test/golden
           diff output-go.json output-python.json
           diff output-python.json output-typescript.json
           diff hash-go.txt hash-python.txt

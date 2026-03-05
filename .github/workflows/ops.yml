@@ -1,0 +1,193 @@
+name: Ops Automation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+  issues:
+    types: [opened, edited, reopened]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: "0 9 * * 1"
+    - cron: "0 15 * * 1"
+  workflow_dispatch:
+
+jobs:
+  deploy-docs:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages
+
+  registry-health:
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 9 * * 1') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run health check
+        run: ./scripts/check-registries.sh
+
+      - name: Notify Discord on failure
+        if: ${{ failure() && env.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d '{"content":"⚠️ ATB registry health check FAILED"}' \
+            "$DISCORD_WEBHOOK_URL"
+        continue-on-error: true
+
+  feedback-digest:
+    if: (github.event_name == 'schedule' && github.event.schedule == '0 15 * * 1') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Build feedback digest
+        id: digest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sinceDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+            const allIssues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              since: sinceDate,
+              per_page: 100,
+            });
+
+            const issues = allIssues.filter((issue) => !issue.pull_request);
+            const opened = issues.filter((i) => i.state === 'open');
+            const blockers = issues.filter((i) =>
+              (i.labels || []).some((l) => (l.name || '').toLowerCase() === 'impact:blocker')
+            );
+
+            const lines = [];
+            lines.push('## Weekly ATB Feedback Digest');
+            lines.push('');
+            lines.push(`Window start: ${sinceDate}`);
+            lines.push(`Total issues touched: ${issues.length}`);
+            lines.push(`Open issues: ${opened.length}`);
+            lines.push(`Blockers: ${blockers.length}`);
+            lines.push('');
+            lines.push('### Recent Issues');
+
+            const recent = issues.slice(0, 10);
+            if (recent.length === 0) {
+              lines.push('- No new issues in this window.');
+            } else {
+              for (const issue of recent) {
+                lines.push(`- #${issue.number} ${issue.title} (${issue.state})`);
+              }
+            }
+
+            lines.push('');
+            lines.push('### Social Mentions');
+            lines.push('- HN: manual review pending');
+            lines.push('- Twitter/X: manual review pending');
+
+            const summary = lines.join('\n');
+            core.setOutput('summary', summary);
+            core.setOutput('blockers', String(blockers.length));
+
+      - name: Write job summary
+        run: |
+          cat << 'EOF_SUMMARY' >> "$GITHUB_STEP_SUMMARY"
+          ${{ steps.digest.outputs.summary }}
+          EOF_SUMMARY
+
+      - name: Send digest to Discord
+        if: ${{ env.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          summary=$(cat << 'EOF_MSG'
+          ${{ steps.digest.outputs.summary }}
+          EOF_MSG
+          )
+          payload=$(jq -Rn --arg content "$summary" '{content: $content}')
+          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
+        continue-on-error: true
+
+  pr-labels:
+    if: github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+  issue-triage:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Apply issue labels from template + impact
+        id: triage
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title || "";
+            const body = issue.body || "";
+            const labels = new Set(["needs-triage"]);
+
+            if (title.includes("[Bug]")) labels.add("bug");
+            if (title.includes("[Feature]")) labels.add("enhancement");
+            if (title.includes("[Integration]")) labels.add("integration");
+
+            const impactBlocker = /Impact\s*\n\s*Blocker/i.test(body);
+            const impactNice = /Impact\s*\n\s*Nice-to-have/i.test(body);
+            const impactQuestion = /Impact\s*\n\s*Question/i.test(body);
+
+            if (impactBlocker) labels.add("impact:blocker");
+            if (impactNice) labels.add("impact:nice-to-have");
+            if (impactQuestion) labels.add("impact:question");
+
+            const traceAttached = /Trace Bundle Attached\?[\s\S]*?- \[x\]/i.test(body);
+            if (traceAttached) labels.add("trace:attached");
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: Array.from(labels),
+            });
+
+            core.setOutput("is_blocker", impactBlocker ? "true" : "false");
+            core.setOutput("issue_number", String(issue.number));
+
+      - name: Notify Discord for blocker issues
+        if: ${{ steps.triage.outputs.is_blocker == 'true' && env.DISCORD_WEBHOOK_URL != '' }}
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_NUMBER: ${{ steps.triage.outputs.issue_number }}
+        run: |
+          payload=$(printf '{"content":"🚨 ATB blocker issue #%s: %s\n%s"}' "$ISSUE_NUMBER" "$ISSUE_TITLE" "$ISSUE_URL")
+          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
