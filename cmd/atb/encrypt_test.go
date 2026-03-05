@@ -1,6 +1,15 @@
 package main
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/pcguest/atb/internal/bundle"
+)
+
+func normalizePathForTest(path string) string {
+	return filepath.ToSlash(filepath.Clean(path))
+}
 
 func TestParseEncryptArgs(t *testing.T) {
 	tests := []struct {
@@ -14,8 +23,8 @@ func TestParseEncryptArgs(t *testing.T) {
 		{
 			name:     "defaults path",
 			args:     []string{"--password", "test123"},
-			wantPath: "run.atb/bundle.atb",
-			wantOut:  "run.atb/bundle.atb.enc",
+			wantPath: bundle.DefaultPath(),
+			wantOut:  bundle.DefaultPath() + ".enc",
 			wantPass: "test123",
 		},
 		{
@@ -49,10 +58,10 @@ func TestParseEncryptArgs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got.InputPath != tc.wantPath {
+			if normalizePathForTest(got.InputPath) != normalizePathForTest(tc.wantPath) {
 				t.Fatalf("unexpected input path: got %q want %q", got.InputPath, tc.wantPath)
 			}
-			if got.OutputPath != tc.wantOut {
+			if normalizePathForTest(got.OutputPath) != normalizePathForTest(tc.wantOut) {
 				t.Fatalf("unexpected output path: got %q want %q", got.OutputPath, tc.wantOut)
 			}
 			if got.Password != tc.wantPass {
@@ -109,10 +118,10 @@ func TestParseDecryptArgs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if got.InputPath != tc.wantPath {
+			if normalizePathForTest(got.InputPath) != normalizePathForTest(tc.wantPath) {
 				t.Fatalf("unexpected input path: got %q want %q", got.InputPath, tc.wantPath)
 			}
-			if got.OutputPath != tc.wantOut {
+			if normalizePathForTest(got.OutputPath) != normalizePathForTest(tc.wantOut) {
 				t.Fatalf("unexpected output path: got %q want %q", got.OutputPath, tc.wantOut)
 			}
 			if got.Password != tc.wantPass {
