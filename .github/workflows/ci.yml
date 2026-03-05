@@ -66,7 +66,7 @@ jobs:
 
           grep -q "view \\[bundle_path\\]" /tmp/atb-help.txt
           grep -q "snapshot <name>" /tmp/atb-help.txt
-          grep -q "atb view" README.md
+          grep -q "atb verify" README.md
           grep -q "atb view" docs/quickstart.md
           grep -q "atb push" docs/spec/atb-push-v1.1.md
 
