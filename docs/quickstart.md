@@ -15,6 +15,10 @@ go build -o atb ./cmd/atb
 
 # From release (users)
 # Download your OS binary from GitHub Releases.
+
+# If installing from private GitHub source with `go install`
+go env -w GOPRIVATE=github.com/pcguest/*
+go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
 ### Python SDK
