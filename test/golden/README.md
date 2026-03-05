@@ -12,6 +12,10 @@ must verify in every other language.
 
 - `input.json`: language-agnostic fixture
 - `golden_test.go`: Go baseline generator + canonical/hash assertions
+- `encrypt_parity_test.go`: Go/Python/TypeScript AES-GCM parity assertions
+- `encrypt_parity.py`: Python parity helper (invoked by Go test)
+- `encrypt_parity.js`: TypeScript parity helper (invoked by Go test)
+- `encrypt-vector.hex`: deterministic encryption golden fixture
 - `verify.py`: Python canonical/hash parity check against Go outputs
 - `verify.js`: TypeScript canonical/hash parity check against Go outputs
 
@@ -34,6 +38,9 @@ diff output-go.json output-python.json
 diff output-python.json output-typescript.json
 diff hash-go.txt hash-python.txt
 diff hash-python.txt hash-typescript.txt
+
+# 5) Cross-language encryption parity
+GOCACHE=/tmp/atb-go-cache go test -v -run TestEncryptParity_AllSDKs
 ```
 
 ## Expected Canonical Output

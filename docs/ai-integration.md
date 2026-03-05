@@ -128,3 +128,52 @@ jq -e '.categories[] | select(.key=="cryptographic_integrity") | .status == "pas
 3. Re-run `atb verify --format json` and compare status + head hash behavior.
 4. Run `atb trust-report --format json` and block if critical category status regresses.
 5. Store report artifacts alongside CI logs for audit replay.
+
+## Cross-Language Encryption Testing
+
+ATB encryption must produce byte-identical ciphertext across Go, Python, and TypeScript for the same inputs. This is verified via golden fixtures.
+
+### Deterministic Test Path
+
+For testing only, encryption functions accept fixed `salt` and `nonce` parameters:
+
+```go
+// Go
+ciphertext, err := encrypt.EncryptWithSaltNonce(plaintext, password, salt, nonce)
+```
+
+```python
+# Python
+ciphertext = encrypt_raw(plaintext, password, salt=salt, nonce=nonce)
+```
+
+```ts
+// TypeScript
+const ciphertext = encryptRaw(plaintext, password, { salt, nonce });
+```
+
+### Adding a New SDK
+
+To add encryption support for a new language:
+
+1. Implement `encrypt_raw(plaintext, password, salt, nonce)` using AES-256-GCM + PBKDF2.
+2. Use the exact wire format: `ATBE` + `version` + `salt(16)` + `nonce(12)` + `tag(16)` + `ciphertext`.
+3. Add deterministic test path accepting fixed salt/nonce.
+4. Compare output bytes against Go baseline in `test/golden/encrypt-vector.hex`.
+5. All SDKs must produce identical ciphertext for same inputs.
+
+### Golden Fixture Format
+
+`test/golden/encrypt-vector.hex` contains hex-encoded ciphertext for:
+
+- Canonical JSON: `{"head_hash":"0000000000000000000000000000000000000000000000000000000000000000","records":[]}`
+- Password: `test-password-for-parity`
+- Salt: 16 bytes of `0x42`
+- Nonce: 12 bytes of `0x7A`
+
+If your implementation produces different output, check:
+
+- PBKDF2 iterations (must be `100000`)
+- Hash algorithm (must be `SHA-256`)
+- AES-GCM tag size (must be `16` bytes)
+- Wire format byte order and field ordering

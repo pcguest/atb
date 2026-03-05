@@ -157,6 +157,23 @@ class Bundle:
         return bundle
 
     # ------------------------------------------------------------------
+    # Encryption
+    # ------------------------------------------------------------------
+
+    def encrypt(self, password: str) -> bytes:
+        """Encrypt this bundle to ATBE bytes."""
+        from atb.encrypt import encrypt_bundle
+
+        return encrypt_bundle(self, password)
+
+    @classmethod
+    def decrypt(cls, password: str, data: bytes) -> "Bundle":
+        """Decrypt ATBE bytes and return a verified bundle."""
+        from atb.encrypt import decrypt_bundle
+
+        return decrypt_bundle(password, data)
+
+    # ------------------------------------------------------------------
     # Convenience
     # ------------------------------------------------------------------
 

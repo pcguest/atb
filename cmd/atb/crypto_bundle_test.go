@@ -1,0 +1,46 @@
+package main
+
+import (
+	"testing"
+
+	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/canonicalize"
+	"github.com/pcguest/atb/internal/hash"
+)
+
+func TestBundlePayloadRoundTripVerifies(t *testing.T) {
+	b := bundle.New()
+	if err := b.Append("dev.session", map[string]any{"ok": true}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+
+	raw, err := canonicalPayloadFromBundle(b)
+	if err != nil {
+		t.Fatalf("canonical payload: %v", err)
+	}
+	out, err := bundleFromCanonicalPayload(raw)
+	if err != nil {
+		t.Fatalf("bundle from payload: %v", err)
+	}
+	if len(out.Records) != 1 {
+		t.Fatalf("unexpected record count: got %d want 1", len(out.Records))
+	}
+}
+
+func TestBundlePayloadHeadHashMismatchFails(t *testing.T) {
+	b := bundle.New()
+	if err := b.Append("dev.session", map[string]any{"ok": true}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	payload := encryptedBundlePayload{
+		HeadHash: hash.GenesisHash,
+		Records:  b.Records,
+	}
+	raw, err := canonicalize.Marshal(payload)
+	if err != nil {
+		t.Fatalf("canonicalize: %v", err)
+	}
+	if _, err := bundleFromCanonicalPayload(raw); err == nil {
+		t.Fatalf("expected head hash mismatch error")
+	}
+}

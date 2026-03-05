@@ -108,6 +108,20 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "encrypt",
+				Usage:       "atb encrypt [bundle_path] --password <password>",
+				Description: "Encrypt a bundle using AES-256-GCM.",
+				Flags:       []string{"--password"},
+				Mutating:    true,
+			},
+			{
+				Name:        "decrypt",
+				Usage:       "atb decrypt <encrypted_path> --password <password>",
+				Description: "Decrypt an encrypted ATB bundle.",
+				Flags:       []string{"--password"},
+				Mutating:    true,
+			},
+			{
 				Name:        "trust-report",
 				Usage:       "atb trust-report [bundle_path] [--format markdown|json]",
 				Description: "Generate trust report sections for audit.",
@@ -178,6 +192,10 @@ func main() {
 		cmdSnapshot()
 	case "verify":
 		cmdVerify()
+	case "encrypt":
+		cmdEncrypt()
+	case "decrypt":
+		cmdDecrypt()
 	case "trust-report":
 		cmdTrustReport()
 	case "view":
@@ -213,6 +231,8 @@ Commands:
   append <type> <json|--data <json>> [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   verify [bundle_path] [--format text|json] [--trace]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
+  encrypt [bundle_path] --password <password>  Encrypt bundle file to <bundle_path>.enc
+  decrypt <encrypted_path> --password <password>  Decrypt encrypted bundle back to .atb
   trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
   view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
   version           Print the ATB version
@@ -237,6 +257,8 @@ Examples:
   atb verify
   atb verify --format json
   atb verify --trace
+  atb encrypt run.atb/bundle.atb --password test123
+  atb decrypt run.atb/bundle.atb.enc --password test123
   atb trust-report --format markdown
   atb trust-report --format json
   atb view

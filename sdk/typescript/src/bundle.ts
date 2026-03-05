@@ -4,6 +4,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { decryptBundle, encryptBundle } from "./encrypt.js";
 import { GENESIS_HASH, computeHash } from "./hash.js";
 import type { ATBEvent, ATBRecord, BundleOptions } from "./types.js";
 
@@ -102,6 +103,21 @@ export class Bundle {
       const record = JSON.parse(trimmed) as ATBRecord;
       bundle.records.push(record);
     }
+    return bundle;
+  }
+
+  /** Encrypt this bundle to ATBE bytes. */
+  async encrypt(password: string): Promise<Uint8Array> {
+    this.verify();
+    return encryptBundle(this.records, password);
+  }
+
+  /** Decrypt ATBE bytes into a verified bundle. */
+  static async decrypt(password: string, data: Uint8Array): Promise<Bundle> {
+    const decoded = await decryptBundle(password, data);
+    const bundle = new Bundle();
+    bundle.records.push(...decoded.records);
+    bundle.verify();
     return bundle;
   }
 

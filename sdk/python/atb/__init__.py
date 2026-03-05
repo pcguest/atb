@@ -19,6 +19,7 @@ Quick start::
 """
 
 from atb.bundle import Bundle
+from atb.encrypt import ATBDecryptionError, ATBEncryptionError, decrypt_bundle, encrypt_bundle
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
 
@@ -27,6 +28,10 @@ __all__ = [
     "Bundle",
     "ATBError",
     "ATBVerificationError",
+    "ATBEncryptionError",
+    "ATBDecryptionError",
+    "encrypt_bundle",
+    "decrypt_bundle",
     "compute_hash",
     "genesis_hash",
 ]
