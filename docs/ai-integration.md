@@ -8,6 +8,9 @@ This guide defines a stable contract for AI agents that read, verify, and extend
 
 - `atb verify --format json`
 - `atb trust-report --format json`
+- `atb init --format json`
+- `atb append ... --format json`
+- `atb snapshot ... --format json`
 - `atb verify --trace` (debug hash-step logging to stderr)
 - `atb --help --format json` (machine-discoverable command contract)
 

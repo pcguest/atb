@@ -163,41 +163,86 @@ func TestParseVerifyArgs(t *testing.T) {
 	}
 }
 
-func TestParseDryRunFlag(t *testing.T) {
+func TestParseMutationFlags(t *testing.T) {
 	tests := []struct {
 		name       string
 		args       []string
 		wantArgs   []string
+		wantFormat string
 		wantDryRun bool
+		wantErr    bool
 	}{
 		{
 			name:       "no flag",
 			args:       []string{"snapshot", "--gate", "pass"},
 			wantArgs:   []string{"snapshot", "--gate", "pass"},
+			wantFormat: verifyFormatText,
 			wantDryRun: false,
 		},
 		{
 			name:       "flag at end",
 			args:       []string{"snapshot", "--gate", "pass", "--dry-run"},
 			wantArgs:   []string{"snapshot", "--gate", "pass"},
+			wantFormat: verifyFormatText,
 			wantDryRun: true,
 		},
 		{
 			name:       "flag at start",
 			args:       []string{"--dry-run", "feature", "{\"ok\":true}"},
 			wantArgs:   []string{"feature", "{\"ok\":true}"},
+			wantFormat: verifyFormatText,
 			wantDryRun: true,
+		},
+		{
+			name:       "json format split",
+			args:       []string{"feature", "{\"ok\":true}", "--format", "json"},
+			wantArgs:   []string{"feature", "{\"ok\":true}"},
+			wantFormat: verifyFormatJSON,
+			wantDryRun: false,
+		},
+		{
+			name:       "json format equals",
+			args:       []string{"feature", "--format=json", "{\"ok\":true}"},
+			wantArgs:   []string{"feature", "{\"ok\":true}"},
+			wantFormat: verifyFormatJSON,
+			wantDryRun: false,
+		},
+		{
+			name:       "unknown flag passed through",
+			args:       []string{"--wat"},
+			wantArgs:   []string{"--wat"},
+			wantFormat: verifyFormatText,
+			wantDryRun: false,
+		},
+		{
+			name:    "missing format value",
+			args:    []string{"--format"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid format",
+			args:    []string{"--format", "yaml"},
+			wantErr: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			gotArgs, gotDryRun, err := parseDryRunFlag(tc.args)
+			gotArgs, gotFormat, gotDryRun, err := parseMutationFlags(tc.args)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error")
+				}
+				return
+			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if gotDryRun != tc.wantDryRun {
 				t.Fatalf("unexpected dry-run: got %v want %v", gotDryRun, tc.wantDryRun)
+			}
+			if gotFormat != tc.wantFormat {
+				t.Fatalf("unexpected format: got %q want %q", gotFormat, tc.wantFormat)
 			}
 			if len(gotArgs) != len(tc.wantArgs) {
 				t.Fatalf("unexpected args length: got %d want %d", len(gotArgs), len(tc.wantArgs))
@@ -354,16 +399,32 @@ func TestUsageJSONIncludesVerifyTraceAndExitCodes(t *testing.T) {
 	if got.ExitCodes["2"] != "integrity verification failure" {
 		t.Fatalf("missing exit code mapping for 2")
 	}
-	found := false
+	foundVerify := false
+	foundMutatingFormat := map[string]bool{
+		"init":     false,
+		"append":   false,
+		"snapshot": false,
+	}
 	for _, cmd := range got.Commands {
 		if cmd.Name == "verify" {
-			found = true
+			foundVerify = true
 			if !strings.Contains(cmd.Usage, "--trace") {
 				t.Fatalf("verify usage missing --trace flag: %q", cmd.Usage)
 			}
 		}
+		if _, ok := foundMutatingFormat[cmd.Name]; ok {
+			if !strings.Contains(cmd.Usage, "--format") {
+				t.Fatalf("%s usage missing --format: %q", cmd.Name, cmd.Usage)
+			}
+			foundMutatingFormat[cmd.Name] = true
+		}
 	}
-	if !found {
+	if !foundVerify {
 		t.Fatalf("verify command missing from usage JSON")
+	}
+	for name, found := range foundMutatingFormat {
+		if !found {
+			t.Fatalf("%s command missing from usage JSON", name)
+		}
 	}
 }
