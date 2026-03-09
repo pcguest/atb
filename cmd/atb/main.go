@@ -130,9 +130,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "export",
-				Usage:       "atb export --format compliance --output <path.zip> [--dry-run]",
+				Usage:       "atb export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run]",
 				Description: "Export local compliance evidence bundle.",
-				Flags:       []string{"--format", "--output", "--dry-run"},
+				Flags:       []string{"--format", "--output", "--bundle", "--type", "--subject-id", "--dry-run"},
 				Mutating:    false,
 			},
 			{
@@ -261,7 +261,7 @@ Commands:
   encrypt [bundle_path] [--password <password>]  Encrypt bundle file to <bundle_path>.enc
   decrypt <encrypted_path> [--password <password>]  Decrypt encrypted bundle back to .atb
   archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
-  export --format compliance --output <path.zip> [--dry-run]  Export auditor-friendly local evidence bundle
+  export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run]  Export auditor-friendly local evidence bundle
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
   view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
@@ -292,6 +292,9 @@ Examples:
   ATB_PASSWORD=test123 atb decrypt run.atb/bundle.atb.enc
   atb archive --before 2025-01-01 --dry-run
   atb export --format compliance --output evidence.zip --dry-run
+  atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
+  atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
+  atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
   atb config retention --days 90
   atb trust-report --format markdown
   atb trust-report --format json

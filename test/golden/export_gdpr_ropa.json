@@ -1,0 +1,45 @@
+{
+  "controller_id": "org_xyz",
+  "reporting_period": "2026-Q1",
+  "processing_activities": [
+    {
+      "purpose": "fraud_detection",
+      "legal_basis": "legitimate_interest",
+      "data_categories": [
+        "identity",
+        "ip_address",
+        "sensitive_attributes",
+        "usage_metrics"
+      ],
+      "recipient_categories": [
+        "internal_security"
+      ],
+      "retention_schedule": "90_days",
+      "security_measures": [
+        "Automated anomaly detection",
+        "Manual review workflow"
+      ],
+      "event_volume": 1
+    },
+    {
+      "purpose": "service_delivery",
+      "legal_basis": "contract_performance",
+      "data_categories": [
+        "identity",
+        "ip_address",
+        "usage_metrics"
+      ],
+      "recipient_categories": [
+        "internal_engineering",
+        "cloud_provider_aws"
+      ],
+      "retention_schedule": "24_months_from_last_activity",
+      "security_measures": [
+        "AES-256-GCM encryption at rest",
+        "Hash-chained audit logs",
+        "Role-based access control"
+      ],
+      "event_volume": 4
+    }
+  ]
+}

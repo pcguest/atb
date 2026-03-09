@@ -10,22 +10,32 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	archiveledger "github.com/pcguest/atb/internal/archive"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/canonicalize"
 	"github.com/pcguest/atb/internal/trust"
 )
 
 const (
 	exportFormatCompliance = "compliance"
+	exportFormatSOC2       = "soc2"
+	exportFormatGDPR       = "gdpr"
+
+	exportGDPRTypeDSR  = "dsr"
+	exportGDPRTypeROPA = "ropa"
 )
 
 type exportConfig struct {
-	Format string
-	Output string
-	DryRun bool
+	Format     string
+	Output     string
+	DryRun     bool
+	BundlePath string
+	GDPRType   string
+	SubjectID  string
 }
 
 type exportManifest struct {
@@ -75,6 +85,141 @@ type exportBuildResult struct {
 	OutputPath    string
 }
 
+type exportBaseEvidence struct {
+	Manifest    exportManifest
+	Files       []exportFileEntry
+	BundleFiles []exportBundleInfo
+	BundlePath  string
+	BundleRaw   []byte
+	BundleData  *bundle.Bundle
+}
+
+type soc2ControlDefinition struct {
+	ControlID   string
+	Description string
+	EventTypes  map[string]struct{}
+}
+
+type soc2IntegrityProof struct {
+	FirstEventHash string `json:"first_event_hash"`
+	LastEventHash  string `json:"last_event_hash"`
+	ChainValid     bool   `json:"chain_valid"`
+}
+
+type soc2ControlEvidence struct {
+	ControlID      string             `json:"control_id"`
+	Description    string             `json:"description"`
+	EvidenceCount  int                `json:"evidence_count"`
+	SampleIDs      []string           `json:"sample_ids"`
+	IntegrityProof soc2IntegrityProof `json:"integrity_proof"`
+}
+
+type soc2EvidenceManifest struct {
+	AuditPeriod struct {
+		Start string `json:"start"`
+		End   string `json:"end"`
+	} `json:"audit_period"`
+	BundleHash        string                `json:"bundle_hash"`
+	GeneratedAt       string                `json:"generated_at"`
+	Controls          []soc2ControlEvidence `json:"controls"`
+	VerifierSignature string                `json:"verifier_signature"`
+}
+
+type soc2AuditTrailRecord struct {
+	EventID   string      `json:"event_id"`
+	Sequence  int         `json:"seq"`
+	Type      string      `json:"type"`
+	Hash      string      `json:"hash"`
+	PrevHash  string      `json:"prev_hash"`
+	Timestamp string      `json:"timestamp,omitempty"`
+	Data      interface{} `json:"data"`
+	ActorID   *string     `json:"actor_id,omitempty"`
+	OrgID     *string     `json:"org_id,omitempty"`
+	Workspace *string     `json:"workspace_id,omitempty"`
+}
+
+type soc2VerificationReport struct {
+	BundlePath     string `json:"bundle_path"`
+	BundleHash     string `json:"bundle_hash"`
+	VerifiedAt     string `json:"verified_at"`
+	ChainValid     bool   `json:"chain_valid"`
+	FirstEventHash string `json:"first_event_hash,omitempty"`
+	LastEventHash  string `json:"last_event_hash,omitempty"`
+	EventCount     int    `json:"event_count"`
+}
+
+type gdprDSRRecord struct {
+	EventID   string                 `json:"event_id"`
+	Timestamp string                 `json:"timestamp"`
+	Action    string                 `json:"action"`
+	Context   map[string]interface{} `json:"context"`
+}
+
+type gdprDSRCategory struct {
+	Category      string          `json:"category"`
+	RecordCount   int             `json:"record_count"`
+	RetentionRule string          `json:"retention_rule"`
+	Records       []gdprDSRRecord `json:"records"`
+}
+
+type gdprDSRExport struct {
+	RequestType    string            `json:"request_type"`
+	SubjectID      string            `json:"subject_id"`
+	ExportDate     string            `json:"export_date"`
+	LegalBasis     string            `json:"legal_basis"`
+	DataCategories []gdprDSRCategory `json:"data_categories"`
+	Provenance     gdprDSRProvenance `json:"provenance"`
+}
+
+type gdprDSRProvenance struct {
+	SourceBundleHash    string `json:"source_bundle_hash"`
+	ExtractionSignature string `json:"extraction_signature"`
+}
+
+type gdprROPAExport struct {
+	ControllerID         string                   `json:"controller_id"`
+	ReportingPeriod      string                   `json:"reporting_period"`
+	ProcessingActivities []gdprProcessingActivity `json:"processing_activities"`
+}
+
+type gdprProcessingActivity struct {
+	Purpose             string   `json:"purpose"`
+	LegalBasis          string   `json:"legal_basis"`
+	DataCategories      []string `json:"data_categories"`
+	RecipientCategories []string `json:"recipient_categories,omitempty"`
+	RetentionSchedule   string   `json:"retention_schedule"`
+	SecurityMeasures    []string `json:"security_measures"`
+	EventVolume         int      `json:"event_volume"`
+}
+
+var soc2Controls = []soc2ControlDefinition{
+	{
+		ControlID:   "CC6.1",
+		Description: "Logical Access Security",
+		EventTypes:  setOf("auth.login", "auth.logout", "auth.failure", "permission.change"),
+	},
+	{
+		ControlID:   "CC6.6",
+		Description: "System Boundaries",
+		EventTypes:  setOf("system.config_change", "network.policy_update"),
+	},
+	{
+		ControlID:   "CC7.2",
+		Description: "System Monitoring",
+		EventTypes:  setOf("alert.triggered", "monitor.anomaly", "health.check_fail"),
+	},
+	{
+		ControlID:   "CC8.1",
+		Description: "Change Management",
+		EventTypes:  setOf("deploy.start", "deploy.complete", "code.merge", "config.promote"),
+	},
+	{
+		ControlID:   "CC9.1",
+		Description: "Risk Mitigation",
+		EventTypes:  setOf("backup.start", "backup.complete", "restore.init"),
+	},
+}
+
 func cmdExport() {
 	cfg, err := parseExportArgs(os.Args[2:])
 	if err != nil {
@@ -83,12 +228,13 @@ func cmdExport() {
 		os.Exit(exitUserError)
 	}
 
-	result, err := buildComplianceExport(time.Now().UTC(), cfg)
+	now := time.Now().UTC()
+	result, err := buildExport(now, cfg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb export: %v\n", err)
 		exitCode := exitSystemError
 		if strings.Contains(strings.ToLower(err.Error()), "verification") {
-			exitCode = exitIntegrityFailure
+			exitCode = exitUserError
 		}
 		os.Exit(exitCode)
 	}
@@ -113,7 +259,7 @@ func cmdExport() {
 		return
 	}
 
-	if err := writeComplianceZip(result); err != nil {
+	if err := writeExportZip(result, now); err != nil {
 		fmt.Fprintf(os.Stderr, "atb export: write zip: %v\n", err)
 		os.Exit(exitSystemError)
 	}
@@ -127,7 +273,7 @@ func parseExportArgs(args []string) (exportConfig, error) {
 		switch {
 		case arg == "--format":
 			if i+1 >= len(args) {
-				return cfg, fmt.Errorf("missing value for --format (expected compliance)")
+				return cfg, fmt.Errorf("missing value for --format (expected compliance|soc2|gdpr)")
 			}
 			cfg.Format = strings.ToLower(strings.TrimSpace(args[i+1]))
 			i++
@@ -141,6 +287,30 @@ func parseExportArgs(args []string) (exportConfig, error) {
 			i++
 		case strings.HasPrefix(arg, "--output="):
 			cfg.Output = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--output=")))
+		case arg == "--bundle":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --bundle")
+			}
+			cfg.BundlePath = normalizeBundlePath(args[i+1])
+			i++
+		case strings.HasPrefix(arg, "--bundle="):
+			cfg.BundlePath = normalizeBundlePath(strings.TrimSpace(strings.TrimPrefix(arg, "--bundle=")))
+		case arg == "--type":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --type (expected dsr|ropa)")
+			}
+			cfg.GDPRType = strings.ToLower(strings.TrimSpace(args[i+1]))
+			i++
+		case strings.HasPrefix(arg, "--type="):
+			cfg.GDPRType = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--type=")))
+		case arg == "--subject-id":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --subject-id")
+			}
+			cfg.SubjectID = strings.TrimSpace(args[i+1])
+			i++
+		case strings.HasPrefix(arg, "--subject-id="):
+			cfg.SubjectID = strings.TrimSpace(strings.TrimPrefix(arg, "--subject-id="))
 		case arg == "--dry-run":
 			cfg.DryRun = true
 		case strings.HasPrefix(arg, "--"):
@@ -149,13 +319,58 @@ func parseExportArgs(args []string) (exportConfig, error) {
 			return cfg, fmt.Errorf("unexpected argument %q", arg)
 		}
 	}
-	if cfg.Format != exportFormatCompliance {
-		return cfg, fmt.Errorf("unsupported format %q (expected compliance)", cfg.Format)
+
+	switch cfg.Format {
+	case exportFormatCompliance, exportFormatSOC2, exportFormatGDPR:
+	default:
+		return cfg, fmt.Errorf("unsupported format %q (expected compliance|soc2|gdpr)", cfg.Format)
 	}
+
 	if cfg.Output == "" {
 		return cfg, fmt.Errorf("--output is required")
 	}
+
+	switch cfg.Format {
+	case exportFormatCompliance:
+		if cfg.BundlePath != "" || cfg.GDPRType != "" || cfg.SubjectID != "" {
+			return cfg, fmt.Errorf("--bundle, --type, and --subject-id are unsupported for --format compliance")
+		}
+	case exportFormatSOC2:
+		if cfg.BundlePath == "" {
+			cfg.BundlePath = bundle.DefaultPath()
+		}
+		if cfg.GDPRType != "" || cfg.SubjectID != "" {
+			return cfg, fmt.Errorf("--type and --subject-id are only valid for --format gdpr")
+		}
+	case exportFormatGDPR:
+		if cfg.BundlePath == "" {
+			cfg.BundlePath = bundle.DefaultPath()
+		}
+		if cfg.GDPRType != exportGDPRTypeDSR && cfg.GDPRType != exportGDPRTypeROPA {
+			return cfg, fmt.Errorf("--type is required for --format gdpr (expected dsr|ropa)")
+		}
+		if cfg.GDPRType == exportGDPRTypeDSR && strings.TrimSpace(cfg.SubjectID) == "" {
+			return cfg, fmt.Errorf("--subject-id is required for --format gdpr --type dsr")
+		}
+		if cfg.GDPRType == exportGDPRTypeROPA && strings.TrimSpace(cfg.SubjectID) != "" {
+			return cfg, fmt.Errorf("--subject-id is only valid for --format gdpr --type dsr")
+		}
+	}
+
 	return cfg, nil
+}
+
+func buildExport(now time.Time, cfg exportConfig) (exportBuildResult, error) {
+	switch cfg.Format {
+	case exportFormatCompliance:
+		return buildComplianceExport(now, cfg)
+	case exportFormatSOC2:
+		return buildSOC2Export(now, cfg)
+	case exportFormatGDPR:
+		return buildGDPRExport(now, cfg)
+	default:
+		return exportBuildResult{}, fmt.Errorf("unsupported format %q", cfg.Format)
+	}
 }
 
 func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, error) {
@@ -245,7 +460,7 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 		return result, fmt.Errorf("load archive ledger: %w", loadErr)
 	}
 
-	verifyReportData, err := buildVerifyReport(activePaths, archivedPaths)
+	verifyReportData, err := buildVerifyReport(now, activePaths, archivedPaths)
 	if err != nil {
 		return result, err
 	}
@@ -272,14 +487,13 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 	files = append(files, exportFileEntry{ZipPath: ledgerReportZip, Data: ledgerReportData})
 	manifest.IncludedFiles = append(manifest.IncludedFiles, ledgerReportZip)
 
-	if cfgData, cfgPath, retentionDays, err := loadConfigForExport(); err != nil {
+	if cfgData, _, retentionDays, err := loadConfigForExport(); err != nil {
 		return result, err
 	} else if cfgData != nil {
 		zipPath := filepath.ToSlash(filepath.Join("evidence", "config", "atb-config.json"))
 		files = append(files, exportFileEntry{ZipPath: zipPath, Data: cfgData})
 		manifest.IncludedFiles = append(manifest.IncludedFiles, zipPath)
 		manifest.RetentionDays = retentionDays
-		_ = cfgPath
 	}
 
 	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
@@ -345,10 +559,300 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 	result.Files = files
 	result.BundleFiles = bundleInfos
 	result.ChecksumLines = strings.Split(strings.TrimSuffix(checksums, "\n"), "\n")
+	result.OutputPath = cfg.Output
 	return result, nil
 }
 
-func buildVerifyReport(activePaths, archivedPaths []string) ([]byte, error) {
+func buildSOC2Export(now time.Time, cfg exportConfig) (exportBuildResult, error) {
+	base, err := buildBaseExportEvidence(now, cfg)
+	if err != nil {
+		return exportBuildResult{}, err
+	}
+
+	relevant := make([]soc2AuditTrailRecord, 0)
+	controlRecords := make(map[string][]soc2AuditTrailRecord, len(soc2Controls))
+	for _, control := range soc2Controls {
+		controlRecords[control.ControlID] = []soc2AuditTrailRecord{}
+	}
+
+	var periodStart *time.Time
+	var periodEnd *time.Time
+	for _, rec := range base.BundleData.Records {
+		record := newSOC2AuditTrailRecord(rec)
+		if !isSOC2RelevantType(record.Type) {
+			continue
+		}
+		relevant = append(relevant, record)
+		for _, control := range soc2Controls {
+			if _, ok := control.EventTypes[record.Type]; ok {
+				controlRecords[control.ControlID] = append(controlRecords[control.ControlID], record)
+			}
+		}
+		if ts, ok := parseRFC3339(record.Timestamp); ok {
+			if periodStart == nil || ts.Before(*periodStart) {
+				start := ts
+				periodStart = &start
+			}
+			if periodEnd == nil || ts.After(*periodEnd) {
+				end := ts
+				periodEnd = &end
+			}
+		}
+	}
+
+	if periodStart == nil || periodEnd == nil {
+		fallback := now.UTC()
+		periodStart = &fallback
+		periodEnd = &fallback
+	}
+
+	trailData, err := buildSOC2AuditTrailFile(relevant)
+	if err != nil {
+		return exportBuildResult{}, err
+	}
+
+	soc2Manifest := soc2EvidenceManifest{
+		BundleHash:        "sha256:" + sha256Hex(base.BundleRaw),
+		GeneratedAt:       now.UTC().Format(time.RFC3339),
+		Controls:          make([]soc2ControlEvidence, 0, len(soc2Controls)),
+		VerifierSignature: "ed25519:unsigned",
+	}
+	soc2Manifest.AuditPeriod.Start = periodStart.UTC().Format(time.RFC3339)
+	soc2Manifest.AuditPeriod.End = periodEnd.UTC().Format(time.RFC3339)
+
+	for _, control := range soc2Controls {
+		recs := controlRecords[control.ControlID]
+		item := soc2ControlEvidence{
+			ControlID:     control.ControlID,
+			Description:   control.Description,
+			EvidenceCount: len(recs),
+			SampleIDs:     []string{},
+			IntegrityProof: soc2IntegrityProof{
+				ChainValid: true,
+			},
+		}
+		if len(recs) > 0 {
+			item.IntegrityProof.FirstEventHash = "sha256:" + recs[0].Hash
+			item.IntegrityProof.LastEventHash = "sha256:" + recs[len(recs)-1].Hash
+			limit := len(recs)
+			if limit > 3 {
+				limit = 3
+			}
+			for i := 0; i < limit; i++ {
+				item.SampleIDs = append(item.SampleIDs, recs[i].EventID)
+			}
+		}
+		soc2Manifest.Controls = append(soc2Manifest.Controls, item)
+	}
+
+	manifestData, err := json.MarshalIndent(soc2Manifest, "", "  ")
+	if err != nil {
+		return exportBuildResult{}, fmt.Errorf("marshal soc2 manifest: %w", err)
+	}
+	manifestData = append(manifestData, '\n')
+
+	verification := soc2VerificationReport{
+		BundlePath: base.BundlePath,
+		BundleHash: "sha256:" + sha256Hex(base.BundleRaw),
+		VerifiedAt: now.UTC().Format(time.RFC3339),
+		ChainValid: true,
+		EventCount: len(base.BundleData.Records),
+	}
+	if len(base.BundleData.Records) > 0 {
+		verification.FirstEventHash = "sha256:" + base.BundleData.Records[0].Hash
+		verification.LastEventHash = "sha256:" + base.BundleData.Records[len(base.BundleData.Records)-1].Hash
+	}
+	verificationData, err := json.MarshalIndent(verification, "", "  ")
+	if err != nil {
+		return exportBuildResult{}, fmt.Errorf("marshal soc2 verification report: %w", err)
+	}
+	verificationData = append(verificationData, '\n')
+
+	extra := []exportFileEntry{
+		{ZipPath: filepath.ToSlash(filepath.Join("evidence", "soc2_evidence_manifest.json")), Data: manifestData},
+		{ZipPath: filepath.ToSlash(filepath.Join("evidence", "audit_trail.jsonl")), Data: trailData},
+		{ZipPath: filepath.ToSlash(filepath.Join("evidence", "verification_report.json")), Data: verificationData},
+	}
+
+	return finalizeExport(now, cfg, base, extra)
+}
+
+func buildGDPRExport(now time.Time, cfg exportConfig) (exportBuildResult, error) {
+	base, err := buildBaseExportEvidence(now, cfg)
+	if err != nil {
+		return exportBuildResult{}, err
+	}
+	if err := validateGDPRRetention(now, cfg.BundlePath); err != nil {
+		return exportBuildResult{}, err
+	}
+
+	extra := make([]exportFileEntry, 0, 1)
+	salt := "atb-gdpr-v1:" + sha256Hex(base.BundleRaw)
+
+	switch cfg.GDPRType {
+	case exportGDPRTypeDSR:
+		dsr, err := buildGDPRDSRDocument(now, cfg, base, salt)
+		if err != nil {
+			return exportBuildResult{}, err
+		}
+		dsrData, err := json.MarshalIndent(dsr, "", "  ")
+		if err != nil {
+			return exportBuildResult{}, fmt.Errorf("marshal gdpr dsr report: %w", err)
+		}
+		dsrData = append(dsrData, '\n')
+		extra = append(extra, exportFileEntry{
+			ZipPath: filepath.ToSlash(filepath.Join("evidence", fmt.Sprintf("dsr_%s.json", cfg.SubjectID))),
+			Data:    dsrData,
+		})
+	case exportGDPRTypeROPA:
+		ropa, err := buildGDPRROPADocument(now, base, salt)
+		if err != nil {
+			return exportBuildResult{}, err
+		}
+		ropaData, err := json.MarshalIndent(ropa, "", "  ")
+		if err != nil {
+			return exportBuildResult{}, fmt.Errorf("marshal gdpr ropa report: %w", err)
+		}
+		ropaData = append(ropaData, '\n')
+		extra = append(extra, exportFileEntry{
+			ZipPath: filepath.ToSlash(filepath.Join("evidence", "ropa_summary.json")),
+			Data:    ropaData,
+		})
+	default:
+		return exportBuildResult{}, fmt.Errorf("unsupported gdpr --type %q", cfg.GDPRType)
+	}
+
+	return finalizeExport(now, cfg, base, extra)
+}
+
+func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidence, error) {
+	base := exportBaseEvidence{
+		Manifest: exportManifest{
+			GeneratedAt:   now.Format(time.RFC3339),
+			ATBVersion:    version,
+			IncludedFiles: []string{},
+			Verification:  exportVerificationStatus{},
+			Warnings:      []string{},
+		},
+		Files:       []exportFileEntry{},
+		BundleFiles: []exportBundleInfo{},
+		BundlePath:  filepath.Clean(cfg.BundlePath),
+	}
+
+	info, err := verifyBundleForExport(base.BundlePath)
+	if err != nil {
+		return base, err
+	}
+	info.Source = base.BundlePath
+	info.ZipPath = filepath.ToSlash(filepath.Join("evidence", "bundles", "active", base.BundlePath))
+	info.Archived = false
+
+	raw, err := os.ReadFile(base.BundlePath)
+	if err != nil {
+		return base, fmt.Errorf("read bundle file %s: %w", base.BundlePath, err)
+	}
+	b, err := bundle.Load(base.BundlePath)
+	if err != nil {
+		return base, fmt.Errorf("load bundle file %s: %w", base.BundlePath, err)
+	}
+	if err := b.Verify(); err != nil {
+		return base, fmt.Errorf("bundle verification failed for %s: %w", base.BundlePath, err)
+	}
+
+	base.BundleRaw = raw
+	base.BundleData = b
+	base.BundleFiles = append(base.BundleFiles, info)
+	base.Manifest.BundleHeadHash = info.HeadHash
+	base.Manifest.Verification.ActiveVerified = 1
+	base.Manifest.ArchiveCount = 0
+
+	base.Files = append(base.Files, exportFileEntry{ZipPath: info.ZipPath, Data: raw})
+	base.Manifest.IncludedFiles = append(base.Manifest.IncludedFiles, info.ZipPath)
+
+	if cfgData, _, retentionDays, err := loadConfigForExport(); err != nil {
+		return base, err
+	} else if cfgData != nil {
+		zipPath := filepath.ToSlash(filepath.Join("evidence", "config", "atb-config.json"))
+		base.Files = append(base.Files, exportFileEntry{ZipPath: zipPath, Data: cfgData})
+		base.Manifest.IncludedFiles = append(base.Manifest.IncludedFiles, zipPath)
+		base.Manifest.RetentionDays = retentionDays
+	}
+
+	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
+		if data, err := os.ReadFile(doc); err == nil {
+			zipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(doc), "docs/")))
+			base.Files = append(base.Files, exportFileEntry{ZipPath: zipPath, Data: data})
+			base.Manifest.IncludedFiles = append(base.Manifest.IncludedFiles, zipPath)
+		} else if os.IsNotExist(err) {
+			base.Manifest.Warnings = append(base.Manifest.Warnings, fmt.Sprintf("optional doc missing: %s", doc))
+		} else {
+			return base, fmt.Errorf("read doc %s: %w", doc, err)
+		}
+	}
+
+	requiredComplianceDoc := filepath.Join("docs", "compliance", cfg.Format+".md")
+	complianceData, err := os.ReadFile(requiredComplianceDoc)
+	if err != nil {
+		return base, fmt.Errorf("read required compliance doc %s: %w", requiredComplianceDoc, err)
+	}
+	complianceZipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(requiredComplianceDoc), "docs/")))
+	base.Files = append(base.Files, exportFileEntry{ZipPath: complianceZipPath, Data: complianceData})
+	base.Manifest.IncludedFiles = append(base.Manifest.IncludedFiles, complianceZipPath)
+
+	return base, nil
+}
+
+func finalizeExport(now time.Time, cfg exportConfig, base exportBaseEvidence, extraReports []exportFileEntry) (exportBuildResult, error) {
+	result := exportBuildResult{OutputPath: cfg.Output}
+	manifest := base.Manifest
+	files := append([]exportFileEntry{}, base.Files...)
+
+	for _, extra := range extraReports {
+		files = append(files, extra)
+		manifest.IncludedFiles = append(manifest.IncludedFiles, extra.ZipPath)
+	}
+
+	sort.Strings(manifest.IncludedFiles)
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].ZipPath < files[j].ZipPath
+	})
+
+	checksums := buildChecksumsFile(files)
+	checksumsZip := filepath.ToSlash(filepath.Join("evidence", "checksums.sha256"))
+	files = append(files, exportFileEntry{ZipPath: checksumsZip, Data: []byte(checksums)})
+	manifest.IncludedFiles = append(manifest.IncludedFiles, checksumsZip)
+
+	checksumMeta := buildChecksumMetaFile(files, base.BundleFiles, manifest.LedgerHeadHash)
+	checksumMetaZip := filepath.ToSlash(filepath.Join("evidence", "checksums.chain"))
+	files = append(files, exportFileEntry{ZipPath: checksumMetaZip, Data: []byte(checksumMeta)})
+	manifest.IncludedFiles = append(manifest.IncludedFiles, checksumMetaZip)
+	sort.Strings(manifest.IncludedFiles)
+
+	manifestZip := filepath.ToSlash(filepath.Join("evidence", "manifest.json"))
+	manifest.IncludedFiles = append(manifest.IncludedFiles, manifestZip)
+	sort.Strings(manifest.IncludedFiles)
+
+	manifestData, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return result, fmt.Errorf("marshal manifest: %w", err)
+	}
+	manifestData = append(manifestData, '\n')
+	files = append(files, exportFileEntry{ZipPath: manifestZip, Data: manifestData})
+
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].ZipPath < files[j].ZipPath
+	})
+
+	result.Manifest = manifest
+	result.Files = files
+	result.BundleFiles = base.BundleFiles
+	result.ChecksumLines = strings.Split(strings.TrimSuffix(checksums, "\n"), "\n")
+	result.OutputPath = cfg.Output
+	_ = now
+	return result, nil
+}
+
+func buildVerifyReport(now time.Time, activePaths, archivedPaths []string) ([]byte, error) {
 	type verifyBundle struct {
 		Path     string `json:"path"`
 		HeadHash string `json:"head_hash"`
@@ -358,7 +862,7 @@ func buildVerifyReport(activePaths, archivedPaths []string) ([]byte, error) {
 		GeneratedAt string         `json:"generated_at"`
 		Bundles     []verifyBundle `json:"bundles"`
 	}{
-		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		GeneratedAt: now.UTC().Format(time.RFC3339),
 		Bundles:     make([]verifyBundle, 0, len(activePaths)+len(archivedPaths)),
 	}
 
@@ -387,6 +891,557 @@ func buildVerifyReport(activePaths, archivedPaths []string) ([]byte, error) {
 	}
 	data = append(data, '\n')
 	return data, nil
+}
+
+func buildSOC2AuditTrailFile(records []soc2AuditTrailRecord) ([]byte, error) {
+	if len(records) == 0 {
+		return []byte{}, nil
+	}
+	lines := make([]string, 0, len(records))
+	for _, rec := range records {
+		canonical, err := canonicalize.Marshal(rec)
+		if err != nil {
+			return nil, fmt.Errorf("canonicalize soc2 audit trail record: %w", err)
+		}
+		lines = append(lines, string(canonical))
+	}
+	return []byte(strings.Join(lines, "\n") + "\n"), nil
+}
+
+func newSOC2AuditTrailRecord(rec bundle.Record) soc2AuditTrailRecord {
+	return soc2AuditTrailRecord{
+		EventID:   eventIdentifier(rec),
+		Sequence:  rec.Event.Sequence,
+		Type:      rec.Event.Type,
+		Hash:      rec.Hash,
+		PrevHash:  rec.Event.PrevHash,
+		Timestamp: exportEventTimestamp(rec, ""),
+		Data:      rec.Event.Data,
+		ActorID:   rec.Event.ActorID,
+		OrgID:     rec.Event.OrgID,
+		Workspace: rec.Event.WorkspaceID,
+	}
+}
+
+func buildGDPRDSRDocument(now time.Time, cfg exportConfig, base exportBaseEvidence, salt string) (gdprDSRExport, error) {
+	categories := map[string][]gdprDSRRecord{}
+	foundSubject := false
+
+	retentionRule := "retention_not_configured"
+	if base.Manifest.RetentionDays != nil {
+		retentionRule = fmt.Sprintf("delete_after_%dd", *base.Manifest.RetentionDays)
+	}
+
+	for _, rec := range base.BundleData.Records {
+		if !recordContainsSubject(rec, cfg.SubjectID) {
+			continue
+		}
+		foundSubject = true
+
+		action := rec.Event.Type
+		if idx := strings.LastIndex(action, "."); idx >= 0 && idx < len(action)-1 {
+			action = action[idx+1:]
+		}
+		context := map[string]interface{}{}
+		if dataMap, ok := sanitizeGDPRContext(rec.Event.Data, exportGDPRTypeDSR, cfg.SubjectID, salt).(map[string]interface{}); ok {
+			context = extractPreferredContext(dataMap)
+		}
+		if len(context) == 0 {
+			context = map[string]interface{}{}
+		}
+
+		category := dsrCategoryForEventType(rec.Event.Type)
+		categories[category] = append(categories[category], gdprDSRRecord{
+			EventID:   eventIdentifier(rec),
+			Timestamp: exportEventTimestamp(rec, now.UTC().Format(time.RFC3339)),
+			Action:    action,
+			Context:   context,
+		})
+	}
+
+	if !foundSubject {
+		return gdprDSRExport{}, fmt.Errorf("--subject-id %q not found in bundle", cfg.SubjectID)
+	}
+
+	keys := make([]string, 0, len(categories))
+	for key := range categories {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	dsrCategories := make([]gdprDSRCategory, 0, len(keys))
+	for _, category := range keys {
+		records := categories[category]
+		sort.Slice(records, func(i, j int) bool {
+			return records[i].EventID < records[j].EventID
+		})
+		dsrCategories = append(dsrCategories, gdprDSRCategory{
+			Category:      category,
+			RecordCount:   len(records),
+			RetentionRule: retentionRule,
+			Records:       records,
+		})
+	}
+
+	return gdprDSRExport{
+		RequestType:    "GDPR_ARTICLE_15",
+		SubjectID:      cfg.SubjectID,
+		ExportDate:     now.UTC().Format(time.RFC3339),
+		LegalBasis:     "contract_performance",
+		DataCategories: dsrCategories,
+		Provenance: gdprDSRProvenance{
+			SourceBundleHash:    "sha256:" + sha256Hex(base.BundleRaw),
+			ExtractionSignature: "ed25519:unsigned",
+		},
+	}, nil
+}
+
+func buildGDPRROPADocument(now time.Time, base exportBaseEvidence, salt string) (gdprROPAExport, error) {
+	activityMap := map[string]*gdprProcessingActivity{}
+	for _, rec := range base.BundleData.Records {
+		purpose := ropaPurposeForEventType(rec.Event.Type)
+		activity, ok := activityMap[purpose]
+		if !ok {
+			activity = &gdprProcessingActivity{
+				Purpose:           purpose,
+				LegalBasis:        ropaLegalBasisForPurpose(purpose),
+				DataCategories:    []string{},
+				RetentionSchedule: ropaRetentionScheduleForPurpose(purpose),
+				SecurityMeasures:  ropaSecurityMeasuresForPurpose(purpose),
+			}
+			if recipients := ropaRecipientsForPurpose(purpose); len(recipients) > 0 {
+				activity.RecipientCategories = recipients
+			}
+			activityMap[purpose] = activity
+		}
+
+		activity.EventVolume++
+		for _, category := range ropaDataCategoriesFromEvent(rec.Event.Data, salt) {
+			if !containsStringValue(activity.DataCategories, category) {
+				activity.DataCategories = append(activity.DataCategories, category)
+			}
+		}
+		sort.Strings(activity.DataCategories)
+	}
+
+	if len(activityMap) == 0 {
+		activityMap["service_delivery"] = &gdprProcessingActivity{
+			Purpose:             "service_delivery",
+			LegalBasis:          "contract_performance",
+			DataCategories:      []string{"usage_metrics"},
+			RecipientCategories: []string{"internal_engineering", "cloud_provider_aws"},
+			RetentionSchedule:   "24_months_from_last_activity",
+			SecurityMeasures: []string{
+				"AES-256-GCM encryption at rest",
+				"Hash-chained audit logs",
+				"Role-based access control",
+			},
+			EventVolume: 0,
+		}
+	}
+
+	purposes := make([]string, 0, len(activityMap))
+	for purpose := range activityMap {
+		purposes = append(purposes, purpose)
+	}
+	sort.Strings(purposes)
+
+	activities := make([]gdprProcessingActivity, 0, len(purposes))
+	for _, purpose := range purposes {
+		activities = append(activities, *activityMap[purpose])
+	}
+
+	controllerID := "org_local"
+	for _, rec := range base.BundleData.Records {
+		if rec.Event.OrgID != nil && strings.TrimSpace(*rec.Event.OrgID) != "" {
+			controllerID = *rec.Event.OrgID
+			break
+		}
+	}
+
+	return gdprROPAExport{
+		ControllerID:         controllerID,
+		ReportingPeriod:      quarterString(now.UTC()),
+		ProcessingActivities: activities,
+	}, nil
+}
+
+func recordContainsSubject(rec bundle.Record, subjectID string) bool {
+	subject := strings.TrimSpace(subjectID)
+	if subject == "" {
+		return false
+	}
+	if rec.Event.ActorID != nil && strings.TrimSpace(*rec.Event.ActorID) == subject {
+		return true
+	}
+	if rec.Event.OrgID != nil && strings.TrimSpace(*rec.Event.OrgID) == subject {
+		return true
+	}
+	if rec.Event.WorkspaceID != nil && strings.TrimSpace(*rec.Event.WorkspaceID) == subject {
+		return true
+	}
+	return valueContainsSubject(rec.Event.Data, subject)
+}
+
+func valueContainsSubject(value interface{}, subject string) bool {
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed) == subject
+	case map[string]interface{}:
+		for _, v := range typed {
+			if valueContainsSubject(v, subject) {
+				return true
+			}
+		}
+	case []interface{}:
+		for _, v := range typed {
+			if valueContainsSubject(v, subject) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func sanitizeGDPRContext(value interface{}, mode string, subjectID, salt string) interface{} {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		out := make(map[string]interface{}, len(typed))
+		for k, v := range typed {
+			out[k] = sanitizeGDPRField(k, v, mode, subjectID, salt)
+		}
+		return out
+	case []interface{}:
+		out := make([]interface{}, 0, len(typed))
+		for _, item := range typed {
+			out = append(out, sanitizeGDPRContext(item, mode, subjectID, salt))
+		}
+		return out
+	default:
+		return typed
+	}
+}
+
+func sanitizeGDPRField(key string, value interface{}, mode string, subjectID, salt string) interface{} {
+	category := gdprFieldCategory(key)
+	if category == "metadata" {
+		return sanitizeGDPRContext(value, mode, subjectID, salt)
+	}
+
+	switch mode {
+	case exportGDPRTypeDSR:
+		if category == "direct" || category == "sensitive" || category == "third_party" {
+			if scalarMatchesSubject(value, subjectID) {
+				return sanitizeGDPRContext(value, mode, subjectID, salt)
+			}
+			return "[REDACTED]"
+		}
+		return sanitizeGDPRContext(value, mode, subjectID, salt)
+	case exportGDPRTypeROPA:
+		if category == "sensitive" {
+			return "[REDACTED]"
+		}
+		if category == "direct" || category == "third_party" {
+			return hashGDPRValue(value, salt)
+		}
+		return sanitizeGDPRContext(value, mode, subjectID, salt)
+	default:
+		return sanitizeGDPRContext(value, mode, subjectID, salt)
+	}
+}
+
+func gdprFieldCategory(key string) string {
+	normalized := strings.ToLower(strings.TrimSpace(key))
+	switch normalized {
+	case "email", "ip", "user_id":
+		return "direct"
+	}
+	if strings.Contains(normalized, "payment") || strings.Contains(normalized, "health") || strings.Contains(normalized, "bio") {
+		return "sensitive"
+	}
+	if strings.Contains(normalized, "timestamp") || normalized == "ts" || strings.Contains(normalized, "hash") {
+		return "metadata"
+	}
+	if strings.HasSuffix(normalized, "_id") || normalized == "id" {
+		return "third_party"
+	}
+	return "other"
+}
+
+func hashGDPRValue(value interface{}, salt string) interface{} {
+	switch typed := value.(type) {
+	case string:
+		return hashPIIString(salt + ":" + typed)
+	case fmt.Stringer:
+		return hashPIIString(salt + ":" + typed.String())
+	case int:
+		return hashPIIString(salt + ":" + strconv.Itoa(typed))
+	case int64:
+		return hashPIIString(fmt.Sprintf("%s:%d", salt, typed))
+	case float64:
+		return hashPIIString(fmt.Sprintf("%s:%f", salt, typed))
+	case bool:
+		return hashPIIString(fmt.Sprintf("%s:%t", salt, typed))
+	case map[string]interface{}:
+		out := make(map[string]interface{}, len(typed))
+		for k, v := range typed {
+			out[k] = hashGDPRValue(v, salt)
+		}
+		return out
+	case []interface{}:
+		out := make([]interface{}, 0, len(typed))
+		for _, item := range typed {
+			out = append(out, hashGDPRValue(item, salt))
+		}
+		return out
+	default:
+		return hashPIIString(fmt.Sprintf("%s:%v", salt, typed))
+	}
+}
+
+func scalarMatchesSubject(value interface{}, subjectID string) bool {
+	subject := strings.TrimSpace(subjectID)
+	if subject == "" {
+		return false
+	}
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed) == subject
+	}
+	return false
+}
+
+func extractPreferredContext(data map[string]interface{}) map[string]interface{} {
+	context := make(map[string]interface{})
+	if value, ok := lookupKeyCaseInsensitive(data, "ip"); ok {
+		context["ip"] = value
+	}
+	if value, ok := lookupKeyCaseInsensitive(data, "user_agent"); ok {
+		context["user_agent"] = value
+	}
+	if len(context) > 0 {
+		return context
+	}
+	return data
+}
+
+func lookupKeyCaseInsensitive(data map[string]interface{}, key string) (interface{}, bool) {
+	for k, v := range data {
+		if strings.EqualFold(k, key) {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+func dsrCategoryForEventType(eventType string) string {
+	switch {
+	case strings.HasPrefix(eventType, "auth."):
+		return "access_logs"
+	case strings.HasPrefix(eventType, "deploy.") || strings.HasPrefix(eventType, "code.") || strings.HasPrefix(eventType, "config."):
+		return "change_logs"
+	default:
+		return "activity_logs"
+	}
+}
+
+func ropaPurposeForEventType(eventType string) string {
+	switch {
+	case strings.HasPrefix(eventType, "alert."), strings.HasPrefix(eventType, "monitor."), strings.Contains(eventType, "fraud"):
+		return "fraud_detection"
+	default:
+		return "service_delivery"
+	}
+}
+
+func ropaLegalBasisForPurpose(purpose string) string {
+	if purpose == "fraud_detection" {
+		return "legitimate_interest"
+	}
+	return "contract_performance"
+}
+
+func ropaRetentionScheduleForPurpose(purpose string) string {
+	if purpose == "fraud_detection" {
+		return "90_days"
+	}
+	return "24_months_from_last_activity"
+}
+
+func ropaRecipientsForPurpose(purpose string) []string {
+	if purpose == "fraud_detection" {
+		return []string{"internal_security"}
+	}
+	return []string{"internal_engineering", "cloud_provider_aws"}
+}
+
+func ropaSecurityMeasuresForPurpose(purpose string) []string {
+	if purpose == "fraud_detection" {
+		return []string{"Automated anomaly detection", "Manual review workflow"}
+	}
+	return []string{"AES-256-GCM encryption at rest", "Hash-chained audit logs", "Role-based access control"}
+}
+
+func ropaDataCategoriesFromEvent(data interface{}, salt string) []string {
+	set := map[string]struct{}{}
+	collectROPADataCategories(data, salt, set)
+	if len(set) == 0 {
+		set["usage_metrics"] = struct{}{}
+	}
+	values := make([]string, 0, len(set))
+	for v := range set {
+		values = append(values, v)
+	}
+	sort.Strings(values)
+	return values
+}
+
+func collectROPADataCategories(value interface{}, salt string, set map[string]struct{}) {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		for k, v := range typed {
+			category := gdprFieldCategory(k)
+			switch category {
+			case "direct":
+				if strings.EqualFold(k, "ip") {
+					set["ip_address"] = struct{}{}
+				} else {
+					set["identity"] = struct{}{}
+				}
+				_ = hashGDPRValue(v, salt)
+			case "sensitive":
+				set["sensitive_attributes"] = struct{}{}
+			case "metadata":
+				set["usage_metrics"] = struct{}{}
+			case "third_party":
+				set["usage_metrics"] = struct{}{}
+				_ = hashGDPRValue(v, salt)
+			default:
+				set["usage_metrics"] = struct{}{}
+			}
+			collectROPADataCategories(v, salt, set)
+		}
+	case []interface{}:
+		for _, item := range typed {
+			collectROPADataCategories(item, salt, set)
+		}
+	}
+}
+
+func quarterString(now time.Time) string {
+	quarter := ((int(now.Month()) - 1) / 3) + 1
+	return fmt.Sprintf("%04d-Q%d", now.Year(), quarter)
+}
+
+func validateGDPRRetention(now time.Time, bundlePath string) error {
+	policy, err := loadRetentionPolicy(defaultConfigPath())
+	if err != nil {
+		return fmt.Errorf("load retention policy: %w", err)
+	}
+	if policy == nil || policy.Days <= 0 {
+		return nil
+	}
+	info, err := os.Stat(bundlePath)
+	if err != nil {
+		return fmt.Errorf("stat bundle for retention check: %w", err)
+	}
+	cutoff := now.UTC().AddDate(0, 0, -policy.Days)
+	if info.ModTime().UTC().Before(cutoff) {
+		return fmt.Errorf("bundle retention policy expired for requested data range")
+	}
+	return nil
+}
+
+func isSOC2RelevantType(eventType string) bool {
+	for _, control := range soc2Controls {
+		if _, ok := control.EventTypes[eventType]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func eventIdentifier(rec bundle.Record) string {
+	if data, ok := rec.Event.Data.(map[string]interface{}); ok {
+		if raw, ok := data["event_id"]; ok {
+			if id, ok := raw.(string); ok && strings.TrimSpace(id) != "" {
+				return id
+			}
+		}
+		if raw, ok := data["id"]; ok {
+			if id, ok := raw.(string); ok && strings.TrimSpace(id) != "" {
+				return id
+			}
+		}
+	}
+	if data, ok := rec.Event.Data.(map[string]any); ok {
+		if raw, ok := data["event_id"]; ok {
+			if id, ok := raw.(string); ok && strings.TrimSpace(id) != "" {
+				return id
+			}
+		}
+		if raw, ok := data["id"]; ok {
+			if id, ok := raw.(string); ok && strings.TrimSpace(id) != "" {
+				return id
+			}
+		}
+	}
+	return fmt.Sprintf("evt_%06d", rec.Event.Sequence)
+}
+
+func exportEventTimestamp(rec bundle.Record, fallback string) string {
+	if data, ok := rec.Event.Data.(map[string]interface{}); ok {
+		for _, key := range []string{"timestamp", "ts"} {
+			if raw, ok := data[key]; ok {
+				if value, ok := raw.(string); ok {
+					if parsed, ok := parseRFC3339(value); ok {
+						return parsed.UTC().Format(time.RFC3339)
+					}
+				}
+			}
+		}
+	}
+	if data, ok := rec.Event.Data.(map[string]any); ok {
+		for _, key := range []string{"timestamp", "ts"} {
+			if raw, ok := data[key]; ok {
+				if value, ok := raw.(string); ok {
+					if parsed, ok := parseRFC3339(value); ok {
+						return parsed.UTC().Format(time.RFC3339)
+					}
+				}
+			}
+		}
+	}
+	return fallback
+}
+
+func parseRFC3339(value string) (time.Time, bool) {
+	parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value))
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsed.UTC(), true
+}
+
+func setOf(values ...string) map[string]struct{} {
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	return set
+}
+
+func hashPIIString(input string) string {
+	return "sha256:" + sha256Hex([]byte(input))
+}
+
+func containsStringValue(values []string, candidate string) bool {
+	for _, value := range values {
+		if value == candidate {
+			return true
+		}
+	}
+	return false
 }
 
 func verifyBundleForExport(path string) (exportBundleInfo, error) {
@@ -522,7 +1577,7 @@ func buildChecksumMetaFile(files []exportFileEntry, bundleInfos []exportBundleIn
 	return strings.Join(lines, "\n") + "\n"
 }
 
-func writeComplianceZip(result exportBuildResult) error {
+func writeExportZip(result exportBuildResult, modTime time.Time) error {
 	if err := os.MkdirAll(filepath.Dir(result.OutputPath), 0750); err != nil { // #nosec G301 -- project-local output path
 		return fmt.Errorf("mkdir export output dir: %w", err)
 	}
@@ -538,7 +1593,7 @@ func writeComplianceZip(result exportBuildResult) error {
 			Name:   filepath.ToSlash(file.ZipPath),
 			Method: zip.Deflate,
 		}
-		hdr.SetModTime(time.Now())
+		hdr.SetModTime(modTime.UTC())
 		w, err := zw.CreateHeader(hdr)
 		if err != nil {
 			_ = zw.Close()
@@ -561,5 +1616,5 @@ func sha256Hex(data []byte) string {
 }
 
 func printExportUsage() {
-	fmt.Println("Usage: atb export --format compliance --output <path.zip> [--dry-run]")
+	fmt.Println("Usage: atb export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run]")
 }

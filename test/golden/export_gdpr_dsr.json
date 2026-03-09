@@ -1,0 +1,28 @@
+{
+  "request_type": "GDPR_ARTICLE_15",
+  "subject_id": "usr_9f8e7d6c",
+  "export_date": "2026-03-06T12:00:00Z",
+  "legal_basis": "contract_performance",
+  "data_categories": [
+    {
+      "category": "access_logs",
+      "record_count": 1,
+      "retention_rule": "retention_not_configured",
+      "records": [
+        {
+          "event_id": "evt_001",
+          "timestamp": "2026-01-10T09:00:00Z",
+          "action": "login",
+          "context": {
+            "ip": "[REDACTED]",
+            "user_agent": "Mozilla/5.0"
+          }
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "source_bundle_hash": "sha256:cc5116b5da993a03d8173ddad9e176b1f05c2d46a728fba50772730601d07d75",
+    "extraction_signature": "ed25519:unsigned"
+  }
+}

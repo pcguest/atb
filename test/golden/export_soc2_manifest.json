@@ -1,0 +1,76 @@
+{
+  "audit_period": {
+    "start": "2026-01-10T09:00:00Z",
+    "end": "2026-01-14T13:00:00Z"
+  },
+  "bundle_hash": "sha256:cc5116b5da993a03d8173ddad9e176b1f05c2d46a728fba50772730601d07d75",
+  "generated_at": "2026-03-06T12:00:00Z",
+  "controls": [
+    {
+      "control_id": "CC6.1",
+      "description": "Logical Access Security",
+      "evidence_count": 1,
+      "sample_ids": [
+        "evt_001"
+      ],
+      "integrity_proof": {
+        "first_event_hash": "sha256:6029dcebddf22ec126609043f271eaaf9f4908ad0c0ccebec84fed128436b6ae",
+        "last_event_hash": "sha256:6029dcebddf22ec126609043f271eaaf9f4908ad0c0ccebec84fed128436b6ae",
+        "chain_valid": true
+      }
+    },
+    {
+      "control_id": "CC6.6",
+      "description": "System Boundaries",
+      "evidence_count": 1,
+      "sample_ids": [
+        "evt_002"
+      ],
+      "integrity_proof": {
+        "first_event_hash": "sha256:fd187c07355a7b021eea84a3dbd45b9692dd41bcc0c2d90f82a264db5520f34c",
+        "last_event_hash": "sha256:fd187c07355a7b021eea84a3dbd45b9692dd41bcc0c2d90f82a264db5520f34c",
+        "chain_valid": true
+      }
+    },
+    {
+      "control_id": "CC7.2",
+      "description": "System Monitoring",
+      "evidence_count": 1,
+      "sample_ids": [
+        "evt_003"
+      ],
+      "integrity_proof": {
+        "first_event_hash": "sha256:e641132eb93abcb68e520a41ccf42c4d1c855454a1a09741dd90e4b0513eb225",
+        "last_event_hash": "sha256:e641132eb93abcb68e520a41ccf42c4d1c855454a1a09741dd90e4b0513eb225",
+        "chain_valid": true
+      }
+    },
+    {
+      "control_id": "CC8.1",
+      "description": "Change Management",
+      "evidence_count": 1,
+      "sample_ids": [
+        "evt_004"
+      ],
+      "integrity_proof": {
+        "first_event_hash": "sha256:e12b61f7e67ca6cce42832a95b1fb5be55443287ab3679c0b9e0fede9dc380a0",
+        "last_event_hash": "sha256:e12b61f7e67ca6cce42832a95b1fb5be55443287ab3679c0b9e0fede9dc380a0",
+        "chain_valid": true
+      }
+    },
+    {
+      "control_id": "CC9.1",
+      "description": "Risk Mitigation",
+      "evidence_count": 1,
+      "sample_ids": [
+        "evt_005"
+      ],
+      "integrity_proof": {
+        "first_event_hash": "sha256:ee6cacd1bb6a13712a02f9043d70c477e094bc6101799ef08c77f029fd2757f7",
+        "last_event_hash": "sha256:ee6cacd1bb6a13712a02f9043d70c477e094bc6101799ef08c77f029fd2757f7",
+        "chain_valid": true
+      }
+    }
+  ],
+  "verifier_signature": "ed25519:unsigned"
+}
