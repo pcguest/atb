@@ -17,6 +17,18 @@ export { Bundle, ATBVerificationError } from "./bundle.js";
 export { EncryptError, decryptBundle, decryptRaw, encryptBundle, encryptRaw } from "./encrypt.js";
 export { computeHash, chainEvents, GENESIS_HASH } from "./hash.js";
 export { canonicalize } from "./canonicalize.js";
+export { atbMiddleware } from "./vercel-ai-middleware.js";
 export { normalizeOptionalIdentity, prepareForCanonical } from "./event.js";
 export type { AppendIdentityOptions, Event } from "./event.js";
+export type {
+  ATBMiddleware,
+  ATBMiddlewareOptions,
+  ChainEndInput,
+  ChainStartInput,
+  LLMStartInput,
+  PrivacyMode,
+  StepFinishInput,
+  ToolEndInput,
+  ToolStartInput,
+} from "./vercel-ai-middleware.js";
 export type { ATBEvent, ATBRecord, BundleOptions } from "./types.js";
