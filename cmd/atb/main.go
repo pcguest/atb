@@ -109,14 +109,14 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "encrypt",
-				Usage:       "atb encrypt [bundle_path] --password <password>",
+				Usage:       "atb encrypt [bundle_path] [--password <password>]",
 				Description: "Encrypt a bundle using AES-256-GCM.",
 				Flags:       []string{"--password"},
 				Mutating:    true,
 			},
 			{
 				Name:        "decrypt",
-				Usage:       "atb decrypt <encrypted_path> --password <password>",
+				Usage:       "atb decrypt <encrypted_path> [--password <password>]",
 				Description: "Decrypt an encrypted ATB bundle.",
 				Flags:       []string{"--password"},
 				Mutating:    true,
@@ -258,8 +258,8 @@ Commands:
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   verify [bundle_path] [--format text|json] [--trace]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
-  encrypt [bundle_path] --password <password>  Encrypt bundle file to <bundle_path>.enc
-  decrypt <encrypted_path> --password <password>  Decrypt encrypted bundle back to .atb
+  encrypt [bundle_path] [--password <password>]  Encrypt bundle file to <bundle_path>.enc
+  decrypt <encrypted_path> [--password <password>]  Decrypt encrypted bundle back to .atb
   archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
   export --format compliance --output <path.zip> [--dry-run]  Export auditor-friendly local evidence bundle
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
@@ -288,8 +288,8 @@ Examples:
   atb verify
   atb verify --format json
   atb verify --trace
-  atb encrypt run.atb/bundle.atb --password test123
-  atb decrypt run.atb/bundle.atb.enc --password test123
+  ATB_PASSWORD=test123 atb encrypt run.atb/bundle.atb
+  ATB_PASSWORD=test123 atb decrypt run.atb/bundle.atb.enc
   atb archive --before 2025-01-01 --dry-run
   atb export --format compliance --output evidence.zip --dry-run
   atb config retention --days 90

@@ -19,6 +19,7 @@ func TestParseEncryptArgs(t *testing.T) {
 		wantOut  string
 		wantErr  bool
 		wantPass string
+		envPass  string
 	}{
 		{
 			name:     "defaults path",
@@ -35,6 +36,14 @@ func TestParseEncryptArgs(t *testing.T) {
 			wantPass: "abc",
 		},
 		{
+			name:     "password from env",
+			args:     []string{"my.atb"},
+			wantPath: "my.atb",
+			wantOut:  "my.atb.enc",
+			wantPass: "from-env",
+			envPass:  "from-env",
+		},
+		{
 			name:    "missing password",
 			args:    []string{"my.atb"},
 			wantErr: true,
@@ -48,6 +57,7 @@ func TestParseEncryptArgs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ATB_PASSWORD", tc.envPass)
 			got, err := parseEncryptArgs(tc.args)
 			if tc.wantErr {
 				if err == nil {
@@ -78,6 +88,7 @@ func TestParseDecryptArgs(t *testing.T) {
 		wantPath string
 		wantOut  string
 		wantPass string
+		envPass  string
 		wantErr  bool
 	}{
 		{
@@ -95,6 +106,14 @@ func TestParseDecryptArgs(t *testing.T) {
 			wantPass: "abc",
 		},
 		{
+			name:     "password from env",
+			args:     []string{"x.enc"},
+			wantPath: "x.enc",
+			wantOut:  "x",
+			wantPass: "from-env",
+			envPass:  "from-env",
+		},
+		{
 			name:    "missing path",
 			args:    []string{"--password", "x"},
 			wantErr: true,
@@ -108,6 +127,7 @@ func TestParseDecryptArgs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("ATB_PASSWORD", tc.envPass)
 			got, err := parseDecryptArgs(tc.args)
 			if tc.wantErr {
 				if err == nil {

@@ -47,7 +47,10 @@ func parseEncryptArgs(args []string) (encryptConfig, error) {
 		cfg.InputPath = bundlePath
 	}
 	if cfg.Password == "" {
-		return cfg, fmt.Errorf("--password is required")
+		cfg.Password = strings.TrimSpace(os.Getenv("ATB_PASSWORD"))
+	}
+	if cfg.Password == "" {
+		return cfg, fmt.Errorf("--password is required (or set ATB_PASSWORD)")
 	}
 	cfg.OutputPath = cfg.InputPath + ".enc"
 	return cfg, nil
@@ -57,7 +60,7 @@ func cmdEncrypt() {
 	cfg, err := parseEncryptArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb encrypt: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Usage: atb encrypt [bundle_path] --password <password>")
+		fmt.Fprintln(os.Stderr, "Usage: atb encrypt [bundle_path] [--password <password>] (or set ATB_PASSWORD)")
 		os.Exit(exitUserError)
 	}
 

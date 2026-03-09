@@ -42,7 +42,10 @@ func parseDecryptArgs(args []string) (decryptConfig, error) {
 		return cfg, fmt.Errorf("encrypted bundle path is required")
 	}
 	if cfg.Password == "" {
-		return cfg, fmt.Errorf("--password is required")
+		cfg.Password = strings.TrimSpace(os.Getenv("ATB_PASSWORD"))
+	}
+	if cfg.Password == "" {
+		return cfg, fmt.Errorf("--password is required (or set ATB_PASSWORD)")
 	}
 	cfg.OutputPath = defaultDecryptOutputPath(cfg.InputPath)
 	return cfg, nil
@@ -59,7 +62,7 @@ func cmdDecrypt() {
 	cfg, err := parseDecryptArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb decrypt: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Usage: atb decrypt <encrypted_path> --password <password>")
+		fmt.Fprintln(os.Stderr, "Usage: atb decrypt <encrypted_path> [--password <password>] (or set ATB_PASSWORD)")
 		os.Exit(exitUserError)
 	}
 
