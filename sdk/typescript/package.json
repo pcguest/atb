@@ -5,6 +5,14 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "bin": {
+    "atb": "./bin/atb"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -34,6 +42,10 @@
     "directory": "sdk/typescript"
   },
   "homepage": "https://atb.dev",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "tsup": "^8.5.1",

@@ -1,0 +1,15 @@
+.git
+.github
+.atb
+.atb-agent
+**/.DS_Store
+**/node_modules
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+sdk/python/dist
+sdk/python/atb_sdk.egg-info
+web/.next
+web/out
+atb

@@ -1,0 +1,35 @@
+# syntax=docker/dockerfile:1.7
+
+FROM golang:1.22.4-alpine AS go-builder
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd ./cmd
+COPY internal ./internal
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+  go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
+
+FROM node:20-alpine AS web-builder
+WORKDIR /src/web
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+
+COPY web/ ./
+RUN npm run build
+
+FROM gcr.io/distroless/static-debian12:nonroot AS runtime
+WORKDIR /app
+
+COPY --from=go-builder /out/atb /app/atb
+COPY --from=web-builder /src/web/out /app/web/out
+
+EXPOSE 8080
+VOLUME ["/data"]
+ENTRYPOINT ["/app/atb"]

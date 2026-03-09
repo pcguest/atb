@@ -2,6 +2,8 @@
 
 Thanks for your interest in improving ATB.
 
+Detailed contributor guidance is maintained in [docs/contributing.md](docs/contributing.md).
+
 ## Local Setup
 
 ```bash

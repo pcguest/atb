@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+
+const { spawnSync } = require("node:child_process");
+
+const binary = process.env.ATB_BIN || "atb";
+const args = process.argv.slice(2);
+const result = spawnSync(binary, args, { stdio: "inherit" });
+
+if (result.error) {
+  console.error(`Failed to execute '${binary}'. Install the ATB CLI binary or set ATB_BIN to an executable path.`);
+  process.exit(1);
+}
+
+process.exit(result.status ?? 1);
