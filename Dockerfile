@@ -11,6 +11,7 @@ COPY internal ./internal
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
+ARG ATB_VERSION=1.0.0
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
 
@@ -26,6 +27,8 @@ RUN npm run build
 
 FROM gcr.io/distroless/static-debian12:nonroot AS runtime
 WORKDIR /app
+ARG ATB_VERSION=1.0.0
+LABEL org.opencontainers.image.version="${ATB_VERSION}"
 
 COPY --from=go-builder /out/atb /app/atb
 COPY --from=web-builder /src/web/out /app/web/out
