@@ -68,11 +68,14 @@ bundle.verify()  # Raises if tampered
 ## 3. View the Trace
 
 ```bash
-# Open local timeline viewer (new in v1.0.1)
+# Open local dashboard viewer
 ./atb view my-trace.atb --port 8080
 
 # Default bundle path is ./run.atb/bundle.atb
 ./atb view
+
+# Enable privacy reveal audit logging
+./atb view --bundle my-trace.atb --log-reveals
 ```
 
 The viewer shows:

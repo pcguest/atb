@@ -151,9 +151,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "view",
-				Usage:       "atb view [bundle_path] [--port 8080]",
-				Description: "Open local HTML timeline viewer.",
-				Flags:       []string{"--port"},
+				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals]",
+				Description: "Open local dashboard viewer.",
+				Flags:       []string{"--bundle", "--port", "--no-open", "--log-reveals"},
 				Mutating:    false,
 			},
 			{
@@ -264,7 +264,7 @@ Commands:
   export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run]  Export auditor-friendly local evidence bundle
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
-  view [bundle_path] [--port 8080]  Open a local HTML timeline viewer
+  view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals]  Open a local dashboard viewer
   version           Print the ATB version
 
 Exit codes:
@@ -299,6 +299,7 @@ Examples:
   atb trust-report --format markdown
   atb trust-report --format json
   atb view
+  atb view --bundle run.atb/bundle.atb --port 8080 --no-open
 `)
 }
 

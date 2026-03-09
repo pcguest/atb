@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -24,6 +25,9 @@ var errViewHelp = errors.New("view help requested")
 type viewConfig struct {
 	BundlePath string
 	Port       int
+	PortSet    bool
+	NoOpen     bool
+	LogReveals bool
 }
 
 func cmdView() {
@@ -44,16 +48,25 @@ func cmdView() {
 		os.Exit(exitSystemError)
 	}
 
-	handler, page, err := buildViewHandler(bundlePath)
+	handler, page, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		os.Exit(classifyBundleLoadError(err))
 	}
 
-	addr := fmt.Sprintf("127.0.0.1:%d", cfg.Port)
-	url := "http://" + addr
+	ln, port, err := listenViewPort(cfg.Port, cfg.PortSet)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
+		os.Exit(exitSystemError)
+	}
+	defer ln.Close()
+
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	url := "http://" + addr + openPath
+	if port != cfg.Port {
+		fmt.Fprintf(os.Stderr, "atb view: port %d unavailable; using %d\n", cfg.Port, port)
+	}
 	srv := &http.Server{
-		Addr:              addr,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second, // #nosec G112 -- local ephemeral server; timeout prevents Slowloris
 	}
@@ -67,12 +80,18 @@ func cmdView() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, len(page.Events), url)
-	if err := openBrowser(url); err != nil {
-		fmt.Fprintf(os.Stderr, "atb view: could not auto-open browser: %v\n", err)
+	if tamperDetected {
+		fmt.Printf("atb view: verification failed for %s; serving tamper warning at %s\n", bundlePath, url)
+	} else {
+		fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, len(page.Events), url)
+	}
+	if !cfg.NoOpen {
+		if err := openBrowser(url); err != nil {
+			fmt.Fprintf(os.Stderr, "atb view: could not auto-open browser: %v\n", err)
+		}
 	}
 
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		fmt.Fprintf(os.Stderr, "atb view: server error: %v\n", err)
 		os.Exit(exitSystemError)
 	}
@@ -80,17 +99,44 @@ func cmdView() {
 	fmt.Println("atb view: stopped")
 }
 
-func buildViewHandler(bundlePath string) (http.Handler, viewer.PageData, error) {
+func buildViewServer(bundlePath string, logReveals bool) (http.Handler, viewer.PageData, bool, string, error) {
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
-		return nil, viewer.PageData{}, fmt.Errorf("load bundle %s: %w", bundlePath, err)
+		return nil, viewer.PageData{}, false, "/", fmt.Errorf("load bundle %s: %w", bundlePath, err)
 	}
+	verifyErr := b.Verify()
+
 	page := viewer.BuildPageData(b, bundlePath)
-	return viewer.NewHandler(page), page, nil
+	mux := http.NewServeMux()
+	api := viewer.NewAPIServer(viewer.APIConfig{
+		BundlePath: bundlePath,
+		Bundle:     b,
+		VerifyErr:  verifyErr,
+		LogReveals: logReveals,
+	})
+	api.Register(mux)
+	openPath := "/"
+	if dashboardDir, ok := findDashboardOutDir(); ok {
+		openPath = "/view/"
+		static := http.FileServer(http.Dir(dashboardDir))
+		mux.Handle("/_next/", static)
+		mux.Handle("/view/", static)
+		mux.HandleFunc("/view", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
+		})
+	}
+
+	if verifyErr != nil {
+		mux.Handle("/", viewer.NewTamperHandler(bundlePath, verifyErr))
+		return mux, page, true, openPath, nil
+	}
+
+	mux.Handle("/", viewer.NewHandler(page))
+	return mux, page, false, openPath, nil
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--port 8080]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -110,6 +156,7 @@ func parseViewArgs(args []string) (viewConfig, error) {
 				return cfg, fmt.Errorf("invalid --port value %q", args[i])
 			}
 			cfg.Port = p
+			cfg.PortSet = true
 		case strings.HasPrefix(arg, "--port="):
 			raw := strings.TrimPrefix(arg, "--port=")
 			p, err := strconv.Atoi(raw)
@@ -117,6 +164,25 @@ func parseViewArgs(args []string) (viewConfig, error) {
 				return cfg, fmt.Errorf("invalid --port value %q", raw)
 			}
 			cfg.Port = p
+			cfg.PortSet = true
+		case arg == "--bundle":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --bundle")
+			}
+			i++
+			if cfg.BundlePath != "" {
+				return cfg, fmt.Errorf("bundle path already set")
+			}
+			cfg.BundlePath = args[i]
+		case strings.HasPrefix(arg, "--bundle="):
+			if cfg.BundlePath != "" {
+				return cfg, fmt.Errorf("bundle path already set")
+			}
+			cfg.BundlePath = strings.TrimPrefix(arg, "--bundle=")
+		case arg == "--no-open":
+			cfg.NoOpen = true
+		case arg == "--log-reveals":
+			cfg.LogReveals = true
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -165,4 +231,62 @@ func openBrowser(url string) error {
 		cmd = exec.Command("xdg-open", url) // #nosec G204 -- url is internally constructed http://localhost link, not user input
 	}
 	return cmd.Start()
+}
+
+func listenViewPort(startPort int, explicit bool) (net.Listener, int, error) {
+	for _, port := range candidateViewPorts(startPort, explicit) {
+		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			return ln, port, nil
+		}
+		if !errors.Is(err, syscall.EADDRINUSE) && !strings.Contains(strings.ToLower(err.Error()), "address already in use") {
+			return nil, 0, fmt.Errorf("listen %s: %w", addr, err)
+		}
+	}
+	if explicit {
+		return nil, 0, fmt.Errorf("port %d is already in use", startPort)
+	}
+	return nil, 0, fmt.Errorf("ports %d-%d are already in use", startPort, startPort+2)
+}
+
+func candidateViewPorts(startPort int, explicit bool) []int {
+	if explicit {
+		return []int{startPort}
+	}
+
+	ports := make([]int, 0, 3)
+	for i := 0; i < 3; i++ {
+		p := startPort + i
+		if p > 65535 {
+			break
+		}
+		ports = append(ports, p)
+	}
+	if len(ports) == 0 {
+		return []int{startPort}
+	}
+	return ports
+}
+
+func findDashboardOutDir() (string, bool) {
+	candidates := []string{
+		filepath.Join("web", "out"),
+		filepath.Join("..", "web", "out"),
+	}
+
+	for _, candidate := range candidates {
+		info, err := os.Stat(candidate)
+		if err != nil {
+			continue
+		}
+		if !info.IsDir() {
+			continue
+		}
+		indexPath := filepath.Join(candidate, "view", "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			return candidate, true
+		}
+	}
+	return "", false
 }
