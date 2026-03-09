@@ -1,20 +1,33 @@
 # Compliance Export
 
-ATB can package local audit evidence into a single zip archive.
+ATB can package local audit evidence into a single zip archive for SOC2 and GDPR workflows.
 
 ## Command
 
 ```bash
-atb export --format compliance --output evidence.zip
+atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
+```
+
+```bash
+atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
+```
+
+```bash
+atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
 ```
 
 Dry-run preview:
 
 ```bash
-atb export --format compliance --output evidence.zip --dry-run
+atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip --dry-run
 ```
 
-## What Gets Verified
+## Specifications
+
+- [SOC 2 Type II Export Specification](./soc2.md)
+- [GDPR Export Specification](./gdpr.md)
+
+## What Gets Verified During Export
 
 - Active bundles under `run.atb/*.atb` are loaded and verified.
 - Archived bundles under `archive.atb/` are loaded and verified.
@@ -24,7 +37,7 @@ If bundle or ledger verification fails, export exits with a non-zero status.
 
 ## Evidence Package Layout
 
-The compliance zip is structured under `evidence/` and includes:
+The export zip is structured under `evidence/` and includes:
 
 - `evidence/manifest.json`
 - `evidence/checksums.sha256`

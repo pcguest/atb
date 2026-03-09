@@ -13,6 +13,7 @@
 - Tamper-evident audit trails using SHA-256 hash chaining and RFC 8785 canonical JSON.
 - Local-first by default. Optional cloud sharing with client-side encryption.
 - Cross-language SDKs for Go, Python, and TypeScript.
+- Compliance exports: `atb export --format soc2` and `atb export --format gdpr --type dsr|ropa`.
 
 ## Try It in 60 Seconds
 
@@ -36,7 +37,7 @@ Install the CLI with `go install github.com/pcguest/atb/cmd/atb@latest` if `atb`
 
 ## Status
 
-> Phase 3 completed on 2026-03-05: retention config, archive ledger, and compliance export are available.
+> ✅ **Phase 4 Complete:** SOC2 & GDPR compliance exports, deterministic auditing, and PII redaction.
 > Track shipped and planned work in [docs/STATUS.md](docs/STATUS.md).
 
 ## Contributing

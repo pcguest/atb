@@ -110,9 +110,13 @@ The viewer shows:
 - Build an auditor-friendly evidence package:
 
 ```bash
-./atb export --format compliance --output evidence.zip
+./atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
+./atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
+./atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
 ```
 
 - Reference docs:
   - [Retention](./compliance/retention.md)
-  - [Compliance Export](./compliance/export.md)
+  - [Compliance Export Overview](./compliance/export.md)
+  - [SOC 2 Export Specification](./compliance/soc2.md)
+  - [GDPR Export Specification](./compliance/gdpr.md)
