@@ -31,11 +31,12 @@ Install the CLI with `go install github.com/pcguest/atb/cmd/atb@latest` if `atb`
 - [Security](docs/security.md)
 - [AI Integration](docs/ai-integration.md)
 - [Specification v1.0](docs/spec-v1.0.md)
-- `docs/compliance/` (published during Phase 3)
+- [Retention](docs/compliance/retention.md)
+- [Compliance Export](docs/compliance/export.md)
 
 ## Status
 
-> Phase 3 in progress: retention policies + compliance exports.
+> Phase 3 completed on 2026-03-05: retention config, archive ledger, and compliance export are available.
 > Track shipped and planned work in [docs/STATUS.md](docs/STATUS.md).
 
 ## Contributing

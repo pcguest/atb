@@ -92,7 +92,27 @@ The viewer shows:
 ./atb view
 ```
 
-## 5. Cloud and Compliance Notes
+## 5. Retention, Archive, and Compliance Export
 
 - Local workflows are fully supported in v1.0.x.
-- Compliance and export documentation for Phase 3 will be published under `docs/compliance/`.
+- Set retention policy:
+
+```bash
+./atb config retention --days 90
+```
+
+- Archive bundles older than policy cutoff (or pass `--before YYYY-MM-DD`):
+
+```bash
+./atb archive
+```
+
+- Build an auditor-friendly evidence package:
+
+```bash
+./atb export --format compliance --output evidence.zip
+```
+
+- Reference docs:
+  - [Retention](./compliance/retention.md)
+  - [Compliance Export](./compliance/export.md)

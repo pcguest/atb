@@ -1,8 +1,44 @@
-# Export (Phase 3 In Progress)
+# Compliance Export
 
-Phase 3 is in progress.
+ATB can package local audit evidence into a single zip archive.
 
-This page will document:
-- export formats and scope
-- integrity guarantees during export
-- compliance evidence packaging
+## Command
+
+```bash
+atb export --format compliance --output evidence.zip
+```
+
+Dry-run preview:
+
+```bash
+atb export --format compliance --output evidence.zip --dry-run
+```
+
+## What Gets Verified
+
+- Active bundles under `run.atb/*.atb` are loaded and verified.
+- Archived bundles under `archive.atb/` are loaded and verified.
+- Archive ledger integrity is verified when `archive.atb/index.ndjson` exists.
+
+If bundle or ledger verification fails, export exits with a non-zero status.
+
+## Evidence Package Layout
+
+The compliance zip is structured under `evidence/` and includes:
+
+- `evidence/manifest.json`
+- `evidence/checksums.sha256`
+- `evidence/checksums.chain`
+- `evidence/bundles/active/...` (active `.atb` files)
+- `evidence/bundles/archived/...` (archived `.atb` files and ledger when present)
+- `evidence/reports/verify.json`
+- `evidence/reports/trust-report.json`
+- `evidence/reports/archive-ledger.json`
+- `evidence/config/atb-config.json` when local config exists
+- `evidence/docs/...` with core docs and compliance docs when present
+
+## Operational Notes
+
+- Use dry-run mode in CI or pre-audit checks to validate expected inclusion paths.
+- Store generated evidence zips in your organization-controlled audit repository.
+- Keep source bundles and archive ledger unchanged after export so evidence remains reproducible.
