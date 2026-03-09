@@ -120,3 +120,16 @@ The viewer shows:
   - [Compliance Export Overview](./compliance/export.md)
   - [SOC 2 Export Specification](./compliance/soc2.md)
   - [GDPR Export Specification](./compliance/gdpr.md)
+
+## 6. AI Agent Integration
+
+Trace your LangChain or Vercel AI agents automatically:
+
+```python
+from atb.langchain_callback import ATBCallbackHandler
+handler = ATBCallbackHandler(privacy_mode="hash")
+llm = ChatOpenAI(callbacks=[handler])
+```
+
+- [LangChain Integration](./integrations/langchain.md)
+- [Vercel AI SDK Integration](./integrations/vercel-ai.md)

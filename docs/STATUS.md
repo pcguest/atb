@@ -9,6 +9,7 @@ Last updated: 2026-03-09
 - Phase 2 (Event Schema): optional `actor_id`, `org_id`, and `workspace_id` with backward compatibility.
 - Phase 3 (Retention + Archive + Export): `atb config retention`, `atb archive`, and `atb export --format compliance`.
 - Phase 4 (Compliance Exports): SOC2/GDPR exports with deterministic evidence output and schema validation coverage.
+- Phase 5 (AI Agent Integration): LangChain + Vercel AI auto-tracing with streaming and privacy controls.
 
 ## Phase 4: Compliance Exports (SOC2/GDPR)
 
@@ -20,9 +21,20 @@ Last updated: 2026-03-09
   - Deterministic output artifacts (stable ZIP generation with injected time).
   - Golden test fixtures for schema validation.
 
+## Phase 5: AI Agent Integration
+
+- **Status:** ✅ Complete (2026-03-09)
+- **Commit:** `393c0d8`
+- **Deliverables:**
+  - `ATBCallbackHandler` (Python/LangChain): auto-traces chains, tools, and LLM calls.
+  - `atbMiddleware` (TypeScript/Vercel AI): parity with Python integration behavior.
+  - Streaming support (`delta` events) with token usage tracking.
+  - Privacy-first design: optional hashing/redaction of prompts and completions.
+  - Trace/span context linking for complex agent workflows.
+
 ## Current Focus
 
-- Post-Phase 4 hardening and docs maintenance.
+- Post-Phase 5 hardening and docs maintenance.
 
 ## Source of Truth
 

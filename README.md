@@ -35,9 +35,14 @@ Install the CLI with `go install github.com/pcguest/atb/cmd/atb@latest` if `atb`
 - [Retention](docs/compliance/retention.md)
 - [Compliance Export](docs/compliance/export.md)
 
+## Integrations
+
+- [LangChain Integration (Python)](docs/integrations/langchain.md)
+- [Vercel AI SDK Integration (TypeScript)](docs/integrations/vercel-ai.md)
+
 ## Status
 
-> ✅ **Phase 4 Complete:** SOC2 & GDPR compliance exports, deterministic auditing, and PII redaction.
+> ✅ **Phase 5 Complete:** AI Agent Integration (LangChain/Vercel), auto-tracing, and streaming support.
 > Track shipped and planned work in [docs/STATUS.md](docs/STATUS.md).
 
 ## Contributing
