@@ -10,6 +10,7 @@ Last updated: 2026-03-09
 - Phase 3 (Retention + Archive + Export): `atb config retention`, `atb archive`, and `atb export --format compliance`.
 - Phase 4 (Compliance Exports): SOC2/GDPR exports with deterministic evidence output and schema validation coverage.
 - Phase 5 (AI Agent Integration): LangChain + Vercel AI auto-tracing with streaming and privacy controls.
+- Phase 6 (Visual Dashboard): local `atb view` UX with tamper detection, privacy reveal audit, and graph visualization.
 
 ## Phase 4: Compliance Exports (SOC2/GDPR)
 
@@ -32,9 +33,20 @@ Last updated: 2026-03-09
   - Privacy-first design: optional hashing/redaction of prompts and completions.
   - Trace/span context linking for complex agent workflows.
 
+## Phase 6: Visual Dashboard
+
+- **Status:** ✅ Complete (2026-03-09)
+- **Commit:** `b5758e7`
+- **Deliverables:**
+  - `atb view`: Local-first Next.js dashboard launched via CLI.
+  - **Security UI:** Real-time hash chain verification with "Tamper Detected" blocking state.
+  - **Privacy Audit:** Click-to-reveal PII fields with automatic logging to `viewer-audit.log`.
+  - **Performance:** Virtualized timeline supporting 10k+ events.
+  - **Visualization:** React Flow graph for trace/span relationships.
+
 ## Current Focus
 
-- Post-Phase 5 hardening and docs maintenance.
+- Post-Phase 6 hardening and docs maintenance.
 
 ## Source of Truth
 

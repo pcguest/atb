@@ -40,9 +40,17 @@ Install the CLI with `go install github.com/pcguest/atb/cmd/atb@latest` if `atb`
 - [LangChain Integration (Python)](docs/integrations/langchain.md)
 - [Vercel AI SDK Integration (TypeScript)](docs/integrations/vercel-ai.md)
 
+## Dashboard
+
+Local-first visual trace exploration is now available via `atb view`.
+
+- Launch: `atb view run.atb/bundle.atb --log-reveals`
+- Includes tamper detection state, timeline browsing, and trace/span graph exploration.
+- Spec: [Dashboard Specification](docs/spec-dashboard.md)
+
 ## Status
 
-> ✅ **Phase 5 Complete:** AI Agent Integration (LangChain/Vercel), auto-tracing, and streaming support.
+> ✅ **Phase 6 Complete:** Visual Dashboard (`atb view`), interactive trace exploration, and privacy audit logging.
 > Track shipped and planned work in [docs/STATUS.md](docs/STATUS.md).
 
 ## Contributing

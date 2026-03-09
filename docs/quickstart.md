@@ -76,6 +76,9 @@ bundle.verify()  # Raises if tampered
 
 # Enable privacy reveal audit logging
 ./atb view --bundle my-trace.atb --log-reveals
+
+# Launch the visual dashboard
+atb view run.atb/bundle.atb --log-reveals
 ```
 
 The viewer shows:
@@ -84,6 +87,8 @@ The viewer shows:
 - gate status badge (PASS/FAIL/UNKNOWN)
 - event timeline cards
 - expandable event JSON + hash details
+
+- [Dashboard Specification](./spec-dashboard.md)
 
 ## 4. Use CLI-Only Flow
 
