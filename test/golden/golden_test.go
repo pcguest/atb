@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	genesisHash = "0000000000000000000000000000000000000000000000000000000000000000"
+	genesisHash       = "0000000000000000000000000000000000000000000000000000000000000000"
 	expectedCanonical = `{"actor":"golden-test","data":{"model":"gpt-4","nested":{"array":[1,2,3],"bool":true,"null":null,"unicode":"Hello 世界 🌍"},"prompt":"What is 2+2?","temperature":0},"ts":"2026-03-03T00:00:00Z","type":"agent.think"}`
 	expectedHash      = "8df8de142c5227c5f8024dcc79b1057654dd78ac683650d5051cb2f960d1a7a8"
 )

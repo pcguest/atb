@@ -34,6 +34,8 @@ out/
 # ATB bundles (local development only — do not commit run.atb/)
 run.atb/
 run.atb/*.atb
+.atb/
+viewer-audit.log
 
 # IDE
 .vscode/

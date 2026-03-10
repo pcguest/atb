@@ -240,7 +240,7 @@ func listenViewPort(startPort int, explicit bool) (net.Listener, int, error) {
 		if err == nil {
 			return ln, port, nil
 		}
-		if !errors.Is(err, syscall.EADDRINUSE) && !strings.Contains(strings.ToLower(err.Error()), "address already in use") {
+		if !isAddrInUseError(err) {
 			return nil, 0, fmt.Errorf("listen %s: %w", addr, err)
 		}
 	}
@@ -267,6 +267,27 @@ func candidateViewPorts(startPort int, explicit bool) []int {
 		return []int{startPort}
 	}
 	return ports
+}
+
+func isAddrInUseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		// 10048 is WSAEADDRINUSE on Windows.
+		if errno == syscall.Errno(10048) {
+			return true
+		}
+	}
+
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "address already in use") ||
+		strings.Contains(msg, "only one usage of each socket address")
 }
 
 func findDashboardOutDir() (string, bool) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -246,6 +247,38 @@ func TestListenViewPortExplicitPortBusy(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), fmt.Sprintf("%d", basePort)) {
 		t.Fatalf("expected error to include port %d, got %v", basePort, err)
+	}
+}
+
+func TestIsAddrInUseError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "unix style",
+			err:  errors.New("listen tcp 127.0.0.1:8080: bind: address already in use"),
+			want: true,
+		},
+		{
+			name: "windows style",
+			err:  errors.New("listen tcp 127.0.0.1:8080: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted."),
+			want: true,
+		},
+		{
+			name: "different error",
+			err:  errors.New("listen tcp 127.0.0.1:8080: bind: permission denied"),
+			want: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isAddrInUseError(tc.err); got != tc.want {
+				t.Fatalf("isAddrInUseError()=%v want %v for err=%v", got, tc.want, tc.err)
+			}
+		})
 	}
 }
 

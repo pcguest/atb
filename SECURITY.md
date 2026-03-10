@@ -2,26 +2,31 @@
 
 ## Supported Versions
 
-The `main` branch is the supported release line for security fixes.
+Security fixes are shipped on the latest stable release line and `main`.
 
 | Version | Supported |
 | --- | --- |
+| `1.x` | Yes |
 | `main` | Yes |
-| Older tags | Best effort |
+| `<1.0.0` | No |
 
 ## Reporting a Vulnerability
 
-If you discover a security issue, email [security@pcguest.dev](mailto:security@pcguest.dev).
+Please report vulnerabilities privately to [security@pcguest.dev](mailto:security@pcguest.dev).
 
-- Do not open a public issue for unpatched vulnerabilities.
-- Include clear reproduction steps, impact, and affected versions/commits.
-- You can include encrypted material if needed; request a secure channel in your first email.
+Include:
 
-Response target:
+- A clear description of the issue and impact.
+- Reproduction steps or proof of concept.
+- Affected versions/commits and environment details.
 
-- Initial acknowledgment within 48 hours.
-- Severity triage and remediation plan after reproduction.
-- Coordinated disclosure after a fix is shipped.
+Do not open public GitHub issues for unpatched vulnerabilities.
+
+## Disclosure Process
+
+- Initial acknowledgment target: within 48 hours.
+- Triage and remediation plan: after issue reproduction.
+- Coordinated disclosure: after a fix is available.
 
 ## Scope
 
@@ -29,8 +34,9 @@ This policy applies to:
 
 - Go CLI (`cmd/`, `internal/`)
 - SDKs (`sdk/python`, `sdk/typescript`)
-- GitHub workflows and release automation
+- Dashboard (`web/`)
+- CI/CD and release workflows (`.github/workflows/`)
 
 ## Safe Harbor
 
-Good-faith security research that avoids privacy violations, data destruction, service disruption, and social engineering will be treated as authorized under this policy.
+Good-faith research is authorized when you avoid privacy violations, data loss, service disruption, and social engineering.
