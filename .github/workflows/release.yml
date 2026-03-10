@@ -258,7 +258,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm whoami
-          npm publish artifacts/npm/*.tgz --access public --provenance
+          npm publish artifacts/npm/*.tgz --access public
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
