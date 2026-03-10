@@ -15,6 +15,8 @@ atb init
 atb view
 ```
 
+Verify trace integrity anytime with `atb verify`.
+
 If you prefer Go binaries, install with:
 
 ```bash
