@@ -1,6 +1,6 @@
 {
   "name": "@pcguest/atb-sdk",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ATB (Agent Trace Bundle) TypeScript SDK — tamper-evident audit trails for AI agent workflows",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
