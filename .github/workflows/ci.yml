@@ -39,11 +39,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Python SDK
-        working-directory: sdk/python
+      - name: Install Python SDK dependencies
         run: |
-          pip install -e .
-          pip install pytest
+          python -m pip install --upgrade pip
+          python -m pip install -e ./sdk/python[dev]
 
       - name: Test Go packages
         run: go test -v ./...

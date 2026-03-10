@@ -33,24 +33,29 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ./sdk/python[dev]
+
       - name: Validate TypeScript lockfile
         working-directory: sdk/typescript
         run: npm ci --dry-run
+
+      - name: Install TypeScript dependencies
+        working-directory: sdk/typescript
+        run: npm ci
 
       - name: Run Go tests
         run: go test ./...
 
       - name: Run Python tests
         working-directory: sdk/python
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e .[dev]
-          pytest -q
+        run: pytest -q
 
       - name: Run TypeScript checks
         working-directory: sdk/typescript
         run: |
-          npm ci
           npm run typecheck
           npm run test
           npm run build
