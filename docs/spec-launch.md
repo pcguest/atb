@@ -1,4 +1,4 @@
-# ATB Launch Specification (Phase 7)
+# ATB Launch Specification
 
 ## Goal
 

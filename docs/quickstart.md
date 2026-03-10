@@ -1,8 +1,8 @@
-# ATB Quick Start
+# ATB Quickstart
 
-ATB gives you tamper-evident, replayable traces for AI and agent workflows.
+ATB provides tamper-evident, replayable traces for AI workflows.
 
-## 1. README Quick Start (v1.0.0)
+## 1. Quick Start (Exact README Flow)
 
 ```bash
 pip install atb
@@ -10,39 +10,38 @@ atb init
 atb view
 ```
 
-## 2. Install Options
+Integrity check:
+
+```bash
+atb verify
+```
+
+## 2. Installation Options
 
 ### Go CLI
 
 ```bash
-# From source (development)
-git clone https://github.com/pcguest/atb.git
-cd atb
-go build -o atb ./cmd/atb
-./atb version
-
-# From release (users)
-# Download your OS binary from GitHub Releases.
-
-# If installing from private GitHub source with `go install`
-go env -w GOPRIVATE=github.com/pcguest/*
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-### Python SDK
+### Python (Local Source)
 
 ```bash
-# Preferred (PyPI)
-pip install atb
-
-# Local source install
 cd sdk/python
 python3 -m venv venv
 source venv/bin/activate
 pip install -e .
 ```
 
-## 3. Trace Your First Agent Run
+### TypeScript SDK
+
+```bash
+cd sdk/typescript
+npm ci
+npm run build
+```
+
+## 3. Record Your First Trace (Python)
 
 ```python
 from atb import Bundle
@@ -63,42 +62,33 @@ bundle.append("agent.response", {
     "output": "Draft outline...",
 })
 
-# Record a gate decision as a snapshot event
 bundle.append("snapshot.build", {
     "gate": "pass",
     "timestamp": "2026-03-03T10:00:03Z",
 })
 
 bundle.save("my-trace.atb")
-bundle.verify()  # Raises if tampered
+bundle.verify()
 ```
 
-## 4. View the Trace
+## 4. Open the Visual Dashboard
 
 ```bash
-# Open local dashboard viewer
-atb view my-trace.atb --port 8080
-
-# Default bundle path is ./run.atb/bundle.atb
+# Default bundle path
 atb view
+
+# Custom bundle path
+atb view my-trace.atb --port 8080
 
 # Enable privacy reveal audit logging
 atb view --bundle my-trace.atb --log-reveals
-
-# Launch the visual dashboard
-atb view run.atb/bundle.atb --log-reveals
 ```
 
-The viewer shows:
-
-- hash-chain verification status
-- gate status badge (PASS/FAIL/UNKNOWN)
-- event timeline cards
-- expandable event JSON + hash details
+Dashboard details:
 
 - [Dashboard Specification](./spec-dashboard.md)
 
-## 5. Use CLI-Only Flow
+## 5. CLI-Only Workflow
 
 ```bash
 atb init
@@ -108,44 +98,39 @@ atb verify
 atb view
 ```
 
-## 6. Retention, Archive, and Compliance Export
-
-- Local workflows are fully supported in v1.0.x.
-- Set retention policy:
+## 6. Compliance Exports
 
 ```bash
 atb config retention --days 90
-```
-
-- Archive bundles older than policy cutoff (or pass `--before YYYY-MM-DD`):
-
-```bash
 atb archive
-```
-
-- Build an auditor-friendly evidence package:
-
-```bash
 atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
 atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
 atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
 ```
 
-- Reference docs:
-  - [Retention](./compliance/retention.md)
-  - [Compliance Export Overview](./compliance/export.md)
-  - [SOC 2 Export Specification](./compliance/soc2.md)
-  - [GDPR Export Specification](./compliance/gdpr.md)
+Reference docs:
 
-## 7. AI Agent Integration
+- [Retention](./compliance/retention.md)
+- [Compliance Export Overview](./compliance/export.md)
+- [SOC 2 Export Specification](./compliance/soc2.md)
+- [GDPR Export Specification](./compliance/gdpr.md)
 
-Trace your LangChain or Vercel AI agents automatically:
+## 7. AI Integrations
 
 ```python
 from atb.langchain_callback import ATBCallbackHandler
+
 handler = ATBCallbackHandler(privacy_mode="hash")
-llm = ChatOpenAI(callbacks=[handler])
 ```
+
+Integration docs:
 
 - [LangChain Integration](./integrations/langchain.md)
 - [Vercel AI SDK Integration](./integrations/vercel-ai.md)
+
+## 8. Next Steps
+
+- [Docs Home](./README.md)
+- [ATB Specification v1.0](./spec-v1.0.md)
+- [Security Model](./security.md)
+- [Contributing](../CONTRIBUTING.md)

@@ -9,7 +9,7 @@ pip install atb
 pip install langchain langchain-openai
 ```
 
-Use `pip install atb` as the base package install (aligned with README v1.0.0).
+Use `pip install atb` as the base package install (aligned with README v1.0.2).
 
 ## Quick Start
 

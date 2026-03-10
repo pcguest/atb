@@ -1,8 +1,8 @@
-# ATB Dashboard Specification (Phase 6)
+# ATB Dashboard Specification
 
 ## Status
 
-Phase 6 implementation is complete:
+Dashboard implementation is complete:
 - local `atb view` API server with verification gate and privacy reveal flow
 - `/view` dashboard UI with verification banner, timeline, graph, inspector, and stats
 - reveal audit logging (`viewer-audit.log`) when `--log-reveals` is enabled

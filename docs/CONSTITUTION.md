@@ -32,10 +32,10 @@ If any answer is "no", reconsider the change.
 - **Dogfood Every Change:** Use ATB to track ATB development.
 - **No Hypothetical Scale:** Build for today's needs, not tomorrow's hypotheticals.
 
-## 6. Agent Coordination Rules
-- **Handoff Required:** When switching agents, generate a State of the Union document.
-- **No Overlap:** Agents own disjoint file sets unless coordinating.
-- **Fresh Chat Per Phase:** Prevents context drift and hallucinations.
+## 6. Team Coordination Rules
+- **Handoff Required:** When switching ownership, publish a brief status handoff.
+- **No Overlap:** Contributors own disjoint file sets unless explicitly coordinating.
+- **One Milestone Per PR:** Keep changes focused and reviewable.
 
 ## 7. Success Metrics
 - **CI Green:** 100% pass rate on all workflows.
