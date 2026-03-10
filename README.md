@@ -2,7 +2,7 @@
 
 [![Build Status](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security (Trivy)](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
-[![Version](https://img.shields.io/badge/version-v1.0.2-blue.svg)](https://github.com/pcguest/atb/releases)
+[![Version](https://img.shields.io/badge/version-v1.0.3-blue.svg)](https://github.com/pcguest/atb/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Tamper-evident, local-first observability for LangChain, Vercel AI, and custom agents. Built for engineers who need to prove what happened.
