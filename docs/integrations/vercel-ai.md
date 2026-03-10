@@ -8,6 +8,8 @@ ATB includes a middleware helper for emitting `ai.llm.call`, `ai.tool.exec`, and
 npm install @pcguest/atb-sdk ai
 ```
 
+This uses the same TypeScript package listed in the README installation options.
+
 ## Quick Start
 
 ```ts

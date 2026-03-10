@@ -37,6 +37,21 @@ npm run typecheck
 npm run build
 ```
 
+## Security and Trivy Scans
+
+Follow [SECURITY.md](SECURITY.md) for vulnerability handling and disclosure process.
+
+Run local security checks before opening high-impact PRs:
+
+```bash
+# Filesystem scan (matches security workflow severity gates)
+trivy fs --scanners vuln --severity HIGH,CRITICAL .
+
+# Optional image scan if Docker changes are included
+docker build -t atb:security-scan .
+trivy image --scanners vuln --severity HIGH,CRITICAL atb:security-scan
+```
+
 ## Commit Style
 
 Use conventional commits:
@@ -76,7 +91,7 @@ git push origin v0.1.1
 4. Confirm publish status in GitHub Actions and verify:
 
 ```bash
-pip install atb-sdk
+pip install atb
 ```
 
 ## TypeScript SDK Release to npm

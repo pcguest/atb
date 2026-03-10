@@ -9,6 +9,14 @@ git clone https://github.com/pcguest/atb.git
 cd atb
 ```
 
+For a quick CLI smoke-check that matches README install guidance:
+
+```bash
+pip install atb
+atb init
+atb view --no-open
+```
+
 ## Local Validation
 
 Run all core checks before opening a PR:
@@ -57,4 +65,15 @@ This validates lockfiles, tests, package builds, and release prerequisites.
 ## Security
 
 - Never commit secrets
-- Report vulnerabilities through the process in `SECURITY.md`
+- Report vulnerabilities through the process in [SECURITY.md](../SECURITY.md)
+
+Run Trivy checks for security-sensitive changes:
+
+```bash
+# Filesystem scan (HIGH/CRITICAL)
+trivy fs --scanners vuln --severity HIGH,CRITICAL .
+
+# Image scan when Docker/runtime layers change
+docker build -t atb:security-scan .
+trivy image --scanners vuln --severity HIGH,CRITICAL atb:security-scan
+```

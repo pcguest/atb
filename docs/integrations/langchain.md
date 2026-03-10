@@ -5,8 +5,11 @@ ATB provides an opt-in callback middleware for LangChain that emits AI trace eve
 ## Install
 
 ```bash
-pip install atb-sdk[langchain]
+pip install atb
+pip install langchain langchain-openai
 ```
+
+Use `pip install atb` as the base package install (aligned with README v1.0.0).
 
 ## Quick Start
 

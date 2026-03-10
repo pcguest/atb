@@ -2,7 +2,15 @@
 
 ATB gives you tamper-evident, replayable traces for AI and agent workflows.
 
-## 1. Install
+## 1. README Quick Start (v1.0.0)
+
+```bash
+pip install atb
+atb init
+atb view
+```
+
+## 2. Install Options
 
 ### Go CLI
 
@@ -25,7 +33,7 @@ go install github.com/pcguest/atb/cmd/atb@latest
 
 ```bash
 # Preferred (PyPI)
-pip install atb-sdk
+pip install atb
 
 # Local source install
 cd sdk/python
@@ -34,7 +42,7 @@ source venv/bin/activate
 pip install -e .
 ```
 
-## 2. Trace Your First Agent Run
+## 3. Trace Your First Agent Run
 
 ```python
 from atb import Bundle
@@ -65,17 +73,17 @@ bundle.save("my-trace.atb")
 bundle.verify()  # Raises if tampered
 ```
 
-## 3. View the Trace
+## 4. View the Trace
 
 ```bash
 # Open local dashboard viewer
-./atb view my-trace.atb --port 8080
+atb view my-trace.atb --port 8080
 
 # Default bundle path is ./run.atb/bundle.atb
-./atb view
+atb view
 
 # Enable privacy reveal audit logging
-./atb view --bundle my-trace.atb --log-reveals
+atb view --bundle my-trace.atb --log-reveals
 
 # Launch the visual dashboard
 atb view run.atb/bundle.atb --log-reveals
@@ -90,37 +98,37 @@ The viewer shows:
 
 - [Dashboard Specification](./spec-dashboard.md)
 
-## 4. Use CLI-Only Flow
+## 5. Use CLI-Only Flow
 
 ```bash
-./atb init
-./atb append dev.session --data '{"focus":"quickstart"}'
-./atb snapshot build --gate pass
-./atb verify
-./atb view
+atb init
+atb append dev.session --data '{"focus":"quickstart"}'
+atb snapshot build --gate pass
+atb verify
+atb view
 ```
 
-## 5. Retention, Archive, and Compliance Export
+## 6. Retention, Archive, and Compliance Export
 
 - Local workflows are fully supported in v1.0.x.
 - Set retention policy:
 
 ```bash
-./atb config retention --days 90
+atb config retention --days 90
 ```
 
 - Archive bundles older than policy cutoff (or pass `--before YYYY-MM-DD`):
 
 ```bash
-./atb archive
+atb archive
 ```
 
 - Build an auditor-friendly evidence package:
 
 ```bash
-./atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
-./atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
-./atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
+atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
+atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
+atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
 ```
 
 - Reference docs:
@@ -129,7 +137,7 @@ The viewer shows:
   - [SOC 2 Export Specification](./compliance/soc2.md)
   - [GDPR Export Specification](./compliance/gdpr.md)
 
-## 6. AI Agent Integration
+## 7. AI Agent Integration
 
 Trace your LangChain or Vercel AI agents automatically:
 
