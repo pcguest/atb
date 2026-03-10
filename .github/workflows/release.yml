@@ -251,9 +251,14 @@ jobs:
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
+          scope: "@pcguest"
 
       - name: Publish npm package (OIDC provenance)
-        run: npm publish artifacts/npm/*.tgz --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm whoami
+          npm publish artifacts/npm/*.tgz --access public --provenance
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
