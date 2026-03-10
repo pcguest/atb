@@ -72,6 +72,7 @@ jobs:
       - name: Run Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.28.0
         with:
+          version: latest
           scan-type: fs
           scan-ref: .
           scanners: vuln
@@ -94,6 +95,7 @@ jobs:
       - name: Run Trivy image scan
         uses: aquasecurity/trivy-action@0.28.0
         with:
+          version: latest
           scan-type: image
           image-ref: atb:security-scan
           scanners: vuln
