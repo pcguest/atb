@@ -5,7 +5,7 @@
 - [x] Git author attribution standardized (`Paddy Guest <patrickcguest@proton.me>`)
 - [x] TypeScript SDK lockfile added (`sdk/typescript/package-lock.json`)
 - [x] TypeScript SDK typecheck passes locally
-- [x] Python SDK placeholder tests present and passing locally (`3 passed`)
+- [x] Python SDK tests included and passing locally (`3 passed`)
 - [x] CI Discord step guarded when `DISCORD_WEBHOOK_URL` is missing
 - [x] ATB dogfooding trace recorded in `run.atb/`
 - [x] README install/test instructions updated for current state

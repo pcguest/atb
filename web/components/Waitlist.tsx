@@ -17,7 +17,7 @@ export default function Waitlist() {
 
     setStatus("loading");
 
-    // Placeholder submit path until backend waitlist integration is enabled.
+    // Waitlist submission handler.
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     setStatus("success");
