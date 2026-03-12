@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -16,18 +17,21 @@ import (
 	"syscall"
 	"time"
 
+	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/viewer"
+	apiv1 "github.com/pcguest/atb/pkg/api/v1"
 )
 
 var errViewHelp = errors.New("view help requested")
 
 type viewConfig struct {
-	BundlePath string
-	Port       int
-	PortSet    bool
-	NoOpen     bool
-	LogReveals bool
+	BundlePath     string
+	Port           int
+	PortSet        bool
+	NoOpen         bool
+	LogReveals     bool
+	UIExperimental bool
 }
 
 func cmdView() {
@@ -48,7 +52,7 @@ func cmdView() {
 		os.Exit(exitSystemError)
 	}
 
-	handler, page, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals)
+	handler, page, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.UIExperimental)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		os.Exit(classifyBundleLoadError(err))
@@ -99,7 +103,7 @@ func cmdView() {
 	fmt.Println("atb view: stopped")
 }
 
-func buildViewServer(bundlePath string, logReveals bool) (http.Handler, viewer.PageData, bool, string, error) {
+func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (http.Handler, viewer.PageData, bool, string, error) {
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
 		return nil, viewer.PageData{}, false, "/", fmt.Errorf("load bundle %s: %w", bundlePath, err)
@@ -108,7 +112,7 @@ func buildViewServer(bundlePath string, logReveals bool) (http.Handler, viewer.P
 
 	page := viewer.BuildPageData(b, bundlePath)
 	mux := http.NewServeMux()
-	api := viewer.NewAPIServer(viewer.APIConfig{
+	api := apiv1.NewAPIServer(apiv1.APIConfig{
 		BundlePath: bundlePath,
 		Bundle:     b,
 		VerifyErr:  verifyErr,
@@ -116,18 +120,20 @@ func buildViewServer(bundlePath string, logReveals bool) (http.Handler, viewer.P
 	})
 	api.Register(mux)
 	openPath := "/"
-	if dashboardDir, ok := findDashboardOutDir(); ok {
-		openPath = "/view/"
-		static := http.FileServer(http.Dir(dashboardDir))
-		mux.Handle("/_next/", static)
-		mux.Handle("/view/", static)
-		mux.HandleFunc("/view", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
-		})
+	if uiExperimental {
+		if dashboardFS, ok := embeddedDashboardFS(); ok {
+			openPath = "/view/"
+			static := http.FileServer(dashboardFS)
+			mux.Handle("/_next/", static)
+			mux.Handle("/view/", static)
+			mux.HandleFunc("/view", func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
+			})
+		}
 	}
 
 	if verifyErr != nil {
-		mux.Handle("/", viewer.NewTamperHandler(bundlePath, verifyErr))
+		mux.Handle("/", apiv1.NewTamperHandler(bundlePath, verifyErr))
 		return mux, page, true, openPath, nil
 	}
 
@@ -136,7 +142,7 @@ func buildViewServer(bundlePath string, logReveals bool) (http.Handler, viewer.P
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -183,6 +189,8 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			cfg.NoOpen = true
 		case arg == "--log-reveals":
 			cfg.LogReveals = true
+		case arg == "--ui-experimental":
+			cfg.UIExperimental = true
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -290,24 +298,15 @@ func isAddrInUseError(err error) bool {
 		strings.Contains(msg, "only one usage of each socket address")
 }
 
-func findDashboardOutDir() (string, bool) {
-	candidates := []string{
-		filepath.Join("web", "out"),
-		filepath.Join("..", "web", "out"),
+func embeddedDashboardFS() (http.FileSystem, bool) {
+	sub, err := fs.Sub(atbembed.WebOutFS, "web/out")
+	if err != nil {
+		return nil, false
 	}
-
-	for _, candidate := range candidates {
-		info, err := os.Stat(candidate)
-		if err != nil {
-			continue
-		}
-		if !info.IsDir() {
-			continue
-		}
-		indexPath := filepath.Join(candidate, "view", "index.html")
-		if _, err := os.Stat(indexPath); err == nil {
-			return candidate, true
-		}
+	f, err := sub.Open(filepath.ToSlash(filepath.Join("view", "index.html")))
+	if err != nil {
+		return nil, false
 	}
-	return "", false
+	_ = f.Close()
+	return http.FS(sub), true
 }

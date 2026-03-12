@@ -43,6 +43,14 @@ func TestParseViewArgs(t *testing.T) {
 			},
 		},
 		{
+			name: "ui experimental",
+			args: []string{"--ui-experimental"},
+			want: viewConfig{
+				Port:           8080,
+				UIExperimental: true,
+			},
+		},
+		{
 			name: "port first",
 			args: []string{"--port=7070", "run.atb"},
 			want: viewConfig{BundlePath: "run.atb", Port: 7070, PortSet: true},
@@ -94,7 +102,7 @@ func TestBuildViewHandlerServesTimeline(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false)
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false)
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -150,7 +158,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false)
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false)
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -297,7 +305,7 @@ func TestPrivacyRevealWritesAuditLog(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true)
+	handler, _, _, _, err := buildViewServer(bundlePath, true, false)
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -329,5 +337,36 @@ func TestPrivacyRevealWritesAuditLog(t *testing.T) {
 	}
 	if !strings.Contains(logLine, `"field_path":"email"`) {
 		t.Fatalf("expected field path in log, got %s", logLine)
+	}
+}
+
+func TestBuildViewServerUIExperimentalServesViewRoute(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle.atb")
+
+	b := bundle.New()
+	if err := b.Append("agent.prompt", map[string]interface{}{"prompt": "hello"}); err != nil {
+		t.Fatalf("append agent.prompt: %v", err)
+	}
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true)
+	if err != nil {
+		t.Fatalf("buildViewServer error: %v", err)
+	}
+	if tamperDetected {
+		t.Fatalf("did not expect tamper mode for valid bundle")
+	}
+	if openPath != "/view/" {
+		t.Fatalf("expected experimental open path /view/, got %q", openPath)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/view/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected /view/ status: got %d want %d", rr.Code, http.StatusOK)
 	}
 }

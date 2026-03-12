@@ -1,4 +1,4 @@
-package viewer
+package apiv1
 
 // VerificationResponse reports top-level integrity status for a bundle view session.
 type VerificationResponse struct {

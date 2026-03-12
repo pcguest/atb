@@ -1,4 +1,4 @@
-package viewer
+package apiv1
 
 import (
 	"encoding/json"
@@ -93,6 +93,14 @@ func NewTamperHandler(bundlePath string, verifyErr error) http.Handler {
 	})
 }
 
+// @OpenAPI
+// @Summary      Verify bundle hash chain status
+// @Description  Reports whether the loaded bundle chain is valid or invalid.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  VerificationResponse
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/verification [get]
 func (s *APIServer) handleVerification(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
@@ -115,6 +123,15 @@ func (s *APIServer) handleVerification(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// @OpenAPI
+// @Summary      Get bundle metadata
+// @Description  Returns aggregate counts and timestamp bounds for the loaded bundle.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  BundleMetaResponse
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/bundle/meta [get]
 func (s *APIServer) handleBundleMeta(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
@@ -151,6 +168,18 @@ func (s *APIServer) handleBundleMeta(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
+// @OpenAPI
+// @Summary      Get paginated bundle events
+// @Description  Returns masked event payloads with trace/span context.
+// @Tags         viewer
+// @Produce      json
+// @Param        offset  query     int  false  "Zero-based offset"
+// @Param        limit   query     int  false  "Page size (max 1000)"
+// @Success      200     {object}  BundleEventsResponse
+// @Failure      400     {object}  APIError
+// @Failure      403     {object}  APIError
+// @Failure      405     {object}  APIError
+// @Router       /api/v1/bundle/events [get]
 func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
@@ -199,6 +228,15 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @OpenAPI
+// @Summary      Get trace/span graph view
+// @Description  Returns graph nodes and edges derived from event sequence and span links.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  BundleGraphResponse
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/bundle/graph [get]
 func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
@@ -265,6 +303,20 @@ func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, BundleGraphResponse{Nodes: nodes, Edges: edges})
 }
 
+// @OpenAPI
+// @Summary      Reveal one masked field
+// @Description  Reveals a specific field path from one event and optionally audit-logs the reveal.
+// @Tags         viewer
+// @Accept       json
+// @Produce      json
+// @Param        request  body      PrivacyRevealRequest  true  "Reveal request"
+// @Success      200      {object}  PrivacyRevealResponse
+// @Failure      400      {object}  APIError
+// @Failure      403      {object}  APIError
+// @Failure      404      {object}  APIError
+// @Failure      405      {object}  APIError
+// @Failure      500      {object}  APIError
+// @Router       /api/v1/privacy/reveal [post]
 func (s *APIServer) handlePrivacyReveal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
