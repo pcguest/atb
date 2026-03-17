@@ -1,0 +1,43 @@
+{
+  "allow_fields": [
+    "trace_id",
+    "span_id",
+    "parent_span_id",
+    "run_id",
+    "event_id",
+    "hash",
+    "prev_hash",
+    "timestamp",
+    "ts",
+    "created_at",
+    "updated_at"
+  ],
+  "sensitive_fields": [
+    "id",
+    "email",
+    "ip",
+    "user_id",
+    "actor_id",
+    "org_id",
+    "workspace_id",
+    "name",
+    "full_name",
+    "phone",
+    "address",
+    "dob",
+    "birthdate",
+    "tax_id",
+    "ssn",
+    "passport_number",
+    "driver_license"
+  ],
+  "sensitive_substrings": [
+    "payment",
+    "health",
+    "bio",
+    "fingerprint"
+  ],
+  "sensitive_suffixes": [
+    "_id"
+  ]
+}

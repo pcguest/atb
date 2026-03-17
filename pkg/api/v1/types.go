@@ -78,5 +78,6 @@ type PrivacyRevealResponse struct {
 
 // APIError is a common error envelope used by JSON API endpoints.
 type APIError struct {
-	Error string `json:"error"`
+	Error      string `json:"error"`
+	RetryAfter int    `json:"retry_after,omitempty"`
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -104,19 +106,25 @@ func cmdView() {
 }
 
 func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (http.Handler, viewer.PageData, bool, string, error) {
+	_ = logReveals // privacy reveal auditing is always on in v1.1.0
+
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
 		return nil, viewer.PageData{}, false, "/", fmt.Errorf("load bundle %s: %w", bundlePath, err)
 	}
 	verifyErr := b.Verify()
+	revealAuthToken, err := generateRevealAuthToken()
+	if err != nil {
+		return nil, viewer.PageData{}, false, "/", fmt.Errorf("generate privacy reveal auth token: %w", err)
+	}
 
 	page := viewer.BuildPageData(b, bundlePath)
 	mux := http.NewServeMux()
 	api := apiv1.NewAPIServer(apiv1.APIConfig{
-		BundlePath: bundlePath,
-		Bundle:     b,
-		VerifyErr:  verifyErr,
-		LogReveals: logReveals,
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		VerifyErr:       verifyErr,
+		RevealAuthToken: revealAuthToken,
 	})
 	api.Register(mux)
 	openPath := "/"
@@ -134,11 +142,11 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 
 	if verifyErr != nil {
 		mux.Handle("/", apiv1.NewTamperHandler(bundlePath, verifyErr))
-		return mux, page, true, openPath, nil
+		return withSecurityHeaders(mux, revealAuthToken), page, true, openPath, nil
 	}
 
 	mux.Handle("/", viewer.NewHandler(page))
-	return mux, page, false, openPath, nil
+	return withSecurityHeaders(mux, revealAuthToken), page, false, openPath, nil
 }
 
 func printViewUsage() {
@@ -309,4 +317,50 @@ func embeddedDashboardFS() (http.FileSystem, bool) {
 	}
 	_ = f.Close()
 	return http.FS(sub), true
+}
+
+func generateRevealAuthToken() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+func withSecurityHeaders(next http.Handler, revealAuthToken string) http.Handler {
+	csp := strings.Join([]string{
+		"default-src 'self'",
+		"base-uri 'none'",
+		"frame-ancestors 'none'",
+		"object-src 'none'",
+		"script-src 'self' 'unsafe-inline'",
+		"style-src 'self' 'unsafe-inline'",
+		"img-src 'self' data: blob:",
+		"font-src 'self' data:",
+		"connect-src 'self'",
+		"worker-src 'self' blob:",
+		"form-action 'none'",
+	}, "; ")
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", csp)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+
+		if revealAuthToken != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "atb_reveal_token",
+				Value:    revealAuthToken,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			})
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

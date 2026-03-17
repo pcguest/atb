@@ -16,6 +16,10 @@ import (
 )
 
 func TestSchemaParity_AllSDKs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cross-SDK schema parity build in short mode")
+	}
+
 	repoRoot := mustRepoRoot(t)
 
 	eventWithFields := map[string]any{

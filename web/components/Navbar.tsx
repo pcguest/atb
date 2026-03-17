@@ -14,9 +14,7 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-[#0a0a0f]/95 backdrop-blur-md border-b border-[#1e1e2e]"
-          : "bg-transparent"
+        scrolled ? "bg-[#0a0a0f]/95 backdrop-blur-md border-b border-[#1e1e2e]" : "bg-transparent"
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -26,9 +24,7 @@ export default function Navbar() {
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
               <span className="font-mono font-bold text-white text-sm">A</span>
             </div>
-            <span className="font-mono font-semibold text-white text-lg tracking-tight">
-              ATB
-            </span>
+            <span className="font-mono font-semibold text-white text-lg tracking-tight">ATB</span>
             <span className="hidden sm:inline-block text-[#6b7280] text-sm ml-1">
               / Agent Trace Bundle
             </span>
@@ -42,10 +38,7 @@ export default function Navbar() {
             >
               Features
             </a>
-            <a
-              href="#demo"
-              className="text-[#9ca3af] hover:text-white text-sm transition-colors"
-            >
+            <a href="#demo" className="text-[#9ca3af] hover:text-white text-sm transition-colors">
               Demo
             </a>
             <a

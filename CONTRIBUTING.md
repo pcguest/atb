@@ -11,6 +11,49 @@ git clone https://github.com/pcguest/atb.git
 cd atb
 ```
 
+## Development Workflow (v1.1.0+)
+
+This project is operating in a **main-only** workflow for the v1.1.0 cycle.
+
+- **All work happens on `main`.** No long-lived feature branches.
+- **Use feature flags** (`--ui-experimental`) to hide incomplete features.
+- **Every commit must pass** `make hygiene-quick`.
+- **Tag releases:** `v1.1.0-rc1` -> testing -> `v1.1.0`.
+- **Security fixes** must be validated by Security Agent before merge.
+
+### Quick Start
+
+```bash
+git pull origin main
+make hygiene-quick
+# If pass, commit and push
+```
+
+## Pre-Commit Hooks
+
+Install pre-commit hooks to catch issues before committing:
+
+```bash
+make install-hooks
+```
+
+The pre-commit hook will:
+- Check for Go/NPM dependency vulnerabilities (warnings only)
+- Run `make hygiene-quick` (blocks on failure)
+- Ensure tests pass
+
+To skip hooks (not recommended): `git commit --no-verify`
+
+## Release Process
+
+1. **Tag rc:** `git tag -a v1.1.0-rc1 -m "Release Candidate 1"`
+2. **Push tag:** `git push origin --tags`
+3. **Create GitHub Release:** Use tag, paste release notes from `docs/releases/`
+4. **E2E testing:** 48-hour window for internal testers
+5. **Address feedback:** Fix critical issues, tag rc2 if needed
+6. **Gold release:** `git tag -a v1.1.0 -m "Gold Release"`
+7. **Publish:** Update README, announce on Discord/Twitter
+
 ### Go CLI
 
 ```bash

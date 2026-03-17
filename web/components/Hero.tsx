@@ -55,8 +55,8 @@ export default function Hero() {
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          Tamper-evident, replayable traces for AI agents. Every decision,
-          every tool call, every output — hash-chained and verifiable.
+          Tamper-evident, replayable traces for AI agents. Every decision, every tool call, every
+          output — hash-chained and verifiable.
           <span className="text-indigo-300"> Open source. Local-first. Production-ready.</span>
         </p>
 
@@ -71,8 +71,18 @@ export default function Hero() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-indigo-500/25"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             See It In Action
           </a>
@@ -100,9 +110,7 @@ export default function Hero() {
               key={stat.label}
               className="flex flex-col items-center p-3 rounded-lg border border-[#1e1e2e] bg-[#111118]/50"
             >
-              <span className="font-mono text-indigo-300 font-semibold text-sm">
-                {stat.value}
-              </span>
+              <span className="font-mono text-indigo-300 font-semibold text-sm">{stat.value}</span>
               <span className="text-[#6b7280] text-xs mt-1">{stat.label}</span>
             </div>
           ))}

@@ -1,70 +1,25 @@
-export interface APIError {
-  error: string;
-}
+import type { z } from "zod";
 
-export interface VerificationResponse {
-  status: "valid" | "invalid";
-  message: string;
-  bundle_path: string;
-  chain_length: number;
-  head_hash?: string;
-}
+import {
+  apiErrorSchema,
+  bundleEventsResponseSchema,
+  bundleGraphResponseSchema,
+  bundleMetaResponseSchema,
+  eventRecordSchema,
+  graphEdgeSchema,
+  graphNodeSchema,
+  privacyRevealRequestSchema,
+  privacyRevealResponseSchema,
+  verificationResponseSchema,
+} from "@/lib/schemas";
 
-export interface BundleMetaResponse {
-  bundle_path: string;
-  event_count: number;
-  type_counts: Record<string, number>;
-  first_timestamp?: string;
-  last_timestamp?: string;
-  verified: boolean;
-  verification_message: string;
-}
-
-export interface EventRecord {
-  seq: number;
-  type: string;
-  hash: string;
-  prev_hash: string;
-  timestamp?: string;
-  trace_id?: string;
-  span_id?: string;
-  parent_span_id?: string;
-  data: unknown;
-}
-
-export interface BundleEventsResponse {
-  offset: number;
-  limit: number;
-  total: number;
-  events: EventRecord[];
-}
-
-export interface GraphNode {
-  id: string;
-  label: string;
-  type: string;
-}
-
-export interface GraphEdge {
-  id: string;
-  source: string;
-  target: string;
-  label?: string;
-}
-
-export interface BundleGraphResponse {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-}
-
-export interface PrivacyRevealRequest {
-  seq: number;
-  field_path: string;
-  reason?: string;
-}
-
-export interface PrivacyRevealResponse {
-  seq: number;
-  field_path: string;
-  value: unknown;
-}
+export type APIError = z.infer<typeof apiErrorSchema>;
+export type VerificationResponse = z.infer<typeof verificationResponseSchema>;
+export type BundleMetaResponse = z.infer<typeof bundleMetaResponseSchema>;
+export type EventRecord = z.infer<typeof eventRecordSchema>;
+export type BundleEventsResponse = z.infer<typeof bundleEventsResponseSchema>;
+export type GraphNode = z.infer<typeof graphNodeSchema>;
+export type GraphEdge = z.infer<typeof graphEdgeSchema>;
+export type BundleGraphResponse = z.infer<typeof bundleGraphResponseSchema>;
+export type PrivacyRevealRequest = z.infer<typeof privacyRevealRequestSchema>;
+export type PrivacyRevealResponse = z.infer<typeof privacyRevealResponseSchema>;

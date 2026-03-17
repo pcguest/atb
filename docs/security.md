@@ -78,3 +78,50 @@ Out of scope for v1:
 - Encryption/integrity: SHA-256 hash chain verification in all SDKs.
 
 This mapping is a readiness baseline, not a formal SOC2 attestation.
+
+## Security Scan Tooling
+
+Run security scanners with:
+
+```bash
+make security-scan
+```
+
+Behavior:
+
+- Uses local `trivy` and `gosec` binaries when installed.
+- Falls back to Docker-based execution when local binaries are missing.
+
+This keeps CI/local validation consistent even when scanner binaries are not preinstalled on a workstation.
+
+## Rate Limiting (v1.1.0+)
+
+The `/api/v1/privacy/reveal` endpoint is rate-limited to prevent enumeration attacks.
+
+### Configuration
+
+```json
+{
+  "reveal_rate_limit": {
+    "burst": 10,
+    "refill_per_minute": 1
+  }
+}
+```
+
+### Testing
+
+```bash
+# Should return 429 on 11th request
+TOKEN="your-token"
+for i in {1..12}; do
+  curl -s -o /dev/null -w "$i:%{http_code} " \
+    -X POST http://localhost:18888/api/v1/privacy/reveal \
+    -H "X-ATB-Viewer-Token: $TOKEN" \
+    -d '{"seq":1}'
+done
+```
+
+### Monitoring
+
+Rate limit hits are logged to the audit chain as privacy_reveal events with `status: "rate_limited"`.

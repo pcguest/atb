@@ -10,7 +10,12 @@ const TABS = [
 
 const CODE = {
   cli: [
-    { prompt: "$", cmd: "atb init", out: "✓ Initialised ATB bundle at run.atb/bundle.atb", delay: 0 },
+    {
+      prompt: "$",
+      cmd: "atb init",
+      out: "✓ Initialised ATB bundle at run.atb/bundle.atb",
+      delay: 0,
+    },
     {
       prompt: "$",
       cmd: `atb append dev.session '{"date":"2025-01-15","features":["hash chaining"]}'`,
@@ -23,7 +28,12 @@ const CODE = {
       out: "✓ Appended event #2 [decision] hash=e0b539b812dec40b...",
       delay: 600,
     },
-    { prompt: "$", cmd: "atb verify", out: "✓ Bundle verified: 2 events, chain intact.", delay: 900 },
+    {
+      prompt: "$",
+      cmd: "atb verify",
+      out: "✓ Bundle verified: 2 events, chain intact.",
+      delay: 900,
+    },
   ],
   python: `from atb import Bundle
 
@@ -92,9 +102,7 @@ function TerminalLine({
   return (
     <div className="mb-3">
       <div className="flex items-start gap-2">
-        <span className="text-indigo-400 font-mono text-sm select-none mt-0.5">
-          {line.prompt}
-        </span>
+        <span className="text-indigo-400 font-mono text-sm select-none mt-0.5">{line.prompt}</span>
         <span className="font-mono text-sm text-[#e2e8f0]">{line.cmd}</span>
       </div>
       <div className="font-mono text-sm text-[#22c55e] mt-1 pl-4">{line.out}</div>
@@ -110,12 +118,10 @@ export default function CodeDemo() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Simple by Design
-          </h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Simple by Design</h2>
           <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
-            Three commands to get started. Works with your existing AI stack.
-            No infrastructure required.
+            Three commands to get started. Works with your existing AI stack. No infrastructure
+            required.
           </p>
         </div>
 
@@ -154,7 +160,7 @@ export default function CodeDemo() {
                 {(CODE.cli as Array<{ prompt: string; cmd: string; out: string }>).map(
                   (line, i) => (
                     <TerminalLine key={i} line={line} index={i} />
-                  )
+                  ),
                 )}
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-indigo-400 font-mono text-sm">$</span>
@@ -165,52 +171,51 @@ export default function CodeDemo() {
               <pre className="font-mono text-sm text-[#e2e8f0] leading-relaxed whitespace-pre-wrap">
                 <code>
                   {activeTab === "python"
-                    ? (CODE.python as string)
-                        .split("\n")
-                        .map((line, i) => (
-                          <span key={i}>
-                            {line
-                              .replace(/(from|import|def|class|return|if|for|in|as)/g, '<kw>$1</kw>')
+                    ? (CODE.python as string).split("\n").map((line, i) => (
+                        <span key={i}>
+                          {line
+                            .replace(/(from|import|def|class|return|if|for|in|as)/g, "<kw>$1</kw>")
+                            .split(/(<kw>.*?<\/kw>)/)
+                            .map((part, j) =>
+                              part.startsWith("<kw>") ? (
+                                <span key={j} className="text-indigo-400">
+                                  {part.replace(/<\/?kw>/g, "")}
+                                </span>
+                              ) : part.startsWith("#") ? (
+                                <span key={j} className="text-[#6b7280]">
+                                  {part}
+                                </span>
+                              ) : (
+                                <span key={j}>{part}</span>
+                              ),
+                            )}
+                          {"\n"}
+                        </span>
+                      ))
+                    : (CODE.typescript as string).split("\n").map((line, i) => (
+                        <span key={i}>
+                          {line.startsWith("//") ? (
+                            <span className="text-[#6b7280]">{line}</span>
+                          ) : (
+                            line
+                              .replace(
+                                /(import|from|const|new|await|export|type|interface)/g,
+                                "<kw>$1</kw>",
+                              )
                               .split(/(<kw>.*?<\/kw>)/)
                               .map((part, j) =>
                                 part.startsWith("<kw>") ? (
                                   <span key={j} className="text-indigo-400">
                                     {part.replace(/<\/?kw>/g, "")}
                                   </span>
-                                ) : part.startsWith("#") ? (
-                                  <span key={j} className="text-[#6b7280]">
-                                    {part}
-                                  </span>
                                 ) : (
                                   <span key={j}>{part}</span>
-                                )
-                              )}
-                            {"\n"}
-                          </span>
-                        ))
-                    : (CODE.typescript as string)
-                        .split("\n")
-                        .map((line, i) => (
-                          <span key={i}>
-                            {line.startsWith("//") ? (
-                              <span className="text-[#6b7280]">{line}</span>
-                            ) : (
-                              line
-                                .replace(/(import|from|const|new|await|export|type|interface)/g, '<kw>$1</kw>')
-                                .split(/(<kw>.*?<\/kw>)/)
-                                .map((part, j) =>
-                                  part.startsWith("<kw>") ? (
-                                    <span key={j} className="text-indigo-400">
-                                      {part.replace(/<\/?kw>/g, "")}
-                                    </span>
-                                  ) : (
-                                    <span key={j}>{part}</span>
-                                  )
-                                )
-                            )}
-                            {"\n"}
-                          </span>
-                        ))}
+                                ),
+                              )
+                          )}
+                          {"\n"}
+                        </span>
+                      ))}
                 </code>
               </pre>
             )}
@@ -228,12 +233,8 @@ export default function CodeDemo() {
               key={item.label}
               className="flex items-center gap-3 p-3 rounded-lg border border-[#1e1e2e] bg-[#111118]/50"
             >
-              <span className="text-[#6b7280] text-xs font-mono shrink-0">
-                {item.label}
-              </span>
-              <code className="text-indigo-300 text-xs font-mono truncate">
-                {item.cmd}
-              </code>
+              <span className="text-[#6b7280] text-xs font-mono shrink-0">{item.label}</span>
+              <code className="text-indigo-300 text-xs font-mono truncate">{item.cmd}</code>
             </div>
           ))}
         </div>

@@ -157,6 +157,13 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "doc",
+				Usage:       "atb doc gen-openapi [--output docs/api/openapi.yaml]",
+				Description: "Generate API documentation artifacts.",
+				Flags:       []string{"--output"},
+				Mutating:    false,
+			},
+			{
 				Name:        "version",
 				Usage:       "atb version",
 				Description: "Print ATB version.",
@@ -227,6 +234,8 @@ func main() {
 		cmdTrustReport()
 	case "view":
 		cmdView()
+	case "doc":
+		cmdDoc()
 	case "version", "--version", "-v":
 		fmt.Printf("atb %s\n", version)
 	case "help", "--help", "-h":
@@ -265,6 +274,7 @@ Commands:
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json]  Build a trust report for AI + human audit
   view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals]  Open a local dashboard viewer
+  doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
   version           Print the ATB version
 
 Exit codes:
@@ -300,6 +310,7 @@ Examples:
   atb trust-report --format json
   atb view
   atb view --bundle run.atb/bundle.atb --port 8080 --no-open
+  atb doc gen-openapi
 `)
 }
 

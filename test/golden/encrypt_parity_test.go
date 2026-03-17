@@ -21,6 +21,10 @@ const (
 )
 
 func TestEncryptParity_AllSDKs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping cross-SDK parity build in short mode")
+	}
+
 	repoRoot := mustRepoRoot(t)
 
 	plaintext := canonicalParityPayload(t)

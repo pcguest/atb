@@ -26,15 +26,15 @@ const nearEndThreshold = 20;
 
 function eventTypeClass(eventType: string): string {
   if (eventType.startsWith("ai.llm")) {
-    return "text-blue-300";
+    return "text-blue-200";
   }
   if (eventType.startsWith("ai.tool")) {
-    return "text-amber-300";
+    return "text-amber-200";
   }
   if (eventType.startsWith("ai.chain")) {
-    return "text-emerald-300";
+    return "text-emerald-200";
   }
-  return "text-slate-200";
+  return "text-slate-100";
 }
 
 function Row({ index, style, data }: ListChildComponentProps<RowData>) {
@@ -43,6 +43,7 @@ function Row({ index, style, data }: ListChildComponentProps<RowData>) {
   return (
     <div style={style} className="px-2 py-1">
       <button
+        data-testid="event-list-item"
         type="button"
         disabled={data.disabled}
         onClick={() => data.onSelect(event.seq)}
@@ -53,10 +54,12 @@ function Row({ index, style, data }: ListChildComponentProps<RowData>) {
         } disabled:cursor-not-allowed disabled:opacity-60`}
       >
         <div className="min-w-0">
-          <div className={`truncate text-sm font-medium ${eventTypeClass(event.type)}`}>{event.type}</div>
-          <div className="truncate text-xs text-slate-400">{event.timestamp || "no timestamp"}</div>
+          <div className={`truncate text-sm font-medium ${eventTypeClass(event.type)}`}>
+            {event.type}
+          </div>
+          <div className="truncate text-xs text-slate-300">{event.timestamp || "no timestamp"}</div>
         </div>
-        <div className="ml-3 shrink-0 rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
+        <div className="ml-3 shrink-0 rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-100">
           #{event.seq}
         </div>
       </button>
@@ -76,7 +79,10 @@ export function TraceTimeline({
 }: TraceTimelineProps) {
   if (events.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">
+      <div
+        data-testid="event-list"
+        className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm text-slate-200"
+      >
         No events available.
       </div>
     );
@@ -90,8 +96,8 @@ export function TraceTimeline({
   };
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950">
-      <div className="border-b border-slate-800 px-3 py-2 text-xs uppercase tracking-wide text-slate-400">
+    <div data-testid="event-list" className="rounded-lg border border-slate-800 bg-slate-950">
+      <div className="border-b border-slate-800 px-3 py-2 text-xs uppercase tracking-wide text-slate-200">
         Timeline ({events.length}/{total})
       </div>
       <List
@@ -112,14 +118,14 @@ export function TraceTimeline({
         {Row}
       </List>
       <div className="flex items-center justify-between border-t border-slate-800 px-3 py-2">
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-slate-200">
           Loaded {events.length} of {total}
         </span>
         <button
           type="button"
           disabled={disabled || loadingMore || !hasMore}
           onClick={onLoadMore}
-          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-100 hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loadingMore ? "Loading..." : hasMore ? "Load More" : "All Loaded"}
         </button>

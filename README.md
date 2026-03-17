@@ -1,9 +1,12 @@
 # Cryptographically Verifiable Audit Trails for AI Agents
 
+[![Version](https://img.shields.io/badge/version-v1.1.0-blue)](docs/releases/v1.1.0.md)
+[![Security Gate](https://img.shields.io/badge/security-gate-passing-brightgreen)](docs/security/gold-signoff.md)
+[![Coverage](https://img.shields.io/badge/coverage-90.7%25-yellowgreen)](docs/releases/v1.1.0.md)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Main-Only Workflow](https://img.shields.io/badge/workflow-main--only-blue)](CONTRIBUTING.md#development-workflow)
 [![Build Status](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security (Trivy)](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
-[![Version](https://img.shields.io/badge/version-v1.0.3-blue.svg)](https://github.com/pcguest/atb/releases)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 Tamper-evident, local-first observability for LangChain, Vercel AI, and custom agents. Built for engineers who need to prove what happened.
 

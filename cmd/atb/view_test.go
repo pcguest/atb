@@ -7,7 +7,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -290,7 +289,7 @@ func TestIsAddrInUseError(t *testing.T) {
 	}
 }
 
-func TestPrivacyRevealWritesAuditLog(t *testing.T) {
+func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
@@ -310,9 +309,25 @@ func TestPrivacyRevealWritesAuditLog(t *testing.T) {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
 
+	seedReq := httptest.NewRequest(http.MethodGet, "/", nil)
+	seedRR := httptest.NewRecorder()
+	handler.ServeHTTP(seedRR, seedReq)
+
+	var revealCookie *http.Cookie
+	for _, cookie := range seedRR.Result().Cookies() {
+		if cookie.Name == "atb_reveal_token" {
+			revealCookie = cookie
+			break
+		}
+	}
+	if revealCookie == nil || strings.TrimSpace(revealCookie.Value) == "" {
+		t.Fatalf("expected reveal auth cookie to be set")
+	}
+
 	payload := []byte(`{"seq":1,"field_path":"email","reason":"qa_test"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/privacy/reveal", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(revealCookie)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -323,20 +338,84 @@ func TestPrivacyRevealWritesAuditLog(t *testing.T) {
 		t.Fatalf("expected revealed value in response, got %s", rr.Body.String())
 	}
 
-	logPath := filepath.Join(tmp, "viewer-audit.log")
-	raw, err := os.ReadFile(logPath)
+	updated, err := bundle.Load(bundlePath)
 	if err != nil {
-		t.Fatalf("read reveal log: %v", err)
+		t.Fatalf("load updated bundle: %v", err)
 	}
-	logLine := string(raw)
-	if !strings.Contains(logLine, `"event_type":"ui.privacy.reveal"`) {
-		t.Fatalf("expected privacy reveal event type in log, got %s", logLine)
+	if len(updated.Records) != 2 {
+		t.Fatalf("expected reveal audit append to bundle: got %d records", len(updated.Records))
 	}
-	if !strings.Contains(logLine, `"event_seq":1`) {
-		t.Fatalf("expected event sequence in log, got %s", logLine)
+	auditRecord := updated.Records[1]
+	if auditRecord.Event.Type != "privacy_reveal" {
+		t.Fatalf("expected privacy_reveal event type, got %q", auditRecord.Event.Type)
 	}
-	if !strings.Contains(logLine, `"field_path":"email"`) {
-		t.Fatalf("expected field path in log, got %s", logLine)
+	auditData, ok := auditRecord.Event.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected audit event data map, got %T", auditRecord.Event.Data)
+	}
+	if auditData["field_path"] != "email" {
+		t.Fatalf("expected field path in audit event, got %v", auditData["field_path"])
+	}
+}
+
+func TestPrivacyRevealRequiresAuth(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle.atb")
+
+	b := bundle.New()
+	if err := b.Append("agent.prompt", map[string]interface{}{
+		"email": "auditor@example.com",
+	}); err != nil {
+		t.Fatalf("append agent.prompt: %v", err)
+	}
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	handler, _, _, _, err := buildViewServer(bundlePath, true, false)
+	if err != nil {
+		t.Fatalf("buildViewServer error: %v", err)
+	}
+
+	payload := []byte(`{"seq":1,"field_path":"email","reason":"qa_test"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/privacy/reveal", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("unexpected reveal status without auth: got %d want %d", rr.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle.atb")
+
+	b := bundle.New()
+	if err := b.Append("agent.prompt", map[string]interface{}{"prompt": "hello"}); err != nil {
+		t.Fatalf("append agent.prompt: %v", err)
+	}
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	handler, _, _, _, err := buildViewServer(bundlePath, false, true)
+	if err != nil {
+		t.Fatalf("buildViewServer error: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/view/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Header().Get("Content-Security-Policy") == "" {
+		t.Fatalf("expected Content-Security-Policy header")
+	}
+	if rr.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("expected X-Content-Type-Options nosniff")
+	}
+	if rr.Header().Get("X-Frame-Options") != "DENY" {
+		t.Fatalf("expected X-Frame-Options DENY")
 	}
 }
 

@@ -1,74 +1,71 @@
 # Changelog
 
-All notable changes to ATB are documented in this file.
+All notable changes to ATB will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.3] - 2026-03-10
+## [v1.1.0] - 2026-03-12
 
-### Fixed
+### 🎉 Added
+- **Trust Dashboard UI**: Enterprise-grade React dashboard with Next.js 14 + shadcn/ui
+- **Role-based views**: Engineer (debug), Auditor (compliance), Executive (summary)
+- **Trust Score**: 0-100 algorithmic integrity metric with visual radial display
+- **Real-time polling**: New blocks appear in UI within 5 seconds
+- **Interactive hash graph**: Recharts-based visualization of chain integrity
+- **Privacy reveal endpoint**: `/api/v1/privacy/reveal` with auth + rate limiting
+- **Hash-chained audit logging**: All privacy reveals logged to bundle.atb
+- **CSP headers**: Strict Content-Security-Policy on embedded UI
+- **PII masking**: Configurable via `docs/compliance/pii-fields.json`
+- **OpenAPI generation**: `atb doc gen-openapi` command
+- **E2E test suite**: Cypress tests for critical UI flows
+- **Performance benchmarks**: Bundle load time tests for 100/1k/10k blocks
 
-- Corrected Python CLI entry point (`atb.cli:main`) to avoid namespace collision.
-- Updated test assertions to match v1.0.3 version.
+### 🔐 Security
+- Added token-based auth for `/api/v1/privacy/reveal` (X-ATB-Viewer-Token header)
+- Added rate limiting (10 requests/minute per token)
+- Added hash-chained audit trail for privacy reveals
+- Added CSP, X-Frame-Options, X-Content-Type-Options headers
+- Added dependency vulnerability scanning (govulncheck, npm audit)
+- Added GitHub Actions security scan workflow
 
-### Added
+### Documentation
+- Added security findings log (docs/security/findings-log.md)
+- Added getting started guide for v1.1.0
+- Added API documentation (docs/api/openapi.yaml)
+- Added release process documentation (CONTRIBUTING.md)
+- Added main-only workflow documentation
 
-- Comprehensive security hardening (Trivy, Go 1.25.8).
-- Professional documentation overhaul.
+### 🛠️ Changed
+- Moved API handlers from `internal/viewer` to `pkg/api/v1` (public package)
+- Updated Next.js from 14.2.5 to 14.2.21 (security patch)
+- Updated React/ReactDOM pinned to 18.2.0 (stability)
+- Changed audit log from sidecar file to bundle.atb hash chain
 
-## [1.0.0] - 2026-03-09
+### 🐛 Fixed
+- Fixed 64KiB line limit warning (documented + RFC for v1.1.1)
+- Fixed CSP headers not being set on embedded UI
+- Fixed rate limit threshold mismatch (now 10/min exactly)
+- Fixed PII masking not using configurable field list
 
-### Added
+### ⚠️ Known Issues
+- G304 gosec findings in export.go/config.go (pre-existing, low risk)
+- Lighthouse harness requires Puppeteer/Chrome (Docker workaround available)
+- Cypress E2E may be unstable in some environments (Docker runner recommended)
 
-- Release infrastructure for v1.0.0 preparation (workflow, Docker packaging, release preflight script)
-- Launch/versioning docs (`docs/spec-launch.md`, `VERSIONING.md`)
+### 🔜 Deprecated
+- `internal/viewer` package (use `pkg/api/v1` instead)
+- Version-tag pinned GitHub Actions (use SHA pins)
 
-### Changed
-
-- TypeScript lockfile regenerated to resolve `npm ci` lock mismatch failures
-
-## [Phase 6] Dashboard + Viewer APIs
-
-### Added
-
-- Local-first visual dashboard route (`/view`) with verification banner
-- Viewer API endpoints for verification, metadata, events, graph, and privacy reveal
-- Privacy reveal audit log support via `--log-reveals`
-
-### Changed
-
-- `atb view` now serves dashboard assets when available and enforces verify-first data gating
-
-## [Phase 5] AI Integration Middleware
-
-### Added
-
-- Python LangChain callback middleware
-- TypeScript Vercel AI middleware
-- AI trace mapping for chain/LLM/tool lifecycle events
-
-## [Phase 4] Compliance Exports
-
-### Added
-
-- SOC2 and GDPR export formats in CLI
-- Deterministic export fixtures and format dispatching
-
-## [Phase 3] Retention + Archive
-
-### Added
-
-- Retention configuration, archive flow, and compliance export foundation
-- Hash-chain protected archival behavior
-
-## [Phase 2] Event Schema Expansion
+## [v1.0.3] - 2025-XX-XX
 
 ### Added
+- Initial production release
+- Cryptographically verifiable audit trail (SHA-256 + RFC8785)
+- Basic CLI commands (init, append, verify, export, view)
+- SOC2/GDPR evidence export (ZIP manifests)
+- Local-first storage (NDJSON bundle files)
 
-- Optional actor/org/workspace identifiers with backward compatibility
+---
 
-## [Phase 1] Encryption Foundation
-
-### Added
-
-- Encryption and canonical hash-chain foundation across Go/Python/TypeScript
+**For full release notes**, see `docs/releases/`.

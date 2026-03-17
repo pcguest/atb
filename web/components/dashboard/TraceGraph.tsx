@@ -1,7 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import ReactFlow, { Background, Controls, MiniMap, type Edge, type Node } from "react-flow-renderer";
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  type Edge,
+  type Node,
+} from "react-flow-renderer";
 
 import type { BundleGraphResponse } from "@/lib/types";
 

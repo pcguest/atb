@@ -42,7 +42,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
 
   if (!event) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">
+      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm text-slate-200">
         Select an event to inspect details.
       </div>
     );
@@ -69,25 +69,28 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
 
   return (
     <div className="rounded-lg border border-slate-800 bg-slate-950">
-      <div className="border-b border-slate-800 px-3 py-2 text-xs uppercase tracking-wide text-slate-400">
+      <div className="border-b border-slate-800 px-3 py-2 text-xs uppercase tracking-wide text-slate-200">
         Inspector
       </div>
       <div className="space-y-3 p-3">
-        <div className="grid gap-2 text-xs text-slate-400">
+        <div className="grid gap-2 text-xs text-slate-200">
           <div>
-            <span className="text-slate-500">type:</span> <span className="text-slate-200">{event.type}</span>
+            <span className="text-slate-300">type:</span>{" "}
+            <span className="text-slate-200">{event.type}</span>
           </div>
           <div>
-            <span className="text-slate-500">seq:</span> <span className="text-slate-200">{event.seq}</span>
+            <span className="text-slate-300">seq:</span>{" "}
+            <span className="text-slate-200">{event.seq}</span>
           </div>
           <div className="break-all">
-            <span className="text-slate-500">hash:</span> <span className="text-slate-200">{event.hash}</span>
+            <span className="text-slate-300">hash:</span>{" "}
+            <span className="text-slate-200">{event.hash}</span>
           </div>
         </div>
 
         {maskedPaths.length > 0 && (
           <div className="rounded border border-slate-800 bg-slate-900 p-2">
-            <div className="mb-2 text-xs uppercase tracking-wide text-slate-400">Masked Fields</div>
+            <div className="mb-2 text-xs uppercase tracking-wide text-slate-200">Masked Fields</div>
             <div className="space-y-1">
               {maskedPaths.map((path) => (
                 <button
@@ -95,7 +98,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
                   type="button"
                   disabled={disabled || pending === path}
                   onClick={() => handleReveal(path)}
-                  className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-left text-xs text-slate-200 hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-left text-xs text-slate-100 hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {pending === path ? "Revealing..." : `Click to Reveal: ${path}`}
                 </button>

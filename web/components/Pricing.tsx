@@ -67,14 +67,14 @@ export default function Pricing() {
         {/* Section header */}
         <div className="text-center mb-16">
           <span className="inline-block font-mono text-indigo-400 text-sm mb-3">
-            // pricing
+            {"// pricing"}
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
             Start Free, Scale When Ready
           </h2>
           <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
-            The core engine is open source and always will be. Pay only when
-            you need cloud features and team collaboration.
+            The core engine is open source and always will be. Pay only when you need cloud features
+            and team collaboration.
           </p>
         </div>
 

@@ -1,6 +1,7 @@
 package apiv1
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -19,34 +20,67 @@ import (
 const (
 	defaultEventsLimit = 200
 	maxEventsLimit     = 1000
+	revealAuthCookie   = "atb_reveal_token"
+	revealAuthHeader   = "X-ATB-Viewer-Token"
+	revealLegacyHeader = "X-ATB-Reveal-Token"
+)
+
+const (
+	defaultRevealRateLimit  = 10
+	defaultRevealRateWindow = time.Minute
+	revealRetryAfterSeconds = 60
+	piiFieldsPathEnv        = "ATB_PII_FIELDS_PATH"
+	piiFieldsRelativePath   = "docs/compliance/pii-fields.json"
 )
 
 // APIConfig configures the local viewer JSON API.
 type APIConfig struct {
-	BundlePath string
-	Bundle     *bundle.Bundle
-	VerifyErr  error
-	LogReveals bool
+	BundlePath       string
+	Bundle           *bundle.Bundle
+	VerifyErr        error
+	RevealAuthToken  string
+	RevealRateLimit  int
+	RevealRateWindow time.Duration
 }
 
 // APIServer serves dashboard data from a verified (or failed-verification) bundle snapshot.
 type APIServer struct {
-	bundlePath      string
-	b               *bundle.Bundle
-	verifyErr       error
-	logReveals      bool
-	revealAuditPath string
-	mu              sync.Mutex
+	bundlePath         string
+	b                  *bundle.Bundle
+	verifyErr          error
+	revealAuthToken    string
+	revealRateLimit    int
+	revealRateWindow   time.Duration
+	revealRateCounters map[string]revealRateCounter
+	mu                 sync.Mutex
+	rateMu             sync.Mutex
+}
+
+type revealRateCounter struct {
+	windowStart time.Time
+	count       int
 }
 
 // NewAPIServer constructs a local-only viewer API server.
 func NewAPIServer(cfg APIConfig) *APIServer {
+	revealRateLimit := cfg.RevealRateLimit
+	if revealRateLimit <= 0 {
+		revealRateLimit = defaultRevealRateLimit
+	}
+
+	revealRateWindow := cfg.RevealRateWindow
+	if revealRateWindow <= 0 {
+		revealRateWindow = defaultRevealRateWindow
+	}
+
 	return &APIServer{
-		bundlePath:      cfg.BundlePath,
-		b:               cfg.Bundle,
-		verifyErr:       cfg.VerifyErr,
-		logReveals:      cfg.LogReveals,
-		revealAuditPath: filepath.Join(filepath.Dir(cfg.BundlePath), "viewer-audit.log"),
+		bundlePath:         cfg.BundlePath,
+		b:                  cfg.Bundle,
+		verifyErr:          cfg.VerifyErr,
+		revealAuthToken:    strings.TrimSpace(cfg.RevealAuthToken),
+		revealRateLimit:    revealRateLimit,
+		revealRateWindow:   revealRateWindow,
+		revealRateCounters: make(map[string]revealRateCounter),
 	}
 }
 
@@ -305,21 +339,36 @@ func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 
 // @OpenAPI
 // @Summary      Reveal one masked field
-// @Description  Reveals a specific field path from one event and optionally audit-logs the reveal.
+// @Description  Reveals a specific field path from one event and always hash-chain audit-logs the reveal.
 // @Tags         viewer
 // @Accept       json
 // @Produce      json
+// @Security     RevealCookieAuth
+// @Security     RevealBearerAuth
 // @Param        request  body      PrivacyRevealRequest  true  "Reveal request"
 // @Success      200      {object}  PrivacyRevealResponse
 // @Failure      400      {object}  APIError
+// @Failure      401      {object}  APIError
 // @Failure      403      {object}  APIError
 // @Failure      404      {object}  APIError
+// @Failure      429      {object}  APIError
 // @Failure      405      {object}  APIError
 // @Failure      500      {object}  APIError
 // @Router       /api/v1/privacy/reveal [post]
 func (s *APIServer) handlePrivacyReveal(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.allowPrivacyReveal(r) {
+		w.Header().Set("Retry-After", fmt.Sprintf("%d", revealRetryAfterSeconds))
+		writeJSON(w, http.StatusTooManyRequests, APIError{
+			Error:      "privacy reveal rate limit exceeded",
+			RetryAfter: revealRetryAfterSeconds,
+		})
+		return
+	}
+	if !s.requireRevealAuth(w, r) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -346,14 +395,16 @@ func (s *APIServer) handlePrivacyReveal(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusNotFound, APIError{Error: "event sequence not found"})
 		return
 	}
-	value, ok := resolveField(record.Event.Data, req.FieldPath)
+
+	resolvedPath := normalizeRevealFieldPath(req.FieldPath)
+	value, ok := resolveField(record.Event.Data, resolvedPath)
 	if !ok {
 		writeJSON(w, http.StatusNotFound, APIError{Error: "field_path not found"})
 		return
 	}
 
-	if err := s.logReveal(r.RemoteAddr, req); err != nil {
-		writeJSON(w, http.StatusInternalServerError, APIError{Error: fmt.Sprintf("log reveal event: %v", err)})
+	if err := s.appendRevealAuditEvent(r, req, resolvedPath); err != nil {
+		writeJSON(w, http.StatusInternalServerError, APIError{Error: "audit append failed"})
 		return
 	}
 
@@ -372,48 +423,156 @@ func (s *APIServer) requireVerified(w http.ResponseWriter) bool {
 	return false
 }
 
-func (s *APIServer) logReveal(remoteAddr string, req PrivacyRevealRequest) error {
-	if !s.logReveals {
-		return nil
+func (s *APIServer) requireRevealAuth(w http.ResponseWriter, r *http.Request) bool {
+	if s.revealAuthToken == "" {
+		writeJSON(w, http.StatusInternalServerError, APIError{Error: "privacy reveal auth token is not configured"})
+		return false
 	}
 
-	ipAddr := remoteAddr
-	if host, _, err := net.SplitHostPort(remoteAddr); err == nil {
+	for _, candidate := range authTokensForRequest(r) {
+		if subtle.ConstantTimeCompare([]byte(candidate), []byte(s.revealAuthToken)) == 1 {
+			return true
+		}
+	}
+
+	writeJSON(w, http.StatusUnauthorized, APIError{Error: "unauthorized"})
+	return false
+}
+
+func authTokensForRequest(r *http.Request) []string {
+	candidates := make([]string, 0, 4)
+
+	if token := strings.TrimSpace(r.Header.Get(revealAuthHeader)); token != "" {
+		candidates = append(candidates, token)
+	}
+	if token := strings.TrimSpace(r.Header.Get(revealLegacyHeader)); token != "" {
+		candidates = append(candidates, token)
+	}
+	if authHeader := strings.TrimSpace(r.Header.Get("Authorization")); authHeader != "" {
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+			candidates = append(candidates, strings.TrimSpace(parts[1]))
+		}
+	}
+	if cookie, err := r.Cookie(revealAuthCookie); err == nil {
+		candidates = append(candidates, strings.TrimSpace(cookie.Value))
+	}
+
+	return candidates
+}
+
+func primaryRateLimitToken(r *http.Request) string {
+	candidates := authTokensForRequest(r)
+	if len(candidates) == 0 {
+		return "anonymous"
+	}
+	return candidates[0]
+}
+
+func (s *APIServer) allowPrivacyReveal(r *http.Request) bool {
+	ipAddr, _ := resolveRemoteIdentity(r.RemoteAddr)
+	key := ipAddr + "|" + primaryRateLimitToken(r)
+	now := time.Now().UTC()
+
+	s.rateMu.Lock()
+	defer s.rateMu.Unlock()
+
+	counter := s.revealRateCounters[key]
+	if counter.windowStart.IsZero() || now.Sub(counter.windowStart) >= s.revealRateWindow {
+		s.revealRateCounters[key] = revealRateCounter{
+			windowStart: now,
+			count:       1,
+		}
+		return true
+	}
+	if counter.count >= s.revealRateLimit {
+		return false
+	}
+	counter.count++
+	s.revealRateCounters[key] = counter
+	return true
+}
+
+func (s *APIServer) appendRevealAuditEvent(r *http.Request, req PrivacyRevealRequest, resolvedPath string) error {
+	ipAddr, user := resolveRemoteIdentity(r.RemoteAddr)
+
+	data := map[string]interface{}{
+		"seq":         req.Sequence,
+		"field_path":  req.FieldPath,
+		"revealed_at": time.Now().UTC().Format(time.RFC3339),
+		"user":        user,
+		"ip":          ipAddr,
+	}
+	if resolvedPath != req.FieldPath {
+		data["field_path_resolved"] = resolvedPath
+	}
+	if reason := strings.TrimSpace(req.Reason); reason != "" {
+		data["reason"] = reason
+	}
+
+	actorID := getActorFromContext(r)
+	orgID := getOrgFromContext(r)
+	workspaceID := getWorkspaceFromContext(r)
+	var opts *bundle.AppendOptions
+	if actorID != nil || orgID != nil || workspaceID != nil {
+		opts = &bundle.AppendOptions{
+			ActorID:     actorID,
+			OrgID:       orgID,
+			WorkspaceID: workspaceID,
+		}
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if err := s.b.AppendWithOptions("privacy_reveal", data, opts); err != nil {
+		return err
+	}
+	if err := s.b.Save(s.bundlePath); err != nil {
+		// Keep in-memory state aligned with on-disk state when save fails.
+		s.b.Records = s.b.Records[:len(s.b.Records)-1]
+		return err
+	}
+	return nil
+}
+
+func optionalRequestID(r *http.Request, headerKeys ...string) *string {
+	for _, key := range headerKeys {
+		if value := strings.TrimSpace(r.Header.Get(key)); value != "" {
+			v := value
+			return &v
+		}
+	}
+	return nil
+}
+
+func getActorFromContext(r *http.Request) *string {
+	return optionalRequestID(r, "X-ATB-Actor-ID", "X-Actor-ID")
+}
+
+func getOrgFromContext(r *http.Request) *string {
+	return optionalRequestID(r, "X-ATB-Org-ID", "X-Org-ID")
+}
+
+func getWorkspaceFromContext(r *http.Request) *string {
+	return optionalRequestID(r, "X-ATB-Workspace-ID", "X-Workspace-ID")
+}
+
+func normalizeRevealFieldPath(fieldPath string) string {
+	trimmed := strings.TrimSpace(fieldPath)
+	return strings.TrimPrefix(trimmed, "data.")
+}
+
+func resolveRemoteIdentity(remoteAddr string) (string, string) {
+	ipAddr := strings.TrimSpace(remoteAddr)
+	if host, _, err := net.SplitHostPort(ipAddr); err == nil {
 		ipAddr = host
 	}
 	user := ipAddr
 	if ipAddr == "127.0.0.1" || ipAddr == "::1" || ipAddr == "localhost" {
 		user = "localhost"
 	}
-
-	entry := map[string]interface{}{
-		"event_type":  "ui.privacy.reveal",
-		"timestamp":   time.Now().UTC().Format(time.RFC3339),
-		"bundle_path": s.bundlePath,
-		"event_seq":   req.Sequence,
-		"field_path":  req.FieldPath,
-		"reason":      req.Reason,
-		"user":        user,
-		"ip":          ipAddr,
-	}
-	raw, err := json.Marshal(entry)
-	if err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if err := os.MkdirAll(filepath.Dir(s.revealAuditPath), 0750); err != nil {
-		return err
-	}
-	f, err := os.OpenFile(filepath.Clean(s.revealAuditPath), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.Write(append(raw, '\n'))
-	return err
+	return ipAddr, user
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload interface{}) {
@@ -529,19 +688,173 @@ func maskSensitive(value interface{}) interface{} {
 	}
 }
 
+type piiFieldRulesFile struct {
+	AllowFields         []string `json:"allow_fields"`
+	SensitiveFields     []string `json:"sensitive_fields"`
+	SensitiveSubstrings []string `json:"sensitive_substrings"`
+	SensitiveSuffixes   []string `json:"sensitive_suffixes"`
+}
+
+type piiMaskRules struct {
+	allowFields         map[string]struct{}
+	sensitiveFields     map[string]struct{}
+	sensitiveSubstrings []string
+	sensitiveSuffixes   []string
+}
+
+var (
+	piiMaskRulesOnce sync.Once
+	piiRules         piiMaskRules
+)
+
+func activePIIMaskRules() piiMaskRules {
+	piiMaskRulesOnce.Do(func() {
+		piiRules = loadPIIMaskRules()
+	})
+	return piiRules
+}
+
+func loadPIIMaskRules() piiMaskRules {
+	defaults := defaultPIIMaskRules()
+
+	path, err := findPIIFieldsPath()
+	if err != nil {
+		return defaults
+	}
+
+	raw, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return defaults
+	}
+
+	var rulesFile piiFieldRulesFile
+	if err := json.Unmarshal(raw, &rulesFile); err != nil {
+		return defaults
+	}
+
+	rules := piiMaskRules{
+		allowFields:         normalizeFieldSet(rulesFile.AllowFields),
+		sensitiveFields:     normalizeFieldSet(rulesFile.SensitiveFields),
+		sensitiveSubstrings: normalizeFieldList(rulesFile.SensitiveSubstrings),
+		sensitiveSuffixes:   normalizeFieldList(rulesFile.SensitiveSuffixes),
+	}
+	if len(rules.sensitiveFields) == 0 {
+		return defaults
+	}
+	return rules
+}
+
+func findPIIFieldsPath() (string, error) {
+	if path := strings.TrimSpace(os.Getenv(piiFieldsPathEnv)); path != "" {
+		return path, nil
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	dir := wd
+	for {
+		candidate := filepath.Join(dir, piiFieldsRelativePath)
+		if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+			return candidate, nil
+		}
+		next := filepath.Dir(dir)
+		if next == dir {
+			break
+		}
+		dir = next
+	}
+	return "", os.ErrNotExist
+}
+
+func defaultPIIMaskRules() piiMaskRules {
+	return piiMaskRules{
+		allowFields: normalizeFieldSet([]string{
+			"trace_id",
+			"span_id",
+			"parent_span_id",
+			"run_id",
+			"event_id",
+			"hash",
+			"prev_hash",
+			"timestamp",
+			"ts",
+			"created_at",
+			"updated_at",
+		}),
+		sensitiveFields: normalizeFieldSet([]string{
+			"email",
+			"ip",
+			"user_id",
+			"actor_id",
+			"org_id",
+			"workspace_id",
+			"id",
+		}),
+		sensitiveSubstrings: normalizeFieldList([]string{"payment", "health", "bio"}),
+		sensitiveSuffixes:   normalizeFieldList([]string{"_id"}),
+	}
+}
+
+func normalizeFieldSet(values []string) map[string]struct{} {
+	out := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		normalized := normalizeFieldKey(value)
+		if normalized == "" {
+			continue
+		}
+		out[normalized] = struct{}{}
+	}
+	return out
+}
+
+func normalizeFieldList(values []string) []string {
+	out := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		normalized := normalizeFieldKey(value)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		out = append(out, normalized)
+	}
+	return out
+}
+
+func normalizeFieldKey(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
 func isSensitiveFieldKey(key string) bool {
-	lower := strings.ToLower(strings.TrimSpace(key))
-	switch lower {
-	case "", "trace_id", "span_id", "parent_span_id", "run_id", "event_id", "hash", "prev_hash", "timestamp", "ts", "created_at", "updated_at":
+	lower := normalizeFieldKey(key)
+	if lower == "" {
 		return false
-	case "email", "ip", "user_id", "actor_id", "org_id", "workspace_id", "id":
+	}
+
+	rules := activePIIMaskRules()
+	if _, ok := rules.allowFields[lower]; ok {
+		return false
+	}
+	if _, ok := rules.sensitiveFields[lower]; ok {
 		return true
 	}
-	if strings.Contains(lower, "payment") || strings.Contains(lower, "health") || strings.Contains(lower, "bio") {
-		return true
+
+	for _, token := range rules.sensitiveSubstrings {
+		if strings.Contains(lower, token) {
+			return true
+		}
 	}
-	if strings.HasSuffix(lower, "_id") {
-		return true
+
+	for _, suffix := range rules.sensitiveSuffixes {
+		if strings.HasSuffix(lower, suffix) {
+			return true
+		}
 	}
 	return false
 }

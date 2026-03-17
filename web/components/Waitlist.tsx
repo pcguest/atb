@@ -38,28 +38,39 @@ export default function Waitlist() {
         <div className="relative">
           {/* Badge */}
           <span className="inline-block font-mono text-indigo-400 text-sm mb-4">
-            // early access
+            {"// early access"}
           </span>
 
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Be First to Know
-          </h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Be First to Know</h2>
           <p className="text-[#9ca3af] text-lg mb-8 max-w-xl mx-auto">
-            ATB Pro is launching soon with cloud sync, sharing, and the hosted
-            viewer. Join the waitlist to get early access and a{" "}
+            ATB Pro is launching soon with cloud sync, sharing, and the hosted viewer. Join the
+            waitlist to get early access and a{" "}
             <span className="text-indigo-300 font-medium">30% launch discount</span>.
           </p>
 
           {/* Form */}
           {status === "success" ? (
             <div className="flex items-center justify-center gap-3 p-4 rounded-xl border border-[#22c55e]/30 bg-[#22c55e]/5 text-[#22c55e]">
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span className="font-medium">{message}</span>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto"
+            >
               <input
                 type="email"
                 value={email}
@@ -83,8 +94,19 @@ export default function Waitlist() {
                 {status === "loading" ? (
                   <span className="flex items-center gap-2">
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
                     </svg>
                     Joining...
                   </span>
@@ -95,9 +117,7 @@ export default function Waitlist() {
             </form>
           )}
 
-          {status === "error" && (
-            <p className="text-red-400 text-sm mt-2 font-mono">{message}</p>
-          )}
+          {status === "error" && <p className="text-red-400 text-sm mt-2 font-mono">{message}</p>}
 
           <p className="text-[#6b7280] text-xs mt-4 font-mono">
             No spam. Unsubscribe anytime. We respect your privacy.

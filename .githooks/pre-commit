@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+
+echo "🔍 Running pre-commit checks..."
+
+echo "1. Formatting..."
+if ! go fmt ./... >/dev/null 2>&1; then
+  echo "❌ Go formatting issues. Run 'go fmt ./...'"
+  exit 1
+fi
+
+echo "2. Linting..."
+if ! go vet ./... >/dev/null 2>&1; then
+  echo "❌ Go vet issues. Run 'go vet ./...'"
+  exit 1
+fi
+
+echo "3. Quick tests..."
+if ! go test ./... -short -timeout=30s >/dev/null 2>&1; then
+  echo "❌ Short tests failed. Run 'go test ./... -short'"
+  exit 1
+fi
+
+echo "4. Dependency audit (warning only)..."
+if command -v govulncheck >/dev/null 2>&1; then
+  if ! govulncheck ./... 2>/dev/null | grep -q "No vulnerabilities found"; then
+    echo "⚠️  Warning: Go vulnerabilities detected. Consider 'make deps-update'"
+  fi
+fi
+
+if [ -f "web/package.json" ]; then
+  (
+    cd web
+    if ! npm audit --audit-level=critical --silent >/dev/null 2>&1; then
+      echo "⚠️  Warning: Critical NPM vulns. Run 'npm audit fix'"
+    fi
+  )
+fi
+
+echo "✅ Pre-commit checks passed"
+exit 0

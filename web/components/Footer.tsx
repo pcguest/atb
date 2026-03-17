@@ -12,8 +12,8 @@ export default function Footer() {
               <span className="font-mono font-semibold text-white">ATB</span>
             </div>
             <p className="text-[#6b7280] text-sm leading-relaxed max-w-xs">
-              Agent Trace Bundle — tamper-evident, replayable audit trails for AI
-              agent workflows. Open source. Local-first. Production-ready.
+              Agent Trace Bundle — tamper-evident, replayable audit trails for AI agent workflows.
+              Open source. Local-first. Production-ready.
             </p>
             <div className="flex items-center gap-3 mt-4">
               <a
@@ -37,7 +37,10 @@ export default function Footer() {
               {[
                 { label: "Features", href: "#features" },
                 { label: "Pricing", href: "#pricing" },
-                { label: "Changelog", href: "https://github.com/pcguest/atb/blob/main/CHANGELOG.md" },
+                {
+                  label: "Changelog",
+                  href: "https://github.com/pcguest/atb/blob/main/CHANGELOG.md",
+                },
                 { label: "Roadmap", href: "https://github.com/pcguest/atb/issues" },
               ].map((item) => (
                 <li key={item.label}>
@@ -58,9 +61,18 @@ export default function Footer() {
             <ul className="space-y-2">
               {[
                 { label: "GitHub", href: "https://github.com/pcguest/atb" },
-                { label: "CLI Reference", href: "https://github.com/pcguest/atb/tree/main/cmd/atb" },
-                { label: "Python SDK", href: "https://github.com/pcguest/atb/tree/main/sdk/python" },
-                { label: "TypeScript SDK", href: "https://github.com/pcguest/atb/tree/main/sdk/typescript" },
+                {
+                  label: "CLI Reference",
+                  href: "https://github.com/pcguest/atb/tree/main/cmd/atb",
+                },
+                {
+                  label: "Python SDK",
+                  href: "https://github.com/pcguest/atb/tree/main/sdk/python",
+                },
+                {
+                  label: "TypeScript SDK",
+                  href: "https://github.com/pcguest/atb/tree/main/sdk/typescript",
+                },
               ].map((item) => (
                 <li key={item.label}>
                   <a
@@ -79,13 +91,10 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="flex flex-col sm:flex-row items-center justify-between pt-8 border-t border-[#1e1e2e] gap-4">
-          <p className="text-[#6b7280] text-sm font-mono">
-            © 2026 ATB. MIT License.
-          </p>
+          <p className="text-[#6b7280] text-sm font-mono">© 2026 ATB. MIT License.</p>
           <div className="flex items-center gap-4 text-[#6b7280] text-sm">
             <span className="font-mono text-xs">
-              Built with{" "}
-              <span className="text-indigo-400">ATB</span> — dogfooding since day 1
+              Built with <span className="text-indigo-400">ATB</span> — dogfooding since day 1
             </span>
           </div>
         </div>

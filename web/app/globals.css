@@ -1,101 +1,163 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: #0a0a0f;
-  --surface: #111118;
-  --border: #1e1e2e;
-  --accent: #6366f1;
-  --accent-light: #818cf8;
-  --text: #e2e8f0;
-  --muted: #6b7280;
+@layer base {
+  :root {
+    --font-sans: "Inter";
+    --font-mono: "JetBrains Mono";
+    --background: 220 22% 96%;
+    --foreground: 225 30% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 225 30% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 30% 13%;
+    --primary: 198 100% 42%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 213 34% 93%;
+    --secondary-foreground: 225 30% 13%;
+    --muted: 210 27% 90%;
+    --muted-foreground: 219 16% 41%;
+    --accent: 28 96% 55%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 216 28% 84%;
+    --input: 216 28% 84%;
+    --ring: 198 100% 42%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 218 45% 8%;
+    --foreground: 210 40% 96%;
+    --card: 220 40% 12%;
+    --card-foreground: 210 40% 96%;
+    --popover: 220 40% 12%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 193 99% 45%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 221 31% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 220 28% 18%;
+    --muted-foreground: 210 20% 78%;
+    --accent: 32 95% 57%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 79% 52%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 220 25% 24%;
+    --input: 220 25% 24%;
+    --ring: 193 99% 45%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    @apply min-h-screen bg-background text-foreground;
+  }
+
+  body {
+    font-family: var(--font-sans), system-ui, sans-serif;
+    background-image:
+      radial-gradient(circle at 12% -8%, hsl(193 99% 45% / 0.12), transparent 48%),
+      radial-gradient(circle at 88% 0%, hsl(32 95% 57% / 0.09), transparent 42%),
+      linear-gradient(160deg, hsl(var(--background)), hsl(var(--background)));
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono), "JetBrains Mono", monospace;
+  }
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+@layer utilities {
+  .gradient-text {
+    background: linear-gradient(120deg, hsl(193 99% 45%), hsl(32 95% 57%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(0 0% 100% / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.05) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .glow {
+    box-shadow: 0 0 36px hsl(193 99% 45% / 0.15);
+  }
+
+  .glow-strong {
+    box-shadow: 0 0 56px hsl(193 99% 45% / 0.22);
+  }
+
+  .terminal-cursor::after {
+    content: "█";
+    color: hsl(var(--primary));
+    animation: cursor-blink 1s step-end infinite;
+  }
+
 }
 
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* React Flow defaults assume a light canvas; the dashboard renders on a dark surface. */
+.react-flow__controls {
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--radius) - 0.25rem) !important;
+  overflow: hidden;
+  box-shadow: 0 10px 30px hsl(220 50% 4% / 0.35);
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
+.react-flow__controls-button {
+  background: hsl(var(--card)) !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
 }
 
-/* Selection */
-::selection {
-  background: rgba(99, 102, 241, 0.3);
-  color: var(--text);
+.react-flow__controls-button:hover {
+  background: hsl(var(--muted)) !important;
 }
 
-/* Utility classes */
-.font-mono {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+.react-flow__controls-button:last-child {
+  border-bottom: 0 !important;
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, #6366f1 0%, #818cf8 50%, #a5b4fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.react-flow__minimap {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--radius) - 0.25rem) !important;
+  overflow: hidden;
 }
 
-.glow {
-  box-shadow: 0 0 30px rgba(99, 102, 241, 0.15);
+.react-flow__attribution {
+  background: hsl(var(--card) / 0.96) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 9999px !important;
+  padding: 4px 8px !important;
+  box-shadow: 0 10px 30px hsl(220 50% 4% / 0.35);
 }
 
-.glow-strong {
-  box-shadow: 0 0 60px rgba(99, 102, 241, 0.25);
+.react-flow__attribution a {
+  color: inherit !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.terminal-cursor::after {
-  content: '█';
-  animation: blink 1s step-end infinite;
-  color: #6366f1;
-}
+@keyframes cursor-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
 
-@keyframes blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-/* Grid background */
-.bg-grid {
-  background-image: linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-/* Noise texture overlay */
-.noise::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-  pointer-events: none;
-  z-index: 0;
+  50% {
+    opacity: 0;
+  }
 }

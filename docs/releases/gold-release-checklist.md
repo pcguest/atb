@@ -1,0 +1,67 @@
+# ATB v1.1.0 Gold Release Checklist
+
+## Pre-Release Gates
+- [ ] Security Agent sign-off (docs/security/gold-signoff.md)
+- [ ] All Critical/High vulns resolved (Go + NPM)
+- [ ] GitHub Actions SHA-pinned (0 version-tag pins)
+- [ ] E2E tests passing (Cypress, 4/4 tests)
+- [ ] Lighthouse scores met (A11y >=100, Performance >=90)
+- [ ] Backend coverage >=80% (pkg/api/v1)
+- [ ] UI coverage >=80% (web/components)
+
+## Documentation
+- [ ] Release notes updated (docs/releases/v1.1.0.md)
+- [ ] Getting started guide validated (docs/guides/getting-started-v1.1.0.md)
+- [ ] API docs synced (docs/api/openapi.yaml regenerated)
+- [ ] SECURITY.md updated with known issues
+- [ ] CHANGELOG.md updated with all changes since v1.0.3
+- [ ] README.md badges updated (version, security, coverage)
+
+## Build & Distribution
+- [ ] Go binary builds cleanly (go build -o atb ./cmd/atb)
+- [ ] UI exports cleanly (cd web && npm run build && npm run export)
+- [ ] Embed test passes (make test-embed)
+- [ ] Docker image builds (if applicable)
+- [ ] Binary size <20% growth from v1.0.3
+
+## Testing
+- [ ] All unit tests pass (go test ./...)
+- [ ] All E2E tests pass (make test-e2e)
+- [ ] Performance tests pass (make test-performance)
+- [ ] Manual QA pass (see QA checklist below)
+
+## Manual QA Checklist
+- [ ] `atb init` creates bundle successfully
+- [ ] `atb append` adds events to chain
+- [ ] `atb verify` validates chain integrity
+- [ ] `atb view --ui-experimental` loads dashboard
+- [ ] Trust Score displays and updates
+- [ ] Role switching works (Engineer/Auditor/Executive)
+- [ ] Privacy reveal requires auth (401 without token)
+- [ ] Rate limiting works (429 on 11th request)
+- [ ] CSP headers present in browser devtools
+- [ ] Export generates valid ZIP with manifest
+
+## Post-Release
+- [ ] GitHub Release published with notes
+- [ ] Git tag pushed (v1.1.0)
+- [ ] PyPI package updated (if applicable)
+- [ ] NPM package updated (if applicable)
+- [ ] Docker Hub image pushed (if applicable)
+- [ ] Announcement posted (Discord, Twitter, LinkedIn)
+- [ ] Internal stakeholders notified
+
+## Rollback Plan
+If critical issues found post-release:
+1. Document issue in GitHub Issues with `v1.1.0-blocker` label
+2. Create hotfix branch: `hotfix/v1.1.1-<issue-name>`
+3. Fix, test, tag v1.1.1
+4. Communicate to users via release notes + announcement
+
+---
+
+**Sign-Off Required:**
+- [ ] CPO (Patrick Guest)
+- [ ] Security Agent
+- [ ] Hygiene Agent
+- [ ] UI Agent
