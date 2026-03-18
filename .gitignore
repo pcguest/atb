@@ -69,3 +69,21 @@ credentials.json
 
 # Local agent artifacts
 .minimax/
+# Go cache
+.gocache/
+
+# Build artifacts
+coverage.out
+trivy-report.json
+*.bak
+
+# Next.js
+web/.next/
+web/out/
+web/cypress/screenshots/
+
+# Go build cache
+.gocache/
+coverage.out
+trivy-report.json
+web/cypress/screenshots/

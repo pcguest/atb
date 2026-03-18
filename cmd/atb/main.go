@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	version          = "1.0.3"
+	version          = "1.1.0"
 	verifyFormatText = "text"
 	verifyFormatJSON = "json"
 	verifyAlgorithm  = "SHA-256||RFC8785"

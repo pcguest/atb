@@ -27,6 +27,13 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Build UI Export
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+          npm run export
+
       - name: Install TypeScript SDK dependencies
         working-directory: sdk/typescript
         run: npm ci

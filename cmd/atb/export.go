@@ -427,7 +427,7 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 
 	files := make([]exportFileEntry, 0)
 	for _, info := range bundleInfos {
-		data, err := os.ReadFile(info.Source)
+		data, err := os.ReadFile(info.Source) // #nosec G304 -- bundle paths come from verified local discovery
 		if err != nil {
 			return result, fmt.Errorf("read bundle file %s: %w", info.Source, err)
 		}
@@ -449,7 +449,7 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 		manifest.Verification.LedgerVerified = true
 		manifest.LedgerHeadHash = head
 
-		data, err := os.ReadFile(ledgerPath)
+		data, err := os.ReadFile(ledgerPath) // #nosec G304 -- archive ledger path is a fixed project-local location
 		if err != nil {
 			return result, fmt.Errorf("read archive ledger: %w", err)
 		}
@@ -497,7 +497,7 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 	}
 
 	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
-		if data, err := os.ReadFile(doc); err == nil {
+		if data, err := os.ReadFile(doc); err == nil { // #nosec G304 -- docs are read from repo-controlled paths
 			zipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(doc), "docs/")))
 			files = append(files, exportFileEntry{ZipPath: zipPath, Data: data})
 			manifest.IncludedFiles = append(manifest.IncludedFiles, zipPath)
@@ -516,7 +516,7 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 		manifest.Warnings = append(manifest.Warnings, "optional docs/compliance/*.md not found")
 	}
 	for _, doc := range complianceDocs {
-		data, err := os.ReadFile(doc)
+		data, err := os.ReadFile(doc) // #nosec G304 -- docs are discovered under the repo-controlled docs tree
 		if err != nil {
 			return result, fmt.Errorf("read compliance doc %s: %w", doc, err)
 		}
@@ -747,7 +747,7 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 	info.ZipPath = filepath.ToSlash(filepath.Join("evidence", "bundles", "active", base.BundlePath))
 	info.Archived = false
 
-	raw, err := os.ReadFile(base.BundlePath)
+	raw, err := os.ReadFile(base.BundlePath) // #nosec G304 -- bundle path is a validated local CLI input
 	if err != nil {
 		return base, fmt.Errorf("read bundle file %s: %w", base.BundlePath, err)
 	}
@@ -779,7 +779,7 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 	}
 
 	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
-		if data, err := os.ReadFile(doc); err == nil {
+		if data, err := os.ReadFile(doc); err == nil { // #nosec G304 -- docs are read from repo-controlled paths
 			zipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(doc), "docs/")))
 			base.Files = append(base.Files, exportFileEntry{ZipPath: zipPath, Data: data})
 			base.Manifest.IncludedFiles = append(base.Manifest.IncludedFiles, zipPath)
@@ -791,7 +791,7 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 	}
 
 	requiredComplianceDoc := filepath.Join("docs", "compliance", cfg.Format+".md")
-	complianceData, err := os.ReadFile(requiredComplianceDoc)
+	complianceData, err := os.ReadFile(requiredComplianceDoc) // #nosec G304 -- compliance doc path is derived from a fixed format allowlist
 	if err != nil {
 		return base, fmt.Errorf("read required compliance doc %s: %w", requiredComplianceDoc, err)
 	}
@@ -1456,7 +1456,7 @@ func verifyBundleForExport(path string) (exportBundleInfo, error) {
 	if len(b.Records) > 0 {
 		head = b.Records[len(b.Records)-1].Hash
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- bundle path is provided by verified export inputs
 	if err != nil {
 		return exportBundleInfo{}, fmt.Errorf("read bundle %s: %w", path, err)
 	}
@@ -1468,7 +1468,7 @@ func verifyBundleForExport(path string) (exportBundleInfo, error) {
 
 func loadConfigForExport() ([]byte, string, *int, error) {
 	configPath := defaultConfigPath()
-	raw, err := os.ReadFile(configPath)
+	raw, err := os.ReadFile(configPath) // #nosec G304 -- config path is the project-local default config file
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, "", nil, nil

@@ -157,7 +157,7 @@ func loadRetentionPolicy(configPath string) (*retentionPolicy, error) {
 
 func loadATBConfig(path string) (atbConfig, error) {
 	var cfg atbConfig
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- config path is project-local and controlled by the CLI
 	if err != nil {
 		return cfg, err
 	}

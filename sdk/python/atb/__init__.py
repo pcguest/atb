@@ -24,7 +24,7 @@ from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
 
-__version__ = "1.0.3"
+__version__ = "1.1.0"
 __all__ = [
     "Bundle",
     "Event",

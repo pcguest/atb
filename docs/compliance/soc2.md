@@ -26,5 +26,5 @@ The exporter should include the following ATB-derived evidence:
 
 ## Auditor Notes
 
-This bundle was generated automatically by ATB v1.0.3. Verify the
+This bundle was generated automatically by ATB v1.1.0. Verify the
 `hash_chain_verified` field in export metadata before proceeding with attestation.
