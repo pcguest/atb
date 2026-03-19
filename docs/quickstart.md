@@ -5,7 +5,7 @@ ATB provides tamper-evident, replayable traces for AI workflows.
 ## 1. Quick Start (Exact README Flow)
 
 ```bash
-pip install atb
+pip install atb-sdk
 atb init
 atb view
 ```

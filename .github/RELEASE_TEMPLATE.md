@@ -1,15 +1,15 @@
 # ATB [VERSION] Release
 
-## 🎉 What's New
+## What's New
 [LIST KEY FEATURES]
 
-## 📦 Installation
+## Installation
 [BUILD/RUN INSTRUCTIONS]
 
-## 🐛 Known Issues
+## Known Issues
 [LIST KNOWN ISSUES]
 
-## 🔜 Next Steps
+## Next Steps
 [ROADMAP ITEMS]
 
 ---

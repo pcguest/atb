@@ -64,7 +64,7 @@ Workflows triggered by tag:
 # Python
 python3 -m venv /tmp/atb-py-test
 source /tmp/atb-py-test/bin/activate
-pip install atb
+pip install atb-sdk
 python -c "from atb import Bundle; print(Bundle)"
 deactivate
 rm -rf /tmp/atb-py-test
@@ -85,7 +85,7 @@ cd ~/atb
   "component": "sdk",
   "version": "0.1.1",
   "action": "published to pypi and npm",
-  "channels": ["https://pypi.org/project/atb/", "https://www.npmjs.com/package/@pcguest/atb-sdk"]
+  "channels": ["https://pypi.org/project/atb-sdk/", "https://www.npmjs.com/package/@pcguest/atb-sdk"]
 }'
 ./atb snapshot build --gate pass
 ./atb verify

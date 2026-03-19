@@ -11,8 +11,8 @@ Ship ATB v1.0.0 with deterministic, secure, automated release pipelines for:
 
 Target install experience:
 
-- `pip install atb`
-- `npm install -g atb`
+- `pip install atb-sdk`
+- `npm install -g @pcguest/atb-sdk`
 - `docker pull <org>/atb:<version>`
 
 ## Versioning Strategy

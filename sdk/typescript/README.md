@@ -1,4 +1,4 @@
-# @pcguest/atb-sdk — ATB TypeScript SDK
+# @pcguest/atb-sdk - ATB TypeScript SDK
 
 The official TypeScript/JavaScript SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb).
 
@@ -29,10 +29,10 @@ bundle.append("decision", {
 
 bundle.save(); // Writes to run.atb/bundle.atb
 
-// Later — reload and verify
+// Later - reload and verify
 const loaded = Bundle.load();
 loaded.verify(); // Throws ATBVerificationError if tampered
-console.log(`Verified ${loaded.length} events — chain intact.`);
+console.log(`Verified ${loaded.length} events - chain intact.`);
 ```
 
 ## License

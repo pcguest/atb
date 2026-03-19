@@ -1,6 +1,6 @@
 # ATB Python SDK
 
-The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb) — tamper-evident, replayable audit trails for AI agent workflows.
+The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb) - tamper-evident, replayable audit trails for AI agent workflows.
 
 ## Installation
 
@@ -38,17 +38,17 @@ bundle.append("decision", {
 # Save to disk
 bundle.save("run.atb/bundle.atb")
 
-# Later — reload and verify integrity
+# Later - reload and verify integrity
 b = Bundle.load("run.atb/bundle.atb")
 b.verify()  # Raises ATBVerificationError if tampered
-print(f"Verified {len(b)} events — chain intact.")
+print(f"Verified {len(b)} events - chain intact.")
 ```
 
 ## LangChain Integration
 
 ```python
 from atb import Bundle
-from atb.integrations.langchain import ATBCallbackHandler
+from atb.langchain_callback import ATBCallbackHandler
 from langchain.chat_models import ChatOpenAI
 
 bundle = Bundle()

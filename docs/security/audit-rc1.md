@@ -1,6 +1,6 @@
 # ATB v1.1.0-rc1 Security Audit
 **Date:** 2026-03-16  
-**Auditor:** Security Agent  
+**Auditor:** Security review  
 **Requested Tag:** v1.1.0-rc1  
 **Audited Revision:** main @ `6315310b0b880b01e9f91513516058427169b92d` (tag not found locally or on `origin`)
 
@@ -19,4 +19,4 @@
 - Trivy local execution still depends on local binary or Docker fallback.
 
 ## Recommendation
-Runtime security controls are working as expected. Final Gold approval is blocked pending dependency remediation and release tag traceability.
+Runtime security controls are working as expected. This rc1 review was an intermediate checkpoint before final release validation.

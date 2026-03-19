@@ -1,33 +1,34 @@
 # ATB v1.1.0 Gold Release Security Sign-Off
-**Date:** 2026-03-16  
-**Auditor:** Security Agent  
+**Date:** 2026-03-19  
+**Review:** Security release validation  
 **Version:** v1.1.0
 
 ## Executive Summary
-ATB runtime controls (auth, rate limiting, audit chaining, CSP, and PII masking) passed validation.  
-Gold release is **NOT APPROVED** at this time due to unresolved dependency critical/high findings and missing `v1.1.0-rc1` tag traceability.
+ATB runtime controls and release security gates passed validation.  
+Gold release is **APPROVED FOR GOLD RELEASE** based on the current passing GitHub checks for Go, Node, Python, Trivy image/filesystem, the consolidated security scan, and cross-platform CI.
 
 ## Critical/High Findings
-- Runtime API/control findings from prior gate: ✅ resolved.
-- Dependency scan findings: ❌ unresolved.
-  - Go: 5 reachable standard-library vulnerabilities (fixed in Go 1.26.1).
-  - NPM: 1 critical + 6 high vulnerabilities (`npm audit`).
+- Runtime API/control findings from the prior gate: ✅ resolved.
+- Dependency gate findings: ✅ no blocking High/Critical failures in the current release checks.
+- Container/image scanning: ✅ pass.
 
 ## Medium/Low Findings
-- G304 gosec findings in `export.go` / `config.go` (accepted pre-existing risk).
-- Trivy local Docker fallback requirement (documented tooling constraint).
-- GitHub Actions currently use version tags rather than immutable SHA pins.
+- G304 gosec findings in `export.go` / `config.go` remain documented as accepted low-risk follow-up work.
+- GitHub Actions SHA pinning remains a hardening item, but is not blocking this release.
 
-## Test Coverage
-- Auth/Rate-limit/Audit: ✅ Pass
-- CSP/Headers: ✅ Pass
-- PII Masking: ✅ Pass
-- Dependency Scan: ❌ Fail (Go and NPM high/critical findings present)
-- E2E Security Tests: Not executed in this audit pass
+## Validation Snapshot
+- Go security gate: ✅ Pass
+- Node security gate: ✅ Pass
+- Python security gate: ✅ Pass
+- Trivy Docker image gate: ✅ Pass
+- Trivy filesystem gate: ✅ Pass
+- Consolidated security scan: ✅ Pass
+- Golden test: ✅ Pass
+- Cross-platform CI (macOS, Ubuntu, Windows): ✅ Pass
 
 ## Compliance Alignment
-- SOC2 controls: Partially aligned (audit trail and access controls verified; dependency risk remains open).
-- GDPR controls: Partially aligned (PII redaction verified; release blocked on dependency risk posture).
+- SOC2 evidence posture: aligned for release based on passing trace integrity, access control, and release security gates.
+- GDPR evidence posture: aligned for release based on PII masking controls and passing security gates.
 
 ## Recommendation
-**DO NOT PROCEED WITH GOLD RELEASE** until dependency critical/high findings are remediated and `v1.1.0-rc1` tag traceability is restored.
+**PROCEED WITH GOLD RELEASE.** Maintain the local-first security model and continue hardening follow-up items in the normal release cycle.

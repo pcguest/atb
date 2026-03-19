@@ -5,7 +5,7 @@ Start here if you are new to ATB.
 ## First 5 Minutes
 
 ```bash
-pip install atb
+pip install atb-sdk
 atb init
 atb view
 ```
@@ -25,6 +25,6 @@ atb verify
 
 ## Install Options
 
-- Python CLI package: `pip install atb`
+- Python CLI package: `pip install atb-sdk`
 - Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest`
 - TypeScript SDK: `npm install @pcguest/atb-sdk`

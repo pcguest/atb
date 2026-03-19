@@ -19,7 +19,7 @@ This project is operating in a **main-only** workflow for the v1.1.0 cycle.
 - **Use feature flags** (`--ui-experimental`) to hide incomplete features.
 - **Every commit must pass** `make hygiene-quick`.
 - **Tag releases:** `v1.1.0-rc1` -> testing -> `v1.1.0`.
-- **Security fixes** must be validated by Security Agent before merge.
+- **Security fixes** must pass security review before merge.
 
 ### Quick Start
 
@@ -134,7 +134,7 @@ git push origin v0.1.1
 4. Confirm publish status in GitHub Actions and verify:
 
 ```bash
-pip install atb
+pip install atb-sdk
 ```
 
 ## TypeScript SDK Release to npm

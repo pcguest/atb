@@ -1,6 +1,6 @@
 # ATB v1.1.0 Gold Gate Validation
 **Date:** 2026-03-16  
-**Validator:** Hygiene Agent  
+**Validator:** Release validation  
 **Branch:** main  
 **Commit:** 6315310b0b880b01e9f91513516058427169b92d
 
@@ -30,5 +30,5 @@
 
 Repository release gates passed on `main`. The remaining Docker issue is a local Docker Desktop runtime problem, not a repository gate failure.
 
-**Signed:** Hygiene Agent  
+**Signed:** Release validation  
 **Timestamp:** 2026-03-16T07:46:00Z

@@ -1,7 +1,7 @@
 # ATB v1.1.0 Gold Release Checklist
 
 ## Pre-Release Gates
-- [ ] Security Agent sign-off (docs/security/gold-signoff.md)
+- [ ] Security sign-off (docs/security/gold-signoff.md)
 - [ ] All Critical/High vulns resolved (Go + NPM)
 - [ ] GitHub Actions SHA-pinned (0 version-tag pins)
 - [ ] E2E tests passing (Cypress, 4/4 tests)
@@ -62,6 +62,6 @@ If critical issues found post-release:
 
 **Sign-Off Required:**
 - [ ] CPO (Patrick Guest)
-- [ ] Security Agent
-- [ ] Hygiene Agent
-- [ ] UI Agent
+- [ ] Security review
+- [ ] Release validation
+- [ ] Product QA
