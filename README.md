@@ -28,12 +28,14 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042"}'
+atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
+atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042"}'
+atb snapshot incident_review --gate fail
 atb verify
-atb view --ui-experimental
+atb trust-report --format markdown
 ```
 
-`atb view` serves the default local viewer. Add `--ui-experimental` to open the role-based dashboard preview available in `v1.1.0`.
+That sequence creates a local incident bundle with a failed review gate but a valid evidence chain. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md).
 
 ## What ATB Includes
 

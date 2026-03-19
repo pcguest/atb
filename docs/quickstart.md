@@ -2,17 +2,21 @@
 
 ATB provides tamper-evident, verifiable audit trails for AI workflows.
 
-## 1. Quick Start (CLI)
+## 1. Quick Start (Incident Review)
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042"}'
+atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
+atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042","reason":"customer_email_left_visible"}'
+atb snapshot incident_review --gate fail
 atb verify
-atb view --ui-experimental
+atb trust-report --format markdown
 ```
 
 The Go CLI is the primary install path. The Python and TypeScript packages are SDKs that write the same `.atb` format.
+
+This is the canonical ATB workflow: the AI workflow itself can fail while the audit evidence still verifies cleanly. For the full local review and export path, continue with the [Incident Review Workflow](./guides/incident-review-workflow.md).
 
 ## 2. Installation Options
 
@@ -85,15 +89,13 @@ Dashboard details:
 
 - [Dashboard Specification](./spec-dashboard.md)
 
-## 5. CLI-Only Workflow
+## 5. Incident Evidence Export
 
 ```bash
-atb init
-atb append dev.session --data '{"focus":"quickstart"}'
-atb snapshot build --gate pass
-atb verify
-atb view --ui-experimental
+atb export --format compliance --output incident-review-evidence.zip
 ```
+
+The compliance evidence export is the strongest default incident review pack because it includes the verified bundle, trust report, verification report, checksums, and core reference docs.
 
 ## 6. Compliance Exports
 
@@ -111,6 +113,7 @@ Reference docs:
 - [Compliance Export Overview](./compliance/export.md)
 - [SOC 2 Export Specification](./compliance/soc2.md)
 - [GDPR Export Specification](./compliance/gdpr.md)
+- [Incident Review Workflow](./guides/incident-review-workflow.md)
 
 ## 7. AI Integrations
 

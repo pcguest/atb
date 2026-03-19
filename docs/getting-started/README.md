@@ -7,19 +7,16 @@ Start here if you are new to ATB.
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb view --ui-experimental
-```
-
-Then verify integrity:
-
-```bash
+atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
+atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042"}'
+atb snapshot incident_review --gate fail
 atb verify
 ```
 
 ## Recommended Path
 
-1. [Quickstart](../quickstart.md)
-2. [Dashboard Specification](../spec-dashboard.md)
+1. [Incident Review Workflow](../guides/incident-review-workflow.md)
+2. [Quickstart](../quickstart.md)
 3. [Compliance Export Overview](../compliance/export.md)
 4. [AI Integrations](../guides/README.md)
 

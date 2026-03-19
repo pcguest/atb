@@ -10,6 +10,7 @@ Practical guides for integrating and operating ATB in production workflows.
 
 ## Security and Operations
 
+- [Incident Review Workflow](./incident-review-workflow.md)
 - [Security Model](../security.md)
 - [Incident Response](../incident-response.md)
 - [Maintenance Checklist](../maintenance/weekly-checklist.md)

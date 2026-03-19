@@ -33,7 +33,7 @@ atb init
 atb append agent.run --data='{"workflow":"claims-triage","customer":"acme"}'
 atb append decision --data='{"action":"route_to_manual_review","reason":"confidence_below_threshold"}'
 atb verify
-atb encrypt --bundle run.atb/bundle.atb --output acme-review.atb.enc
+ATB_PASSWORD='shared-review-secret' atb encrypt run.atb/bundle.atb
 atb export --format soc2 --bundle run.atb/bundle.atb --output acme-review-evidence.zip
 ```
 
