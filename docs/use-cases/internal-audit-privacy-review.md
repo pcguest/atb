@@ -37,8 +37,6 @@ atb export --format soc2 --bundle run.atb/bundle.atb --output internal-audit-evi
 atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output privacy-review.zip
 ```
 
-In `v1.1.0`, run export commands from a repo checkout so the required templates under `docs/compliance/` are available.
-
 ## Why This Fits Review Work
 
 - **Local verification first:** reviewers can start from an integrity check, not an assertion.

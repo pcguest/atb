@@ -2,8 +2,6 @@
 
 ATB can package local audit evidence into a single zip archive for SOC2 and GDPR workflows.
 
-In `v1.1.0`, run export commands from a repo checkout. The exporter reads required templates from `docs/compliance/` relative to the working directory.
-
 ## Command
 
 ```bash

@@ -37,8 +37,6 @@ atb encrypt --bundle run.atb/bundle.atb --output acme-review.atb.enc
 atb export --format soc2 --bundle run.atb/bundle.atb --output acme-review-evidence.zip
 ```
 
-In `v1.1.0`, run export commands from a repo checkout so the required templates under `docs/compliance/` are available.
-
 ## Why Teams Use This
 
 - **Portable review artefact:** the bundle can move with the delivery, not stay trapped in an environment.

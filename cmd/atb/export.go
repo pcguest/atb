@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	atbembed "github.com/pcguest/atb"
 	archiveledger "github.com/pcguest/atb/internal/archive"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/canonicalize"
@@ -497,26 +499,26 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 	}
 
 	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
-		if data, err := os.ReadFile(doc); err == nil { // #nosec G304 -- docs are read from repo-controlled paths
+		if data, err := readExportDoc(doc); err == nil {
 			zipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(doc), "docs/")))
 			files = append(files, exportFileEntry{ZipPath: zipPath, Data: data})
 			manifest.IncludedFiles = append(manifest.IncludedFiles, zipPath)
-		} else if os.IsNotExist(err) {
+		} else if errors.Is(err, fs.ErrNotExist) || os.IsNotExist(err) {
 			manifest.Warnings = append(manifest.Warnings, fmt.Sprintf("optional doc missing: %s", doc))
 		} else {
 			return result, fmt.Errorf("read doc %s: %w", doc, err)
 		}
 	}
 
-	complianceDocs, err := discoverComplianceDocs("docs/compliance")
+	complianceDocs, err := discoverComplianceDocs()
 	if err != nil {
 		return result, err
 	}
 	if len(complianceDocs) == 0 {
-		manifest.Warnings = append(manifest.Warnings, "optional docs/compliance/*.md not found")
+		manifest.Warnings = append(manifest.Warnings, "optional embedded compliance docs not found")
 	}
 	for _, doc := range complianceDocs {
-		data, err := os.ReadFile(doc) // #nosec G304 -- docs are discovered under the repo-controlled docs tree
+		data, err := readExportDoc(doc)
 		if err != nil {
 			return result, fmt.Errorf("read compliance doc %s: %w", doc, err)
 		}
@@ -779,11 +781,11 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 	}
 
 	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
-		if data, err := os.ReadFile(doc); err == nil { // #nosec G304 -- docs are read from repo-controlled paths
+		if data, err := readExportDoc(doc); err == nil {
 			zipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(doc), "docs/")))
 			base.Files = append(base.Files, exportFileEntry{ZipPath: zipPath, Data: data})
 			base.Manifest.IncludedFiles = append(base.Manifest.IncludedFiles, zipPath)
-		} else if os.IsNotExist(err) {
+		} else if errors.Is(err, fs.ErrNotExist) || os.IsNotExist(err) {
 			base.Manifest.Warnings = append(base.Manifest.Warnings, fmt.Sprintf("optional doc missing: %s", doc))
 		} else {
 			return base, fmt.Errorf("read doc %s: %w", doc, err)
@@ -791,7 +793,7 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 	}
 
 	requiredComplianceDoc := filepath.Join("docs", "compliance", cfg.Format+".md")
-	complianceData, err := os.ReadFile(requiredComplianceDoc) // #nosec G304 -- compliance doc path is derived from a fixed format allowlist
+	complianceData, err := readExportDoc(requiredComplianceDoc)
 	if err != nil {
 		return base, fmt.Errorf("read required compliance doc %s: %w", requiredComplianceDoc, err)
 	}
@@ -1528,12 +1530,20 @@ func discoverArchivedBundles(archiveDir string) ([]string, error) {
 	return paths, nil
 }
 
-func discoverComplianceDocs(path string) ([]string, error) {
-	matches, err := filepath.Glob(filepath.Join(path, "*.md"))
-	if err != nil {
-		return nil, fmt.Errorf("discover compliance docs: %w", err)
+func discoverComplianceDocs() ([]string, error) {
+	paths, err := atbembed.ListComplianceDocs()
+	if err == nil && len(paths) > 0 {
+		return paths, nil
 	}
-	paths := make([]string, 0, len(matches))
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("discover embedded compliance docs: %w", err)
+	}
+
+	matches, err := filepath.Glob(filepath.Join("docs", "compliance", "*.md"))
+	if err != nil {
+		return nil, fmt.Errorf("discover fallback compliance docs: %w", err)
+	}
+	paths = make([]string, 0, len(matches))
 	for _, p := range matches {
 		if info, err := os.Stat(p); err == nil && !info.IsDir() {
 			paths = append(paths, filepath.Clean(p))
@@ -1541,6 +1551,21 @@ func discoverComplianceDocs(path string) ([]string, error) {
 	}
 	sort.Strings(paths)
 	return paths, nil
+}
+
+func readExportDoc(doc string) ([]byte, error) {
+	data, err := atbembed.ReadExportDoc(doc)
+	if err == nil {
+		return data, nil
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	data, readErr := os.ReadFile(doc) // #nosec G304 -- fallback reads from repo-controlled doc paths
+	if readErr != nil {
+		return nil, readErr
+	}
+	return data, nil
 }
 
 func buildChecksumsFile(files []exportFileEntry) string {

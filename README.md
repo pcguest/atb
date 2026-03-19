@@ -40,7 +40,7 @@ atb view --ui-experimental
 - **Tamper-evident event logs:** SHA-256 hash chains with RFC 8785 canonical JSON catch mutation, reordering, and deletion.
 - **Local-first verification:** trace inspection and verification run locally, with no required backend.
 - **Client-side encryption:** AES-256-GCM encryption for protected bundle handoff workflows.
-- **Deterministic evidence export:** `soc2` and `gdpr` export paths for controls evidence, DSR, and RoPA workflows. In `v1.1.0`, run exports from a repo checkout so the required templates under `docs/compliance/` are present.
+- **Deterministic evidence export:** `soc2` and `gdpr` export paths for controls evidence, DSR, and RoPA workflows.
 - **Local viewer and dashboard:** `atb view` serves the local viewer, and `atb view --ui-experimental` enables the role-based dashboard with timeline, graph, inspector, and privacy reveal audit logging.
 - **Developer integrations:** native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript.
 - **Go CLI as the primary distribution path:** Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path.

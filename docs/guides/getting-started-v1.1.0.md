@@ -75,8 +75,6 @@ Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log
 
 ### Export Evidence
 
-In `v1.1.0`, run export commands from a repo checkout so the required templates under `docs/compliance/` are available.
-
 ```bash
 ./atb export --format soc2 --bundle run.atb/bundle.atb --output evidence.zip
 # Includes manifest, checksums, and bundle evidence

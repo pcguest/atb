@@ -98,7 +98,6 @@ func TestExportParseArgs(t *testing.T) {
 func TestExportDryRunBuildsWithoutWritingZip(t *testing.T) {
 	withTempCWD(t, func(tmp string) {
 		writeValidBundle(t, filepath.Join("run.atb", "bundle.atb"))
-		prepareComplianceDocs(t)
 		cfg := exportConfig{Format: exportFormatCompliance, Output: "evidence.zip", DryRun: true}
 
 		result, err := buildExport(time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC), cfg)
@@ -110,6 +109,44 @@ func TestExportDryRunBuildsWithoutWritingZip(t *testing.T) {
 		}
 		if _, err := os.Stat(filepath.Join(tmp, "evidence.zip")); !os.IsNotExist(err) {
 			t.Fatalf("dry-run should not create zip output")
+		}
+	})
+}
+
+func TestExportUsesEmbeddedDocsOutsideRepoCheckout(t *testing.T) {
+	withTempCWD(t, func(tmp string) {
+		writeValidBundle(t, filepath.Join("run.atb", "bundle.atb"))
+
+		now := time.Date(2026, 3, 5, 12, 0, 0, 0, time.UTC)
+		cfg := exportConfig{Format: exportFormatSOC2, BundlePath: bundle.DefaultPath(), Output: "soc2.zip"}
+		result, err := buildExport(now, cfg)
+		if err != nil {
+			t.Fatalf("build export with embedded docs: %v", err)
+		}
+		if err := writeExportZip(result, now); err != nil {
+			t.Fatalf("write export zip: %v", err)
+		}
+
+		zr, err := zip.OpenReader(filepath.Join(tmp, "soc2.zip"))
+		if err != nil {
+			t.Fatalf("open zip: %v", err)
+		}
+		defer zr.Close()
+
+		required := []string{
+			"evidence/docs/compliance/soc2.md",
+			"evidence/docs/incident-response.md",
+			"evidence/docs/security.md",
+			"evidence/docs/spec-v1.0.md",
+		}
+		names := make([]string, 0, len(zr.File))
+		for _, f := range zr.File {
+			names = append(names, f.Name)
+		}
+		for _, want := range required {
+			if !containsString(names, want) {
+				t.Fatalf("missing embedded doc %q", want)
+			}
 		}
 	})
 }

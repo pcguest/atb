@@ -97,8 +97,6 @@ atb view --ui-experimental
 
 ## 6. Compliance Exports
 
-In `v1.1.0`, run export commands from a repo checkout so the required templates under `docs/compliance/` are available.
-
 ```bash
 atb config retention --days 90
 atb archive
