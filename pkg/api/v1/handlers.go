@@ -3,6 +3,7 @@ package apiv1
 import (
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"net"
@@ -14,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
 )
 
@@ -717,12 +719,7 @@ func activePIIMaskRules() piiMaskRules {
 func loadPIIMaskRules() piiMaskRules {
 	defaults := defaultPIIMaskRules()
 
-	path, err := findPIIFieldsPath()
-	if err != nil {
-		return defaults
-	}
-
-	raw, err := os.ReadFile(filepath.Clean(path))
+	raw, err := loadPIIRulesFile()
 	if err != nil {
 		return defaults
 	}
@@ -742,6 +739,22 @@ func loadPIIMaskRules() piiMaskRules {
 		return defaults
 	}
 	return rules
+}
+
+func loadPIIRulesFile() ([]byte, error) {
+	if path := strings.TrimSpace(os.Getenv(piiFieldsPathEnv)); path != "" {
+		return os.ReadFile(filepath.Clean(path))
+	}
+
+	path, err := findPIIFieldsPath()
+	if err == nil {
+		return os.ReadFile(filepath.Clean(path))
+	}
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+
+	return atbembed.ReadEmbeddedPIIFields()
 }
 
 func findPIIFieldsPath() (string, error) {

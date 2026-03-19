@@ -582,6 +582,37 @@ func TestFindRecordTamperHandlerAndPIIRuleLoad(t *testing.T) {
 	}
 }
 
+func TestLoadPIIMaskRulesUsesEmbeddedDefaultsOutsideRepo(t *testing.T) {
+	tmp := t.TempDir()
+	originalWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir temp dir: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(originalWD)
+	}()
+
+	t.Setenv(piiFieldsPathEnv, "")
+
+	rules := loadPIIMaskRules()
+	if _, ok := rules.sensitiveFields["driver_license"]; !ok {
+		t.Fatalf("expected embedded pii rules to include driver_license")
+	}
+	foundFingerprint := false
+	for _, item := range rules.sensitiveSubstrings {
+		if item == "fingerprint" {
+			foundFingerprint = true
+			break
+		}
+	}
+	if !foundFingerprint {
+		t.Fatalf("expected embedded pii rules to include fingerprint substring")
+	}
+}
+
 func TestWriteJSONSetsContentType(t *testing.T) {
 	rr := httptest.NewRecorder()
 	writeJSON(rr, http.StatusAccepted, map[string]string{"status": "ok"})

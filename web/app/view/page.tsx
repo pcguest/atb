@@ -41,27 +41,27 @@ type RoleInsightsProps = {
   trustScore: TrustScoreBreakdown;
 };
 
-function downloadEvidenceFile(payload: Record<string, unknown>): void {
+function downloadReviewSummary(payload: Record<string, unknown>): void {
   const evidenceBlob = new Blob([JSON.stringify(payload, null, 2)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(evidenceBlob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `atb-evidence-${Date.now()}.json`;
+  link.download = `atb-review-summary-${Date.now()}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }
 
 function AuditorCompliancePanel({ verification, meta, trustScore }: RoleInsightsProps) {
-  const evidenceExportEnabled = canExportEvidence("auditor");
+  const reviewSummaryEnabled = canExportEvidence("auditor");
 
-  function handleExportEvidence(): void {
+  function handleDownloadReviewSummary(): void {
     if (!verification || !meta) {
       return;
     }
 
-    downloadEvidenceFile({
+    downloadReviewSummary({
       generated_at: new Date().toISOString(),
       trust_score: trustScore.total,
       verification_status: verification.status,
@@ -80,7 +80,7 @@ function AuditorCompliancePanel({ verification, meta, trustScore }: RoleInsights
       <CardHeader>
         <CardTitle>Auditor Workspace</CardTitle>
         <CardDescription>
-          Compliance evidence view is active. Raw payload and event-debug sections are hidden.
+          Review summary mode is active. Raw payload and event-debug sections are hidden.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-3">
@@ -104,12 +104,12 @@ function AuditorCompliancePanel({ verification, meta, trustScore }: RoleInsights
             variant="outline"
             data-testid="export-evidence-btn"
             className="inline-flex items-center gap-2"
-            onClick={handleExportEvidence}
-            disabled={!evidenceExportEnabled || !verification || !meta}
-            aria-label="Export compliance evidence"
+            onClick={handleDownloadReviewSummary}
+            disabled={!reviewSummaryEnabled || !verification || !meta}
+            aria-label="Download review summary"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            Export evidence
+            Download review summary
           </Button>
         </div>
       </CardContent>

@@ -9,7 +9,7 @@ import (
 
 // ExportDocsFS stores the docs bundled into export archives.
 //
-//go:embed docs/spec-v1.0.md docs/security.md docs/incident-response.md docs/compliance/*.md
+//go:embed docs/spec-v1.0.md docs/security.md docs/incident-response.md docs/compliance/*.md docs/compliance/pii-fields.json
 var ExportDocsFS embed.FS
 
 // ReadExportDoc returns an embedded export doc by repo-relative path.
@@ -32,4 +32,9 @@ func ListComplianceDocs() ([]string, error) {
 	}
 	sort.Strings(paths)
 	return paths, nil
+}
+
+// ReadEmbeddedPIIFields returns the bundled default PII field rules.
+func ReadEmbeddedPIIFields() ([]byte, error) {
+	return ExportDocsFS.ReadFile("docs/compliance/pii-fields.json")
 }

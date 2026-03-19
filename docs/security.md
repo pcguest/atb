@@ -102,7 +102,7 @@ Current default:
 
 - 10 requests per minute per token
 - reveal auditing appended into `bundle.atb`
-- PII masking rules loaded from `ATB_PII_FIELDS_PATH` when set, otherwise `docs/compliance/pii-fields.json`
+- PII masking rules loaded from `ATB_PII_FIELDS_PATH` when set, otherwise the bundled default rules shipped with ATB
 
 ### Testing
 

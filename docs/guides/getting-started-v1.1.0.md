@@ -63,7 +63,7 @@ Plain `./atb view` still serves the default local viewer. The role-based dashboa
 ## Advanced Usage
 
 ### Configure PII Masking
-Point `ATB_PII_FIELDS_PATH` to a JSON file or update `docs/compliance/pii-fields.json`:
+ATB ships with bundled default PII masking rules. To override them, point `ATB_PII_FIELDS_PATH` to your own JSON file:
 
 ```json
 {
