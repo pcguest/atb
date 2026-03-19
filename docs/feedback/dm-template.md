@@ -50,6 +50,63 @@ Hi {{name}} - I'm building ATB for privacy-sensitive AI systems. It gives teams 
 
 Hi {{name}} - sending one follow-up in case this is relevant. If local-first, verifiable AI traces are on your list this quarter, I'm happy to send a short example. If not, no problem.
 
+## Call Opener
+
+Thanks for taking the time. I will keep this practical.
+
+ATB is not another hosted observability product. It is a local-first audit trail for teams that need to prove what an AI workflow did without default external trace storage.
+
+What I want to understand is whether that solves a current problem for you, or whether it is simply interesting.
+
+## Discovery Questions
+
+- Where does your current stack break down when an AI workflow needs formal review?
+- Are hosted traces blocked by policy, customer expectation, or internal preference?
+- When something goes wrong, who needs to see the record: engineering, security, legal, compliance, or the customer?
+- Is a portable, verifiable bundle useful on its own, or do you need secure handoff as well?
+- If ATB solved this cleanly, would it remove a real blocker or just improve a workflow slightly?
+
+## Objection Handling
+
+### "We can self-host an observability platform."
+
+That may solve trace residency. It does not automatically give you a portable, tamper-evident artefact you can hand to another party and verify independently.
+
+### "We already have audit logs."
+
+Audit logs are useful, but they are still part of a control plane. ATB is for the execution bundle itself when the bundle needs to move, be reviewed locally, and be checked for integrity.
+
+### "We mainly need team collaboration."
+
+Then ATB is probably not your first purchase. It matters when the hard part is trustworthy evidence, customer handoff, or private review.
+
+## Post-Call Follow-Up
+
+Hi {{name}} - thanks again for the time.
+
+Based on our conversation, the relevant ATB workflow is:
+
+- local trace capture
+- verification before review
+- local inspection with masked fields by default
+- deterministic export for handoff or evidence
+
+If useful, I can set up a short working session around your exact review flow and show where ATB fits cleanly and where it does not.
+
+## Pilot Offer
+
+Hi {{name}} -
+
+I think the right next step is a short paid pilot rather than a long trial.
+
+Scope:
+- one workflow
+- one integration path
+- one review or evidence output
+- direct founder support
+
+Success would mean your team can produce a trustworthy review artefact without default hosted trace storage. If that is the problem you want to close, I can send a simple proposal.
+
 ## Qualification Notes
 
 - Which stack are they using now: custom agents, LangChain, Vercel AI SDK, or something else?

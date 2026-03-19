@@ -70,6 +70,9 @@ Python and TypeScript packages are SDKs only. Their installed `atb` command is a
 Start at [Docs Home](docs/README.md).
 
 - [Quickstart](docs/quickstart.md)
+- [Incident Review Workflow](docs/use-cases/incident-review.md)
+- [Customer Handoff Workflow](docs/use-cases/customer-handoff.md)
+- [ATB vs Hosted AI Observability](docs/comparisons/hosted-observability.md)
 - [Dashboard Specification](docs/spec-dashboard.md)
 - [AI Integrations](docs/guides/README.md)
 - [ATB Specification v1.0](docs/spec-v1.0.md)

@@ -8,6 +8,13 @@ Use this index to navigate ATB docs by intent.
 - [Quickstart](./quickstart.md)
 - [Dashboard Specification](./spec-dashboard.md)
 
+## Buyer Guides
+
+- [Use Cases](./use-cases/README.md)
+- [Incident Review for Private AI Workflows](./use-cases/incident-review.md)
+- [Customer Handoff Without Platform Lock-In](./use-cases/customer-handoff.md)
+- [ATB vs Hosted AI Observability](./comparisons/hosted-observability.md)
+
 ## Engineering Guides
 
 - [Guides Hub](./guides/README.md)

@@ -39,15 +39,23 @@ export default function Footer() {
                   label: "Quickstart",
                   href: "https://github.com/pcguest/atb/blob/main/docs/quickstart.md",
                 },
-                { label: "Current Scope", href: "#scope" },
                 {
-                  label: "Release Notes",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/releases/v1.1.0.md",
+                  label: "Incident Review",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/use-cases/incident-review.md",
+                },
+                {
+                  label: "Customer Handoff",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/use-cases/customer-handoff.md",
+                },
+                {
+                  label: "Why local-first",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/comparisons/hosted-observability.md",
                 },
                 {
                   label: "Security Model",
                   href: "https://github.com/pcguest/atb/blob/main/docs/security.md",
                 },
+                { label: "Current Scope", href: "#scope" },
               ].map((item) => (
                 <li key={item.label}>
                   <a

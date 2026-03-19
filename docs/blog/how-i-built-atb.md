@@ -57,10 +57,11 @@ That keeps context-switching low as the project grows.
 
 ## What’s Next
 
-v1.1 focuses on optional cloud sharing (`atb push`) without violating the local-first core.
-The working spec uses client-side encryption and time-limited links.
+The next step is not a broad hosted platform.
 
-I am explicitly validating demand before implementing this in full.
+I am keeping the local-first core intact and validating a narrower question first: whether teams need secure bundle handoff badly enough to justify a minimal `atb push` path.
+
+If that demand is real, the right shape is encrypted transfer that preserves local control. If it is not, ATB stays focused on local verification, incident review, and portable evidence.
 
 ## Advice for Other Solo Founders
 
