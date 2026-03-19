@@ -134,13 +134,17 @@ install-hooks:
 security-scan:
 	@echo "🔐 Running security scans..."
 	@if command -v trivy >/dev/null 2>&1; then \
-		trivy fs --severity CRITICAL,HIGH --format json --output trivy-report.json .; \
+		trivy fs --scanners vuln --severity CRITICAL,HIGH --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ trivy not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" aquasec/trivy:latest fs --severity CRITICAL,HIGH --format json --output /work/trivy-report.json /work; \
+		docker run --rm -v "$$(pwd):/work" aquasec/trivy:latest fs --scanners vuln --severity CRITICAL,HIGH --format json --output /work/trivy-report.json /work; \
 	fi
-	@if command -v gosec >/dev/null 2>&1; then \
-		$(GOENV) gosec ./...; \
+	@GOSEC_BIN="$$(command -v gosec || true)"; \
+	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
+		GOSEC_BIN="$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec"; \
+	fi; \
+	if [ -n "$$GOSEC_BIN" ]; then \
+		$(GOENV) "$$GOSEC_BIN" ./...; \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
 		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.1 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \

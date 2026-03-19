@@ -1,20 +1,5 @@
 # syntax=docker/dockerfile:1.7
 
-FROM golang:1.26.1-alpine AS go-builder
-WORKDIR /src
-
-COPY go.mod go.sum ./
-RUN go mod download
-
-COPY cmd ./cmd
-COPY internal ./internal
-
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
-ARG ATB_VERSION=1.1.0
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-  go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
-
 FROM node:20-alpine AS web-builder
 WORKDIR /src/web
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -23,7 +8,25 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci
 
 COPY web/ ./
-RUN npm run build
+RUN npm run export
+
+FROM golang:1.26.1-alpine AS go-builder
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY cmd ./cmd
+COPY internal ./internal
+COPY pkg ./pkg
+COPY uiembed.go ./uiembed.go
+COPY --from=web-builder /src/web/out ./web/out
+
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ARG ATB_VERSION=1.1.0
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+  go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
 
 FROM gcr.io/distroless/static-debian12:nonroot AS runtime
 WORKDIR /app
