@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `internal/viewer` package (use `pkg/api/v1` instead)
 - Version-tag pinned GitHub Actions (use SHA pins)
 
-## [v1.0.3] - 2025-XX-XX
+## [v1.0.3] - release date not reconstructed in this repository snapshot
 
 ### Added
 - Initial production release

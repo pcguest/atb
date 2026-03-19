@@ -34,4 +34,3 @@ Use this index to navigate ATB docs by intent.
 - [Root Contributing Guide](../CONTRIBUTING.md)
 - [Contributor Workflow](./contributing.md)
 - [Maintenance Checklist](./maintenance/weekly-checklist.md)
-- [Release Runbook](./release/week4-publish-runbook.md)

@@ -41,11 +41,8 @@ export default function Navbar() {
             <a href="#demo" className="text-[#9ca3af] hover:text-white text-sm transition-colors">
               Demo
             </a>
-            <a
-              href="#pricing"
-              className="text-[#9ca3af] hover:text-white text-sm transition-colors"
-            >
-              Pricing
+            <a href="#fit" className="text-[#9ca3af] hover:text-white text-sm transition-colors">
+              Fit
             </a>
             <a
               href="https://github.com/pcguest/atb"
@@ -63,10 +60,10 @@ export default function Navbar() {
           {/* CTA */}
           <div className="flex items-center gap-3">
             <a
-              href="#waitlist"
+              href="#contact"
               className="hidden sm:inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
             >
-              Join Waitlist
+              Talk to Founder
             </a>
           </div>
         </div>

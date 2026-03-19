@@ -5,7 +5,7 @@
 Dashboard implementation is complete:
 - local `atb view` API server with verification gate and privacy reveal flow
 - `/view` dashboard UI with verification banner, timeline, graph, inspector, and stats
-- reveal audit logging (`viewer-audit.log`) when `--log-reveals` is enabled
+- reveal audit logging appended into `bundle.atb`
 
 ## Purpose
 
@@ -26,7 +26,7 @@ Supported compatibility forms:
 
 Additional safety flags:
 - `--no-open`: do not auto-open browser
-- `--log-reveals`: append UI field reveal actions to local reveal audit log
+- `--log-reveals`: retained for CLI compatibility; reveal auditing is always on in v1.1.0
 
 ## Architecture
 
@@ -63,7 +63,7 @@ Rationale:
 - sensitive fields are masked by default in event payload API responses
 - reveal requires explicit `POST /api/v1/privacy/reveal`
 - reveal response returns only requested field
-- if `--log-reveals` is enabled, reveal action is append-logged to local file
+- reveal actions are append-logged to `bundle.atb`
 
 ## API DTO Summary
 

@@ -10,9 +10,9 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Hash-Chained Logs",
+    title: "Verifiable Event Chain",
     description:
-      "Every event is cryptographically linked to the previous one via SHA-256. Tamper with any event and the entire chain breaks — making alterations immediately detectable.",
+      "Every event is cryptographically linked to the previous one. If a trace is edited, reordered, or truncated, verification fails immediately.",
     tag: "SHA-256",
   },
   {
@@ -26,10 +26,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "RFC 8785 Canonicalization",
+    title: "Portable Evidence",
     description:
-      "JSON is canonicalized using the IETF RFC 8785 standard before hashing. This ensures identical hashes across Go, Python, and TypeScript — regardless of key ordering or whitespace.",
-    tag: "RFC 8785",
+      "Bundles and exports travel cleanly between teams. Consultancies can hand clients a file they can inspect instead of reconstructed notes or screenshots.",
+    tag: "Deterministic Export",
   },
   {
     icon: (
@@ -42,10 +42,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Local-First Storage",
+    title: "Keep Raw Traces Local",
     description:
-      "Bundles are stored as NDJSON files in a local run.atb/ directory. No database, no server, no configuration. Works offline and in air-gapped environments.",
-    tag: "Zero Infrastructure",
+      "ATB writes NDJSON bundles to disk by default. No hosted control plane, no required backend, and no need to move sensitive traces off the machine or network.",
+    tag: "Local-First",
   },
   {
     icon: (
@@ -58,9 +58,9 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Multi-Language SDKs",
+    title: "Fits Existing AI Stacks",
     description:
-      "Native SDKs for Go (CLI), Python, and TypeScript. Cross-language hash compatibility is verified by golden tests — the same event produces the same hash in every language.",
+      "Use the CLI for local runs or add Python and TypeScript SDKs to agent workflows already in production. The verification model stays the same across languages.",
     tag: "Go · Python · TypeScript",
   },
   {
@@ -74,10 +74,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Framework Integrations",
+    title: "Privacy Reveal Controls",
     description:
-      "Drop-in integrations for LangChain, LlamaIndex, CrewAI, and more. Automatically record LLM calls, tool invocations, agent decisions, and chain outputs with zero boilerplate.",
-    tag: "LangChain · LlamaIndex",
+      "Protected fields stay masked until an authorized reveal is requested. Reveal actions are authenticated, rate-limited, and written back into the audit trail.",
+    tag: "Auth + Audit",
   },
   {
     icon: (
@@ -90,10 +90,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Compliance-Ready",
+    title: "Useful During Review",
     description:
-      "Export bundles as PDF compliance reports, Markdown summaries, or PowerPoint executive presentations. Built-in role-based views for developers, managers, and executives.",
-    tag: "SOC2 · GDPR · HIPAA",
+      "ATB helps during incident review, customer handoff, and compliance evidence collection when teams need proof of what ran and how data was handled.",
+    tag: "Review-Ready",
   },
 ];
 
@@ -110,11 +110,11 @@ export default function Features() {
             {"// why atb"}
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Built for Production AI
+            Built for teams that need proof
           </h2>
           <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
-            AI agents make thousands of decisions. ATB makes every one of them auditable,
-            replayable, and tamper-evident.
+            Security-minded AI teams, consultancies, and enterprise builders use ATB when raw
+            traces need to stay private but still stand up to review.
           </p>
         </div>
 

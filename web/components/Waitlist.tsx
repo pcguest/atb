@@ -21,12 +21,12 @@ export default function Waitlist() {
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
     setStatus("success");
-    setMessage("You're on the list! We'll notify you when ATB Pro launches.");
+    setMessage("Thanks. I will follow up with a short note and the best next step.");
     setEmail("");
   };
 
   return (
-    <section id="waitlist" className="py-24 relative">
+    <section id="contact" className="py-24 relative">
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#1e1e2e] to-transparent" />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -38,14 +38,13 @@ export default function Waitlist() {
         <div className="relative">
           {/* Badge */}
           <span className="inline-block font-mono text-indigo-400 text-sm mb-4">
-            {"// early access"}
+            {"// founder contact"}
           </span>
 
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Be First to Know</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Talk to the founder</h2>
           <p className="text-[#9ca3af] text-lg mb-8 max-w-xl mx-auto">
-            ATB Pro is launching soon with cloud sync, sharing, and the hosted viewer. Join the
-            waitlist to get early access and a{" "}
-            <span className="text-indigo-300 font-medium">30% launch discount</span>.
+            If you are evaluating ATB for internal AI, client delivery, or a privacy-sensitive
+            build, send your work email. I will reply with the fastest path to a real evaluation.
           </p>
 
           {/* Form */}
@@ -111,7 +110,7 @@ export default function Waitlist() {
                     Joining...
                   </span>
                 ) : (
-                  "Join Waitlist"
+                  "Request a Short Intro"
                 )}
               </button>
             </form>
@@ -120,7 +119,7 @@ export default function Waitlist() {
           {status === "error" && <p className="text-red-400 text-sm mt-2 font-mono">{message}</p>}
 
           <p className="text-[#6b7280] text-xs mt-4 font-mono">
-            No spam. Unsubscribe anytime. We respect your privacy.
+            One short note. No broadcast list.
           </p>
 
           {/* Social proof */}
@@ -141,7 +140,7 @@ export default function Waitlist() {
             <span>·</span>
             <span className="font-mono">MIT License</span>
             <span>·</span>
-            <span className="font-mono">Open Source</span>
+            <span className="font-mono">Local-First</span>
           </div>
         </div>
       </div>

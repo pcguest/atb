@@ -12,7 +12,7 @@ cd atb
 For a quick CLI smoke-check that matches README install guidance:
 
 ```bash
-pip install atb-sdk
+go install github.com/pcguest/atb/cmd/atb@latest
 atb init
 atb view --no-open
 ```

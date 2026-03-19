@@ -2,10 +2,10 @@
 
 ATB provides tamper-evident, replayable traces for AI workflows.
 
-## 1. Quick Start (Exact README Flow)
+## 1. Quick Start (CLI)
 
 ```bash
-pip install atb-sdk
+go install github.com/pcguest/atb/cmd/atb@latest
 atb init
 atb view
 ```
@@ -24,22 +24,19 @@ atb verify
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-### Python (Local Source)
+### Python SDK
 
 ```bash
-cd sdk/python
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
+pip install atb-sdk
 ```
 
 ### TypeScript SDK
 
 ```bash
-cd sdk/typescript
-npm ci
-npm run build
+npm install @pcguest/atb-sdk
 ```
+
+The Python and TypeScript packages are SDKs. Their `atb` wrapper expects a local ATB CLI binary or an `ATB_BIN` override.
 
 ## 3. Record Your First Trace (Python)
 
@@ -80,8 +77,8 @@ atb view
 # Custom bundle path
 atb view my-trace.atb --port 8080
 
-# Enable privacy reveal audit logging
-atb view --bundle my-trace.atb --log-reveals
+# Privacy reveal auditing is on by default in v1.1.0
+atb view --bundle my-trace.atb
 ```
 
 Dashboard details:

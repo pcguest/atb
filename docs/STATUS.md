@@ -1,14 +1,14 @@
 # ATB Status
 
-Last updated: 2026-03-10
+Last updated: 2026-03-19
 
 ## Release Status
 
-- ✅ Public release: `v1.0.2`
+- ✅ Public release: `v1.1.0`
 - ✅ CI and security gates passing
-- ✅ Documentation aligned to release capabilities
+- ⚠️ Documentation alignment is in progress
 
-## v1.0.2 Capability Summary
+## v1.1.0 Capability Summary
 
 The following capability areas match the public README feature set.
 
@@ -26,7 +26,7 @@ The following capability areas match the public README feature set.
 - **Local Dashboard**
   - `atb view` local-first dashboard flow
   - Tamper-detected blocking state
-  - Privacy reveal auditing with `--log-reveals`
+  - Privacy reveal auditing appended to `bundle.atb`
 
 ## Release Milestones
 
@@ -46,8 +46,8 @@ The following capability areas match the public README feature set.
 
 ## Current Focus
 
-- Maintain release quality for v1.0.x patch line
-- Keep docs, examples, and integration guides synchronized with shipped behavior
+- Keep docs, examples, and integration guides synchronized with shipped behaviour
+- Preserve the local-first trust and evidence wedge
 
 ## Canonical References
 

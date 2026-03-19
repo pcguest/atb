@@ -18,13 +18,13 @@ const CODE = {
     },
     {
       prompt: "$",
-      cmd: `atb append dev.session '{"date":"2025-01-15","features":["hash chaining"]}'`,
-      out: "✓ Appended event #1 [dev.session] hash=cdc87dac2d8d61bf...",
+      cmd: `atb append agent.run '{"agent":"support-triage","workspace":"internal"}'`,
+      out: "✓ Appended event #1 [agent.run] hash=cdc87dac2d8d61bf...",
       delay: 300,
     },
     {
       prompt: "$",
-      cmd: `atb append decision '{"choice":"Go over Rust","reason":"velocity"}'`,
+      cmd: `atb append decision '{"action":"mask_email","reason":"privacy_policy"}'`,
       out: "✓ Appended event #2 [decision] hash=e0b539b812dec40b...",
       delay: 600,
     },
@@ -40,17 +40,17 @@ const CODE = {
 # Create a new bundle
 bundle = Bundle()
 
-# Append events with arbitrary JSON payloads
-bundle.append("dev.session", {
-    "date": "2025-01-15",
-    "features_built": ["hash chaining", "CLI init"],
-    "blockers": ["RFC 8785 library compatibility"],
+# Record an agent run without changing your storage model
+bundle.append("agent.run", {
+    "agent": "support-triage",
+    "workspace": "internal",
+    "request_id": "req-42",
 })
 
 bundle.append("decision", {
-    "choice": "Go over Rust for CLI",
-    "reason": "Solo founder velocity",
-    "alternatives": ["Rust", "Python-only"],
+    "action": "mask_email",
+    "reason": "privacy_policy",
+    "reviewer": "atb",
 })
 
 # Save to disk (NDJSON format)
@@ -70,17 +70,17 @@ llm = ChatOpenAI(callbacks=[handler])`,
 // Create a new bundle
 const bundle = new Bundle();
 
-// Append events with arbitrary JSON payloads
-bundle.append("dev.session", {
-  date: "2025-01-15",
-  featuresBuilt: ["hash chaining", "CLI init"],
-  blockers: ["RFC 8785 library compatibility"],
+// Record an agent run without changing your storage model
+bundle.append("agent.run", {
+  agent: "support-triage",
+  workspace: "internal",
+  requestId: "req-42",
 });
 
 bundle.append("decision", {
-  choice: "Go over Rust for CLI",
-  reason: "Solo founder velocity",
-  alternatives: ["Rust", "Python-only"],
+  action: "mask_email",
+  reason: "privacy_policy",
+  reviewer: "atb",
 });
 
 // Save to disk (NDJSON format)
@@ -118,10 +118,12 @@ export default function CodeDemo() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section header */}
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Simple by Design</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
+            Start local. Verify later.
+          </h2>
           <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
-            Three commands to get started. Works with your existing AI stack. No infrastructure
-            required.
+            Initialize a bundle, append events, and verify the chain. Add the same model to Python
+            or TypeScript when you need tracing inside a real workflow.
           </p>
         </div>
 

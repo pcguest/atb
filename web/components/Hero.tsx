@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 
 const STATS = [
-  { label: "Hash Algorithm", value: "SHA-256" },
+  { label: "Verify", value: "atb verify" },
   { label: "JSON Spec", value: "RFC 8785" },
   { label: "Storage", value: "Local-First" },
-  { label: "License", value: "MIT" },
+  { label: "Privacy", value: "Reveal Controls" },
 ];
 
 export default function Hero() {
@@ -35,7 +35,7 @@ export default function Hero() {
           }`}
         >
           <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-          v0.1.0-dev — Engine First, Dashboard Later
+          v1.1.0 - local-first traces for private AI work
         </div>
 
         {/* Headline */}
@@ -44,9 +44,9 @@ export default function Hero() {
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          <span className="text-white">The Audit Trail</span>
+          <span className="text-white">Verifiable audit trails</span>
           <br />
-          <span className="gradient-text">for AI Workflows</span>
+          <span className="gradient-text">for private AI systems</span>
         </h1>
 
         {/* Subheadline */}
@@ -55,9 +55,9 @@ export default function Hero() {
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          Tamper-evident, replayable traces for AI agents. Every decision, every tool call, every
-          output — hash-chained and verifiable.
-          <span className="text-indigo-300"> Open source. Local-first. Production-ready.</span>
+          ATB records agent runs as tamper-evident local bundles you can inspect, verify, and hand
+          to customers or auditors without sending raw traces to a hosted platform.
+          <span className="text-indigo-300"> Open source. Local-first. Built for review.</span>
         </p>
 
         {/* CTA buttons */}
@@ -84,7 +84,7 @@ export default function Hero() {
                 d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            See It In Action
+            See Quickstart
           </a>
           <a
             href="https://github.com/pcguest/atb"

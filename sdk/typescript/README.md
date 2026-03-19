@@ -10,6 +10,8 @@ npm install @pcguest/atb-sdk
 pnpm add @pcguest/atb-sdk
 ```
 
+The package includes a thin `atb` wrapper. It delegates to a local ATB CLI binary when one is already installed, or to the path set in `ATB_BIN`.
+
 ## Quick Start
 
 ```typescript
@@ -35,6 +37,6 @@ loaded.verify(); // Throws ATBVerificationError if tampered
 console.log(`Verified ${loaded.length} events - chain intact.`);
 ```
 
-## License
+## Licence
 
 MIT

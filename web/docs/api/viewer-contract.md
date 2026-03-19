@@ -25,14 +25,12 @@ This document mirrors the current backend payloads used by the Trust Dashboard s
   - `type_counts`: `Record<string, number>`
   - `first_timestamp?`: `string`
   - `last_timestamp?`: `string`
-  - `genesis_hash?`: `string`
-  - `verified_at?`: `string`
   - `verified`: `boolean`
   - `verification_message`: `string`
 - UI dependency:
   - Trust score freshness signal (`last_timestamp`)
   - Bundle path context
-  - Bundle Meta integrity fields (`genesis_hash`, `verified_at`)
+  - Verification summary
 
 ### `GET /api/v1/bundle/events`
 

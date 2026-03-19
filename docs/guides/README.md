@@ -25,5 +25,4 @@ Practical guides for integrating and operating ATB in production workflows.
 ## Release and Governance
 
 - [Launch Specification](../spec-launch.md)
-- [Release Runbook](../release/week4-publish-runbook.md)
 - [Versioning Policy](../../VERSIONING.md)

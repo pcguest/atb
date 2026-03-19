@@ -12,8 +12,8 @@ export default function Footer() {
               <span className="font-mono font-semibold text-white">ATB</span>
             </div>
             <p className="text-[#6b7280] text-sm leading-relaxed max-w-xs">
-              Agent Trace Bundle — tamper-evident, replayable audit trails for AI agent workflows.
-              Open source. Local-first. Production-ready.
+              Agent Trace Bundle for private AI systems. Verifiable bundles, local-first storage,
+              and review-ready exports.
             </p>
             <div className="flex items-center gap-3 mt-4">
               <a
@@ -36,16 +36,18 @@ export default function Footer() {
             <ul className="space-y-2">
               {[
                 { label: "Features", href: "#features" },
-                { label: "Pricing", href: "#pricing" },
+                { label: "Who It Fits", href: "#fit" },
                 {
-                  label: "Changelog",
-                  href: "https://github.com/pcguest/atb/blob/main/CHANGELOG.md",
+                  label: "Release Notes",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/releases/v1.1.0.md",
                 },
-                { label: "Roadmap", href: "https://github.com/pcguest/atb/issues" },
+                { label: "Security Model", href: "https://github.com/pcguest/atb/blob/main/docs/security.md" },
               ].map((item) => (
                 <li key={item.label}>
                   <a
                     href={item.href}
+                    target={item.href.startsWith("http") ? "_blank" : undefined}
+                    rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
                     className="text-[#6b7280] hover:text-white text-sm transition-colors"
                   >
                     {item.label}
@@ -93,9 +95,7 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between pt-8 border-t border-[#1e1e2e] gap-4">
           <p className="text-[#6b7280] text-sm font-mono">© 2026 ATB. MIT License.</p>
           <div className="flex items-center gap-4 text-[#6b7280] text-sm">
-            <span className="font-mono text-xs">
-              Built with <span className="text-indigo-400">ATB</span> — dogfooding since day 1
-            </span>
+            <span className="font-mono text-xs">Built and maintained by Patrick Guest.</span>
           </div>
         </div>
       </div>

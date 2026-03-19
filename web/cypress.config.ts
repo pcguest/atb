@@ -15,7 +15,7 @@ export default defineConfig({
   },
   chromeWebSecurity: false,
   e2e: {
-    baseUrl: process.env.CYPRESS_BASE_URL ?? "http://localhost:18888",
+    baseUrl: process.env.CYPRESS_BASE_URL ?? "http://localhost:8080",
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.ts",
     env: {

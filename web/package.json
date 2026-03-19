@@ -18,7 +18,7 @@
     "pretest:e2e": "npm run build",
     "test:e2e": "CYPRESS_BASE_URL=http://127.0.0.1:3000 ./scripts/run-static-cypress.sh cypress/e2e/dashboard.cy.ts",
     "test:e2e:open": "cypress open",
-    "lighthouse": "lighthouse http://localhost:18888/view/ --output=json --output-path=./lh-report.json --only-categories=accessibility,performance",
+    "lighthouse": "lighthouse http://localhost:8080/view/ --output=json --output-path=./lh-report.json --only-categories=accessibility,performance",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

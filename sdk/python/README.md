@@ -8,6 +8,8 @@ The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcgues
 pip install atb-sdk
 ```
 
+The package includes a thin `atb` wrapper. It delegates to a local ATB CLI binary when one is already installed, or to the path set in `ATB_BIN`.
+
 With LangChain integration:
 
 ```bash
@@ -58,6 +60,6 @@ llm = ChatOpenAI(callbacks=[handler])
 # All LLM calls are now automatically recorded in the bundle.
 ```
 
-## License
+## Licence
 
 MIT

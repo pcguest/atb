@@ -4,8 +4,9 @@ import { Providers } from "@/app/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ATB Trust Dashboard",
-  description: "Cryptographically verifiable audit trail dashboard for AI agents.",
+  title: "ATB | Verifiable audit trails for private AI systems",
+  description:
+    "Local-first audit trails for privacy-sensitive AI systems. Inspect, verify, and export agent traces without default hosted storage.",
 };
 
 export default function RootLayout({

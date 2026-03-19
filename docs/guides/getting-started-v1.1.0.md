@@ -23,14 +23,14 @@ go build -o atb ./cmd/atb
 
 ### 3. Append Events
 ```bash
-./atb append --type=milestone --data='{"name":"Project Started","status":"active"}'
-./atb append --type=debug --data='{"message":"Hello ATB"}'
+./atb append milestone --data='{"name":"Project Started","status":"active"}'
+./atb append debug --data='{"message":"Hello ATB"}'
 ```
 
 ### 4. Launch Dashboard
 ```bash
 ./atb view --ui-experimental
-# Opens http://localhost:18888/view
+# Opens http://localhost:8080/view/
 ```
 
 ### 5. Verify Integrity
@@ -59,7 +59,7 @@ go build -o atb ./cmd/atb
 ## Advanced Usage
 
 ### Configure PII Masking
-Edit `.atb/config.json`:
+Point `ATB_PII_FIELDS_PATH` to a JSON file or update `docs/compliance/pii-fields.json`:
 
 ```json
 {
@@ -67,40 +67,25 @@ Edit `.atb/config.json`:
 }
 ```
 
-### Set Rate Limits
-
-```json
-{
-  "reveal_rate_limit": {
-    "burst": 10,
-    "refill_per_minute": 1
-  }
-}
-```
+Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log-reveals` flag is retained for CLI compatibility but is no longer required.
 
 ### Export Evidence
 ```bash
-./atb export --output evidence.zip
-# Includes manifest.json, checksums, bundle.atb
+./atb export --format soc2 --output evidence.zip
+# Includes manifest, checksums, and bundle evidence
 ```
 
 ## Troubleshooting
 
 ### Dashboard won't load
-- Check port: `lsof -i :18888`
+- Check port: `lsof -i :8080`
 - Rebuild UI: `cd web && npm run build && npm run export`
 
 ### Trust Score is 0
 - Run `./atb verify` first
 - Check bundle integrity
 
-### Role selector not working
-- Clear localStorage: `localStorage.clear()` in browser console
-- Refresh page
-
 ## Next Steps
 - Read `docs/api/openapi.yaml` for API details
 - Explore `docs/security.md` for security model
-- Join Discord for community support
-
-Questions? Open an issue with `v1.1.0` label.
+- Open an issue with the `v1.1.0` label if you find a problem

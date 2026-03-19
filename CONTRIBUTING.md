@@ -134,7 +134,7 @@ git push origin v0.1.1
 4. Confirm publish status in GitHub Actions and verify:
 
 ```bash
-pip install atb-sdk
+go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
 ## TypeScript SDK Release to npm

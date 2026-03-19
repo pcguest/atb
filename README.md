@@ -6,16 +6,16 @@
 [![Security Scan](https://github.com/pcguest/atb/actions/workflows/security-scan.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security-scan.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Tamper-evident, local-first audit trails for privacy-sensitive AI agents.
+ATB is the local-first audit trail for privacy-sensitive AI systems.
 
-ATB creates verifiable trace bundles that teams can inspect locally, verify cryptographically, and export as deterministic evidence for incident review, privacy-sensitive debugging, and compliance workflows. It is designed for teams that need proof of what happened, not another hosted observability control plane.
+It records agent runs as tamper-evident bundles you can inspect locally, verify cryptographically, and export as deterministic evidence for incident review, customer handoff, and compliance workflows. It is designed for teams that need proof of what happened without sending raw traces to someone else's platform.
 
-## Why Teams Use ATB
+## Why Teams Pick ATB
 
+- Keep raw traces local by default.
 - Reconstruct agent failures, tool misuse, and high-risk decisions with a verifiable execution trail.
-- Keep trace storage, verification, and inspection local by default.
-- Produce deterministic SOC 2 and GDPR evidence without rebuilding logs after the fact.
-- Share protected bundles through client-side encryption when controlled handoff is required.
+- Hand over a portable bundle and deterministic export instead of reconstructed notes.
+- Record privacy reveals as part of the same audit trail.
 
 ## Release Status
 
@@ -26,7 +26,7 @@ ATB creates verifiable trace bundles that teams can inspect locally, verify cryp
 ## 5 Minute Start
 
 ```bash
-pip install atb-sdk
+go install github.com/pcguest/atb/cmd/atb@latest
 atb init
 atb view
 ```
@@ -50,18 +50,20 @@ atb verify
 
 ATB is best suited to:
 
-- internal copilots and agent workflows handling sensitive or regulated data
-- enterprise AI teams that cannot send raw traces to a hosted vendor by default
+- security-minded AI teams running internal copilots or agent workflows with sensitive data
 - consultancies and delivery teams that need a portable audit artefact for handoff or review
+- enterprise builders that need evidence without default external trace storage
 
 ATB is not intended to be a generic hosted LLM observability platform.
 
 ## Installation
 
-- Python CLI package: `pip install atb-sdk`
-- TypeScript SDK: `npm install @pcguest/atb-sdk`
 - Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest`
-- Docker: `docker run --rm -it -v $(pwd):/data ghcr.io/pcguest/atb:latest`
+- Python SDK: `pip install atb-sdk`
+- TypeScript SDK: `npm install @pcguest/atb-sdk`
+- Docker: build locally with `docker build -t atb .`
+
+Python and TypeScript packages are SDKs. Their `atb` wrapper delegates to a local ATB CLI binary if one is already installed, or to the path in `ATB_BIN`.
 
 ## Documentation
 

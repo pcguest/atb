@@ -94,20 +94,15 @@ Behavior:
 
 This keeps CI/local validation consistent even when scanner binaries are not preinstalled on a workstation.
 
-## Rate Limiting (v1.1.0+)
+## Privacy Reveal Controls (v1.1.0+)
 
 The `/api/v1/privacy/reveal` endpoint is rate-limited to prevent enumeration attacks.
 
-### Configuration
+Current default:
 
-```json
-{
-  "reveal_rate_limit": {
-    "burst": 10,
-    "refill_per_minute": 1
-  }
-}
-```
+- 10 requests per minute per token
+- reveal auditing appended into `bundle.atb`
+- PII masking rules loaded from `ATB_PII_FIELDS_PATH` when set, otherwise `docs/compliance/pii-fields.json`
 
 ### Testing
 
@@ -116,7 +111,7 @@ The `/api/v1/privacy/reveal` endpoint is rate-limited to prevent enumeration att
 TOKEN="your-token"
 for i in {1..12}; do
   curl -s -o /dev/null -w "$i:%{http_code} " \
-    -X POST http://localhost:18888/api/v1/privacy/reveal \
+    -X POST http://localhost:8080/api/v1/privacy/reveal \
     -H "X-ATB-Viewer-Token: $TOKEN" \
     -d '{"seq":1}'
 done
