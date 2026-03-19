@@ -9,10 +9,10 @@ if command -v python >/dev/null 2>&1; then
   PYTHON_BIN="python"
 fi
 
-echo "[1/6] Go tests"
-go test ./...
+echo "[1/7] Go tests"
+go test -skip TestInstalledBinarySmokeFlow ./...
 
-echo "[2/6] TypeScript lockfile + build"
+echo "[2/7] TypeScript lockfile + build"
 (
   cd sdk/typescript
   npm ci --dry-run
@@ -22,7 +22,7 @@ echo "[2/6] TypeScript lockfile + build"
   npm run build
 )
 
-echo "[3/6] Python tests + package build"
+echo "[3/7] Python tests + package build"
 (
   cd sdk/python
   VENV_DIR="$(mktemp -d)"
@@ -39,14 +39,18 @@ echo "[3/6] Python tests + package build"
   rm -rf "$VENV_DIR"
 )
 
-echo "[4/6] Web dashboard build"
+echo "[4/7] Web dashboard build"
 (
   cd web
   npm ci
   npm run build
+  npm run export
 )
 
-echo "[5/6] Docker smoke build"
+echo "[5/7] Installed binary smoke gate"
+go test -v -run TestInstalledBinarySmokeFlow ./cmd/atb
+
+echo "[6/7] Docker smoke build"
 if command -v docker >/dev/null 2>&1; then
   docker build --platform linux/amd64 -t atb:release-smoke .
   docker run --rm atb:release-smoke version
@@ -54,7 +58,7 @@ else
   echo "docker not found; skipping docker smoke build"
 fi
 
-echo "[6/6] Version metadata"
+echo "[7/7] Version metadata"
 "$PYTHON_BIN" - <<'PY'
 import pathlib
 import tomllib
