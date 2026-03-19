@@ -46,7 +46,7 @@ Automation should always gate on non-zero exit codes and parse JSON only when `-
 
 ### Safe automation pattern
 
-1. Run from the repository root (or pass explicit bundle paths).
+1. Run from the directory that holds your local ATB evidence, or pass explicit bundle paths.
 2. Use `--format json` for machine assertions.
 3. Treat missing fields as contract drift and fail closed.
 4. Never assume implied defaults in CI; pass all critical flags explicitly.

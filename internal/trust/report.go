@@ -1,12 +1,14 @@
-// Package trust builds high-level trust reports for ATB repositories.
+// Package trust builds high-level trust reports for ATB bundles and shipped evidence.
 package trust
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
 )
 
@@ -65,7 +67,8 @@ type Report struct {
 	Categories  []Category `json:"categories"`
 }
 
-// BuildReport creates a trust report for the bundle path rooted at repoRoot.
+// BuildReport creates a trust report for the bundle path, preferring workspace
+// evidence under repoRoot and falling back to shipped embedded evidence.
 func BuildReport(repoRoot string, bundlePath string) Report {
 	categories := []Category{
 		cryptoCategory(bundlePath, repoRoot),
@@ -102,11 +105,12 @@ func BuildReport(repoRoot string, bundlePath string) Report {
 
 func cryptoCategory(bundlePath string, repoRoot string) Category {
 	checks := []Check{
-		presenceCheck(
+		evidenceCheck(
 			"canonicalization_profile",
 			"Canonicalization Profile",
-			filepath.Join(repoRoot, "docs/spec-v1.0.md"),
-			"RFC8785-compatible canonicalization spec is present.",
+			repoRoot,
+			"docs/spec-v1.0.md",
+			"ATB includes the RFC 8785-compatible canonicalization specification.",
 			"RFC8785-compatible canonicalization spec is missing (expected docs/spec-v1.0.md).",
 			SeverityAdvisory,
 			false,
@@ -181,29 +185,32 @@ func cryptoCategory(bundlePath string, repoRoot string) Category {
 
 func operationalSafetyCategory(repoRoot string) Category {
 	checks := []Check{
-		presenceCheck(
+		evidenceCheck(
 			"security_policy",
 			"Security Policy",
-			filepath.Join(repoRoot, "SECURITY.md"),
-			"Repository includes a public security policy.",
+			repoRoot,
+			"SECURITY.md",
+			"ATB includes a public security policy.",
 			"Security policy is missing (expected SECURITY.md).",
 			SeverityAdvisory,
 			false,
 		),
-		presenceCheck(
+		evidenceCheck(
 			"incident_response",
 			"Incident Response",
-			filepath.Join(repoRoot, "incident-response.md"),
-			"Repository includes an incident response runbook.",
+			repoRoot,
+			"incident-response.md",
+			"ATB includes an incident response runbook.",
 			"Incident response runbook is missing (expected incident-response.md).",
 			SeverityAdvisory,
 			false,
 		),
-		presenceCheck(
+		evidenceCheck(
 			"security_docs",
 			"Security Hardening Docs",
-			filepath.Join(repoRoot, "docs/security.md"),
-			"Operational security guidance is documented.",
+			repoRoot,
+			"docs/security.md",
+			"ATB includes operational security guidance.",
 			"Operational security guidance is missing (expected docs/security.md).",
 			SeverityAdvisory,
 			false,
@@ -219,29 +226,32 @@ func operationalSafetyCategory(repoRoot string) Category {
 
 func testCoverageCategory(repoRoot string) Category {
 	checks := []Check{
-		presenceCheck(
+		evidenceCheck(
 			"go_tests",
 			"Go Test Suite",
-			filepath.Join(repoRoot, "cmd/atb/main_test.go"),
-			"Core CLI package includes Go tests.",
+			repoRoot,
+			"cmd/atb/main_test.go",
+			"ATB includes the core CLI test suite definition.",
 			"Core CLI test file is missing (expected cmd/atb/main_test.go).",
 			SeverityAdvisory,
 			false,
 		),
-		presenceCheck(
+		evidenceCheck(
 			"cross_language_oracle",
 			"Cross-Language Oracle",
-			filepath.Join(repoRoot, "test/golden/golden_test.go"),
-			"Cross-language canonicalization oracle test exists.",
+			repoRoot,
+			"test/golden/golden_test.go",
+			"ATB includes the cross-language canonicalization oracle test.",
 			"Cross-language oracle test is missing (expected test/golden/golden_test.go).",
 			SeverityAdvisory,
 			false,
 		),
-		presenceCheck(
+		evidenceCheck(
 			"python_property_tests",
 			"Python Property Tests",
-			filepath.Join(repoRoot, "sdk/python/tests/test_properties.py"),
-			"Property-based test template is available for AI extension.",
+			repoRoot,
+			"sdk/python/tests/test_properties.py",
+			"ATB includes the Python property test template for SDK invariants.",
 			"Property-based test template is missing (expected sdk/python/tests/test_properties.py).",
 			SeverityAdvisory,
 			false,
@@ -257,29 +267,32 @@ func testCoverageCategory(repoRoot string) Category {
 
 func documentationCategory(repoRoot string) Category {
 	checks := []Check{
-		presenceCheck(
+		evidenceCheck(
 			"quickstart",
 			"Quickstart Guide",
-			filepath.Join(repoRoot, "docs/quickstart.md"),
-			"End-user quickstart documentation is present.",
+			repoRoot,
+			"docs/quickstart.md",
+			"ATB includes end-user quickstart documentation.",
 			"Quickstart guide is missing (expected docs/quickstart.md).",
 			SeverityAdvisory,
 			false,
 		),
-		presenceCheck(
+		evidenceCheck(
 			"ai_integration",
 			"AI Integration Guide",
-			filepath.Join(repoRoot, "docs/ai-integration.md"),
-			"AI integration contract documentation is present.",
+			repoRoot,
+			"docs/ai-integration.md",
+			"ATB includes the AI integration contract documentation.",
 			"AI integration contract doc is missing (expected docs/ai-integration.md).",
 			SeverityAdvisory,
 			false,
 		),
-		presenceCheck(
+		evidenceCheck(
 			"event_schema",
 			"Event Schema",
-			filepath.Join(repoRoot, "schemas/event.v1.json"),
-			"Event JSON schema is available.",
+			repoRoot,
+			"schemas/event.v1.json",
+			"ATB includes the event JSON schema.",
 			"Event schema is missing (expected schemas/event.v1.json).",
 			SeverityAdvisory,
 			false,
@@ -325,10 +338,11 @@ func aggregateChecksStatus(checks []Check) string {
 	return StatusPass
 }
 
-func presenceCheck(
+func evidenceCheck(
 	id string,
 	title string,
-	path string,
+	repoRoot string,
+	repoRelative string,
 	passDetails string,
 	warnDetails string,
 	severity string,
@@ -342,12 +356,28 @@ func presenceCheck(
 		Blocking: blocking,
 		Details:  warnDetails,
 	}
-	if fileExists(path) {
+	if evidencePath, ok := findEvidencePath(repoRoot, repoRelative); ok {
 		check.Status = StatusPass
 		check.Details = passDetails
-		check.Evidence = []string{path}
+		check.Evidence = []string{evidencePath}
 	}
 	return check
+}
+
+func findEvidencePath(repoRoot string, repoRelative string) (string, bool) {
+	trimmedRoot := strings.TrimSpace(repoRoot)
+	if trimmedRoot != "" {
+		path := filepath.Join(trimmedRoot, filepath.FromSlash(repoRelative))
+		if fileExists(path) {
+			return path, true
+		}
+	}
+
+	if atbembed.HasEmbeddedTrustEvidence(repoRelative) {
+		return repoRelative, true
+	}
+
+	return "", false
 }
 
 func evaluateGate(categories []Category) Gate {
