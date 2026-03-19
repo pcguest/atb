@@ -16,9 +16,10 @@ ATB is designed for tamper evidence first and local-first operation.
 - Bundles are local files (`run.atb/*.atb`) by default.
 - Core workflow (`init`, `append`, `snapshot`, `verify`, `view`) does not require network access.
 
-4. Optional client-side encryption for sharing/storage
+4. Optional client-side encryption for handoff/storage
 - `atb encrypt`/`atb decrypt` use AES-256-GCM with PBKDF2-SHA256 key derivation (`100000` iterations).
 - Local `.atb` bundles are hash-chained for integrity; encryption is opt-in and applied when you explicitly encrypt payloads.
+- Any future handoff flow must keep encryption client-side and must not change the local-first default.
 
 5. Zero custom cryptography
 - Hashing and cryptographic primitives rely on standard language libraries and audited dependencies.
@@ -29,8 +30,8 @@ ATB is designed for tamper evidence first and local-first operation.
 graph LR
     A["Your App"] --> B["ATB SDK/CLI"]
     B --> C["Optional Client-Side Encryption"]
-    C --> D["Encrypted Blob (Optional Cloud Workflow)"]
-    D --> E["Remote Storage (Ciphertext Only)"]
+    C --> D["Encrypted Artefact (Optional Handoff)"]
+    D --> E["Ciphertext-Only Storage"]
     style C fill:#9f9,stroke:#393
     style E fill:#f9f,stroke:#939
 ```

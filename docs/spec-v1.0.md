@@ -141,7 +141,7 @@ ATB supports optional client-side bundle encryption via `atb encrypt` / `atb dec
 - Key derivation: PBKDF2-SHA256 (`100000` iterations)
 - Wire format: `ATBE` magic + version + salt + nonce + auth tag + ciphertext
 
-Cloud push/pull workflows are specified separately in `docs/spec/atb-push-v1.1.md`.
+Optional encrypted handoff is being evaluated separately in `docs/spec/atb-push-v1.1.md`. It is not part of the v1.0 local storage contract.
 
 ---
 

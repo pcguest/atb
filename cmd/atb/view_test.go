@@ -193,6 +193,44 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 	}
 }
 
+func TestBuildViewServerTamperModeDisablesExperimentalDashboard(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle.atb")
+
+	b := bundle.New()
+	if err := b.Append("agent.prompt", map[string]interface{}{"prompt": "x"}); err != nil {
+		t.Fatalf("append agent.prompt: %v", err)
+	}
+	if len(b.Records) == 0 {
+		t.Fatalf("expected at least one record")
+	}
+	b.Records[0].Hash = strings.Repeat("0", 64)
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save tampered bundle: %v", err)
+	}
+
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true)
+	if err != nil {
+		t.Fatalf("buildViewServer error: %v", err)
+	}
+	if !tamperDetected {
+		t.Fatalf("expected tamper mode for invalid bundle")
+	}
+	if openPath != "/" {
+		t.Fatalf("expected tampered experimental viewer to open at /, got %q", openPath)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/view/", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected /view/ status for tampered bundle: got %d want %d", rr.Code, http.StatusOK)
+	}
+	if !strings.Contains(rr.Body.String(), "TAMPER DETECTED") {
+		t.Fatalf("expected tamper warning page for /view/, got %s", rr.Body.String())
+	}
+}
+
 func TestCandidateViewPorts(t *testing.T) {
 	t.Run("explicit", func(t *testing.T) {
 		got := candidateViewPorts(8080, true)

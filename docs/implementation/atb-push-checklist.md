@@ -1,45 +1,45 @@
-# atb push MVP Implementation Checklist
+# atb push Validation Checklist
 
-## Pre-Implementation
+Do not start implementation unless the validation gate below is met.
 
-- [ ] Validate demand (3+ users request cloud sharing)
-- [ ] Confirm Cloudflare R2 free tier limits (10GB storage, 10M ops/month)
-- [ ] Finalize key derivation strategy (PBKDF2 + per-upload salt)
-- [ ] Finalize URL format (`atb.dev/share/<id>#<password_fragment>`)
+## Validation Gate
 
-## Core Implementation
+- [ ] 3+ qualified buyer conversations identify secure handoff as the blocker after local bundles are already useful
+- [ ] At least 2 of those conversations are about customer handoff, incident review, or privacy review rather than generic observability
+- [ ] Founder can explain `atb push` in one sentence as encrypted handoff, not hosted tracing
+- [ ] The proposed flow preserves ATB's local-first default when unused
 
-- [ ] Add `internal/crypto` package
-- [ ] Implement AES-256-GCM encrypt/decrypt
-- [ ] Implement key derivation (password + salt -> key)
+## If Validation Passes
+
+- [ ] Finalise the narrowest command shape and expiry policy
+- [ ] Finalise KDF choice and local performance budget
+- [ ] Choose a minimal ciphertext-only handoff backend
 - [ ] Add `atb push <bundle>` command
-- [ ] Add `atb pull <share_url>` command
-- [ ] Add R2 upload/download adapter
-- [ ] Generate share links with configurable expiry
+- [ ] Add retrieval/decrypt flow only if required for recipient success
+- [ ] Generate time-bounded retrieval links
 
 ## Security
 
-- [ ] Password never sent to server
-- [ ] URL fragment (`#...`) used for client-only secret material
-- [ ] Salt stored with encrypted payload
-- [ ] Download endpoint has rate limiting and abuse guardrails
+- [ ] Secret material never sent to the server in plaintext
+- [ ] Stored artefacts remain ciphertext-only
+- [ ] Integrity is verified before transfer and after retrieval
+- [ ] Abuse guardrails exist on any retrieval endpoint
 
 ## Testing
 
 - [ ] Unit tests for encrypt/decrypt and KDF
-- [ ] Integration test: push -> pull -> verify hash chain
-- [ ] Negative tests: wrong password, expired link, tampered payload
+- [ ] Integration test: verify -> push -> retrieve -> decrypt -> verify
+- [ ] Negative tests: wrong secret, expired link, tampered ciphertext
 - [ ] Security review checklist completed
 
 ## Documentation
 
-- [ ] Update README with `atb push` examples
-- [ ] Add `/docs/security.md` FAQ section for cloud sharing
-- [ ] Update quickstart with optional cloud-sharing flow
+- [ ] Update README only after the command ships
+- [ ] Document the feature as optional encrypted handoff, not cloud tracing
+- [ ] Keep quickstart focused on the local workflow unless buyers prove otherwise
 
-## Launch
+## Explicit Non-Goals
 
-- [ ] Beta with 5 trusted users
-- [ ] Collect UX + security feedback
-- [ ] Iterate based on user pull
-- [ ] Ship in `v1.1.0`
+- [ ] No hosted workspace or shared dashboard scope
+- [ ] No admin console, billing, or seat-management work
+- [ ] No prompt tooling, evals, or generic observability expansion

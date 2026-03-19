@@ -1,80 +1,62 @@
-# atb push — Cloud Sharing Spec (v1.1)
+# atb push — Encrypted Handoff Exploration
 
-Status: Draft for Week 2 design review
+Status: Exploratory only. Not scheduled for implementation or release.
 
-## Goal
+## Purpose
 
-Allow optional cloud sharing of ATB bundles without changing the local-first default.
+Define the narrowest possible encrypted handoff path if repeated buyer conversations show that secure transfer is the blocker after local bundle creation and verification.
 
-## Command
+`atb push` is not part of the current shipped CLI. ATB remains focused on local verification, incident review, customer handoff, and deterministic evidence export.
+
+## Proposed Command Shape
 
 ```bash
-atb push <bundle_path> [--share] [--password <pw>] [--expiry <24h|7d|30d|never>]
+atb push <bundle_path> [--password <pw>] [--expiry <24h|7d|30d>]
 ```
 
-## Non-Negotiables
+## Guardrails
 
 - Core tracing remains local-first and offline-capable.
-- Every push validates integrity before upload.
-- Encryption is client-side (zero-knowledge for server operators).
+- `atb push` must stay optional and must never become the default storage path.
+- Every handoff validates integrity before transfer.
+- Encryption stays client-side; any backend only stores ciphertext.
+- No hosted workspaces, tenancy, RBAC, billing, or control-plane scope.
+- Backend choice is an implementation detail, not a product promise.
 
-## High-Level Flow
+## Proposed Flow
 
 1. Resolve and load bundle path.
-2. Verify hash chain (`atb verify` equivalent).
-3. Derive key from password using Argon2id (salt per upload).
+2. Verify the hash chain (`atb verify` equivalent).
+3. Derive an encryption key from user-supplied secret material with a memory-hard KDF.
 4. Encrypt bundle bytes with AES-256-GCM.
-5. Upload encrypted blob to Cloudflare R2 (`atb-traces-prod`).
-6. Generate signed link with expiry.
-7. Return URL plus local recovery metadata.
+5. Upload ciphertext to a minimal handoff backend.
+6. Return a time-bounded retrieval link plus local recovery metadata.
 
-## Security Model
+## Validation Gate
 
-- Password is never sent to server in plaintext.
-- Optional password fragment lives in URL hash (`#...`) to avoid server logs.
-- Blob objects are unreadable without client-side key derivation.
-- Signed URLs are short-lived by default (`24h`).
+Only start implementation if multiple qualified buyers independently confirm that:
 
-## Metadata Schema (Server-Side)
+- local bundles are already useful
+- secure transfer is the missing step
+- the encrypted handoff path can stay narrow without turning ATB into a hosted platform
 
-```json
-{
-  "id": "trace_abc123",
-  "created_at": "2026-03-03T00:00:00Z",
-  "expires_at": "2026-03-10T00:00:00Z",
-  "cipher": "AES-256-GCM",
-  "kdf": "Argon2id",
-  "salt_b64": "...",
-  "nonce_b64": "...",
-  "bundle_hash": "sha256:...",
-  "size_bytes": 12345
-}
-```
+## Security Expectations
 
-## CLI UX
-
-```bash
-$ atb push run.atb/bundle.atb --share --expiry 7d
-✓ Bundle verified: 24 events, chain intact.
-✓ Uploaded encrypted bundle (12.1 KB)
-Share URL: https://atb.dev/share/trace_abc123#k=...
-Expires: 2026-03-10T12:00:00Z
-```
+- Secrets are never sent to the server in plaintext.
+- Stored objects are unreadable without client-side decryption material.
+- Expiry should default to short-lived links.
+- Retrieval metadata must be sufficient to verify and decrypt locally after download.
 
 ## Failure Modes
 
-- Verification fails: abort upload.
-- R2 upload fails: no URL returned, local data unchanged.
-- Invalid expiry: reject with usage guidance.
+- Verification fails: abort handoff.
+- Backend upload fails: no link returned, local data unchanged.
+- Invalid expiry or missing secret material: reject with usage guidance.
 
-## Out of Scope (v1.1)
+## Explicitly Out of Scope
 
-- Team workspaces / RBAC
-- Usage analytics beyond aggregate error counts
-- Organization billing and quotas
-
-## v1.2+ Extension Path
-
-- Team workspaces via Supabase metadata
-- Webhook notifications on upload/download
-- Optional revocation list for issued links
+- Hosted dashboards or always-on trace storage
+- Team workspaces, RBAC, or admin tooling
+- Product analytics beyond operational error visibility
+- Billing, quotas, or procurement surfaces
+- Broad collaboration features

@@ -127,6 +127,11 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 		RevealAuthToken: revealAuthToken,
 	})
 	api.Register(mux)
+	if verifyErr != nil {
+		mux.Handle("/", apiv1.NewTamperHandler(bundlePath, verifyErr))
+		return withSecurityHeaders(mux, revealAuthToken), page, true, "/", nil
+	}
+
 	openPath := "/"
 	if uiExperimental {
 		if dashboardFS, ok := embeddedDashboardFS(); ok {
@@ -138,11 +143,6 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 				http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
 			})
 		}
-	}
-
-	if verifyErr != nil {
-		mux.Handle("/", apiv1.NewTamperHandler(bundlePath, verifyErr))
-		return withSecurityHeaders(mux, revealAuthToken), page, true, openPath, nil
 	}
 
 	mux.Handle("/", viewer.NewHandler(page))
