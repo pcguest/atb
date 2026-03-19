@@ -11,8 +11,7 @@ Ship ATB v1.0.0 with deterministic, secure, automated release pipelines for:
 
 Target install experience:
 
-- `pip install atb-sdk`
-- `npm install -g @pcguest/atb-sdk`
+- `go install github.com/pcguest/atb/cmd/atb@latest`
 - `docker pull <org>/atb:<version>`
 
 ## Versioning Strategy
@@ -45,6 +44,7 @@ Bump PATCH for backward-compatible fixes:
 - Mark deprecations in one MINOR release
 - Keep deprecated behavior through at least one additional MINOR
 - Remove deprecated behavior only in next MAJOR
+- Current v1.1.x stance: Python and TypeScript ship SDKs only. Their `atb` entrypoints are compatibility stubs pending removal in the next MAJOR release.
 
 ## Release Checklist (v1.0.0)
 
@@ -66,7 +66,7 @@ Bump PATCH for backward-compatible fixes:
 ### Python
 
 - Build backend: `setuptools.build_meta`
-- Console script: `atb = cmd.atb:main`
+- Console script stub: `atb = atb_cli_stub:main`
 - Metadata requirements:
   - License: MIT
   - Production classifier
@@ -78,7 +78,7 @@ Bump PATCH for backward-compatible fixes:
 ### npm / TypeScript
 
 - Package must define:
-  - `bin` mapping: `"atb": "./bin/atb"`
+  - compatibility stub mapping: `"atb": "./bin/atb"`
   - `types`, `exports`, `repository.directory`
   - `files` whitelist for deterministic package contents
 - Publish command:

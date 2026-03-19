@@ -14,7 +14,7 @@ For a quick CLI smoke-check that matches README install guidance:
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb view --no-open
+atb view --ui-experimental --no-open
 ```
 
 ## Local Validation

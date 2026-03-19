@@ -2,7 +2,7 @@
 
 ## Static Export and Security Headers
 
-The web app uses `next export` (`output: "export"` in `next.config.js`).
+The web app is configured for static export (`output: "export"` in `next.config.js`).
 Next.js warns that `headers()` rules are not applied to static exports. This is expected in ATB.
 
 Runtime security headers (including CSP) are enforced by the Go viewer server in `cmd/atb/view.go`.
@@ -48,6 +48,6 @@ npm run build && npm run export
 
 ### Post-Gold Tasks (v1.1.1)
 
-- [ ] Replace mock API with real `atb view` server in E2E
+- [ ] Replace mock API with real `atb view --ui-experimental` server in E2E
 - [ ] Integrate Puppeteer for Lighthouse in CI
 - [ ] Add visual regression tests (Percy/Chromatic)

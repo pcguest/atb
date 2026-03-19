@@ -1,14 +1,9 @@
 #!/usr/bin/env node
 
-const { spawnSync } = require("node:child_process");
+console.error(`ATB CLI is not included in the TypeScript SDK.
+Install the standalone Go CLI instead:
 
-const binary = process.env.ATB_BIN || "atb";
-const args = process.argv.slice(2);
-const result = spawnSync(binary, args, { stdio: "inherit" });
+  go install github.com/pcguest/atb/cmd/atb@latest
 
-if (result.error) {
-  console.error(`Failed to execute '${binary}'. Install the ATB CLI binary or set ATB_BIN to an executable path.`);
-  process.exit(1);
-}
-
-process.exit(result.status ?? 1);
+The SDK package remains available for TypeScript integrations only. This compatibility stub will be removed in a future major release.`);
+process.exit(1);

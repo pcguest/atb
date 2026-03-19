@@ -12,8 +12,8 @@ export default function Footer() {
               <span className="font-mono font-semibold text-white">ATB</span>
             </div>
             <p className="text-[#6b7280] text-sm leading-relaxed max-w-xs">
-              Agent Trace Bundle for private AI systems. Verifiable bundles, local-first storage,
-              and review-ready exports.
+              Open-source local-first audit trail tooling for AI runs. CLI, local viewer, exports,
+              and SDKs that share the same bundle format.
             </p>
             <div className="flex items-center gap-3 mt-4">
               <a
@@ -32,16 +32,22 @@ export default function Footer() {
 
           {/* Product */}
           <div>
-            <h4 className="text-white font-medium text-sm mb-3">Product</h4>
+            <h4 className="text-white font-medium text-sm mb-3">Docs</h4>
             <ul className="space-y-2">
               {[
-                { label: "Features", href: "#features" },
-                { label: "Who It Fits", href: "#fit" },
+                {
+                  label: "Quickstart",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/quickstart.md",
+                },
+                { label: "Current Scope", href: "#scope" },
                 {
                   label: "Release Notes",
                   href: "https://github.com/pcguest/atb/blob/main/docs/releases/v1.1.0.md",
                 },
-                { label: "Security Model", href: "https://github.com/pcguest/atb/blob/main/docs/security.md" },
+                {
+                  label: "Security Model",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/security.md",
+                },
               ].map((item) => (
                 <li key={item.label}>
                   <a
@@ -66,6 +72,10 @@ export default function Footer() {
                 {
                   label: "CLI Reference",
                   href: "https://github.com/pcguest/atb/tree/main/cmd/atb",
+                },
+                {
+                  label: "Viewer API",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/api/README.md",
                 },
                 {
                   label: "Python SDK",
@@ -95,7 +105,9 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between pt-8 border-t border-[#1e1e2e] gap-4">
           <p className="text-[#6b7280] text-sm font-mono">© 2026 ATB. MIT License.</p>
           <div className="flex items-center gap-4 text-[#6b7280] text-sm">
-            <span className="font-mono text-xs">Built and maintained by Patrick Guest.</span>
+            <span className="font-mono text-xs">
+              Built and maintained in the open by Patrick Guest.
+            </span>
           </div>
         </div>
       </div>

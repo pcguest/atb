@@ -119,4 +119,4 @@ done
 
 ### Monitoring
 
-Rate limit hits are logged to the audit chain as privacy_reveal events with `status: "rate_limited"`.
+Rate limit hits return `429` with `Retry-After` and are not appended to the audit chain. Successful privacy reveals are appended to `bundle.atb`.

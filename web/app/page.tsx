@@ -4,6 +4,7 @@ import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import CodeDemo from "@/components/CodeDemo";
+import CurrentScope from "@/components/CurrentScope";
 import Footer from "@/components/Footer";
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
       <Hero />
       <CodeDemo />
       <Features />
+      <CurrentScope />
       <Footer />
     </main>
   );

@@ -62,7 +62,7 @@ b.verify()  # Raises ATBVerificationError if tampered
 print(f"✓ Verified {len(b)} events — chain intact.")
 
 # LangChain integration
-from atb.integrations.langchain import ATBCallbackHandler
+from atb.langchain_callback import ATBCallbackHandler
 handler = ATBCallbackHandler(bundle, auto_save=True)
 llm = ChatOpenAI(callbacks=[handler])`,
   typescript: `import { Bundle } from "@pcguest/atb-sdk";
@@ -92,13 +92,7 @@ loaded.verify(); // Throws ATBVerificationError if tampered
 console.log(\`✓ Verified \${loaded.length} events — chain intact.\`);`,
 };
 
-function TerminalLine({
-  line,
-  index,
-}: {
-  line: { prompt: string; cmd: string; out: string };
-  index: number;
-}) {
+function TerminalLine({ line }: { line: { prompt: string; cmd: string; out: string } }) {
   return (
     <div className="mb-3">
       <div className="flex items-start gap-2">
@@ -119,11 +113,11 @@ export default function CodeDemo() {
         {/* Section header */}
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Start local. Verify later.
+            Three shipped entry points
           </h2>
           <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
-            Initialize a bundle, append events, and verify the chain. Add the same model to Python
-            or TypeScript when you need tracing inside a real workflow.
+            The repo currently ships a Go CLI, a Python SDK, and a TypeScript SDK. All three write
+            the same local bundle format and verify the same hash chain.
           </p>
         </div>
 
@@ -161,7 +155,7 @@ export default function CodeDemo() {
               <div>
                 {(CODE.cli as Array<{ prompt: string; cmd: string; out: string }>).map(
                   (line, i) => (
-                    <TerminalLine key={i} line={line} index={i} />
+                    <TerminalLine key={i} line={line} />
                   ),
                 )}
                 <div className="flex items-center gap-2 mt-2">

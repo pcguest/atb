@@ -1,9 +1,9 @@
 # Getting Started with ATB v1.1.0
 
 ## Prerequisites
-- Go 1.21+
-- Node.js 18+
-- npm 9+
+- Go 1.26.1
+- Node.js 20.9+ if you need to rebuild the embedded web export
+- npm 10+ if you need to rebuild the embedded web export
 
 ## Quick Start (5 minutes)
 
@@ -48,7 +48,7 @@ go build -o atb ./cmd/atb
 
 ### Auditor View
 - Compliance statistics
-- Export evidence button (SOC2/GDPR)
+- Export summary button for a local JSON evidence snapshot
 - No raw PII (backend-filtered)
 
 ### Executive View
@@ -71,7 +71,7 @@ Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log
 
 ### Export Evidence
 ```bash
-./atb export --format soc2 --output evidence.zip
+./atb export --format soc2 --bundle run.atb/bundle.atb --output evidence.zip
 # Includes manifest, checksums, and bundle evidence
 ```
 

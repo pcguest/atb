@@ -36,13 +36,21 @@ export default function Navbar() {
               href="#features"
               className="text-[#9ca3af] hover:text-white text-sm transition-colors"
             >
-              Features
+              Shipped
             </a>
             <a href="#demo" className="text-[#9ca3af] hover:text-white text-sm transition-colors">
               Demo
             </a>
-            <a href="#fit" className="text-[#9ca3af] hover:text-white text-sm transition-colors">
-              Fit
+            <a href="#scope" className="text-[#9ca3af] hover:text-white text-sm transition-colors">
+              Scope
+            </a>
+            <a
+              href="https://github.com/pcguest/atb/blob/main/docs/quickstart.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#9ca3af] hover:text-white text-sm transition-colors"
+            >
+              Quickstart
             </a>
             <a
               href="https://github.com/pcguest/atb"
@@ -60,10 +68,12 @@ export default function Navbar() {
           {/* CTA */}
           <div className="flex items-center gap-3">
             <a
-              href="#contact"
+              href="https://github.com/pcguest/atb/blob/main/docs/quickstart.md"
+              target="_blank"
+              rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
             >
-              Talk to Founder
+              Read Quickstart
             </a>
           </div>
         </div>

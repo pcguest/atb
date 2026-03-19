@@ -7,7 +7,7 @@ ATB provides tamper-evident, replayable traces for AI workflows.
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb view
+atb view --ui-experimental
 ```
 
 Integrity check:
@@ -36,7 +36,7 @@ pip install atb-sdk
 npm install @pcguest/atb-sdk
 ```
 
-The Python and TypeScript packages are SDKs. Their `atb` wrapper expects a local ATB CLI binary or an `ATB_BIN` override.
+The Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
 
 ## 3. Record Your First Trace (Python)
 
@@ -72,14 +72,16 @@ bundle.verify()
 
 ```bash
 # Default bundle path
-atb view
+atb view --ui-experimental
 
 # Custom bundle path
-atb view my-trace.atb --port 8080
+atb view my-trace.atb --port 8080 --ui-experimental
 
 # Privacy reveal auditing is on by default in v1.1.0
-atb view --bundle my-trace.atb
+atb view --bundle my-trace.atb --ui-experimental
 ```
+
+Plain `atb view` still serves the legacy local viewer at `/`. The role-based dashboard UI is available behind `--ui-experimental` in v1.1.0.
 
 Dashboard details:
 
@@ -92,7 +94,7 @@ atb init
 atb append dev.session --data '{"focus":"quickstart"}'
 atb snapshot build --gate pass
 atb verify
-atb view
+atb view --ui-experimental
 ```
 
 ## 6. Compliance Exports

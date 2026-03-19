@@ -127,6 +127,8 @@ paths:
       security:
         - RevealCookieAuth: []
         - RevealBearerAuth: []
+        - RevealHeaderAuth: []
+        - RevealLegacyHeaderAuth: []
       requestBody:
         required: true
         content:
@@ -191,6 +193,14 @@ components:
     RevealBearerAuth:
       type: http
       scheme: bearer
+    RevealHeaderAuth:
+      type: apiKey
+      in: header
+      name: X-ATB-Viewer-Token
+    RevealLegacyHeaderAuth:
+      type: apiKey
+      in: header
+      name: X-ATB-Reveal-Token
   schemas:
     VerificationResponse:
       type: object

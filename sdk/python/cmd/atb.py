@@ -1,18 +1,18 @@
-"""Python console-script shim for invoking the ATB CLI binary."""
+"""Compatibility stub for the deprecated Python console-script wrapper."""
 
 from __future__ import annotations
 
-import os
-import subprocess
 import sys
 
 
 def main() -> int:
-    binary = os.getenv("ATB_BIN", "atb")
-    proc = subprocess.run([binary, *sys.argv[1:]], check=False)
-    if proc.returncode is None:
-        return 1
-    return proc.returncode
+    print(
+        "ATB CLI is not included in the Python SDK.\n"
+        "Install the standalone Go CLI with:\n\n"
+        "  go install github.com/pcguest/atb/cmd/atb@latest\n",
+        file=sys.stderr,
+    )
+    return 1
 
 
 if __name__ == "__main__":

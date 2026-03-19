@@ -4,9 +4,9 @@ import { Providers } from "@/app/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ATB | Verifiable audit trails for private AI systems",
+  title: "ATB | Local-first trace bundles for AI systems",
   description:
-    "Local-first audit trails for privacy-sensitive AI systems. Inspect, verify, and export agent traces without default hosted storage.",
+    "Open-source local-first trace bundles for AI systems. Go CLI, localhost viewer, deterministic exports, and Python and TypeScript SDKs.",
 };
 
 export default function RootLayout({

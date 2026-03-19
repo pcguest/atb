@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 
 const STATS = [
   { label: "Verify", value: "atb verify" },
-  { label: "JSON Spec", value: "RFC 8785" },
-  { label: "Storage", value: "Local-First" },
-  { label: "Privacy", value: "Reveal Controls" },
+  { label: "Viewer", value: "atb view" },
+  { label: "SDKs", value: "Python + TS" },
+  { label: "Storage", value: "run.atb/*.atb" },
 ];
 
 export default function Hero() {
@@ -35,7 +35,7 @@ export default function Hero() {
           }`}
         >
           <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-          v1.1.0 - local-first traces for private AI work
+          v1.1.0 | open-source CLI, SDKs, and local viewer
         </div>
 
         {/* Headline */}
@@ -44,9 +44,9 @@ export default function Hero() {
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          <span className="text-white">Verifiable audit trails</span>
+          <span className="text-white">Local-first trace bundles</span>
           <br />
-          <span className="gradient-text">for private AI systems</span>
+          <span className="gradient-text">you can verify yourself</span>
         </h1>
 
         {/* Subheadline */}
@@ -55,9 +55,10 @@ export default function Hero() {
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          ATB records agent runs as tamper-evident local bundles you can inspect, verify, and hand
-          to customers or auditors without sending raw traces to a hosted platform.
-          <span className="text-indigo-300"> Open source. Local-first. Built for review.</span>
+          ATB ships as a Go CLI plus Python and TypeScript SDKs. It writes tamper-evident bundles to
+          disk, serves a local viewer, and exports deterministic evidence packs without a required
+          hosted control plane.
+          <span className="text-indigo-300"> Open source. Local-first. Explicitly scoped.</span>
         </p>
 
         {/* CTA buttons */}
@@ -67,7 +68,9 @@ export default function Hero() {
           }`}
         >
           <a
-            href="#demo"
+            href="https://github.com/pcguest/atb/blob/main/docs/quickstart.md"
+            target="_blank"
+            rel="noopener noreferrer"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-indigo-500/25"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -84,7 +87,7 @@ export default function Hero() {
                 d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            See Quickstart
+            Read Quickstart
           </a>
           <a
             href="https://github.com/pcguest/atb"

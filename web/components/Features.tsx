@@ -10,10 +10,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Verifiable Event Chain",
+    title: "Hash-Chained Bundles",
     description:
-      "Every event is cryptographically linked to the previous one. If a trace is edited, reordered, or truncated, verification fails immediately.",
-    tag: "SHA-256",
+      "ATB stores events as NDJSON records linked with SHA-256 over RFC 8785 canonical JSON. Mutation, reordering, or deletion causes `atb verify` to fail.",
+    tag: "atb verify",
   },
   {
     icon: (
@@ -26,10 +26,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Portable Evidence",
+    title: "Local Viewer",
     description:
-      "Bundles and exports travel cleanly between teams. Consultancies can hand clients a file they can inspect instead of reconstructed notes or screenshots.",
-    tag: "Deterministic Export",
+      "The shipped viewer runs from `atb view` on localhost. It includes verification status, a timeline, a trace graph, and an event inspector gated by bundle validity.",
+    tag: "atb view",
   },
   {
     icon: (
@@ -42,10 +42,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Keep Raw Traces Local",
+    title: "Evidence Export",
     description:
-      "ATB writes NDJSON bundles to disk by default. No hosted control plane, no required backend, and no need to move sensitive traces off the machine or network.",
-    tag: "Local-First",
+      "ATB can package verified bundles and reports into deterministic `soc2` and `gdpr` archives for repeatable review workflows.",
+    tag: "atb export",
   },
   {
     icon: (
@@ -58,10 +58,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Fits Existing AI Stacks",
+    title: "Python SDK",
     description:
-      "Use the CLI for local runs or add Python and TypeScript SDKs to agent workflows already in production. The verification model stays the same across languages.",
-    tag: "Go · Python · TypeScript",
+      "The Python package ships the core `Bundle` API plus `ATBCallbackHandler` for LangChain. It writes the same `.atb` format as the CLI.",
+    tag: "LangChain",
   },
   {
     icon: (
@@ -74,10 +74,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Privacy Reveal Controls",
+    title: "TypeScript SDK",
     description:
-      "Protected fields stay masked until an authorized reveal is requested. Reveal actions are authenticated, rate-limited, and written back into the audit trail.",
-    tag: "Auth + Audit",
+      "The TypeScript package ships the core `Bundle` API plus `atbMiddleware` for Vercel AI SDK callbacks. Verification stays consistent with the CLI.",
+    tag: "Vercel AI SDK",
   },
   {
     icon: (
@@ -90,10 +90,10 @@ const FEATURES = [
         />
       </svg>
     ),
-    title: "Useful During Review",
+    title: "Masked Reveal Flow",
     description:
-      "ATB helps during incident review, customer handoff, and compliance evidence collection when teams need proof of what ran and how data was handled.",
-    tag: "Review-Ready",
+      "Configured PII fields are masked by default in the local viewer. Individual reveals use a per-session viewer token, are rate-limited, and append an audit event to the bundle.",
+    tag: "/api/v1/privacy/reveal",
   },
 ];
 
@@ -107,14 +107,15 @@ export default function Features() {
         {/* Section header */}
         <div className="text-center mb-16">
           <span className="inline-block font-mono text-indigo-400 text-sm mb-3">
-            {"// why atb"}
+            {"// shipped today"}
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Built for teams that need proof
+            What the repo implements in v1.1.0
           </h2>
           <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
-            Security-minded AI teams, consultancies, and enterprise builders use ATB when raw
-            traces need to stay private but still stand up to review.
+            This page describes only the capabilities implemented in the repo today: local bundle
+            creation and verification, a localhost viewer, deterministic exports, and two SDK
+            integration paths.
           </p>
         </div>
 

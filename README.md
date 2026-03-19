@@ -28,7 +28,7 @@ It records agent runs as tamper-evident bundles you can inspect locally, verify 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb view
+atb view --ui-experimental
 ```
 
 Verify integrity at any time:
@@ -43,7 +43,7 @@ atb verify
 - **Local-first verification:** trace inspection and verification run locally, with no required backend.
 - **Client-side encryption:** AES-256-GCM encryption for protected bundle handoff workflows.
 - **Deterministic evidence export:** built-in `soc2` and `gdpr` export paths for controls evidence, DSR, and RoPA workflows.
-- **Trust dashboard:** `atb view` provides a local dashboard with timeline, graph, inspector, role-based views, and privacy reveal audit logging.
+- **Local viewer and dashboard:** `atb view` serves the local viewer, and `atb view --ui-experimental` enables the role-based dashboard with timeline, graph, inspector, and privacy reveal audit logging.
 - **Developer integrations:** native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript.
 
 ## Best Fit
@@ -63,7 +63,7 @@ ATB is not intended to be a generic hosted LLM observability platform.
 - TypeScript SDK: `npm install @pcguest/atb-sdk`
 - Docker: build locally with `docker build -t atb .`
 
-Python and TypeScript packages are SDKs. Their `atb` wrapper delegates to a local ATB CLI binary if one is already installed, or to the path in `ATB_BIN`.
+Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
 
 ## Documentation
 

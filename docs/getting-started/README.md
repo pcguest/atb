@@ -7,7 +7,7 @@ Start here if you are new to ATB.
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb view
+atb view --ui-experimental
 ```
 
 Then verify integrity:
@@ -29,4 +29,4 @@ atb verify
 - Python SDK: `pip install atb-sdk`
 - TypeScript SDK: `npm install @pcguest/atb-sdk`
 
-The Python and TypeScript packages are SDKs. Their `atb` wrapper expects a local ATB CLI binary or an `ATB_BIN` override.
+The Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.

@@ -8,7 +8,7 @@ The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcgues
 pip install atb-sdk
 ```
 
-The package includes a thin `atb` wrapper. It delegates to a local ATB CLI binary when one is already installed, or to the path set in `ATB_BIN`.
+The package does not include a standalone ATB CLI. The installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
 
 With LangChain integration:
 

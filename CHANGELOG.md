@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.1.0] - 2026-03-12
 
-### 🎉 Added
-- **Trust Dashboard UI**: Enterprise-grade React dashboard with Next.js 14 + shadcn/ui
+### Added
+- **Trust Dashboard UI**: Embedded React dashboard for local review
 - **Role-based views**: Engineer (debug), Auditor (compliance), Executive (summary)
 - **Trust Score**: 0-100 algorithmic integrity metric with visual radial display
 - **Real-time polling**: New blocks appear in UI within 5 seconds
@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **E2E test suite**: Cypress tests for critical UI flows
 - **Performance benchmarks**: Bundle load time tests for 100/1k/10k blocks
 
-### 🔐 Security
+### Security
 - Added token-based auth for `/api/v1/privacy/reveal` (X-ATB-Viewer-Token header)
 - Added rate limiting (10 requests/minute per token)
 - Added hash-chained audit trail for privacy reveals
@@ -36,24 +36,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added release process documentation (CONTRIBUTING.md)
 - Added main-only workflow documentation
 
-### 🛠️ Changed
+### Changed
 - Moved API handlers from `internal/viewer` to `pkg/api/v1` (public package)
-- Updated Next.js from 14.2.5 to 14.2.21 (security patch)
+- Updated dashboard build dependencies for security and export stability
 - Updated React/ReactDOM pinned to 18.2.0 (stability)
 - Changed audit log from sidecar file to bundle.atb hash chain
 
-### 🐛 Fixed
+### Fixed
 - Fixed 64KiB line limit warning (documented + RFC for v1.1.1)
 - Fixed CSP headers not being set on embedded UI
 - Fixed rate limit threshold mismatch (now 10/min exactly)
 - Fixed PII masking not using configurable field list
 
-### ⚠️ Known Issues
+### Known Issues
 - G304 gosec findings in export.go/config.go (pre-existing, low risk)
 - Lighthouse harness requires Puppeteer/Chrome (Docker workaround available)
 - Cypress E2E may be unstable in some environments (Docker runner recommended)
 
-### 🔜 Deprecated
+### Deprecated
 - `internal/viewer` package (use `pkg/api/v1` instead)
 - Version-tag pinned GitHub Actions (use SHA pins)
 

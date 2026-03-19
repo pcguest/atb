@@ -84,6 +84,7 @@ web/cypress/screenshots/
 
 # Go build cache
 .gocache/
+.gocache-run/
 coverage.out
 trivy-report.json
 web/cypress/screenshots/

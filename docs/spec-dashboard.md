@@ -4,7 +4,7 @@
 
 Dashboard implementation is complete:
 - local `atb view` API server with verification gate and privacy reveal flow
-- `/view` dashboard UI with verification banner, timeline, graph, inspector, and stats
+- `/view` dashboard UI with verification banner, timeline, graph, inspector, and stats when started with `--ui-experimental`
 - reveal audit logging appended into `bundle.atb`
 
 ## Purpose
@@ -17,16 +17,18 @@ Auditor success bar:
 ## CLI Interface
 
 ```bash
-atb view [--port 8080] [--bundle path/to/file.atb]
+atb view --ui-experimental [--port 8080] [--bundle path/to/file.atb]
 ```
 
 Supported compatibility forms:
-- `atb view run.atb/bundle.atb`
-- `atb view --bundle run.atb/bundle.atb --port 9090`
+- `atb view --ui-experimental run.atb/bundle.atb`
+- `atb view --bundle run.atb/bundle.atb --port 9090 --ui-experimental`
 
 Additional safety flags:
 - `--no-open`: do not auto-open browser
 - `--log-reveals`: retained for CLI compatibility; reveal auditing is always on in v1.1.0
+
+Plain `atb view` still serves the legacy local viewer at `/`.
 
 ## Architecture
 
@@ -41,7 +43,7 @@ Chosen flow: **Go API server + Next.js dashboard**.
    - `GET /api/v1/bundle/events?offset=&limit=`
    - `GET /api/v1/bundle/graph`
    - `POST /api/v1/privacy/reveal`
-4. Next.js dashboard (`/view`) consumes local API JSON.
+4. Next.js dashboard (`/view`) consumes local API JSON when `--ui-experimental` is enabled.
 
 Rationale:
 - file access and integrity verification stay in one trusted local process
