@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -195,11 +196,20 @@ func runCLIJSON[T any](t *testing.T, binaryPath string, workDir string, args ...
 func runCLI(t *testing.T, binaryPath string, workDir string, args ...string) []byte {
 	t.Helper()
 
+	return runCLIWithEnv(t, binaryPath, workDir, nil, args...)
+}
+
+func runCLIWithEnv(t *testing.T, binaryPath string, workDir string, env []string, args ...string) []byte {
+	t.Helper()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, binaryPath, args...)
 	cmd.Dir = workDir
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout

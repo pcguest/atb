@@ -25,6 +25,14 @@ func parseEncryptArgs(args []string) (encryptConfig, error) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
+		case arg == "--output":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --output")
+			}
+			cfg.OutputPath = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "--output="):
+			cfg.OutputPath = strings.TrimPrefix(arg, "--output=")
 		case arg == "--password":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --password")
@@ -52,7 +60,9 @@ func parseEncryptArgs(args []string) (encryptConfig, error) {
 	if cfg.Password == "" {
 		return cfg, fmt.Errorf("--password is required (or set ATB_PASSWORD)")
 	}
-	cfg.OutputPath = cfg.InputPath + ".enc"
+	if cfg.OutputPath == "" {
+		cfg.OutputPath = cfg.InputPath + ".enc"
+	}
 	return cfg, nil
 }
 
@@ -60,7 +70,7 @@ func cmdEncrypt() {
 	cfg, err := parseEncryptArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb encrypt: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Usage: atb encrypt [bundle_path] [--password <password>] (or set ATB_PASSWORD)")
+		fmt.Fprintln(os.Stderr, "Usage: atb encrypt [bundle_path] [--output <path>] [--password <password>] (or set ATB_PASSWORD)")
 		os.Exit(exitUserError)
 	}
 

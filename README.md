@@ -35,14 +35,14 @@ atb verify
 atb trust-report --format markdown
 ```
 
-That sequence creates a local incident bundle with a failed review gate but a valid evidence chain. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md).
+That sequence creates a local incident bundle with a failed review gate but a valid evidence chain. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md). For sender and recipient handoff, use the [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md).
 
 ## What ATB Includes
 
 - **Tamper-evident event logs:** SHA-256 hash chains with RFC 8785 canonical JSON catch mutation, reordering, and deletion.
 - **Local-first verification:** trace inspection and verification run locally, with no required backend.
 - **Client-side encryption:** AES-256-GCM encryption for protected bundle handoff workflows.
-- **Deterministic evidence export:** `soc2` and `gdpr` export paths for controls evidence, DSR, and RoPA workflows.
+- **Deterministic evidence export:** `compliance`, `soc2`, and `gdpr` export paths for incident review, controls evidence, DSR, and RoPA workflows.
 - **Local viewer and dashboard:** `atb view` serves the local viewer, and `atb view --ui-experimental` enables the role-based dashboard with timeline, graph, inspector, and privacy reveal audit logging.
 - **Developer integrations:** native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript.
 - **Go CLI as the primary distribution path:** Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path.
@@ -71,8 +71,10 @@ Python and TypeScript packages are SDKs only. Their installed `atb` command is a
 Start at [Docs Home](docs/README.md).
 
 - [Quickstart](docs/quickstart.md)
-- [Incident Review Workflow](docs/use-cases/incident-review.md)
-- [Customer Handoff Workflow](docs/use-cases/customer-handoff.md)
+- [Incident Review Workflow](docs/guides/incident-review-workflow.md)
+- [Incident Review for Private AI Workflows](docs/use-cases/incident-review.md)
+- [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md)
+- [Customer Handoff Without Platform Lock-In](docs/use-cases/customer-handoff.md)
 - [Internal Audit and Privacy Review](docs/use-cases/internal-audit-privacy-review.md)
 - [ATB vs Hosted AI Observability](docs/comparisons/hosted-observability.md)
 - [ATB vs Logs, Screenshots, and Ad Hoc Exports](docs/comparisons/logs-and-screenshots.md)

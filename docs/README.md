@@ -9,6 +9,7 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 - [Getting Started Hub](./getting-started/README.md)
 - [Quickstart](./quickstart.md)
 - [Incident Review Workflow](./guides/incident-review-workflow.md)
+- [Customer Handoff Workflow](./guides/customer-handoff-workflow.md)
 - [Dashboard Specification](./spec-dashboard.md)
 
 ## Buyer Guides

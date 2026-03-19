@@ -16,9 +16,10 @@ atb verify
 ## Recommended Path
 
 1. [Incident Review Workflow](../guides/incident-review-workflow.md)
-2. [Quickstart](../quickstart.md)
-3. [Compliance Export Overview](../compliance/export.md)
-4. [AI Integrations](../guides/README.md)
+2. [Customer Handoff Workflow](../guides/customer-handoff-workflow.md)
+3. [Quickstart](../quickstart.md)
+4. [Compliance Export Overview](../compliance/export.md)
+5. [AI Integrations](../guides/README.md)
 
 ## Install Options
 

@@ -25,6 +25,8 @@ ATB produces a portable bundle that can be:
 
 The handoff is the bundle itself, not continued reliance on the original platform.
 
+For the operator runbook, use the [Customer Handoff Workflow](../guides/customer-handoff-workflow.md).
+
 ## Example Workflow
 
 ```bash
@@ -32,9 +34,13 @@ go install github.com/pcguest/atb/cmd/atb@latest
 atb init
 atb append agent.run --data='{"workflow":"claims-triage","customer":"acme"}'
 atb append decision --data='{"action":"route_to_manual_review","reason":"confidence_below_threshold"}'
-atb verify
-ATB_PASSWORD='shared-review-secret' atb encrypt run.atb/bundle.atb
-atb export --format soc2 --bundle run.atb/bundle.atb --output acme-review-evidence.zip
+atb snapshot customer_handoff --gate pass
+atb verify --format json
+ATB_PASSWORD='shared-review-secret' atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
+atb export --format compliance --output handoff/acme-review-evidence.zip
+
+ATB_PASSWORD='shared-review-secret' atb decrypt incoming/acme-review.atb.enc --output review/acme-review.atb
+atb verify review/acme-review.atb --format json
 ```
 
 ## Why Teams Use This

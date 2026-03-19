@@ -36,6 +36,13 @@ func TestParseEncryptArgs(t *testing.T) {
 			wantPass: "abc",
 		},
 		{
+			name:     "custom output path",
+			args:     []string{"my.atb", "--output", "handoff/acme-review.atb.enc", "--password=abc"},
+			wantPath: "my.atb",
+			wantOut:  "handoff/acme-review.atb.enc",
+			wantPass: "abc",
+		},
+		{
 			name:     "password from env",
 			args:     []string{"my.atb"},
 			wantPath: "my.atb",
@@ -103,6 +110,13 @@ func TestParseDecryptArgs(t *testing.T) {
 			args:     []string{"custom.bin", "--password=abc"},
 			wantPath: "custom.bin",
 			wantOut:  "custom.bin.decrypted.atb",
+			wantPass: "abc",
+		},
+		{
+			name:     "custom output path",
+			args:     []string{"handoff/acme-review.atb.enc", "--output", "review/acme-review.atb", "--password=abc"},
+			wantPath: "handoff/acme-review.atb.enc",
+			wantOut:  "review/acme-review.atb",
 			wantPass: "abc",
 		},
 		{

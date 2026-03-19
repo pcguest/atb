@@ -131,6 +131,7 @@ Integration docs:
 ## 8. Next Steps
 
 - [Docs Home](./README.md)
+- [Customer Handoff Workflow](./guides/customer-handoff-workflow.md)
 - [ATB Specification v1.0](./spec-v1.0.md)
 - [Security Model](./security.md)
 - [Contributing](../CONTRIBUTING.md)

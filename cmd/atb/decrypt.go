@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pcguest/atb/internal/encrypt"
@@ -20,6 +21,14 @@ func parseDecryptArgs(args []string) (decryptConfig, error) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
+		case arg == "--output":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --output")
+			}
+			cfg.OutputPath = args[i+1]
+			i++
+		case strings.HasPrefix(arg, "--output="):
+			cfg.OutputPath = strings.TrimPrefix(arg, "--output=")
 		case arg == "--password":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --password")
@@ -47,7 +56,9 @@ func parseDecryptArgs(args []string) (decryptConfig, error) {
 	if cfg.Password == "" {
 		return cfg, fmt.Errorf("--password is required (or set ATB_PASSWORD)")
 	}
-	cfg.OutputPath = defaultDecryptOutputPath(cfg.InputPath)
+	if cfg.OutputPath == "" {
+		cfg.OutputPath = defaultDecryptOutputPath(cfg.InputPath)
+	}
 	return cfg, nil
 }
 
@@ -62,7 +73,7 @@ func cmdDecrypt() {
 	cfg, err := parseDecryptArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb decrypt: %v\n", err)
-		fmt.Fprintln(os.Stderr, "Usage: atb decrypt <encrypted_path> [--password <password>] (or set ATB_PASSWORD)")
+		fmt.Fprintln(os.Stderr, "Usage: atb decrypt <encrypted_path> [--output <path>] [--password <password>] (or set ATB_PASSWORD)")
 		os.Exit(exitUserError)
 	}
 
@@ -95,6 +106,10 @@ func cmdDecrypt() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb decrypt: %v\n", err)
 		os.Exit(exitIntegrityFailure)
+	}
+	if err := os.MkdirAll(filepath.Dir(cfg.OutputPath), 0750); err != nil { // #nosec G301 -- tightened to 0750 per gosec
+		fmt.Fprintf(os.Stderr, "atb decrypt: mkdir output dir: %v\n", err)
+		os.Exit(exitSystemError)
 	}
 	if err := b.Save(cfg.OutputPath); err != nil {
 		fmt.Fprintf(os.Stderr, "atb decrypt: save decrypted bundle: %v\n", err)
