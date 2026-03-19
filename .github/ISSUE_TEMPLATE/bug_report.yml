@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in the ATB CLI, SDK, or web platform.
+description: Report a bug in the Go CLI, SDKs, local viewer, or docs.
 title: "[Bug]: "
 labels: ["bug", "needs-triage"]
 assignees: []
@@ -16,10 +16,10 @@ body:
       label: Component
       description: Which part of ATB is affected?
       options:
-        - CLI (Go)
+        - Go CLI
         - Python SDK
         - TypeScript SDK
-        - Web Platform
+        - Local viewer / dashboard
         - Documentation
         - CI/CD
     validations:
@@ -30,7 +30,7 @@ body:
     attributes:
       label: ATB Version
       description: Output of `atb version` (CLI) or SDK version.
-      placeholder: "e.g. v0.1.0 (`atb version`)"
+      placeholder: "e.g. atb 1.1.0 or atb-sdk 1.1.0"
     validations:
       required: true
 
@@ -40,9 +40,9 @@ body:
       label: Impact
       description: How severe is this issue for your workflow?
       options:
-        - Blocker
-        - Nice-to-have
-        - Question
+        - Blocks current work
+        - Degrades review or handoff
+        - Cosmetic or docs only
     validations:
       required: true
 
@@ -58,7 +58,7 @@ body:
     id: reproduction
     attributes:
       label: Steps to Reproduce
-      description: Minimal steps to reproduce the issue.
+      description: Minimal steps to reproduce the issue. Include the exact command or SDK call when possible.
       placeholder: |
         1. Run `atb init`
         2. Run `atb append ...`
@@ -86,7 +86,7 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: OS, architecture, Go/Python/Node version.
+      description: OS, architecture, and any runtime versions involved.
       placeholder: |
         OS: macOS 14 (Apple Silicon)
         Go: 1.22.4
@@ -97,8 +97,8 @@ body:
   - type: checkboxes
     id: trace_bundle_attached
     attributes:
-      label: Trace Bundle Attached?
-      description: Attach a redacted `.atb` bundle if possible.
+      label: Bundle Evidence Attached?
+      description: Attach a redacted `.atb` bundle or sanitized excerpt if it helps reproduce the issue.
       options:
         - label: I attached an ATB trace bundle (or sanitized excerpt) that reproduces this issue.
           required: false

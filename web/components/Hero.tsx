@@ -44,7 +44,7 @@ export default function Hero() {
             mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
           }`}
         >
-          <span className="text-white">Local-first trace bundles</span>
+          <span className="text-white">Local-first audit trails</span>
           <br />
           <span className="gradient-text">you can verify yourself</span>
         </h1>
@@ -56,9 +56,9 @@ export default function Hero() {
           }`}
         >
           ATB ships as a Go CLI plus Python and TypeScript SDKs. It writes tamper-evident bundles to
-          disk, serves a local viewer, and exports deterministic evidence packs without a required
-          hosted control plane.
-          <span className="text-indigo-300"> Open source. Local-first. Explicitly scoped.</span>
+          disk, serves a local viewer, and exports deterministic evidence packs without default
+          external trace storage.
+          <span className="text-indigo-300"> Go CLI first. Local review by default.</span>
         </p>
 
         {/* CTA buttons */}

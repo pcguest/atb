@@ -10,6 +10,12 @@ npm install @pcguest/atb-sdk
 pnpm add @pcguest/atb-sdk
 ```
 
+Use this package when you need to write or verify bundles from TypeScript or JavaScript code. The Go CLI remains the authoritative CLI path:
+
+```bash
+go install github.com/pcguest/atb/cmd/atb@latest
+```
+
 The package does not include a standalone ATB CLI. The installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
 
 ## Quick Start

@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"  # ✅ Modern standard backend
 [project]
 name = "atb-sdk"
 version = "1.1.0"
-description = "ATB (Agent Trace Bundle) Python SDK - tamper-evident audit trails for AI agent workflows"
+description = "ATB (Agent Trace Bundle) Python SDK - local-first, tamper-evident audit trails for AI workflows"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Paddy Guest", email = "patrickcguest@proton.me" }]
-keywords = ["audit", "ai", "agents", "tracing", "observability"]
+keywords = ["audit", "ai", "traceability", "verification", "privacy", "local-first"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",

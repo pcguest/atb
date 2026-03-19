@@ -1,11 +1,17 @@
 # ATB Python SDK
 
-The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb) - tamper-evident, replayable audit trails for AI agent workflows.
+The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb) - local-first, tamper-evident audit trails for AI workflows.
 
 ## Installation
 
 ```bash
 pip install atb-sdk
+```
+
+Use this package when you need to write or verify bundles from Python code. The Go CLI remains the authoritative CLI path:
+
+```bash
+go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
 The package does not include a standalone ATB CLI. The installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
@@ -21,7 +27,7 @@ pip install atb-sdk[langchain]
 ```python
 from atb import Bundle
 
-# Create a new bundle
+# Create a new bundle in Python
 bundle = Bundle()
 
 # Append events

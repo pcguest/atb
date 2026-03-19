@@ -8,7 +8,7 @@
 
 ATB is the local-first audit trail for privacy-sensitive AI systems.
 
-It records agent runs as tamper-evident bundles you can inspect locally, verify cryptographically, and export as deterministic evidence for incident review, customer handoff, and compliance workflows. It is designed for teams that need proof of what happened without sending raw traces to someone else's platform.
+It records AI workflow events as tamper-evident bundles you can inspect locally, verify cryptographically, and export as deterministic evidence for incident review, customer handoff, and internal audit or privacy review. It is designed for teams that need proof of what happened without default external trace storage.
 
 ## Why Teams Pick ATB
 
@@ -28,23 +28,22 @@ It records agent runs as tamper-evident bundles you can inspect locally, verify 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
+atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042"}'
+atb verify
 atb view --ui-experimental
 ```
 
-Verify integrity at any time:
-
-```bash
-atb verify
-```
+`atb view` serves the default local viewer. Add `--ui-experimental` to open the role-based dashboard preview available in `v1.1.0`.
 
 ## What ATB Includes
 
 - **Tamper-evident event logs:** SHA-256 hash chains with RFC 8785 canonical JSON catch mutation, reordering, and deletion.
 - **Local-first verification:** trace inspection and verification run locally, with no required backend.
 - **Client-side encryption:** AES-256-GCM encryption for protected bundle handoff workflows.
-- **Deterministic evidence export:** built-in `soc2` and `gdpr` export paths for controls evidence, DSR, and RoPA workflows.
+- **Deterministic evidence export:** `soc2` and `gdpr` export paths for controls evidence, DSR, and RoPA workflows. In `v1.1.0`, run exports from a repo checkout so the required templates under `docs/compliance/` are present.
 - **Local viewer and dashboard:** `atb view` serves the local viewer, and `atb view --ui-experimental` enables the role-based dashboard with timeline, graph, inspector, and privacy reveal audit logging.
 - **Developer integrations:** native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript.
+- **Go CLI as the primary distribution path:** Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path.
 
 ## Best Fit
 
@@ -52,7 +51,7 @@ ATB is best suited to:
 
 - security-minded AI teams running internal copilots or agent workflows with sensitive data
 - consultancies and delivery teams that need a portable audit artefact for handoff or review
-- enterprise builders that need evidence without default external trace storage
+- enterprise builders that need a reviewable local evidence layer for internal audit or privacy review
 
 ATB is not intended to be a generic hosted LLM observability platform.
 
@@ -72,7 +71,9 @@ Start at [Docs Home](docs/README.md).
 - [Quickstart](docs/quickstart.md)
 - [Incident Review Workflow](docs/use-cases/incident-review.md)
 - [Customer Handoff Workflow](docs/use-cases/customer-handoff.md)
+- [Internal Audit and Privacy Review](docs/use-cases/internal-audit-privacy-review.md)
 - [ATB vs Hosted AI Observability](docs/comparisons/hosted-observability.md)
+- [ATB vs Logs, Screenshots, and Ad Hoc Exports](docs/comparisons/logs-and-screenshots.md)
 - [Dashboard Specification](docs/spec-dashboard.md)
 - [AI Integrations](docs/guides/README.md)
 - [ATB Specification v1.0](docs/spec-v1.0.md)

@@ -34,6 +34,8 @@ atb view --ui-experimental
 atb export --format soc2 --bundle run.atb/bundle.atb --output incident-evidence.zip
 ```
 
+In `v1.1.0`, run export commands from a repo checkout so the required templates under `docs/compliance/` are available.
+
 ## Why This Fits Sensitive Environments
 
 - **Local-first by default:** raw traces remain in local storage unless you explicitly export or encrypt them.

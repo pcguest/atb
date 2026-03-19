@@ -1,20 +1,18 @@
 # ATB Quickstart
 
-ATB provides tamper-evident, replayable traces for AI workflows.
+ATB provides tamper-evident, verifiable audit trails for AI workflows.
 
 ## 1. Quick Start (CLI)
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
+atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042"}'
+atb verify
 atb view --ui-experimental
 ```
 
-Integrity check:
-
-```bash
-atb verify
-```
+The Go CLI is the primary install path. The Python and TypeScript packages are SDKs that write the same `.atb` format.
 
 ## 2. Installation Options
 
@@ -38,7 +36,7 @@ npm install @pcguest/atb-sdk
 
 The Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
 
-## 3. Record Your First Trace (Python)
+## 3. Record Your First Trace (Python SDK)
 
 ```python
 from atb import Bundle
@@ -98,6 +96,8 @@ atb view --ui-experimental
 ```
 
 ## 6. Compliance Exports
+
+In `v1.1.0`, run export commands from a repo checkout so the required templates under `docs/compliance/` are available.
 
 ```bash
 atb config retention --days 90

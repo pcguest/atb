@@ -8,7 +8,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for your feature suggestion! Please provide as much context as possible.
+        ATB is focused on local-first audit trails for privacy-sensitive AI systems.
+        Requests tied to incident review, customer handoff, or internal audit are easier to evaluate.
 
   - type: dropdown
     id: component
@@ -16,10 +17,10 @@ body:
       label: Component
       description: Which part of ATB would this feature affect?
       options:
-        - CLI (Go)
+        - Go CLI
         - Python SDK
         - TypeScript SDK
-        - Web Platform
+        - Local viewer / dashboard
         - Documentation
         - New Integration
         - Other
@@ -30,7 +31,20 @@ body:
     id: problem
     attributes:
       label: Problem Statement
-      description: What problem does this feature solve? What is the current limitation?
+      description: What concrete workflow is blocked today, and what is the current limitation?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Primary Workflow
+      description: Which buyer or operator workflow does this request support?
+      options:
+        - Incident review
+        - Customer handoff
+        - Internal audit or privacy review
+        - Other
     validations:
       required: true
 
@@ -38,7 +52,7 @@ body:
     id: solution
     attributes:
       label: Proposed Solution
-      description: Describe the feature you would like to see implemented.
+      description: Describe the feature you want and why the current repo shape is insufficient.
     validations:
       required: true
 
@@ -55,9 +69,9 @@ body:
     attributes:
       label: Impact
       options:
-        - Blocker
-        - Nice-to-have
-        - Question
+        - Removes a current blocker
+        - Material improvement
+        - Exploratory
     validations:
       required: true
 
@@ -66,7 +80,7 @@ body:
     attributes:
       label: ATB Version
       description: Output of `atb version` (CLI) or SDK version.
-      placeholder: "e.g. v0.1.0 (`atb version`)"
+      placeholder: "e.g. atb 1.1.0 or atb-sdk 1.1.0"
     validations:
       required: true
 

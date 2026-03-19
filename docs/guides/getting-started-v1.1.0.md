@@ -1,5 +1,7 @@
 # Getting Started with ATB v1.1.0
 
+This guide is for evaluating the `v1.1.0` tag from source. For day-to-day use, install the Go CLI directly with `go install github.com/pcguest/atb/cmd/atb@v1.1.0`.
+
 ## Prerequisites
 - Go 1.26.1
 - Node.js 20.9+ if you need to rebuild the embedded web export
@@ -32,6 +34,8 @@ go build -o atb ./cmd/atb
 ./atb view --ui-experimental
 # Opens http://localhost:8080/view/
 ```
+
+Plain `./atb view` still serves the default local viewer. The role-based dashboard remains behind `--ui-experimental` in `v1.1.0`.
 
 ### 5. Verify Integrity
 ```bash
@@ -70,6 +74,9 @@ Point `ATB_PII_FIELDS_PATH` to a JSON file or update `docs/compliance/pii-fields
 Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log-reveals` flag is retained for CLI compatibility but is no longer required.
 
 ### Export Evidence
+
+In `v1.1.0`, run export commands from a repo checkout so the required templates under `docs/compliance/` are available.
+
 ```bash
 ./atb export --format soc2 --bundle run.atb/bundle.atb --output evidence.zip
 # Includes manifest, checksums, and bundle evidence
@@ -88,4 +95,5 @@ Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log
 ## Next Steps
 - Read `docs/api/openapi.yaml` for API details
 - Explore `docs/security.md` for security model
+- Read `docs/use-cases/internal-audit-privacy-review.md` for buyer-facing review workflow
 - Open an issue with the `v1.1.0` label if you find a problem

@@ -2,6 +2,8 @@
 
 Use this index to navigate ATB docs by intent.
 
+ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs that write the same bundle format.
+
 ## New Users
 
 - [Getting Started Hub](./getting-started/README.md)
@@ -13,7 +15,9 @@ Use this index to navigate ATB docs by intent.
 - [Use Cases](./use-cases/README.md)
 - [Incident Review for Private AI Workflows](./use-cases/incident-review.md)
 - [Customer Handoff Without Platform Lock-In](./use-cases/customer-handoff.md)
+- [Internal Audit and Privacy Review on a Local Bundle](./use-cases/internal-audit-privacy-review.md)
 - [ATB vs Hosted AI Observability](./comparisons/hosted-observability.md)
+- [ATB vs Logs, Screenshots, and Ad Hoc Exports](./comparisons/logs-and-screenshots.md)
 
 ## Engineering Guides
 

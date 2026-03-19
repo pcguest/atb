@@ -29,4 +29,4 @@ atb verify
 - Python SDK: `pip install atb-sdk`
 - TypeScript SDK: `npm install @pcguest/atb-sdk`
 
-The Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
+The Go CLI is the authoritative CLI path. The Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.

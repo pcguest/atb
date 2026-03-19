@@ -1,13 +1,13 @@
 # ATB Project Constitution
 
 ## 1. Mission
-Cryptographically verifiable audit trails for AI agent workflows. AI-Readable, Human-Trustable.
+Verifiable, local-first audit trails for privacy-sensitive AI systems.
 
 ## 2. Non-Negotiables (The Five Pillars)
 1. **Zero-Knowledge by Default:** Keys/passwords never leave client.
-2. **Local-First, Cloud-Optional:** Offline works; cloud enhances.
+2. **Local-First and Portable:** Offline works; transfer is explicit.
 3. **Integrity-Verified Everywhere:** Hash chain on every load/save.
-4. **Observable but Private:** Metrics exist; user data never exposed.
+4. **Auditable Without Oversharing:** Review workflows default to local control and masked data.
 5. **Documented or It Doesn't Exist:** If not in docs/, it's not ready.
 
 ## 3. Decision Framework (The Paddy Test)

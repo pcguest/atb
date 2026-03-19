@@ -4,7 +4,7 @@ Title: Show HN: ATB — tamper-evident audit trails for AI agents (local-first, 
 
 Hi HN,
 
-I built ATB (Agent Trace Bundle), an open-source runtime format for recording AI/agent workflows as tamper-evident event bundles.
+I built ATB (Agent Trace Bundle), an open-source local-first audit trail for recording AI workflows as tamper-evident event bundles.
 
 What it does:
 - Hash-chains every event with SHA-256
@@ -14,7 +14,7 @@ What it does:
 
 Why I built it:
 - Agent workflows are hard to audit after the fact
-- Teams need replayable traces for debugging and compliance
+- Teams often need a reviewable record, not just logs
 - I wanted a local-first format that works without extra infrastructure
 
 Repo:
@@ -29,6 +29,6 @@ go build -o atb ./cmd/atb
 ```
 
 I’d love feedback on:
-- event schema conventions
-- signing/compliance exports roadmap
-- hosted viewer vs. staying strictly file-first
+- where incident review breaks down in current AI stacks
+- whether customer handoff without a vendor control plane is a real pain
+- where the local-first boundary should stay sharp

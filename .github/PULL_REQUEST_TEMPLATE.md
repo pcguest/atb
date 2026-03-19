@@ -20,6 +20,7 @@
 - [ ] Go tests pass (`go test ./...`)
 - [ ] Python SDK tests pass (`pytest sdk/python/tests/`)
 - [ ] Cross-language golden test passes
+- [ ] Web checks pass if UI or embed copy changed
 - [ ] Manual testing completed
 
 ## Checklist
@@ -28,4 +29,5 @@
 - [ ] Self-review of the code has been performed
 - [ ] Comments have been added for complex logic
 - [ ] Documentation has been updated (if applicable)
+- [ ] Public copy matches shipped capability and install paths
 - [ ] CHANGELOG.md has been updated (for significant changes)

@@ -1,14 +1,14 @@
-# ATB v1.1.0: Trust Dashboard
+# ATB v1.1.0
 
 **Release Date:** 2026-03-12  
 **Tag:** `v1.1.0`  
 **Download:** https://github.com/pcguest/atb/releases/tag/v1.1.0
 
-ATB v1.1.0 sharpens ATB into a local-first trust dashboard for teams that need to verify what an AI agent did, keep trace data under their control, and export deterministic evidence for review.
+ATB v1.1.0 sharpens ATB into a local-first audit trail for teams that need to verify what an AI workflow did, keep trace data under their control, and produce a portable review artefact without default external trace storage.
 
 ## Highlights
 
-- Local trust dashboard with engineer, auditor, and executive views
+- Local viewer and dashboard preview for private review workflows
 - Hash-chained privacy reveal audit logging
 - Token-based auth and rate limiting on sensitive reveal paths
 - Deterministic SOC 2 and GDPR export workflows
@@ -27,19 +27,29 @@ Current release validation covers:
 ## Quick Start
 
 ```bash
-pip install atb-sdk
+go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb view
+atb append agent.run --data='{"workflow":"support-triage"}'
 atb verify
+atb view --ui-experimental
 ```
 
 ## Core Positioning
 
-ATB is for teams that need verifiable audit trails for privacy-sensitive AI agents. It is not positioned as a generic hosted observability platform.
+ATB is for teams that need verifiable audit trails for privacy-sensitive AI systems. The Go CLI is the primary distribution path. The Python and TypeScript packages remain SDKs, not the primary CLI install path.
+
+Best-fit workflows:
+
+- incident review without default external trace storage
+- customer handoff without platform lock-in
+- internal audit and privacy review on a local bundle
 
 ## Links
 
 - Docs: https://github.com/pcguest/atb/tree/main/docs
+- Incident review workflow: https://github.com/pcguest/atb/blob/main/docs/use-cases/incident-review.md
+- Internal audit and privacy review: https://github.com/pcguest/atb/blob/main/docs/use-cases/internal-audit-privacy-review.md
+- Hosted observability comparison: https://github.com/pcguest/atb/blob/main/docs/comparisons/hosted-observability.md
 - Security policy: https://github.com/pcguest/atb/blob/main/SECURITY.md
 - Issues: https://github.com/pcguest/atb/issues
 

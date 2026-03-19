@@ -8,8 +8,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        ATB aims to integrate with the most popular AI frameworks and platforms.
-        Let us know what integration would be most valuable to you.
+        Request a concrete integration that would help ATB record, review, or hand off AI workflow evidence.
+        Please describe the workflow, not just the framework name.
 
   - type: input
     id: framework
@@ -32,7 +32,7 @@ body:
     id: use_case
     attributes:
       label: Use Case
-      description: How would you use this integration? What events should ATB record?
+      description: What workflow should this integration support, and what evidence should ATB capture?
     validations:
       required: true
 
@@ -49,7 +49,7 @@ body:
     id: sdk
     attributes:
       label: SDK
-      description: Which SDK should this integration target?
+      description: Which shipped SDK path should this integration target?
       options:
         - Python SDK
         - TypeScript SDK
@@ -62,9 +62,9 @@ body:
     attributes:
       label: Impact
       options:
-        - Blocker
-        - Nice-to-have
-        - Question
+        - Removes a current blocker
+        - Material improvement
+        - Exploratory
     validations:
       required: true
 
@@ -73,7 +73,7 @@ body:
     attributes:
       label: ATB Version
       description: Output of `atb version` (CLI) or SDK version.
-      placeholder: "e.g. v0.1.0 (`atb version`)"
+      placeholder: "e.g. atb 1.1.0 or atb-sdk 1.1.0"
     validations:
       required: true
 

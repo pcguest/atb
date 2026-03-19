@@ -1,6 +1,6 @@
 # ATB v1.0 Specification
 
-**ATB (Agent Trace Bundle)** is a file format and protocol for creating tamper-evident, replayable audit trails of AI agent workflow events.
+**ATB (Agent Trace Bundle)** is a file format and protocol for creating tamper-evident, verifiable audit trails of AI workflow events.
 
 ---
 

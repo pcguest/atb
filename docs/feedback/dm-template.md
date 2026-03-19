@@ -14,7 +14,7 @@ If your team is handling sensitive internal or customer data, I think ATB may be
 
 ### Short DM
 
-Hi {{name}} - I'm building ATB, a local-first audit trail for AI systems. Useful when you need to verify what an agent did without shipping raw traces to a hosted platform. Worth sending a short example?
+Hi {{name}} - I'm building ATB, a local-first audit trail for AI systems. Useful when you need to verify what an AI workflow did without default external trace storage. Worth sending a short example?
 
 ## Consultancies
 
@@ -30,7 +30,7 @@ If that sounds relevant, I can send a short before-and-after example.
 
 ### Short DM
 
-Hi {{name}} - I'm working on ATB, a local-first audit trail for AI delivery teams. The useful part for consultancies is client handoff: a portable bundle instead of screenshots or a platform seat. Want the short version?
+Hi {{name}} - I'm working on ATB, a local-first audit trail for AI delivery teams. The useful part for consultancies is client handoff: a portable bundle instead of screenshots or another vendor login. Want the short version?
 
 ## Privacy-Sensitive Enterprise Builders
 
@@ -48,7 +48,7 @@ Hi {{name}} - I'm building ATB for privacy-sensitive AI systems. It gives teams 
 
 ## Follow-Up
 
-Hi {{name}} - sending one follow-up in case this is relevant. If local-first, verifiable AI traces are on your list this quarter, I'm happy to send a short example. If not, no problem.
+Hi {{name}} - sending one follow-up in case this is relevant. If local-first, verifiable AI audit trails are on your list this quarter, I'm happy to send a short example. If not, no problem.
 
 ## Call Opener
 
@@ -105,7 +105,7 @@ Scope:
 - one review or evidence output
 - direct founder support
 
-Success would mean your team can produce a trustworthy review artefact without default hosted trace storage. If that is the problem you want to close, I can send a simple proposal.
+Success would mean your team can produce a trustworthy review artefact without default external trace storage. If that is the problem you want to close, I can send a simple proposal.
 
 ## Qualification Notes
 

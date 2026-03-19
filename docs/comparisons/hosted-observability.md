@@ -65,3 +65,5 @@ ATB does not currently claim:
 - managed cloud retention
 
 That boundary is intentional. ATB is focused on giving privacy-sensitive teams a verifiable audit trail, not a generic control plane.
+
+If the real alternative is not a hosted platform but ad hoc evidence, read [ATB vs Logs, Screenshots, and Ad Hoc Exports](./logs-and-screenshots.md).
