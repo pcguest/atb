@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -797,7 +798,7 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 		}
 	}
 
-	requiredComplianceDoc := filepath.Join("docs", "compliance", cfg.Format+".md")
+	requiredComplianceDoc := path.Join("docs", "compliance", cfg.Format+".md")
 	complianceData, err := readExportDoc(requiredComplianceDoc)
 	if err != nil {
 		return base, fmt.Errorf("read required compliance doc %s: %w", requiredComplianceDoc, err)
@@ -1560,14 +1561,15 @@ func discoverComplianceDocs() ([]string, error) {
 }
 
 func readExportDoc(doc string) ([]byte, error) {
-	data, err := atbembed.ReadExportDoc(doc)
+	embeddedDocPath := path.Clean(filepath.ToSlash(doc))
+	data, err := atbembed.ReadExportDoc(embeddedDocPath)
 	if err == nil {
 		return data, nil
 	}
 	if !errors.Is(err, fs.ErrNotExist) {
 		return nil, err
 	}
-	data, readErr := os.ReadFile(doc) // #nosec G304 -- fallback reads from repo-controlled doc paths
+	data, readErr := os.ReadFile(filepath.FromSlash(embeddedDocPath)) // #nosec G304 -- fallback reads from repo-controlled doc paths
 	if readErr != nil {
 		return nil, readErr
 	}

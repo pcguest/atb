@@ -137,7 +137,7 @@ security-scan:
 		trivy fs --scanners vuln --severity CRITICAL,HIGH --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ trivy not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" aquasec/trivy:latest fs --scanners vuln --severity CRITICAL,HIGH --format json --output /work/trivy-report.json /work; \
+		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.61.0 fs --scanners vuln --severity CRITICAL,HIGH --format json --output /work/trivy-report.json /work; \
 	fi
 	@GOSEC_BIN="$$(command -v gosec || true)"; \
 	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
