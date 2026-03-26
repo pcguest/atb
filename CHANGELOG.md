@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the deprecated `internal/viewer` package by moving the legacy `atb view` HTML renderer into the CLI package.
 - Moved planned web testing follow-up items out of `web/README.md` into `docs/roadmap/web-testing.md`.
 - Clarified that legacy `langchain.*` event types remain for backward compatibility while new integrations must use the Phase 5 `ai.*` taxonomy.
+- Trivy scans moved to weekly schedule; security-scan.yml removed (duplicate).
 
 ### Fixed
 - Added `genesis_hash` and `verified_at` to `GET /api/v1/bundle/meta`.
