@@ -21,7 +21,6 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/viewer"
 	apiv1 "github.com/pcguest/atb/pkg/api/v1"
 )
 
@@ -105,20 +104,20 @@ func cmdView() {
 	fmt.Println("atb view: stopped")
 }
 
-func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (http.Handler, viewer.PageData, bool, string, error) {
+func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (http.Handler, legacyPageData, bool, string, error) {
 	_ = logReveals // privacy reveal auditing is always on in v1.1.0
 
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
-		return nil, viewer.PageData{}, false, "/", fmt.Errorf("load bundle %s: %w", bundlePath, err)
+		return nil, legacyPageData{}, false, "/", fmt.Errorf("load bundle %s: %w", bundlePath, err)
 	}
 	verifyErr := b.Verify()
 	revealAuthToken, err := generateRevealAuthToken()
 	if err != nil {
-		return nil, viewer.PageData{}, false, "/", fmt.Errorf("generate privacy reveal auth token: %w", err)
+		return nil, legacyPageData{}, false, "/", fmt.Errorf("generate privacy reveal auth token: %w", err)
 	}
 
-	page := viewer.BuildPageData(b, bundlePath)
+	page := buildLegacyPageData(b, bundlePath)
 	mux := http.NewServeMux()
 	api := apiv1.NewAPIServer(apiv1.APIConfig{
 		BundlePath:      bundlePath,
@@ -145,7 +144,7 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 		}
 	}
 
-	mux.Handle("/", viewer.NewHandler(page))
+	mux.Handle("/", newLegacyViewHandler(page))
 	return withSecurityHeaders(mux, revealAuthToken), page, false, openPath, nil
 }
 

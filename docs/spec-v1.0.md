@@ -95,6 +95,10 @@ Unset optional fields are omitted from canonicalization output. For example, if 
 
 Event types use dot-namespaced identifiers. The following types are defined by the ATB standard:
 
+### Legacy event types (v1.0, superseded)
+
+These types are defined for backward compatibility with bundles created before the Phase 5 AI trace specification. New integrations MUST use the types defined in `docs/spec-ai-traces.md` instead.
+
 | Type | Description |
 |------|-------------|
 | `dev.session` | A development session |
@@ -110,6 +114,14 @@ Event types use dot-namespaced identifiers. The following types are defined by t
 | `langchain.agent.finish` | LangChain agent completed |
 
 Custom event types are permitted using reverse-domain notation (e.g., `com.example.custom_event`).
+
+### Current AI trace event types (Phase 5)
+
+| Type | Description | Reference |
+|------|-------------|-----------|
+| `ai.llm.call` | Canonical LLM lifecycle event type for new integrations | `docs/spec-ai-traces.md` |
+| `ai.tool.exec` | Canonical tool execution event type for new integrations | `docs/spec-ai-traces.md` |
+| `ai.chain.run` | Canonical chain or step lifecycle event type for new integrations | `docs/spec-ai-traces.md` |
 
 ---
 

@@ -17,6 +17,7 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/hash"
 )
 
 const (
@@ -192,12 +193,19 @@ func (s *APIServer) handleBundleMeta(w http.ResponseWriter, r *http.Request) {
 		lastTS = ts
 	}
 
+	verifiedAt := ""
+	if len(s.b.Records) > 0 && s.verifyErr == nil {
+		verifiedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+
 	out := BundleMetaResponse{
 		BundlePath:      s.bundlePath,
 		EventCount:      len(s.b.Records),
 		TypeCounts:      typeCounts,
 		FirstTimestamp:  firstTS,
 		LastTimestamp:   lastTS,
+		GenesisHash:     hash.GenesisHash,
+		VerifiedAt:      verifiedAt,
 		Verified:        true,
 		VerificationMsg: "hash chain verified",
 	}

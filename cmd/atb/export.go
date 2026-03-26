@@ -29,6 +29,8 @@ const (
 
 	exportGDPRTypeDSR  = "dsr"
 	exportGDPRTypeROPA = "ropa"
+
+	unsignedSignatureStatus = "unsigned — see docs/spec/atb-push-v1.1.md"
 )
 
 type exportConfig struct {
@@ -124,7 +126,8 @@ type soc2EvidenceManifest struct {
 	BundleHash        string                `json:"bundle_hash"`
 	GeneratedAt       string                `json:"generated_at"`
 	Controls          []soc2ControlEvidence `json:"controls"`
-	VerifierSignature string                `json:"verifier_signature"`
+	VerifierSignature *string               `json:"verifier_signature"`
+	SignatureStatus   string                `json:"signature_status"`
 }
 
 type soc2AuditTrailRecord struct {
@@ -174,8 +177,9 @@ type gdprDSRExport struct {
 }
 
 type gdprDSRProvenance struct {
-	SourceBundleHash    string `json:"source_bundle_hash"`
-	ExtractionSignature string `json:"extraction_signature"`
+	SourceBundleHash    string  `json:"source_bundle_hash"`
+	ExtractionSignature *string `json:"extraction_signature"`
+	SignatureStatus     string  `json:"signature_status"`
 }
 
 type gdprROPAExport struct {
@@ -617,7 +621,8 @@ func buildSOC2Export(now time.Time, cfg exportConfig) (exportBuildResult, error)
 		BundleHash:        "sha256:" + sha256Hex(base.BundleRaw),
 		GeneratedAt:       now.UTC().Format(time.RFC3339),
 		Controls:          make([]soc2ControlEvidence, 0, len(soc2Controls)),
-		VerifierSignature: "ed25519:unsigned",
+		VerifierSignature: nil,
+		SignatureStatus:   unsignedSignatureStatus,
 	}
 	soc2Manifest.AuditPeriod.Start = periodStart.UTC().Format(time.RFC3339)
 	soc2Manifest.AuditPeriod.End = periodEnd.UTC().Format(time.RFC3339)
@@ -993,7 +998,8 @@ func buildGDPRDSRDocument(now time.Time, cfg exportConfig, base exportBaseEviden
 		DataCategories: dsrCategories,
 		Provenance: gdprDSRProvenance{
 			SourceBundleHash:    "sha256:" + sha256Hex(base.BundleRaw),
-			ExtractionSignature: "ed25519:unsigned",
+			ExtractionSignature: nil,
+			SignatureStatus:     unsignedSignatureStatus,
 		},
 	}, nil
 }

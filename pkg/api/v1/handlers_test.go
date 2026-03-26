@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/hash"
 )
 
 func buildTestAPIServer(t *testing.T, cfg APIConfig) (*APIServer, http.Handler) {
@@ -201,5 +203,35 @@ func TestMaskSensitiveUsesConfiguredRules(t *testing.T) {
 	}
 	if profile["bio"] != "[REDACTED]" {
 		t.Fatalf("expected profile.bio to be redacted, got %v", profile["bio"])
+	}
+}
+
+func TestBundleMetaIncludesIntegrityFields(t *testing.T) {
+	bundlePath, b := createTestBundle(t)
+	_, handler := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		RevealAuthToken: "test-token",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/meta", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+
+	var out BundleMetaResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if out.GenesisHash != hash.GenesisHash {
+		t.Fatalf("genesis_hash: got %q want %q", out.GenesisHash, hash.GenesisHash)
+	}
+	if out.VerifiedAt == "" {
+		t.Fatalf("expected verified_at to be set")
+	}
+	if _, err := time.Parse(time.RFC3339, out.VerifiedAt); err != nil {
+		t.Fatalf("verified_at should be RFC3339, got %q err=%v", out.VerifiedAt, err)
 	}
 }

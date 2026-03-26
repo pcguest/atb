@@ -1,4 +1,5 @@
 name: Release
+# Action SHAs pinned. To update: check upstream release tags and update SHA + comment.
 
 on:
   push:

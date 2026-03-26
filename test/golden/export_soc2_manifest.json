@@ -72,5 +72,6 @@
       }
     }
   ],
-  "verifier_signature": "ed25519:unsigned"
+  "verifier_signature": null,
+  "signature_status": "unsigned — see docs/spec/atb-push-v1.1.md"
 }

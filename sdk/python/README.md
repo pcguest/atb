@@ -66,6 +66,8 @@ llm = ChatOpenAI(callbacks=[handler])
 # All LLM calls are now automatically recorded in the bundle.
 ```
 
+The deprecated shim import path `atb.integrations.langchain.ATBCallbackHandler` still works for compatibility, but it emits a `DeprecationWarning`. Use `atb.langchain_callback.ATBCallbackHandler` for new code.
+
 ## Licence
 
 MIT

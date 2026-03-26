@@ -42,9 +42,8 @@ beforeEach(() => {
       bundle_path: "/tmp/mock-bundle.atb",
       event_count: 3,
       type_counts: {
-        "ai.chain.start": 1,
-        "ai.tool.call": 1,
-        "ai.chain.end": 1,
+        "ai.chain.run": 2,
+        "ai.tool.exec": 1,
       },
       first_timestamp: now,
       last_timestamp: now,
@@ -64,7 +63,7 @@ beforeEach(() => {
       events: [
         {
           seq: 1,
-          type: "ai.chain.start",
+          type: "ai.chain.run",
           hash: genesisHash,
           prev_hash: "f".repeat(64),
           timestamp: now,
@@ -72,7 +71,7 @@ beforeEach(() => {
         },
         {
           seq: 2,
-          type: "ai.tool.call",
+          type: "ai.tool.exec",
           hash: "b".repeat(64),
           prev_hash: genesisHash,
           timestamp: now,
@@ -80,7 +79,7 @@ beforeEach(() => {
         },
         {
           seq: 3,
-          type: "ai.chain.end",
+          type: "ai.chain.run",
           hash: headHash,
           prev_hash: "b".repeat(64),
           timestamp: now,

@@ -5,6 +5,20 @@ All notable changes to ATB will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Removed the deprecated `internal/viewer` package by moving the legacy `atb view` HTML renderer into the CLI package.
+- Moved planned web testing follow-up items out of `web/README.md` into `docs/roadmap/web-testing.md`.
+- Clarified that legacy `langchain.*` event types remain for backward compatibility while new integrations must use the Phase 5 `ai.*` taxonomy.
+
+### Fixed
+- Added `genesis_hash` and `verified_at` to `GET /api/v1/bundle/meta`.
+- Updated Cypress mock fixtures to use the current runtime AI event type names.
+- Replaced unsigned export signature placeholders with `null` plus explicit `signature_status` fields.
+- Added Python SDK deprecation guidance for `atb.integrations.langchain`.
+- Filled security findings log placeholders with the verified resolving commit metadata.
+
 ## [v1.1.0] - 2026-03-12
 
 ### Added
@@ -43,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed audit log from sidecar file to bundle.atb hash chain
 
 ### Fixed
-- Fixed 64KiB line limit warning (documented + RFC for v1.1.1)
+- 64KiB bundle line limit: scanner buffer not yet increased. Fix tracked for v1.1.1 — see internal/bundle/bundle.go Load().
 - Fixed CSP headers not being set on embedded UI
 - Fixed rate limit threshold mismatch (now 10/min exactly)
 - Fixed PII masking not using configurable field list
@@ -54,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cypress E2E may be unstable in some environments (Docker runner recommended)
 
 ### Deprecated
-- `internal/viewer` package (use `pkg/api/v1` instead)
+- `internal/viewer` package removed (superseded by `pkg/api/v1`)
 - Version-tag pinned GitHub Actions (use SHA pins)
 
 ## [v1.0.3] - release date not reconstructed in this repository snapshot

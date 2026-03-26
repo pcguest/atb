@@ -2,6 +2,8 @@
 
 This specification defines how framework runtime callbacks map into ATB events without changing the core ATB bundle record format in `docs/spec-v1.0.md`.
 
+This document supersedes the legacy `langchain.*` taxonomy in `docs/spec-v1.0.md` for new integrations. Legacy types remain valid only for backward-compatible verification of older bundles.
+
 ## Goals
 
 - Keep integrations low-friction and opt-in.

@@ -46,8 +46,4 @@ npm run test:a11y
 npm run build && npm run export
 ```
 
-### Post-Gold Tasks (v1.1.1)
-
-- [ ] Replace mock API with real `atb view --ui-experimental` server in E2E
-- [ ] Integrate Puppeteer for Lighthouse in CI
-- [ ] Add visual regression tests (Percy/Chromatic)
+See [docs/roadmap/web-testing.md](../docs/roadmap/web-testing.md) for planned web testing improvements.

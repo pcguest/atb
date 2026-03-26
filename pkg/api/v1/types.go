@@ -16,6 +16,8 @@ type BundleMetaResponse struct {
 	TypeCounts      map[string]int `json:"type_counts"`
 	FirstTimestamp  string         `json:"first_timestamp,omitempty"`
 	LastTimestamp   string         `json:"last_timestamp,omitempty"`
+	GenesisHash     string         `json:"genesis_hash"`
+	VerifiedAt      string         `json:"verified_at"`
 	Verified        bool           `json:"verified"`
 	VerificationMsg string         `json:"verification_message"`
 }

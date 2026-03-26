@@ -23,6 +23,7 @@
   ],
   "provenance": {
     "source_bundle_hash": "sha256:cc5116b5da993a03d8173ddad9e176b1f05c2d46a728fba50772730601d07d75",
-    "extraction_signature": "ed25519:unsigned"
+    "extraction_signature": null,
+    "signature_status": "unsigned — see docs/spec/atb-push-v1.1.md"
   }
 }

@@ -22,4 +22,4 @@ Dashboard Priority 1 requires `genesis_hash` and `verified_at` in the Bundle Met
 - Required to complete Priority 1 "Bundle Meta panel: chain_length, genesis_hash (copyable), head_hash, verified_at"
 
 **Implementation Status:**
-Approved by backend team. UI wiring active.
+Implemented in pkg/api/v1/handlers.go

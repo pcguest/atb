@@ -1,4 +1,4 @@
-"""Compatibility shim for the LangChain integration path.
+"""Deprecated compatibility shim for the LangChain integration path.
 
 Use ``atb.langchain_callback.ATBCallbackHandler`` for new code.
 """
@@ -15,13 +15,14 @@ class ATBCallbackHandler(_ATBCallbackHandler):
     """Deprecated import path compatibility wrapper.
 
     This class preserves the existing ``atb.integrations.langchain`` path and
-    forwards to ``atb.langchain_callback.ATBCallbackHandler``.
+    forwards to ``atb.langchain_callback.ATBCallbackHandler``. New code should
+    import ``ATBCallbackHandler`` from ``atb.langchain_callback`` directly.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         warnings.warn(
-            "Importing ATBCallbackHandler from atb.integrations.langchain is deprecated; "
-            "use atb.langchain_callback.ATBCallbackHandler instead.",
+            "atb.integrations.langchain is deprecated. "
+            "Use atb.langchain_callback instead.",
             DeprecationWarning,
             stacklevel=2,
         )

@@ -123,3 +123,8 @@ def test_langchain_shim_emits_deprecation_warning() -> None:
         ShimATBCallbackHandler(bundle=Bundle())
 
     assert any(isinstance(item.message, DeprecationWarning) for item in caught)
+    assert any(
+        "atb.integrations.langchain is deprecated. Use atb.langchain_callback instead."
+        in str(item.message)
+        for item in caught
+    )
