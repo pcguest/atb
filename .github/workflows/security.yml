@@ -82,12 +82,15 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.61.0
-
       - name: Run Trivy filesystem scan
-        run: trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format table .
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # 0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table
 
   trivy-image:
     name: Trivy Docker Image (HIGH/CRITICAL)
@@ -98,12 +101,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
-      - name: Install Trivy
-        run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.61.0
-
       - name: Build Docker image for scan
         run: docker build -t atb:security-scan .
 
       - name: Run Trivy image scan
-        run: trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 --format table atb:security-scan
+        uses: aquasecurity/trivy-action@6e7b7d1fd3e4fef0c5fa8cce1229c54b2c9bd0d8 # 0.28.0
+        with:
+          scan-type: image
+          image-ref: atb:security-scan
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table
