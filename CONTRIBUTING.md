@@ -11,14 +11,14 @@ git clone https://github.com/pcguest/atb.git
 cd atb
 ```
 
-## Development Workflow (v1.1.0+)
+## Development Workflow
 
-This project is operating in a **main-only** workflow for the v1.1.0 cycle.
+This project uses a **main-only** workflow.
 
 - **All work happens on `main`.** No long-lived feature branches.
 - **Use feature flags** (`--ui-experimental`) to hide incomplete features.
 - **Every commit must pass** `make hygiene-quick`.
-- **Tag releases:** `v1.1.0-rc1` -> testing -> `v1.1.0`.
+- **Tag releases:** use `vX.Y.Z-rcN` for release candidates and `vX.Y.Z` for gold releases.
 - **Security fixes** must pass security review before merge.
 
 ### Quick Start
@@ -52,7 +52,7 @@ To skip hooks (not recommended): `git commit --no-verify`
 4. **E2E testing:** 48-hour window for internal testers
 5. **Address feedback:** Fix critical issues, tag rc2 if needed
 6. **Gold release:** `git tag -a v1.1.0 -m "Gold Release"`
-7. **Publish:** Update README, announce on Discord/Twitter
+7. **Publish:** Update the GitHub Release notes and notify relevant stakeholders
 
 ### Go CLI
 
@@ -82,18 +82,7 @@ npm run build
 
 ## Security and Trivy Scans
 
-Follow [SECURITY.md](SECURITY.md) for vulnerability handling and disclosure process.
-
-Run local security checks before opening high-impact PRs:
-
-```bash
-# Filesystem scan (matches security workflow severity gates)
-trivy fs --scanners vuln --severity HIGH,CRITICAL .
-
-# Optional image scan if Docker changes are included
-docker build -t atb:security-scan .
-trivy image --scanners vuln --severity HIGH,CRITICAL atb:security-scan
-```
+Security scanning runs weekly via GitHub Actions. For local vulnerability checks, see [SECURITY.md](SECURITY.md).
 
 ## Commit Style
 
@@ -104,6 +93,12 @@ Use conventional commits:
 - `docs(scope): description`
 - `chore(scope): description`
 - `test(scope): description`
+
+## Schema changes
+
+Changes to `schemas/event.v1.json` that alter the canonical hash input require a CHANGELOG entry
+noting that bundles written before the change will not re-verify against the new implementation.
+Additive optional fields do not require this notice.
 
 ## Release Publishing
 
@@ -125,12 +120,6 @@ git push origin v1.1.0
 ## Link Verification
 
 To verify external links:
-
-```bash
-grep -roE 'https?://[^\s\)"`]+' README.md docs/ | grep -v "github.com/pcguest/atb" | sort -u | xargs -n1 curl -sI | grep -E "HTTP|404|500"
-```
-
-Portable fallback:
 
 ```bash
 rg --no-filename -o 'https?://[^\s)"`]+' README.md docs/ | grep -v "github.com/pcguest/atb" | sort -u | while read -r url; do curl -sI "$url" | head -1; done

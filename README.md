@@ -1,9 +1,8 @@
 # ATB
 
-[![Version](https://img.shields.io/badge/version-v1.1.0-blue)](docs/releases/v1.1.0.md)
+[![Version](https://img.shields.io/badge/version-v1.1.1-blue)](CHANGELOG.md)
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security Gate](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
-[![Security Scan](https://github.com/pcguest/atb/actions/workflows/security-scan.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security-scan.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ATB is the local-first audit trail for privacy-sensitive AI systems.
@@ -12,16 +11,18 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 
 ## Why Teams Pick ATB
 
-- Keep raw traces local by default.
-- Reconstruct agent failures, tool misuse, and high-risk decisions with a verifiable execution trail.
-- Hand over a portable bundle and deterministic export instead of reconstructed notes.
-- Record privacy reveals as part of the same audit trail.
+| Need | How ATB addresses it |
+| --- | --- |
+| Keep raw traces local by default | ATB records bundles locally and does not require default external trace storage. |
+| Reconstruct failures, tool misuse, and high-risk decisions | Every event is captured in a verifiable execution trail you can inspect and replay locally. |
+| Hand over portable audit evidence | Bundles and deterministic exports travel as artifacts instead of reconstructed notes or screenshots. |
+| Record privacy reveals in the same evidence trail | Privacy reveal events are appended to the same tamper-evident bundle as the rest of the workflow. |
 
 ## Release Status
 
-- Current release: [`v1.1.0`](docs/releases/v1.1.0.md)
+- Current release: [`v1.1.1`](CHANGELOG.md)
 - Gold release status: [`APPROVED FOR GOLD RELEASE`](docs/security/gold-signoff.md)
-- Current GitHub checks cover Go, Node, Python, Trivy image and filesystem scans, the consolidated security scan, the golden test, and cross-platform CI on macOS, Ubuntu, and Windows
+- All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 
 ## 5 Minute Start
 
@@ -39,13 +40,24 @@ That sequence creates a local incident bundle with a failed review gate but a va
 
 ## What ATB Includes
 
-- **Tamper-evident event logs:** SHA-256 hash chains with RFC 8785 canonical JSON catch mutation, reordering, and deletion.
-- **Local-first verification:** trace inspection and verification run locally, with no required backend.
-- **Client-side encryption:** AES-256-GCM encryption for protected bundle handoff workflows.
-- **Deterministic evidence export:** `compliance`, `soc2`, and `gdpr` export paths for incident review, controls evidence, DSR, and RoPA workflows.
-- **Local viewer and dashboard:** `atb view` serves the local viewer, and `atb view --ui-experimental` enables the role-based dashboard with timeline, graph, inspector, and privacy reveal audit logging.
-- **Developer integrations:** native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript.
-- **Go CLI as the primary distribution path:** Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path.
+| Capability | Detail |
+| --- | --- |
+| Tamper-evident event logs | SHA-256 hash chains with RFC 8785 canonical JSON catch mutation, reordering, and deletion. |
+| Local-first verification | Trace inspection and verification run locally, with no required backend. |
+| Client-side encryption | AES-256-GCM encryption for protected bundle handoff workflows. |
+| Deterministic evidence export | `compliance`, `soc2`, and `gdpr` export paths for incident review, controls evidence, DSR, and RoPA workflows. |
+| Local viewer and dashboard | `atb view` serves the local viewer, and `atb view --ui-experimental` enables the role-based dashboard with timeline, graph, inspector, and privacy reveal audit logging. |
+| Developer integrations | Native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript. |
+| Go CLI as the primary distribution path | Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path. |
+
+## Verification model
+
+```text
+event_hash = SHA-256(prev_hash || RFC8785(event_json))
+genesis:    prev_hash = "0000...0000" (64 zeros)
+```
+
+Every event in a bundle is bound to its predecessor; any mutation, reordering, or deletion breaks the chain.
 
 ## Best Fit
 
@@ -59,7 +71,7 @@ ATB is not intended to be a generic hosted LLM observability platform.
 
 ## Installation
 
-- Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest`
+- Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest` (requires Go 1.21+)
 - Python SDK: `pip install atb-sdk`
 - TypeScript SDK: `npm install @pcguest/atb-sdk`
 - Docker: build locally with `docker build -t atb .`
@@ -86,7 +98,3 @@ Start at [Docs Home](docs/README.md).
 - [Contributing Guide](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
-
-## Licence
-
-MIT. See [LICENSE](LICENSE).

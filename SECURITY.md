@@ -37,6 +37,8 @@ This policy applies to:
 - Dashboard (`web/`)
 - CI/CD and release workflows (`.github/workflows/`)
 
+Trivy vulnerability scanning runs on a weekly schedule via GitHub Actions.
+
 ## Safe Harbor
 
 Good-faith research is authorized when you avoid privacy violations, data loss, service disruption, and social engineering.
