@@ -52,7 +52,6 @@ jobs:
         run: |
           npm ci
           npm run build
-          npm run export
 
       - name: Run Go tests
         run: go test ./...
@@ -111,7 +110,6 @@ jobs:
         run: |
           npm ci
           npm run build
-          npm run export
 
       - name: Build CLI binaries
         run: |

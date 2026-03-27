@@ -25,7 +25,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
@@ -35,7 +35,6 @@ jobs:
         run: |
           npm ci
           npm run build
-          npm run export
 
       - name: Run gosec (HIGH only)
         run: "$(go env GOPATH)/bin/gosec -severity high -confidence medium ./..."
@@ -68,7 +67,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install TypeScript SDK dependencies
         working-directory: sdk/typescript

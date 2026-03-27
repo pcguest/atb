@@ -8,7 +8,7 @@ COPY web/package.json web/package-lock.json ./
 RUN npm ci
 
 COPY web/ ./
-RUN npm run export
+RUN npm run build
 
 FROM golang:1.26.1-alpine AS go-builder
 WORKDIR /src

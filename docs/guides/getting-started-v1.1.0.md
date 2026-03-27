@@ -84,7 +84,7 @@ Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log
 
 ### Dashboard won't load
 - Check port: `lsof -i :8080`
-- Rebuild UI: `cd web && npm run build && npm run export`
+- Rebuild UI: `cd web && npm run build`
 
 ### Trust Score is 0
 - Run `./atb verify` first

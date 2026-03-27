@@ -19,7 +19,7 @@
 
 ## Build & Distribution
 - [ ] Go binary builds cleanly (go build -o atb ./cmd/atb)
-- [ ] UI exports cleanly (cd web && npm run build && npm run export)
+- [ ] UI builds cleanly (cd web && npm run build)
 - [ ] Embed test passes (make test-embed)
 - [ ] Docker image builds (if applicable)
 - [ ] Binary size <20% growth from v1.0.3

@@ -20,6 +20,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // Headers apply in atb view --ui-experimental server mode only; not used in static export builds
   async headers() {
     return [
       {

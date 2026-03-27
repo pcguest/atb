@@ -44,7 +44,6 @@ echo "[4/7] Web dashboard build"
   cd web
   npm ci
   npm run build
-  npm run export
 )
 
 echo "[5/7] Installed binary smoke gate"

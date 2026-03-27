@@ -18,7 +18,7 @@ hygiene-full: hygiene-quick
 	$(GOENV) go test $(GO_PACKAGES) -race
 	$(GOENV) go test $(GO_COVER_PACKAGES) -coverprofile=coverage.out
 	@$(GOENV) go test ./pkg/api/v1 -cover | awk '/coverage:/{gsub("%","",$$5); if ($$5+0 < 80) {print "❌ Coverage below 80%"; exit 1}}'
-	cd web && npm run build && npm run export
+	cd web && npm run build
 	@echo "⚡ Running performance tests..."
 	@$(GOENV) go test ./test/performance -run=^$$ -bench=. -benchmem > /tmp/atb-performance-bench.txt
 	@awk '/Benchmark/ {for (i=1; i<=NF; i++) if ($$i == "ns\\/op" && $$(i-1)+0 > 2000000000) {print "❌ Performance regression: >2s load time"; exit 1}}' /tmp/atb-performance-bench.txt
@@ -26,7 +26,7 @@ hygiene-full: hygiene-quick
 
 test-embed: hygiene-full
 	@echo "🔗 Testing embed flow..."
-	cd web && npm run export
+	cd web && npm run build
 	$(GOENV) go build -o /tmp/atb-rc ./cmd/atb
 	@/tmp/atb-rc view --ui-experimental --no-open --port 18888 > /tmp/atb-test-embed.log 2>&1 & echo $$! > /tmp/atb-test.pid
 	@sleep 3
@@ -39,7 +39,7 @@ test-embed: hygiene-full
 test-e2e:
 	@echo "🧪 Running E2E tests..."
 	cd web && npm install
-	cd web && npm run export
+	cd web && npm run build
 	$(GOENV) go build -o /tmp/atb-e2e ./cmd/atb
 	@/tmp/atb-e2e view --ui-experimental --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
 	@sleep 3

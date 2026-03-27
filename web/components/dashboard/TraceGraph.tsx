@@ -7,7 +7,8 @@ import ReactFlow, {
   MiniMap,
   type Edge,
   type Node,
-} from "react-flow-renderer";
+} from "reactflow";
+import "reactflow/dist/style.css";
 
 import type { BundleGraphResponse } from "@/lib/types";
 

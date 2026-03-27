@@ -42,8 +42,8 @@ CYPRESS_MOCK_API=true npm run test:e2e
 # Accessibility audit
 npm run test:a11y
 
-# Build + export validation
-npm run build && npm run export
+# Build validation
+npm run build
 ```
 
 See [docs/roadmap/web-testing.md](../docs/roadmap/web-testing.md) for planned web testing improvements.
