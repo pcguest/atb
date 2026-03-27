@@ -709,9 +709,18 @@ func appendToDefaultBundle(eventType string, data interface{}, dryRun bool, opts
 			return bundle.Record{}, mutationLoadError{err: err}
 		}
 	}
+	timestamp := time.Now().UTC().Format(time.RFC3339)
 	var appendOpts *bundle.AppendOptions
 	if len(opts) > 0 {
-		appendOpts = &opts[0]
+		opt := opts[0]
+		if opt.Timestamp == "" {
+			opt.Timestamp = timestamp
+		}
+		appendOpts = &opt
+	} else {
+		appendOpts = &bundle.AppendOptions{
+			Timestamp: timestamp,
+		}
 	}
 	if err := b.AppendWithOptions(eventType, data, appendOpts); err != nil {
 		return bundle.Record{}, err

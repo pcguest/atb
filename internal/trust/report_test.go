@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
@@ -22,7 +23,8 @@ func TestBuildReportIncludesAllCategories(t *testing.T) {
 
 	bundlePath := filepath.Join(root, "run.atb", "bundle.atb")
 	b := bundle.New()
-	if err := b.Append("agent.session", map[string]interface{}{"id": "report-test"}); err != nil {
+	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	if err := b.AppendWithOptions("agent.session", map[string]interface{}{"id": "report-test"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	if err := b.Save(bundlePath); err != nil {
@@ -78,7 +80,8 @@ func TestBuildReportGateFailsOnTamperedChain(t *testing.T) {
 	bundlePath := filepath.Join(root, "run.atb", "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.session", map[string]interface{}{"id": "tamper-test"}); err != nil {
+	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	if err := b.AppendWithOptions("agent.session", map[string]interface{}{"id": "tamper-test"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	b.Records[0].Hash = strings.Repeat("0", 64)
@@ -110,7 +113,8 @@ func TestBuildReportPortableModeUsesEmbeddedEvidence(t *testing.T) {
 	bundlePath := filepath.Join(root, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.session", map[string]interface{}{"id": "portable-report"}); err != nil {
+	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	if err := b.AppendWithOptions("agent.session", map[string]interface{}{"id": "portable-report"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	if err := b.Save(bundlePath); err != nil {

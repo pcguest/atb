@@ -273,9 +273,7 @@ func withTempCWD(t *testing.T, fn func(tmp string)) {
 func writeValidBundle(t *testing.T, path string) {
 	t.Helper()
 	b := bundle.New()
-	if err := b.Append("test.event", map[string]interface{}{"ok": true}); err != nil {
-		t.Fatalf("append event: %v", err)
-	}
+	appendTestBundleEvent(t, b, "test.event", map[string]interface{}{"ok": true})
 	if err := b.Save(path); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}

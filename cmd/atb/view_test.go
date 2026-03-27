@@ -85,18 +85,14 @@ func TestBuildViewHandlerServesTimeline(t *testing.T) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"timestamp": "2026-03-03T04:00:00Z",
 		"actor":     "assistant",
 		"prompt":    "Outline launch tasks",
-	}); err != nil {
-		t.Fatalf("append agent.prompt: %v", err)
-	}
-	if err := b.Append("snapshot.build", map[string]interface{}{
+	})
+	appendTestBundleEvent(t, b, "snapshot.build", map[string]interface{}{
 		"gate": "pass",
-	}); err != nil {
-		t.Fatalf("append snapshot.build: %v", err)
-	}
+	})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
@@ -146,9 +142,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{"prompt": "x"}); err != nil {
-		t.Fatalf("append agent.prompt: %v", err)
-	}
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "x"})
 	if len(b.Records) == 0 {
 		t.Fatalf("expected at least one record")
 	}
@@ -198,9 +192,7 @@ func TestBuildViewServerTamperModeDisablesExperimentalDashboard(t *testing.T) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{"prompt": "x"}); err != nil {
-		t.Fatalf("append agent.prompt: %v", err)
-	}
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "x"})
 	if len(b.Records) == 0 {
 		t.Fatalf("expected at least one record")
 	}
@@ -332,12 +324,10 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"email":  "auditor@example.com",
 		"prompt": "hello",
-	}); err != nil {
-		t.Fatalf("append agent.prompt: %v", err)
-	}
+	})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
@@ -401,11 +391,9 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"email": "auditor@example.com",
-	}); err != nil {
-		t.Fatalf("append agent.prompt: %v", err)
-	}
+	})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
@@ -430,9 +418,7 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{"prompt": "hello"}); err != nil {
-		t.Fatalf("append agent.prompt: %v", err)
-	}
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "hello"})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
@@ -462,9 +448,7 @@ func TestBuildViewServerUIExperimentalServesViewRoute(t *testing.T) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{"prompt": "hello"}); err != nil {
-		t.Fatalf("append agent.prompt: %v", err)
-	}
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "hello"})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}

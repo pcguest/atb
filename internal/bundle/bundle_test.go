@@ -3,6 +3,7 @@ package bundle_test
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
@@ -10,7 +11,9 @@ import (
 func TestAppendRejectsInvalidEventType(t *testing.T) {
 	b := bundle.New()
 
-	if err := b.Append("INVALID", nil); err == nil {
+	if err := b.AppendWithOptions("INVALID", nil, &bundle.AppendOptions{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}); err == nil {
 		t.Fatalf("expected invalid event type to return an error")
 	}
 }

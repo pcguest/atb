@@ -501,9 +501,7 @@ func writePhase4Bundle(t *testing.T, path string) {
 
 	appendWith := func(eventType string, data map[string]interface{}, opts *bundle.AppendOptions) {
 		t.Helper()
-		if err := b.AppendWithOptions(eventType, data, opts); err != nil {
-			t.Fatalf("append %s: %v", eventType, err)
-		}
+		appendTestBundleEventWithOptions(t, b, eventType, data, opts)
 	}
 
 	appendWith("auth.login", map[string]interface{}{
@@ -512,7 +510,7 @@ func writePhase4Bundle(t *testing.T, path string) {
 		"user_id":    subject,
 		"ip":         "192.168.1.1",
 		"user_agent": "Mozilla/5.0",
-	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace})
+	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace, Timestamp: testBundleTimestamp()})
 
 	appendWith("system.config.change", map[string]interface{}{
 		"event_id":    "evt_002",
@@ -520,7 +518,7 @@ func writePhase4Bundle(t *testing.T, path string) {
 		"before_hash": "abc",
 		"after_hash":  "def",
 		"owner_id":    "usr_admin",
-	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace})
+	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace, Timestamp: testBundleTimestamp()})
 
 	appendWith("alert.triggered", map[string]interface{}{
 		"event_id":  "evt_003",
@@ -528,7 +526,7 @@ func writePhase4Bundle(t *testing.T, path string) {
 		"payment":   "4111111111111111",
 		"ip":        "10.0.0.2",
 		"user_id":   "usr_other",
-	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace})
+	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace, Timestamp: testBundleTimestamp()})
 
 	appendWith("deploy.complete", map[string]interface{}{
 		"event_id":    "evt_004",
@@ -536,14 +534,14 @@ func writePhase4Bundle(t *testing.T, path string) {
 		"commit_hash": "deadbeef",
 		"approver_id": "usr_admin",
 		"ci_run_id":   "ci_1",
-	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace})
+	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace, Timestamp: testBundleTimestamp()})
 
 	appendWith("backup.complete", map[string]interface{}{
 		"event_id":            "evt_005",
 		"timestamp":           "2026-01-14T13:00:00Z",
 		"storage_location_id": "s3://bucket",
 		"verification_status": "ok",
-	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace})
+	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace, Timestamp: testBundleTimestamp()})
 
 	if err := b.Save(path); err != nil {
 		t.Fatalf("save bundle: %v", err)

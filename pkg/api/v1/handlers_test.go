@@ -30,13 +30,11 @@ func createTestBundle(t *testing.T) (string, *bundle.Bundle) {
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := bundle.New()
-	if err := b.Append("agent.prompt", map[string]interface{}{
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"email":    "auditor@example.com",
 		"user_id":  "usr_123",
 		"trace_id": "trc_123",
-	}); err != nil {
-		t.Fatalf("append bundle record: %v", err)
-	}
+	})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
@@ -131,6 +129,9 @@ func TestPrivacyRevealAuditAppendsToBundleChain(t *testing.T) {
 	secondAudit := loaded.Records[2]
 	if firstAudit.Event.Type != "privacy.reveal" || secondAudit.Event.Type != "privacy.reveal" {
 		t.Fatalf("expected reveal audit events, got %q and %q", firstAudit.Event.Type, secondAudit.Event.Type)
+	}
+	if firstAudit.Event.Timestamp == "" || secondAudit.Event.Timestamp == "" {
+		t.Fatalf("expected timestamps on reveal audit events")
 	}
 	if secondAudit.Event.PrevHash != firstAudit.Hash {
 		t.Fatalf("expected hash-chain link prev_hash=%q got %q", firstAudit.Hash, secondAudit.Event.PrevHash)

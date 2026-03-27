@@ -53,11 +53,12 @@ func buildBenchmarkBundle(b *testing.B, numBlocks int) string {
 	bun := bundle.New()
 
 	for i := 0; i < numBlocks; i++ {
-		if err := bun.Append("benchmark.load", map[string]interface{}{
+		timestamp := time.Unix(int64(i), 0).UTC().Format(time.RFC3339Nano)
+		if err := bun.AppendWithOptions("benchmark.load", map[string]interface{}{
 			"index":     i + 1,
-			"timestamp": time.Unix(int64(i), 0).UTC().Format(time.RFC3339Nano),
+			"timestamp": timestamp,
 			"payload":   fmt.Sprintf("block-%d", i+1),
-		}); err != nil {
+		}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 			b.Fatalf("append benchmark block %d: %v", i+1, err)
 		}
 	}

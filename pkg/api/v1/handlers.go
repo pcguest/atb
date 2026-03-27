@@ -504,11 +504,12 @@ func (s *APIServer) allowPrivacyReveal(r *http.Request) bool {
 
 func (s *APIServer) appendRevealAuditEvent(r *http.Request, req PrivacyRevealRequest, resolvedPath string) error {
 	ipAddr, user := resolveRemoteIdentity(r.RemoteAddr)
+	revealedAt := time.Now().UTC().Format(time.RFC3339)
 
 	data := map[string]interface{}{
 		"seq":         req.Sequence,
 		"field_path":  req.FieldPath,
-		"revealed_at": time.Now().UTC().Format(time.RFC3339),
+		"revealed_at": revealedAt,
 		"user":        user,
 		"ip":          ipAddr,
 	}
@@ -522,13 +523,11 @@ func (s *APIServer) appendRevealAuditEvent(r *http.Request, req PrivacyRevealReq
 	actorID := getActorFromContext(r)
 	orgID := getOrgFromContext(r)
 	workspaceID := getWorkspaceFromContext(r)
-	var opts *bundle.AppendOptions
-	if actorID != nil || orgID != nil || workspaceID != nil {
-		opts = &bundle.AppendOptions{
-			ActorID:     actorID,
-			OrgID:       orgID,
-			WorkspaceID: workspaceID,
-		}
+	opts := &bundle.AppendOptions{
+		ActorID:     actorID,
+		OrgID:       orgID,
+		WorkspaceID: workspaceID,
+		Timestamp:   revealedAt,
 	}
 
 	s.mu.Lock()

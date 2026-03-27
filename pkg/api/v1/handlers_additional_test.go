@@ -21,15 +21,13 @@ func createRichTestBundle(t *testing.T) (string, *bundle.Bundle) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 	b := bundle.New()
-	if err := b.Append("ai.chain.start", map[string]interface{}{
+	appendTestBundleEventAt(t, b, "ai.chain.start", map[string]interface{}{
 		"timestamp": "2026-03-12T00:00:00Z",
 		"trace_id":  "trace-1",
 		"span_id":   "span-1",
 		"email":     "auditor@example.com",
-	}); err != nil {
-		t.Fatalf("append first event: %v", err)
-	}
-	if err := b.Append("ai.tool.call", map[string]interface{}{
+	}, "2026-03-12T00:00:00Z")
+	appendTestBundleEventAt(t, b, "ai.tool.call", map[string]interface{}{
 		"timestamp":      "2026-03-12T00:00:01Z",
 		"trace_id":       "trace-1",
 		"span_id":        "span-2",
@@ -38,9 +36,7 @@ func createRichTestBundle(t *testing.T) (string, *bundle.Bundle) {
 		"profile": map[string]interface{}{
 			"bio": "hidden",
 		},
-	}); err != nil {
-		t.Fatalf("append second event: %v", err)
-	}
+	}, "2026-03-12T00:00:01Z")
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
@@ -140,6 +136,9 @@ func TestBundleMetaEventsAndGraphEndpoints(t *testing.T) {
 	events := decodeResponseJSON[BundleEventsResponse](t, eventsRR)
 	if events.Total != 2 || len(events.Events) != 1 {
 		t.Fatalf("unexpected events paging: total=%d len=%d", events.Total, len(events.Events))
+	}
+	if events.Events[0].Timestamp != "2026-03-12T00:00:00Z" {
+		t.Fatalf("unexpected event timestamp: %q", events.Events[0].Timestamp)
 	}
 	firstData, ok := events.Events[0].Data.(map[string]interface{})
 	if !ok {
@@ -533,12 +532,8 @@ func TestPaginationAndExtractionHelpers(t *testing.T) {
 
 func TestFindRecordTamperHandlerAndPIIRuleLoad(t *testing.T) {
 	b := bundle.New()
-	if err := b.Append("evt.one", map[string]interface{}{"a": 1}); err != nil {
-		t.Fatalf("append first record: %v", err)
-	}
-	if err := b.Append("evt.two", map[string]interface{}{"a": 2}); err != nil {
-		t.Fatalf("append second record: %v", err)
-	}
+	appendTestBundleEvent(t, b, "evt.one", map[string]interface{}{"a": 1})
+	appendTestBundleEvent(t, b, "evt.two", map[string]interface{}{"a": 2})
 	records := b.Records
 	if _, ok := findRecordBySequence(records, 2); !ok {
 		t.Fatalf("expected sequence to be found")

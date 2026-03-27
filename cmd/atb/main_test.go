@@ -360,6 +360,9 @@ func TestAppendToDefaultBundleDryRunDoesNotPersist(t *testing.T) {
 	if record.Event.Sequence != 1 {
 		t.Fatalf("unexpected sequence: got %d want 1", record.Event.Sequence)
 	}
+	if record.Event.Timestamp == "" {
+		t.Fatalf("expected timestamp to be populated on appended record")
+	}
 	if _, err := os.Stat(bundle.DefaultPath()); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected no bundle file written in dry-run mode, stat err=%v", err)
 	}
@@ -398,9 +401,7 @@ func TestAppendToDefaultBundleRejectsCorruptExistingBundle(t *testing.T) {
 
 func TestVerifyWithTraceIncludesPerEventLogs(t *testing.T) {
 	b := bundle.New()
-	if err := b.Append("dev.session", map[string]any{"ok": true}); err != nil {
-		t.Fatalf("append: %v", err)
-	}
+	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 	b.Records[0].Hash = strings.Repeat("0", 64)
 
 	var trace bytes.Buffer

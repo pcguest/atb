@@ -10,9 +10,7 @@ import (
 
 func TestBundlePayloadRoundTripVerifies(t *testing.T) {
 	b := bundle.New()
-	if err := b.Append("dev.session", map[string]any{"ok": true}); err != nil {
-		t.Fatalf("append: %v", err)
-	}
+	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 
 	raw, err := canonicalPayloadFromBundle(b)
 	if err != nil {
@@ -29,9 +27,7 @@ func TestBundlePayloadRoundTripVerifies(t *testing.T) {
 
 func TestBundlePayloadHeadHashMismatchFails(t *testing.T) {
 	b := bundle.New()
-	if err := b.Append("dev.session", map[string]any{"ok": true}); err != nil {
-		t.Fatalf("append: %v", err)
-	}
+	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 	payload := encryptedBundlePayload{
 		HeadHash: hash.GenesisHash,
 		Records:  b.Records,
