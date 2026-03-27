@@ -61,6 +61,26 @@
       "type": "string",
       "minLength": 1,
       "description": "Optional workspace identifier for multi-tenant attribution."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC timestamp of event creation. When present, included in the canonical hash."
+    },
+    "trace_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$",
+      "description": "W3C trace context trace identifier."
+    },
+    "span_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16}$",
+      "description": "W3C trace context span identifier."
+    },
+    "parent_span_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{16}$",
+      "description": "W3C trace context parent span identifier."
     }
   }
 }

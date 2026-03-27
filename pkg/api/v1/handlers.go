@@ -250,16 +250,15 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 
 	events := make([]EventRecordDTO, 0, end-offset)
 	for _, record := range s.b.Records[offset:end] {
-		traceID, spanID, parentSpanID := extractSpanContext(record.Event.Data)
 		events = append(events, EventRecordDTO{
 			Sequence:     record.Event.Sequence,
 			Type:         record.Event.Type,
 			Hash:         record.Hash,
 			PrevHash:     record.Event.PrevHash,
-			Timestamp:    extractTimestamp(record.Event.Data),
-			TraceID:      traceID,
-			SpanID:       spanID,
-			ParentSpanID: parentSpanID,
+			Timestamp:    record.Event.Timestamp,
+			TraceID:      record.Event.TraceID,
+			SpanID:       record.Event.SpanID,
+			ParentSpanID: record.Event.ParentSpanID,
 			Data:         maskSensitive(record.Event.Data),
 		})
 	}

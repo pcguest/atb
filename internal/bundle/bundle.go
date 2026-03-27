@@ -34,9 +34,13 @@ type Bundle struct {
 
 // AppendOptions carries optional identity metadata for multi-tenant event contexts.
 type AppendOptions struct {
-	ActorID     *string
-	OrgID       *string
-	WorkspaceID *string
+	ActorID      *string
+	OrgID        *string
+	WorkspaceID  *string
+	Timestamp    string
+	TraceID      string
+	SpanID       string
+	ParentSpanID string
 }
 
 // New creates a new empty bundle.
@@ -70,6 +74,18 @@ func (b *Bundle) AppendWithOptions(eventType string, data interface{}, opts *App
 		e.ActorID = opts.ActorID
 		e.OrgID = opts.OrgID
 		e.WorkspaceID = opts.WorkspaceID
+		if opts.Timestamp != "" {
+			e.Timestamp = opts.Timestamp
+		}
+		if opts.TraceID != "" {
+			e.TraceID = opts.TraceID
+		}
+		if opts.SpanID != "" {
+			e.SpanID = opts.SpanID
+		}
+		if opts.ParentSpanID != "" {
+			e.ParentSpanID = opts.ParentSpanID
+		}
 	}
 	h, err := hash.Compute(e)
 	if err != nil {

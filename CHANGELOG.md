@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarified that legacy `langchain.*` event types remain for backward compatibility while new integrations must use the Phase 5 `ai.*` taxonomy.
 - Trivy scans moved to weekly schedule; security-scan.yml removed (duplicate).
 - chore: schemas/event.v1.json updated to match implementation
+- feat: timestamp, trace_id, span_id, parent_span_id added as integrity-protected canonical event fields
+- note: events carrying these fields written before this change will produce different hashes; events without them are unaffected
 
 ### Fixed
 - Added `genesis_hash` and `verified_at` to `GET /api/v1/bundle/meta`.

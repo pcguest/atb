@@ -21,4 +21,13 @@ type Event struct {
 	OrgID *string `json:"org_id,omitempty"`
 	// WorkspaceID identifies the workspace context within an org.
 	WorkspaceID *string `json:"workspace_id,omitempty"`
+	// Timestamp is the RFC 3339 UTC time at which the event was created.
+	// When present, it is included in the canonical hash.
+	Timestamp string `json:"timestamp,omitempty"`
+	// TraceID is the W3C trace context trace identifier (32 hex chars).
+	TraceID string `json:"trace_id,omitempty"`
+	// SpanID is the W3C trace context span identifier (16 hex chars).
+	SpanID string `json:"span_id,omitempty"`
+	// ParentSpanID is the W3C trace context parent span identifier (16 hex chars).
+	ParentSpanID string `json:"parent_span_id,omitempty"`
 }
