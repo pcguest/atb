@@ -20,12 +20,20 @@
     "prev_hash": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$",
-      "description": "Hex-encoded hash of the previous event, or 64 zeros for genesis."
+      "description": "Hex-encoded SHA-256 hash of the previous event, or 64 zeros (genesis sentinel) for the first event."
     },
     "type": {
       "type": "string",
       "minLength": 1,
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
       "description": "Dot-namespaced event type identifier."
+    },
+    "hash_algo": {
+      "type": "string",
+      "enum": [
+        "sha256"
+      ],
+      "description": "Hash algorithm used to compute this event's hash."
     },
     "data": {
       "description": "Arbitrary JSON payload.",

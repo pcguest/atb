@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/pcguest/atb/internal/hash"
 )
@@ -54,10 +55,15 @@ func (b *Bundle) AppendWithOptions(eventType string, data interface{}, opts *App
 	if len(b.Records) > 0 {
 		prevHash = b.Records[len(b.Records)-1].Hash
 	}
+	matched, _ := regexp.MatchString(`^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$`, eventType)
+	if !matched {
+		return fmt.Errorf("bundle: event type %q does not match required pattern (e.g. \"ai.tool.exec\")", eventType)
+	}
 	e := hash.Event{
 		Sequence: len(b.Records) + 1,
 		PrevHash: prevHash,
 		Type:     eventType,
+		HashAlgo: "sha256",
 		Data:     data,
 	}
 	if opts != nil {

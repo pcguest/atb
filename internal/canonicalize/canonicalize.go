@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"unicode/utf16"
@@ -125,6 +126,13 @@ func writeString(buf *bytes.Buffer, s string) {
 
 // serializeNumber converts a float64 to its ES6 string representation.
 func serializeNumber(f float64) string {
+	if math.IsInf(f, 0) || math.IsNaN(f) {
+		return "null"
+	}
+	abs := math.Abs(f)
+	if abs != 0 && (abs >= 1e21 || abs < 1e-6) {
+		return strconv.FormatFloat(f, 'e', -1, 64)
+	}
 	return strconv.FormatFloat(f, 'f', -1, 64)
 }
 

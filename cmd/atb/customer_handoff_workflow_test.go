@@ -45,13 +45,13 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		binaryPath,
 		senderDir,
 		"append",
-		"decision",
+		"workflow.decision",
 		"--data",
 		`{"action":"route_to_manual_review","reason":"confidence_below_threshold","customer":"acme"}`,
 		"--format",
 		"json",
 	)
-	if second.EventType != "decision" || second.Sequence != 2 {
+	if second.EventType != "workflow.decision" || second.Sequence != 2 {
 		t.Fatalf("unexpected second handoff event: %+v", second)
 	}
 
@@ -60,13 +60,13 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		binaryPath,
 		senderDir,
 		"snapshot",
-		"customer_handoff",
+		"customer.handoff",
 		"--gate",
 		"pass",
 		"--format",
 		"json",
 	)
-	if snapshot.EventType != "snapshot.customer_handoff" || snapshot.Gate != "pass" {
+	if snapshot.EventType != "snapshot.customer.handoff" || snapshot.Gate != "pass" {
 		t.Fatalf("unexpected handoff snapshot: %+v", snapshot)
 	}
 
@@ -187,7 +187,7 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		t.Fatalf("unexpected recipient bundle length: got %d want 3", len(receivedBundle.Records))
 	}
 	last := receivedBundle.Records[len(receivedBundle.Records)-1]
-	if last.Event.Type != "snapshot.customer_handoff" {
+	if last.Event.Type != "snapshot.customer.handoff" {
 		t.Fatalf("unexpected recipient final event type: %q", last.Event.Type)
 	}
 }

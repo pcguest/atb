@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved planned web testing follow-up items out of `web/README.md` into `docs/roadmap/web-testing.md`.
 - Clarified that legacy `langchain.*` event types remain for backward compatibility while new integrations must use the Phase 5 `ai.*` taxonomy.
 - Trivy scans moved to weekly schedule; security-scan.yml removed (duplicate).
+- chore: schemas/event.v1.json updated to match implementation
 
 ### Fixed
 - Added `genesis_hash` and `verified_at` to `GET /api/v1/bundle/meta`.
@@ -19,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced unsigned export signature placeholders with `null` plus explicit `signature_status` fields.
 - Added Python SDK deprecation guidance for `atb.integrations.langchain`.
 - Filled security findings log placeholders with the verified resolving commit metadata.
+- fix: RFC 8785 number serialisation corrected for floats >= 1e21 or < 1e-6
+- fix: hash_algo field added to canonical event (always "sha256" in v1)
+- fix: event type validated against dot-namespace pattern on append
 
 ## [v1.1.0] - 2026-03-12
 

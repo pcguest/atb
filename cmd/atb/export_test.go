@@ -514,7 +514,7 @@ func writePhase4Bundle(t *testing.T, path string) {
 		"user_agent": "Mozilla/5.0",
 	}, &bundle.AppendOptions{ActorID: &actor, OrgID: &org, WorkspaceID: &workspace})
 
-	appendWith("system.config_change", map[string]interface{}{
+	appendWith("system.config.change", map[string]interface{}{
 		"event_id":    "evt_002",
 		"timestamp":   "2026-01-11T10:00:00Z",
 		"before_hash": "abc",

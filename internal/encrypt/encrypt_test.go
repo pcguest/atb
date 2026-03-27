@@ -117,7 +117,7 @@ func TestDecryptThenVerify(t *testing.T) {
 	if err := b.Append("dev.session", map[string]any{"msg": "hello"}); err != nil {
 		t.Fatalf("append 1: %v", err)
 	}
-	if err := b.Append("decision", map[string]any{"choice": "ship"}); err != nil {
+	if err := b.Append("test.decision", map[string]any{"choice": "ship"}); err != nil {
 		t.Fatalf("append 2: %v", err)
 	}
 	head := hash.GenesisHash

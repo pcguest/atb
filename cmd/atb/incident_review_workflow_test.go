@@ -56,13 +56,13 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 		binaryPath,
 		workDir,
 		"snapshot",
-		"incident_review",
+		"incident.review",
 		"--gate",
 		"fail",
 		"--format",
 		"json",
 	)
-	if snapshot.EventType != "snapshot.incident_review" {
+	if snapshot.EventType != "snapshot.incident.review" {
 		t.Fatalf("unexpected incident snapshot type: %+v", snapshot)
 	}
 	if snapshot.Gate != "fail" {
@@ -93,7 +93,7 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 		t.Fatalf("unexpected incident bundle length: got %d want 3", len(loaded.Records))
 	}
 	last := loaded.Records[len(loaded.Records)-1]
-	if last.Event.Type != "snapshot.incident_review" {
+	if last.Event.Type != "snapshot.incident.review" {
 		t.Fatalf("unexpected final incident event type: %q", last.Event.Type)
 	}
 	lastData, ok := last.Event.Data.(map[string]interface{})

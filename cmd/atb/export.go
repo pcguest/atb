@@ -208,12 +208,12 @@ var soc2Controls = []soc2ControlDefinition{
 	{
 		ControlID:   "CC6.6",
 		Description: "System Boundaries",
-		EventTypes:  setOf("system.config_change", "network.policy_update"),
+		EventTypes:  setOf("system.config.change", "system.config_change", "network.policy.update", "network.policy_update"),
 	},
 	{
 		ControlID:   "CC7.2",
 		Description: "System Monitoring",
-		EventTypes:  setOf("alert.triggered", "monitor.anomaly", "health.check_fail"),
+		EventTypes:  setOf("alert.triggered", "monitor.anomaly", "health.check.fail", "health.check_fail"),
 	},
 	{
 		ControlID:   "CC8.1",

@@ -129,7 +129,7 @@ func TestPrivacyRevealAuditAppendsToBundleChain(t *testing.T) {
 
 	firstAudit := loaded.Records[1]
 	secondAudit := loaded.Records[2]
-	if firstAudit.Event.Type != "privacy_reveal" || secondAudit.Event.Type != "privacy_reveal" {
+	if firstAudit.Event.Type != "privacy.reveal" || secondAudit.Event.Type != "privacy.reveal" {
 		t.Fatalf("expected reveal audit events, got %q and %q", firstAudit.Event.Type, secondAudit.Event.Type)
 	}
 	if secondAudit.Event.PrevHash != firstAudit.Hash {

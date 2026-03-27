@@ -533,10 +533,10 @@ func TestPaginationAndExtractionHelpers(t *testing.T) {
 
 func TestFindRecordTamperHandlerAndPIIRuleLoad(t *testing.T) {
 	b := bundle.New()
-	if err := b.Append("evt.1", map[string]interface{}{"a": 1}); err != nil {
+	if err := b.Append("evt.one", map[string]interface{}{"a": 1}); err != nil {
 		t.Fatalf("append first record: %v", err)
 	}
-	if err := b.Append("evt.2", map[string]interface{}{"a": 2}); err != nil {
+	if err := b.Append("evt.two", map[string]interface{}{"a": 2}); err != nil {
 		t.Fatalf("append second record: %v", err)
 	}
 	records := b.Records

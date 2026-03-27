@@ -535,7 +535,7 @@ func (s *APIServer) appendRevealAuditEvent(r *http.Request, req PrivacyRevealReq
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.b.AppendWithOptions("privacy_reveal", data, opts); err != nil {
+	if err := s.b.AppendWithOptions("privacy.reveal", data, opts); err != nil {
 		return err
 	}
 	if err := s.b.Save(s.bundlePath); err != nil {

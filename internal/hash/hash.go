@@ -22,6 +22,9 @@ type Event = event.Event
 
 // Compute returns the hex-encoded SHA-256 hash for the given event.
 // The hash is computed as: SHA256(prevHash || canonicalJSON(event))
+// NOTE: canonical hash output changed in v1.1.2 for float values >= 1e21
+// or < 1e-6. Bundles containing such values written before this version
+// will not re-verify against this implementation.
 func Compute(e Event) (string, error) {
 	canonical, err := canonicalize.Marshal(e)
 	if err != nil {
