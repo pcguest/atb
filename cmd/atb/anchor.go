@@ -161,7 +161,7 @@ func verifyBundleAnchor(bundlePath string, b *bundle.Bundle, out io.Writer) erro
 	}
 
 	tokenPath := bundlePath + ".tsr"
-	tokenBytes, err := os.ReadFile(tokenPath) // #nosec G304 -- derived from the verified bundle path
+	tokenBytes, err := os.ReadFile(tokenPath) // #nosec G304 G703 — tokenPath is bundlePath+".tsr"; bundlePath is resolved from CLI args via the same path logic used across all commands
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			fmt.Fprintf(out, "No anchor token found at %s — skipping anchor verification\n", tokenPath)

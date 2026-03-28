@@ -1,6 +1,6 @@
 ---
 name: Gold Release Gate
-# Action SHAs pinned. To update: check upstream release tags and update SHA + comment.
+# Actions temporarily use major tags; re-pin to SHAs in the gold release checklist.
 
 "on":
   push:
@@ -11,11 +11,11 @@ jobs:
   gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: "1.26.1"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
 
