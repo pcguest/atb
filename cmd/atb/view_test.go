@@ -370,10 +370,10 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load updated bundle: %v", err)
 	}
-	if len(updated.Records) != 2 {
+	if len(updated.Records) != 3 {
 		t.Fatalf("expected reveal audit append to bundle: got %d records", len(updated.Records))
 	}
-	auditRecord := updated.Records[1]
+	auditRecord := updated.Records[2]
 	if auditRecord.Event.Type != "privacy.reveal" {
 		t.Fatalf("expected privacy.reveal event type, got %q", auditRecord.Event.Type)
 	}

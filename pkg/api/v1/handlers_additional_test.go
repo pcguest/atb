@@ -70,8 +70,8 @@ func TestVerificationEndpointStates(t *testing.T) {
 	if valid.Status != "valid" {
 		t.Fatalf("verification status payload: got %q want %q", valid.Status, "valid")
 	}
-	if valid.ChainLength != 2 {
-		t.Fatalf("chain length: got %d want %d", valid.ChainLength, 2)
+	if valid.ChainLength != 3 {
+		t.Fatalf("chain length: got %d want %d", valid.ChainLength, 3)
 	}
 	if strings.TrimSpace(valid.HeadHash) == "" {
 		t.Fatalf("head hash should be present")
@@ -117,24 +117,24 @@ func TestBundleMetaEventsAndGraphEndpoints(t *testing.T) {
 		t.Fatalf("meta status: got %d want %d body=%s", metaRR.Code, http.StatusOK, metaRR.Body.String())
 	}
 	meta := decodeResponseJSON[BundleMetaResponse](t, metaRR)
-	if meta.EventCount != 2 {
-		t.Fatalf("meta event_count: got %d want %d", meta.EventCount, 2)
+	if meta.EventCount != 3 {
+		t.Fatalf("meta event_count: got %d want %d", meta.EventCount, 3)
 	}
-	if meta.TypeCounts["ai.chain.start"] != 1 || meta.TypeCounts["ai.tool.call"] != 1 {
+	if meta.TypeCounts[bundle.ManifestEventType] != 1 || meta.TypeCounts["ai.chain.start"] != 1 || meta.TypeCounts["ai.tool.call"] != 1 {
 		t.Fatalf("unexpected type counts: %+v", meta.TypeCounts)
 	}
 	if meta.FirstTimestamp != "2026-03-12T00:00:00Z" || meta.LastTimestamp != "2026-03-12T00:00:01Z" {
 		t.Fatalf("unexpected timestamps: first=%q last=%q", meta.FirstTimestamp, meta.LastTimestamp)
 	}
 
-	eventsReq := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/events?offset=0&limit=1", nil)
+	eventsReq := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/events?offset=1&limit=1", nil)
 	eventsRR := httptest.NewRecorder()
 	handler.ServeHTTP(eventsRR, eventsReq)
 	if eventsRR.Code != http.StatusOK {
 		t.Fatalf("events status: got %d want %d body=%s", eventsRR.Code, http.StatusOK, eventsRR.Body.String())
 	}
 	events := decodeResponseJSON[BundleEventsResponse](t, eventsRR)
-	if events.Total != 2 || len(events.Events) != 1 {
+	if events.Total != 3 || len(events.Events) != 1 {
 		t.Fatalf("unexpected events paging: total=%d len=%d", events.Total, len(events.Events))
 	}
 	if events.Events[0].Timestamp != "2026-03-12T00:00:00Z" {
@@ -162,8 +162,8 @@ func TestBundleMetaEventsAndGraphEndpoints(t *testing.T) {
 		t.Fatalf("graph status: got %d want %d body=%s", graphRR.Code, http.StatusOK, graphRR.Body.String())
 	}
 	graph := decodeResponseJSON[BundleGraphResponse](t, graphRR)
-	if len(graph.Nodes) != 2 {
-		t.Fatalf("expected 2 graph nodes, got %d", len(graph.Nodes))
+	if len(graph.Nodes) != 3 {
+		t.Fatalf("expected 3 graph nodes, got %d", len(graph.Nodes))
 	}
 	foundSequence := false
 	foundParent := false

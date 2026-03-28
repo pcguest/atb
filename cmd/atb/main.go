@@ -949,10 +949,18 @@ func printVerifyJSON(result verifyResult) {
 
 func verifyWithTrace(b *bundle.Bundle, out io.Writer) error {
 	prev := hash.GenesisHash
+	hasManifest := len(b.Records) > 0 && b.Records[0].Event.Type == bundle.ManifestEventType
 	for i, record := range b.Records {
 		event := record.Event
 		event.PrevHash = prev
-		event.Sequence = i + 1
+		switch {
+		case hasManifest && i == 0:
+			event.Sequence = 0
+		case hasManifest:
+			event.Sequence = i
+		default:
+			event.Sequence = i + 1
+		}
 
 		computed, err := hash.Compute(event)
 		if err != nil {

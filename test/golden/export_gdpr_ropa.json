@@ -39,7 +39,7 @@
         "Hash-chained audit logs",
         "Role-based access control"
       ],
-      "event_volume": 4
+      "event_volume": 5
     }
   ]
 }

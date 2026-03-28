@@ -121,12 +121,12 @@ func TestPrivacyRevealAuditAppendsToBundleChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load bundle after reveals: %v", err)
 	}
-	if len(loaded.Records) != 3 {
-		t.Fatalf("expected 3 records after reveal audit appends, got %d", len(loaded.Records))
+	if len(loaded.Records) != 4 {
+		t.Fatalf("expected 4 records after reveal audit appends, got %d", len(loaded.Records))
 	}
 
-	firstAudit := loaded.Records[1]
-	secondAudit := loaded.Records[2]
+	firstAudit := loaded.Records[2]
+	secondAudit := loaded.Records[3]
 	if firstAudit.Event.Type != "privacy.reveal" || secondAudit.Event.Type != "privacy.reveal" {
 		t.Fatalf("expected reveal audit events, got %q and %q", firstAudit.Event.Type, secondAudit.Event.Type)
 	}

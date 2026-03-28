@@ -186,8 +186,11 @@ func TestArchiveRecreatesDefaultBundleAndNormalizesLedgerPaths(t *testing.T) {
 		if err != nil {
 			t.Fatalf("load recreated default bundle: %v", err)
 		}
-		if len(defaultBundle.Records) != 0 {
-			t.Fatalf("expected recreated default bundle to be empty, got %d records", len(defaultBundle.Records))
+		if len(defaultBundle.Records) != 1 {
+			t.Fatalf("expected recreated default bundle to contain only the manifest, got %d records", len(defaultBundle.Records))
+		}
+		if defaultBundle.Manifest() == nil {
+			t.Fatalf("expected recreated default bundle manifest")
 		}
 
 		destPath := filepath.Join("archive.atb", "2026", "03", "05", "run.atb", "bundle.atb")

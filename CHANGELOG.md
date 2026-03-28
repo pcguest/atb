@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - feat: timestamp, trace_id, span_id, parent_span_id added as integrity-protected canonical event fields
 - feat: timestamp auto-populated (RFC 3339 UTC) on all new bundle events
 - feat: OTel trace_id, span_id wired from span context where available
+- feat: bundle manifest record (atb.bundle.manifest) written as seq 0 on New(); includes version, created_at, and bundle_id
 - chore(web): ESLint upgraded to v9, migrated to flat config format
 - note: events carrying these fields written before this change will produce different hashes; events without them are unaffected
+- note: bundles created before this change load correctly; Manifest() returns nil for legacy bundles
 
 ### Fixed
 - Added `genesis_hash` and `verified_at` to `GET /api/v1/bundle/meta`.

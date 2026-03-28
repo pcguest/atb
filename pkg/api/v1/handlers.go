@@ -302,7 +302,7 @@ func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 			Label: label,
 			Type:  nodeType,
 		})
-		if record.Event.Sequence > 1 {
+		if record.Event.Sequence > 0 {
 			edges = append(edges, GraphEdgeDTO{
 				ID:     fmt.Sprintf("seq-%d-%d", record.Event.Sequence-1, record.Event.Sequence),
 				Source: fmt.Sprintf("evt-%d", record.Event.Sequence-1),

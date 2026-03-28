@@ -38,8 +38,9 @@ func bundleFromCanonicalPayload(raw []byte) (*bundle.Bundle, error) {
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, fmt.Errorf("parse decrypted payload: %w", err)
 	}
-	b := bundle.New()
-	b.Records = append(b.Records, payload.Records...)
+	b := &bundle.Bundle{
+		Records: append([]bundle.Record(nil), payload.Records...),
+	}
 
 	// Post-decryption integrity check: recompute the chain and ensure head hash matches metadata.
 	if err := b.Verify(); err != nil {

@@ -71,7 +71,7 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 	}
 
 	senderVerify := runCLIJSON[verifyResult](t, binaryPath, senderDir, "verify", "--format", "json")
-	if senderVerify.Status != "valid" || senderVerify.ChainLength != 3 {
+	if senderVerify.Status != "valid" || senderVerify.ChainLength != 4 {
 		t.Fatalf("unexpected sender verify result: %+v", senderVerify)
 	}
 
@@ -162,7 +162,7 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		"--format",
 		"json",
 	)
-	if recipientVerify.Status != "valid" || recipientVerify.ChainLength != 3 {
+	if recipientVerify.Status != "valid" || recipientVerify.ChainLength != 4 {
 		t.Fatalf("unexpected recipient verify result: %+v", recipientVerify)
 	}
 
@@ -183,8 +183,8 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load recipient bundle: %v", err)
 	}
-	if len(receivedBundle.Records) != 3 {
-		t.Fatalf("unexpected recipient bundle length: got %d want 3", len(receivedBundle.Records))
+	if len(receivedBundle.Records) != 4 {
+		t.Fatalf("unexpected recipient bundle length: got %d want 4", len(receivedBundle.Records))
 	}
 	last := receivedBundle.Records[len(receivedBundle.Records)-1]
 	if last.Event.Type != "snapshot.customer.handoff" {

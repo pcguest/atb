@@ -70,7 +70,7 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 	}
 
 	verifyResult := runCLIJSON[verifyResult](t, binaryPath, workDir, "verify", "--format", "json")
-	if verifyResult.Status != "valid" || verifyResult.ChainLength != 3 {
+	if verifyResult.Status != "valid" || verifyResult.ChainLength != 4 {
 		t.Fatalf("unexpected incident verify result: %+v", verifyResult)
 	}
 
@@ -81,16 +81,16 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 	if trustReport.Gate.Status != trust.StatusPass {
 		t.Fatalf("expected incident trust gate to pass, got %+v", trustReport.Gate)
 	}
-	if trustReport.ChainLength != 3 {
-		t.Fatalf("unexpected incident trust chain length: got %d want 3", trustReport.ChainLength)
+	if trustReport.ChainLength != 4 {
+		t.Fatalf("unexpected incident trust chain length: got %d want 4", trustReport.ChainLength)
 	}
 
 	loaded, err := bundle.Load(filepath.Join(workDir, bundle.DefaultPath()))
 	if err != nil {
 		t.Fatalf("load incident bundle: %v", err)
 	}
-	if len(loaded.Records) != 3 {
-		t.Fatalf("unexpected incident bundle length: got %d want 3", len(loaded.Records))
+	if len(loaded.Records) != 4 {
+		t.Fatalf("unexpected incident bundle length: got %d want 4", len(loaded.Records))
 	}
 	last := loaded.Records[len(loaded.Records)-1]
 	if last.Event.Type != "snapshot.incident.review" {

@@ -20,8 +20,8 @@ func TestBundlePayloadRoundTripVerifies(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bundle from payload: %v", err)
 	}
-	if len(out.Records) != 1 {
-		t.Fatalf("unexpected record count: got %d want 1", len(out.Records))
+	if len(out.Records) != 2 {
+		t.Fatalf("unexpected record count: got %d want 2", len(out.Records))
 	}
 }
 

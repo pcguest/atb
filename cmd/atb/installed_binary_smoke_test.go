@@ -66,8 +66,8 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 	if verifyResult.Status != "valid" {
 		t.Fatalf("unexpected verify status: %+v", verifyResult)
 	}
-	if verifyResult.ChainLength != 1 {
-		t.Fatalf("unexpected chain length: got %d want 1", verifyResult.ChainLength)
+	if verifyResult.ChainLength != 2 {
+		t.Fatalf("unexpected chain length: got %d want 2", verifyResult.ChainLength)
 	}
 
 	trustReport := runCLIJSON[trust.Report](t, binaryPath, workDir, "trust-report", "--format", "json")
@@ -77,8 +77,8 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 	if trustReport.Gate.Status != trust.StatusPass {
 		t.Fatalf("unexpected trust gate status: %+v", trustReport.Gate)
 	}
-	if trustReport.ChainLength != 1 {
-		t.Fatalf("unexpected trust report chain length: got %d want 1", trustReport.ChainLength)
+	if trustReport.ChainLength != 2 {
+		t.Fatalf("unexpected trust report chain length: got %d want 2", trustReport.ChainLength)
 	}
 
 	runCLI(
@@ -133,8 +133,8 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		if viewVerification.Status != "valid" {
 			t.Fatalf("unexpected viewer verification status: %+v", viewVerification)
 		}
-		if viewVerification.ChainLength != 1 {
-			t.Fatalf("unexpected viewer chain length: got %d want 1", viewVerification.ChainLength)
+		if viewVerification.ChainLength != 2 {
+			t.Fatalf("unexpected viewer chain length: got %d want 2", viewVerification.ChainLength)
 		}
 
 		viewResp, viewBody := httpGet(t, fmt.Sprintf("http://127.0.0.1:%d/view/", port))

@@ -148,13 +148,8 @@ func TestDecryptThenVerify(t *testing.T) {
 	if err := json.Unmarshal(dec, &decoded); err != nil {
 		t.Fatalf("unmarshal decrypted payload: %v", err)
 	}
-	events := make([]hash.Event, len(decoded.Records))
-	hashes := make([]string, len(decoded.Records))
-	for i, r := range decoded.Records {
-		events[i] = r.Event
-		hashes[i] = r.Hash
-	}
-	if err := hash.Verify(events, hashes); err != nil {
+	decodedBundle := &bundle.Bundle{Records: decoded.Records}
+	if err := decodedBundle.Verify(); err != nil {
 		t.Fatalf("hash chain verify after decrypt: %v", err)
 	}
 	recomputedHead := hash.GenesisHash

@@ -53,8 +53,8 @@ func TestBuildReportIncludesAllCategories(t *testing.T) {
 		}
 	}
 
-	if report.ChainLength != 1 {
-		t.Fatalf("expected chain length 1, got %d", report.ChainLength)
+	if report.ChainLength != 2 {
+		t.Fatalf("expected chain length 2, got %d", report.ChainLength)
 	}
 	if report.HeadHash == "" {
 		t.Fatalf("expected non-empty head hash")

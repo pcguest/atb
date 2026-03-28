@@ -22,7 +22,7 @@
     }
   ],
   "provenance": {
-    "source_bundle_hash": "sha256:446bb2e7c4cd7449d37d0c94bc77d960bf476e2a6ae3f599017bf57a922fa68a",
+    "source_bundle_hash": "sha256:3724eca24bdb3deb7ee25e4dddc39b5fc75ddfacaf6f983783bca01b6b9d538e",
     "extraction_signature": null,
     "signature_status": "unsigned — see docs/spec/atb-push-v1.1.md"
   }

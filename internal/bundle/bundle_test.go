@@ -1,11 +1,15 @@
 package bundle_test
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/hash"
 )
 
 func TestAppendRejectsInvalidEventType(t *testing.T) {
@@ -39,11 +43,11 @@ func TestAppendWithOptionsRoundTripsCanonicalFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load bundle: %v", err)
 	}
-	if len(loaded.Records) != 1 {
-		t.Fatalf("expected 1 loaded record, got %d", len(loaded.Records))
+	if len(loaded.Records) != 2 {
+		t.Fatalf("expected 2 loaded records, got %d", len(loaded.Records))
 	}
 
-	got := loaded.Records[0].Event
+	got := loaded.Records[1].Event
 	if got.Timestamp != opts.Timestamp {
 		t.Fatalf("timestamp: got %q want %q", got.Timestamp, opts.Timestamp)
 	}
@@ -55,5 +59,63 @@ func TestAppendWithOptionsRoundTripsCanonicalFields(t *testing.T) {
 	}
 	if got.ParentSpanID != opts.ParentSpanID {
 		t.Fatalf("parent_span_id: got %q want %q", got.ParentSpanID, opts.ParentSpanID)
+	}
+}
+
+func TestNewBundleHasManifest(t *testing.T) {
+	b := bundle.New()
+
+	manifest := b.Manifest()
+	if manifest == nil {
+		t.Fatalf("expected manifest on new bundle")
+	}
+	if manifest.Version != bundle.ManifestVersion {
+		t.Fatalf("manifest version: got %q want %q", manifest.Version, bundle.ManifestVersion)
+	}
+	if manifest.CreatedAt == "" {
+		t.Fatalf("expected non-empty manifest created_at")
+	}
+	if len(manifest.BundleID) != 32 {
+		t.Fatalf("manifest bundle_id length: got %d want 32", len(manifest.BundleID))
+	}
+	if strings.Trim(manifest.BundleID, "0123456789abcdef") != "" {
+		t.Fatalf("manifest bundle_id should be lowercase hex, got %q", manifest.BundleID)
+	}
+	t.Logf("manifest=%+v", *manifest)
+}
+
+func TestLoadLegacyBundleNoManifest(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy.atb")
+	event := hash.Event{
+		Sequence: 1,
+		PrevHash: hash.GenesisHash,
+		Type:     "ai.tool.exec",
+		HashAlgo: "sha256",
+		Data: map[string]any{
+			"ok": true,
+		},
+	}
+	sum, err := hash.Compute(event)
+	if err != nil {
+		t.Fatalf("compute legacy event hash: %v", err)
+	}
+	record := bundle.Record{
+		Event: event,
+		Hash:  sum,
+	}
+	line, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("marshal legacy record: %v", err)
+	}
+	if err := os.WriteFile(path, append(line, '\n'), 0o600); err != nil {
+		t.Fatalf("write legacy bundle: %v", err)
+	}
+
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load legacy bundle: %v", err)
+	}
+	if loaded.Manifest() != nil {
+		t.Fatalf("expected nil manifest for legacy bundle")
 	}
 }
