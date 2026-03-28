@@ -191,28 +191,24 @@ export default function ViewPage() {
     [eventsQuery.data?.pages],
   );
   const eventTotal = eventsQuery.data?.pages?.at(-1)?.total ?? 0;
+  const activeSelectedSeq = useMemo(() => {
+    if (events.length === 0) {
+      return null;
+    }
+    if (selectedSeq !== null && events.some((event) => event.seq === selectedSeq)) {
+      return selectedSeq;
+    }
+    return events[0].seq;
+  }, [events, selectedSeq]);
   const selectedEvent = useMemo(
-    () => events.find((event) => event.seq === selectedSeq) ?? null,
-    [events, selectedSeq],
+    () => events.find((event) => event.seq === activeSelectedSeq) ?? null,
+    [activeSelectedSeq, events],
   );
 
   useEffect(() => {
-    if (events.length === 0) {
-      setSelectedSeq(null);
-      return;
-    }
+    let mounted = true;
 
-    setSelectedSeq((current) => {
-      if (current !== null && events.some((event) => event.seq === current)) {
-        return current;
-      }
-      return events[0].seq;
-    });
-  }, [events]);
-
-  useEffect(() => {
     if (!shouldLoadRawEventData) {
-      setPollingPaused(false);
       return;
     }
 
@@ -222,15 +218,17 @@ export default function ViewPage() {
       if (timer) {
         clearTimeout(timer);
       }
-      timer = setTimeout(() => setPollingPaused(false), 1200);
+      timer = setTimeout(() => {
+        if (mounted) {
+          setPollingPaused(false);
+        }
+      }, 1200);
     };
 
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
+      mounted = false;
       window.removeEventListener("scroll", onScroll);
-      if (timer) {
-        clearTimeout(timer);
-      }
     };
   }, [shouldLoadRawEventData]);
 
@@ -349,7 +347,9 @@ export default function ViewPage() {
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
                   Selected Seq
                 </p>
-                <p className="mt-1 text-sm font-medium text-foreground">{selectedSeq ?? "None"}</p>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {activeSelectedSeq ?? "None"}
+                </p>
               </div>
               <div className="rounded-md border border-border bg-background/70 p-3">
                 <p className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -386,7 +386,7 @@ export default function ViewPage() {
                   total={eventTotal}
                   hasMore={Boolean(eventsQuery.hasNextPage)}
                   loadingMore={eventsQuery.isFetchingNextPage}
-                  selectedSeq={selectedSeq}
+                  selectedSeq={activeSelectedSeq}
                   onSelect={setSelectedSeq}
                   onLoadMore={() => void eventsQuery.fetchNextPage()}
                   disabled={!verificationValid || eventsQuery.isFetching}
