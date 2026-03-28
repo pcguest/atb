@@ -101,10 +101,17 @@ func usageJSON() helpOutput {
 				Mutating:    true,
 			},
 			{
+				Name:        "anchor",
+				Usage:       "atb anchor [bundle_path] [--tsa-url <url>]",
+				Description: "Submit the current bundle hash to an RFC 3161 TSA and save the token.",
+				Flags:       []string{"--tsa-url"},
+				Mutating:    true,
+			},
+			{
 				Name:        "verify",
-				Usage:       "atb verify [bundle_path] [--format text|json] [--trace]",
+				Usage:       "atb verify [bundle_path] [--format text|json] [--trace] [--with-anchor]",
 				Description: "Verify bundle hash-chain integrity.",
-				Flags:       []string{"--format", "--trace"},
+				Flags:       []string{"--format", "--trace", "--with-anchor"},
 				Mutating:    false,
 			},
 			{
@@ -218,6 +225,8 @@ func main() {
 		cmdAppend()
 	case "snapshot":
 		cmdSnapshot()
+	case "anchor":
+		cmdAnchor()
 	case "verify":
 		cmdVerify()
 	case "encrypt":
@@ -266,7 +275,8 @@ Commands:
   init [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
-  verify [bundle_path] [--format text|json] [--trace]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
+  anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
+  verify [bundle_path] [--format text|json] [--trace] [--with-anchor]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
   decrypt <encrypted_path> [--output <path>] [--password <password>]  Decrypt encrypted bundle to the default or chosen path
   archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
@@ -295,9 +305,12 @@ Examples:
   atb snapshot build --gate pass
   atb snapshot build --gate pass --dry-run
   atb snapshot build --gate pass --format json
+  atb anchor
+  atb anchor --tsa-url http://timestamp.digicert.com
   atb verify
   atb verify --format json
   atb verify --trace
+  atb verify --with-anchor
   ATB_PASSWORD=test123 atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
   ATB_PASSWORD=test123 atb decrypt handoff/acme-review.atb.enc --output review/acme-review.atb
   atb archive --before 2025-01-01 --dry-run
@@ -886,16 +899,17 @@ func normalizeBundlePath(raw string) string {
 	return clean
 }
 
-func parseVerifyArgs(args []string) (string, string, bool, error) {
+func parseVerifyArgs(args []string) (string, string, bool, bool, error) {
 	path := ""
 	format := verifyFormatText
 	trace := false
+	withAnchor := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "--format":
 			if i+1 >= len(args) {
-				return "", "", false, fmt.Errorf("missing value for --format (expected text|json)")
+				return "", "", false, false, fmt.Errorf("missing value for --format (expected text|json)")
 			}
 			format = strings.ToLower(strings.TrimSpace(args[i+1]))
 			i++
@@ -903,11 +917,13 @@ func parseVerifyArgs(args []string) (string, string, bool, error) {
 			format = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
 		case arg == "--trace":
 			trace = true
+		case arg == "--with-anchor":
+			withAnchor = true
 		case strings.HasPrefix(arg, "--"):
-			return "", "", false, fmt.Errorf("unknown flag %q", arg)
+			return "", "", false, false, fmt.Errorf("unknown flag %q", arg)
 		default:
 			if path != "" {
-				return "", "", false, fmt.Errorf("verify accepts at most one bundle path")
+				return "", "", false, false, fmt.Errorf("verify accepts at most one bundle path")
 			}
 			path = normalizeBundlePath(arg)
 		}
@@ -916,9 +932,9 @@ func parseVerifyArgs(args []string) (string, string, bool, error) {
 		path = bundle.DefaultPath()
 	}
 	if format != verifyFormatText && format != verifyFormatJSON {
-		return "", "", false, fmt.Errorf("invalid format %q (expected text|json)", format)
+		return "", "", false, false, fmt.Errorf("invalid format %q (expected text|json)", format)
 	}
-	return path, format, trace, nil
+	return path, format, trace, withAnchor, nil
 }
 
 func newVerifyResult(path string, b *bundle.Bundle, status string) verifyResult {
@@ -994,7 +1010,7 @@ func verifyWithTrace(b *bundle.Bundle, out io.Writer) error {
 
 // cmdVerify verifies the integrity of the current bundle.
 func cmdVerify() {
-	path, outputFormat, trace, err := parseVerifyArgs(os.Args[2:])
+	path, outputFormat, trace, withAnchor, err := parseVerifyArgs(os.Args[2:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
 		os.Exit(exitUserError)
@@ -1034,6 +1050,21 @@ func cmdVerify() {
 		}
 		fmt.Fprintf(os.Stderr, "✗ VERIFICATION FAILED: %v\n", verifyErr)
 		os.Exit(exitIntegrityFailure)
+	}
+	if withAnchor {
+		anchorOut := io.Writer(os.Stdout)
+		if outputFormat == verifyFormatJSON {
+			anchorOut = io.Discard
+		}
+		if err := verifyBundleAnchor(path, b, anchorOut); err != nil {
+			if outputFormat == verifyFormatJSON {
+				result := newVerifyResult(path, b, "invalid")
+				result.Error = err.Error()
+				printVerifyJSON(result)
+			}
+			fmt.Fprintf(os.Stderr, "✗ ANCHOR VERIFICATION FAILED: %v\n", err)
+			os.Exit(exitIntegrityFailure)
+		}
 	}
 	if outputFormat == verifyFormatJSON {
 		printVerifyJSON(newVerifyResult(path, b, "valid"))

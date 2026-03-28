@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - chore(web): ESLint upgraded to v9, migrated to flat config format
 - note: events carrying these fields written before this change will produce different hashes; events without them are unaffected
 - note: bundles created before this change load correctly; Manifest() returns nil for legacy bundles
+- feat: RFC 3161 TSA anchoring via `atb anchor`; anchor events recorded in chain as `atb.bundle.anchor`
+- feat: `atb verify --with-anchor` validates anchor event against `.tsr` token
 
 ### Fixed
 - Added `genesis_hash` and `verified_at` to `GET /api/v1/bundle/meta`.

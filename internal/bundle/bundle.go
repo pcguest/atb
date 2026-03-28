@@ -27,6 +27,8 @@ const (
 	// ManifestEventType is the reserved event type for bundle manifest records.
 	// A manifest record is always seq 0 and is the first record in a new bundle.
 	ManifestEventType = "atb.bundle.manifest"
+	// AnchorEventType is the reserved event type for TSA anchor records.
+	AnchorEventType = "atb.bundle.anchor"
 	// ManifestVersion is the current manifest format version.
 	ManifestVersion = "1"
 )

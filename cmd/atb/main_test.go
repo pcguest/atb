@@ -144,61 +144,85 @@ func TestParseVerifyArgs(t *testing.T) {
 	custom := filepath.Join(tmp, "custom.atb")
 
 	tests := []struct {
-		name       string
-		args       []string
-		wantPath   string
-		wantFormat string
-		wantTrace  bool
-		wantErr    bool
+		name           string
+		args           []string
+		wantPath       string
+		wantFormat     string
+		wantTrace      bool
+		wantWithAnchor bool
+		wantErr        bool
 	}{
 		{
-			name:       "defaults",
-			args:       nil,
-			wantPath:   bundle.DefaultPath(),
-			wantFormat: verifyFormatText,
-			wantTrace:  false,
+			name:           "defaults",
+			args:           nil,
+			wantPath:       bundle.DefaultPath(),
+			wantFormat:     verifyFormatText,
+			wantTrace:      false,
+			wantWithAnchor: false,
 		},
 		{
-			name:       "path only",
-			args:       []string{custom},
-			wantPath:   custom,
-			wantFormat: verifyFormatText,
-			wantTrace:  false,
+			name:           "path only",
+			args:           []string{custom},
+			wantPath:       custom,
+			wantFormat:     verifyFormatText,
+			wantTrace:      false,
+			wantWithAnchor: false,
 		},
 		{
-			name:       "json format flag",
-			args:       []string{"--format", "json"},
-			wantPath:   bundle.DefaultPath(),
-			wantFormat: verifyFormatJSON,
-			wantTrace:  false,
+			name:           "json format flag",
+			args:           []string{"--format", "json"},
+			wantPath:       bundle.DefaultPath(),
+			wantFormat:     verifyFormatJSON,
+			wantTrace:      false,
+			wantWithAnchor: false,
 		},
 		{
-			name:       "json format equals syntax",
-			args:       []string{"--format=json"},
-			wantPath:   bundle.DefaultPath(),
-			wantFormat: verifyFormatJSON,
-			wantTrace:  false,
+			name:           "json format equals syntax",
+			args:           []string{"--format=json"},
+			wantPath:       bundle.DefaultPath(),
+			wantFormat:     verifyFormatJSON,
+			wantTrace:      false,
+			wantWithAnchor: false,
 		},
 		{
-			name:       "path and format",
-			args:       []string{custom, "--format", "json"},
-			wantPath:   custom,
-			wantFormat: verifyFormatJSON,
-			wantTrace:  false,
+			name:           "path and format",
+			args:           []string{custom, "--format", "json"},
+			wantPath:       custom,
+			wantFormat:     verifyFormatJSON,
+			wantTrace:      false,
+			wantWithAnchor: false,
 		},
 		{
-			name:       "trace flag",
-			args:       []string{"--trace"},
-			wantPath:   bundle.DefaultPath(),
-			wantFormat: verifyFormatText,
-			wantTrace:  true,
+			name:           "trace flag",
+			args:           []string{"--trace"},
+			wantPath:       bundle.DefaultPath(),
+			wantFormat:     verifyFormatText,
+			wantTrace:      true,
+			wantWithAnchor: false,
 		},
 		{
-			name:       "path format and trace",
-			args:       []string{custom, "--format", "json", "--trace"},
-			wantPath:   custom,
-			wantFormat: verifyFormatJSON,
-			wantTrace:  true,
+			name:           "path format and trace",
+			args:           []string{custom, "--format", "json", "--trace"},
+			wantPath:       custom,
+			wantFormat:     verifyFormatJSON,
+			wantTrace:      true,
+			wantWithAnchor: false,
+		},
+		{
+			name:           "with-anchor flag",
+			args:           []string{"--with-anchor"},
+			wantPath:       bundle.DefaultPath(),
+			wantFormat:     verifyFormatText,
+			wantTrace:      false,
+			wantWithAnchor: true,
+		},
+		{
+			name:           "path format trace and with-anchor",
+			args:           []string{custom, "--format", "json", "--trace", "--with-anchor"},
+			wantPath:       custom,
+			wantFormat:     verifyFormatJSON,
+			wantTrace:      true,
+			wantWithAnchor: true,
 		},
 		{
 			name:    "missing format value",
@@ -224,7 +248,7 @@ func TestParseVerifyArgs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			gotPath, gotFormat, gotTrace, err := parseVerifyArgs(tc.args)
+			gotPath, gotFormat, gotTrace, gotWithAnchor, err := parseVerifyArgs(tc.args)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error")
@@ -242,6 +266,9 @@ func TestParseVerifyArgs(t *testing.T) {
 			}
 			if gotTrace != tc.wantTrace {
 				t.Fatalf("unexpected trace value: got %v want %v", gotTrace, tc.wantTrace)
+			}
+			if gotWithAnchor != tc.wantWithAnchor {
+				t.Fatalf("unexpected with-anchor value: got %v want %v", gotWithAnchor, tc.wantWithAnchor)
 			}
 		})
 	}
@@ -476,7 +503,7 @@ func TestParseHelpArgs(t *testing.T) {
 	}
 }
 
-func TestUsageJSONIncludesVerifyTraceAndExitCodes(t *testing.T) {
+func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 	got := usageJSON()
 	if got.Name != "atb" {
 		t.Fatalf("unexpected name: got %q", got.Name)
@@ -495,6 +522,9 @@ func TestUsageJSONIncludesVerifyTraceAndExitCodes(t *testing.T) {
 			foundVerify = true
 			if !strings.Contains(cmd.Usage, "--trace") {
 				t.Fatalf("verify usage missing --trace flag: %q", cmd.Usage)
+			}
+			if !strings.Contains(cmd.Usage, "--with-anchor") {
+				t.Fatalf("verify usage missing --with-anchor flag: %q", cmd.Usage)
 			}
 		}
 		if _, ok := foundMutatingFormat[cmd.Name]; ok {

@@ -3,6 +3,44 @@
   "$id": "https://github.com/pcguest/atb/schemas/event.v1.json",
   "title": "ATB Event v1",
   "description": "Canonical ATB event object used for hash computation and verification.",
+  "reserved_event_types": {
+    "atb.bundle.manifest": {
+      "description": "Reserved system type. Must be the first record in a bundle and uses seq 0. The data payload is written as a JSON string with these fields.",
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "bundle_id": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        }
+      }
+    },
+    "atb.bundle.anchor": {
+      "description": "TSA anchor record. Written after a successful RFC 3161 timestamp request. Reserved system type; appended after the bundle snapshot it anchors, so it uses the next normal event sequence rather than seq 0. The data payload is written as a JSON string with these fields.",
+      "properties": {
+        "tsa_url": {
+          "type": "string"
+        },
+        "bundle_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "tsr_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "certified_time": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -26,7 +64,7 @@
       "type": "string",
       "minLength": 1,
       "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
-      "description": "Dot-namespaced event type identifier."
+      "description": "Dot-namespaced event type identifier. Reserved system types include atb.bundle.manifest and atb.bundle.anchor."
     },
     "hash_algo": {
       "type": "string",
