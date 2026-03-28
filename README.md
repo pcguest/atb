@@ -50,6 +50,8 @@ That sequence creates a local incident bundle with a failed review gate but a va
 | Developer integrations | Native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript. |
 | Go CLI as the primary distribution path | Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path. |
 
+- [Why ATB: integrity, completeness, and what we claim](docs/why-atb.md)
+
 ## Verification model
 
 ```text
