@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+# TODO: align with Go canonical event model in v1.2.0
 
 @dataclass
 class Event:

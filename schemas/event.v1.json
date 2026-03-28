@@ -14,8 +14,8 @@
   "properties": {
     "seq": {
       "type": "integer",
-      "minimum": 1,
-      "description": "1-based event sequence within the bundle."
+      "minimum": 0,
+      "description": "Sequence number of this event within the bundle. 0 is reserved for the bundle manifest record."
     },
     "prev_hash": {
       "type": "string",

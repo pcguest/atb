@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced unsigned export signature placeholders with `null` plus explicit `signature_status` fields.
 - Added Python SDK deprecation guidance for `atb.integrations.langchain`.
 - Filled security findings log placeholders with the verified resolving commit metadata.
+- Increased bundle scanner buffer to 16 MiB in `internal/bundle/bundle.go` for larger NDJSON records.
 - fix: RFC 8785 number serialisation corrected for floats >= 1e21 or < 1e-6
 - fix: hash_algo field added to canonical event (always "sha256" in v1)
 - fix: event type validated against dot-namespace pattern on append
@@ -69,7 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Changed audit log from sidecar file to bundle.atb hash chain
 
 ### Fixed
-- 64KiB bundle line limit: scanner buffer not yet increased. Fix tracked for v1.1.1 — see internal/bundle/bundle.go Load().
 - Fixed CSP headers not being set on embedded UI
 - Fixed rate limit threshold mismatch (now 10/min exactly)
 - Fixed PII masking not using configurable field list

@@ -22,6 +22,8 @@ const (
 	BundleDir = "run.atb"
 	// BundleFile is the default bundle filename.
 	BundleFile = "bundle.atb"
+	// MaxLineSizeBytes is the maximum supported size of a single NDJSON record.
+	MaxLineSizeBytes = 16 * 1024 * 1024
 	// ManifestEventType is the reserved event type for bundle manifest records.
 	// A manifest record is always seq 0 and is the first record in a new bundle.
 	ManifestEventType = "atb.bundle.manifest"
@@ -177,6 +179,7 @@ func Load(path string) (*Bundle, error) {
 	defer f.Close()
 	b := &Bundle{}
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 64*1024), MaxLineSizeBytes)
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 {
