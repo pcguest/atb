@@ -76,7 +76,7 @@ func usageJSON() helpOutput {
 			"0": "success",
 			"1": "user/input error",
 			"2": "integrity verification failure",
-			"3": "system/runtime error",
+			"3": "profile verification failure or system/runtime error",
 		},
 		Commands: []helpCommand{
 			{
@@ -109,9 +109,16 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "verify",
-				Usage:       "atb verify [bundle_path] [--format text|json] [--trace] [--with-anchor]",
-				Description: "Verify bundle hash-chain integrity.",
-				Flags:       []string{"--format", "--trace", "--with-anchor"},
+				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id>] [--json] [--format text|json] [--trace] [--with-anchor]",
+				Description: "Verify bundle integrity and evaluate obligation profiles.",
+				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--trace", "--with-anchor"},
+				Mutating:    false,
+			},
+			{
+				Name:        "events",
+				Usage:       "atb events [--json] [--profile <id>]",
+				Description: "List canonical ATB event types.",
+				Flags:       []string{"--json", "--profile"},
 				Mutating:    false,
 			},
 			{
@@ -137,9 +144,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "export",
-				Usage:       "atb export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run]",
+				Usage:       "atb export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]",
 				Description: "Export local compliance evidence bundle.",
-				Flags:       []string{"--format", "--output", "--bundle", "--type", "--subject-id", "--dry-run"},
+				Flags:       []string{"--format", "--output", "--bundle", "--type", "--subject-id", "--dry-run", "--json", "--with-verify"},
 				Mutating:    false,
 			},
 			{
@@ -228,7 +235,9 @@ func main() {
 	case "anchor":
 		cmdAnchor()
 	case "verify":
-		cmdVerify()
+		cmdVerifyProfile()
+	case "events":
+		cmdEvents()
 	case "encrypt":
 		cmdEncrypt()
 	case "decrypt":
@@ -276,7 +285,8 @@ Commands:
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
-  verify [bundle_path] [--format text|json] [--trace] [--with-anchor]  Verify integrity of a bundle (default: ./run.atb/bundle.atb)
+  verify [bundle_path] [--bundle <path>] [--profile <id>] [--json] [--format text|json] [--trace] [--with-anchor]  Verify integrity of a bundle and evaluate obligation profiles
+  events [--json] [--profile <id>]  List canonical ATB event types
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
   decrypt <encrypted_path> [--output <path>] [--password <password>]  Decrypt encrypted bundle to the default or chosen path
   archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
@@ -291,7 +301,7 @@ Exit codes:
   0  success
   1  user/input error
   2  integrity verification failure
-  3  system/runtime error
+  3  profile verification failure or system/runtime error
 
 Examples:
   atb init
@@ -308,9 +318,14 @@ Examples:
   atb anchor
   atb anchor --tsa-url http://timestamp.digicert.com
   atb verify
+  atb verify --json
+  atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
   atb verify --format json
   atb verify --trace
   atb verify --with-anchor
+  atb events
+  atb events --json
+  atb events --profile atb.profile.rag_answer
   ATB_PASSWORD=test123 atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
   ATB_PASSWORD=test123 atb decrypt handoff/acme-review.atb.enc --output review/acme-review.atb
   atb archive --before 2025-01-01 --dry-run

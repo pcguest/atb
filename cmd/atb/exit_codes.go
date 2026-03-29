@@ -10,6 +10,7 @@ const (
 	exitSuccess          = 0
 	exitUserError        = 1
 	exitIntegrityFailure = 2
+	exitVerifyFailure    = 3
 	exitSystemError      = 3
 )
 
