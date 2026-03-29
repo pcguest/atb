@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 
 	anchorpkg "github.com/pcguest/atb/internal/anchor"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 )
 
 type anchorConfig struct {
@@ -27,6 +29,7 @@ type anchorResult struct {
 	CertifiedTime string
 	BundleHash    string
 	TSRHash       string
+	TSRDER        string
 	EventData     string
 }
 
@@ -34,6 +37,7 @@ type anchorEventData struct {
 	TSAURL        string `json:"tsa_url"`
 	BundleHash    string `json:"bundle_hash"`
 	TSRHash       string `json:"tsr_hash"`
+	TSRDER        string `json:"tsr_der"`
 	CertifiedTime string `json:"certified_time"`
 }
 
@@ -107,15 +111,17 @@ func runAnchor(cfg anchorConfig) (anchorResult, error) {
 
 	tsrHash := sha256.Sum256(tsrBytes)
 	result.TSRHash = hex.EncodeToString(tsrHash[:])
+	result.TSRDER = base64.StdEncoding.EncodeToString(tsrBytes)
 	result.EventData = fmt.Sprintf(
-		`{"tsa_url":%q,"bundle_hash":%q,"tsr_hash":%q,"certified_time":%q}`,
+		`{"tsa_url":%q,"bundle_hash":%q,"tsr_hash":%q,"tsr_der":%q,"certified_time":%q}`,
 		cfg.TSAURL,
 		result.BundleHash,
 		result.TSRHash,
+		result.TSRDER,
 		certifiedTime,
 	)
 
-	if err := b.AppendWithOptions(bundle.AnchorEventType, result.EventData, &bundle.AppendOptions{
+	if err := b.AppendWithOptions(event.TypeBundleAnchor, result.EventData, &bundle.AppendOptions{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}); err != nil {
 		return result, err
@@ -197,7 +203,7 @@ func verifyBundleAnchor(bundlePath string, b *bundle.Bundle, out io.Writer) erro
 
 func latestAnchorEventData(b *bundle.Bundle) (int, anchorEventData, bool, error) {
 	for i := len(b.Records) - 1; i >= 0; i-- {
-		if b.Records[i].Event.Type != bundle.AnchorEventType {
+		if b.Records[i].Event.Type != event.TypeBundleAnchor {
 			continue
 		}
 

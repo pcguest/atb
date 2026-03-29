@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -21,6 +23,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/canonicalize"
 	"github.com/pcguest/atb/internal/trust"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 const (
@@ -38,6 +41,8 @@ type exportConfig struct {
 	Format     string
 	Output     string
 	DryRun     bool
+	JSON       bool
+	WithVerify bool
 	BundlePath string
 	GDPRType   string
 	SubjectID  string
@@ -88,6 +93,22 @@ type exportBuildResult struct {
 	BundleFiles   []exportBundleInfo
 	ChecksumLines []string
 	OutputPath    string
+}
+
+type exportCommandResult struct {
+	Status       string                     `json:"status"`
+	Format       string                     `json:"format"`
+	Output       string                     `json:"output"`
+	DryRun       bool                       `json:"dry_run"`
+	FileCount    int                        `json:"file_count"`
+	Verification *exportCommandVerification `json:"verification,omitempty"`
+}
+
+type exportCommandVerification struct {
+	Passed       bool    `json:"passed"`
+	Grade        string  `json:"grade"`
+	ResidualRisk float64 `json:"residual_risk"`
+	Sidecar      string  `json:"sidecar"`
 }
 
 type exportBaseEvidence struct {
@@ -228,49 +249,107 @@ var soc2Controls = []soc2ControlDefinition{
 }
 
 func cmdExport() {
-	cfg, err := parseExportArgs(os.Args[2:])
+	os.Exit(runExport(os.Args[2:], os.Stdout, os.Stderr))
+}
+
+func runExport(args []string, stdout, stderr io.Writer) int {
+	cfg, err := parseExportArgs(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "atb export: %v\n", err)
-		printExportUsage()
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb export: %v\n", err)
+		printExportUsage(stderr)
+		return exitUserError
 	}
 
 	now := time.Now().UTC()
 	result, err := buildExport(now, cfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "atb export: %v\n", err)
+		fmt.Fprintf(stderr, "atb export: %v\n", err)
 		exitCode := exitSystemError
 		if strings.Contains(strings.ToLower(err.Error()), "verification") {
 			exitCode = exitUserError
 		}
-		os.Exit(exitCode)
+		return exitCode
 	}
 
 	if cfg.DryRun {
-		fmt.Printf("~ Dry run: would create %s with %d file(s)\n", cfg.Output, len(result.Files))
+		if cfg.JSON {
+			payload := exportCommandResult{
+				Status:    "dry_run",
+				Format:    cfg.Format,
+				Output:    result.OutputPath,
+				DryRun:    true,
+				FileCount: len(result.Files),
+			}
+			if err := json.NewEncoder(stdout).Encode(payload); err != nil {
+				fmt.Fprintf(stderr, "atb export: encode json output: %v\n", err)
+				return exitSystemError
+			}
+			return exitSuccess
+		}
+
+		fmt.Fprintf(stdout, "~ Dry run: would create %s with %d file(s)\n", cfg.Output, len(result.Files))
 		for _, path := range result.Manifest.IncludedFiles {
-			fmt.Printf("  - %s\n", path)
+			fmt.Fprintf(stdout, "  - %s\n", path)
 		}
 		if len(result.Manifest.Warnings) > 0 {
-			fmt.Println("Warnings:")
+			fmt.Fprintln(stdout, "Warnings:")
 			for _, warning := range result.Manifest.Warnings {
-				fmt.Printf("  - %s\n", warning)
+				fmt.Fprintf(stdout, "  - %s\n", warning)
 			}
 		}
-		fmt.Printf(
+		fmt.Fprintf(
+			stdout,
 			"Verification: active_verified=%d archived_verified=%d ledger_verified=%t\n",
 			result.Manifest.Verification.ActiveVerified,
 			result.Manifest.Verification.ArchivedVerified,
 			result.Manifest.Verification.LedgerVerified,
 		)
-		return
+		return exitSuccess
 	}
 
 	if err := writeExportZip(result, now); err != nil {
-		fmt.Fprintf(os.Stderr, "atb export: write zip: %v\n", err)
-		os.Exit(exitSystemError)
+		fmt.Fprintf(stderr, "atb export: write zip: %v\n", err)
+		return exitSystemError
 	}
-	fmt.Printf("✓ Exported compliance evidence: %s\n", result.OutputPath)
+
+	exitCode := exitSuccess
+	var verificationSummary *exportCommandVerification
+	if cfg.WithVerify {
+		report, summary, err := writeExportVerificationSidecar(cfg, result, stderr)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb export: %v\n", err)
+			return exitUserError
+		}
+		verificationSummary = &summary
+		exitCode = verificationExitCode(report)
+	}
+
+	if cfg.JSON {
+		payload := exportCommandResult{
+			Status:       "written",
+			Format:       cfg.Format,
+			Output:       result.OutputPath,
+			DryRun:       false,
+			FileCount:    len(result.Files),
+			Verification: verificationSummary,
+		}
+		if err := json.NewEncoder(stdout).Encode(payload); err != nil {
+			fmt.Fprintf(stderr, "atb export: encode json output: %v\n", err)
+			return exitSystemError
+		}
+		return exitCode
+	}
+
+	fmt.Fprintf(stdout, "✓ Exported compliance evidence: %s\n", result.OutputPath)
+	if verificationSummary != nil {
+		status := "FAIL"
+		if verificationSummary.Passed {
+			status = "PASS"
+		}
+		fmt.Fprintf(stdout, "Verification: %s  grade=%s  residual_risk=%.2f\n", status, verificationSummary.Grade, verificationSummary.ResidualRisk)
+		fmt.Fprintf(stdout, "Sidecar written: %s\n", verificationSummary.Sidecar)
+	}
+	return exitCode
 }
 
 func parseExportArgs(args []string) (exportConfig, error) {
@@ -320,6 +399,10 @@ func parseExportArgs(args []string) (exportConfig, error) {
 			cfg.SubjectID = strings.TrimSpace(strings.TrimPrefix(arg, "--subject-id="))
 		case arg == "--dry-run":
 			cfg.DryRun = true
+		case arg == "--json":
+			cfg.JSON = true
+		case arg == "--with-verify":
+			cfg.WithVerify = true
 		case strings.HasPrefix(arg, "--"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -1648,6 +1731,108 @@ func sha256Hex(data []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-func printExportUsage() {
-	fmt.Println("Usage: atb export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run]")
+func writeExportVerificationSidecar(cfg exportConfig, result exportBuildResult, stderr io.Writer) (verifypkg.Report, exportCommandVerification, error) {
+	bundlePath := exportVerificationBundlePath(cfg, result)
+	b, err := bundle.Load(bundlePath)
+	if err != nil {
+		return verifypkg.Report{}, exportCommandVerification{}, fmt.Errorf("load bundle for verification: %w", err)
+	}
+
+	sidecarPath, notice := exportVerificationSidecarPath(result.OutputPath, bundlePath, b)
+	if notice != "" {
+		fmt.Fprintln(stderr, notice)
+	}
+
+	report := verifypkg.Verify(b, bundlePath, "")
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return verifypkg.Report{}, exportCommandVerification{}, fmt.Errorf("marshal verification sidecar: %w", err)
+	}
+	if err := os.WriteFile(sidecarPath, data, 0o644); err != nil {
+		return verifypkg.Report{}, exportCommandVerification{}, fmt.Errorf("write verification sidecar: %w", err)
+	}
+
+	return report, exportCommandVerification{
+		Passed:       verificationExitCode(report) == exitSuccess,
+		Grade:        exportVerificationGrade(report),
+		ResidualRisk: exportVerificationResidualRisk(report),
+		Sidecar:      sidecarPath,
+	}, nil
+}
+
+func exportVerificationBundlePath(cfg exportConfig, result exportBuildResult) string {
+	if strings.TrimSpace(cfg.BundlePath) != "" {
+		return filepath.Clean(cfg.BundlePath)
+	}
+	for _, info := range result.BundleFiles {
+		if !info.Archived && strings.TrimSpace(info.Source) != "" {
+			return filepath.Clean(info.Source)
+		}
+	}
+	return bundle.DefaultPath()
+}
+
+func exportVerificationSidecarPath(outputPath string, bundlePath string, b *bundle.Bundle) (string, string) {
+	if strings.TrimSpace(outputPath) != "" {
+		cleaned := filepath.Clean(outputPath)
+		return cleaned + ".verify.json", ""
+	}
+
+	base := exportVerificationBundleID(b)
+	if base == "" {
+		base = strings.TrimSuffix(filepath.Base(bundlePath), filepath.Ext(bundlePath))
+	}
+	if base == "" {
+		base = "bundle"
+	}
+
+	sidecarPath := filepath.Clean(base + ".verify.json")
+	return sidecarPath, fmt.Sprintf("atb export: --output not set; writing verification sidecar to %s", sidecarPath)
+}
+
+func exportVerificationBundleID(b *bundle.Bundle) string {
+	if b == nil {
+		return ""
+	}
+	manifest := b.Manifest()
+	if manifest == nil {
+		return ""
+	}
+	return strings.TrimSpace(manifest.BundleID)
+}
+
+func exportVerificationGrade(report verifypkg.Report) string {
+	if report.CAS == nil {
+		return "D"
+	}
+
+	switch report.CAS.Grade {
+	case "High":
+		return "A"
+	case "Medium":
+		return "B"
+	case "Low":
+		return "C"
+	default:
+		return "D"
+	}
+}
+
+func exportVerificationResidualRisk(report verifypkg.Report) float64 {
+	if report.CAS == nil {
+		return 1.0
+	}
+
+	risk := 1 - report.CAS.Overall
+	if risk < 0 {
+		risk = 0
+	}
+	if risk > 1 {
+		risk = 1
+	}
+	return math.Round(risk*100) / 100
+}
+
+func printExportUsage(w io.Writer) {
+	fmt.Fprintln(w, "Usage: atb export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]")
 }

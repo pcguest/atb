@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"io"
 	"net/http"
@@ -69,6 +70,9 @@ func TestRunAnchorWritesTSRAndAppendsAnchorEvent(t *testing.T) {
 	tsrHash := sha256.Sum256(fixture)
 	if data.TSRHash != hex.EncodeToString(tsrHash[:]) {
 		t.Fatalf("unexpected tsr_hash: got %q", data.TSRHash)
+	}
+	if data.TSRDER != base64.StdEncoding.EncodeToString(fixture) {
+		t.Fatalf("unexpected tsr_der: got %q", data.TSRDER)
 	}
 	if data.CertifiedTime != "2026-03-28T03:04:05Z" {
 		t.Fatalf("unexpected certified_time: got %q", data.CertifiedTime)
