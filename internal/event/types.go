@@ -1,0 +1,99 @@
+// Package event defines the canonical ATB event taxonomy.
+// Event type strings follow the reverse-DNS dotted-namespace convention.
+// These constants are the authoritative source of truth across the Go
+// runtime, CLI, and obligation profiles.
+package event
+
+// Bundle lifecycle events.
+const (
+	TypeBundleManifest = "atb.bundle.manifest"
+	TypeBundleAnchor   = "atb.bundle.anchor"
+)
+
+// AI request and response events.
+const (
+	TypeAIRequestReceived = "ai.request.received"
+	TypeAIResponseSent    = "ai.response.sent"
+)
+
+// Policy decision events.
+const (
+	TypeAIPolicyDecision = "ai.policy.decision"
+)
+
+// RAG events.
+const (
+	TypeAIRetrievalExecuted = "ai.retrieval.executed"
+	TypeAIModelInvoked      = "ai.model.invoked"
+	TypeAIModelOutput       = "ai.model.output"
+)
+
+// Privileged action / ACP-gating events.
+const (
+	TypeAIActionPrecommit = "ai.action.precommit"
+	TypeAIActionExecuted  = "ai.action.executed"
+	TypeAIActionCommitted = "ai.action.committed"
+)
+
+// Human oversight events.
+const (
+	TypeAIHumanApproval     = "ai.human.approval"
+	TypeAIOverrideRequested = "ai.override.requested"
+)
+
+// Background automation events.
+const (
+	TypeAIJobScheduled = "ai.job.scheduled"
+	TypeAIJobStarted   = "ai.job.started"
+	TypeAIJobStep      = "ai.job.step"
+	TypeAIJobCompleted = "ai.job.completed"
+)
+
+// Data export events.
+const (
+	TypeDataExportPrecommit = "data.export.precommit"
+	TypeDataExportExecuted  = "data.export.executed"
+)
+
+// Developer / session events used in tests and tooling.
+const (
+	TypeDevSession    = "dev.session"
+	TypeSnapshotBuild = "snapshot.build"
+)
+
+// EventInfo describes a registered event type with its metadata.
+type EventInfo struct {
+	Type        string `json:"type"`
+	Description string `json:"description"`
+	// Profile lists the obligation profile IDs where this event is primary.
+	// Multiple profiles are comma-separated. Empty means no specific profile.
+	Profile string `json:"profile"`
+	// Criticality is one of: "critical", "required", "informational", "".
+	Criticality string `json:"criticality"`
+}
+
+// Registry is the ordered list of all canonical event types.
+// It is the source of truth used by `atb events`.
+var Registry = []EventInfo{
+	{TypeBundleManifest, "Bundle manifest (seq 0, always first in a new bundle)", "all", "critical"},
+	{TypeBundleAnchor, "RFC 3161 TSA timestamp anchor", "all", "required"},
+	{TypeAIRequestReceived, "AI request received at app boundary", "atb.profile.rag_answer,atb.profile.privileged_tool_action", "critical"},
+	{TypeAIResponseSent, "AI response sent from app boundary", "atb.profile.rag_answer", "required"},
+	{TypeAIPolicyDecision, "Policy engine decision (allow/deny)", "atb.profile.privileged_tool_action", "critical"},
+	{TypeAIRetrievalExecuted, "Retrieval step executed (RAG)", "atb.profile.rag_answer", "required"},
+	{TypeAIModelInvoked, "LLM invocation sent", "atb.profile.rag_answer", "critical"},
+	{TypeAIModelOutput, "LLM output received", "atb.profile.rag_answer", "critical"},
+	{TypeAIActionPrecommit, "Pre-commit record for a gated privileged action", "atb.profile.privileged_tool_action", "critical"},
+	{TypeAIActionExecuted, "Privileged action executed through gate", "atb.profile.privileged_tool_action", "critical"},
+	{TypeAIActionCommitted, "Privileged action committed to sink", "atb.profile.privileged_tool_action", "critical"},
+	{TypeAIHumanApproval, "Human approval of an action or override", "atb.profile.privileged_tool_action", "required"},
+	{TypeAIOverrideRequested, "Human override requested", "", "critical"},
+	{TypeAIJobScheduled, "Background job scheduled", "atb.profile.background_automation", "critical"},
+	{TypeAIJobStarted, "Background job started by worker", "atb.profile.background_automation", "critical"},
+	{TypeAIJobStep, "Individual step within a background job", "atb.profile.background_automation", "required"},
+	{TypeAIJobCompleted, "Background job completed", "atb.profile.background_automation", "critical"},
+	{TypeDataExportPrecommit, "Pre-commit record for a data export", "atb.profile.data_export", "critical"},
+	{TypeDataExportExecuted, "Data export executed to sink", "atb.profile.data_export", "critical"},
+	{TypeDevSession, "Developer session marker (tooling use)", "", "informational"},
+	{TypeSnapshotBuild, "Build snapshot (tooling use)", "", "informational"},
+}
