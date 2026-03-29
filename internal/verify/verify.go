@@ -88,56 +88,14 @@ var recommendationBySubScore = map[string]string{
 // Verify evaluates the bundle against the matching registered profiles and
 // returns a structured verification report.
 func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
-	report := Report{
-		BundlePath: bundlePath,
-		Integrity: IntegrityResult{
-			Canonicalization: "rfc8785",
-			HashAlgo:         "sha256",
-		},
-		Anchoring:    scanAnchoring(nil),
-		Profiles:     []ProfileResult{},
-		Exclusions:   []string{},
-		ResidualRisk: ResidualRisk{Level: "High"},
-	}
-	if b == nil {
-		report.Integrity.Error = "bundle is nil"
-		report.ResidualRisk = ResidualRisk{
-			Level:   "High",
-			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
-		}
+	report, ok := prepareVerificationReport(b, bundlePath)
+	if !ok {
 		return report
 	}
-
-	report.Anchoring = scanAnchoring(b.Records)
-	if anchorResults := trust.VerifyAnchors(b); len(anchorResults) > 0 {
-		for _, r := range anchorResults {
-			if r.TSAVerified {
-				report.Anchoring.TSAVerified = true
-				break
-			}
-		}
-	}
-	setIntegritySequenceBounds(&report.Integrity, b.Records)
-
-	if err := b.Verify(); err != nil {
-		report.Integrity.Error = err.Error()
-		report.ResidualRisk = ResidualRisk{
-			Level:   "High",
-			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
-		}
-		return report
-	}
-	report.Integrity.ChainValid = true
 
 	profiles := matchingProfiles(b.Records, profileID)
 	if len(profiles) == 0 {
-		report.ResidualRisk = ResidualRisk{
-			Level:   "High",
-			Drivers: []string{"No matching obligation profile evaluated."},
-			RecommendedNextEvidence: []string{
-				"Select an obligation profile explicitly or emit profile-identifying events.",
-			},
-		}
+		report.ResidualRisk = residualRiskNoMatchingProfile()
 		return report
 	}
 
@@ -155,6 +113,33 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 		report.ResidualRisk = deriveResidualRisk(cas, result)
 	}
 
+	return report
+}
+
+// VerifyWithProfile evaluates a bundle against a specific explicit profile.
+func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Report {
+	report, ok := prepareVerificationReport(b, bundlePath)
+	if !ok {
+		return report
+	}
+	if profile == nil {
+		report.ResidualRisk = residualRiskNoMatchingProfile()
+		return report
+	}
+
+	result := profile.Evaluate(b.Records)
+	report.Profiles = append(report.Profiles, result)
+	report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
+
+	if profileSupportsCAS(profile) {
+		subScores := subScoresForProfile(profile, b.Records, report.Anchoring.AnchorPresent)
+		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
+		report.CAS = &cas
+		report.ResidualRisk = deriveResidualRisk(cas, result)
+		return report
+	}
+
+	report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
 	return report
 }
 
@@ -254,12 +239,66 @@ func scanAnchoring(records []bundle.Record) AnchoringResult {
 	return result
 }
 
+func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, bool) {
+	report := Report{
+		BundlePath: bundlePath,
+		Integrity: IntegrityResult{
+			Canonicalization: "rfc8785",
+			HashAlgo:         "sha256",
+		},
+		Anchoring:    scanAnchoring(nil),
+		Profiles:     []ProfileResult{},
+		Exclusions:   []string{},
+		ResidualRisk: ResidualRisk{Level: "High"},
+	}
+	if b == nil {
+		report.Integrity.Error = "bundle is nil"
+		report.ResidualRisk = ResidualRisk{
+			Level:   "High",
+			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
+		}
+		return report, false
+	}
+
+	report.Anchoring = scanAnchoring(b.Records)
+	if anchorResults := trust.VerifyAnchors(b); len(anchorResults) > 0 {
+		for _, r := range anchorResults {
+			if r.TSAVerified {
+				report.Anchoring.TSAVerified = true
+				break
+			}
+		}
+	}
+	setIntegritySequenceBounds(&report.Integrity, b.Records)
+
+	if err := b.Verify(); err != nil {
+		report.Integrity.Error = err.Error()
+		report.ResidualRisk = ResidualRisk{
+			Level:   "High",
+			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
+		}
+		return report, false
+	}
+	report.Integrity.ChainValid = true
+	return report, true
+}
+
 func setIntegritySequenceBounds(result *IntegrityResult, records []bundle.Record) {
 	if len(records) == 0 {
 		return
 	}
 	result.FirstSeq = records[0].Event.Sequence
 	result.LastSeq = records[len(records)-1].Event.Sequence
+}
+
+func residualRiskNoMatchingProfile() ResidualRisk {
+	return ResidualRisk{
+		Level:   "High",
+		Drivers: []string{"No matching obligation profile evaluated."},
+		RecommendedNextEvidence: []string{
+			"Select an obligation profile explicitly or emit profile-identifying events.",
+		},
+	}
 }
 
 func matchingProfiles(records []bundle.Record, profileID string) []Profile {
@@ -324,6 +363,38 @@ func deriveResidualRisk(cas CASResult, profile ProfileResult) ResidualRisk {
 		Level:                   level,
 		Drivers:                 drivers,
 		RecommendedNextEvidence: recommended,
+	}
+}
+
+func deriveResidualRiskWithoutCAS(profile ProfileResult) ResidualRisk {
+	level := "Low"
+	switch {
+	case !profile.Pass:
+		level = "High"
+	case len(profile.RequiredWarnings) > 0:
+		level = "Medium"
+	}
+
+	recommended := make([]string, 0, len(profile.CriticalFailures)+len(profile.RequiredWarnings))
+	for _, failure := range profile.CriticalFailures {
+		recommended = append(recommended, failure.Detail)
+	}
+	recommended = append(recommended, profile.RequiredWarnings...)
+	recommended = appendUniqueStrings(nil, recommended...)
+	sort.Strings(recommended)
+
+	return ResidualRisk{
+		Level:                   level,
+		RecommendedNextEvidence: recommended,
+	}
+}
+
+func profileSupportsCAS(profile Profile) bool {
+	switch profile.(type) {
+	case *PrivilegedToolActionProfile, *RAGAnswerProfile:
+		return true
+	default:
+		return false
 	}
 }
 
