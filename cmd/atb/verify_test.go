@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -65,6 +66,56 @@ func TestRunVerify_ProfileFail_ExitCode(t *testing.T) {
 	exitCode := runVerify([]string{"--bundle", path}, &stdout, &stderr)
 	if exitCode != exitVerifyFailure {
 		t.Fatalf("unexpected exit code: got %d want %d", exitCode, exitVerifyFailure)
+	}
+}
+
+func TestRunVerify_ProfilePath_JSONOutput(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	profilePath := filepath.Join(t.TempDir(), "profile.yaml")
+	profileYAML := `
+id: "org.example.my_profile"
+display_name: "My Custom Profile"
+description: "Custom obligations for our deployment"
+detect:
+  event_types:
+    - "ai.action.precommit"
+obligations:
+  critical:
+    - event_type: "ai.action.precommit"
+      message: "Pre-commit record required"
+    - event_type: "ai.action.executed"
+      message: "Execution record required"
+  required:
+    - event_type: "atb.bundle.anchor"
+      message: "Anchor required"
+relations:
+  - from: "ai.action.precommit"
+    to: "ai.action.executed"
+    message: "Precommit must precede execution"
+`
+	if err := os.WriteFile(profilePath, []byte(profileYAML), 0600); err != nil {
+		t.Fatalf("write profile fixture: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--profile", profilePath, "--json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if len(report.Profiles) != 1 {
+		t.Fatalf("expected one evaluated profile, got %d", len(report.Profiles))
+	}
+	if report.Profiles[0].ProfileID != "org.example.my_profile" {
+		t.Fatalf("unexpected profile ID: got %q want %q", report.Profiles[0].ProfileID, "org.example.my_profile")
+	}
+	if !report.Profiles[0].Pass {
+		t.Fatalf("expected custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
 	}
 }
 

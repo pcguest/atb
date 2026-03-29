@@ -39,10 +39,14 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
-	if cfg.ProfileID != "" && verifypkg.ProfileByID(cfg.ProfileID) == nil {
-		fmt.Fprintf(stderr, "atb verify: unrecognised profile %q\n", cfg.ProfileID)
-		printVerifyCommandUsage(stderr)
-		return exitUserError
+	var profile verifypkg.Profile
+	if cfg.ProfileID != "" {
+		profile, err = verifypkg.ResolveProfile(cfg.ProfileID)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb verify: %v\n", err)
+			printVerifyCommandUsage(stderr)
+			return exitUserError
+		}
 	}
 
 	b, err := bundle.Load(cfg.BundlePath)
@@ -61,6 +65,9 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	}
 
 	report := verifypkg.Verify(b, cfg.BundlePath, cfg.ProfileID)
+	if profile != nil {
+		report = verifypkg.VerifyWithProfile(b, cfg.BundlePath, profile)
+	}
 	if cfg.WithAnchor && report.Integrity.ChainValid {
 		anchorOut := stdout
 		if cfg.JSON || isLegacyJSONMode(cfg) {
@@ -183,7 +190,7 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 }
 
 func printVerifyCommandUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id>] [--json] [--format text|json] [--trace] [--with-anchor]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]")
 }
 
 func isLegacyJSONMode(cfg verifyCLIConfig) bool {

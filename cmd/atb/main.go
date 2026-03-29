@@ -109,7 +109,7 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "verify",
-				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id>] [--json] [--format text|json] [--trace] [--with-anchor]",
+				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]",
 				Description: "Verify bundle integrity and evaluate obligation profiles.",
 				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--trace", "--with-anchor"},
 				Mutating:    false,
@@ -285,7 +285,7 @@ Commands:
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
-  verify [bundle_path] [--bundle <path>] [--profile <id>] [--json] [--format text|json] [--trace] [--with-anchor]  Verify integrity of a bundle and evaluate obligation profiles
+  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]  Verify integrity of a bundle and evaluate obligation profiles
   events [--json] [--profile <id>]  List canonical ATB event types
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
   decrypt <encrypted_path> [--output <path>] [--password <password>]  Decrypt encrypted bundle to the default or chosen path
@@ -320,6 +320,7 @@ Examples:
   atb verify
   atb verify --json
   atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
+  atb verify --bundle run.atb/bundle.atb --profile ./my-profile.yaml
   atb verify --format json
   atb verify --trace
   atb verify --with-anchor
