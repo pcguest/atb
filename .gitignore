@@ -88,3 +88,4 @@ web/cypress/screenshots/
 coverage.out
 trivy-report.json
 web/cypress/screenshots/
+.gomodcache/
