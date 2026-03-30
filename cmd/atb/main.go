@@ -87,6 +87,13 @@ func usageJSON() helpOutput {
 				Mutating:    true,
 			},
 			{
+				Name:        "bundle",
+				Usage:       "atb bundle new [--dry-run] [--format text|json]",
+				Description: "Initialise a new ATB bundle (alias for init).",
+				Flags:       []string{"--dry-run", "--format"},
+				Mutating:    true,
+			},
+			{
 				Name:        "append",
 				Usage:       "atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]",
 				Description: "Append an event to the current bundle.",
@@ -249,6 +256,8 @@ func main() {
 	switch cmd {
 	case "init":
 		cmdInit()
+	case "bundle":
+		cmdBundle()
 	case "append":
 		cmdAppend()
 	case "snapshot":
@@ -309,6 +318,7 @@ Usage:
 
 Commands:
   init [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
+  bundle new [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (alias for init)
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
@@ -337,6 +347,9 @@ Examples:
   atb init
   atb init --dry-run
   atb init --format json
+  atb bundle new
+  atb bundle new --dry-run
+  atb bundle new --format json
   atb append dev.session '{"features_built":["hash chaining"]}'
   atb append feature --data '{"name":"atb view"}'
   atb append dev.session --data '{"x":1}' --actor-id paddy --org-id pcguest --workspace-id local
@@ -382,9 +395,15 @@ Examples:
 
 // cmdInit initialises a new bundle directory and empty bundle file.
 func cmdInit() {
-	args, outputFormat, dryRun, err := parseMutationFlags(os.Args[2:])
+	os.Exit(runInit(os.Args[2:], os.Stdout, os.Stderr))
+}
+
+func runInit(args []string, stdout, stderr io.Writer) int {
+	rawArgs := append([]string(nil), args...)
+	args, outputFormat, dryRun, err := parseMutationFlags(args)
 	if err != nil {
-		if strings.Contains(strings.Join(os.Args[2:], " "), "--format json") || strings.Contains(strings.Join(os.Args[2:], " "), "--format=json") {
+		joinedArgs := strings.Join(rawArgs, " ")
+		if strings.Contains(joinedArgs, "--format json") || strings.Contains(joinedArgs, "--format=json") {
 			printMutationJSON(mutationResult{
 				Status:   "error",
 				Action:   "init",
@@ -393,10 +412,10 @@ func cmdInit() {
 				Error:    err.Error(),
 				ExitCode: exitUserError,
 			}, "init")
-			os.Exit(exitUserError)
+			return exitUserError
 		}
-		fmt.Fprintf(os.Stderr, "atb init: %v\n", err)
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb init: %v\n", err)
+		return exitUserError
 	}
 	if len(args) > 0 {
 		if outputFormat == verifyFormatJSON {
@@ -408,10 +427,10 @@ func cmdInit() {
 				Error:    "usage: atb init [--dry-run] [--format text|json]",
 				ExitCode: exitUserError,
 			}, "init")
-			os.Exit(exitUserError)
+			return exitUserError
 		}
-		fmt.Fprintln(os.Stderr, "Usage: atb init [--dry-run] [--format text|json]")
-		os.Exit(exitUserError)
+		fmt.Fprintln(stderr, "Usage: atb init [--dry-run] [--format text|json]")
+		return exitUserError
 	}
 	path := bundle.DefaultPath()
 	if _, err := os.Stat(path); err == nil {
@@ -424,10 +443,10 @@ func cmdInit() {
 					Path:    path,
 					Message: "bundle already exists; no changes",
 				}, "init")
-				return
+				return exitSuccess
 			}
-			fmt.Printf("~ Dry run: bundle already exists at %s (no changes).\n", path)
-			return
+			fmt.Fprintf(stdout, "~ Dry run: bundle already exists at %s (no changes).\n", path)
+			return exitSuccess
 		}
 		if outputFormat == verifyFormatJSON {
 			printMutationJSON(mutationResult{
@@ -437,10 +456,10 @@ func cmdInit() {
 				Path:    path,
 				Message: "bundle already exists; no changes",
 			}, "init")
-			return
+			return exitSuccess
 		}
-		fmt.Printf("atb init: bundle already exists at %s (no changes).\n", path)
-		return
+		fmt.Fprintf(stdout, "atb init: bundle already exists at %s (no changes).\n", path)
+		return exitSuccess
 	} else if !errors.Is(err, os.ErrNotExist) {
 		if outputFormat == verifyFormatJSON {
 			printMutationJSON(mutationResult{
@@ -451,10 +470,10 @@ func cmdInit() {
 				Error:    fmt.Sprintf("stat %s: %v", path, err),
 				ExitCode: exitSystemError,
 			}, "init")
-			os.Exit(exitSystemError)
+			return exitSystemError
 		}
-		fmt.Fprintf(os.Stderr, "atb init: stat %s: %v\n", path, err)
-		os.Exit(exitSystemError)
+		fmt.Fprintf(stderr, "atb init: stat %s: %v\n", path, err)
+		return exitSystemError
 	}
 	if dryRun {
 		if outputFormat == verifyFormatJSON {
@@ -465,10 +484,10 @@ func cmdInit() {
 				Path:    path,
 				Message: "bundle would be initialised",
 			}, "init")
-			return
+			return exitSuccess
 		}
-		fmt.Printf("~ Dry run: would initialise ATB bundle at %s.\n", path)
-		return
+		fmt.Fprintf(stdout, "~ Dry run: would initialise ATB bundle at %s.\n", path)
+		return exitSuccess
 	}
 	b := bundle.New()
 	if err := b.Save(path); err != nil {
@@ -481,10 +500,10 @@ func cmdInit() {
 				Error:    err.Error(),
 				ExitCode: exitSystemError,
 			}, "init")
-			os.Exit(exitSystemError)
+			return exitSystemError
 		}
-		fmt.Fprintf(os.Stderr, "atb init: %v\n", err)
-		os.Exit(exitSystemError)
+		fmt.Fprintf(stderr, "atb init: %v\n", err)
+		return exitSystemError
 	}
 	if outputFormat == verifyFormatJSON {
 		printMutationJSON(mutationResult{
@@ -494,9 +513,10 @@ func cmdInit() {
 			Path:    path,
 			Message: "bundle initialised",
 		}, "init")
-		return
+		return exitSuccess
 	}
-	fmt.Printf("✓ Initialised ATB bundle at %s\n", path)
+	fmt.Fprintf(stdout, "✓ Initialised ATB bundle at %s\n", path)
+	return exitSuccess
 }
 
 // cmdAppend appends a new event to the existing bundle.

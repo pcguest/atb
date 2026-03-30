@@ -395,6 +395,60 @@ func TestAppendToDefaultBundleDryRunDoesNotPersist(t *testing.T) {
 	}
 }
 
+func TestRunBundleNew(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runBundle([]string{"new"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Initialised ATB bundle") {
+		t.Fatalf("expected init output, got %q", stdout.String())
+	}
+	if _, err := os.Stat(bundle.DefaultPath()); err != nil {
+		t.Fatalf("expected bundle file to be created: %v", err)
+	}
+}
+
+func TestRunBundleNewDryRunDoesNotCreateFiles(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runBundle([]string{"new", "--dry-run"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "would initialise ATB bundle") {
+		t.Fatalf("expected dry-run output, got %q", stdout.String())
+	}
+	if _, err := os.Stat(bundle.DefaultPath()); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("expected no bundle file written in dry-run mode, stat err=%v", err)
+	}
+}
+
 func TestAppendToDefaultBundleRejectsCorruptExistingBundle(t *testing.T) {
 	tmp := t.TempDir()
 	oldWD, err := os.Getwd()
@@ -512,6 +566,7 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 		t.Fatalf("missing exit code mapping for 2")
 	}
 	foundVerify := false
+	foundBundle := false
 	foundMutatingFormat := map[string]bool{
 		"init":     false,
 		"append":   false,
@@ -530,6 +585,12 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 				t.Fatalf("verify usage missing --with-anchor flag: %q", cmd.Usage)
 			}
 		}
+		if cmd.Name == "bundle" {
+			foundBundle = true
+			if !strings.Contains(cmd.Usage, "bundle new") {
+				t.Fatalf("bundle usage missing bundle new alias: %q", cmd.Usage)
+			}
+		}
 		if _, ok := foundMutatingFormat[cmd.Name]; ok {
 			if !strings.Contains(cmd.Usage, "--format") {
 				t.Fatalf("%s usage missing --format: %q", cmd.Name, cmd.Usage)
@@ -539,6 +600,9 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 	}
 	if !foundVerify {
 		t.Fatalf("verify command missing from usage JSON")
+	}
+	if !foundBundle {
+		t.Fatalf("bundle command missing from usage JSON")
 	}
 	for name, found := range foundMutatingFormat {
 		if !found {
