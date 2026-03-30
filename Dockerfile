@@ -19,7 +19,12 @@ RUN go mod download
 COPY cmd ./cmd
 COPY internal ./internal
 COPY pkg ./pkg
-COPY uiembed.go ./uiembed.go
+COPY uiembed.go trust_embed.go docs_embed.go ./
+COPY docs ./docs
+COPY schemas ./schemas
+COPY SECURITY.md incident-response.md ./
+COPY test/golden/golden_test.go ./test/golden/golden_test.go
+COPY sdk/python/tests/test_properties.py ./sdk/python/tests/test_properties.py
 COPY --from=web-builder /src/web/out ./web/out
 
 ARG TARGETOS=linux
