@@ -1754,7 +1754,7 @@ func writeExportVerificationSidecar(cfg exportConfig, result exportBuildResult, 
 	if err != nil {
 		return verifypkg.Report{}, nil, fmt.Errorf("marshal verification sidecar: %w", err)
 	}
-	if err := os.WriteFile(sidecarPath, data, 0o644); err != nil {
+	if err := os.WriteFile(sidecarPath, data, 0o644); err != nil { // #nosec G703 — sidecarPath is derived from the cleaned --output path plus a fixed ".verify.json" suffix
 		return verifypkg.Report{}, nil, fmt.Errorf("write verification sidecar: %w", err)
 	}
 
