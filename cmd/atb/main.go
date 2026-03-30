@@ -108,6 +108,20 @@ func usageJSON() helpOutput {
 				Mutating:    true,
 			},
 			{
+				Name:        "keygen",
+				Usage:       "atb keygen [--out-dir <dir>]",
+				Description: "Generate an Ed25519 signing keypair.",
+				Flags:       []string{"--out-dir"},
+				Mutating:    true,
+			},
+			{
+				Name:        "sign",
+				Usage:       "atb sign --bundle <path> --key <path> [--out <path>]",
+				Description: "Append an Ed25519 bundle signature record.",
+				Flags:       []string{"--bundle", "--key", "--out"},
+				Mutating:    true,
+			},
+			{
 				Name:        "verify",
 				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]",
 				Description: "Verify bundle integrity and evaluate obligation profiles.",
@@ -234,6 +248,10 @@ func main() {
 		cmdSnapshot()
 	case "anchor":
 		cmdAnchor()
+	case "keygen":
+		cmdKeygen()
+	case "sign":
+		cmdSign()
 	case "verify":
 		cmdVerifyProfile()
 	case "events":
@@ -285,6 +303,8 @@ Commands:
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
+  keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
+  sign --bundle <path> --key <path> [--out <path>]  Append an Ed25519 bundle signature record
   verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]  Verify integrity of a bundle and evaluate obligation profiles
   events [--json] [--profile <id>]  List canonical ATB event types
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
@@ -317,6 +337,8 @@ Examples:
   atb snapshot build --gate pass --format json
   atb anchor
   atb anchor --tsa-url http://timestamp.digicert.com
+  atb keygen --out-dir ./keys
+  atb sign --bundle run.atb/bundle.atb --key ./atb-key.pem
   atb verify
   atb verify --json
   atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action

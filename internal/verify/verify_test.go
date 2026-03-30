@@ -117,6 +117,8 @@ func TestComputeSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
+				// With policy present this still reaches the clamp without a signature:
+				// 0.40 + 0.25 + 0.20 + 0.15 = 1.00.
 				b := bundle.New()
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-1",
@@ -134,6 +136,32 @@ func TestComputeSC(t *testing.T) {
 				appendVerifyRecord(t, b, event.TypeBundleAnchor,
 					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","certified_time":"2026-03-27T12:01:30Z"}`,
 					"2026-03-27T12:01:30Z")
+				return b
+			},
+		},
+		{
+			name:      "with_signature_record",
+			profileID: profileIDPrivilegedToolAction,
+			want:      math.Min(0.25+0.40+0.20+0.10, 1.0),
+			wantCAS:   true,
+			build: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-1",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "approve-change",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeBundleAnchor,
+					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","certified_time":"2026-03-27T12:01:30Z"}`,
+					"2026-03-27T12:01:30Z")
+				appendVerifyRecord(t, b, event.TypeBundleSignature, map[string]any{
+					"algorithm":   "ed25519",
+					"public_key":  "cHVibGljLWtleQ==",
+					"signature":   "c2lnbmF0dXJl",
+					"bundle_hash": "bundle-hash",
+				}, "2026-03-27T12:01:45Z")
 				return b
 			},
 		},

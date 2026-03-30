@@ -144,7 +144,7 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 }
 
 // computeSC computes the source-commitment (SC) sub-score for a bundle.
-// SC measures the completeness of the originating-request and anchor chain.
+// SC measures the completeness of the originating-request, signing, and anchor chain.
 // profileID must be one of the built-in profile IDs; other values score 0.0.
 // Result is clamped to [0.0, 1.0].
 func computeSC(b *bundle.Bundle, profileID string) float64 {
@@ -163,11 +163,14 @@ func computeSC(b *bundle.Bundle, profileID string) float64 {
 	hasRequestReceived := false
 	hasPolicyDecision := false
 	hasRetrievalExecuted := false
+	hasSignature := false
 
 	for _, record := range b.Records {
 		switch record.Event.Type {
 		case event.TypeBundleAnchor:
 			hasAnchor = true
+		case event.TypeBundleSignature:
+			hasSignature = true
 		case event.TypeBundleManifest:
 			if record.Event.Sequence == 0 {
 				hasManifestAtSequenceZero = true
@@ -190,6 +193,9 @@ func computeSC(b *bundle.Bundle, profileID string) float64 {
 	}
 	if hasRequestReceived {
 		total += 0.20
+	}
+	if hasSignature {
+		total += 0.10
 	}
 
 	switch profileID {
