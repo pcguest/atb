@@ -39,8 +39,11 @@ func TestVerify_NoProfile(t *testing.T) {
 	if len(report.Profiles) != 0 {
 		t.Fatalf("expected no matched profiles, got %d", len(report.Profiles))
 	}
-	if report.CAS != nil {
-		t.Fatalf("expected nil CAS when no profile matches")
+	if report.CAS == nil {
+		t.Fatalf("expected fallback CAS when no profile matches")
+	}
+	if _, ok := report.CAS.SubScores["SC"]; !ok {
+		t.Fatalf("expected fallback CAS to include SC")
 	}
 }
 
@@ -325,6 +328,129 @@ func TestComputeSC(t *testing.T) {
 			if diff := math.Abs(report.CAS.SubScores["SC"] - tc.want); diff > tolerance {
 				t.Fatalf("report CAS SC = %.3f, want %.3f (diff %.3f)", report.CAS.SubScores["SC"], tc.want, diff)
 			}
+		})
+	}
+}
+
+func TestCASSubScoresSC(t *testing.T) {
+	tests := []struct {
+		name      string
+		build     func(testing.TB) *bundle.Bundle
+		profileID string
+		check     func(*testing.T, Report)
+	}{
+		{
+			name:      "explicit_profile_manifest_only",
+			profileID: profileIDPrivilegedToolAction,
+			build: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeDevSession, map[string]any{
+					"event_id": "evt-1",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeBundleSignature, map[string]any{
+					"algorithm":   "ed25519",
+					"public_key":  "cHVibGljLWtleQ==",
+					"signature":   "c2lnbmF0dXJl",
+					"bundle_hash": "bundle-hash",
+				}, "2026-03-27T12:00:01Z")
+				return b
+			},
+			check: func(t *testing.T, report Report) {
+				t.Helper()
+				if report.CAS == nil {
+					t.Fatalf("expected CAS for explicit profile")
+				}
+				sc, ok := report.CAS.SubScores["SC"]
+				if !ok {
+					t.Fatalf("expected SC sub-score to be present")
+				}
+				if sc < 0.25 {
+					t.Fatalf("expected SC >= 0.25, got %.3f", sc)
+				}
+				if sc > 0.40 {
+					t.Fatalf("expected SC <= 0.40, got %.3f", sc)
+				}
+			},
+		},
+		{
+			name:      "explicit_profile_full_privileged",
+			profileID: profileIDPrivilegedToolAction,
+			build: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeBundleAnchor,
+					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","certified_time":"2026-03-27T12:00:30Z"}`,
+					"2026-03-27T12:00:30Z")
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-1",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "approve-change",
+				}, "2026-03-27T12:01:00Z")
+				appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+					"policy_id":             "pol-1",
+					"policy_version":        "2026-03",
+					"decision":              "allow",
+					"decision_reason_codes": []any{"ticket_present"},
+					"subject_id_hash":       "subject-hash",
+					"action_id":             "act-1",
+				}, "2026-03-27T12:01:30Z")
+				appendVerifyRecord(t, b, event.TypeBundleSignature, map[string]any{
+					"algorithm":   "ed25519",
+					"public_key":  "cHVibGljLWtleQ==",
+					"signature":   "c2lnbmF0dXJl",
+					"bundle_hash": "bundle-hash",
+				}, "2026-03-27T12:01:45Z")
+				return b
+			},
+			check: func(t *testing.T, report Report) {
+				t.Helper()
+				if report.CAS == nil {
+					t.Fatalf("expected CAS for explicit profile")
+				}
+				sc, ok := report.CAS.SubScores["SC"]
+				if !ok {
+					t.Fatalf("expected SC sub-score to be present")
+				}
+				if sc < 0.99 {
+					t.Fatalf("expected SC >= 0.99, got %.3f", sc)
+				}
+			},
+		},
+		{
+			name:      "no_profile_auto_detect_fallback",
+			profileID: "",
+			build: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeDevSession, map[string]any{
+					"event_id": "evt-1",
+				}, "2026-03-27T12:00:00Z")
+				return b
+			},
+			check: func(t *testing.T, report Report) {
+				t.Helper()
+				if report.CAS == nil {
+					t.Fatalf("expected fallback CAS for unmatched auto-detect")
+				}
+				sc, ok := report.CAS.SubScores["SC"]
+				if !ok {
+					t.Fatalf("expected fallback SC sub-score to be present")
+				}
+				if sc < 0.0 {
+					t.Fatalf("expected SC >= 0.0, got %.3f", sc)
+				}
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			report := Verify(tc.build(t), "bundle.atb", tc.profileID)
+			tc.check(t, report)
 		})
 	}
 }

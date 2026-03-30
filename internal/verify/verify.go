@@ -95,6 +95,17 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 
 	profiles := matchingProfiles(b.Records, profileID)
 	if len(profiles) == 0 {
+		// Root cause: Report.CAS is a pointer tagged with omitempty, so when
+		// auto-detect matched no profile this early return left report.CAS nil
+		// and JSON dropped the entire block. The profile sub-score maps already
+		// use concrete map literals, so there is no nil-map write to fix here.
+		if profileID == "" && report.CAS == nil {
+			report.CAS = &CASResult{
+				SubScores: map[string]float64{
+					"SC": computeSC(b, profileIDPrivilegedToolAction),
+				},
+			}
+		}
 		report.ResidualRisk = residualRiskNoMatchingProfile()
 		return report
 	}
