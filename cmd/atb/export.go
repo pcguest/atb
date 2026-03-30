@@ -320,8 +320,10 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "atb export: %v\n", err)
 			return exitUserError
 		}
-		verificationSummary = &summary
-		exitCode = verificationExitCode(report)
+		verificationSummary = summary
+		if verificationSummary != nil {
+			exitCode = verificationExitCode(report)
+		}
 	}
 
 	if cfg.JSON {
@@ -1731,28 +1733,32 @@ func sha256Hex(data []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-func writeExportVerificationSidecar(cfg exportConfig, result exportBuildResult, stderr io.Writer) (verifypkg.Report, exportCommandVerification, error) {
+func writeExportVerificationSidecar(cfg exportConfig, result exportBuildResult, stderr io.Writer) (verifypkg.Report, *exportCommandVerification, error) {
+	sidecarPath, notice := exportVerificationSidecarPath(result.OutputPath)
+	if notice != "" {
+		fmt.Fprintln(stderr, notice)
+		return verifypkg.Report{}, nil, nil
+	}
+
 	bundlePath := exportVerificationBundlePath(cfg, result)
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
-		return verifypkg.Report{}, exportCommandVerification{}, fmt.Errorf("load bundle for verification: %w", err)
-	}
-
-	sidecarPath, notice := exportVerificationSidecarPath(result.OutputPath, bundlePath, b)
-	if notice != "" {
-		fmt.Fprintln(stderr, notice)
+		return verifypkg.Report{}, nil, fmt.Errorf("load bundle for verification: %w", err)
 	}
 
 	report := verifypkg.Verify(b, bundlePath, "")
+	if report.Integrity.Error != "" {
+		return verifypkg.Report{}, nil, fmt.Errorf("verify bundle for export: %s", report.Integrity.Error)
+	}
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
-		return verifypkg.Report{}, exportCommandVerification{}, fmt.Errorf("marshal verification sidecar: %w", err)
+		return verifypkg.Report{}, nil, fmt.Errorf("marshal verification sidecar: %w", err)
 	}
 	if err := os.WriteFile(sidecarPath, data, 0o644); err != nil {
-		return verifypkg.Report{}, exportCommandVerification{}, fmt.Errorf("write verification sidecar: %w", err)
+		return verifypkg.Report{}, nil, fmt.Errorf("write verification sidecar: %w", err)
 	}
 
-	return report, exportCommandVerification{
+	return report, &exportCommandVerification{
 		Passed:       verificationExitCode(report) == exitSuccess,
 		Grade:        exportVerificationGrade(report),
 		ResidualRisk: exportVerificationResidualRisk(report),
@@ -1772,33 +1778,13 @@ func exportVerificationBundlePath(cfg exportConfig, result exportBuildResult) st
 	return bundle.DefaultPath()
 }
 
-func exportVerificationSidecarPath(outputPath string, bundlePath string, b *bundle.Bundle) (string, string) {
-	if strings.TrimSpace(outputPath) != "" {
-		cleaned := filepath.Clean(outputPath)
-		return cleaned + ".verify.json", ""
+func exportVerificationSidecarPath(outputPath string) (string, string) {
+	if strings.TrimSpace(outputPath) == "" {
+		return "", "warning: --with-verify ignored when writing to stdout"
 	}
 
-	base := exportVerificationBundleID(b)
-	if base == "" {
-		base = strings.TrimSuffix(filepath.Base(bundlePath), filepath.Ext(bundlePath))
-	}
-	if base == "" {
-		base = "bundle"
-	}
-
-	sidecarPath := filepath.Clean(base + ".verify.json")
-	return sidecarPath, fmt.Sprintf("atb export: --output not set; writing verification sidecar to %s", sidecarPath)
-}
-
-func exportVerificationBundleID(b *bundle.Bundle) string {
-	if b == nil {
-		return ""
-	}
-	manifest := b.Manifest()
-	if manifest == nil {
-		return ""
-	}
-	return strings.TrimSpace(manifest.BundleID)
+	cleaned := filepath.Clean(outputPath)
+	return cleaned + ".verify.json", ""
 }
 
 func exportVerificationGrade(report verifypkg.Report) string {

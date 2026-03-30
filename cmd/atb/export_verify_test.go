@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
@@ -15,17 +16,18 @@ import (
 
 func TestRunExportWithVerifyScenarios(t *testing.T) {
 	tests := []struct {
-		name                   string
-		withVerify             bool
-		jsonOutput             bool
-		profilePass            bool
-		wantExitCode           int
-		wantSidecar            bool
-		wantVerificationInJSON bool
-		wantStatus             string
+		name         string
+		withVerify   bool
+		profilePass  bool
+		stdoutMode   bool
+		wantExitCode int
+		wantSidecar  bool
+		wantWarning  string
+		wantStatus   string
+		checkReport  func(*testing.T, verifypkg.Report)
 	}{
 		{
-			name:         "with verify writes sidecar and exits success",
+			name:         "with_verify_writes_sidecar",
 			withVerify:   true,
 			profilePass:  true,
 			wantExitCode: exitSuccess,
@@ -33,7 +35,32 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 			wantStatus:   "PASS",
 		},
 		{
-			name:         "with verify returns profile failure exit code",
+			name:         "sidecar_json_is_complete",
+			withVerify:   true,
+			profilePass:  true,
+			wantExitCode: exitSuccess,
+			wantSidecar:  true,
+			wantStatus:   "PASS",
+			checkReport: func(t *testing.T, report verifypkg.Report) {
+				t.Helper()
+				if len(report.Profiles) == 0 {
+					t.Fatalf("expected at least one profile result in sidecar")
+				}
+				if report.Profiles[0].ProfileID == "" {
+					t.Fatalf("expected non-empty profile ID in sidecar")
+				}
+			},
+		},
+		{
+			name:         "passing_bundle_exits_zero",
+			withVerify:   true,
+			profilePass:  true,
+			wantExitCode: exitSuccess,
+			wantSidecar:  true,
+			wantStatus:   "PASS",
+		},
+		{
+			name:         "failing_bundle_exits_profile_failure",
 			withVerify:   true,
 			profilePass:  false,
 			wantExitCode: exitVerifyFailure,
@@ -41,20 +68,20 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 			wantStatus:   "FAIL",
 		},
 		{
-			name:         "without verify does not write sidecar",
+			name:         "without_flag_no_sidecar",
 			withVerify:   false,
 			profilePass:  true,
 			wantExitCode: exitSuccess,
 			wantSidecar:  false,
 		},
 		{
-			name:                   "with verify and json appends verification summary",
-			withVerify:             true,
-			jsonOutput:             true,
-			profilePass:            true,
-			wantExitCode:           exitSuccess,
-			wantSidecar:            true,
-			wantVerificationInJSON: true,
+			name:         "stdout_write_no_sidecar_no_error",
+			withVerify:   true,
+			profilePass:  true,
+			stdoutMode:   true,
+			wantExitCode: exitSuccess,
+			wantSidecar:  false,
+			wantWarning:  "warning: --with-verify ignored when writing to stdout\n",
 		},
 	}
 
@@ -64,6 +91,43 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 				preparePhase4Docs(t)
 				writeExportVerifyBundle(t, bundle.DefaultPath(), tc.profilePass)
 
+				if tc.stdoutMode {
+					cfg := exportConfig{
+						Format:     exportFormatSOC2,
+						BundlePath: bundle.DefaultPath(),
+						WithVerify: true,
+					}
+					result, err := buildExport(time.Date(2026, 3, 7, 12, 0, 0, 0, time.UTC), cfg)
+					if err != nil {
+						t.Fatalf("build export: %v", err)
+					}
+
+					var stderr bytes.Buffer
+					_, summary, err := writeExportVerificationSidecar(cfg, result, &stderr)
+					if err != nil {
+						t.Fatalf("writeExportVerificationSidecar: %v", err)
+					}
+					gotExitCode := exitSuccess
+					if gotExitCode != tc.wantExitCode {
+						t.Fatalf("unexpected exit code: got %d want %d", gotExitCode, tc.wantExitCode)
+					}
+					if summary != nil {
+						t.Fatalf("expected nil verification summary when sidecar writing is skipped, got %+v", summary)
+					}
+					if stderr.String() != tc.wantWarning {
+						t.Fatalf("unexpected stderr warning: got %q want %q", stderr.String(), tc.wantWarning)
+					}
+
+					sidecars, err := filepath.Glob(filepath.Join(tmp, "*.verify.json"))
+					if err != nil {
+						t.Fatalf("glob sidecars: %v", err)
+					}
+					if len(sidecars) != 0 {
+						t.Fatalf("expected no sidecar files, found %v", sidecars)
+					}
+					return
+				}
+
 				outputPath := filepath.Join("exports", "soc2.zip")
 				args := []string{
 					"--format", "soc2",
@@ -72,9 +136,6 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 				}
 				if tc.withVerify {
 					args = append(args, "--with-verify")
-				}
-				if tc.jsonOutput {
-					args = append(args, "--json")
 				}
 
 				result := captureExportRun(t, args)
@@ -100,30 +161,11 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 					if report.BundlePath != bundle.DefaultPath() {
 						t.Fatalf("unexpected report bundle path: got %q want %q", report.BundlePath, bundle.DefaultPath())
 					}
+					if tc.checkReport != nil {
+						tc.checkReport(t, report)
+					}
 				} else if _, err := os.Stat(sidecarAbsPath); !os.IsNotExist(err) {
 					t.Fatalf("expected no sidecar at %s, got err=%v", sidecarAbsPath, err)
-				}
-
-				if tc.jsonOutput {
-					var payload map[string]any
-					if err := json.Unmarshal([]byte(result.stdout), &payload); err != nil {
-						t.Fatalf("unmarshal export json output: %v", err)
-					}
-
-					verificationValue, hasVerification := payload["verification"]
-					if tc.wantVerificationInJSON != hasVerification {
-						t.Fatalf("unexpected verification key presence: got %t want %t", hasVerification, tc.wantVerificationInJSON)
-					}
-					if tc.wantVerificationInJSON {
-						verification, ok := verificationValue.(map[string]any)
-						if !ok {
-							t.Fatalf("verification payload has unexpected type %T", verificationValue)
-						}
-						if got := verification["sidecar"]; got != sidecarPath {
-							t.Fatalf("unexpected verification sidecar: got %v want %q", got, sidecarPath)
-						}
-					}
-					return
 				}
 
 				if tc.withVerify {
