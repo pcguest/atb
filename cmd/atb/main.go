@@ -123,9 +123,16 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "verify",
-				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]",
+				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--quiet] [--trace] [--with-anchor]",
 				Description: "Verify bundle integrity and evaluate obligation profiles.",
-				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--trace", "--with-anchor"},
+				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--quiet", "--trace", "--with-anchor"},
+				Mutating:    false,
+			},
+			{
+				Name:        "inspect",
+				Usage:       "atb inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]",
+				Description: "Inspect bundle records in table or JSON form.",
+				Flags:       []string{"--bundle", "--json", "--seq"},
 				Mutating:    false,
 			},
 			{
@@ -254,6 +261,8 @@ func main() {
 		cmdSign()
 	case "verify":
 		cmdVerifyProfile()
+	case "inspect":
+		cmdInspect()
 	case "events":
 		cmdEvents()
 	case "encrypt":
@@ -305,7 +314,8 @@ Commands:
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
   sign --bundle <path> --key <path> [--out <path>]  Append an Ed25519 bundle signature record
-  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]  Verify integrity of a bundle and evaluate obligation profiles
+  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--quiet] [--trace] [--with-anchor]  Verify integrity of a bundle and evaluate obligation profiles
+  inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]  Inspect bundle records in table or JSON form
   events [--json] [--profile <id>]  List canonical ATB event types
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
   decrypt <encrypted_path> [--output <path>] [--password <password>]  Decrypt encrypted bundle to the default or chosen path
@@ -341,11 +351,15 @@ Examples:
   atb sign --bundle run.atb/bundle.atb --key ./atb-key.pem
   atb verify
   atb verify --json
+  atb verify --quiet
   atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
   atb verify --bundle run.atb/bundle.atb --profile ./my-profile.yaml
   atb verify --format json
   atb verify --trace
   atb verify --with-anchor
+  atb inspect --bundle run.atb/bundle.atb
+  atb inspect --bundle run.atb/bundle.atb --seq 0
+  atb inspect --bundle run.atb/bundle.atb --json
   atb events
   atb events --json
   atb events --profile atb.profile.rag_answer

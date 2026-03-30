@@ -19,6 +19,7 @@ type verifyCLIConfig struct {
 	ProfileID    string
 	JSON         bool
 	LegacyFormat string
+	Quiet        bool
 	Trace        bool
 	WithAnchor   bool
 }
@@ -31,12 +32,21 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 	cfg, err := parseVerifyCommandArgs(args)
 	if err != nil {
 		if errors.Is(err, errVerifyHelp) {
-			printVerifyCommandUsage(stdout)
+			if !cfg.Quiet {
+				printVerifyCommandUsage(stdout)
+			}
 			return exitSuccess
 		}
-		fmt.Fprintf(stderr, "atb verify: %v\n", err)
-		printVerifyCommandUsage(stderr)
+		if !cfg.Quiet {
+			fmt.Fprintf(stderr, "atb verify: %v\n", err)
+			printVerifyCommandUsage(stderr)
+		}
 		return exitUserError
+	}
+
+	if cfg.Quiet {
+		stdout = io.Discard
+		stderr = io.Discard
 	}
 
 	var profile verifypkg.Profile
@@ -157,6 +167,8 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.ProfileID = strings.TrimSpace(strings.TrimPrefix(arg, "--profile="))
 		case arg == "--json":
 			cfg.JSON = true
+		case arg == "--quiet":
+			cfg.Quiet = true
 		case arg == "--format":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --format (expected text|json)")
@@ -190,7 +202,7 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 }
 
 func printVerifyCommandUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [--trace] [--with-anchor]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [--quiet] [--trace] [--with-anchor]")
 }
 
 func isLegacyJSONMode(cfg verifyCLIConfig) bool {
@@ -217,103 +229,5 @@ func verificationExitCode(report verifypkg.Report) int {
 }
 
 func renderVerifyText(w io.Writer, report verifypkg.Report) {
-	fmt.Fprintln(w, "ATB Verification Report")
-	fmt.Fprintln(w, "=======================")
-	fmt.Fprintf(w, "Bundle:    %s\n", report.BundlePath)
-
-	if report.Integrity.ChainValid {
-		fmt.Fprintf(
-			w,
-			"Integrity: PASS  [%s / %s / seq %d-%d]\n",
-			report.Integrity.Canonicalization,
-			report.Integrity.HashAlgo,
-			report.Integrity.FirstSeq,
-			report.Integrity.LastSeq,
-		)
-	} else {
-		fmt.Fprintln(w, "Integrity: FAIL")
-		if report.Integrity.Error != "" {
-			fmt.Fprintf(w, "  Error: %s\n", report.Integrity.Error)
-		}
-	}
-
-	if len(report.Profiles) == 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Profile:   none matched")
-		fmt.Fprintln(w, "Result:    NOT EVALUATED")
-	} else {
-		profile := report.Profiles[0]
-		status := "FAIL"
-		if profile.Pass {
-			status = "PASS"
-		}
-
-		fmt.Fprintln(w)
-		fmt.Fprintf(w, "Profile:   %s v%d\n", profile.ProfileID, profile.Version)
-		fmt.Fprintf(w, "Result:    %s\n", status)
-		if report.CAS != nil {
-			fmt.Fprintf(w, "CAS:       %.4f  [%s]\n", report.CAS.Overall, report.CAS.Grade)
-			fmt.Fprintf(
-				w,
-				"  EC: %.2f  FC: %.2f  RC: %.2f  TC: %.2f\n",
-				report.CAS.SubScores["EC"],
-				report.CAS.SubScores["FC"],
-				report.CAS.SubScores["RC"],
-				report.CAS.SubScores["TC"],
-			)
-			fmt.Fprintf(
-				w,
-				"  SC: %.2f  XC: %.2f  AC: %.2f  GC: %.2f\n",
-				report.CAS.SubScores["SC"],
-				report.CAS.SubScores["XC"],
-				report.CAS.SubScores["AC"],
-				report.CAS.SubScores["GC"],
-			)
-		}
-
-		if len(profile.CriticalFailures) > 0 {
-			fmt.Fprintln(w)
-			fmt.Fprintf(w, "Critical failures (%d):\n", len(profile.CriticalFailures))
-			for _, failure := range profile.CriticalFailures {
-				fmt.Fprintf(w, "  - %s: %s\n", failure.Kind, failure.Detail)
-			}
-		}
-
-		warnings := append([]string{}, profile.RequiredWarnings...)
-		warnings = append(warnings, profile.InformationalNotes...)
-		if len(warnings) > 0 {
-			fmt.Fprintln(w)
-			fmt.Fprintf(w, "Warnings (%d):\n", len(warnings))
-			for _, warning := range warnings {
-				fmt.Fprintf(w, "  - %s\n", warning)
-			}
-		}
-	}
-
-	if len(report.Exclusions) > 0 {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "Exclusions:")
-		for _, exclusion := range report.Exclusions {
-			fmt.Fprintf(w, "  - %s\n", exclusion)
-		}
-	}
-
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Residual risk: %s\n", report.ResidualRisk.Level)
-
-	switch {
-	case !report.Integrity.ChainValid:
-		fmt.Fprintln(w, "  - Chain integrity invalid; no further evaluation possible.")
-	case len(report.ResidualRisk.RecommendedNextEvidence) == 0 && report.ResidualRisk.Level == "Low":
-		fmt.Fprintln(w, "  No high-priority evidence gaps.")
-	default:
-		for _, evidence := range report.ResidualRisk.RecommendedNextEvidence {
-			fmt.Fprintf(w, "  - %s\n", evidence)
-		}
-		if len(report.ResidualRisk.RecommendedNextEvidence) == 0 {
-			for _, driver := range report.ResidualRisk.Drivers {
-				fmt.Fprintf(w, "  - %s\n", driver)
-			}
-		}
-	}
+	renderVerifyTerminalReport(w, report)
 }
