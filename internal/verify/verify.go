@@ -105,6 +105,12 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 					"SC": computeSC(b, profileIDPrivilegedToolAction),
 				},
 			}
+			if sc := report.CAS.SubScores["SC"]; sc > 0 {
+				// Partial CAS: only SC is available when no profile matched.
+				// PA and IC remain 0.0; overall reflects source-commitment only.
+				report.CAS.Overall = sc
+				report.CAS.Grade = gradeFromScore(sc)
+			}
 		}
 		report.ResidualRisk = residualRiskNoMatchingProfile()
 		return report

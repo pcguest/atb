@@ -523,6 +523,9 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 			if !strings.Contains(cmd.Usage, "--trace") {
 				t.Fatalf("verify usage missing --trace flag: %q", cmd.Usage)
 			}
+			if !strings.Contains(cmd.Usage, "--quiet") {
+				t.Fatalf("verify usage missing --quiet flag: %q", cmd.Usage)
+			}
 			if !strings.Contains(cmd.Usage, "--with-anchor") {
 				t.Fatalf("verify usage missing --with-anchor flag: %q", cmd.Usage)
 			}

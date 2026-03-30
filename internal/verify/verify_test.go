@@ -340,6 +340,35 @@ func TestCASSubScoresSC(t *testing.T) {
 		check     func(*testing.T, Report)
 	}{
 		{
+			name:      "sc_written_to_sub_scores_map",
+			profileID: profileIDPrivilegedToolAction,
+			build: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeBundleSignature, map[string]any{
+					"algorithm":   "ed25519",
+					"public_key":  "cHVibGljLWtleQ==",
+					"signature":   "c2lnbmF0dXJl",
+					"bundle_hash": "bundle-hash",
+				}, "2026-03-27T12:00:00Z")
+				return b
+			},
+			check: func(t *testing.T, report Report) {
+				t.Helper()
+				if report.CAS == nil {
+					t.Fatalf("expected CAS for explicit profile")
+				}
+				sc, ok := report.CAS.SubScores["SC"]
+				if !ok {
+					t.Fatalf("expected SC sub-score key to be present")
+				}
+				if sc < 0.25 {
+					t.Fatalf("expected SC >= 0.25, got %.3f", sc)
+				}
+			},
+		},
+		{
 			name:      "explicit_profile_manifest_only",
 			profileID: profileIDPrivilegedToolAction,
 			build: func(t testing.TB) *bundle.Bundle {
@@ -442,6 +471,41 @@ func TestCASSubScoresSC(t *testing.T) {
 				}
 				if sc < 0.0 {
 					t.Fatalf("expected SC >= 0.0, got %.3f", sc)
+				}
+			},
+		},
+		{
+			name:      "signed_bundle_sc_not_null",
+			profileID: "",
+			build: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeBundleSignature, map[string]any{
+					"algorithm":   "ed25519",
+					"public_key":  "cHVibGljLWtleQ==",
+					"signature":   "c2lnbmF0dXJl",
+					"bundle_hash": "bundle-hash",
+				}, "2026-03-27T12:00:00Z")
+				return b
+			},
+			check: func(t *testing.T, report Report) {
+				t.Helper()
+				if report.CAS == nil {
+					t.Fatalf("expected fallback CAS for signed bundle")
+				}
+				sc, ok := report.CAS.SubScores["SC"]
+				if !ok {
+					t.Fatalf("expected fallback SC sub-score to be present")
+				}
+				if sc <= 0 {
+					t.Fatalf("expected SC > 0, got %.3f", sc)
+				}
+				if report.CAS.Overall <= 0 {
+					t.Fatalf("expected partial CAS overall > 0, got %.3f", report.CAS.Overall)
+				}
+				if report.CAS.Grade == "" {
+					t.Fatalf("expected partial CAS grade to be populated")
 				}
 			},
 		},
