@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -51,11 +52,19 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 
 	var profile verifypkg.Profile
 	if cfg.ProfileID != "" {
-		profile, err = verifypkg.ResolveProfile(cfg.ProfileID)
-		if err != nil {
-			fmt.Fprintf(stderr, "atb verify: %v\n", err)
-			printVerifyCommandUsage(stderr)
-			return exitUserError
+		if isVerifyProfilePath(cfg.ProfileID) {
+			profile, err = verifypkg.ResolveProfile(cfg.ProfileID)
+			if err != nil {
+				fmt.Fprintf(stderr, "atb verify: %v\n", err)
+				printVerifyCommandUsage(stderr)
+				return exitUserError
+			}
+		} else {
+			profile = verifypkg.ProfileByID(cfg.ProfileID)
+			if profile == nil {
+				fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
+				return exitIntegrityFailure
+			}
 		}
 	}
 
@@ -175,8 +184,16 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			}
 			i++
 			cfg.LegacyFormat = strings.ToLower(strings.TrimSpace(args[i]))
+		case arg == "-f":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for -f (expected text|json)")
+			}
+			i++
+			cfg.LegacyFormat = strings.ToLower(strings.TrimSpace(args[i]))
 		case strings.HasPrefix(arg, "--format="):
 			cfg.LegacyFormat = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
+		case strings.HasPrefix(arg, "-f="):
+			cfg.LegacyFormat = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "-f=")))
 		case arg == "--trace":
 			cfg.Trace = true
 		case arg == "--with-anchor":
@@ -202,7 +219,19 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 }
 
 func printVerifyCommandUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [--quiet] [--trace] [--with-anchor]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--quiet] [--trace] [--with-anchor]")
+}
+
+func verificationExitCode(report verifypkg.Report) int {
+	if !report.Integrity.ChainValid {
+		return exitIntegrityFailure
+	}
+	for _, profile := range report.Profiles {
+		if !profile.Pass {
+			return exitVerifyFailure
+		}
+	}
+	return exitSuccess
 }
 
 func isLegacyJSONMode(cfg verifyCLIConfig) bool {
@@ -216,16 +245,17 @@ func writeLegacyVerifyJSON(w io.Writer, result verifyResult, verifyErr error) er
 	return json.NewEncoder(w).Encode(result)
 }
 
-func verificationExitCode(report verifypkg.Report) int {
-	if !report.Integrity.ChainValid {
-		return exitIntegrityFailure
+func isVerifyProfilePath(spec string) bool {
+	if strings.ContainsAny(spec, `/\`) {
+		return true
 	}
-	for _, profile := range report.Profiles {
-		if !profile.Pass {
-			return exitVerifyFailure
-		}
+
+	switch strings.ToLower(filepath.Ext(spec)) {
+	case ".yaml", ".yml":
+		return true
+	default:
+		return false
 	}
-	return exitSuccess
 }
 
 func renderVerifyText(w io.Writer, report verifypkg.Report) {

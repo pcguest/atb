@@ -145,3 +145,129 @@ func hasFailure(failures []CriticalFailure, kind string, contains string) bool {
 	}
 	return false
 }
+
+func TestProfileWeightSums(t *testing.T) {
+	expected := map[string]struct{}{
+		"atb.profile.privileged_tool_action": {},
+		"atb.profile.rag_answer":             {},
+		"atb.profile.policy_decision":        {},
+		"atb.profile.human_override":         {},
+		"atb.profile.background_automation":  {},
+		"atb.profile.data_export":            {},
+	}
+	seen := map[string]struct{}{}
+
+	for _, profile := range AllProfiles() {
+		profile := profile
+		t.Run(profile.ID(), func(t *testing.T) {
+			sum := 0.0
+			for _, weight := range profile.DefaultWeights() {
+				sum += weight
+			}
+			diff := sum - 1.0
+			if diff < 0 {
+				diff = -diff
+			}
+			if diff > 1e-9 {
+				t.Fatalf("profile %q weights sum to %.12f", profile.ID(), sum)
+			}
+			seen[profile.ID()] = struct{}{}
+		})
+	}
+
+	for id := range expected {
+		if _, ok := seen[id]; !ok {
+			t.Fatalf("expected profile %q in registry", id)
+		}
+	}
+}
+
+func TestProfileIdentity(t *testing.T) {
+	cases := []struct {
+		id           string
+		wantVersion  int
+		wantWorkflow string
+	}{
+		{"atb.profile.privileged_tool_action", 1, "privileged_tool_action"},
+		{"atb.profile.rag_answer", 1, "rag_answer"},
+		{"atb.profile.policy_decision", 1, "policy_decision"},
+		{"atb.profile.human_override", 1, "human_override"},
+		{"atb.profile.background_automation", 1, "background_automation"},
+		{"atb.profile.data_export", 1, "data_export"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.id, func(t *testing.T) {
+			p := ProfileByID(tc.id)
+			if p == nil {
+				t.Fatalf("ProfileByID(%q) returned nil", tc.id)
+			}
+			if got := p.ID(); got != tc.id {
+				t.Fatalf("ID() = %q, want %q", got, tc.id)
+			}
+			if got := p.Version(); got != tc.wantVersion {
+				t.Fatalf("Version() = %d, want %d", got, tc.wantVersion)
+			}
+			if got := p.WorkflowClass(); got != tc.wantWorkflow {
+				t.Fatalf("WorkflowClass() = %q, want %q", got, tc.wantWorkflow)
+			}
+			if len(p.BlindSpots()) == 0 {
+				t.Fatalf("BlindSpots() returned no entries for %q", tc.id)
+			}
+		})
+	}
+}
+
+func TestProfileEvaluateEmptyBundle(t *testing.T) {
+	expected := map[string]struct{}{
+		"atb.profile.privileged_tool_action": {},
+		"atb.profile.rag_answer":             {},
+		"atb.profile.policy_decision":        {},
+		"atb.profile.human_override":         {},
+		"atb.profile.background_automation":  {},
+		"atb.profile.data_export":            {},
+	}
+	seen := map[string]struct{}{}
+
+	for _, profile := range AllProfiles() {
+		profile := profile
+		t.Run(profile.ID(), func(t *testing.T) {
+			result := profile.Evaluate(nil)
+			if len(result.CriticalFailures) == 0 {
+				t.Fatalf("expected critical failures for empty bundle")
+			}
+			for i, failure := range result.CriticalFailures {
+				if failure.Kind == "" {
+					t.Fatalf("CriticalFailures[%d].Kind is empty", i)
+				}
+				if failure.Detail == "" {
+					t.Fatalf("CriticalFailures[%d].Detail is empty", i)
+				}
+			}
+			for i, warning := range result.RequiredWarnings {
+				if warning == "" {
+					t.Fatalf("RequiredWarnings[%d] is empty", i)
+				}
+			}
+			for i, note := range result.InformationalNotes {
+				if note == "" {
+					t.Fatalf("InformationalNotes[%d] is empty", i)
+				}
+			}
+			seen[profile.ID()] = struct{}{}
+		})
+	}
+
+	for id := range expected {
+		if _, ok := seen[id]; !ok {
+			t.Fatalf("expected profile %q in registry", id)
+		}
+	}
+}
+
+func TestProfileByIDUnknown(t *testing.T) {
+	if got := ProfileByID("atb.profile.nonexistent"); got != nil {
+		t.Fatalf("ProfileByID(nonexistent) = %#v, want nil", got)
+	}
+}
