@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.5.0] - 2026-03-31
+
+### Features
+- Add `atb bundle new` as an alias for `atb init`.
+
+### Bug Fixes
+- Guard against a `nil` `SubScores` map in verify output and add SC fallback
+  handling for unmatched profiles.
+- Copy all embedded source files into the Go builder Docker stage.
+
+### CI/Chores
+- Build web assets before `go vet` in the Gold Release Gate workflow.
+- Install `sdk/typescript` dependencies before Gold Release Gate tests.
+- Bump SDK versions to `1.4.0` for release tag parity.
+- Pin GitHub Actions workflow steps to full commit SHAs.
+- Update `vitest` from `4.0.18` to `4.1.2` to address the `flatted` CVE.
+- Update `docker/setup-buildx-action` from `3.12.0` to `4.0.0` for Node 24.
+- Update `actions/upload-artifact` from `4.6.2` to `7.0.0` for Node 24.
+
 ## [v1.2.0] - 2026-03-31
 
 ### Added
