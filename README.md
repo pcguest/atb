@@ -1,6 +1,6 @@
 # ATB
 
-[![Version](https://img.shields.io/badge/version-v1.6.0-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.7.0-blue)](CHANGELOG.md)
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security Gate](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -20,7 +20,7 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 
 ## Release Status
 
-- Current release: [`v1.6.0`](CHANGELOG.md)
+- Current release: [`v1.7.0`](CHANGELOG.md)
 - Gold release status: [`APPROVED FOR GOLD RELEASE`](docs/security/gold-signoff.md)
 - All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 
