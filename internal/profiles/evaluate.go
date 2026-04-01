@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
@@ -40,6 +41,7 @@ func Evaluate(schema ProfileSchema, records []bundle.Record) EvaluationResult {
 	for _, rule := range schema.Relations {
 		evaluateRelationRule(&result, recordsByType, rule)
 	}
+	evaluateRequiredWhenRules(&result, schema, recordsByType)
 
 	result.InformationalNotes = append(result.InformationalNotes, schema.BlindSpots...)
 	finaliseEvaluationResult(&result)
@@ -96,6 +98,96 @@ func evaluateRelationRule(result *EvaluationResult, recordsByType map[string][]b
 			Detail: messageOrDefault(rule.Message, relationDefaultMessage(rule)),
 		})
 	}
+}
+
+func evaluateRequiredWhenRules(
+	result *EvaluationResult,
+	schema ProfileSchema,
+	recordsByType map[string][]bundle.Record,
+) {
+	allRules := make([]EventRule, 0, len(schema.Required)+len(schema.Optional))
+	allRules = append(allRules, schema.Required...)
+	allRules = append(allRules, schema.Optional...)
+
+	for _, rule := range allRules {
+		if len(rule.RequiredWhen) == 0 {
+			continue
+		}
+
+		targetType := rule.Type
+		targetRecords := recordsByType[targetType]
+
+		for _, cond := range rule.RequiredWhen {
+			conditionType := cond.WhenType
+			conditionRecords := recordsByType[conditionType]
+			if len(conditionRecords) == 0 {
+				continue
+			}
+
+			if len(targetRecords) == 0 {
+				detail := cond.Message
+				if strings.TrimSpace(detail) == "" {
+					detail = fmt.Sprintf("required_when: %s required when %s present", targetType, conditionType)
+				}
+				result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+					Kind:   "missing_event",
+					Detail: detail,
+				})
+				continue
+			}
+
+			if !cond.AtOrAfter {
+				continue
+			}
+
+			condTime, condPresent, condErr := parseEventTimestamp(conditionRecords[0])
+			if !condPresent || condErr != nil {
+				result.RequiredWarnings = append(result.RequiredWarnings, requiredWhenConditionTimestampWarning(targetType, conditionType, condPresent, condErr))
+				continue
+			}
+
+			anyValidTargetTS := false
+			anyAtOrAfter := false
+			for _, rec := range targetRecords {
+				ts, present, err := parseEventTimestamp(rec)
+				if !present || err != nil {
+					continue
+				}
+				anyValidTargetTS = true
+				if !ts.Before(condTime) {
+					anyAtOrAfter = true
+					break
+				}
+			}
+
+			if !anyValidTargetTS {
+				result.RequiredWarnings = append(result.RequiredWarnings, requiredWhenTargetTimestampWarning(targetType, conditionType))
+				continue
+			}
+
+			if !anyAtOrAfter {
+				result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+					Kind:   "temporal_violation",
+					Detail: fmt.Sprintf("required_when: %s must occur at or after %s", targetType, conditionType),
+				})
+			}
+		}
+	}
+}
+
+func requiredWhenConditionTimestampWarning(targetType string, conditionType string, present bool, err error) string {
+	switch {
+	case err != nil:
+		return fmt.Sprintf("required_when: unable to enforce ordering between %s and %s because %s timestamp is invalid", targetType, conditionType, conditionType)
+	case !present:
+		return fmt.Sprintf("required_when: unable to enforce ordering between %s and %s because %s timestamp is missing", targetType, conditionType, conditionType)
+	default:
+		return fmt.Sprintf("required_when: unable to enforce ordering between %s and %s because %s timestamp is unavailable", targetType, conditionType, conditionType)
+	}
+}
+
+func requiredWhenTargetTimestampWarning(targetType string, conditionType string) string {
+	return fmt.Sprintf("required_when: unable to enforce ordering between %s and %s because %s timestamps are missing or invalid", targetType, conditionType, targetType)
 }
 
 func appendTemporalConditionNotes(result *EvaluationResult, rule EventRule) {
@@ -185,6 +277,18 @@ func fieldString(record bundle.Record, field string) string {
 		return ""
 	}
 	return value
+}
+
+func parseEventTimestamp(record bundle.Record) (time.Time, bool, error) {
+	raw := strings.TrimSpace(record.Event.Timestamp)
+	if raw == "" {
+		return time.Time{}, false, nil
+	}
+	parsed, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, true, err
+	}
+	return parsed, true, nil
 }
 
 func finaliseEvaluationResult(result *EvaluationResult) {

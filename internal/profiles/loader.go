@@ -45,6 +45,15 @@ func MustLoadSchema(id string) ProfileSchema {
 	return cloneSchema(schema)
 }
 
+func HasSchema(id string) bool {
+	loadTemplatesOnce.Do(loadTemplates)
+	if loadTemplatesErr != nil {
+		return false
+	}
+	_, ok := templateSchemas[id]
+	return ok
+}
+
 func loadTemplates() {
 	entries, err := templateFS.ReadDir("templates")
 	if err != nil {
@@ -82,6 +91,7 @@ func loadTemplates() {
 func normaliseSchema(schema ProfileSchema) ProfileSchema {
 	schema.ID = strings.TrimSpace(schema.ID)
 	schema.WorkflowClass = strings.TrimSpace(schema.WorkflowClass)
+	schema.SCMode = strings.TrimSpace(schema.SCMode)
 
 	schema.BlindSpots = trimAndFilter(schema.BlindSpots)
 
@@ -110,6 +120,10 @@ func normaliseEventRule(rule EventRule) EventRule {
 	rule.Message = strings.TrimSpace(rule.Message)
 	rule.Severity = strings.TrimSpace(rule.Severity)
 	rule.TemporalConditions = trimAndFilter(rule.TemporalConditions)
+	for i := range rule.RequiredWhen {
+		rule.RequiredWhen[i].WhenType = strings.TrimSpace(rule.RequiredWhen[i].WhenType)
+		rule.RequiredWhen[i].Message = strings.TrimSpace(rule.RequiredWhen[i].Message)
+	}
 	return rule
 }
 
@@ -144,10 +158,12 @@ func cloneSchema(schema ProfileSchema) ProfileSchema {
 	for i := range cloned.Required {
 		cloned.Required[i].Fields = append([]string(nil), schema.Required[i].Fields...)
 		cloned.Required[i].TemporalConditions = append([]string(nil), schema.Required[i].TemporalConditions...)
+		cloned.Required[i].RequiredWhen = append([]RequiredWhenRule(nil), schema.Required[i].RequiredWhen...)
 	}
 	for i := range cloned.Optional {
 		cloned.Optional[i].Fields = append([]string(nil), schema.Optional[i].Fields...)
 		cloned.Optional[i].TemporalConditions = append([]string(nil), schema.Optional[i].TemporalConditions...)
+		cloned.Optional[i].RequiredWhen = append([]RequiredWhenRule(nil), schema.Optional[i].RequiredWhen...)
 	}
 	return cloned
 }

@@ -13,6 +13,7 @@ weights:
   XC: 0.10
   AC: 0.10
   GC: 0.10
+supports_cas: false
 required:
   - type: atb.bundle.manifest
     fields: []
@@ -67,6 +68,10 @@ optional:
       - action_id
     message: ai.human.approval required for data export workflows
     severity: warning
+    required_when:
+      - when_type: ai.action.executed
+        at_or_after: true
+        message: ai.human.approval required when data exports execute
 relations:
   - name: commit_requires_precommit
     from: ai.action.committed

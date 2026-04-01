@@ -13,6 +13,8 @@ weights:
   XC: 0.10
   AC: 0.10
   GC: 0.10
+supports_cas: true
+sc_mode: policy_decision
 required:
   - type: atb.bundle.manifest
     fields: []
@@ -68,6 +70,10 @@ optional:
       - action_id
     message: ai.human.approval required for high-impact action types
     severity: warning
+    required_when:
+      - when_type: ai.action.executed
+        at_or_after: true
+        message: ai.human.approval required when actions execute
 relations:
   - name: commit_requires_precommit
     from: ai.action.committed

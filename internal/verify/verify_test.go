@@ -550,6 +550,46 @@ func TestCASSubScoresSC(t *testing.T) {
 	}
 }
 
+func TestProfileSupportsCAS_SchemaBacked(t *testing.T) {
+	if !profileSupportsCAS(&PrivilegedToolActionProfile{}) {
+		t.Fatalf("expected CAS support for privileged profile")
+	}
+	if !profileSupportsCAS(&RAGAnswerProfile{}) {
+		t.Fatalf("expected CAS support for RAG profile")
+	}
+	if profileSupportsCAS(&DataExportProfile{}) {
+		t.Fatalf("did not expect CAS support for data export profile")
+	}
+	if profileSupportsCAS(&PolicyDecisionProfile{}) {
+		t.Fatalf("did not expect CAS support for policy decision profile")
+	}
+	if profileSupportsCAS(&HumanOverrideProfile{}) {
+		t.Fatalf("did not expect CAS support for human override profile")
+	}
+	if profileSupportsCAS(&BackgroundAutomationProfile{}) {
+		t.Fatalf("did not expect CAS support for background automation profile")
+	}
+}
+
+func TestProfileSupportsCAS_ExternalProfile(t *testing.T) {
+	profilePath := writeProfileFixture(t, `
+id: "org.example.my_profile"
+display_name: "My Custom Profile"
+description: "Custom obligations"
+obligations:
+  critical:
+    - event_type: "ai.action.precommit"
+      message: "Pre-commit record required"
+`)
+	profile, err := ResolveProfile(profilePath)
+	if err != nil {
+		t.Fatalf("ResolveProfile: %v", err)
+	}
+	if profileSupportsCAS(profile) {
+		t.Fatalf("expected external profile to not support CAS")
+	}
+}
+
 func appendVerifyRecord(t testing.TB, b *bundle.Bundle, eventType string, data interface{}, timestamp string) {
 	t.Helper()
 	if err := b.AppendWithOptions(eventType, data, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
@@ -581,18 +621,18 @@ func newPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 		"subject_id_hash":       "subject-hash",
 		"action_id":             "act-1",
 	}, "2026-03-27T12:02:00Z")
+	appendVerifyRecord(t, b, "ai.action.executed", map[string]any{
+		"action_id":           "act-1",
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "tool-digest",
+	}, "2026-03-27T12:05:00Z")
 	appendVerifyRecord(t, b, "ai.human.approval", map[string]any{
 		"approval_id":          "appr-1",
 		"approver_id_hash":     "approver-hash",
 		"approval_outcome":     "approve",
 		"justification_digest": "just-digest",
 		"action_id":            "act-1",
-	}, "2026-03-27T12:03:00Z")
-	appendVerifyRecord(t, b, "ai.action.executed", map[string]any{
-		"action_id":           "act-1",
-		"execution_outcome":   "success",
-		"tool_receipt_digest": "tool-digest",
-	}, "2026-03-27T12:05:00Z")
+	}, "2026-03-27T12:05:30Z")
 	appendVerifyRecord(t, b, "ai.action.committed", map[string]any{
 		"action_id":           "act-1",
 		"commit_outcome":      "success",
@@ -637,18 +677,18 @@ func newSignedPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	signPolicyDecisionFields(t, policyFields)
 	appendVerifyRecord(t, b, "ai.policy.decision", policyFields, "2026-03-27T12:02:00Z")
 
+	appendVerifyRecord(t, b, "ai.action.executed", map[string]any{
+		"action_id":           "act-1",
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "tool-digest",
+	}, "2026-03-27T12:05:00Z")
 	appendVerifyRecord(t, b, "ai.human.approval", map[string]any{
 		"approval_id":          "appr-1",
 		"approver_id_hash":     "approver-hash",
 		"approval_outcome":     "approve",
 		"justification_digest": "just-digest",
 		"action_id":            "act-1",
-	}, "2026-03-27T12:03:00Z")
-	appendVerifyRecord(t, b, "ai.action.executed", map[string]any{
-		"action_id":           "act-1",
-		"execution_outcome":   "success",
-		"tool_receipt_digest": "tool-digest",
-	}, "2026-03-27T12:05:00Z")
+	}, "2026-03-27T12:05:30Z")
 	appendVerifyRecord(t, b, "ai.action.committed", map[string]any{
 		"action_id":           "act-1",
 		"commit_outcome":      "success",

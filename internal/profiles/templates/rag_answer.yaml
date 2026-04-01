@@ -13,6 +13,8 @@ weights:
   XC: 0.05
   AC: 0.05
   GC: 0.10
+supports_cas: true
+sc_mode: retrieval_executed
 required:
   - type: atb.bundle.manifest
     fields: []

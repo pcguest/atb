@@ -64,21 +64,199 @@ func TestEvaluate_Clean(t *testing.T) {
 	}
 }
 
+func TestEvaluate_RequiredWhenSatisfiedAtOrAfter(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Optional: []EventRule{
+			{
+				Type:     "ai.response.sent",
+				Severity: "warning",
+				RequiredWhen: []RequiredWhenRule{
+					{WhenType: "ai.request.received", AtOrAfter: true},
+				},
+			},
+		},
+	}
+
+	records := []bundle.Record{
+		recordWithTimestamp("ai.request.received", map[string]any{"request_id": "req-1"}, "2026-03-27T12:00:00Z"),
+		recordWithTimestamp("ai.response.sent", map[string]any{"request_id": "req-1"}, "2026-03-27T12:01:00Z"),
+	}
+
+	result := Evaluate(schema, records)
+	if !result.Pass {
+		t.Fatalf("expected pass, got failures: %+v", result.CriticalFailures)
+	}
+	if len(result.CriticalFailures) != 0 {
+		t.Fatalf("expected no critical failures, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestEvaluate_RequiredWhenMissingTarget(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Optional: []EventRule{
+			{
+				Type:     "ai.response.sent",
+				Severity: "warning",
+				RequiredWhen: []RequiredWhenRule{
+					{WhenType: "ai.request.received"},
+				},
+			},
+		},
+	}
+
+	records := []bundle.Record{
+		record("ai.request.received", map[string]any{"request_id": "req-1"}),
+	}
+
+	result := Evaluate(schema, records)
+	if result.Pass {
+		t.Fatal("expected failure")
+	}
+	if !hasFailure(result.CriticalFailures, "missing_event", "ai.response.sent") {
+		t.Fatalf("expected missing_event for ai.response.sent, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestEvaluate_RequiredWhenConditionNotMet(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Optional: []EventRule{
+			{
+				Type:     "ai.response.sent",
+				Severity: "warning",
+				RequiredWhen: []RequiredWhenRule{
+					{WhenType: "ai.request.received"},
+				},
+			},
+		},
+	}
+
+	records := []bundle.Record{
+		record("ai.response.sent", map[string]any{"request_id": "req-1"}),
+	}
+
+	result := Evaluate(schema, records)
+	if len(result.CriticalFailures) != 0 {
+		t.Fatalf("expected no critical failures, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestEvaluate_RequiredWhenAtOrAfterViolation(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Optional: []EventRule{
+			{
+				Type:     "ai.response.sent",
+				Severity: "warning",
+				RequiredWhen: []RequiredWhenRule{
+					{WhenType: "ai.request.received", AtOrAfter: true},
+				},
+			},
+		},
+	}
+
+	records := []bundle.Record{
+		recordWithTimestamp("ai.response.sent", map[string]any{"request_id": "req-1"}, "2026-03-27T11:59:00Z"),
+		recordWithTimestamp("ai.request.received", map[string]any{"request_id": "req-1"}, "2026-03-27T12:00:00Z"),
+	}
+
+	result := Evaluate(schema, records)
+	if result.Pass {
+		t.Fatal("expected failure")
+	}
+	if !hasFailure(result.CriticalFailures, "temporal_violation", "ai.response.sent") {
+		t.Fatalf("expected temporal_violation for ai.response.sent, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestEvaluate_RequiredWhenMissingConditionTimestampWarns(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Optional: []EventRule{
+			{
+				Type:     "ai.response.sent",
+				Severity: "warning",
+				RequiredWhen: []RequiredWhenRule{
+					{WhenType: "ai.request.received", AtOrAfter: true},
+				},
+			},
+		},
+	}
+
+	records := []bundle.Record{
+		record("ai.request.received", map[string]any{"request_id": "req-1"}),
+		recordWithTimestamp("ai.response.sent", map[string]any{"request_id": "req-1"}, "2026-03-27T12:01:00Z"),
+	}
+
+	result := Evaluate(schema, records)
+	if !result.Pass {
+		t.Fatalf("expected pass with warning, got failures %+v", result.CriticalFailures)
+	}
+	if len(result.CriticalFailures) != 0 {
+		t.Fatalf("expected no critical failures, got %+v", result.CriticalFailures)
+	}
+	if !containsSubstring(result.RequiredWarnings, "unable to enforce ordering between ai.response.sent and ai.request.received because ai.request.received timestamp is missing") {
+		t.Fatalf("expected timestamp warning, got %+v", result.RequiredWarnings)
+	}
+}
+
+func TestEvaluate_RequiredWhenInvalidTargetTimestampsWarn(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Optional: []EventRule{
+			{
+				Type:     "ai.response.sent",
+				Severity: "warning",
+				RequiredWhen: []RequiredWhenRule{
+					{WhenType: "ai.request.received", AtOrAfter: true},
+				},
+			},
+		},
+	}
+
+	records := []bundle.Record{
+		recordWithTimestamp("ai.request.received", map[string]any{"request_id": "req-1"}, "2026-03-27T12:00:00Z"),
+		recordWithTimestamp("ai.response.sent", map[string]any{"request_id": "req-1"}, "not-a-timestamp"),
+	}
+
+	result := Evaluate(schema, records)
+	if !result.Pass {
+		t.Fatalf("expected pass with warning, got failures %+v", result.CriticalFailures)
+	}
+	if len(result.CriticalFailures) != 0 {
+		t.Fatalf("expected no critical failures, got %+v", result.CriticalFailures)
+	}
+	if !containsSubstring(result.RequiredWarnings, "unable to enforce ordering between ai.response.sent and ai.request.received because ai.response.sent timestamps are missing or invalid") {
+		t.Fatalf("expected target timestamp warning, got %+v", result.RequiredWarnings)
+	}
+}
+
 func testSchema() ProfileSchema {
 	return ProfileSchema{
 		ID:            "atb.profile.test",
 		Version:       1,
 		WorkflowClass: "test",
-		Weights: map[string]float64{
-			"EC": 0.20,
-			"FC": 0.15,
-			"RC": 0.20,
-			"TC": 0.05,
-			"SC": 0.10,
-			"XC": 0.10,
-			"AC": 0.10,
-			"GC": 0.10,
-		},
+		Weights:       validWeights(),
 		Required: []EventRule{
 			{
 				Type:     "ai.request.received",
@@ -116,6 +294,16 @@ func record(eventType string, data map[string]any) bundle.Record {
 	}
 }
 
+func recordWithTimestamp(eventType string, data map[string]any, timestamp string) bundle.Record {
+	return bundle.Record{
+		Event: hash.Event{
+			Type:      eventType,
+			Data:      data,
+			Timestamp: timestamp,
+		},
+	}
+}
+
 func hasFailure(failures []CriticalFailure, kind string, containsText string) bool {
 	for _, failure := range failures {
 		if failure.Kind == kind && strings.Contains(failure.Detail, containsText) {
@@ -128,6 +316,15 @@ func hasFailure(failures []CriticalFailure, kind string, containsText string) bo
 func contains(values []string, want string) bool {
 	for _, value := range values {
 		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsSubstring(values []string, want string) bool {
+	for _, value := range values {
+		if strings.Contains(value, want) {
 			return true
 		}
 	}

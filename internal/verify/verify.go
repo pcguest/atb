@@ -11,6 +11,7 @@ import (
 	"github.com/pcguest/atb/internal/anchorverify"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	profiledsl "github.com/pcguest/atb/internal/profiles"
 	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
@@ -216,16 +217,16 @@ func applyPolicyDecisionSignatureChecks(result *ProfileResult, warnings []string
 
 // computeSC computes the source-commitment (SC) sub-score for a bundle.
 // SC measures the completeness of the originating-request, signing, and anchor chain.
-// profileID must be one of the built-in profile IDs; other values score 0.0.
 // Result is clamped to [0.0, 1.0].
 func computeSC(b *bundle.Bundle, profileID string) float64 {
 	if b == nil {
 		return 0.0
 	}
-
-	switch profileID {
-	case profileIDPrivilegedToolAction, profileIDRAGAnswer:
-	default:
+	schema, ok := loadSchemaIfAvailable(profileID)
+	if !ok {
+		return 0.0
+	}
+	if !schema.SupportsCAS {
 		return 0.0
 	}
 
@@ -269,12 +270,12 @@ func computeSC(b *bundle.Bundle, profileID string) float64 {
 		total += 0.10
 	}
 
-	switch profileID {
-	case profileIDPrivilegedToolAction:
+	switch schema.SCMode {
+	case "policy_decision":
 		if hasPolicyDecision {
 			total += 0.15
 		}
-	case profileIDRAGAnswer:
+	case "retrieval_executed":
 		if hasRetrievalExecuted {
 			total += 0.15
 		}
@@ -467,12 +468,23 @@ func deriveResidualRiskWithoutCAS(profile ProfileResult) ResidualRisk {
 }
 
 func profileSupportsCAS(profile Profile) bool {
-	switch profile.(type) {
-	case *PrivilegedToolActionProfile, *RAGAnswerProfile:
-		return true
-	default:
+	if profile == nil {
 		return false
 	}
+	schema, ok := loadSchemaIfAvailable(profile.ID())
+	return ok && schema.SupportsCAS
+}
+
+func loadSchemaIfAvailable(id string) (schema profiledsl.ProfileSchema, ok bool) {
+	defer func() {
+		if recover() != nil {
+			schema = profiledsl.ProfileSchema{}
+			ok = false
+		}
+	}()
+
+	schema = loadSchema(id)
+	return schema, true
 }
 
 func appendUniqueStrings(dst []string, values ...string) []string {
