@@ -834,20 +834,20 @@ func (p *RAGAnswerProfile) Evaluate(records []bundle.Record) ProfileResult {
 	return result
 }
 
-func subScoresForProfile(profile Profile, records []bundle.Record, anchorPresent bool) map[string]float64 {
+func subScoresForProfile(profile Profile, records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	switch profile.ID() {
 	case profileIDPrivilegedToolAction:
-		return privilegedToolActionSubScores(records, anchorPresent)
+		return privilegedToolActionSubScores(records, anchorResult)
 	case profileIDRAGAnswer:
-		return ragAnswerSubScores(records, anchorPresent)
+		return ragAnswerSubScores(records, anchorResult)
 	case profileIDDataExport:
-		return dataExportSubScores(records, anchorPresent)
+		return dataExportSubScores(records, anchorResult)
 	case profileIDPolicyDecision:
-		return policyDecisionSubScores(records, anchorPresent)
+		return policyDecisionSubScores(records, anchorResult)
 	case profileIDHumanOverride:
-		return humanOverrideSubScores(records, anchorPresent)
+		return humanOverrideSubScores(records, anchorResult)
 	case profileIDBackgroundAutomation:
-		return backgroundAutomationSubScores(records, anchorPresent)
+		return backgroundAutomationSubScores(records, anchorResult)
 	default:
 		return map[string]float64{
 			"EC": 0,
@@ -862,7 +862,7 @@ func subScoresForProfile(profile Profile, records []bundle.Record, anchorPresent
 	}
 }
 
-func policyDecisionSubScores(records []bundle.Record, anchorPresent bool) map[string]float64 {
+func policyDecisionSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
 	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
 	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
@@ -885,21 +885,19 @@ func policyDecisionSubScores(records []bundle.Record, anchorPresent bool) map[st
 			allRecordsBound(recordsByType[event.TypeAIPolicyDecision], "action_id", policyByAction),
 	)
 
-	external := boolScore(anchorPresent)
-
 	return map[string]float64{
 		"EC": eventCoverage(recordsByType, policyDecisionCriticalRequirements),
 		"FC": fieldCompleteness(recordsByType, policyDecisionCriticalRequirements),
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDPolicyDecision),
-		"XC": external,
-		"AC": external,
+		"XC": xcScore(anchorResult),
+		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
 }
 
-func humanOverrideSubScores(records []bundle.Record, anchorPresent bool) map[string]float64 {
+func humanOverrideSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
 	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
 	approvalByAction := indexByField(recordsByType[event.TypeAIHumanApproval], "action_id")
@@ -925,21 +923,19 @@ func humanOverrideSubScores(records []bundle.Record, anchorPresent bool) map[str
 			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", precommitByAction),
 	)
 
-	external := boolScore(anchorPresent)
-
 	return map[string]float64{
 		"EC": eventCoverage(recordsByType, humanOverrideCriticalRequirements),
 		"FC": fieldCompleteness(recordsByType, humanOverrideCriticalRequirements),
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDHumanOverride),
-		"XC": external,
-		"AC": external,
+		"XC": xcScore(anchorResult),
+		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
 }
 
-func backgroundAutomationSubScores(records []bundle.Record, anchorPresent bool) map[string]float64 {
+func backgroundAutomationSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
 	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
 	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
@@ -972,8 +968,6 @@ func backgroundAutomationSubScores(records []bundle.Record, anchorPresent bool) 
 			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", executedByAction) &&
 			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", committedByAction),
 	)
-
-	external := boolScore(anchorPresent)
 
 	return map[string]float64{
 		"EC": eventCoverage(recordsByType, backgroundAutomationCriticalRequirements),
@@ -981,13 +975,13 @@ func backgroundAutomationSubScores(records []bundle.Record, anchorPresent bool) 
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDBackgroundAutomation),
-		"XC": external,
-		"AC": external,
+		"XC": xcScore(anchorResult),
+		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
 }
 
-func dataExportSubScores(records []bundle.Record, anchorPresent bool) map[string]float64 {
+func dataExportSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
 	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
 	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
@@ -1020,8 +1014,6 @@ func dataExportSubScores(records []bundle.Record, anchorPresent bool) map[string
 			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", executedByAction) &&
 			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", committedByAction),
 	)
-
-	external := boolScore(anchorPresent)
 
 	return map[string]float64{
 		"EC": eventCoverage(recordsByType, dataExportCriticalRequirements),
@@ -1029,13 +1021,13 @@ func dataExportSubScores(records []bundle.Record, anchorPresent bool) map[string
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDDataExport),
-		"XC": external,
-		"AC": external,
+		"XC": xcScore(anchorResult),
+		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
 }
 
-func privilegedToolActionSubScores(records []bundle.Record, anchorPresent bool) map[string]float64 {
+func privilegedToolActionSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
 	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
 	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
@@ -1069,24 +1061,19 @@ func privilegedToolActionSubScores(records []bundle.Record, anchorPresent bool) 
 			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", committedByAction),
 	)
 
-	external := 0.0
-	if anchorPresent {
-		external = 1.0
-	}
-
 	return map[string]float64{
 		"EC": eventCoverage(recordsByType, privilegedCriticalRequirements),
 		"FC": fieldCompleteness(recordsByType, privilegedCriticalRequirements),
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDPrivilegedToolAction),
-		"XC": external,
-		"AC": external,
+		"XC": xcScore(anchorResult),
+		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
 }
 
-func ragAnswerSubScores(records []bundle.Record, anchorPresent bool) map[string]float64 {
+func ragAnswerSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
 
 	requestToResponse := 0.0
@@ -1103,19 +1090,14 @@ func ragAnswerSubScores(records []bundle.Record, anchorPresent bool) map[string]
 		temporalBeforeScore(recordsByType[event.TypeAIRetrievalExecuted], recordsByType[event.TypeAIModelInvoked]),
 	}
 
-	external := 0.0
-	if anchorPresent {
-		external = 1.0
-	}
-
 	return map[string]float64{
 		"EC": eventCoverage(recordsByType, ragCriticalRequirements),
 		"FC": fieldCompleteness(recordsByType, ragCriticalRequirements),
 		"RC": requestToResponse,
 		"TC": averageScores(temporalScores...),
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDRAGAnswer),
-		"XC": external,
-		"AC": external,
+		"XC": xcScore(anchorResult),
+		"AC": acScore(anchorResult),
 		"GC": 0.3,
 	}
 }

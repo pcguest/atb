@@ -116,6 +116,7 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 		return report
 	}
 
+	anchorResult := ClassifyAnchor(b, bundlePath)
 	for i, profile := range profiles {
 		result := profile.Evaluate(b.Records)
 		report.Profiles = append(report.Profiles, result)
@@ -124,7 +125,7 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 			continue
 		}
 
-		subScores := subScoresForProfile(profile, b.Records, report.Anchoring.AnchorPresent)
+		subScores := subScoresForProfile(profile, b.Records, anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
 		report.ResidualRisk = deriveResidualRisk(cas, result)
@@ -149,7 +150,8 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 	report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
 
 	if profileSupportsCAS(profile) {
-		subScores := subScoresForProfile(profile, b.Records, report.Anchoring.AnchorPresent)
+		anchorResult := ClassifyAnchor(b, bundlePath)
+		subScores := subScoresForProfile(profile, b.Records, anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
 		report.ResidualRisk = deriveResidualRisk(cas, result)

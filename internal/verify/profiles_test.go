@@ -98,6 +98,32 @@ func TestDataMap_NonMapData(t *testing.T) {
 	}
 }
 
+func TestAnchorSubScoreScaling(t *testing.T) {
+	records := newPrivilegedToolActionBundle(t).Records
+
+	cases := []struct {
+		name   string
+		input  AnchorVerifyResult
+		wantXC float64
+		wantAC float64
+	}{
+		{name: "digest_only", input: AnchorDigestOnly, wantXC: 0.5, wantAC: 0.4},
+		{name: "present_bad_data", input: AnchorPresentBadData, wantXC: 0.1, wantAC: 0.0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := privilegedToolActionSubScores(records, tc.input)
+			if got["XC"] != tc.wantXC {
+				t.Fatalf("XC = %.1f, want %.1f", got["XC"], tc.wantXC)
+			}
+			if got["AC"] != tc.wantAC {
+				t.Fatalf("AC = %.1f, want %.1f", got["AC"], tc.wantAC)
+			}
+		})
+	}
+}
+
 func newRAGAnswerBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
