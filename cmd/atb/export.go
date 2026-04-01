@@ -220,6 +220,8 @@ type gdprProcessingActivity struct {
 	EventVolume         int      `json:"event_volume"`
 }
 
+var errExportHelp = errors.New("export help requested")
+
 var soc2Controls = []soc2ControlDefinition{
 	{
 		ControlID:   "CC6.1",
@@ -255,6 +257,10 @@ func cmdExport() {
 func runExport(args []string, stdout, stderr io.Writer) int {
 	cfg, err := parseExportArgs(args)
 	if err != nil {
+		if errors.Is(err, errExportHelp) {
+			printExportUsage(stdout)
+			return exitSuccess
+		}
 		fmt.Fprintf(stderr, "atb export: %v\n", err)
 		printExportUsage(stderr)
 		return exitUserError
@@ -359,6 +365,8 @@ func parseExportArgs(args []string) (exportConfig, error) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
+		case arg == "-h" || arg == "--help":
+			return cfg, errExportHelp
 		case arg == "--format":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --format (expected compliance|soc2|gdpr)")
@@ -1821,4 +1829,5 @@ func exportVerificationResidualRisk(report verifypkg.Report) float64 {
 
 func printExportUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: atb export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]")
+	fmt.Fprintln(w, "  --with-verify    write <output>.verify.json sidecar with full verify report")
 }

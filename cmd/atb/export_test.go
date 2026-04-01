@@ -113,6 +113,25 @@ func TestExportDryRunBuildsWithoutWritingZip(t *testing.T) {
 	})
 }
 
+func TestRunExportHelp(t *testing.T) {
+	var stdout strings.Builder
+	var stderr strings.Builder
+
+	exitCode := runExport([]string{"--help"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("runExport(--help) exit code = %d, want %d", exitCode, exitSuccess)
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("runExport(--help) wrote stderr: %q", stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Usage: atb export") {
+		t.Fatalf("expected usage in stdout, got %q", stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "--with-verify    write <output>.verify.json sidecar with full verify report") {
+		t.Fatalf("expected --with-verify help line, got %q", stdout.String())
+	}
+}
+
 func TestExportUsesEmbeddedDocsOutsideRepoCheckout(t *testing.T) {
 	withTempCWD(t, func(tmp string) {
 		writeValidBundle(t, filepath.Join("run.atb", "bundle.atb"))
