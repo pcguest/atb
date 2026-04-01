@@ -20,10 +20,13 @@ This is the canonical ATB workflow: the AI workflow itself can fail while the au
 
 ### Verify Against a Specific Profile
 
-ATB can auto-detect built-in profiles from the bundle contents. Use `--profile` when you want to lock verification to a specific built-in profile or a local YAML definition:
+Use `--profile <id>` to evaluate against a specific built-in profile. See `atb events --profile <id>` for the required event types per profile. Local YAML definitions are also supported via `--profile ./path/to/profile.yaml`:
 
 ```bash
-atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
+atb events --profile atb.profile.rag_answer
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --json
+# The JSON output includes a "cas" object with "grade" and profile sub_scores
+# such as AC, EC, FC, GC, RC, SC, TC, and XC.
 atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 ```
 

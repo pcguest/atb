@@ -40,10 +40,21 @@ That sequence creates a local incident bundle with a failed review gate but a va
 
 ## Verification Profiles
 
-ATB auto-detects built-in obligation profiles from emitted events when it can. Pin a profile explicitly when you want deterministic checks or when you are validating a custom YAML profile:
+ATB includes six built-in obligation profiles. Use `--profile <id>` to evaluate against a specific built-in profile, or pass a local YAML profile path when you are validating a custom definition:
+
+```text
+atb.profile.privileged_tool_action
+atb.profile.rag_answer
+atb.profile.data_export
+atb.profile.policy_decision
+atb.profile.human_override
+atb.profile.background_automation
+```
 
 ```bash
-atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --json
+# The JSON output includes a "cas" object with "grade" and sub_scores
+# such as AC, EC, FC, GC, RC, SC, TC, and XC for the selected profile.
 atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 ```
 
