@@ -6,7 +6,7 @@ def test_sdk_imports():
     import atb
 
     assert hasattr(atb, "__version__")
-    assert atb.__version__ == "1.7.0"
+    assert atb.__version__ == "1.8.0"
 
 
 def test_bundle_class_exists():
