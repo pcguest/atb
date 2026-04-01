@@ -200,18 +200,18 @@ func buildCLIPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 		"subject_id_hash":       "subject-hash",
 		"action_id":             "act-1",
 	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:02:00Z"})
+	appendTestBundleEventWithOptions(t, b, "ai.action.executed", map[string]any{
+		"action_id":           "act-1",
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "tool-digest",
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:05:00Z"})
 	appendTestBundleEventWithOptions(t, b, "ai.human.approval", map[string]any{
 		"approval_id":          "appr-1",
 		"approver_id_hash":     "approver-hash",
 		"approval_outcome":     "approve",
 		"justification_digest": "just-digest",
 		"action_id":            "act-1",
-	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:03:00Z"})
-	appendTestBundleEventWithOptions(t, b, "ai.action.executed", map[string]any{
-		"action_id":           "act-1",
-		"execution_outcome":   "success",
-		"tool_receipt_digest": "tool-digest",
-	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:05:00Z"})
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:05:30Z"})
 	appendTestBundleEventWithOptions(t, b, "ai.action.committed", map[string]any{
 		"action_id":           "act-1",
 		"commit_outcome":      "success",

@@ -233,18 +233,18 @@ func writeExportVerifyBundle(t testing.TB, path string, profilePass bool) {
 	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:02:00Z"})
 
 	if profilePass {
+		appendTestBundleEventWithOptions(t, b, event.TypeAIActionExecuted, map[string]any{
+			"action_id":           "act-1",
+			"execution_outcome":   "success",
+			"tool_receipt_digest": "tool-digest",
+		}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:05:00Z"})
 		appendTestBundleEventWithOptions(t, b, event.TypeAIHumanApproval, map[string]any{
 			"approval_id":          "appr-1",
 			"approver_id_hash":     "approver-hash",
 			"approval_outcome":     "approve",
 			"justification_digest": "just-digest",
 			"action_id":            "act-1",
-		}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:03:00Z"})
-		appendTestBundleEventWithOptions(t, b, event.TypeAIActionExecuted, map[string]any{
-			"action_id":           "act-1",
-			"execution_outcome":   "success",
-			"tool_receipt_digest": "tool-digest",
-		}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:05:00Z"})
+		}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:05:30Z"})
 		appendTestBundleEventWithOptions(t, b, event.TypeAIActionCommitted, map[string]any{
 			"action_id":           "act-1",
 			"commit_outcome":      "success",
