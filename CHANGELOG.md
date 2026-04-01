@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.7.0] - 2026-04-01
+
+### Added
+- Obligation-Profile DSL v1: all six built-in profiles are now defined in YAML
+  (`internal/profiles/templates/`). Each file is a `ProfileSchema` with
+  required events, optional events, relation rules, weights, and blind spots.
+- `internal/profiles` package: `ProfileSchema`, `EventRule`, `RelationRule`,
+  `ValidateSchema`, `Evaluate`, and `loadSchema` (go:embed backed).
+- Generic walker (`profiles.Evaluate`) replaces all per-profile inline
+  evaluation logic. The verifier requires no changes.
+
+### Changed
+- `internal/verify/profiles.go`: all 6 profile structs delegate `Evaluate`,
+  `DefaultWeights`, `WorkflowClass`, and `BlindSpots` to the YAML-backed schema
+  path. The `Profile` interface is unchanged.
+
 ## [v1.6.0] - 2026-04-01
 
 ### Added
