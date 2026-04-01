@@ -1,3 +1,4 @@
+<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # Known Dependency Vulnerabilities
 
 This file retains rc1 dependency notes for traceability.

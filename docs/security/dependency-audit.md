@@ -1,3 +1,4 @@
+<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # Dependency Security Audit (v1.1.0-rc1)
 
 ## Go Dependencies

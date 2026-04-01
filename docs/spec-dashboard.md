@@ -1,3 +1,4 @@
+<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # ATB Dashboard Specification
 
 ## Status

@@ -1,3 +1,4 @@
+<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # Getting Started with ATB v1.1.0
 
 This guide is for evaluating the `v1.1.0` tag from source. For day-to-day use, install the Go CLI directly with `go install github.com/pcguest/atb/cmd/atb@v1.1.0`.

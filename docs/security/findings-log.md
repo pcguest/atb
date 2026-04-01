@@ -1,3 +1,4 @@
+<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # Security Findings Resolution Log (v1.1.0)
 
 ## Finding #1: Reveal Auth Missing

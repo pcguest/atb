@@ -1,3 +1,4 @@
+<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # ATB v1.1.0-rc1 Security Audit
 **Date:** 2026-03-16  
 **Auditor:** Security review  

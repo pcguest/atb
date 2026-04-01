@@ -1,3 +1,4 @@
+<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # Founder Copy Kit
 
 Use these snippets when the same message needs to appear across the site, GitHub, and release channels.
