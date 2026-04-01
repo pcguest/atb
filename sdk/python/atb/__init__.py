@@ -26,7 +26,7 @@ from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
 from atb.langchain_gate import gate_langchain_tool
 
-__version__ = "1.1.0"
+__version__ = "1.5.0"
 __all__ = [
     "Bundle",
     "ActionGate",
