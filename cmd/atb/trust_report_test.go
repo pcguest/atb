@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/trust"
 )
 
 func TestTrustReportParseArgs(t *testing.T) {
@@ -31,6 +34,15 @@ func TestTrustReportParseArgs(t *testing.T) {
 			want: trustReportConfig{
 				BundlePath: bundle.DefaultPath(),
 				Format:     "json",
+				ProfileID:  "",
+			},
+		},
+		{
+			name: "text format",
+			args: []string{"--format", "text"},
+			want: trustReportConfig{
+				BundlePath: bundle.DefaultPath(),
+				Format:     "text",
 				ProfileID:  "",
 			},
 		},
@@ -104,5 +116,105 @@ func TestTrustReportParseArgs(t *testing.T) {
 				t.Fatalf("unexpected config: got %+v want %+v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestTrustReportRenderTextWithoutCAS(t *testing.T) {
+	report := trust.Report{
+		Status:     trust.StatusPass,
+		BundlePath: "/tmp/run.atb/bundle.atb",
+		Gate: trust.Gate{
+			Status: trust.StatusPass,
+		},
+		Summary: trust.Summary{
+			Total: 7,
+			Pass:  6,
+			Warn:  1,
+			Fail:  0,
+		},
+		Categories: []trust.Category{
+			{Key: "cryptographic_integrity", Status: trust.StatusPass},
+			{Key: "documentation", Status: trust.StatusWarn},
+		},
+	}
+
+	var out bytes.Buffer
+	renderTrustReportText(&out, report)
+	got := out.String()
+
+	for _, want := range []string{
+		"Bundle:   /tmp/run.atb/bundle.atb",
+		"Status:   PASS",
+		"Gate:     PASS",
+		"Summary:  total=7 pass=6 warn=1 fail=0",
+		"Categories:",
+		"  cryptographic_integrity: PASS",
+		"  documentation: WARN",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderTrustReportText() missing %q in output:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "\nCAS:\n") {
+		t.Fatalf("renderTrustReportText() unexpectedly rendered CAS block:\n%s", got)
+	}
+}
+
+func TestTrustReportRenderTextWithCAS(t *testing.T) {
+	report := trust.Report{
+		Status:     trust.StatusWarn,
+		BundlePath: "/tmp/run.atb/bundle.atb",
+		Gate: trust.Gate{
+			Status: trust.StatusWarn,
+		},
+		Summary: trust.Summary{
+			Total: 8,
+			Pass:  5,
+			Warn:  2,
+			Fail:  1,
+		},
+		Categories: []trust.Category{
+			{Key: "cryptographic_integrity", Status: trust.StatusPass},
+		},
+		CAS: &trust.CASSection{
+			ProfileID:     "atb.profile.privileged_tool_action",
+			WorkflowClass: "privileged_tool_action",
+			Overall:       0.87,
+			Grade:         "High",
+			SubScores: map[string]float64{
+				"EC": 1,
+				"FC": 0.9,
+				"RC": 0.8,
+				"TC": 0.7,
+				"SC": 0.6,
+				"XC": 0.5,
+				"AC": 0.4,
+				"GC": 0.3,
+			},
+			AnchorQuality: trust.AnchorQuality{
+				Label: "digest-only",
+				XC:    0.5,
+				AC:    0.4,
+			},
+		},
+	}
+
+	var out bytes.Buffer
+	renderTrustReportText(&out, report)
+	got := out.String()
+
+	for _, want := range []string{
+		"CAS:",
+		"  Profile:   atb.profile.privileged_tool_action",
+		"  Class:     privileged_tool_action",
+		"  Grade:     High  (0.87)",
+		"  Anchor:    digest-only  (XC=0.50 AC=0.40)",
+		"  Sub-scores:",
+		"    EC  1.00   FC  0.90   RC  0.80   TC  0.70",
+		"    SC  0.60   XC  0.50   AC  0.40   GC  0.30",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderTrustReportText() missing %q in output:\n%s", want, got)
+		}
 	}
 }

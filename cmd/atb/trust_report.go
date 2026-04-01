@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -46,6 +47,8 @@ func cmdTrustReport() {
 			fmt.Fprintf(os.Stderr, "atb trust-report: encode json: %v\n", err)
 			os.Exit(exitSystemError)
 		}
+	case "text":
+		renderTrustReportText(os.Stdout, report)
 	case "markdown":
 		printTrustReportMarkdown(report)
 	default:
@@ -67,7 +70,7 @@ func parseTrustReportArgs(args []string) (trustReportConfig, error) {
 			return cfg, errTrustReportHelp
 		case arg == "--format":
 			if i+1 >= len(args) {
-				return cfg, fmt.Errorf("missing value for --format (expected markdown|json)")
+				return cfg, fmt.Errorf("missing value for --format (expected markdown|json|text)")
 			}
 			cfg.Format = strings.ToLower(strings.TrimSpace(args[i+1]))
 			i++
@@ -91,8 +94,8 @@ func parseTrustReportArgs(args []string) (trustReportConfig, error) {
 			pathSet = true
 		}
 	}
-	if cfg.Format != "markdown" && cfg.Format != "json" {
-		return cfg, fmt.Errorf("invalid format %q (expected markdown|json)", cfg.Format)
+	if cfg.Format != "markdown" && cfg.Format != "json" && cfg.Format != "text" {
+		return cfg, fmt.Errorf("invalid format %q (expected markdown|json|text)", cfg.Format)
 	}
 	return cfg, nil
 }
@@ -150,6 +153,62 @@ func printTrustReportMarkdown(report trust.Report) {
 			}
 		}
 		fmt.Println()
+	}
+}
+
+func renderTrustReportText(w io.Writer, report trust.Report) {
+	renderer := verifyTextRenderer{colour: useVerifyANSI(w)}
+
+	fmt.Fprintf(w, "Bundle:   %s\n", report.BundlePath)
+	fmt.Fprintf(w, "Status:   %s\n", renderTrustReportStatus(renderer, report.Status))
+	fmt.Fprintf(w, "Gate:     %s\n", strings.ToUpper(report.Gate.Status))
+	fmt.Fprintf(w, "Summary:  total=%d pass=%d warn=%d fail=%d\n", report.Summary.Total, report.Summary.Pass, report.Summary.Warn, report.Summary.Fail)
+	fmt.Fprintln(w)
+
+	fmt.Fprintln(w, "Categories:")
+	for _, category := range report.Categories {
+		fmt.Fprintf(w, "  %s: %s\n", category.Key, strings.ToUpper(category.Status))
+	}
+
+	if report.CAS == nil {
+		return
+	}
+
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "CAS:")
+	fmt.Fprintf(w, "  Profile:   %s\n", report.CAS.ProfileID)
+	fmt.Fprintf(w, "  Class:     %s\n", report.CAS.WorkflowClass)
+	fmt.Fprintf(w, "  Grade:     %s  (%.2f)\n", report.CAS.Grade, report.CAS.Overall)
+	fmt.Fprintf(w, "  Anchor:    %s  (XC=%.2f AC=%.2f)\n", report.CAS.AnchorQuality.Label, report.CAS.AnchorQuality.XC, report.CAS.AnchorQuality.AC)
+	fmt.Fprintln(w, "  Sub-scores:")
+	fmt.Fprintf(
+		w,
+		"    EC  %.2f   FC  %.2f   RC  %.2f   TC  %.2f\n",
+		report.CAS.SubScores["EC"],
+		report.CAS.SubScores["FC"],
+		report.CAS.SubScores["RC"],
+		report.CAS.SubScores["TC"],
+	)
+	fmt.Fprintf(
+		w,
+		"    SC  %.2f   XC  %.2f   AC  %.2f   GC  %.2f\n",
+		report.CAS.SubScores["SC"],
+		report.CAS.SubScores["XC"],
+		report.CAS.SubScores["AC"],
+		report.CAS.SubScores["GC"],
+	)
+}
+
+func renderTrustReportStatus(renderer verifyTextRenderer, status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case trust.StatusPass:
+		return renderer.colourise("PASS", ansiGreen)
+	case trust.StatusFail:
+		return renderer.colourise("FAIL", ansiRed)
+	case trust.StatusWarn:
+		return renderer.colourise("WARN", ansiYellow)
+	default:
+		return strings.ToUpper(strings.TrimSpace(status))
 	}
 }
 

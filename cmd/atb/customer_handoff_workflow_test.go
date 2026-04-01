@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/trust"
 )
 
@@ -61,12 +62,10 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		senderDir,
 		"snapshot",
 		"customer.handoff",
-		"--gate",
-		"pass",
 		"--format",
 		"json",
 	)
-	if snapshot.EventType != "snapshot.customer.handoff" || snapshot.Gate != "pass" {
+	if snapshot.EventType != event.TypeSnapshot {
 		t.Fatalf("unexpected handoff snapshot: %+v", snapshot)
 	}
 
@@ -187,7 +186,7 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		t.Fatalf("unexpected recipient bundle length: got %d want 4", len(receivedBundle.Records))
 	}
 	last := receivedBundle.Records[len(receivedBundle.Records)-1]
-	if last.Event.Type != "snapshot.customer.handoff" {
+	if last.Event.Type != event.TypeSnapshot {
 		t.Fatalf("unexpected recipient final event type: %q", last.Event.Type)
 	}
 }

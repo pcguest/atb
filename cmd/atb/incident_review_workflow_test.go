@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/trust"
 )
 
@@ -57,16 +58,11 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 		workDir,
 		"snapshot",
 		"incident.review",
-		"--gate",
-		"fail",
 		"--format",
 		"json",
 	)
-	if snapshot.EventType != "snapshot.incident.review" {
+	if snapshot.EventType != event.TypeSnapshot {
 		t.Fatalf("unexpected incident snapshot type: %+v", snapshot)
-	}
-	if snapshot.Gate != "fail" {
-		t.Fatalf("unexpected incident snapshot gate: %+v", snapshot)
 	}
 
 	verifyResult := runCLIJSON[verifyResult](t, binaryPath, workDir, "verify", "--format", "json")
@@ -93,15 +89,15 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 		t.Fatalf("unexpected incident bundle length: got %d want 4", len(loaded.Records))
 	}
 	last := loaded.Records[len(loaded.Records)-1]
-	if last.Event.Type != "snapshot.incident.review" {
+	if last.Event.Type != event.TypeSnapshot {
 		t.Fatalf("unexpected final incident event type: %q", last.Event.Type)
 	}
 	lastData, ok := last.Event.Data.(map[string]interface{})
 	if !ok {
 		t.Fatalf("expected final incident snapshot data map, got %T", last.Event.Data)
 	}
-	if lastData["gate"] != "fail" {
-		t.Fatalf("expected incident snapshot gate fail, got %v", lastData["gate"])
+	if lastData["name"] != "incident.review" {
+		t.Fatalf("expected incident snapshot name, got %v", lastData["name"])
 	}
 
 	runCLI(

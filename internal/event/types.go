@@ -9,6 +9,7 @@ const (
 	TypeBundleManifest  = "atb.bundle.manifest"
 	TypeBundleAnchor    = "atb.bundle.anchor"
 	TypeBundleSignature = "atb.bundle.signature"
+	TypeSnapshot        = "atb.snapshot"
 )
 
 // AI request and response events.
@@ -79,6 +80,7 @@ var Registry = []EventInfo{
 	{TypeBundleManifest, "Bundle manifest (seq 0, always first in a new bundle)", "all", "critical"},
 	{TypeBundleAnchor, "RFC 3161 TSA timestamp anchor", "all", "required"},
 	{TypeBundleSignature, "Ed25519 bundle signature", "all", "required"},
+	{TypeSnapshot, "Bundle snapshot marker", "", "informational"},
 	{TypeAIRequestReceived, "AI request received at app boundary", "atb.profile.rag_answer,atb.profile.privileged_tool_action", "critical"},
 	{TypeAIResponseSent, "AI response sent from app boundary", "atb.profile.rag_answer", "required"},
 	{TypeAIPolicyDecision, "Policy engine decision (allow/deny)", "atb.profile.privileged_tool_action", "critical"},

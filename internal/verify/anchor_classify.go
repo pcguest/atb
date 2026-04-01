@@ -1,6 +1,7 @@
 package verify
 
 import (
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"os"
@@ -24,6 +25,8 @@ type anchorClassifyEventData struct {
 	TSRDER string `json:"tsr_der"`
 }
 
+var classifyAnchorRoots *x509.CertPool
+
 func ClassifyAnchor(b *bundle.Bundle, bundlePath string) AnchorVerifyResult {
 	if b == nil {
 		return AnchorAbsent
@@ -45,7 +48,7 @@ func ClassifyAnchor(b *bundle.Bundle, bundlePath string) AnchorVerifyResult {
 		return AnchorPresentBadData
 	}
 
-	if err := anchorpkg.VerifyToken(tokenBytes, snapshotHash, nil); err != nil {
+	if err := anchorpkg.VerifyToken(tokenBytes, snapshotHash, classifyAnchorRoots); err != nil {
 		if isDigestOnlyAnchorError(err) {
 			return AnchorDigestOnly
 		}
