@@ -7,18 +7,18 @@ This document defines the schema for Data Subject Requests (DSR) and Records of 
 Data Subject Request (Portability/Access):
 
 ```bash
-atb export --format gdpr --type dsr --subject-id <user_uuid> --bundle <path> --output <dir>
+atb export --format gdpr --type dsr --subject-id <user_uuid> --bundle <path> --output gdpr-dsr.zip
 ```
 
 Records of Processing (RoPA):
 
 ```bash
-atb export --format gdpr --type ropa --bundle <path> --output <dir>
+atb export --format gdpr --type ropa --bundle <path> --output gdpr-ropa.zip
 ```
 
 ## 2. PII Classification and Redaction Rules
 
-Before export, the CLI MUST scan all event payloads for fields marked as sensitive in the schema definition.
+Before export, the CLI MUST scan all event payloads for fields matched against the heuristic PII classifier (see `docs/compliance/pii-fields.json` for the field list).
 
 | Field Category | Action in DSR Export | Action in RoPA Export |
 | --- | --- | --- |
@@ -111,10 +111,15 @@ The export command MUST fail if:
 - Any event in the chain fails hash verification.
 - The bundle retention policy has expired for the requested data range.
 
-## 6. Right to Erasure (Article 17) Note
+## 6. Right to Erasure (Article 17)
 
-ATB does not support physical deletion of events from an immutable hash-chained ledger. Instead, erasure is implemented via cryptographic redaction:
+ATB records an immutable hash-chained event log. Physical deletion from
+the chain is not supported. The v1.5.0 exporter does not implement an
+Article 17 deletion-marker flow. Teams with Article 17 obligations should:
 
-- A new tombstone event is appended stating the subject's data is logically deleted.
-- Future exports for this subject return an empty dataset with a reference to the tombstone event.
-- The original raw data remains in the archive for legal hold (if configured) but is inaccessible via standard export keys.
+- Record an explicit `atb.data.erasure_requested` event via `atb append`.
+- Document the retention decision in a snapshot (`atb snapshot`).
+- Consult legal counsel on whether a hash-chained audit log satisfies
+  their specific erasure obligations.
+
+Article 17 deletion export support is tracked for a future release.
