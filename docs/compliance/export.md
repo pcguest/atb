@@ -1,8 +1,12 @@
 # Compliance Export
 
-ATB can package local audit evidence into a single zip archive for SOC2 and GDPR workflows.
+ATB can package local audit evidence into zip archives for `compliance`, `soc2`, and `gdpr` workflows.
 
 ## Command
+
+```bash
+atb export --format compliance --output compliance-evidence.zip
+```
 
 ```bash
 atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
@@ -14,6 +18,13 @@ atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle
 
 ```bash
 atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
+```
+
+With full verify sidecar:
+
+```bash
+atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip --with-verify
+# Writes soc2-evidence.zip and soc2-evidence.zip.verify.json
 ```
 
 Dry-run preview:
@@ -35,9 +46,15 @@ atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip 
 
 If bundle or ledger verification fails, export exits with a non-zero status.
 
+## Format Scope
+
+- `compliance` produces a general-purpose evidence zip for incident review, audit follow-up, and cross-functional handoff.
+- `soc2` produces a zip with SOC2-specific evidence files and control-oriented structure.
+- `gdpr` produces a zip with GDPR-specific structure for either DSR (`--type dsr`) or RoPA (`--type ropa`) output.
+
 ## Evidence Package Layout
 
-The export zip is structured under `evidence/` and includes:
+The `compliance` export zip is structured under `evidence/` and includes:
 
 - `evidence/manifest.json`
 - `evidence/checksums.sha256`
@@ -49,6 +66,20 @@ The export zip is structured under `evidence/` and includes:
 - `evidence/reports/archive-ledger.json`
 - `evidence/config/atb-config.json` when local config exists
 - `evidence/docs/...` with core docs and compliance docs when present
+
+The `soc2` and `gdpr` formats also write zip archives under `evidence/`, but each adds format-specific files:
+
+- `soc2` adds `evidence/soc2_evidence_manifest.json`, `evidence/audit_trail.jsonl`, and `evidence/verification_report.json`.
+- `gdpr --type dsr` adds `evidence/dsr_<subject_id>.json`.
+- `gdpr --type ropa` adds `evidence/ropa_summary.json`.
+
+## Verify Sidecar
+
+Use `--with-verify` when you want the full verify report JSON written next to the export zip.
+
+- `--with-verify` writes `<output>.verify.json`.
+- The sidecar contains the full `atb verify --json` report for the exported bundle.
+- Dry-run mode previews the export and does not write the zip or the sidecar.
 
 ## Operational Notes
 

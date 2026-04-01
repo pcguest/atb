@@ -115,6 +115,8 @@ The compliance evidence export is the strongest default incident review pack bec
 atb config retention --days 90
 atb archive
 atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
+atb export --format soc2 --output soc2-evidence.zip --with-verify
+# Writes soc2-evidence.zip and soc2-evidence.zip.verify.json
 atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
 atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
 ```
