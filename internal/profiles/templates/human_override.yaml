@@ -1,0 +1,71 @@
+id: atb.profile.human_override
+version: 1
+workflow_class: human_override
+blind_spots:
+  - Cannot verify that the recorded approver identity matches the individual who physically performed the approval action.
+  - Justification digest binds the recorded justification text only; content quality is not assessed.
+weights:
+  EC: 0.15
+  FC: 0.15
+  RC: 0.15
+  TC: 0.10
+  SC: 0.10
+  XC: 0.10
+  AC: 0.15
+  GC: 0.10
+required:
+  - type: atb.bundle.manifest
+    fields: []
+    message: atb.bundle.manifest missing
+    severity: critical
+  - type: ai.request.received
+    fields:
+      - request_id
+      - actor_id_hash
+      - purpose_tag
+    message: ai.request.received missing required fields
+    severity: critical
+  - type: ai.human.approval
+    fields:
+      - approval_id
+      - approver_id_hash
+      - approval_outcome
+      - justification_digest
+      - action_id
+    message: ai.human.approval missing required fields
+    severity: critical
+  - type: ai.action.precommit
+    fields:
+      - action_id
+      - action_type
+      - action_parameters_digest
+      - target_resource_id
+      - intended_effect
+    message: ai.action.precommit missing required fields
+    severity: critical
+  - type: ai.action.executed
+    fields:
+      - action_id
+      - execution_outcome
+      - tool_receipt_digest
+    message: ai.action.executed missing required fields
+    severity: critical
+optional:
+  - type: ai.action.committed
+    fields:
+      - action_id
+      - commit_outcome
+      - sink_receipt_digest
+    message: ai.action.committed recommended to confirm committed outcome
+    severity: warning
+relations:
+  - name: approval_binds_action
+    from: ai.human.approval
+    to: ai.action.precommit
+    field: action_id
+    message: "approval_binds_action: ai.human.approval action_id does not match ai.action.precommit"
+  - name: execution_after_approval
+    from: ai.action.executed
+    to: ai.human.approval
+    field: action_id
+    message: "execution_after_approval: executed action_id has no approved ai.human.approval record"

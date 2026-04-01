@@ -8,6 +8,7 @@ import (
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	profiledsl "github.com/pcguest/atb/internal/profiles"
 )
 
 const (
@@ -209,629 +210,144 @@ func hasField(m map[string]any, key string) bool {
 func (p *PrivilegedToolActionProfile) ID() string { return profileIDPrivilegedToolAction }
 
 // Version returns the profile schema version.
-func (p *PrivilegedToolActionProfile) Version() int { return 1 }
+func (p *PrivilegedToolActionProfile) Version() int { return loadSchema(p.ID()).Version }
 
 // WorkflowClass returns the workflow class name.
-func (p *PrivilegedToolActionProfile) WorkflowClass() string { return "privileged_tool_action" }
+func (p *PrivilegedToolActionProfile) WorkflowClass() string { return loadSchema(p.ID()).WorkflowClass }
 
 // BlindSpots returns the profile blind spots.
 func (p *PrivilegedToolActionProfile) BlindSpots() []string {
-	return []string{
-		"If an operator bypasses the gate, this profile cannot detect that bypass without external reconciliation.",
-		"Tool provider internal processing is not attested unless tool receipts are cryptographically verifiable.",
-	}
+	return copyStringSlice(loadSchema(p.ID()).BlindSpots)
 }
 
 // DefaultWeights returns the profile weight vector.
 func (p *PrivilegedToolActionProfile) DefaultWeights() map[string]float64 {
-	return map[string]float64{
-		"EC": 0.15,
-		"FC": 0.10,
-		"RC": 0.15,
-		"TC": 0.10,
-		"SC": 0.10,
-		"XC": 0.15,
-		"AC": 0.10,
-		"GC": 0.15,
-	}
+	return copyFloatMap(loadSchema(p.ID()).Weights)
 }
 
 // Evaluate evaluates bundle records against the privileged tool action profile.
 func (p *PrivilegedToolActionProfile) Evaluate(records []bundle.Record) ProfileResult {
-	result := ProfileResult{
-		ProfileID:          p.ID(),
-		Version:            p.Version(),
-		WorkflowClass:      p.WorkflowClass(),
-		CriticalFailures:   []CriticalFailure{},
-		RequiredWarnings:   []string{},
-		InformationalNotes: []string{},
-	}
-
-	recordsByType := indexRecordsByType(records)
-	for _, requirement := range privilegedCriticalRequirements {
-		evaluateCriticalRequirement(&result, recordsByType[requirement.eventType], requirement)
-	}
-
-	if requiresHumanApproval(recordsByType[event.TypeAIActionPrecommit]) {
-		checkOptionalRequirement(
-			&result,
-			recordsByType[event.TypeAIHumanApproval],
-			eventRequirement{
-				eventType:      event.TypeAIHumanApproval,
-				requiredFields: []string{"approval_id", "approver_id_hash", "approval_outcome", "justification_digest", "action_id"},
-			},
-			fmt.Sprintf("%s required for high-impact action types", event.TypeAIHumanApproval),
-		)
-	}
-
-	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
-	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
-	executedByAction := indexByField(recordsByType[event.TypeAIActionExecuted], "action_id")
-
-	if len(recordsByType[event.TypeAIActionCommitted]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"commit_requires_precommit: %s action_id does not match %s",
-				event.TypeAIActionCommitted,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeAIPolicyDecision]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIPolicyDecision], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"policy_binds_action: %s action_id does not match %s",
-				event.TypeAIPolicyDecision,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeAIActionExecuted]) > 0 && !allExecutedAuthorised(recordsByType[event.TypeAIActionExecuted], policyByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"execution_after_authorization: %s decision is not allow for executed action_id",
-				event.TypeAIPolicyDecision,
-			),
-		})
-	}
-
-	for _, warning := range boundedExecutionWindowWarnings(precommitByAction, executedByAction) {
-		result.RequiredWarnings = append(result.RequiredWarnings, warning)
-	}
-
-	if len(recordsByType[event.TypeBundleAnchor]) == 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			fmt.Sprintf("rfc3161_anchor_on_commit: no %s event present in bundle", event.TypeBundleAnchor))
-	}
-
-	result.InformationalNotes = append(result.InformationalNotes,
-		"db_reconciliation: no database reconciliation evidence present (v1)",
-		"source_signature_policy_engine: no policy engine signature present (v1)",
-	)
-
-	finaliseProfileResult(&result)
-	return result
+	return evaluateSchemaProfile(loadSchema(p.ID()), records)
 }
 
 // ID returns the profile identifier.
 func (p *DataExportProfile) ID() string { return profileIDDataExport }
 
 // Version returns the profile schema version.
-func (p *DataExportProfile) Version() int { return 1 }
+func (p *DataExportProfile) Version() int { return loadSchema(p.ID()).Version }
 
 // WorkflowClass returns the workflow class name.
-func (p *DataExportProfile) WorkflowClass() string { return "data_export" }
+func (p *DataExportProfile) WorkflowClass() string { return loadSchema(p.ID()).WorkflowClass }
 
 // BlindSpots returns the profile blind spots.
 func (p *DataExportProfile) BlindSpots() []string {
-	return []string{
-		"Does not verify downstream data handling or recipient controls after export is committed.",
-		"Classification labels on exported records are presence-checked only; correctness of labelling is not attested.",
-	}
+	return copyStringSlice(loadSchema(p.ID()).BlindSpots)
 }
 
 // DefaultWeights returns the profile weight vector.
 func (p *DataExportProfile) DefaultWeights() map[string]float64 {
-	return map[string]float64{
-		"EC": 0.20,
-		"FC": 0.15,
-		"RC": 0.20,
-		"TC": 0.05,
-		"SC": 0.10,
-		"XC": 0.10,
-		"AC": 0.10,
-		"GC": 0.10,
-	}
+	return copyFloatMap(loadSchema(p.ID()).Weights)
 }
 
 // Evaluate evaluates bundle records against the data export profile.
 func (p *DataExportProfile) Evaluate(records []bundle.Record) ProfileResult {
-	result := ProfileResult{
-		ProfileID:          p.ID(),
-		Version:            p.Version(),
-		WorkflowClass:      p.WorkflowClass(),
-		CriticalFailures:   []CriticalFailure{},
-		RequiredWarnings:   []string{},
-		InformationalNotes: []string{},
-	}
-
-	recordsByType := indexRecordsByType(records)
-	for _, requirement := range dataExportCriticalRequirements {
-		evaluateCriticalRequirement(&result, recordsByType[requirement.eventType], requirement)
-	}
-
-	checkOptionalRequirement(
-		&result,
-		recordsByType[event.TypeAIHumanApproval],
-		eventRequirement{
-			eventType:      event.TypeAIHumanApproval,
-			requiredFields: []string{"approval_id", "approver_id_hash", "approval_outcome", "justification_digest", "action_id"},
-		},
-		fmt.Sprintf("%s required for data export workflows", event.TypeAIHumanApproval),
-	)
-
-	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
-	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
-	executedByAction := indexByField(recordsByType[event.TypeAIActionExecuted], "action_id")
-
-	if len(recordsByType[event.TypeAIActionCommitted]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"commit_requires_precommit: %s action_id does not match %s",
-				event.TypeAIActionCommitted,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeAIPolicyDecision]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIPolicyDecision], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"policy_binds_action: %s action_id does not match %s",
-				event.TypeAIPolicyDecision,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeAIActionExecuted]) > 0 && !allExecutedAuthorised(recordsByType[event.TypeAIActionExecuted], policyByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"execution_after_authorization: %s decision is not allow for executed action_id",
-				event.TypeAIPolicyDecision,
-			),
-		})
-	}
-
-	for _, warning := range boundedExecutionWindowWarnings(precommitByAction, executedByAction) {
-		result.RequiredWarnings = append(result.RequiredWarnings, warning)
-	}
-
-	if len(recordsByType[event.TypeBundleAnchor]) == 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			fmt.Sprintf("rfc3161_anchor_on_commit: no %s event present in bundle", event.TypeBundleAnchor))
-	}
-
-	result.InformationalNotes = append(result.InformationalNotes,
-		"classification_label_check: label presence-only in v1",
-		"recipient_controls: downstream recipient controls not attested (v1)",
-	)
-
-	finaliseProfileResult(&result)
-	return result
+	return evaluateSchemaProfile(loadSchema(p.ID()), records)
 }
 
 // ID returns the profile identifier.
 func (p *PolicyDecisionProfile) ID() string { return profileIDPolicyDecision }
 
 // Version returns the profile schema version.
-func (p *PolicyDecisionProfile) Version() int { return 1 }
+func (p *PolicyDecisionProfile) Version() int { return loadSchema(p.ID()).Version }
 
 // WorkflowClass returns the workflow class name.
-func (p *PolicyDecisionProfile) WorkflowClass() string { return "policy_decision" }
+func (p *PolicyDecisionProfile) WorkflowClass() string { return loadSchema(p.ID()).WorkflowClass }
 
 // BlindSpots returns the profile blind spots.
 func (p *PolicyDecisionProfile) BlindSpots() []string {
-	return []string{
-		"Does not verify the correctness or completeness of the policy engine's rule set; only that a decision event was recorded with required fields.",
-		"Policy engine internal state and rule evaluation logic are not attested.",
-	}
+	return copyStringSlice(loadSchema(p.ID()).BlindSpots)
 }
 
 // DefaultWeights returns the profile weight vector.
 func (p *PolicyDecisionProfile) DefaultWeights() map[string]float64 {
-	return map[string]float64{
-		"EC": 0.20,
-		"FC": 0.20,
-		"RC": 0.15,
-		"TC": 0.10,
-		"SC": 0.10,
-		"XC": 0.10,
-		"AC": 0.05,
-		"GC": 0.10,
-	}
+	return copyFloatMap(loadSchema(p.ID()).Weights)
 }
 
 // Evaluate evaluates bundle records against the policy decision profile.
 func (p *PolicyDecisionProfile) Evaluate(records []bundle.Record) ProfileResult {
-	result := ProfileResult{
-		ProfileID:          p.ID(),
-		Version:            p.Version(),
-		WorkflowClass:      p.WorkflowClass(),
-		CriticalFailures:   []CriticalFailure{},
-		RequiredWarnings:   []string{},
-		InformationalNotes: []string{},
-	}
-
-	recordsByType := indexRecordsByType(records)
-	for _, requirement := range policyDecisionCriticalRequirements {
-		evaluateCriticalRequirement(&result, recordsByType[requirement.eventType], requirement)
-	}
-
-	checkOptionalRequirement(
-		&result,
-		recordsByType[event.TypeAIActionPrecommit],
-		eventRequirement{
-			eventType:      event.TypeAIActionPrecommit,
-			requiredFields: []string{"action_id", "action_type", "action_parameters_digest"},
-		},
-		fmt.Sprintf("%s recommended to bind policy to a pending action", event.TypeAIActionPrecommit),
-	)
-
-	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
-	if len(recordsByType[event.TypeAIPolicyDecision]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIPolicyDecision], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"policy_binds_action: %s action_id does not match %s",
-				event.TypeAIPolicyDecision,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeBundleAnchor]) == 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			fmt.Sprintf("rfc3161_anchor_on_commit: no %s event present in bundle", event.TypeBundleAnchor))
-	}
-
-	result.InformationalNotes = append(result.InformationalNotes,
-		"policy_engine_state: policy engine internal state not attested (v1)",
-		"rule_set_completeness: rule set correctness not verified (v1)",
-	)
-
-	finaliseProfileResult(&result)
-	return result
+	return evaluateSchemaProfile(loadSchema(p.ID()), records)
 }
 
 // ID returns the profile identifier.
 func (p *HumanOverrideProfile) ID() string { return profileIDHumanOverride }
 
 // Version returns the profile schema version.
-func (p *HumanOverrideProfile) Version() int { return 1 }
+func (p *HumanOverrideProfile) Version() int { return loadSchema(p.ID()).Version }
 
 // WorkflowClass returns the workflow class name.
-func (p *HumanOverrideProfile) WorkflowClass() string { return "human_override" }
+func (p *HumanOverrideProfile) WorkflowClass() string { return loadSchema(p.ID()).WorkflowClass }
 
 // BlindSpots returns the profile blind spots.
 func (p *HumanOverrideProfile) BlindSpots() []string {
-	return []string{
-		"Cannot verify that the recorded approver identity matches the individual who physically performed the approval action.",
-		"Justification digest binds the recorded justification text only; content quality is not assessed.",
-	}
+	return copyStringSlice(loadSchema(p.ID()).BlindSpots)
 }
 
 // DefaultWeights returns the profile weight vector.
 func (p *HumanOverrideProfile) DefaultWeights() map[string]float64 {
-	return map[string]float64{
-		"EC": 0.15,
-		"FC": 0.15,
-		"RC": 0.20,
-		"TC": 0.10,
-		"SC": 0.10,
-		"XC": 0.15,
-		"AC": 0.10,
-		"GC": 0.05,
-	}
+	return copyFloatMap(loadSchema(p.ID()).Weights)
 }
 
 // Evaluate evaluates bundle records against the human override profile.
 func (p *HumanOverrideProfile) Evaluate(records []bundle.Record) ProfileResult {
-	result := ProfileResult{
-		ProfileID:          p.ID(),
-		Version:            p.Version(),
-		WorkflowClass:      p.WorkflowClass(),
-		CriticalFailures:   []CriticalFailure{},
-		RequiredWarnings:   []string{},
-		InformationalNotes: []string{},
-	}
-
-	recordsByType := indexRecordsByType(records)
-	for _, requirement := range humanOverrideCriticalRequirements {
-		evaluateCriticalRequirement(&result, recordsByType[requirement.eventType], requirement)
-	}
-
-	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
-	approvalByAction := indexByField(recordsByType[event.TypeAIHumanApproval], "action_id")
-	executedByAction := indexByField(recordsByType[event.TypeAIActionExecuted], "action_id")
-
-	if len(recordsByType[event.TypeAIHumanApproval]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIHumanApproval], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"approval_binds_action: %s action_id does not match %s",
-				event.TypeAIHumanApproval,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeAIActionExecuted]) > 0 && !allExecutedApproved(recordsByType[event.TypeAIActionExecuted], approvalByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind:   "relation_violation",
-			Detail: "execution_after_approval: executed action_id has no approved ai.human.approval record",
-		})
-	}
-
-	for _, warning := range boundedExecutionWindowWarnings(precommitByAction, executedByAction) {
-		result.RequiredWarnings = append(result.RequiredWarnings, warning)
-	}
-
-	if len(recordsByType[event.TypeBundleAnchor]) == 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			fmt.Sprintf("rfc3161_anchor_on_commit: no %s event present in bundle", event.TypeBundleAnchor))
-	}
-
-	checkOptionalRequirement(
-		&result,
-		recordsByType[event.TypeAIActionCommitted],
-		eventRequirement{
-			eventType:      event.TypeAIActionCommitted,
-			requiredFields: []string{"action_id", "commit_outcome", "sink_receipt_digest"},
-		},
-		fmt.Sprintf("%s recommended to confirm committed outcome", event.TypeAIActionCommitted),
-	)
-
-	result.InformationalNotes = append(result.InformationalNotes,
-		"approver_identity: physical approver identity not attested (v1)",
-		"justification_quality: justification content quality not assessed (v1)",
-	)
-
-	finaliseProfileResult(&result)
-	return result
+	return evaluateSchemaProfile(loadSchema(p.ID()), records)
 }
 
 // ID returns the profile identifier.
 func (p *BackgroundAutomationProfile) ID() string { return profileIDBackgroundAutomation }
 
 // Version returns the profile schema version.
-func (p *BackgroundAutomationProfile) Version() int { return 1 }
+func (p *BackgroundAutomationProfile) Version() int { return loadSchema(p.ID()).Version }
 
 // WorkflowClass returns the workflow class name.
-func (p *BackgroundAutomationProfile) WorkflowClass() string { return "background_automation" }
+func (p *BackgroundAutomationProfile) WorkflowClass() string { return loadSchema(p.ID()).WorkflowClass }
 
 // BlindSpots returns the profile blind spots.
 func (p *BackgroundAutomationProfile) BlindSpots() []string {
-	return []string{
-		"Scheduling system integrity is not attested; a compromised scheduler could trigger executions without a corresponding schedule record.",
-		"Does not verify that the automated action's actual effect matches the declared intended_effect beyond what tool receipts provide.",
-	}
+	return copyStringSlice(loadSchema(p.ID()).BlindSpots)
 }
 
 // DefaultWeights returns the profile weight vector.
 func (p *BackgroundAutomationProfile) DefaultWeights() map[string]float64 {
-	return map[string]float64{
-		"EC": 0.20,
-		"FC": 0.15,
-		"RC": 0.15,
-		"TC": 0.10,
-		"SC": 0.10,
-		"XC": 0.10,
-		"AC": 0.10,
-		"GC": 0.10,
-	}
+	return copyFloatMap(loadSchema(p.ID()).Weights)
 }
 
 // Evaluate evaluates bundle records against the background automation profile.
 func (p *BackgroundAutomationProfile) Evaluate(records []bundle.Record) ProfileResult {
-	result := ProfileResult{
-		ProfileID:          p.ID(),
-		Version:            p.Version(),
-		WorkflowClass:      p.WorkflowClass(),
-		CriticalFailures:   []CriticalFailure{},
-		RequiredWarnings:   []string{},
-		InformationalNotes: []string{},
-	}
-
-	recordsByType := indexRecordsByType(records)
-	for _, requirement := range backgroundAutomationCriticalRequirements {
-		evaluateCriticalRequirement(&result, recordsByType[requirement.eventType], requirement)
-	}
-
-	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
-	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
-	executedByAction := indexByField(recordsByType[event.TypeAIActionExecuted], "action_id")
-
-	if len(recordsByType[event.TypeAIActionCommitted]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"commit_requires_precommit: %s action_id does not match %s",
-				event.TypeAIActionCommitted,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeAIPolicyDecision]) > 0 && len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-		!allRecordsBound(recordsByType[event.TypeAIPolicyDecision], "action_id", precommitByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"policy_binds_action: %s action_id does not match %s",
-				event.TypeAIPolicyDecision,
-				event.TypeAIActionPrecommit,
-			),
-		})
-	}
-
-	if len(recordsByType[event.TypeAIActionExecuted]) > 0 && !allExecutedAuthorised(recordsByType[event.TypeAIActionExecuted], policyByAction) {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind: "relation_violation",
-			Detail: fmt.Sprintf(
-				"execution_after_authorization: %s decision is not allow for executed action_id",
-				event.TypeAIPolicyDecision,
-			),
-		})
-	}
-
-	for _, warning := range boundedExecutionWindowWarnings(precommitByAction, executedByAction) {
-		result.RequiredWarnings = append(result.RequiredWarnings, warning)
-	}
-
-	if len(recordsByType[event.TypeBundleAnchor]) == 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			fmt.Sprintf("rfc3161_anchor_on_commit: no %s event present in bundle", event.TypeBundleAnchor))
-	}
-
-	result.InformationalNotes = append(result.InformationalNotes,
-		"scheduler_integrity: scheduling system integrity not attested (v1)",
-		"intended_effect_verification: actual effect vs declared intended_effect not verified beyond tool receipts (v1)",
-	)
-
-	finaliseProfileResult(&result)
-	return result
+	return evaluateSchemaProfile(loadSchema(p.ID()), records)
 }
 
 // ID returns the profile identifier.
 func (p *RAGAnswerProfile) ID() string { return profileIDRAGAnswer }
 
 // Version returns the profile schema version.
-func (p *RAGAnswerProfile) Version() int { return 1 }
+func (p *RAGAnswerProfile) Version() int { return loadSchema(p.ID()).Version }
 
 // WorkflowClass returns the workflow class name.
-func (p *RAGAnswerProfile) WorkflowClass() string { return "rag_answer" }
+func (p *RAGAnswerProfile) WorkflowClass() string { return loadSchema(p.ID()).WorkflowClass }
 
 // BlindSpots returns the profile blind spots.
 func (p *RAGAnswerProfile) BlindSpots() []string {
-	return []string{
-		"Does not prove retrieval completeness beyond recorded corpus/version.",
-		"Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.",
-	}
+	return copyStringSlice(loadSchema(p.ID()).BlindSpots)
 }
 
 // DefaultWeights returns the profile weight vector.
 func (p *RAGAnswerProfile) DefaultWeights() map[string]float64 {
-	return map[string]float64{
-		"EC": 0.20,
-		"FC": 0.15,
-		"RC": 0.20,
-		"TC": 0.10,
-		"SC": 0.10,
-		"XC": 0.10,
-		"AC": 0.05,
-		"GC": 0.10,
-	}
+	return copyFloatMap(loadSchema(p.ID()).Weights)
 }
 
 // Evaluate evaluates bundle records against the RAG answer profile.
 func (p *RAGAnswerProfile) Evaluate(records []bundle.Record) ProfileResult {
-	result := ProfileResult{
-		ProfileID:          p.ID(),
-		Version:            p.Version(),
-		WorkflowClass:      p.WorkflowClass(),
-		CriticalFailures:   []CriticalFailure{},
-		RequiredWarnings:   []string{},
-		InformationalNotes: []string{},
-	}
-
-	recordsByType := indexRecordsByType(records)
-	for _, requirement := range ragCriticalRequirements {
-		evaluateCriticalRequirement(&result, recordsByType[requirement.eventType], requirement)
-	}
-
-	checkOptionalRequirement(
-		&result,
-		recordsByType[event.TypeAIPolicyDecision],
-		eventRequirement{
-			eventType:      event.TypeAIPolicyDecision,
-			requiredFields: []string{"policy_id", "policy_version", "decision", "decision_reason_codes"},
-		},
-		fmt.Sprintf("%s recommended for recorded authorisation context", event.TypeAIPolicyDecision),
-	)
-	checkOptionalRequirement(
-		&result,
-		recordsByType[event.TypeAIRetrievalExecuted],
-		eventRequirement{
-			eventType:      event.TypeAIRetrievalExecuted,
-			requiredFields: []string{"retrieval_query_hash", "retrieval_corpus_id", "retrieval_corpus_version", "top_k", "result_set_digest"},
-		},
-		fmt.Sprintf("%s recommended for RAG answer provenance", event.TypeAIRetrievalExecuted),
-	)
-	checkOptionalRequirement(
-		&result,
-		recordsByType[event.TypeAIResponseSent],
-		eventRequirement{
-			eventType:      event.TypeAIResponseSent,
-			requiredFields: []string{"request_id", "output_digest"},
-		},
-		fmt.Sprintf("%s recommended for response delivery evidence", event.TypeAIResponseSent),
-	)
-
-	requests := recordsByType[event.TypeAIRequestReceived]
-	responses := recordsByType[event.TypeAIResponseSent]
-	if len(requests) > 0 && len(responses) > 0 {
-		requestID := fieldString(requests[0], "request_id")
-		responseID := fieldString(responses[0], "request_id")
-		if requestID == "" || responseID == "" || requestID != responseID {
-			result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-				Kind: "relation_violation",
-				Detail: fmt.Sprintf(
-					"request_to_response: %s request_id does not match %s",
-					event.TypeAIResponseSent,
-					event.TypeAIRequestReceived,
-				),
-			})
-		}
-	}
-
-	retrievals := recordsByType[event.TypeAIRetrievalExecuted]
-	modelInvocations := recordsByType[event.TypeAIModelInvoked]
-	if len(retrievals) == 0 || len(modelInvocations) == 0 || fieldString(retrievals[0], "result_set_digest") == "" {
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			"retrieval_bound_to_prompt: retrieval evidence missing or result_set_digest empty")
-	}
-
-	if warning := beforeModelWarning("policy_before_model", recordsByType[event.TypeAIPolicyDecision], modelInvocations); warning != "" {
-		result.RequiredWarnings = append(result.RequiredWarnings, warning)
-	}
-	if warning := beforeModelWarning("retrieval_before_model", retrievals, modelInvocations); warning != "" {
-		result.RequiredWarnings = append(result.RequiredWarnings, warning)
-	}
-
-	result.InformationalNotes = append(result.InformationalNotes,
-		"gating_evidence: not applicable to rag_answer; partial credit applied",
-		"retrieval_bound_to_prompt: digest binding is presence-only in v1",
-		"source_signatures: no source signature evidence present (v1)",
-	)
-
-	finaliseProfileResult(&result)
-	return result
+	return evaluateSchemaProfile(loadSchema(p.ID()), records)
 }
 
 func subScoresForProfile(profile Profile, records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
@@ -1100,6 +616,32 @@ func ragAnswerSubScores(records []bundle.Record, anchorResult AnchorVerifyResult
 		"AC": acScore(anchorResult),
 		"GC": 0.3,
 	}
+}
+
+func loadSchema(id string) profiledsl.ProfileSchema {
+	return profiledsl.MustLoadSchema(id)
+}
+
+func evaluateSchemaProfile(schema profiledsl.ProfileSchema, records []bundle.Record) ProfileResult {
+	evaluation := profiledsl.Evaluate(schema, records)
+	result := ProfileResult{
+		ProfileID:          schema.ID,
+		Version:            schema.Version,
+		WorkflowClass:      schema.WorkflowClass,
+		Pass:               evaluation.Pass,
+		CriticalFailures:   make([]CriticalFailure, 0, len(evaluation.CriticalFailures)),
+		RequiredWarnings:   append([]string(nil), evaluation.RequiredWarnings...),
+		InformationalNotes: append([]string(nil), evaluation.InformationalNotes...),
+	}
+
+	for _, failure := range evaluation.CriticalFailures {
+		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			Kind:   failure.Kind,
+			Detail: failure.Detail,
+		})
+	}
+
+	return result
 }
 
 func evaluateCriticalRequirement(result *ProfileResult, records []bundle.Record, requirement eventRequirement) {
@@ -1428,6 +970,10 @@ func copyFloatMap(src map[string]float64) map[string]float64 {
 		dst[key] = value
 	}
 	return dst
+}
+
+func copyStringSlice(src []string) []string {
+	return append([]string(nil), src...)
 }
 
 func finaliseProfileResult(result *ProfileResult) {

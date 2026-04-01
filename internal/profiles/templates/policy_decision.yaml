@@ -1,0 +1,51 @@
+id: atb.profile.policy_decision
+version: 1
+workflow_class: policy_decision
+blind_spots:
+  - Does not verify the correctness or completeness of the policy engine's rule set; only that a decision event was recorded with required fields.
+  - Policy engine internal state and rule evaluation logic are not attested.
+weights:
+  EC: 0.20
+  FC: 0.20
+  RC: 0.15
+  TC: 0.10
+  SC: 0.10
+  XC: 0.05
+  AC: 0.05
+  GC: 0.15
+required:
+  - type: atb.bundle.manifest
+    fields: []
+    message: atb.bundle.manifest missing
+    severity: critical
+  - type: ai.request.received
+    fields:
+      - request_id
+      - actor_id_hash
+      - purpose_tag
+    message: ai.request.received missing required fields
+    severity: critical
+  - type: ai.policy.decision
+    fields:
+      - policy_id
+      - policy_version
+      - decision
+      - decision_reason_codes
+      - subject_id_hash
+      - action_id
+    message: ai.policy.decision missing required fields
+    severity: critical
+optional:
+  - type: ai.action.precommit
+    fields:
+      - action_id
+      - action_type
+      - action_parameters_digest
+    message: ai.action.precommit recommended to bind policy to a pending action
+    severity: warning
+relations:
+  - name: policy_binds_action
+    from: ai.policy.decision
+    to: ai.action.precommit
+    field: action_id
+    message: "policy_binds_action: ai.policy.decision action_id does not match ai.action.precommit"

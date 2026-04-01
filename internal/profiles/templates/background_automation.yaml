@@ -1,0 +1,77 @@
+id: atb.profile.background_automation
+version: 1
+workflow_class: background_automation
+blind_spots:
+  - Scheduling system integrity is not attested; a compromised scheduler could trigger executions without a corresponding schedule record.
+  - Does not verify that the automated action's actual effect matches the declared intended_effect beyond what tool receipts provide.
+weights:
+  EC: 0.20
+  FC: 0.15
+  RC: 0.20
+  TC: 0.10
+  SC: 0.10
+  XC: 0.05
+  AC: 0.05
+  GC: 0.15
+required:
+  - type: atb.bundle.manifest
+    fields: []
+    message: atb.bundle.manifest missing
+    severity: critical
+  - type: ai.request.received
+    fields:
+      - request_id
+      - actor_id_hash
+      - purpose_tag
+    message: ai.request.received missing required fields
+    severity: critical
+  - type: ai.policy.decision
+    fields:
+      - policy_id
+      - policy_version
+      - decision
+      - decision_reason_codes
+      - subject_id_hash
+      - action_id
+    message: ai.policy.decision missing required fields
+    severity: critical
+  - type: ai.action.precommit
+    fields:
+      - action_id
+      - action_type
+      - action_parameters_digest
+      - target_resource_id
+      - intended_effect
+    message: ai.action.precommit missing required fields
+    severity: critical
+  - type: ai.action.executed
+    fields:
+      - action_id
+      - execution_outcome
+      - tool_receipt_digest
+    message: ai.action.executed missing required fields
+    severity: critical
+  - type: ai.action.committed
+    fields:
+      - action_id
+      - commit_outcome
+      - sink_receipt_digest
+    message: ai.action.committed missing required fields
+    severity: critical
+optional: []
+relations:
+  - name: commit_requires_precommit
+    from: ai.action.committed
+    to: ai.action.precommit
+    field: action_id
+    message: "commit_requires_precommit: ai.action.committed action_id does not match ai.action.precommit"
+  - name: policy_binds_action
+    from: ai.policy.decision
+    to: ai.action.precommit
+    field: action_id
+    message: "policy_binds_action: ai.policy.decision action_id does not match ai.action.precommit"
+  - name: execution_after_authorization
+    from: ai.action.executed
+    to: ai.policy.decision
+    field: action_id
+    message: "execution_after_authorization: ai.policy.decision decision is not allow for executed action_id"

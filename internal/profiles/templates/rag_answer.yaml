@@ -1,0 +1,71 @@
+id: atb.profile.rag_answer
+version: 1
+workflow_class: rag_answer
+blind_spots:
+  - Does not prove retrieval completeness beyond recorded corpus/version.
+  - Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.
+weights:
+  EC: 0.25
+  FC: 0.15
+  RC: 0.15
+  TC: 0.10
+  SC: 0.15
+  XC: 0.05
+  AC: 0.05
+  GC: 0.10
+required:
+  - type: atb.bundle.manifest
+    fields: []
+    message: atb.bundle.manifest missing
+    severity: critical
+  - type: ai.request.received
+    fields:
+      - request_id
+      - actor_id_hash
+      - purpose_tag
+    message: ai.request.received missing required fields
+    severity: critical
+  - type: ai.model.invoked
+    fields:
+      - model_provider
+      - model_id
+      - model_parameters_digest
+      - prompt_digest
+    message: ai.model.invoked missing required fields
+    severity: critical
+  - type: ai.model.output
+    fields:
+      - output_digest
+      - output_format
+    message: ai.model.output missing required fields
+    severity: critical
+optional:
+  - type: ai.policy.decision
+    fields:
+      - policy_id
+      - policy_version
+      - decision
+      - decision_reason_codes
+    message: ai.policy.decision recommended for recorded authorisation context
+    severity: warning
+  - type: ai.retrieval.executed
+    fields:
+      - retrieval_query_hash
+      - retrieval_corpus_id
+      - retrieval_corpus_version
+      - top_k
+      - result_set_digest
+    message: ai.retrieval.executed recommended for RAG answer provenance
+    severity: warning
+  - type: ai.response.sent
+    fields:
+      - request_id
+      - output_digest
+    message: ai.response.sent recommended for response delivery evidence
+    severity: warning
+relations:
+  - name: request_to_response
+    from: ai.response.sent
+    to: ai.request.received
+    field: request_id
+    message: "request_to_response: ai.response.sent request_id does not match ai.request.received"
