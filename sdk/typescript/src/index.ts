@@ -14,11 +14,18 @@
  */
 
 export { Bundle, ATBVerificationError } from "./bundle.js";
+export { ActionGate, ActionGateDeniedError } from "./action-gate.js";
 export { EncryptError, decryptBundle, decryptRaw, encryptBundle, encryptRaw } from "./encrypt.js";
 export { computeHash, chainEvents, GENESIS_HASH } from "./hash.js";
 export { canonicalize } from "./canonicalize.js";
 export { atbMiddleware } from "./vercel-ai-middleware.js";
 export { normalizeOptionalIdentity, prepareForCanonical } from "./event.js";
+export type {
+  ActionGateDecision,
+  ActionGateInput,
+  ActionGateMode,
+  ActionGateOptions,
+} from "./action-gate.js";
 export type { AppendIdentityOptions, Event } from "./event.js";
 export type {
   ATBMiddleware,

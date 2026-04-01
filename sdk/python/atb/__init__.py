@@ -19,6 +19,7 @@ Quick start::
 """
 
 from atb.bundle import Bundle
+from atb.action_gate import ActionGate, ActionGateDecision, ActionGateDeniedError, ActionGateInput
 from atb.encrypt import ATBDecryptionError, ATBEncryptionError, decrypt_bundle, encrypt_bundle
 from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
@@ -27,6 +28,10 @@ from atb.hash import compute_hash, genesis_hash
 __version__ = "1.1.0"
 __all__ = [
     "Bundle",
+    "ActionGate",
+    "ActionGateDeniedError",
+    "ActionGateInput",
+    "ActionGateDecision",
     "Event",
     "ATBError",
     "ATBVerificationError",
