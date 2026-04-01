@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ type verifyCLIConfig struct {
 	Quiet        bool
 	Trace        bool
 	WithAnchor   bool
+	RootsPath    string
 }
 
 func cmdVerifyProfile() {
@@ -88,6 +90,21 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 		report = verifypkg.VerifyWithProfile(b, cfg.BundlePath, profile)
 	}
 	if cfg.WithAnchor && report.Integrity.ChainValid {
+		roots, err := loadVerifyRoots(cfg.RootsPath)
+		if err != nil {
+			if isLegacyJSONMode(cfg) {
+				result := newVerifyResult(cfg.BundlePath, b, "invalid")
+				_ = writeLegacyVerifyJSON(stdout, result, err)
+			}
+			fmt.Fprintf(stderr, "atb verify: %v\n", err)
+			return exitIntegrityFailure
+		}
+		prevRoots := verifyBundleAnchorRoots
+		verifyBundleAnchorRoots = roots
+		defer func() {
+			verifyBundleAnchorRoots = prevRoots
+		}()
+
 		anchorOut := stdout
 		if cfg.JSON || isLegacyJSONMode(cfg) {
 			anchorOut = io.Discard
@@ -198,6 +215,14 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.Trace = true
 		case arg == "--with-anchor":
 			cfg.WithAnchor = true
+		case arg == "--roots":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --roots")
+			}
+			i++
+			cfg.RootsPath = filepath.Clean(strings.TrimSpace(args[i]))
+		case strings.HasPrefix(arg, "--roots="):
+			cfg.RootsPath = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--roots=")))
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -219,8 +244,9 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 }
 
 func printVerifyCommandUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--quiet] [--trace] [--with-anchor]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]")
 	fmt.Fprintln(w, "  --with-anchor  verify RFC 3161 timestamp token: digest, cert chain, and signature")
+	fmt.Fprintln(w, "  --roots <pem-file>   PEM file containing trusted root certificates for TSA chain verification (default: system roots)")
 }
 
 func verificationExitCode(report verifypkg.Report) int {
@@ -257,6 +283,23 @@ func isVerifyProfilePath(spec string) bool {
 	default:
 		return false
 	}
+}
+
+func loadVerifyRoots(path string) (*x509.CertPool, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, nil
+	}
+
+	pemBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("roots: read %s: %w", path, err)
+	}
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(pemBytes) {
+		return nil, fmt.Errorf("roots: no certificates found in %s", path)
+	}
+	return pool, nil
 }
 
 func renderVerifyText(w io.Writer, report verifypkg.Report) {

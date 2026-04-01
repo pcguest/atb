@@ -150,6 +150,7 @@ func TestParseVerifyArgs(t *testing.T) {
 		wantFormat     string
 		wantTrace      bool
 		wantWithAnchor bool
+		wantRoots      string
 		wantErr        bool
 	}{
 		{
@@ -159,6 +160,7 @@ func TestParseVerifyArgs(t *testing.T) {
 			wantFormat:     verifyFormatText,
 			wantTrace:      false,
 			wantWithAnchor: false,
+			wantRoots:      "",
 		},
 		{
 			name:           "path only",
@@ -175,6 +177,7 @@ func TestParseVerifyArgs(t *testing.T) {
 			wantFormat:     verifyFormatJSON,
 			wantTrace:      false,
 			wantWithAnchor: false,
+			wantRoots:      "",
 		},
 		{
 			name:           "json format equals syntax",
@@ -183,6 +186,7 @@ func TestParseVerifyArgs(t *testing.T) {
 			wantFormat:     verifyFormatJSON,
 			wantTrace:      false,
 			wantWithAnchor: false,
+			wantRoots:      "",
 		},
 		{
 			name:           "path and format",
@@ -199,6 +203,7 @@ func TestParseVerifyArgs(t *testing.T) {
 			wantFormat:     verifyFormatText,
 			wantTrace:      true,
 			wantWithAnchor: false,
+			wantRoots:      "",
 		},
 		{
 			name:           "path format and trace",
@@ -207,6 +212,7 @@ func TestParseVerifyArgs(t *testing.T) {
 			wantFormat:     verifyFormatJSON,
 			wantTrace:      true,
 			wantWithAnchor: false,
+			wantRoots:      "",
 		},
 		{
 			name:           "with-anchor flag",
@@ -215,18 +221,34 @@ func TestParseVerifyArgs(t *testing.T) {
 			wantFormat:     verifyFormatText,
 			wantTrace:      false,
 			wantWithAnchor: true,
+			wantRoots:      "",
 		},
 		{
-			name:           "path format trace and with-anchor",
-			args:           []string{custom, "--format", "json", "--trace", "--with-anchor"},
+			name:           "path format trace with-anchor and roots",
+			args:           []string{custom, "--format", "json", "--trace", "--with-anchor", "--roots", "tsa-roots.pem"},
 			wantPath:       custom,
 			wantFormat:     verifyFormatJSON,
 			wantTrace:      true,
 			wantWithAnchor: true,
+			wantRoots:      "tsa-roots.pem",
+		},
+		{
+			name:           "roots equals syntax",
+			args:           []string{"--roots=tsa-roots.pem"},
+			wantPath:       bundle.DefaultPath(),
+			wantFormat:     verifyFormatText,
+			wantTrace:      false,
+			wantWithAnchor: false,
+			wantRoots:      "tsa-roots.pem",
 		},
 		{
 			name:    "missing format value",
 			args:    []string{"--format"},
+			wantErr: true,
+		},
+		{
+			name:    "missing roots value",
+			args:    []string{"--roots"},
 			wantErr: true,
 		},
 		{
@@ -248,7 +270,7 @@ func TestParseVerifyArgs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			gotPath, gotFormat, gotTrace, gotWithAnchor, err := parseVerifyArgs(tc.args)
+			gotPath, gotFormat, gotTrace, gotWithAnchor, gotRoots, err := parseVerifyArgs(tc.args)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error")
@@ -269,6 +291,9 @@ func TestParseVerifyArgs(t *testing.T) {
 			}
 			if gotWithAnchor != tc.wantWithAnchor {
 				t.Fatalf("unexpected with-anchor value: got %v want %v", gotWithAnchor, tc.wantWithAnchor)
+			}
+			if gotRoots != tc.wantRoots {
+				t.Fatalf("unexpected roots value: got %q want %q", gotRoots, tc.wantRoots)
 			}
 		})
 	}
@@ -583,6 +608,9 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 			}
 			if !strings.Contains(cmd.Usage, "--with-anchor") {
 				t.Fatalf("verify usage missing --with-anchor flag: %q", cmd.Usage)
+			}
+			if !strings.Contains(cmd.Usage, "--roots") {
+				t.Fatalf("verify usage missing --roots flag: %q", cmd.Usage)
 			}
 		}
 		if cmd.Name == "bundle" {

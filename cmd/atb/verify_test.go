@@ -2,11 +2,18 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 	verifypkg "github.com/pcguest/atb/internal/verify"
@@ -138,6 +145,37 @@ func TestRunVerify_ProfileEqualsPath_FileNotFound(t *testing.T) {
 	}
 }
 
+func TestVerifyWithAnchorUsesCustomRoots(t *testing.T) {
+	bundlePath, originalHash := writeAnchorTestBundle(t)
+	fixture, _, err := buildCLISignedAnchorFixture(originalHash)
+	if err != nil {
+		t.Fatalf("buildCLISignedAnchorFixture: %v", err)
+	}
+	stubTSATransport(t, fixture)
+
+	if _, err := runAnchor(anchorConfig{
+		BundlePath: bundlePath,
+		TSAURL:     "http://tsa.example.test",
+	}); err != nil {
+		t.Fatalf("runAnchor: %v", err)
+	}
+
+	rootsPath := filepath.Join(t.TempDir(), "tsa-roots.pem")
+	if err := os.WriteFile(rootsPath, buildUnrelatedRootPEM(t), 0600); err != nil {
+		t.Fatalf("write roots pem: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--with-anchor", "--roots", rootsPath}, &stdout, &stderr)
+	if exitCode == exitSuccess {
+		t.Fatalf("expected non-zero exit code")
+	}
+	if !strings.Contains(stderr.String(), "certificate") {
+		t.Fatalf("expected certificate failure, got %q", stderr.String())
+	}
+}
+
 func buildCLIPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
@@ -197,4 +235,27 @@ func writeVerifyTestBundle(t testing.TB, b *bundle.Bundle) string {
 		t.Fatalf("save bundle: %v", err)
 	}
 	return path
+}
+
+func buildUnrelatedRootPEM(t testing.TB) []byte {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate root key: %v", err)
+	}
+	template := &x509.Certificate{
+		SerialNumber:          big.NewInt(100),
+		Subject:               pkix.Name{CommonName: "ATB Unrelated TSA Root"},
+		NotBefore:             time.Date(2026, 3, 27, 0, 0, 0, 0, time.UTC),
+		NotAfter:              time.Date(2026, 3, 29, 0, 0, 0, 0, time.UTC),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("create unrelated root cert: %v", err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }
