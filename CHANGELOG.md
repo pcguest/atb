@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.8.1] - 2026-04-02
+
+### Changed
+- `atb trust-report --format text --profile <id>` now surfaces profile
+  obligation failures (`missing_event`, `temporal_violation`) directly in text
+  output instead of hiding them behind a category summary.
+
+### Added
+- Unit and integration test coverage for `required_when` temporal DSL
+  evaluation and schema-driven `profileSupportsCAS` / `computeSC`.
+
+### Notes
+- `atb trust-report` without `--profile` remains profile-agnostic by design.
+- `atb keygen` must be run before `--sign-policy` can be used; `atb init`
+  does not generate a keypair.
+
 ## [v1.8.0] - 2026-04-01
 
 ### Added
