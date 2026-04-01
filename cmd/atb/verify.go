@@ -290,7 +290,7 @@ func loadVerifyRoots(path string) (*x509.CertPool, error) {
 		return nil, nil
 	}
 
-	pemBytes, err := os.ReadFile(path)
+	pemBytes, err := os.ReadFile(path) // #nosec G703 -- path is filepath.Clean-sanitised at parse time; supplied by operator via --roots CLI flag
 	if err != nil {
 		return nil, fmt.Errorf("roots: read %s: %w", path, err)
 	}
