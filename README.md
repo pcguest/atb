@@ -7,14 +7,14 @@
 
 ATB is the local-first audit trail for privacy-sensitive AI systems.
 
-It records AI workflow events as tamper-evident bundles you can inspect locally, verify cryptographically, and export as deterministic evidence for incident review, customer handoff, and internal audit or privacy review. It is designed for teams that need proof of what happened without default external trace storage.
+It records AI workflow events as tamper-evident bundles you can inspect locally, verify cryptographically, and export as deterministic evidence for incident review, customer handoff, and internal audit or privacy review. It is designed for teams that need a tamper-evident record of what was recorded without default external trace storage.
 
 ## Why Teams Pick ATB
 
 | Need | How ATB addresses it |
 | --- | --- |
 | Keep raw traces local by default | ATB records bundles locally and does not require default external trace storage. |
-| Reconstruct failures, tool misuse, and high-risk decisions | Every event is captured in a verifiable execution trail you can inspect and replay locally. |
+| Reconstruct failures, tool misuse, and high-risk decisions | Every appended event is hash-chained in a verifiable execution trail you can inspect locally. |
 | Hand over portable audit evidence | Bundles and deterministic exports travel as artifacts instead of reconstructed notes or screenshots. |
 | Record privacy reveals in the same evidence trail | Privacy reveal events are appended to the same tamper-evident bundle as the rest of the workflow. |
 

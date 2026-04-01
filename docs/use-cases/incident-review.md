@@ -2,7 +2,7 @@
 
 ATB is built for the moment after something goes wrong.
 
-When an AI workflow misfires, most teams can retrieve logs. Fewer teams can show that the trace they are reviewing is complete, untampered, and still under their control. That is the gap ATB is designed to close.
+When an AI workflow misfires, most teams can retrieve logs. Fewer teams can show that the recorded event sequence is tamper-evident; completeness is evaluated against the declared obligation profile, not universal capture. That is the gap ATB is designed to close.
 
 ## The Problem
 
