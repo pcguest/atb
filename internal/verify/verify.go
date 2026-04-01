@@ -4,12 +4,14 @@ package verify
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"sort"
 
 	"github.com/pcguest/atb/internal/anchorverify"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
 // IntegrityResult holds the outcome of chain integrity verification.
@@ -117,8 +119,10 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 	}
 
 	anchorResult := ClassifyAnchor(b, bundlePath)
+	signatureWarnings, signatureNotes, signatureFailures := inspectPolicyDecisionSignatures(b.Records)
 	for i, profile := range profiles {
 		result := profile.Evaluate(b.Records)
+		applyPolicyDecisionSignatureChecks(&result, signatureWarnings, signatureNotes, signatureFailures)
 		report.Profiles = append(report.Profiles, result)
 		report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
 		if i != 0 {
@@ -146,6 +150,8 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 	}
 
 	result := profile.Evaluate(b.Records)
+	signatureWarnings, signatureNotes, signatureFailures := inspectPolicyDecisionSignatures(b.Records)
+	applyPolicyDecisionSignatureChecks(&result, signatureWarnings, signatureNotes, signatureFailures)
 	report.Profiles = append(report.Profiles, result)
 	report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
 
@@ -160,6 +166,52 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 
 	report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
 	return report
+}
+
+func inspectPolicyDecisionSignatures(records []bundle.Record) ([]string, []string, []CriticalFailure) {
+	warnings := []string{}
+	notes := []string{}
+	failures := []CriticalFailure{}
+
+	for _, record := range records {
+		if record.Event.Type != event.TypeAIPolicyDecision {
+			continue
+		}
+
+		fields, ok := record.Event.Data.(map[string]any)
+		if !ok {
+			failures = append(failures, CriticalFailure{
+				Kind:   "signature_verification",
+				Detail: "ai.policy.decision: signature verification failed: policy decision data is not an object",
+			})
+			continue
+		}
+
+		err := signpkg.VerifyPolicyDecision(fields)
+		switch {
+		case err == nil:
+			notes = append(notes, "ai.policy.decision: signature verified")
+		case errors.Is(err, signpkg.ErrSignatureAbsent):
+			warnings = append(warnings, "ai.policy.decision: policy_signature absent")
+		default:
+			failures = append(failures, CriticalFailure{
+				Kind:   "signature_verification",
+				Detail: "ai.policy.decision: signature verification failed: " + err.Error(),
+			})
+		}
+	}
+
+	return warnings, notes, failures
+}
+
+func applyPolicyDecisionSignatureChecks(result *ProfileResult, warnings []string, notes []string, failures []CriticalFailure) {
+	if result == nil {
+		return
+	}
+	result.RequiredWarnings = append(result.RequiredWarnings, warnings...)
+	result.InformationalNotes = append(result.InformationalNotes, notes...)
+	result.CriticalFailures = append(result.CriticalFailures, failures...)
+	finaliseProfileResult(result)
 }
 
 // computeSC computes the source-commitment (SC) sub-score for a bundle.

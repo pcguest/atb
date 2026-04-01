@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
+	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
 func TestParseAppendPayload(t *testing.T) {
@@ -51,6 +53,7 @@ func TestParseAppendCommandArgs(t *testing.T) {
 		wantActorID     string
 		wantOrgID       string
 		wantWorkspaceID string
+		wantSignPolicy  string
 		wantErr         bool
 	}{
 		{
@@ -66,6 +69,15 @@ func TestParseAppendCommandArgs(t *testing.T) {
 			args:            []string{"--data", `{"x":1}`, "--actor-id=actor-1"},
 			wantJSON:        `{"x":1}`,
 			wantActorID:     "actor-1",
+			wantOrgID:       "",
+			wantWorkspaceID: "",
+		},
+		{
+			name:            "sign policy flag",
+			args:            []string{"--data", `{"x":1}`, "--sign-policy", "./keys/atb-key.pem"},
+			wantJSON:        `{"x":1}`,
+			wantSignPolicy:  filepath.Clean("./keys/atb-key.pem"),
+			wantActorID:     "",
 			wantOrgID:       "",
 			wantWorkspaceID: "",
 		},
@@ -123,7 +135,93 @@ func TestParseAppendCommandArgs(t *testing.T) {
 			if gotWorkspace != tc.wantWorkspaceID {
 				t.Fatalf("unexpected workspace_id: got %q want %q", gotWorkspace, tc.wantWorkspaceID)
 			}
+			if got.SignPolicyKeyPath != tc.wantSignPolicy {
+				t.Fatalf("unexpected sign-policy path: got %q want %q", got.SignPolicyKeyPath, tc.wantSignPolicy)
+			}
 		})
+	}
+}
+
+func TestRunAppendSignPolicyAddsSignatureFields(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	keyPath := writeSignTestPrivateKey(t, t.TempDir())
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runAppend([]string{
+		event.TypeAIPolicyDecision,
+		"--data",
+		`{"policy_id":"pol-1","policy_version":"2026-04","decision":"allow","decision_reason_codes":["ticket_present"],"subject_id_hash":"subject-hash","action_id":"act-1"}`,
+		"--sign-policy",
+		keyPath,
+	}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	b, err := bundle.Load(bundle.DefaultPath())
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	last := b.Records[len(b.Records)-1]
+	if last.Event.Type != event.TypeAIPolicyDecision {
+		t.Fatalf("unexpected last event type: got %q want %q", last.Event.Type, event.TypeAIPolicyDecision)
+	}
+
+	fields, ok := last.Event.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("policy decision data type = %T, want map[string]any", last.Event.Data)
+	}
+	if fields[event.FieldPolicySignature] == "" {
+		t.Fatalf("expected non-empty %s", event.FieldPolicySignature)
+	}
+	if fields[event.FieldPolicySignerPubKey] == "" {
+		t.Fatalf("expected non-empty %s", event.FieldPolicySignerPubKey)
+	}
+	if err := signpkg.VerifyPolicyDecision(fields); err != nil {
+		t.Fatalf("verify signed policy decision: %v", err)
+	}
+}
+
+func TestRunAppendSignPolicyIgnoredForNonPolicyDecision(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	keyPath := writeSignTestPrivateKey(t, t.TempDir())
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runAppend([]string{
+		"dev.session",
+		`{"ok":true}`,
+		"--sign-policy",
+		keyPath,
+	}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "--sign-policy ignored") {
+		t.Fatalf("expected ignored warning, got %q", stderr.String())
 	}
 }
 
@@ -622,6 +720,9 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 		if _, ok := foundMutatingFormat[cmd.Name]; ok {
 			if !strings.Contains(cmd.Usage, "--format") {
 				t.Fatalf("%s usage missing --format: %q", cmd.Name, cmd.Usage)
+			}
+			if cmd.Name == "append" && !strings.Contains(cmd.Usage, "--sign-policy") {
+				t.Fatalf("append usage missing --sign-policy: %q", cmd.Usage)
 			}
 			foundMutatingFormat[cmd.Name] = true
 		}

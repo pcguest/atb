@@ -3,6 +3,8 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,7 +15,9 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
+	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
 const (
@@ -95,9 +99,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "append",
-				Usage:       "atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]",
+				Usage:       "atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]",
 				Description: "Append an event to the current bundle.",
-				Flags:       []string{"--data", "--actor-id", "--org-id", "--workspace-id", "--dry-run", "--format"},
+				Flags:       []string{"--data", "--actor-id", "--org-id", "--workspace-id", "--sign-policy", "--dry-run", "--format"},
 				Mutating:    true,
 			},
 			{
@@ -319,7 +323,7 @@ Usage:
 Commands:
   init [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
   bundle new [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (alias for init)
-  append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]  Append an event to the current bundle
+  append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]  Append an event to the current bundle
   snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
@@ -353,6 +357,7 @@ Examples:
   atb append dev.session '{"features_built":["hash chaining"]}'
   atb append feature --data '{"name":"atb view"}'
   atb append dev.session --data '{"x":1}' --actor-id paddy --org-id pcguest --workspace-id local
+  atb append ai.policy.decision --data '{"policy_id":"pol-1","policy_version":"2026-04","decision":"allow","decision_reason_codes":["ticket_present"],"subject_id_hash":"subject-hash","action_id":"act-1"}' --sign-policy ./atb-key.pem
   atb append dev.session '{"ok":true}' --dry-run
   atb append dev.session '{"ok":true}' --format json
   atb snapshot build --gate pass
@@ -521,11 +526,16 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	return exitSuccess
 }
 
-// cmdAppend appends a new event to the existing bundle.
 func cmdAppend() {
-	args, outputFormat, dryRun, err := parseMutationFlags(os.Args[2:])
+	os.Exit(runAppend(os.Args[2:], os.Stdout, os.Stderr))
+}
+
+// runAppend appends a new event to the existing bundle.
+func runAppend(args []string, stdout, stderr io.Writer) int {
+	rawArgs := append([]string(nil), args...)
+	args, outputFormat, dryRun, err := parseMutationFlags(args)
 	if err != nil {
-		if strings.Contains(strings.Join(os.Args[2:], " "), "--format json") || strings.Contains(strings.Join(os.Args[2:], " "), "--format=json") {
+		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
 			printMutationJSON(mutationResult{
 				Status:   "error",
 				Action:   "append",
@@ -534,10 +544,10 @@ func cmdAppend() {
 				Error:    err.Error(),
 				ExitCode: exitUserError,
 			}, "append")
-			os.Exit(exitUserError)
+			return exitUserError
 		}
-		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb append: %v\n", err)
+		return exitUserError
 	}
 	if len(args) < 2 {
 		if outputFormat == verifyFormatJSON {
@@ -546,13 +556,13 @@ func cmdAppend() {
 				Action:   "append",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
-				Error:    "usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]",
+				Error:    "usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]",
 				ExitCode: exitUserError,
 			}, "append")
-			os.Exit(exitUserError)
+			return exitUserError
 		}
-		fmt.Fprintln(os.Stderr, "Usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--dry-run] [--format text|json]")
-		os.Exit(exitUserError)
+		fmt.Fprintln(stderr, "Usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]")
+		return exitUserError
 	}
 	eventType := args[0]
 	appendInput, err := parseAppendCommandArgs(args[1:])
@@ -567,10 +577,10 @@ func cmdAppend() {
 				Error:     err.Error(),
 				ExitCode:  exitUserError,
 			}, "append")
-			os.Exit(exitUserError)
+			return exitUserError
 		}
-		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb append: %v\n", err)
+		return exitUserError
 	}
 	rawJSON := appendInput.RawJSON
 
@@ -586,10 +596,28 @@ func cmdAppend() {
 				Error:     fmt.Sprintf("invalid JSON: %v", err),
 				ExitCode:  exitUserError,
 			}, "append")
-			os.Exit(exitUserError)
+			return exitUserError
 		}
-		fmt.Fprintf(os.Stderr, "atb append: invalid JSON: %v\n", err)
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb append: invalid JSON: %v\n", err)
+		return exitUserError
+	}
+
+	if err := maybeSignPolicyDecisionEvent(eventType, data, appendInput.SignPolicyKeyPath, stderr); err != nil {
+		exitCode := classifyAppendPolicySignError(err)
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:    "error",
+				Action:    "append",
+				DryRun:    dryRun,
+				Path:      bundle.DefaultPath(),
+				EventType: eventType,
+				Error:     err.Error(),
+				ExitCode:  exitCode,
+			}, "append")
+			return exitCode
+		}
+		fmt.Fprintf(stderr, "atb append: %v\n", err)
+		return exitCode
 	}
 
 	last, err := appendToDefaultBundle(eventType, data, dryRun, appendInput.Options)
@@ -609,10 +637,10 @@ func cmdAppend() {
 				Error:     err.Error(),
 				ExitCode:  exitCode,
 			}, "append")
-			os.Exit(exitCode)
+			return exitCode
 		}
-		fmt.Fprintf(os.Stderr, "atb append: %v\n", err)
-		os.Exit(exitCode)
+		fmt.Fprintf(stderr, "atb append: %v\n", err)
+		return exitCode
 	}
 	if outputFormat == verifyFormatJSON {
 		action := "append"
@@ -631,13 +659,14 @@ func cmdAppend() {
 			Hash:      last.Hash,
 			Message:   message,
 		}, "append")
-		return
+		return exitSuccess
 	}
 	if dryRun {
-		fmt.Printf("~ Dry run: would append event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
-		return
+		fmt.Fprintf(stdout, "~ Dry run: would append event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
+		return exitSuccess
 	}
-	fmt.Printf("✓ Appended event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
+	fmt.Fprintf(stdout, "✓ Appended event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
+	return exitSuccess
 }
 
 func parseAppendPayload(args []string) (string, error) {
@@ -649,8 +678,9 @@ func parseAppendPayload(args []string) (string, error) {
 }
 
 type appendCommandInput struct {
-	RawJSON string
-	Options bundle.AppendOptions
+	RawJSON           string
+	Options           bundle.AppendOptions
+	SignPolicyKeyPath string
 }
 
 func parseAppendCommandArgs(args []string) (appendCommandInput, error) {
@@ -725,6 +755,20 @@ func parseAppendCommandArgs(args []string) (appendCommandInput, error) {
 			if err := setIDField("--workspace-id", &result.Options.WorkspaceID, strings.TrimPrefix(arg, "--workspace-id=")); err != nil {
 				return result, err
 			}
+		case arg == "--sign-policy":
+			if i+1 >= len(args) {
+				return result, fmt.Errorf("missing value for --sign-policy")
+			}
+			result.SignPolicyKeyPath = filepath.Clean(strings.TrimSpace(args[i+1]))
+			if result.SignPolicyKeyPath == "." {
+				return result, fmt.Errorf("--sign-policy cannot be empty")
+			}
+			i++
+		case strings.HasPrefix(arg, "--sign-policy="):
+			result.SignPolicyKeyPath = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--sign-policy=")))
+			if result.SignPolicyKeyPath == "." {
+				return result, fmt.Errorf("--sign-policy cannot be empty")
+			}
 		case strings.HasPrefix(arg, "--"):
 			return result, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -738,6 +782,47 @@ func parseAppendCommandArgs(args []string) (appendCommandInput, error) {
 		return result, fmt.Errorf("missing event JSON payload")
 	}
 	return result, nil
+}
+
+func maybeSignPolicyDecisionEvent(eventType string, data interface{}, keyPath string, stderr io.Writer) error {
+	if keyPath == "" {
+		return nil
+	}
+	if eventType != event.TypeAIPolicyDecision {
+		fmt.Fprintf(stderr, "atb append: warning: --sign-policy ignored for %s\n", eventType)
+		return nil
+	}
+
+	fields, ok := data.(map[string]any)
+	if !ok {
+		return fmt.Errorf("ai.policy.decision payload must be a JSON object when --sign-policy is set")
+	}
+
+	privateKey, err := loadEd25519PrivateKey(keyPath)
+	if err != nil {
+		return err
+	}
+
+	signature, err := signpkg.SignPolicyDecision(fields, privateKey)
+	if err != nil {
+		return err
+	}
+
+	publicKey, ok := privateKey.Public().(ed25519.PublicKey)
+	if !ok {
+		return fmt.Errorf("derive public key: loaded key is not Ed25519")
+	}
+
+	fields[event.FieldPolicySignature] = signature
+	fields[event.FieldPolicySignerPubKey] = base64.StdEncoding.EncodeToString(publicKey)
+	return nil
+}
+
+func classifyAppendPolicySignError(err error) int {
+	if strings.Contains(strings.ToLower(err.Error()), "json object") {
+		return exitUserError
+	}
+	return classifySignError(err)
 }
 
 type mutationLoadError struct {

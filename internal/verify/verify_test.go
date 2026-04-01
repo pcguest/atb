@@ -1,12 +1,16 @@
 package verify
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"math"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
+	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
 func TestVerify_IntegrityFail(t *testing.T) {
@@ -59,6 +63,33 @@ func TestVerify_ProfileAutoDetect(t *testing.T) {
 	}
 	if !report.Profiles[0].Pass {
 		t.Fatalf("expected profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+	}
+}
+
+func TestVerify_PolicyDecision_Signed(t *testing.T) {
+	b := newSignedPrivilegedToolActionBundle(t)
+
+	report := Verify(b, "bundle.atb", profileIDPrivilegedToolAction)
+	if len(report.Profiles) != 1 {
+		t.Fatalf("expected one profile result, got %d", len(report.Profiles))
+	}
+	if !hasInformationalNote(report.Profiles[0].InformationalNotes, "ai.policy.decision: signature verified") {
+		t.Fatalf("expected signature verified note, got %v", report.Profiles[0].InformationalNotes)
+	}
+	if hasRequiredWarning(report.Profiles[0].RequiredWarnings, "ai.policy.decision: policy_signature absent") {
+		t.Fatalf("did not expect unsigned warning, got %v", report.Profiles[0].RequiredWarnings)
+	}
+}
+
+func TestVerify_PolicyDecision_Unsigned(t *testing.T) {
+	b := newPrivilegedToolActionBundle(t)
+
+	report := Verify(b, "bundle.atb", profileIDPrivilegedToolAction)
+	if len(report.Profiles) != 1 {
+		t.Fatalf("expected one profile result, got %d", len(report.Profiles))
+	}
+	if !hasRequiredWarning(report.Profiles[0].RequiredWarnings, "ai.policy.decision: policy_signature absent") {
+		t.Fatalf("expected unsigned warning, got %v", report.Profiles[0].RequiredWarnings)
 	}
 }
 
@@ -576,6 +607,97 @@ func newPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	)
 
 	return b
+}
+
+func newSignedPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
+	t.Helper()
+
+	b := bundle.New()
+	appendVerifyRecord(t, b, "ai.request.received", map[string]any{
+		"request_id":    "req-1",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "approve-change",
+	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, "ai.action.precommit", map[string]any{
+		"action_id":                "act-1",
+		"action_type":              "deploy_change",
+		"action_parameters_digest": "params-digest",
+		"target_resource_id":       "svc-1",
+		"intended_effect":          "deploy build 42",
+	}, "2026-03-27T12:01:00Z")
+
+	policyFields := map[string]any{
+		"policy_id":             "pol-1",
+		"policy_version":        "2026-03",
+		"decision":              "allow",
+		"decision_reason_codes": []any{"ticket_present"},
+		"subject_id_hash":       "subject-hash",
+		"action_id":             "act-1",
+	}
+	signPolicyDecisionFields(t, policyFields)
+	appendVerifyRecord(t, b, "ai.policy.decision", policyFields, "2026-03-27T12:02:00Z")
+
+	appendVerifyRecord(t, b, "ai.human.approval", map[string]any{
+		"approval_id":          "appr-1",
+		"approver_id_hash":     "approver-hash",
+		"approval_outcome":     "approve",
+		"justification_digest": "just-digest",
+		"action_id":            "act-1",
+	}, "2026-03-27T12:03:00Z")
+	appendVerifyRecord(t, b, "ai.action.executed", map[string]any{
+		"action_id":           "act-1",
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "tool-digest",
+	}, "2026-03-27T12:05:00Z")
+	appendVerifyRecord(t, b, "ai.action.committed", map[string]any{
+		"action_id":           "act-1",
+		"commit_outcome":      "success",
+		"sink_receipt_digest": "sink-digest",
+	}, "2026-03-27T12:06:00Z")
+	appendVerifyRecord(
+		t,
+		b,
+		bundle.AnchorEventType,
+		`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","certified_time":"2026-03-27T12:06:30Z"}`,
+		"2026-03-27T12:06:30Z",
+	)
+
+	return b
+}
+
+func signPolicyDecisionFields(t testing.TB, fields map[string]any) {
+	t.Helper()
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate Ed25519 keypair: %v", err)
+	}
+
+	signature, err := signpkg.SignPolicyDecision(fields, privateKey)
+	if err != nil {
+		t.Fatalf("sign policy decision: %v", err)
+	}
+
+	fields[event.FieldPolicySignature] = signature
+	fields[event.FieldPolicySignerPubKey] = base64.StdEncoding.EncodeToString(publicKey)
+}
+
+func hasInformationalNote(notes []string, want string) bool {
+	for _, note := range notes {
+		if note == want {
+			return true
+		}
+	}
+	return false
+}
+
+func hasRequiredWarning(warnings []string, want string) bool {
+	for _, warning := range warnings {
+		if warning == want {
+			return true
+		}
+	}
+	return false
 }
 
 func newVerifyBundleFromEvents(t testing.TB, events []event.Event) *bundle.Bundle {

@@ -3,10 +3,14 @@
 package integration
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	signpkg "github.com/pcguest/atb/internal/sign"
 	"github.com/pcguest/atb/internal/trust"
 	"github.com/pcguest/atb/internal/verify"
 )
@@ -113,8 +117,11 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 	if len(profileResult.CriticalFailures) != 0 {
 		t.Fatalf("expected no critical failures, got %+v", profileResult.CriticalFailures)
 	}
-	if len(profileResult.RequiredWarnings) != 0 {
-		t.Fatalf("expected no required warnings, got %v", profileResult.RequiredWarnings)
+	if len(profileResult.RequiredWarnings) != 1 {
+		t.Fatalf("expected 1 required warning, got %v", profileResult.RequiredWarnings)
+	}
+	if profileResult.RequiredWarnings[0] != "ai.policy.decision: policy_signature absent" {
+		t.Fatalf("unexpected required warning: got %q", profileResult.RequiredWarnings[0])
 	}
 	if result.CAS == nil {
 		t.Fatalf("expected CAS result")
@@ -148,6 +155,65 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 	if report.Status != trust.StatusPass && report.Status != trust.StatusWarn {
 		t.Fatalf("unexpected report status: got %q want pass or warn", report.Status)
 	}
+
+	t.Run("signed_policy_decision", func(t *testing.T) {
+		bundlePath := newTempBundle(t)
+
+		const actionID = "act-golden-signed-001"
+
+		appendEvent(t, bundlePath, event.TypeAIRequestReceived, map[string]any{
+			"request_id":    "req-golden-signed-001",
+			"actor_id_hash": "actor-golden-signed-001",
+			"purpose_tag":   "privileged_tool_action",
+		})
+
+		policyFields := map[string]any{
+			"policy_id":             "policy-pta-signed-001",
+			"policy_version":        "2026-04",
+			"decision":              "allow",
+			"decision_reason_codes": []string{"ticket_present"},
+			"subject_id_hash":       "subject-golden-signed-001",
+			"action_id":             actionID,
+		}
+		signPolicyDecision(t, policyFields)
+		appendEvent(t, bundlePath, event.TypeAIPolicyDecision, policyFields)
+
+		appendEvent(t, bundlePath, event.TypeAIActionPrecommit, map[string]any{
+			"action_id":                actionID,
+			"action_type":              "deploy_change",
+			"action_parameters_digest": "sha256:params-golden-signed-001",
+			"target_resource_id":       "svc-prod-001",
+			"intended_effect":          "deploy build 43",
+		})
+		appendEvent(t, bundlePath, event.TypeAIHumanApproval, map[string]any{
+			"approval_id":          "approval-golden-signed-001",
+			"approver_id_hash":     "approver-golden-signed-001",
+			"approval_outcome":     "approved",
+			"justification_digest": "sha256:justification-golden-signed-001",
+			"action_id":            actionID,
+		})
+		appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
+			"action_id":           actionID,
+			"execution_outcome":   "success",
+			"tool_receipt_digest": "sha256:tool-receipt-golden-signed-001",
+		})
+		appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
+			"action_id":           actionID,
+			"commit_outcome":      "success",
+			"sink_receipt_digest": "sha256:sink-receipt-golden-signed-001",
+		})
+
+		b := loadBundle(t, bundlePath)
+		profile := mustProfile(t, profileIDPrivilegedToolAction)
+
+		result := verify.VerifyWithProfile(b, bundlePath, profile)
+		if len(result.Profiles) != 1 {
+			t.Fatalf("expected 1 profile result, got %d", len(result.Profiles))
+		}
+		if !containsString(result.Profiles[0].InformationalNotes, "ai.policy.decision: signature verified") {
+			t.Fatalf("expected signature verified note, got %v", result.Profiles[0].InformationalNotes)
+		}
+	})
 }
 
 func TestGoldenPath_DataExport(t *testing.T) {
@@ -228,11 +294,14 @@ func TestGoldenPath_DataExport(t *testing.T) {
 	if len(profileResult.CriticalFailures) != 0 {
 		t.Fatalf("expected no critical failures, got %+v", profileResult.CriticalFailures)
 	}
-	if len(profileResult.RequiredWarnings) != 1 {
-		t.Fatalf("expected 1 required warning, got %v", profileResult.RequiredWarnings)
+	if len(profileResult.RequiredWarnings) != 2 {
+		t.Fatalf("expected 2 required warnings, got %v", profileResult.RequiredWarnings)
 	}
 	if profileResult.RequiredWarnings[0] != "ai.human.approval required for data export workflows" {
-		t.Fatalf("unexpected required warning: got %q", profileResult.RequiredWarnings[0])
+		t.Fatalf("unexpected first required warning: got %q", profileResult.RequiredWarnings[0])
+	}
+	if profileResult.RequiredWarnings[1] != "ai.policy.decision: policy_signature absent" {
+		t.Fatalf("unexpected second required warning: got %q", profileResult.RequiredWarnings[1])
 	}
 	if result.CAS != nil {
 		t.Fatalf("expected verify CAS to be nil for %q, got %+v", profileIDDataExport, result.CAS)
@@ -280,4 +349,30 @@ func mustProfile(t *testing.T, id string) verify.Profile {
 		t.Fatalf("profile %q not registered", id)
 	}
 	return profile
+}
+
+func signPolicyDecision(t *testing.T, fields map[string]any) {
+	t.Helper()
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate Ed25519 keypair: %v", err)
+	}
+
+	signature, err := signpkg.SignPolicyDecision(fields, privateKey)
+	if err != nil {
+		t.Fatalf("sign policy decision: %v", err)
+	}
+
+	fields[event.FieldPolicySignature] = signature
+	fields[event.FieldPolicySignerPubKey] = base64.StdEncoding.EncodeToString(publicKey)
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
