@@ -275,6 +275,15 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 		}
 
 		report := trust.BuildReport("", bundlePath, profileIDPrivilegedToolAction)
+		if report.Status != trust.StatusFail {
+			t.Fatalf("expected failing trust report status, got %q", report.Status)
+		}
+		if report.Gate.Status != trust.StatusFail {
+			t.Fatalf("expected failing trust gate status, got %q", report.Gate.Status)
+		}
+		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval required when actions execute") {
+			t.Fatalf("expected trust report missing approval failure, got %+v", report.Categories)
+		}
 		if report.CAS == nil {
 			t.Fatalf("expected trust report CAS section")
 		}
@@ -453,6 +462,15 @@ func TestGoldenPath_DataExport(t *testing.T) {
 		}
 
 		report := trust.BuildReport("", bundlePath, profileIDDataExport)
+		if report.Status != trust.StatusFail {
+			t.Fatalf("expected failing trust report status, got %q", report.Status)
+		}
+		if report.Gate.Status != trust.StatusFail {
+			t.Fatalf("expected failing trust gate status, got %q", report.Gate.Status)
+		}
+		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval required when data exports execute") {
+			t.Fatalf("expected trust report missing approval failure, got %+v", report.Categories)
+		}
 		if report.CAS == nil {
 			t.Fatalf("expected trust report CAS section")
 		}
@@ -509,6 +527,20 @@ func hasCriticalFailure(failures []verify.CriticalFailure, kind string, detail s
 	for _, failure := range failures {
 		if failure.Kind == kind && failure.Detail == detail {
 			return true
+		}
+	}
+	return false
+}
+
+func hasTrustCheckDetail(report trust.Report, categoryKey string, detail string) bool {
+	for _, category := range report.Categories {
+		if category.Key != categoryKey {
+			continue
+		}
+		for _, check := range category.Checks {
+			if check.Details == detail {
+				return true
+			}
 		}
 	}
 	return false

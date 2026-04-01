@@ -550,13 +550,16 @@ func TestCASSubScoresSC(t *testing.T) {
 	}
 }
 
-func TestProfileSupportsCAS_SchemaBacked(t *testing.T) {
+func TestProfileSupportsCAS_SchemaBackedTrue(t *testing.T) {
 	if !profileSupportsCAS(&PrivilegedToolActionProfile{}) {
 		t.Fatalf("expected CAS support for privileged profile")
 	}
 	if !profileSupportsCAS(&RAGAnswerProfile{}) {
 		t.Fatalf("expected CAS support for RAG profile")
 	}
+}
+
+func TestProfileSupportsCAS_SchemaBackedFalse(t *testing.T) {
 	if profileSupportsCAS(&DataExportProfile{}) {
 		t.Fatalf("did not expect CAS support for data export profile")
 	}
@@ -568,6 +571,27 @@ func TestProfileSupportsCAS_SchemaBacked(t *testing.T) {
 	}
 	if profileSupportsCAS(&BackgroundAutomationProfile{}) {
 		t.Fatalf("did not expect CAS support for background automation profile")
+	}
+}
+
+func TestComputeSC_PrivilegedToolAction_Stable(t *testing.T) {
+	got := computeSC(newPrivilegedToolActionBundle(t), profileIDPrivilegedToolAction)
+	if diff := math.Abs(got - 1.0); diff > 0.001 {
+		t.Fatalf("computeSC(privileged) = %.3f, want 1.000", got)
+	}
+}
+
+func TestComputeSC_RAGAnswer_Stable(t *testing.T) {
+	got := computeSC(newRAGAnswerBundle(t), profileIDRAGAnswer)
+	if diff := math.Abs(got - 0.60); diff > 0.001 {
+		t.Fatalf("computeSC(rag_answer) = %.3f, want 0.600", got)
+	}
+}
+
+func TestComputeSC_UnknownProfile_Zero(t *testing.T) {
+	got := computeSC(newPrivilegedToolActionBundle(t), "atb.profile.unknown")
+	if got != 0.0 {
+		t.Fatalf("computeSC(unknown) = %.3f, want 0.000", got)
 	}
 }
 

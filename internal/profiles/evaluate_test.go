@@ -64,7 +64,7 @@ func TestEvaluate_Clean(t *testing.T) {
 	}
 }
 
-func TestEvaluate_RequiredWhenSatisfiedAtOrAfter(t *testing.T) {
+func TestEvaluate_RequiredWhenSatisfied(t *testing.T) {
 	schema := ProfileSchema{
 		ID:            "atb.profile.test",
 		Version:       1,
@@ -217,7 +217,7 @@ func TestEvaluate_RequiredWhenMissingConditionTimestampWarns(t *testing.T) {
 	}
 }
 
-func TestEvaluate_RequiredWhenInvalidTargetTimestampsWarn(t *testing.T) {
+func TestEvaluate_RequiredWhenAtOrAfterBadTS(t *testing.T) {
 	schema := ProfileSchema{
 		ID:            "atb.profile.test",
 		Version:       1,
@@ -236,7 +236,7 @@ func TestEvaluate_RequiredWhenInvalidTargetTimestampsWarn(t *testing.T) {
 
 	records := []bundle.Record{
 		recordWithTimestamp("ai.request.received", map[string]any{"request_id": "req-1"}, "2026-03-27T12:00:00Z"),
-		recordWithTimestamp("ai.response.sent", map[string]any{"request_id": "req-1"}, "not-a-timestamp"),
+		record("ai.response.sent", map[string]any{"request_id": "req-1"}),
 	}
 
 	result := Evaluate(schema, records)
@@ -248,6 +248,27 @@ func TestEvaluate_RequiredWhenInvalidTargetTimestampsWarn(t *testing.T) {
 	}
 	if !containsSubstring(result.RequiredWarnings, "unable to enforce ordering between ai.response.sent and ai.request.received because ai.response.sent timestamps are missing or invalid") {
 		t.Fatalf("expected target timestamp warning, got %+v", result.RequiredWarnings)
+	}
+}
+
+func TestEvaluate_NoRequiredWhenRules(t *testing.T) {
+	schema := testSchema()
+	records := []bundle.Record{
+		record("ai.request.received", map[string]any{"request_id": "req-1"}),
+	}
+
+	result := Evaluate(schema, records)
+	if !result.Pass {
+		t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+	}
+	if len(result.CriticalFailures) != 0 {
+		t.Fatalf("expected no critical failures, got %+v", result.CriticalFailures)
+	}
+	if len(result.RequiredWarnings) != 1 || result.RequiredWarnings[0] != "ai.response.sent recommended" {
+		t.Fatalf("unexpected required warnings: %+v", result.RequiredWarnings)
+	}
+	if len(result.InformationalNotes) != 0 {
+		t.Fatalf("expected no informational notes, got %+v", result.InformationalNotes)
 	}
 }
 

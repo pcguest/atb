@@ -169,6 +169,13 @@ func renderTrustReportText(w io.Writer, report trust.Report) {
 	for _, category := range report.Categories {
 		fmt.Fprintf(w, "  %s: %s\n", category.Key, strings.ToUpper(category.Status))
 	}
+	if details := nonPassingTrustChecks(report.Categories); len(details) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Check Details:")
+		for _, detail := range details {
+			fmt.Fprintf(w, "  [%s] %s %s: %s\n", detail.status, detail.categoryKey, detail.title, detail.details)
+		}
+	}
 
 	if report.CAS == nil {
 		return
@@ -197,6 +204,31 @@ func renderTrustReportText(w io.Writer, report trust.Report) {
 		report.CAS.SubScores["AC"],
 		report.CAS.SubScores["GC"],
 	)
+}
+
+type trustCheckDetail struct {
+	status      string
+	categoryKey string
+	title       string
+	details     string
+}
+
+func nonPassingTrustChecks(categories []trust.Category) []trustCheckDetail {
+	details := []trustCheckDetail{}
+	for _, category := range categories {
+		for _, check := range category.Checks {
+			if check.Status == trust.StatusPass {
+				continue
+			}
+			details = append(details, trustCheckDetail{
+				status:      strings.ToUpper(check.Status),
+				categoryKey: category.Key,
+				title:       check.Title,
+				details:     check.Details,
+			})
+		}
+	}
+	return details
 }
 
 func renderTrustReportStatus(renderer verifyTextRenderer, status string) string {

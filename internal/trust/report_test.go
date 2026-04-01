@@ -176,6 +176,21 @@ func TestBuildReport_WithProfileEmitsCAS(t *testing.T) {
 	}
 }
 
+func TestBuildReport_WithProfileIncludesCriticalFailures(t *testing.T) {
+	bundlePath := writePrivilegedToolActionBundle(t)
+
+	report := BuildReport("", bundlePath, "atb.profile.privileged_tool_action")
+	if report.Status != StatusFail {
+		t.Fatalf("expected failing report status, got %q", report.Status)
+	}
+	if report.Gate.Status != StatusFail {
+		t.Fatalf("expected failing gate status, got %q", report.Gate.Status)
+	}
+	if !hasCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval required when actions execute") {
+		t.Fatalf("expected missing approval detail in obligation profile category, got %+v", report.Categories)
+	}
+}
+
 func TestBuildReport_WithoutProfileNoCAS(t *testing.T) {
 	bundlePath := writePrivilegedToolActionBundle(t)
 
@@ -243,4 +258,18 @@ func mustWriteFile(t *testing.T, path string, contents string) {
 	if err := os.WriteFile(path, []byte(contents), 0644); err != nil {
 		t.Fatalf("write %s: %v", path, err)
 	}
+}
+
+func hasCheckDetail(report Report, categoryKey string, want string) bool {
+	for _, category := range report.Categories {
+		if category.Key != categoryKey {
+			continue
+		}
+		for _, check := range category.Checks {
+			if check.Details == want {
+				return true
+			}
+		}
+	}
+	return false
 }

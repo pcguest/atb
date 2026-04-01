@@ -143,3 +143,35 @@ func TestValidateSchema_RequiredWhenCycle(t *testing.T) {
 		t.Fatal("expected error for required_when cycle")
 	}
 }
+
+func TestValidateSchema_ValidRequiredWhen(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Required: []EventRule{
+			{
+				Type:     "ai.request.received",
+				Severity: "critical",
+			},
+		},
+		Optional: []EventRule{
+			{
+				Type:     "ai.response.sent",
+				Severity: "warning",
+				RequiredWhen: []RequiredWhenRule{
+					{
+						WhenType:  "ai.request.received",
+						AtOrAfter: true,
+						Message:   "ai.response.sent required after ai.request.received",
+					},
+				},
+			},
+		},
+	}
+
+	if err := ValidateSchema(schema); err != nil {
+		t.Fatalf("expected valid required_when rule, got %v", err)
+	}
+}

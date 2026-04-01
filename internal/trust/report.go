@@ -10,6 +10,7 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 const (
@@ -77,6 +78,9 @@ func BuildReport(repoRoot string, bundlePath string, profileID string) Report {
 		testCoverageCategory(repoRoot),
 		documentationCategory(repoRoot),
 	}
+	if profileCategory, ok := profileVerificationCategory(bundlePath, profileID); ok {
+		categories = append(categories, profileCategory)
+	}
 	casSection, casWarning := buildCASSection(bundlePath, profileID)
 	if casWarning != "" {
 		categories = append(categories, casProfileWarningCategory(casWarning))
@@ -107,6 +111,62 @@ func BuildReport(repoRoot string, bundlePath string, profileID string) Report {
 		}
 	}
 	return report
+}
+
+func profileVerificationCategory(bundlePath string, profileID string) (Category, bool) {
+	profileID = strings.TrimSpace(profileID)
+	if profileID == "" {
+		return Category{}, false
+	}
+
+	b, err := bundle.Load(bundlePath)
+	if err != nil {
+		return Category{}, false
+	}
+
+	report := verifypkg.Verify(b, bundlePath, profileID)
+	if len(report.Profiles) == 0 {
+		return Category{}, false
+	}
+
+	profile := report.Profiles[0]
+	checks := make([]Check, 0, len(profile.CriticalFailures)+len(profile.RequiredWarnings)+1)
+	checks = append(checks, Check{
+		ID:       "profile_verification",
+		Title:    "Profile Verification",
+		Status:   StatusPass,
+		Severity: SeverityCritical,
+		Blocking: true,
+		Details:  fmt.Sprintf("Profile %s evaluated.", profile.ProfileID),
+	})
+
+	for i, failure := range profile.CriticalFailures {
+		checks = append(checks, Check{
+			ID:       fmt.Sprintf("profile_failure_%d", i+1),
+			Title:    "Profile Critical Failure",
+			Status:   StatusFail,
+			Severity: SeverityCritical,
+			Blocking: true,
+			Details:  fmt.Sprintf("%s: %s", failure.Kind, failure.Detail),
+		})
+	}
+	for i, warning := range profile.RequiredWarnings {
+		checks = append(checks, Check{
+			ID:       fmt.Sprintf("profile_warning_%d", i+1),
+			Title:    "Profile Required Warning",
+			Status:   StatusWarn,
+			Severity: SeverityAdvisory,
+			Blocking: false,
+			Details:  warning,
+		})
+	}
+
+	return Category{
+		Key:    "obligation_profile",
+		Title:  "Obligation Profile",
+		Status: aggregateChecksStatus(checks),
+		Checks: checks,
+	}, true
 }
 
 func cryptoCategory(bundlePath string, repoRoot string) Category {

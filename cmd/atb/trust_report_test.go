@@ -218,3 +218,43 @@ func TestTrustReportRenderTextWithCAS(t *testing.T) {
 		}
 	}
 }
+
+func TestTrustReportRenderTextIncludesCheckDetails(t *testing.T) {
+	report := trust.Report{
+		Status:     trust.StatusFail,
+		BundlePath: "/tmp/run.atb/bundle.atb",
+		Gate: trust.Gate{
+			Status: trust.StatusFail,
+		},
+		Summary: trust.Summary{
+			Total: 3,
+			Pass:  1,
+			Warn:  1,
+			Fail:  1,
+		},
+		Categories: []trust.Category{
+			{
+				Key:    "obligation_profile",
+				Status: trust.StatusFail,
+				Checks: []trust.Check{
+					{ID: "profile_failure_1", Title: "Profile Critical Failure", Status: trust.StatusFail, Details: "missing_event: ai.human.approval required when actions execute"},
+					{ID: "profile_warning_1", Title: "Profile Required Warning", Status: trust.StatusWarn, Details: "ai.human.approval required for high-impact action types"},
+				},
+			},
+		},
+	}
+
+	var out bytes.Buffer
+	renderTrustReportText(&out, report)
+	got := out.String()
+
+	for _, want := range []string{
+		"Check Details:",
+		"[FAIL] obligation_profile Profile Critical Failure: missing_event: ai.human.approval required when actions execute",
+		"[WARN] obligation_profile Profile Required Warning: ai.human.approval required for high-impact action types",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("renderTrustReportText() missing %q in output:\n%s", want, got)
+		}
+	}
+}
