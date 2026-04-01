@@ -24,6 +24,7 @@ from atb.encrypt import ATBDecryptionError, ATBEncryptionError, decrypt_bundle, 
 from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
+from atb.langchain_gate import gate_langchain_tool
 
 __version__ = "1.1.0"
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "ActionGateDeniedError",
     "ActionGateInput",
     "ActionGateDecision",
+    "gate_langchain_tool",
     "Event",
     "ATBError",
     "ATBVerificationError",

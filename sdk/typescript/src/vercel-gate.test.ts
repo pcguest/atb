@@ -1,0 +1,54 @@
+import { describe, expect, it } from "vitest";
+import { Bundle } from "./bundle.js";
+import { ActionGate, ActionGateDeniedError } from "./action-gate.js";
+import { gateVercelTool } from "./vercel-gate.js";
+
+describe("gateVercelTool", () => {
+  it("gates vercel tool and records events in order", async () => {
+    const bundle = new Bundle();
+    const gate = new ActionGate({ bundle, actorId: "actor-1" });
+    const tool = gateVercelTool(
+      {
+        name: "deploy_change",
+        description: "roll out release",
+        parameters: { type: "object" },
+        execute: async (parameters: { version: string }) => ({ result: parameters.version }),
+      },
+      gate,
+    );
+
+    const result = await tool.execute({ version: "1.5.0" });
+
+    expect(result).toEqual({ result: "1.5.0" });
+    expect(bundle.records.map((record) => record.event.type)).toEqual([
+      "ai.action.precommit",
+      "ai.policy.decision",
+      "ai.action.executed",
+    ]);
+  });
+
+  it("enforce mode blocks when policy denies", async () => {
+    const bundle = new Bundle();
+    const gate = new ActionGate({
+      bundle,
+      mode: "enforce",
+      actorId: "actor-1",
+      policy: () => ({ decision: "deny", reasonCodes: ["blocked"] }),
+    });
+    const tool = gateVercelTool(
+      {
+        name: "deploy_change",
+        description: "roll out release",
+        parameters: { type: "object" },
+        execute: async (parameters: { version: string }) => ({ result: parameters.version }),
+      },
+      gate,
+    );
+
+    await expect(tool.execute({ version: "1.5.0" })).rejects.toBeInstanceOf(ActionGateDeniedError);
+    expect(bundle.records.map((record) => record.event.type)).toEqual([
+      "ai.action.precommit",
+      "ai.policy.decision",
+    ]);
+  });
+});

@@ -19,6 +19,7 @@ export { EncryptError, decryptBundle, decryptRaw, encryptBundle, encryptRaw } fr
 export { computeHash, chainEvents, GENESIS_HASH } from "./hash.js";
 export { canonicalize } from "./canonicalize.js";
 export { atbMiddleware } from "./vercel-ai-middleware.js";
+export { gateVercelTool } from "./vercel-gate.js";
 export { normalizeOptionalIdentity, prepareForCanonical } from "./event.js";
 export type {
   ActionGateDecision,
@@ -38,4 +39,5 @@ export type {
   ToolEndInput,
   ToolStartInput,
 } from "./vercel-ai-middleware.js";
+export type { VercelAITool } from "./vercel-gate.js";
 export type { ATBEvent, ATBRecord, BundleOptions } from "./types.js";
