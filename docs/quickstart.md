@@ -24,6 +24,7 @@ Use `--profile <id>` to evaluate against a specific built-in profile. See `atb e
 
 ```bash
 atb events --profile atb.profile.rag_answer
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
 atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --json
 # The JSON output includes a "cas" object with "grade" and profile sub_scores
 # such as AC, EC, FC, GC, RC, SC, TC, and XC.

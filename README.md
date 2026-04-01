@@ -52,6 +52,7 @@ atb.profile.background_automation
 ```
 
 ```bash
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
 atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --json
 # The JSON output includes a "cas" object with "grade" and sub_scores
 # such as AC, EC, FC, GC, RC, SC, TC, and XC for the selected profile.
