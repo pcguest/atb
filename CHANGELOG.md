@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.6.0] - 2026-04-01
+
+### Added
+- `atb trust-report --format text` adds a human-readable trust report with ANSI
+  status colour (PASS/FAIL/WARN) and a conditional CAS block showing profile,
+  grade, anchor quality label, and all eight sub-scores.
+- `atb snapshot <name>` appends an `atb.snapshot` record containing `name`,
+  `bundle_hash` (SHA-256 hex of serialised bundle), `record_count`, and
+  `snapshot_at` (RFC 3339 UTC). Accepts `--bundle` and `--quiet`.
+- `internal/event` adds `TypeSnapshot = "atb.snapshot"`.
+- `internal/verify` adds an offline RFC 3161 fixture
+  (`testdata/anchor_token_verified.tsr`) and generator, and unskips
+  `TestClassifyAnchor_Verified`.
+- SDK version parity updates `sdk/python` and `sdk/typescript` to `1.6.0`.
+
+### Changed
+- `cmd/atb/main.go` replaces the snapshot stub with the real command in
+  `snapshot.go`.
+- `internal/verify/anchor_classify.go` adds a narrow root-pool hook for test
+  override while leaving the production path unchanged.
+
 ## [v1.5.0] - 2026-03-31
 
 ### Features
