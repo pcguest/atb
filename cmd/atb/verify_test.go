@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -116,6 +117,24 @@ relations:
 	}
 	if !report.Profiles[0].Pass {
 		t.Fatalf("expected custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+	}
+}
+
+func TestRunVerify_ProfileEqualsPath_FileNotFound(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	profilePath := filepath.Join(t.TempDir(), "missing-profile.yaml")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--profile=" + profilePath}, &stdout, &stderr)
+	if exitCode != exitUserError {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitUserError, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("expected no stdout output, got %q", stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "load profile") {
+		t.Fatalf("expected load profile error, got %q", stderr.String())
 	}
 }
 

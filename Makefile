@@ -76,7 +76,7 @@ gate-gold-release: test-all
 	@cd web && npm run test:a11y || (echo "❌ A11y tests failed"; exit 1)
 	@echo ""
 	@echo "✅ All gold release gates passed"
-	@echo "Ready to tag v1.1.0 gold release"
+	@echo "Ready to tag the current gold release"
 
 deps-update:
 	@echo "🔄 Updating Go dependencies..."

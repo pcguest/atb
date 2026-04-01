@@ -1,6 +1,6 @@
 # ATB
 
-[![Version](https://img.shields.io/badge/version-v1.1.1-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.5.0-blue)](CHANGELOG.md)
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security Gate](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -20,7 +20,7 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 
 ## Release Status
 
-- Current release: [`v1.1.1`](CHANGELOG.md)
+- Current release: [`v1.5.0`](CHANGELOG.md)
 - Gold release status: [`APPROVED FOR GOLD RELEASE`](docs/security/gold-signoff.md)
 - All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 
@@ -28,7 +28,7 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
-atb init
+atb bundle new
 atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
 atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042"}'
 atb snapshot incident_review --gate fail
@@ -36,7 +36,16 @@ atb verify
 atb trust-report --format markdown
 ```
 
-That sequence creates a local incident bundle with a failed review gate but a valid evidence chain. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md). For sender and recipient handoff, use the [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md).
+That sequence creates a local incident bundle with a failed review gate but a valid evidence chain. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md). For sender and recipient handoff, use the [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md).
+
+## Verification Profiles
+
+ATB auto-detects built-in obligation profiles from emitted events when it can. Pin a profile explicitly when you want deterministic checks or when you are validating a custom YAML profile:
+
+```bash
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
+atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
+```
 
 ## What ATB Includes
 

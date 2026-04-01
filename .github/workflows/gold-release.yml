@@ -1,5 +1,4 @@
 name: Gold Release Gate
-# Actions temporarily use major tags; re-pin to SHAs in the gold release checklist.
 
 "on":
   push:
@@ -16,7 +15,7 @@ jobs:
           go-version: "1.26.1"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install Dependencies
         run: |

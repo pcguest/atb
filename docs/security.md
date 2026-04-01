@@ -95,7 +95,7 @@ Behavior:
 
 This keeps CI/local validation consistent even when scanner binaries are not preinstalled on a workstation.
 
-## Privacy Reveal Controls (v1.1.0+)
+## Privacy Reveal Controls
 
 The `/api/v1/privacy/reveal` endpoint is rate-limited to prevent enumeration attacks.
 

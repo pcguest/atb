@@ -1,5 +1,4 @@
 name: Ops Automation
-# Actions temporarily use major tags; re-pin to SHAs in the gold release checklist.
 
 on:
   push:

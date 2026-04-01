@@ -6,7 +6,7 @@ ATB provides tamper-evident, verifiable audit trails for AI workflows.
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
-atb init
+atb bundle new
 atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
 atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042","reason":"customer_email_left_visible"}'
 atb snapshot incident_review --gate fail
@@ -16,7 +16,16 @@ atb trust-report --format markdown
 
 The Go CLI is the primary install path. The Python and TypeScript packages are SDKs that write the same `.atb` format.
 
-This is the canonical ATB workflow: the AI workflow itself can fail while the audit evidence still verifies cleanly. For the full local review and export path, continue with the [Incident Review Workflow](./guides/incident-review-workflow.md).
+This is the canonical ATB workflow: the AI workflow itself can fail while the audit evidence still verifies cleanly. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full local review and export path, continue with the [Incident Review Workflow](./guides/incident-review-workflow.md).
+
+### Verify Against a Specific Profile
+
+ATB can auto-detect built-in profiles from the bundle contents. Use `--profile` when you want to lock verification to a specific built-in profile or a local YAML definition:
+
+```bash
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
+atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
+```
 
 ## 2. Installation Options
 
@@ -79,11 +88,11 @@ atb view --ui-experimental
 # Custom bundle path
 atb view my-trace.atb --port 8080 --ui-experimental
 
-# Privacy reveal auditing is on by default in v1.1.0
+# Privacy reveal auditing is on by default
 atb view --bundle my-trace.atb --ui-experimental
 ```
 
-Plain `atb view` still serves the legacy local viewer at `/`. The role-based dashboard UI is available behind `--ui-experimental` in v1.1.0.
+Plain `atb view` still serves the legacy local viewer at `/`. The role-based dashboard UI is available behind `--ui-experimental`.
 
 Dashboard details:
 

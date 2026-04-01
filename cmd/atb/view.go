@@ -105,7 +105,7 @@ func cmdView() {
 }
 
 func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (http.Handler, legacyPageData, bool, string, error) {
-	_ = logReveals // privacy reveal auditing is always on in v1.1.0
+	_ = logReveals // Privacy reveal auditing is always on; flag retained for CLI compatibility.
 
 	b, err := bundle.Load(bundlePath)
 	if err != nil {

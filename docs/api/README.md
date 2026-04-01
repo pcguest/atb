@@ -1,4 +1,4 @@
-# API Documentation (v1.1.0)
+# API Documentation
 
 ## How to Update API Docs
 1. Change handlers in `pkg/api/v1/`

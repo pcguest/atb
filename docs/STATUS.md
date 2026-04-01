@@ -1,14 +1,14 @@
 # ATB Status
 
-Last updated: 2026-03-19
+Last updated: 2026-03-31
 
 ## Release Status
 
-- ✅ Public release: `v1.1.0`
+- ✅ Public release: `v1.5.0`
 - ✅ CI and security gates passing
 - ⚠️ Documentation alignment is in progress
 
-## v1.1.0 Capability Summary
+## Current Capability Summary
 
 The following capability areas match the public README feature set.
 
