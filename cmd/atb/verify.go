@@ -220,6 +220,7 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 
 func printVerifyCommandUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--quiet] [--trace] [--with-anchor]")
+	fmt.Fprintln(w, "  --with-anchor  verify RFC 3161 timestamp token: digest, cert chain, and signature")
 }
 
 func verificationExitCode(report verifypkg.Report) int {

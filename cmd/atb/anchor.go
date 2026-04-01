@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -16,6 +17,8 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 )
+
+var verifyBundleAnchorRoots *x509.CertPool
 
 type anchorConfig struct {
 	BundlePath string
@@ -195,6 +198,9 @@ func verifyBundleAnchor(bundlePath string, b *bundle.Bundle, out io.Writer) erro
 	}
 	if got := hex.EncodeToString(snapshotHash); got != data.BundleHash {
 		return fmt.Errorf("anchor bundle hash mismatch: event=%s snapshot=%s", data.BundleHash, got)
+	}
+	if err := anchorpkg.VerifyToken(tokenBytes, snapshotHash, verifyBundleAnchorRoots); err != nil {
+		return fmt.Errorf("anchor verification failed: %w", err)
 	}
 
 	fmt.Fprintf(out, "Anchor verified. Certified: %s\n", data.CertifiedTime)

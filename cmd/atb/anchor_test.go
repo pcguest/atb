@@ -2,23 +2,34 @@ package main
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
 	"io"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	anchorpkg "github.com/pcguest/atb/internal/anchor"
 	"github.com/pcguest/atb/internal/bundle"
 )
 
 func TestRunAnchorWritesTSRAndAppendsAnchorEvent(t *testing.T) {
-	fixture := readAnchorFixture(t)
 	bundlePath, originalHash := writeAnchorTestBundle(t)
+	fixture, _, err := buildCLISignedAnchorFixture(originalHash)
+	if err != nil {
+		t.Fatalf("buildCLISignedAnchorFixture: %v", err)
+	}
 	stubTSATransport(t, fixture)
 
 	result, err := runAnchor(anchorConfig{
@@ -80,9 +91,16 @@ func TestRunAnchorWritesTSRAndAppendsAnchorEvent(t *testing.T) {
 }
 
 func TestVerifyWithAnchorPassesOnAnchoredBundle(t *testing.T) {
-	fixture := readAnchorFixture(t)
-	bundlePath, _ := writeAnchorTestBundle(t)
+	bundlePath, originalHash := writeAnchorTestBundle(t)
+	fixture, roots, err := buildCLISignedAnchorFixture(originalHash)
+	if err != nil {
+		t.Fatalf("buildCLISignedAnchorFixture: %v", err)
+	}
 	stubTSATransport(t, fixture)
+	verifyBundleAnchorRoots = roots
+	t.Cleanup(func() {
+		verifyBundleAnchorRoots = nil
+	})
 
 	if _, err := runAnchor(anchorConfig{
 		BundlePath: bundlePath,
@@ -109,8 +127,11 @@ func TestVerifyWithAnchorPassesOnAnchoredBundle(t *testing.T) {
 }
 
 func TestVerifyWithAnchorWarnsWhenTokenAbsent(t *testing.T) {
-	fixture := readAnchorFixture(t)
-	bundlePath, _ := writeAnchorTestBundle(t)
+	bundlePath, originalHash := writeAnchorTestBundle(t)
+	fixture, _, err := buildCLISignedAnchorFixture(originalHash)
+	if err != nil {
+		t.Fatalf("buildCLISignedAnchorFixture: %v", err)
+	}
 	stubTSATransport(t, fixture)
 
 	result, err := runAnchor(anchorConfig{
@@ -137,16 +158,6 @@ func TestVerifyWithAnchorWarnsWhenTokenAbsent(t *testing.T) {
 	if !strings.Contains(out.String(), want) {
 		t.Fatalf("expected missing token warning, got %q", out.String())
 	}
-}
-
-func readAnchorFixture(t *testing.T) []byte {
-	t.Helper()
-
-	fixture, err := os.ReadFile(filepath.Join("..", "..", "internal", "anchor", "testdata", "sample.tsr"))
-	if err != nil {
-		t.Fatalf("read anchor fixture: %v", err)
-	}
-	return fixture
 }
 
 func writeAnchorTestBundle(t *testing.T) (string, []byte) {
@@ -199,4 +210,247 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
 	return fn(r)
+}
+
+var (
+	testOIDContentTypeSignedData = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 7, 2}
+	testOIDContentTypeTSTInfo    = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 16, 1, 4}
+	testOIDDigestAlgorithmSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
+	testOIDSignatureAlgorithmRSA = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+)
+
+type testAlgorithmIdentifier struct {
+	Algorithm  asn1.ObjectIdentifier
+	Parameters asn1.RawValue `asn1:"optional"`
+}
+
+type testMessageImprint struct {
+	HashAlgorithm testAlgorithmIdentifier
+	HashedMessage []byte
+}
+
+type testTSTInfo struct {
+	Version        int
+	Policy         asn1.ObjectIdentifier
+	MessageImprint testMessageImprint
+	SerialNumber   *big.Int
+	GenTime        time.Time
+}
+
+type testIssuerAndSerialNumber struct {
+	Issuer       asn1.RawValue
+	SerialNumber *big.Int
+}
+
+type testSignerInfo struct {
+	Version            int
+	SID                asn1.RawValue
+	DigestAlgorithm    testAlgorithmIdentifier
+	SignatureAlgorithm asn1.RawValue
+	Signature          []byte
+}
+
+type testSignedData struct {
+	Version          int
+	DigestAlgorithms asn1.RawValue
+	EncapContentInfo asn1.RawValue
+	Certificates     asn1.RawValue `asn1:"optional,tag:0"`
+	SignerInfos      asn1.RawValue
+}
+
+func buildCLISignedAnchorFixture(bundleHash []byte) ([]byte, *x509.CertPool, error) {
+	genTime := time.Date(2026, 3, 28, 3, 4, 5, 0, time.UTC)
+
+	rootKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
+	}
+	leafKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	rootTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(1),
+		Subject:               pkix.Name{CommonName: "ATB CLI TSA Root"},
+		NotBefore:             genTime.Add(-time.Hour),
+		NotAfter:              genTime.Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	rootDER, err := x509.CreateCertificate(rand.Reader, rootTemplate, rootTemplate, &rootKey.PublicKey, rootKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	rootCert, err := x509.ParseCertificate(rootDER)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	leafTemplate := &x509.Certificate{
+		SerialNumber:          big.NewInt(2),
+		Subject:               pkix.Name{CommonName: "ATB CLI TSA"},
+		NotBefore:             genTime.Add(-time.Hour),
+		NotAfter:              genTime.Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageTimeStamping},
+		BasicConstraintsValid: true,
+	}
+	leafDER, err := x509.CreateCertificate(rand.Reader, leafTemplate, rootCert, &leafKey.PublicKey, rootKey)
+	if err != nil {
+		return nil, nil, err
+	}
+	leafCert, err := x509.ParseCertificate(leafDER)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tstInfoDER, err := asn1.Marshal(testTSTInfo{
+		Version: 1,
+		Policy:  asn1.ObjectIdentifier{1, 2, 3, 4},
+		MessageImprint: testMessageImprint{
+			HashAlgorithm: testAlgorithmIdentifier{
+				Algorithm:  testOIDDigestAlgorithmSHA256,
+				Parameters: testRawDER([]byte{0x05, 0x00}),
+			},
+			HashedMessage: bundleHash,
+		},
+		SerialNumber: big.NewInt(7),
+		GenTime:      genTime,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	digest := sha256.Sum256(tstInfoDER)
+	signature, err := rsa.SignPKCS1v15(rand.Reader, leafKey, crypto.SHA256, digest[:])
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sidDER, err := asn1.Marshal(testIssuerAndSerialNumber{
+		Issuer:       testRawDER(leafCert.RawIssuer),
+		SerialNumber: leafCert.SerialNumber,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	signerInfoDER, err := asn1.Marshal(testSignerInfo{
+		Version: 1,
+		SID:     testRawDER(sidDER),
+		DigestAlgorithm: testAlgorithmIdentifier{
+			Algorithm:  testOIDDigestAlgorithmSHA256,
+			Parameters: testRawDER([]byte{0x05, 0x00}),
+		},
+		SignatureAlgorithm: testRawDER(testMustMarshalAlgorithm(testOIDSignatureAlgorithmRSA)),
+		Signature:          signature,
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	encapContentDER, err := asn1.Marshal(struct {
+		ContentType asn1.ObjectIdentifier
+		Content     asn1.RawValue
+	}{
+		ContentType: testOIDContentTypeTSTInfo,
+		Content:     testExplicitRaw(testMustMarshalOctetString(tstInfoDER)),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	signedDataDER, err := asn1.Marshal(testSignedData{
+		Version:          1,
+		DigestAlgorithms: testSetRaw(testMustMarshalAlgorithm(testOIDDigestAlgorithmSHA256)),
+		EncapContentInfo: testRawDER(encapContentDER),
+		Certificates: asn1.RawValue{
+			Class:      asn1.ClassContextSpecific,
+			Tag:        0,
+			IsCompound: true,
+			Bytes:      leafDER,
+		},
+		SignerInfos: testSetRaw(signerInfoDER),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tokenDER, err := asn1.Marshal(struct {
+		ContentType asn1.ObjectIdentifier
+		Content     asn1.RawValue
+	}{
+		ContentType: testOIDContentTypeSignedData,
+		Content:     testExplicitRaw(signedDataDER),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	responseDER, err := asn1.Marshal(struct {
+		Status asn1.RawValue
+		Token  asn1.RawValue
+	}{
+		Status: testRawDER(testMustMarshalStatus()),
+		Token:  testRawDER(tokenDER),
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	roots := x509.NewCertPool()
+	roots.AddCert(rootCert)
+	return responseDER, roots, nil
+}
+
+func testRawDER(der []byte) asn1.RawValue {
+	return asn1.RawValue{FullBytes: der}
+}
+
+func testExplicitRaw(inner []byte) asn1.RawValue {
+	return asn1.RawValue{
+		Class:      asn1.ClassContextSpecific,
+		Tag:        0,
+		IsCompound: true,
+		Bytes:      inner,
+	}
+}
+
+func testSetRaw(inner []byte) asn1.RawValue {
+	return asn1.RawValue{
+		Class:      asn1.ClassUniversal,
+		Tag:        asn1.TagSet,
+		IsCompound: true,
+		Bytes:      inner,
+	}
+}
+
+func testMustMarshalStatus() []byte {
+	der, err := asn1.Marshal(struct {
+		Status int
+	}{Status: 0})
+	if err != nil {
+		panic(err)
+	}
+	return der
+}
+
+func testMustMarshalOctetString(value []byte) []byte {
+	der, err := asn1.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return der
+}
+
+func testMustMarshalAlgorithm(oid asn1.ObjectIdentifier) []byte {
+	der, err := asn1.Marshal(testAlgorithmIdentifier{
+		Algorithm:  oid,
+		Parameters: testRawDER([]byte{0x05, 0x00}),
+	})
+	if err != nil {
+		panic(err)
+	}
+	return der
 }

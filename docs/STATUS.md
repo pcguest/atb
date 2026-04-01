@@ -15,6 +15,7 @@ The following capability areas match the public README feature set.
 - **Encryption and Tamper Evidence**
   - SHA-256 hash chaining and RFC 8785 canonical JSON
   - Optional client-side bundle encryption (`atb encrypt` / `atb decrypt`)
+  - RFC 3161 anchoring: request, token storage, genTime extraction, digest match, cert chain, and signature verification
 - **SOC2/GDPR Exports**
   - `atb export --format soc2`
   - `atb export --format gdpr --type dsr|ropa`
