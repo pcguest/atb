@@ -2,17 +2,17 @@
 
 ## Supported Versions
 
-Security fixes are shipped on the latest stable release line and `main`.
+Security fixes are shipped on the current release tag only.
 
 | Version | Supported |
 | --- | --- |
-| `1.x` | Yes |
-| `main` | Yes |
-| `<1.0.0` | No |
+| `v1.7.0` | Yes |
+| Older releases | No |
 
 ## Reporting a Vulnerability
 
-Please report vulnerabilities privately to [security@pcguest.dev](mailto:security@pcguest.dev).
+Please report vulnerabilities privately to
+[patrickcguest@proton.me](mailto:patrickcguest@proton.me).
 
 Include:
 
@@ -24,7 +24,7 @@ Do not open public GitHub issues for unpatched vulnerabilities.
 
 ## Disclosure Process
 
-- Initial acknowledgment target: within 48 hours.
+- Initial acknowledgment target: within 5 business days.
 - Triage and remediation plan: after issue reproduction.
 - Coordinated disclosure: after a fix is available.
 

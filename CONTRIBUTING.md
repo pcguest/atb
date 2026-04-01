@@ -16,8 +16,10 @@ cd atb
 This project uses a **main-only** workflow.
 
 - **All work happens on `main`.** No long-lived feature branches.
+- **Run tests before pushing:** `go test ./...` and `make hygiene-quick`.
 - **Use feature flags** (`--ui-experimental`) to hide incomplete features.
 - **Every commit must pass** `make hygiene-quick`.
+- **No new module dependencies** are accepted without prior discussion.
 - **Tag releases:** use `vX.Y.Z-rcN` for release candidates and `vX.Y.Z` for gold releases.
 - **Security fixes** must pass security review before merge.
 
@@ -93,6 +95,19 @@ Use conventional commits:
 - `docs(scope): description`
 - `chore(scope): description`
 - `test(scope): description`
+
+The expected shape is `<type>(<scope>): <subject>`.
+
+## Pull Requests
+
+If you are contributing from outside the main checkout, open a short-lived
+branch or fork and submit a pull request against `main`.
+
+Include:
+
+- a concise summary of the change
+- test output (`go test ./...` and `make hygiene-quick`)
+- any follow-up work that is intentionally left out
 
 ## Schema changes
 
