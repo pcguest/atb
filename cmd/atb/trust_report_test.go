@@ -7,7 +7,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 )
 
-func TestParseTrustReportArgs(t *testing.T) {
+func TestTrustReportParseArgs(t *testing.T) {
 	tmp := t.TempDir()
 	custom := filepath.Join(tmp, "custom.atb")
 
@@ -22,6 +22,7 @@ func TestParseTrustReportArgs(t *testing.T) {
 			want: trustReportConfig{
 				BundlePath: bundle.DefaultPath(),
 				Format:     "markdown",
+				ProfileID:  "",
 			},
 		},
 		{
@@ -30,6 +31,7 @@ func TestParseTrustReportArgs(t *testing.T) {
 			want: trustReportConfig{
 				BundlePath: bundle.DefaultPath(),
 				Format:     "json",
+				ProfileID:  "",
 			},
 		},
 		{
@@ -38,11 +40,35 @@ func TestParseTrustReportArgs(t *testing.T) {
 			want: trustReportConfig{
 				BundlePath: custom,
 				Format:     "markdown",
+				ProfileID:  "",
+			},
+		},
+		{
+			name: "profile flag",
+			args: []string{"--profile", "atb.profile.privileged_tool_action"},
+			want: trustReportConfig{
+				BundlePath: bundle.DefaultPath(),
+				Format:     "markdown",
+				ProfileID:  "atb.profile.privileged_tool_action",
+			},
+		},
+		{
+			name: "equals profile flag",
+			args: []string{"--profile=atb.profile.rag_answer"},
+			want: trustReportConfig{
+				BundlePath: bundle.DefaultPath(),
+				Format:     "markdown",
+				ProfileID:  "atb.profile.rag_answer",
 			},
 		},
 		{
 			name:    "missing format value",
 			args:    []string{"--format"},
+			wantErr: true,
+		},
+		{
+			name:    "missing profile value",
+			args:    []string{"--profile"},
 			wantErr: true,
 		},
 		{

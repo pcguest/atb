@@ -57,24 +57,29 @@ type Summary struct {
 
 // Report is the machine-readable trust report envelope.
 type Report struct {
-	Status      string     `json:"status"`
-	GeneratedAt string     `json:"generated_at"`
-	BundlePath  string     `json:"bundle_path"`
-	ChainLength int        `json:"chain_length"`
-	HeadHash    string     `json:"head_hash,omitempty"`
-	Gate        Gate       `json:"gate"`
-	Summary     Summary    `json:"summary"`
-	Categories  []Category `json:"categories"`
+	Status      string      `json:"status"`
+	GeneratedAt string      `json:"generated_at"`
+	BundlePath  string      `json:"bundle_path"`
+	ChainLength int         `json:"chain_length"`
+	HeadHash    string      `json:"head_hash,omitempty"`
+	Gate        Gate        `json:"gate"`
+	Summary     Summary     `json:"summary"`
+	Categories  []Category  `json:"categories"`
+	CAS         *CASSection `json:"cas,omitempty"`
 }
 
 // BuildReport creates a trust report for the bundle path, preferring workspace
 // evidence under repoRoot and falling back to shipped embedded evidence.
-func BuildReport(repoRoot string, bundlePath string) Report {
+func BuildReport(repoRoot string, bundlePath string, profileID string) Report {
 	categories := []Category{
 		cryptoCategory(bundlePath, repoRoot),
 		operationalSafetyCategory(repoRoot),
 		testCoverageCategory(repoRoot),
 		documentationCategory(repoRoot),
+	}
+	casSection, casWarning := buildCASSection(bundlePath, profileID)
+	if casWarning != "" {
+		categories = append(categories, casProfileWarningCategory(casWarning))
 	}
 	report := Report{
 		Status:      aggregateStatus(categories),
@@ -83,6 +88,7 @@ func BuildReport(repoRoot string, bundlePath string) Report {
 		Gate:        evaluateGate(categories),
 		Summary:     summarizeChecks(categories),
 		Categories:  categories,
+		CAS:         casSection,
 	}
 	for _, category := range categories {
 		if category.Key != "cryptographic_integrity" {

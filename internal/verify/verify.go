@@ -7,9 +7,9 @@ import (
 	"math"
 	"sort"
 
+	"github.com/pcguest/atb/internal/anchorverify"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/trust"
 )
 
 // IntegrityResult holds the outcome of chain integrity verification.
@@ -125,7 +125,7 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 			continue
 		}
 
-		subScores := subScoresForProfile(profile, b.Records, anchorResult)
+		subScores := subScoresForBundleWithAnchorResult(b, profile.ID(), anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
 		report.ResidualRisk = deriveResidualRisk(cas, result)
@@ -151,7 +151,7 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 
 	if profileSupportsCAS(profile) {
 		anchorResult := ClassifyAnchor(b, bundlePath)
-		subScores := subScoresForProfile(profile, b.Records, anchorResult)
+		subScores := subScoresForBundleWithAnchorResult(b, profile.ID(), anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
 		report.ResidualRisk = deriveResidualRisk(cas, result)
@@ -286,7 +286,7 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 	}
 
 	report.Anchoring = scanAnchoring(b.Records)
-	if anchorResults := trust.VerifyAnchors(b); len(anchorResults) > 0 {
+	if anchorResults := anchorverify.VerifyAnchors(b); len(anchorResults) > 0 {
 		for _, r := range anchorResults {
 			if r.TSAVerified {
 				report.Anchoring.TSAVerified = true

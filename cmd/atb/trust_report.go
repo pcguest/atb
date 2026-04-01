@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -17,6 +18,7 @@ var errTrustReportHelp = errors.New("trust-report help requested")
 type trustReportConfig struct {
 	BundlePath string
 	Format     string
+	ProfileID  string
 }
 
 func cmdTrustReport() {
@@ -37,7 +39,7 @@ func cmdTrustReport() {
 		os.Exit(exitSystemError)
 	}
 
-	report := trust.BuildReport(cwd, cfg.BundlePath)
+	report := trust.BuildReport(cwd, cfg.BundlePath, cfg.ProfileID)
 	switch cfg.Format {
 	case "json":
 		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
@@ -69,8 +71,16 @@ func parseTrustReportArgs(args []string) (trustReportConfig, error) {
 			}
 			cfg.Format = strings.ToLower(strings.TrimSpace(args[i+1]))
 			i++
+		case arg == "--profile" || arg == "-p":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for %s", arg)
+			}
+			cfg.ProfileID = strings.TrimSpace(args[i+1])
+			i++
 		case strings.HasPrefix(arg, "--format="):
 			cfg.Format = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
+		case strings.HasPrefix(arg, "--profile="):
+			cfg.ProfileID = strings.TrimSpace(strings.TrimPrefix(arg, "--profile="))
 		case strings.HasPrefix(arg, "--"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -88,7 +98,7 @@ func parseTrustReportArgs(args []string) (trustReportConfig, error) {
 }
 
 func printTrustReportUsage() {
-	fmt.Println("Usage: atb trust-report [bundle_path] [--format markdown|json]")
+	fmt.Println("Usage: atb trust-report [bundle_path] [--format markdown|json] [--profile <id>]")
 }
 
 func printTrustReportMarkdown(report trust.Report) {
@@ -108,6 +118,25 @@ func printTrustReportMarkdown(report trust.Report) {
 		fmt.Printf("- Failed blocking checks: `%s`\n", strings.Join(report.Gate.FailedChecks, "`, `"))
 	}
 	fmt.Println()
+	if report.CAS != nil {
+		fmt.Println("## Completeness Assurance")
+		fmt.Println()
+		fmt.Printf("- Profile: `%s`\n", report.CAS.ProfileID)
+		fmt.Printf("- Workflow class: `%s`\n", report.CAS.WorkflowClass)
+		fmt.Printf("- Overall: %.3f (%s)\n", report.CAS.Overall, report.CAS.Grade)
+		fmt.Printf("- Anchor quality: `%s` (XC=%.3f, AC=%.3f)\n", report.CAS.AnchorQuality.Label, report.CAS.AnchorQuality.XC, report.CAS.AnchorQuality.AC)
+
+		scoreKeys := sortedFloatKeys(report.CAS.SubScores)
+		if len(scoreKeys) > 0 {
+			fmt.Printf("- Sub-scores: `%s`\n", formatFloatMap(report.CAS.SubScores, scoreKeys))
+		}
+
+		weightKeys := sortedFloatKeys(report.CAS.Weights)
+		if len(weightKeys) > 0 {
+			fmt.Printf("- Weights: `%s`\n", formatFloatMap(report.CAS.Weights, weightKeys))
+		}
+		fmt.Println()
+	}
 	for _, category := range report.Categories {
 		fmt.Printf("## %s (%s)\n\n", category.Title, strings.ToUpper(category.Status))
 		for _, check := range category.Checks {
@@ -134,4 +163,21 @@ func relativeOrOriginal(bundlePath string, candidate string) string {
 		return candidate
 	}
 	return rel
+}
+
+func sortedFloatKeys(values map[string]float64) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func formatFloatMap(values map[string]float64, keys []string) string {
+	parts := make([]string, 0, len(keys))
+	for _, key := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%.3f", key, values[key]))
+	}
+	return strings.Join(parts, ", ")
 }

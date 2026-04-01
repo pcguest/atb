@@ -568,7 +568,7 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 	files = append(files, exportFileEntry{ZipPath: verifyReportZip, Data: verifyReportData})
 	manifest.IncludedFiles = append(manifest.IncludedFiles, verifyReportZip)
 
-	trustReport := trust.BuildReport(cwd, bundle.DefaultPath())
+	trustReport := trust.BuildReport(cwd, bundle.DefaultPath(), "")
 	trustData, err := json.MarshalIndent(trustReport, "", "  ")
 	if err != nil {
 		return result, fmt.Errorf("marshal trust report: %w", err)
