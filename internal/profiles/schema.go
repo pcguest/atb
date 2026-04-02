@@ -37,12 +37,11 @@ type RequiredWhenRule struct {
 }
 
 type EventRule struct {
-	Type               string             `yaml:"type"`
-	Fields             []string           `yaml:"fields"`
-	Message            string             `yaml:"message"`
-	Severity           string             `yaml:"severity"`
-	TemporalConditions []string           `yaml:"temporal_conditions,omitempty"`
-	RequiredWhen       []RequiredWhenRule `yaml:"required_when,omitempty"`
+	Type         string             `yaml:"type"`
+	Fields       []string           `yaml:"fields"`
+	Message      string             `yaml:"message"`
+	Severity     string             `yaml:"severity"`
+	RequiredWhen []RequiredWhenRule `yaml:"required_when,omitempty"`
 }
 
 type RelationRule struct {

@@ -24,8 +24,8 @@ These are configured in GitHub repository secrets for publish/notification workf
 | Secret | Used by | Purpose |
 | --- | --- | --- |
 | `NPM_TOKEN` | `.github/workflows/release.yml` | Publish TypeScript SDK |
-| `DOCKERHUB_USERNAME` | `.github/workflows/release.yml` | Push Docker images |
-| `DOCKERHUB_TOKEN` | `.github/workflows/release.yml` | Push Docker images |
+| `DOCKERHUB_USERNAME` | `.github/workflows/docker-publish.yml` | Push Docker images |
+| `DOCKERHUB_TOKEN` | `.github/workflows/docker-publish.yml` | Push Docker images |
 | `GITHUB_TOKEN` | GitHub-provided | Workflow auth for release publication |
 
 PyPI publishing in v1.1.0 uses GitHub OIDC trusted publishing through `.github/workflows/release.yml`, so no repository secret is required for PyPI.

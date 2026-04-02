@@ -1,10 +1,10 @@
 # ATB Status
 
-Last updated: 2026-03-31
+Last updated: 2026-04-02
 
 ## Release Status
 
-- ✅ Public release: `v1.5.0`
+- ✅ Public release: `v1.8.1`
 - ✅ CI and security gates passing
 - ⚠️ Documentation alignment is in progress
 
@@ -43,7 +43,7 @@ The following capability areas match the public README feature set.
 - Multi-OS CI matrix for Go, Python, and TypeScript
 - Golden cross-language canonicalization and parity tests
 - Security pipeline: gosec, Bandit, npm audit, Trivy FS/image scans
-- Secret scanning before release publication
+- Tag-triggered release validation plus separate Docker image publication
 
 ## Current Focus
 

@@ -21,7 +21,6 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 ## Release Status
 
 - Current release: [`v1.8.1`](CHANGELOG.md)
-- Gold release status: [`APPROVED FOR GOLD RELEASE`](docs/security/gold-signoff.md)
 - All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 
 ## 5 Minute Start

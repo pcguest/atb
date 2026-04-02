@@ -1,0 +1,67 @@
+name: Docker Publish (Layer E)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.8.1)"
+        required: true
+        type: string
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  # Layer E: Docker image build and publication are an optional distribution channel.
+  docker-publish:
+    name: Docker Publish (Layer E)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${INPUT_TAG}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+
+          case "${TAG}" in
+            v*.*.*) ;;
+            *)
+              echo "Release tag must match v*.*.*; got ${TAG}"
+              exit 1
+              ;;
+          esac
+
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
+          IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
+
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t "${IMAGE}:v${VERSION}" \
+            -t "${IMAGE}:v${MAJOR_MINOR}" \
+            -t "${IMAGE}:latest" \
+            --push \
+            .

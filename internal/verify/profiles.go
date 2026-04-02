@@ -73,13 +73,6 @@ var backgroundAutomationCriticalRequirements = []eventRequirement{
 	{eventType: event.TypeAIActionCommitted, requiredFields: []string{"action_id", "commit_outcome", "sink_receipt_digest"}},
 }
 
-var highImpactActionTypes = map[string]struct{}{
-	"delete_records": {},
-	"deploy_change":  {},
-	"export_data":    {},
-	"transfer_funds": {},
-}
-
 var registeredProfiles []Profile
 
 // Profile defines the interface for a pluggable obligation profile evaluator.
@@ -642,80 +635,6 @@ func evaluateSchemaProfile(schema profiledsl.ProfileSchema, records []bundle.Rec
 	}
 
 	return result
-}
-
-func evaluateCriticalRequirement(result *ProfileResult, records []bundle.Record, requirement eventRequirement) {
-	if len(records) == 0 {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind:   "missing_event",
-			Detail: fmt.Sprintf("%s missing", requirement.eventType),
-		})
-		return
-	}
-	if len(requirement.requiredFields) == 0 {
-		return
-	}
-
-	for _, record := range records {
-		data := dataMap(record.Event.Data)
-		if data == nil {
-			result.InformationalNotes = append(result.InformationalNotes,
-				fmt.Sprintf("%s: event data is not a map[string]any; field checks skipped", requirement.eventType))
-			result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-				Kind:   "missing_field",
-				Detail: fmt.Sprintf("%s missing required fields: %s", requirement.eventType, strings.Join(requirement.requiredFields, ", ")),
-			})
-			continue
-		}
-
-		missing := missingFields(data, requirement.requiredFields)
-		if len(missing) == 0 {
-			continue
-		}
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind:   "missing_field",
-			Detail: fmt.Sprintf("%s missing required fields: %s", requirement.eventType, strings.Join(missing, ", ")),
-		})
-	}
-}
-
-func checkOptionalRequirement(result *ProfileResult, records []bundle.Record, requirement eventRequirement, missingMessage string) {
-	if len(records) == 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			fmt.Sprintf("missing_event: %s", missingMessage))
-		return
-	}
-	if len(requirement.requiredFields) == 0 {
-		return
-	}
-
-	for _, record := range records {
-		data := dataMap(record.Event.Data)
-		if data == nil {
-			result.InformationalNotes = append(result.InformationalNotes,
-				fmt.Sprintf("%s: event data is not a map[string]any; field checks skipped", requirement.eventType))
-			result.RequiredWarnings = append(result.RequiredWarnings,
-				fmt.Sprintf("missing_field: %s missing required fields: %s", requirement.eventType, strings.Join(requirement.requiredFields, ", ")))
-			continue
-		}
-
-		missing := missingFields(data, requirement.requiredFields)
-		if len(missing) == 0 {
-			continue
-		}
-		result.RequiredWarnings = append(result.RequiredWarnings,
-			fmt.Sprintf("missing_field: %s missing required fields: %s", requirement.eventType, strings.Join(missing, ", ")))
-	}
-}
-
-func requiresHumanApproval(precommits []bundle.Record) bool {
-	for _, record := range precommits {
-		actionType := fieldString(record, "action_type")
-		if _, ok := highImpactActionTypes[actionType]; ok {
-			return true
-		}
-	}
-	return false
 }
 
 func boundedExecutionWindowWarnings(precommitByAction, executedByAction map[string][]bundle.Record) []string {

@@ -52,7 +52,7 @@ Bump PATCH for backward-compatible fixes:
 2. Confirm versions and changelog are updated.
 3. Run local preflight (`scripts/release-check.sh`).
 4. Create annotated tag `v1.0.0`.
-5. Push tag and monitor release workflow.
+5. Push tag and monitor release and Docker publish workflows.
 6. Verify published artifacts:
    - GitHub release binaries + checksums
    - PyPI package
@@ -109,14 +109,14 @@ Bump PATCH for backward-compatible fixes:
 - Use GitHub Secrets/OIDC:
   - PyPI via trusted publishing (OIDC)
   - npm auth via `NPM_TOKEN`
-  - Docker Hub auth via `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN`
+  - Docker Hub auth via `DOCKERHUB_USERNAME` + `DOCKERHUB_TOKEN` in `docker-publish.yml`
 - Optionally sign artifacts/images in future phase (cosign)
 
 ## CI/CD Flow
 
 Trigger on tags matching `v*.*.*`.
 
-Pipeline jobs:
+`release.yml` handles GitHub Releases, PyPI, and npm:
 
 1. **Validate**
    - Lockfile consistency checks
@@ -126,14 +126,14 @@ Pipeline jobs:
    - Multi-OS CLI binaries
    - Python wheel/sdist
    - npm package build
-   - Docker image build
 3. **Verify**
    - Smoke test built artifacts
 4. **Publish**
    - GitHub Release upload
    - PyPI publish
    - npm publish with provenance
-   - Docker Hub push
+
+`docker-publish.yml` handles Docker image build and push for the same tag.
 
 ## Rollback Policy
 

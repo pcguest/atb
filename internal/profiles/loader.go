@@ -119,7 +119,6 @@ func normaliseEventRule(rule EventRule) EventRule {
 	rule.Fields = trimAndFilter(rule.Fields)
 	rule.Message = strings.TrimSpace(rule.Message)
 	rule.Severity = strings.TrimSpace(rule.Severity)
-	rule.TemporalConditions = trimAndFilter(rule.TemporalConditions)
 	for i := range rule.RequiredWhen {
 		rule.RequiredWhen[i].WhenType = strings.TrimSpace(rule.RequiredWhen[i].WhenType)
 		rule.RequiredWhen[i].Message = strings.TrimSpace(rule.RequiredWhen[i].Message)
@@ -157,12 +156,10 @@ func cloneSchema(schema ProfileSchema) ProfileSchema {
 	cloned.Relations = append([]RelationRule(nil), schema.Relations...)
 	for i := range cloned.Required {
 		cloned.Required[i].Fields = append([]string(nil), schema.Required[i].Fields...)
-		cloned.Required[i].TemporalConditions = append([]string(nil), schema.Required[i].TemporalConditions...)
 		cloned.Required[i].RequiredWhen = append([]RequiredWhenRule(nil), schema.Required[i].RequiredWhen...)
 	}
 	for i := range cloned.Optional {
 		cloned.Optional[i].Fields = append([]string(nil), schema.Optional[i].Fields...)
-		cloned.Optional[i].TemporalConditions = append([]string(nil), schema.Optional[i].TemporalConditions...)
 		cloned.Optional[i].RequiredWhen = append([]RequiredWhenRule(nil), schema.Optional[i].RequiredWhen...)
 	}
 	return cloned

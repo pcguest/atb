@@ -32,11 +32,9 @@ func Evaluate(schema ProfileSchema, records []bundle.Record) EvaluationResult {
 
 	for _, rule := range schema.Required {
 		evaluateRequiredRule(&result, recordsByType[rule.Type], rule)
-		appendTemporalConditionNotes(&result, rule)
 	}
 	for _, rule := range schema.Optional {
 		evaluateOptionalRule(&result, recordsByType[rule.Type], rule)
-		appendTemporalConditionNotes(&result, rule)
 	}
 	for _, rule := range schema.Relations {
 		evaluateRelationRule(&result, recordsByType, rule)
@@ -188,14 +186,6 @@ func requiredWhenConditionTimestampWarning(targetType string, conditionType stri
 
 func requiredWhenTargetTimestampWarning(targetType string, conditionType string) string {
 	return fmt.Sprintf("required_when: unable to enforce ordering between %s and %s because %s timestamps are missing or invalid", targetType, conditionType, targetType)
-}
-
-func appendTemporalConditionNotes(result *EvaluationResult, rule EventRule) {
-	if len(rule.TemporalConditions) == 0 {
-		return
-	}
-	result.InformationalNotes = append(result.InformationalNotes,
-		fmt.Sprintf("temporal_conditions: %s ignored in v1", rule.Type))
 }
 
 func messageOrDefault(message string, fallback string) string {

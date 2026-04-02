@@ -14,7 +14,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Layers A/B/D: release-entry validation for integrity, profile-bearing artifacts, and security-sensitive dependency checks.
   validate:
+    name: Validate Release Inputs (Layers A/B/D)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -71,8 +73,14 @@ jobs:
         run: |
           set -euo pipefail
           TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CLI_VERSION="$(go run ./cmd/atb version | awk '{print $2}')"
           PY_VERSION="$(python -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('sdk/python/pyproject.toml').read_text())['project']['version'])")"
           TS_VERSION="$(node -p "require('./sdk/typescript/package.json').version")"
+
+          if [ "$TAG_VERSION" != "$CLI_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) does not match CLI version ($CLI_VERSION)."
+            exit 1
+          fi
 
           if [ "$TAG_VERSION" != "$PY_VERSION" ]; then
             echo "Tag version ($TAG_VERSION) does not match sdk/python version ($PY_VERSION)."
@@ -84,7 +92,9 @@ jobs:
             exit 1
           fi
 
+  # Layers A/B/D: build verified release artifacts for the non-Docker release path.
   build:
+    name: Build Release Artifacts (Layers A/B/D)
     runs-on: ubuntu-latest
     needs: validate
     permissions:
@@ -136,14 +146,6 @@ jobs:
           npm run build
           npm pack --silent
 
-      - name: Build Docker image (smoke)
-        run: docker build --platform linux/amd64 -t atb:release-smoke .
-
-      - name: Export Docker smoke image
-        run: |
-          mkdir -p dist/release
-          docker save atb:release-smoke -o dist/release/atb-docker-linux-amd64.tar
-
       - name: Upload CLI binaries
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
@@ -162,7 +164,9 @@ jobs:
           name: npm-package
           path: sdk/typescript/*.tgz
 
+  # Layers A/B/D: re-verify shipped artifacts before any publication step.
   verify:
+    name: Verify Release Artifacts (Layers A/B/D)
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -207,12 +211,9 @@ jobs:
           npm install artifacts/npm/*.tgz
           node -e "require('@pcguest/atb-sdk'); console.log('npm package load ok')"
 
-      - name: Smoke test Docker image
-        run: |
-          docker load -i artifacts/cli/atb-docker-linux-amd64.tar
-          docker run --rm atb:release-smoke version
-
+  # Layer E: distribute non-Docker release artifacts only after validation, build, and verification have passed.
   publish:
+    name: Publish Verified Artifacts (Layer E)
     runs-on: ubuntu-latest
     needs: verify
     if: startsWith(github.ref, 'refs/tags/')
@@ -237,6 +238,7 @@ jobs:
           name: npm-package
           path: artifacts/npm
 
+      # Layer E: distribution of verified release artifacts to GitHub, PyPI, and npm.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2
         with:
@@ -265,29 +267,3 @@ jobs:
         run: |
           npm whoami
           npm publish artifacts/npm/*.tgz --access public
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push Docker image
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: |
-          set -euo pipefail
-          VERSION="${GITHUB_REF_NAME#v}"
-          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
-          IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
-
-          docker buildx build \
-            --platform linux/amd64,linux/arm64 \
-            -t "${IMAGE}:v${VERSION}" \
-            -t "${IMAGE}:v${MAJOR_MINOR}" \
-            -t "${IMAGE}:latest" \
-            --push \
-            .

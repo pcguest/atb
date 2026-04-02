@@ -8,7 +8,9 @@ on:
   workflow_dispatch:
 
 jobs:
+  # Layers A/B: core integrity, SDK validation, and docs/CLI sync gates.
   test:
+    name: Core Validation (Layers A/B)
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -98,7 +100,9 @@ jobs:
             "$DISCORD_WEBHOOK_URL"
         continue-on-error: true
 
+  # Layers A/B: multi-language golden canonicalization and parity checks.
   golden-test:
+    name: Golden Parity (Layers A/B)
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -159,3 +163,19 @@ jobs:
           diff hash-go.txt hash-python.txt
           diff hash-python.txt hash-typescript.txt
           echo "✅ all language outputs are byte-identical"
+
+  # Layer C: ACP control-plane invariant for gated actions.
+  acp-gate:
+    name: ACP Control-Plane Gate (Layer C)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.26.1"
+
+      - name: Run ACP control-plane gate
+        run: go test -tags=integration ./internal/integration/... -run TestACPControlPlaneGate -v

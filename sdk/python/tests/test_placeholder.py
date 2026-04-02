@@ -1,12 +1,14 @@
 """Placeholder tests for ATB Python SDK."""
 
+from importlib import metadata
+
 
 def test_sdk_imports():
     """Verify the SDK can be imported."""
     import atb
 
     assert hasattr(atb, "__version__")
-    assert atb.__version__ == "1.8.0"
+    assert atb.__version__ == metadata.version("atb-sdk")
 
 
 def test_bundle_class_exists():
