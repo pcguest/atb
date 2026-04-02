@@ -177,5 +177,10 @@ jobs:
         with:
           go-version: "1.26.1"
 
+      - name: Seed minimal UI embed tree
+        run: |
+          mkdir -p web/out
+          touch web/out/acp-gate-placeholder.txt
+
       - name: Run ACP control-plane gate
         run: go test -tags=integration ./internal/integration/... -run TestACPControlPlaneGate -v

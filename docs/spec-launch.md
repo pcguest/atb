@@ -44,7 +44,7 @@ Bump PATCH for backward-compatible fixes:
 - Mark deprecations in one MINOR release
 - Keep deprecated behavior through at least one additional MINOR
 - Remove deprecated behavior only in next MAJOR
-- Current v1.1.x stance: Python and TypeScript ship SDKs only. Their `atb` entrypoints are compatibility stubs pending removal in the next MAJOR release.
+- Current v1.x stance: Python and TypeScript ship SDKs only. Their `atb` entrypoints are compatibility stubs pending removal in the next MAJOR release.
 
 ## Release Checklist (v1.0.0)
 
@@ -82,7 +82,7 @@ Bump PATCH for backward-compatible fixes:
   - `types`, `exports`, `repository.directory`
   - `files` whitelist for deterministic package contents
 - Publish command:
-  - `npm publish --access public --provenance`
+  - `npm publish --access public`
 
 ### Docker
 
@@ -131,7 +131,7 @@ Trigger on tags matching `v*.*.*`.
 4. **Publish**
    - GitHub Release upload
    - PyPI publish
-   - npm publish with provenance
+   - npm publish
 
 `docker-publish.yml` handles Docker image build and push for the same tag.
 

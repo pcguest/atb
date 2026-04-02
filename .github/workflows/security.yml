@@ -79,7 +79,7 @@ jobs:
         working-directory: sdk/typescript
         run: npm audit --audit-level=high
 
-  # Layer D: filesystem vulnerability scan; no Docker image build required.
+  # Layer D: scheduled/manual filesystem vulnerability sweep; no Docker image build required.
   trivy-fs:
     name: Layer D - Trivy Filesystem Scan
     runs-on: ubuntu-latest

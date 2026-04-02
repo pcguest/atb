@@ -100,11 +100,6 @@ jobs:
               }
             }
 
-            lines.push('');
-            lines.push('### Social Mentions');
-            lines.push('- HN: manual review pending');
-            lines.push('- Twitter/X: manual review pending');
-
             const summary = lines.join('\n');
             core.setOutput('summary', summary);
             core.setOutput('blockers', String(blockers.length));

@@ -4,7 +4,7 @@
 
 - [x] Registry health check runs via GitHub Actions
   - Script: `./scripts/check-registries.sh`
-  - Workflow: `.github/workflows/registry-health.yml`
+  - Workflow: `.github/workflows/ops.yml` (`registry-health` job)
   - Alert: Discord notification on failure
 
 ## Monday (Manual, 5 Minutes)

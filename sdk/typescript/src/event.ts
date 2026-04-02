@@ -2,7 +2,7 @@
  * Canonical ATB event model with optional multi-tenant identity fields.
  */
 
-// TODO: align with Go canonical event model in v1.2.0
+// TODO: align with the Go canonical event model.
 
 export interface Event {
   seq: number;

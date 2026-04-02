@@ -19,29 +19,32 @@ atb view --ui-experimental --no-open
 
 ## Local Validation
 
-Run all core checks before opening a PR:
-
-```bash
-go test ./...
-
-cd sdk/python
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .[dev]
-pytest -v
-
-cd ../typescript
-npm ci
-npm run typecheck
-npm run test
-npm run build
-```
-
-## Dashboard Build
+Match the CI setup order in a clean checkout before opening a PR:
 
 ```bash
 cd web
 npm ci
+npm run build
+
+cd ../sdk/python
+python3 -m venv venv
+source venv/bin/activate
+pip install -e .[dev]
+
+cd ../typescript
+npm ci
+npm run build
+
+cd ../..
+go test ./...
+
+cd sdk/python
+source venv/bin/activate
+pytest -v
+
+cd ../typescript
+npm run typecheck
+npm run test
 npm run build
 ```
 

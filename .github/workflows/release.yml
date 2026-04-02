@@ -261,7 +261,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           scope: "@pcguest"
 
-      - name: Publish npm package (OIDC provenance)
+      - name: Publish npm package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |

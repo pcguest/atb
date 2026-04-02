@@ -42,7 +42,7 @@ The following capability areas match the public README feature set.
 
 - Multi-OS CI matrix for Go, Python, and TypeScript
 - Golden cross-language canonicalization and parity tests
-- Security pipeline: gosec, Bandit, npm audit, Trivy FS/image scans
+- Security pipeline: gosec, Bandit, npm audit, plus scheduled/manual Trivy FS/image scans
 - Tag-triggered release validation plus separate Docker image publication
 
 ## Current Focus

@@ -27,6 +27,16 @@ ATB is designed for tamper evidence first and local-first operation.
 6. RFC 3161 token verification
 - `atb verify --with-anchor` verifies the full RFC 3161 token: digest match, TSA certificate chain against system roots, and SignerInfo signature.
 
+## Assurance Layers
+
+- Layer A, Integrity: ATB bundles, SHA-256 hash chaining, RFC 8785 canonical JSON, and optional RFC 3161 TSA anchors.
+- Layer B, Profiles and CAS: schema-backed obligation profiles and profile-scoped completeness scoring for workflow evidence.
+- Layer C, ACP: control-plane gating for high-impact actions, with the invariant that no gated action should execute without an ATB pre-commit.
+- Layer D, Security scanning: `gosec`, Bandit, and `npm audit` on the repository, plus scheduled or manually requested Trivy filesystem and Docker image scans.
+- Layer E, Distribution and ops: Git tags, GitHub releases, checksums, PyPI, npm, and Docker image publication.
+
+Docker images are published by a separate `Docker Publish` workflow on tag pushes or manual dispatch. They remain part of Layer E distribution rather than the Layer A-C assurance boundary.
+
 ## Client-Side Security Flow
 
 ```mermaid
@@ -93,10 +103,13 @@ make security-scan
 
 Behavior:
 
-- Uses local `trivy` and `gosec` binaries when installed.
-- Falls back to Docker-based execution when local binaries are missing.
+- `make security-scan` prefers local `trivy` and `gosec` binaries when installed.
+- For local development only, it may fall back to Docker-based execution when those binaries are missing.
+- CI does not use Docker for the Go code scan. The security workflow installs `gosec` with `go install` and invokes the binary directly.
+- CI runs Trivy filesystem scans via the GitHub Action on scheduled or manually dispatched security sweeps with `scan-type: fs`.
+- CI runs Trivy image scans only on scheduled or manually dispatched runs, building a local Docker image first and then scanning it with `scan-type: image`.
 
-This keeps CI/local validation consistent even when scanner binaries are not preinstalled on a workstation.
+This keeps local validation usable on workstations without preinstalled scanners while the CI gates stay on pinned action or binary-based execution paths.
 
 ## Privacy Reveal Controls
 
