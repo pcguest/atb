@@ -190,7 +190,7 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "trust-report",
-				Usage:       "atb trust-report [bundle_path] [--format markdown|json] [--profile <id>]",
+				Usage:       "atb trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]",
 				Description: "Generate trust report sections for audit.",
 				Flags:       []string{"--format", "--profile"},
 				Mutating:    false,
@@ -336,7 +336,7 @@ Commands:
   archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
   export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]  Export auditor-friendly local evidence bundle
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
-  trust-report [bundle_path] [--format markdown|json] [--profile <id>]  Build a trust report for AI + human audit
+  trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
   view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]  Open the local viewer (dashboard preview behind --ui-experimental)
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
   version           Print the ATB version

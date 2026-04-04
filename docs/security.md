@@ -76,7 +76,7 @@ Out of scope for v1:
 - CI gating before release workflows.
 
 2. Operational controls
-- Secrets in GitHub Actions are stored only in repository secrets.
+- Secrets in GitHub Actions are stored in repository secrets, and PyPI release access uses GitHub OIDC trusted publishing.
 - No secrets committed to source control.
 - Weekly registry health checks and maintenance checklist in `docs/maintenance/`.
 

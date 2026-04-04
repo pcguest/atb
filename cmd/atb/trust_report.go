@@ -101,7 +101,7 @@ func parseTrustReportArgs(args []string) (trustReportConfig, error) {
 }
 
 func printTrustReportUsage() {
-	fmt.Println("Usage: atb trust-report [bundle_path] [--format markdown|json] [--profile <id>]")
+	fmt.Println("Usage: atb trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]")
 }
 
 func printTrustReportMarkdown(report trust.Report) {

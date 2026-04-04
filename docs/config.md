@@ -11,10 +11,13 @@ ATB core CLI is local-first and does not require environment variables for day-t
 
 | Command | Flags |
 | --- | --- |
-| `atb append` | `<json>` or `--data <json>` |
-| `atb snapshot` | `<name>` |
-| `atb verify` | optional `bundle_path` |
-| `atb view` | optional `bundle_path`, `--port <port>`, `--no-open`, `--ui-experimental` |
+| `atb init` | `--dry-run`, `--format text or json` |
+| `atb append` | `<type> <json>` or `--data <json>`, `--actor-id`, `--org-id`, `--workspace-id`, `--sign-policy`, `--dry-run`, `--format text or json` |
+| `atb snapshot` | `<name>`, `--bundle <path>`, `--quiet`, `--dry-run`, `--format text or json` |
+| `atb verify` | optional `bundle_path`, `--bundle <path>`, `--profile <id or path>`, `--json`, `--format text or json`, `--quiet`, `--trace`, `--with-anchor`, `--roots <pem-file>` |
+| `atb events` | `--json`, `--profile <id>` |
+| `atb trust-report` | optional `bundle_path`, `--format markdown, json, or text`, `--profile <id>` |
+| `atb view` | optional `bundle_path`, `--bundle <path>`, `--port <port>`, `--no-open`, `--log-reveals`, `--ui-experimental` |
 
 ## CI/CD Secrets
 
@@ -25,6 +28,7 @@ These are configured in GitHub repository secrets for publish/notification workf
 | `NPM_TOKEN` | `.github/workflows/release.yml` | Publish TypeScript SDK |
 | `DOCKERHUB_USERNAME` | `.github/workflows/docker-publish.yml` | Push Docker images |
 | `DOCKERHUB_TOKEN` | `.github/workflows/docker-publish.yml` | Push Docker images |
+| `DISCORD_WEBHOOK_URL` | `.github/workflows/ci.yml`, `.github/workflows/ops.yml` | Failure and ops notifications |
 | `GITHUB_TOKEN` | GitHub-provided | Workflow auth for release publication |
 
 PyPI publishing uses GitHub OIDC trusted publishing through `.github/workflows/release.yml`, so no repository secret is required for PyPI.

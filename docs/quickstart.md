@@ -61,23 +61,20 @@ from atb import Bundle
 bundle = Bundle()
 
 bundle.append("agent.prompt", {
-    "timestamp": "2026-03-03T10:00:00Z",
     "actor": "planner",
     "model": "gpt-4",
     "prompt": "Outline a blog post about AI safety",
-})
+}, timestamp="2026-03-03T10:00:00Z")
 
 bundle.append("agent.response", {
-    "timestamp": "2026-03-03T10:00:02Z",
     "actor": "planner",
     "tokens": 142,
     "output": "Draft outline...",
-})
+}, timestamp="2026-03-03T10:00:02Z")
 
 bundle.append("snapshot.build", {
     "gate": "pass",
-    "timestamp": "2026-03-03T10:00:03Z",
-})
+}, timestamp="2026-03-03T10:00:03Z")
 
 bundle.save("my-trace.atb")
 bundle.verify()

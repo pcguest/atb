@@ -14,9 +14,13 @@ go test ./...
 
 2. Reconfigure repository secrets
 
-- `PYPI_API_TOKEN`
 - `NPM_TOKEN`
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
 - `DISCORD_WEBHOOK_URL`
+
+PyPI publishing uses GitHub OIDC trusted publishing. Verify the trusted publisher
+configuration in PyPI instead of restoring a repository secret.
 
 3. Validate CI/CD
 

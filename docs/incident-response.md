@@ -22,9 +22,10 @@ Immediate actions:
 ## 2. Containment
 
 - Revoke and rotate affected credentials:
-  - `PYPI_API_TOKEN`
   - `NPM_TOKEN`
+  - `DOCKERHUB_TOKEN`
   - `DISCORD_WEBHOOK_URL`
+- Review GitHub OIDC trusted publishing configuration for PyPI release access.
 - Pause release/publish workflows if needed.
 - Disable any compromised integration endpoints.
 
