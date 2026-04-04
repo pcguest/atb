@@ -109,6 +109,17 @@ type HumanOverrideProfile struct{}
 // BackgroundAutomationProfile evaluates background automation workflows.
 type BackgroundAutomationProfile struct{}
 
+type subScoreBuilder func([]bundle.Record, AnchorVerifyResult) map[string]float64
+
+var profileSubScoreBuilders = map[string]subScoreBuilder{
+	profileIDPrivilegedToolAction: privilegedToolActionSubScores,
+	profileIDRAGAnswer:            ragAnswerSubScores,
+	profileIDDataExport:           dataExportSubScores,
+	profileIDPolicyDecision:       policyDecisionSubScores,
+	profileIDHumanOverride:        humanOverrideSubScores,
+	profileIDBackgroundAutomation: backgroundAutomationSubScores,
+}
+
 // Register adds a profile to the global registry.
 func Register(p Profile) {
 	if p == nil {
@@ -344,31 +355,16 @@ func (p *RAGAnswerProfile) Evaluate(records []bundle.Record) ProfileResult {
 }
 
 func subScoresForProfile(profile Profile, records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
-	switch profile.ID() {
-	case profileIDPrivilegedToolAction:
-		return privilegedToolActionSubScores(records, anchorResult)
-	case profileIDRAGAnswer:
-		return ragAnswerSubScores(records, anchorResult)
-	case profileIDDataExport:
-		return dataExportSubScores(records, anchorResult)
-	case profileIDPolicyDecision:
-		return policyDecisionSubScores(records, anchorResult)
-	case profileIDHumanOverride:
-		return humanOverrideSubScores(records, anchorResult)
-	case profileIDBackgroundAutomation:
-		return backgroundAutomationSubScores(records, anchorResult)
-	default:
-		return map[string]float64{
-			"EC": 0,
-			"FC": 0,
-			"RC": 0,
-			"TC": 0,
-			"SC": 0,
-			"XC": 0,
-			"AC": 0,
-			"GC": 0,
-		}
+	if profile == nil {
+		return zeroSubScores()
 	}
+
+	builder, ok := profileSubScoreBuilders[profile.ID()]
+	if !ok {
+		return zeroSubScores()
+	}
+
+	return builder(records, anchorResult)
 }
 
 func policyDecisionSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {

@@ -131,6 +131,11 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 			continue
 		}
 
+		if !profileSupportsCAS(profile) {
+			report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
+			continue
+		}
+
 		subScores := subScoresForBundleWithAnchorResult(b, profile.ID(), anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
