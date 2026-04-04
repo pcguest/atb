@@ -1,4 +1,3 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # ATB Dashboard Specification
 
 ## Status
@@ -27,7 +26,7 @@ Supported compatibility forms:
 
 Additional safety flags:
 - `--no-open`: do not auto-open browser
-- `--log-reveals`: retained for CLI compatibility; reveal auditing is always on in v1.1.0
+- `--log-reveals`: retained for CLI compatibility; reveal auditing is always on
 
 Plain `atb view` still serves the legacy local viewer at `/`.
 
