@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/pcguest/atb/internal/anchorverify"
 	"github.com/pcguest/atb/internal/bundle"
@@ -388,6 +389,10 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 		return []Profile{profile}
 	}
 
+	if profile := profileFromPurposeTag(records); profile != nil {
+		return []Profile{profile}
+	}
+
 	hasPrecommit := false
 	hasModelInvoked := false
 	for _, record := range records {
@@ -407,6 +412,49 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 	case hasModelInvoked:
 		if profile := ProfileByID(profileIDRAGAnswer); profile != nil {
 			return []Profile{profile}
+		}
+	}
+
+	return nil
+}
+
+func profileFromPurposeTag(records []bundle.Record) Profile {
+	for _, record := range records {
+		if record.Event.Type != event.TypeAIRequestReceived {
+			continue
+		}
+
+		fields, ok := record.Event.Data.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		purposeTag, _ := fields["purpose_tag"].(string)
+		purposeTag = strings.TrimSpace(purposeTag)
+		if purposeTag == "" {
+			continue
+		}
+
+		for _, candidateID := range []string{
+			profileIDPrivilegedToolAction,
+			profileIDDataExport,
+			profileIDPolicyDecision,
+			profileIDHumanOverride,
+			profileIDBackgroundAutomation,
+			profileIDRAGAnswer,
+		} {
+			profile := ProfileByID(candidateID)
+			if profile == nil {
+				continue
+			}
+
+			schema, ok := loadSchemaIfAvailable(candidateID)
+			if !ok {
+				continue
+			}
+			if purposeTag == schema.WorkflowClass || purposeTag == candidateID {
+				return profile
+			}
 		}
 	}
 

@@ -66,6 +66,163 @@ func TestVerify_ProfileAutoDetect(t *testing.T) {
 	}
 }
 
+func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
+	tests := []struct {
+		name      string
+		profileID string
+		build     func() *bundle.Bundle
+	}{
+		{
+			name:      "data_export",
+			profileID: profileIDDataExport,
+			build: func() *bundle.Bundle {
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-data-export",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "data_export",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+					"policy_id":             "pol-1",
+					"policy_version":        "2026-03",
+					"decision":              "allow",
+					"decision_reason_codes": []any{"export_allowed"},
+					"subject_id_hash":       "subject-hash",
+					"action_id":             "act-1",
+				}, "2026-03-27T12:01:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+					"action_id":                "act-1",
+					"action_type":              "export_data",
+					"action_parameters_digest": "params-digest",
+					"target_resource_id":       "dataset-1",
+					"intended_effect":          "export approved dataset",
+				}, "2026-03-27T12:02:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+					"action_id":           "act-1",
+					"execution_outcome":   "success",
+					"tool_receipt_digest": "tool-digest",
+				}, "2026-03-27T12:03:00Z")
+				appendVerifyRecord(t, b, event.TypeAIHumanApproval, map[string]any{
+					"approval_id":          "appr-1",
+					"approver_id_hash":     "approver-hash",
+					"approval_outcome":     "approve",
+					"justification_digest": "just-digest",
+					"action_id":            "act-1",
+				}, "2026-03-27T12:04:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionCommitted, map[string]any{
+					"action_id":           "act-1",
+					"commit_outcome":      "success",
+					"sink_receipt_digest": "sink-digest",
+				}, "2026-03-27T12:05:00Z")
+				return b
+			},
+		},
+		{
+			name:      "policy_decision",
+			profileID: profileIDPolicyDecision,
+			build: func() *bundle.Bundle {
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-policy-decision",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "policy_decision",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+					"policy_id":             "pol-1",
+					"policy_version":        "2026-03",
+					"decision":              "allow",
+					"decision_reason_codes": []any{"approved"},
+					"subject_id_hash":       "subject-hash",
+					"action_id":             "act-1",
+				}, "2026-03-27T12:01:00Z")
+				return b
+			},
+		},
+		{
+			name:      "human_override",
+			profileID: profileIDHumanOverride,
+			build: func() *bundle.Bundle {
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-human-override",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "human_override",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeAIHumanApproval, map[string]any{
+					"approval_id":          "appr-1",
+					"approver_id_hash":     "approver-hash",
+					"approval_outcome":     "approve",
+					"justification_digest": "just-digest",
+					"action_id":            "act-1",
+				}, "2026-03-27T12:01:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+					"action_id":                "act-1",
+					"action_type":              "override_action",
+					"action_parameters_digest": "params-digest",
+					"target_resource_id":       "svc-1",
+					"intended_effect":          "run approved override",
+				}, "2026-03-27T12:02:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+					"action_id":           "act-1",
+					"execution_outcome":   "success",
+					"tool_receipt_digest": "tool-digest",
+				}, "2026-03-27T12:03:00Z")
+				return b
+			},
+		},
+		{
+			name:      "background_automation",
+			profileID: profileIDBackgroundAutomation,
+			build: func() *bundle.Bundle {
+				b := bundle.New()
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-background",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "background_automation",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+					"policy_id":             "pol-1",
+					"policy_version":        "2026-03",
+					"decision":              "allow",
+					"decision_reason_codes": []any{"approved"},
+					"subject_id_hash":       "subject-hash",
+					"action_id":             "act-1",
+				}, "2026-03-27T12:01:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+					"action_id":                "act-1",
+					"action_type":              "run_job",
+					"action_parameters_digest": "params-digest",
+					"target_resource_id":       "job-1",
+					"intended_effect":          "run scheduled job",
+				}, "2026-03-27T12:02:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+					"action_id":           "act-1",
+					"execution_outcome":   "success",
+					"tool_receipt_digest": "tool-digest",
+				}, "2026-03-27T12:03:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionCommitted, map[string]any{
+					"action_id":           "act-1",
+					"commit_outcome":      "success",
+					"sink_receipt_digest": "sink-digest",
+				}, "2026-03-27T12:04:00Z")
+				return b
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			report := Verify(tc.build(), "bundle.atb", "")
+			if len(report.Profiles) != 1 {
+				t.Fatalf("expected one matched profile, got %d", len(report.Profiles))
+			}
+			if report.Profiles[0].ProfileID != tc.profileID {
+				t.Fatalf("unexpected profile ID: got %q want %q", report.Profiles[0].ProfileID, tc.profileID)
+			}
+		})
+	}
+}
+
 func TestVerify_PolicyDecision_Signed(t *testing.T) {
 	b := newSignedPrivilegedToolActionBundle(t)
 
