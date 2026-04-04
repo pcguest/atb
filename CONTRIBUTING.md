@@ -48,12 +48,12 @@ To skip hooks (not recommended): `git commit --no-verify`
 
 ## Release Process
 
-1. **Tag rc:** `git tag -a v1.1.0-rc1 -m "Release Candidate 1"`
+1. **Tag rc:** `git tag -a vX.Y.Z-rc1 -m "Release Candidate 1"`
 2. **Push tag:** `git push origin --tags`
 3. **Create GitHub Release:** Use tag, paste release notes from `docs/releases/`
 4. **E2E testing:** 48-hour window for internal testers
 5. **Address feedback:** Fix critical issues, tag rc2 if needed
-6. **Gold release:** `git tag -a v1.1.0 -m "Gold Release"`
+6. **Gold release:** `git tag -a vX.Y.Z -m "Gold Release"`
 7. **Publish:** Update the GitHub Release notes and notify relevant stakeholders
 
 ### Go CLI
@@ -136,8 +136,8 @@ Before tagging a release:
 3. Create and push an annotated tag that matches that version, for example:
 
 ```bash
-git tag -a v1.1.0 -m "Release v1.1.0"
-git push origin v1.1.0
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
 ```
 
 4. Monitor the `Release` workflow in GitHub Actions and verify the published artefacts

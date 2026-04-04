@@ -40,7 +40,7 @@ export default function Hero() {
           }`}
         >
           <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-          v1.1.0 | open-source CLI, SDKs, and local viewer
+          Open-source CLI, SDKs, and local viewer
         </div>
 
         {/* Headline */}

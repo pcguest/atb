@@ -1,10 +1,10 @@
-# ATB v1.1.0
+# ATB Release Announcement Template
 
-**Release Date:** 2026-03-12  
-**Tag:** `v1.1.0`  
-**Download:** https://github.com/pcguest/atb/releases/tag/v1.1.0
+**Release Date:** YYYY-MM-DD
+**Tag:** `vX.Y.Z`
+**Download:** https://github.com/pcguest/atb/releases/tag/vX.Y.Z
 
-ATB v1.1.0 sharpens ATB into a local-first audit trail for teams that need to verify what an AI workflow did, keep trace data under their control, and produce a portable review artefact without default external trace storage.
+ATB vX.Y.Z continues the local-first ATB runtime for teams that need to verify what an AI workflow did, keep trace data under their control, and produce a portable review artifact without default external trace storage.
 
 ## Highlights
 
@@ -34,9 +34,9 @@ atb verify
 atb view --ui-experimental
 ```
 
-## Core Positioning
+## Product Positioning
 
-ATB is for teams that need verifiable audit trails for privacy-sensitive AI systems. The Go CLI is the primary distribution path. The Python and TypeScript packages remain SDKs, not the primary CLI install path.
+ATB is for teams that need verifiable audit trails for privacy-sensitive AI systems. The Go CLI is the primary distribution path. The Python and TypeScript packages are SDKs, not the primary CLI install path.
 
 Best-fit workflows:
 

@@ -1,4 +1,3 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
 # ATB Configuration Reference
 
 ATB core CLI is local-first and does not require environment variables for day-to-day use.

@@ -1,4 +1,4 @@
-describe("Trust Dashboard v1.1.0", () => {
+describe("Trust Dashboard", () => {
   const selectRole = (role: "engineer" | "auditor" | "executive") => {
     cy.get('[data-testid="role-selector"]').click({ force: true });
     cy.get(`[data-testid="role-selector-${role}"]`).click({ force: true });

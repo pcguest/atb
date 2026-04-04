@@ -110,7 +110,7 @@ export default function Features() {
             {"// shipped today"}
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            What the repo implements in v1.1.0
+            What the repo implements today
           </h2>
           <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
             This page describes only the capabilities implemented in the repo today: local bundle

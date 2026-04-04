@@ -259,7 +259,7 @@ export default function ViewPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Operational Status</CardTitle>
           <CardDescription>
-            Role-based rendering and trust telemetry for ATB v1.1.0.
+            Role-based rendering and trust telemetry for the local ATB viewer.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">

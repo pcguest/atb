@@ -26,7 +26,7 @@ make test-embed
 
 The dashboard avoids runtime Google Fonts fetches in layout code to keep CI and offline builds reliable.
 
-## v1.1.0 Gold Release Readiness
+## Current Dashboard Readiness
 
 ### Completed
 

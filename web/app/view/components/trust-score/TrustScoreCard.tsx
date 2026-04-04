@@ -98,7 +98,7 @@ export function TrustScoreCard({ loading, breakdown }: TrustScoreCardProps) {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  v1.1.0 weights: continuity (40), encryption (30), timestamp (20), freshness (10).
+                  Current weights: continuity (40), encryption (30), timestamp (20), freshness (10).
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

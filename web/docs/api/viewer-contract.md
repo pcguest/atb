@@ -1,4 +1,4 @@
-# ATB Viewer API Contract (UI v1.1.0 Safe Track)
+# ATB Viewer API Contract
 
 This document mirrors the current backend payloads used by the Trust Dashboard shell.
 
