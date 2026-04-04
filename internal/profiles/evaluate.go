@@ -90,6 +90,9 @@ func evaluateRelationRule(result *EvaluationResult, recordsByType map[string][]b
 	if len(fromRecords) == 0 {
 		return
 	}
+	if len(toRecords) == 0 {
+		return
+	}
 
 	toByField := indexByField(toRecords, rule.Field)
 	for _, fromRecord := range fromRecords {

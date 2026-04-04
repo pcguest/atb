@@ -75,6 +75,18 @@ func TestEvaluate_RelationViolation(t *testing.T) {
 	}
 }
 
+func TestEvaluate_RelationMissingTargetSkipped(t *testing.T) {
+	schema := testSchema()
+	records := []bundle.Record{
+		record("ai.request.received", map[string]any{"request_id": "req-1"}),
+	}
+
+	result := Evaluate(schema, records)
+	if hasFailure(result.CriticalFailures, "relation_violation", "request must match response") {
+		t.Fatalf("did not expect relation failure when target event type is absent, got %+v", result.CriticalFailures)
+	}
+}
+
 func TestEvaluate_Clean(t *testing.T) {
 	schema := testSchema()
 	records := []bundle.Record{
