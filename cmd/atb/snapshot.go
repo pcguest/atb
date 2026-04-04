@@ -18,7 +18,7 @@ import (
 
 var errSnapshotHelp = errors.New("snapshot help requested")
 
-const snapshotUsageLine = "Usage: atb snapshot <name> [--gate <pass|fail>] [--dry-run] [--format text|json]"
+const snapshotUsageLine = "Usage: atb snapshot <name> [--dry-run] [--format text|json]"
 
 type snapshotConfig struct {
 	Name       string

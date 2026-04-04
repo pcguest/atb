@@ -4,6 +4,8 @@ This specification defines how framework runtime callbacks map into ATB events w
 
 This document supersedes the legacy `langchain.*` taxonomy in `docs/spec-v1.0.md` for new integrations. Legacy types remain valid only for backward-compatible verification of older bundles.
 
+Integrations MUST also populate the top-level canonical event fields `timestamp`, `trace_id`, `span_id`, and optional `parent_span_id`. The same trace identifiers are repeated inside `event.data` so the envelope remains self-contained when readers only inspect payloads.
+
 ## Goals
 
 - Keep integrations low-friction and opt-in.

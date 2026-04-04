@@ -34,7 +34,7 @@ go install github.com/pcguest/atb/cmd/atb@latest
 atb init
 atb append agent.run --data='{"workflow":"claims-triage","customer":"acme"}'
 atb append decision --data='{"action":"route_to_manual_review","reason":"confidence_below_threshold"}'
-atb snapshot customer_handoff --gate pass
+atb snapshot customer_handoff_ready
 atb verify --format json
 ATB_PASSWORD='shared-review-secret' atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
 atb export --format compliance --output handoff/acme-review-evidence.zip

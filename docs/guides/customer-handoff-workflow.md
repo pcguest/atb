@@ -22,7 +22,7 @@ atb init
 
 atb append agent.run --data='{"workflow":"claims-triage","customer":"acme","ticket_id":"handoff-204"}'
 atb append decision --data='{"action":"route_to_manual_review","reason":"confidence_below_threshold","customer":"acme"}'
-atb snapshot customer_handoff --gate pass
+atb snapshot customer_handoff_ready
 
 atb verify --format json
 atb trust-report --format markdown
@@ -44,8 +44,8 @@ atb view review/acme-review.atb --ui-experimental
 1. `atb append ...`
    Records the delivery timeline as a tamper-evident local bundle.
 
-2. `atb snapshot customer_handoff --gate pass`
-   Marks the handoff workflow as ready. This is a workflow outcome, not a transport feature.
+2. `atb snapshot customer_handoff_ready`
+   Appends a named handoff checkpoint. Use the snapshot name to label workflow state; it is not a transport feature.
 
 3. `atb verify --format json`
    Confirms the sender is handing over an untampered bundle.

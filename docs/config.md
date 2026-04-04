@@ -13,7 +13,7 @@ ATB core CLI is local-first and does not require environment variables for day-t
 | Command | Flags |
 | --- | --- |
 | `atb append` | `<json>` or `--data <json>` |
-| `atb snapshot` | `--gate <pass|fail>` |
+| `atb snapshot` | `<name>` |
 | `atb verify` | optional `bundle_path` |
 | `atb view` | optional `bundle_path`, `--port <port>`, `--no-open`, `--ui-experimental` |
 

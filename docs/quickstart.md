@@ -9,14 +9,14 @@ go install github.com/pcguest/atb/cmd/atb@latest
 atb bundle new
 atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
 atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042","reason":"customer_email_left_visible"}'
-atb snapshot incident_review --gate fail
+atb snapshot incident_review_failed
 atb verify
 atb trust-report --format markdown
 ```
 
 The Go CLI is the primary install path. The Python and TypeScript packages are SDKs that write the same `.atb` format.
 
-This is the canonical ATB workflow: the AI workflow itself can fail while the audit evidence still verifies cleanly. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full local review and export path, continue with the [Incident Review Workflow](./guides/incident-review-workflow.md).
+This is the canonical ATB workflow: the AI workflow itself can fail while the audit evidence still verifies cleanly. Use the snapshot name to label workflow state; `atb verify` still checks only bundle integrity. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full local review and export path, continue with the [Incident Review Workflow](./guides/incident-review-workflow.md).
 
 ### Verify Against a Specific Profile
 

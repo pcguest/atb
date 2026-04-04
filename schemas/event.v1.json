@@ -34,6 +34,10 @@
           "type": "string",
           "pattern": "^[a-f0-9]{64}$"
         },
+        "tsr_der": {
+          "type": "string",
+          "description": "Base64-encoded RFC 3161 TimeStampResponse DER bytes."
+        },
         "certified_time": {
           "type": "string",
           "format": "date-time"

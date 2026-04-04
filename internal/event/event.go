@@ -3,10 +3,11 @@ package event
 
 // Event represents a single auditable event in an ATB bundle.
 type Event struct {
-	// Sequence is the 1-based position of this event in the bundle.
+	// Sequence is the event position in the bundle.
+	// New bundles reserve seq 0 for the manifest record; subsequent records use 1-based positions.
 	Sequence int `json:"seq"`
 	// PrevHash is the hex-encoded SHA-256 hash of the preceding event.
-	// For the first event this MUST equal the genesis hash.
+	// For the manifest record, and for legacy manifest-less bundles, the first event MUST equal the genesis hash.
 	PrevHash string `json:"prev_hash"`
 	// Type is the event type identifier (e.g. "dev.session", "workflow.decision").
 	Type string `json:"type"`

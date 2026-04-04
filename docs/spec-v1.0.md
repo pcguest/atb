@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-An ATB bundle is a newline-delimited JSON (NDJSON) file where each line contains a single JSON object — a **record** — consisting of an **event** and its **hash**. Records are ordered by sequence number and form a cryptographic chain.
+An ATB bundle is a newline-delimited JSON (NDJSON) file where each line contains a single JSON object — a **record** — consisting of an **event** and its **hash**. New bundles start with a manifest record at `seq = 0`; later records form a cryptographic chain on top of that manifest.
 
 ---
 
@@ -28,27 +28,31 @@ Each line in a bundle file is a JSON object with the following schema:
 ```json
 {
   "event": {
-    "seq": 1,
+    "seq": 0,
     "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-    "type": "dev.session",
-    "data": {},
-    "actor_id": "paddy",
-    "org_id": "pcguest",
-    "workspace_id": "local"
+    "type": "atb.bundle.manifest",
+    "hash_algo": "sha256",
+    "data": "{\"version\":\"1\",\"created_at\":\"2026-04-01T00:00:00Z\",\"bundle_id\":\"00112233445566778899aabbccddeeff\"}",
+    "timestamp": "2026-04-01T00:00:00Z"
   },
-  "hash": "cdc87dac2d8d61bf8a8b8e9f2a4c5d6e..."
+  "hash": "44dea4de15506571cc6c9006b250aab0e8b3bdcb8269bd5c02f39a34b6ee0586"
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `event.seq` | integer | 1-based sequence number within the bundle |
+| `event.seq` | integer | Sequence number within the bundle. New bundles reserve `0` for the manifest record; later records use `1..N`. |
 | `event.prev_hash` | string | Hex-encoded SHA-256 hash of the preceding event |
 | `event.type` | string | Dot-namespaced event type identifier |
+| `event.hash_algo` | string (optional) | Hash algorithm identifier. Current runtimes emit `sha256`. |
 | `event.data` | any JSON value | Arbitrary JSON-serialisable payload |
 | `event.actor_id` | string (optional) | Actor identifier for multi-tenant attribution |
 | `event.org_id` | string (optional) | Organization identifier for multi-tenant attribution |
 | `event.workspace_id` | string (optional) | Workspace identifier for multi-tenant attribution |
+| `event.timestamp` | string (optional) | RFC 3339 UTC event creation time |
+| `event.trace_id` | string (optional) | W3C trace context trace identifier |
+| `event.span_id` | string (optional) | W3C trace context span identifier |
+| `event.parent_span_id` | string (optional) | W3C trace context parent span identifier |
 | `hash` | string | Hex-encoded SHA-256 hash of this event |
 
 ---
@@ -57,7 +61,7 @@ Each line in a bundle file is a JSON object with the following schema:
 
 ### 3.1 Genesis Hash
 
-The first event in a bundle uses a **genesis hash** as its `prev_hash`:
+The manifest record in a new bundle uses a **genesis hash** as its `prev_hash`. Legacy manifest-less bundles also use this value on their first record:
 
 ```
 prev_hash = "0000000000000000000000000000000000000000000000000000000000000000"
@@ -72,8 +76,8 @@ hash(n) = SHA256( UTF8(hex(hash(n-1))) || RFC8785(event(n)) )
 ```
 
 Where:
-- `UTF8(hex(hash(n-1)))` is the UTF-8 encoding of the previous event's hex hash string.
-- `RFC8785(event(n))` is the RFC 8785 canonical JSON encoding of the event object (including `seq`, `prev_hash`, `type`, `data`, and any optional identity fields that are set).
+- `UTF8(prev_hash)` is the UTF-8 encoding of the previous event's hex hash string.
+- `RFC8785(event(n))` is the RFC 8785 canonical JSON encoding of the event object (including `seq`, `prev_hash`, `type`, `data`, and any optional fields that are set).
 - `||` denotes byte concatenation.
 
 ### 3.3 RFC 8785 Canonicalization
@@ -87,13 +91,22 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 
 This ensures that the same event produces the same hash in every language and runtime.
 
-Unset optional fields are omitted from canonicalization output. For example, if `actor_id`, `org_id`, or `workspace_id` are not set, they are excluded from the canonical JSON bytes before hashing.
+Unset optional fields are omitted from canonicalization output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, or `parent_span_id` are not set, they are excluded from the canonical JSON bytes before hashing.
 
 ---
 
 ## 4. Event Types
 
 Event types use dot-namespaced identifiers. The following types are defined by the ATB standard:
+
+### Reserved system event types
+
+| Type | Description |
+|------|-------------|
+| `atb.bundle.manifest` | Bundle manifest record. First record in a new bundle (`seq = 0`). |
+| `atb.bundle.anchor` | RFC 3161 TSA anchor record appended after anchoring. |
+| `atb.bundle.signature` | Ed25519 bundle signature record. |
+| `atb.snapshot` | Named bundle checkpoint appended by `atb snapshot`. |
 
 ### Legacy event types (v1.0, superseded)
 
@@ -130,12 +143,13 @@ Custom event types are permitted using reverse-domain notation (e.g., `com.examp
 To verify a bundle, a verifier must:
 
 1. Read all records in order.
-2. For each record at position `i`:
-   a. Set `event.prev_hash` to the hash of the preceding record (or the genesis hash for `i = 0`).
-   b. Set `event.seq` to `i + 1`.
+2. Detect whether the first record is the manifest type `atb.bundle.manifest`.
+3. For each record at position `i`:
+   a. Set `event.prev_hash` to the hash of the preceding record (or the genesis hash for the first record).
+   b. Set `event.seq` to `0` for the manifest record, `i` for later records in a manifest-first bundle, or `i + 1` for a legacy manifest-less bundle.
    c. Compute `hash = SHA256(UTF8(prev_hash) || RFC8785(event))`.
    d. Assert that the computed hash equals the stored `hash` field.
-3. If any assertion fails, the bundle has been tampered with.
+4. If any assertion fails, the bundle has been tampered with.
 
 ---
 
@@ -159,17 +173,22 @@ Optional encrypted handoff is being evaluated separately in `docs/spec/atb-push-
 
 ## 7. Schema Evolution (v1.0+)
 
-ATB v1.0+ supports optional identity fields on events:
+ATB v1.0+ supports optional fields on events:
 
 - `actor_id`
 - `org_id`
 - `workspace_id`
+- `hash_algo`
+- `timestamp`
+- `trace_id`
+- `span_id`
+- `parent_span_id`
 
 Compatibility rules:
 
-- Old bundles (created before optional identity fields were added) verify unchanged with newer SDKs.
-- New bundles that set optional identity fields produce different hashes (expected, because those fields are included in canonicalization).
-- Unset optional identity fields are omitted from canonicalization (`omitempty` behavior), preserving canonical byte compatibility with legacy events that did not define these fields.
+- Old bundles (created before the manifest record or optional fields were added) verify unchanged with newer SDKs.
+- New bundles that set optional fields produce different hashes (expected, because those fields are included in canonicalization).
+- Unset optional fields are omitted from canonicalization (`omitempty` behavior), preserving canonical byte compatibility with legacy events that did not define them.
 
 ### TypeScript SDK
 

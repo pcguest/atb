@@ -31,7 +31,7 @@ go install github.com/pcguest/atb/cmd/atb@latest
 atb init
 atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
 atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042","reason":"customer_email_left_visible"}'
-atb snapshot incident_review --gate fail
+atb snapshot incident_review_failed
 atb verify
 atb trust-report --format markdown
 atb view --ui-experimental
@@ -40,7 +40,7 @@ atb export --format compliance --output incident-review-evidence.zip
 
 Important distinction:
 
-- `snapshot incident_review --gate fail` records that the workflow needs attention.
+- `snapshot incident_review_failed` records that the workflow needs attention by name.
 - `atb verify` and `atb trust-report` should still pass if the bundle itself is intact.
 
 That is the core ATB value in incident review: the workflow can fail without weakening the evidence.

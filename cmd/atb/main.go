@@ -106,9 +106,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "snapshot",
-				Usage:       "atb snapshot <name> [--gate <pass|fail>] [--dry-run] [--format text|json]",
+				Usage:       "atb snapshot <name> [--dry-run] [--format text|json]",
 				Description: "Append a snapshot event to the current bundle.",
-				Flags:       []string{"--gate", "--dry-run", "--format"},
+				Flags:       []string{"--dry-run", "--format"},
 				Mutating:    true,
 			},
 			{
@@ -324,7 +324,7 @@ Commands:
   init [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
   bundle new [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (alias for init)
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]  Append an event to the current bundle
-  snapshot <name> --gate <pass|fail> [--dry-run] [--format text|json]  Append a snapshot event
+  snapshot <name> [--dry-run] [--format text|json]  Append a snapshot event
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
   sign --bundle <path> --key <path> [--out <path>]  Append an Ed25519 bundle signature record
@@ -360,9 +360,9 @@ Examples:
   atb append ai.policy.decision --data '{"policy_id":"pol-1","policy_version":"2026-04","decision":"allow","decision_reason_codes":["ticket_present"],"subject_id_hash":"subject-hash","action_id":"act-1"}' --sign-policy ./atb-key.pem
   atb append dev.session '{"ok":true}' --dry-run
   atb append dev.session '{"ok":true}' --format json
-  atb snapshot build --gate pass
-  atb snapshot build --gate pass --dry-run
-  atb snapshot build --gate pass --format json
+  atb snapshot build_complete
+  atb snapshot build_complete --dry-run
+  atb snapshot build_complete --format json
   atb anchor
   atb anchor --tsa-url http://timestamp.digicert.com
   atb keygen --out-dir ./keys

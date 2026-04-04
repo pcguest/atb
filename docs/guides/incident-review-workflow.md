@@ -20,7 +20,7 @@ atb init
 
 atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
 atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042","reason":"customer_email_left_visible"}'
-atb snapshot incident_review --gate fail
+atb snapshot incident_review_failed
 
 atb verify --format json
 atb trust-report --format markdown
@@ -36,8 +36,8 @@ atb export --format compliance --output incident-review-evidence.zip
 2. `atb append ...`
    Records the incident timeline as hash-chained events.
 
-3. `atb snapshot incident_review --gate fail`
-   Marks the workflow outcome as failed. This is about the workflow, not bundle integrity.
+3. `atb snapshot incident_review_failed`
+   Appends a named snapshot checkpoint after the incident events. Use the snapshot name to label workflow state; it does not change bundle integrity semantics.
 
 4. `atb verify --format json`
    Confirms the hash chain is intact.
@@ -57,11 +57,11 @@ The important outcome is not that every status says `pass`.
 
 The expected pattern for incident review is:
 
-- the incident snapshot gate is `fail`
+- the bundle contains a snapshot named `incident_review_failed`
 - `atb verify` is `valid`
 - `atb trust-report` is `pass`
 
-That combination means the workflow failed, but the evidence trail is still trustworthy.
+That combination means the workflow needs review, but the evidence trail is still trustworthy.
 
 ## Resulting Artefacts
 

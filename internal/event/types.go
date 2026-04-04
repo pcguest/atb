@@ -16,6 +16,9 @@ const (
 const (
 	TypeAIRequestReceived = "ai.request.received"
 	TypeAIResponseSent    = "ai.response.sent"
+	TypeAILLMCall         = "ai.llm.call"
+	TypeAIToolExec        = "ai.tool.exec"
+	TypeAIChainRun        = "ai.chain.run"
 )
 
 // Policy decision events.
@@ -85,6 +88,9 @@ var Registry = []EventInfo{
 	{TypeSnapshot, "Bundle snapshot marker", "", "informational"},
 	{TypeAIRequestReceived, "AI request received at app boundary", "atb.profile.rag_answer,atb.profile.privileged_tool_action", "critical"},
 	{TypeAIResponseSent, "AI response sent from app boundary", "atb.profile.rag_answer", "required"},
+	{TypeAILLMCall, "Canonical LLM lifecycle event for integrations", "", "informational"},
+	{TypeAIToolExec, "Canonical tool execution lifecycle event for integrations", "", "informational"},
+	{TypeAIChainRun, "Canonical chain or step lifecycle event for integrations", "", "informational"},
 	{TypeAIPolicyDecision, "Policy engine decision (allow/deny)", "atb.profile.privileged_tool_action", "critical"},
 	{TypeAIRetrievalExecuted, "Retrieval step executed (RAG)", "atb.profile.rag_answer", "required"},
 	{TypeAIModelInvoked, "LLM invocation sent", "atb.profile.rag_answer", "critical"},
