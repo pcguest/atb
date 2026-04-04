@@ -5,8 +5,9 @@ ATB Bundle — the primary interface for creating and managing ATB trace bundles
 from __future__ import annotations
 
 import json
-import os
+import secrets
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,8 @@ from atb.hash import GENESIS_HASH, compute_hash
 #: Default bundle directory and file name.
 BUNDLE_DIR = "run.atb"
 BUNDLE_FILE = "bundle.atb"
+MANIFEST_EVENT_TYPE = "atb.bundle.manifest"
+MANIFEST_VERSION = "1"
 
 
 @dataclass
@@ -57,6 +60,8 @@ class Bundle:
         """
         object.__setattr__(self, 'name', goal or name or "untitled")
         object.__setattr__(self, 'records', records if records is not None else [])
+        if records is None:
+            self._append_manifest()
 
     name: str = "untitled"
 
@@ -74,6 +79,10 @@ class Bundle:
         actor_id: str | None = None,
         org_id: str | None = None,
         workspace_id: str | None = None,
+        timestamp: str | None = None,
+        trace_id: str | None = None,
+        span_id: str | None = None,
+        parent_span_id: str | None = None,
     ) -> Record:
         """Append a new event to the bundle.
 
@@ -88,14 +97,22 @@ class Bundle:
             The newly created :class:`Record`.
         """
         prev_hash = self.records[-1].hash if self.records else GENESIS_HASH
+        sequence = len(self.records) + 1
+        if self._has_manifest_record:
+            sequence = len(self.records)
         event_obj = Event(
-            seq=len(self.records) + 1,
+            seq=sequence,
             prev_hash=prev_hash,
             type=event_type,
             data=data,
+            hash_algo="sha256",
             actor_id=_normalize_optional_identity(actor_id),
             org_id=_normalize_optional_identity(org_id),
             workspace_id=_normalize_optional_identity(workspace_id),
+            timestamp=_normalize_optional_field(timestamp),
+            trace_id=_normalize_optional_field(trace_id),
+            span_id=_normalize_optional_field(span_id),
+            parent_span_id=_normalize_optional_field(parent_span_id),
         )
         event = event_obj.to_dict()
         h = compute_hash(event, prev_hash)
@@ -118,7 +135,12 @@ class Bundle:
         for i, record in enumerate(self.records):
             event = dict(record.event)
             event["prev_hash"] = prev
-            event["seq"] = i + 1
+            if i == 0 and self._has_manifest_record:
+                event["seq"] = 0
+            elif self._has_manifest_record:
+                event["seq"] = i
+            else:
+                event["seq"] = i + 1
             computed = compute_hash(event, prev)
             if computed != record.hash:
                 raise ATBVerificationError(
@@ -163,6 +185,7 @@ class Bundle:
         """
         resolved = Path(path) if path else Path(BUNDLE_DIR) / BUNDLE_FILE
         bundle = cls()
+        bundle.records.clear()
         with resolved.open("r", encoding="utf-8") as fh:
             for line in fh:
                 line = line.strip()
@@ -199,6 +222,30 @@ class Bundle:
     def __repr__(self) -> str:
         return f"Bundle(records={len(self.records)})"
 
+    @property
+    def _has_manifest_record(self) -> bool:
+        return bool(self.records) and self.records[0].event.get("type") == MANIFEST_EVENT_TYPE
+
+    def _append_manifest(self) -> None:
+        created_at = _now_rfc3339()
+        payload = json.dumps(
+            {
+                "version": MANIFEST_VERSION,
+                "created_at": created_at,
+                "bundle_id": secrets.token_hex(16),
+            },
+            separators=(",", ":"),
+        )
+        event = Event(
+            seq=0,
+            prev_hash=GENESIS_HASH,
+            type=MANIFEST_EVENT_TYPE,
+            data=payload,
+            hash_algo="sha256",
+            timestamp=created_at,
+        ).to_dict()
+        self.records.append(Record(event=event, hash=compute_hash(event, GENESIS_HASH)))
+
 
 def _normalize_optional_identity(value: str | None) -> str | None:
     """Treat None/empty identity values as unset for canonical compatibility."""
@@ -208,3 +255,16 @@ def _normalize_optional_identity(value: str | None) -> str | None:
     if trimmed == "":
         return None
     return trimmed
+
+
+def _normalize_optional_field(value: str | None) -> str | None:
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if trimmed == "":
+        return None
+    return trimmed
+
+
+def _now_rfc3339() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")

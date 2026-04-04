@@ -130,6 +130,7 @@ export class ActionGate {
       actorId: this.actorId,
       orgId: this.orgId,
       workspaceId: this.workspaceId,
+      timestamp: nowRFC3339(),
     });
     if (this.autoSave) {
       this.bundle.save(this.savePath);
@@ -210,4 +211,8 @@ function valueDigest(value: unknown): string {
 
 function sha256(value: Uint8Array): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
+}
+
+function nowRFC3339(): string {
+  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }

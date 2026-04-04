@@ -40,8 +40,10 @@ bundle.save(); // Writes to run.atb/bundle.atb
 // Later - reload and verify
 const loaded = Bundle.load();
 loaded.verify(); // Throws ATBVerificationError if tampered
-console.log(`Verified ${loaded.length} events - chain intact.`);
+console.log(`Verified ${loaded.length} records (including manifest) - chain intact.`);
 ```
+
+`new Bundle()` starts with an `atb.bundle.manifest` record at `seq = 0`. Appended events start at `seq = 1`.
 
 ## Licence
 

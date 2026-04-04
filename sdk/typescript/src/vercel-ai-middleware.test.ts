@@ -7,6 +7,12 @@ function sha256(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+function userRecords(bundle: Bundle) {
+  return bundle.records.filter(
+    (record) => record.event.type !== "atb.bundle.manifest"
+  );
+}
+
 describe("atbMiddleware", () => {
   it("maps chain, llm streaming, and tool events", () => {
     const bundle = new Bundle();
@@ -30,7 +36,8 @@ describe("atbMiddleware", () => {
     });
     middleware.onChainEnd({ runId: "chain-1", outputs: { answer: "AB" } });
 
-    const types = bundle.records.map((record) => record.event.type);
+    const records = userRecords(bundle);
+    const types = records.map((record) => record.event.type);
     expect(types).toEqual([
       "ai.chain.run",
       "ai.llm.call",
@@ -42,9 +49,9 @@ describe("atbMiddleware", () => {
       "ai.chain.run",
     ]);
 
-    const chainStart = bundle.records[0].event.data as Record<string, unknown>;
-    const llmStart = bundle.records[1].event.data as Record<string, unknown>;
-    const llmEnd = bundle.records[6].event.data as Record<string, unknown>;
+    const chainStart = records[0].event;
+    const llmStart = records[1].event;
+    const llmEnd = records[6].event.data as Record<string, unknown>;
 
     expect(llmStart.trace_id).toBe(chainStart.trace_id);
     expect(llmStart.parent_span_id).toBe(chainStart.span_id);
@@ -63,7 +70,7 @@ describe("atbMiddleware", () => {
 
     middleware.onLLMStart({ runId: "llm-hash", prompt: "secret prompt" });
 
-    const payload = bundle.records[0].event.data as Record<string, unknown>;
+    const payload = userRecords(bundle)[0].event.data as Record<string, unknown>;
     const context = payload.context as Record<string, unknown>;
     const prompt = context.prompt as Record<string, string>;
 
@@ -77,7 +84,7 @@ describe("atbMiddleware", () => {
 
     middleware.onLLMStart({ runId: "llm-redact", prompt: "secret prompt" });
 
-    const payload = bundle.records[0].event.data as Record<string, unknown>;
+    const payload = userRecords(bundle)[0].event.data as Record<string, unknown>;
     const context = payload.context as Record<string, unknown>;
     const prompt = context.prompt as Record<string, string>;
 
@@ -92,6 +99,6 @@ describe("atbMiddleware", () => {
     middleware.onChainStart({ runId: "chain-1", chainName: "qa_chain", inputs: { query: "x" } });
     middleware.onLLMStart({ runId: "llm-1", prompt: "hello" });
 
-    expect(bundle.records).toHaveLength(0);
+    expect(bundle.records).toHaveLength(1);
   });
 });

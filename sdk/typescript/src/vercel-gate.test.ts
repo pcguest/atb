@@ -3,6 +3,12 @@ import { Bundle } from "./bundle.js";
 import { ActionGate, ActionGateDeniedError } from "./action-gate.js";
 import { gateVercelTool } from "./vercel-gate.js";
 
+function userTypes(bundle: Bundle): string[] {
+  return bundle.records
+    .filter((record) => record.event.type !== "atb.bundle.manifest")
+    .map((record) => record.event.type);
+}
+
 describe("gateVercelTool", () => {
   it("gates vercel tool and records events in order", async () => {
     const bundle = new Bundle();
@@ -20,7 +26,7 @@ describe("gateVercelTool", () => {
     const result = await tool.execute({ version: "1.5.0" });
 
     expect(result).toEqual({ result: "1.5.0" });
-    expect(bundle.records.map((record) => record.event.type)).toEqual([
+    expect(userTypes(bundle)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",
       "ai.action.executed",
@@ -46,7 +52,7 @@ describe("gateVercelTool", () => {
     );
 
     await expect(tool.execute({ version: "1.5.0" })).rejects.toBeInstanceOf(ActionGateDeniedError);
-    expect(bundle.records.map((record) => record.event.type)).toEqual([
+    expect(userTypes(bundle)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",
     ]);

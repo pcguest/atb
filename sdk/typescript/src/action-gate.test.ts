@@ -6,6 +6,12 @@ import {
   type ActionGateInput,
 } from "./action-gate.js";
 
+function userTypes(bundle: Bundle): string[] {
+  return bundle.records
+    .filter((record) => record.event.type !== "atb.bundle.manifest")
+    .map((record) => record.event.type);
+}
+
 function makeAction(input: Partial<ActionGateInput> = {}): ActionGateInput {
   return {
     actionType: "deploy_change",
@@ -23,7 +29,7 @@ describe("ActionGate", () => {
     let seenBeforeExecution: string[] = [];
 
     await gate.run(makeAction(), () => {
-      seenBeforeExecution = bundle.records.map((record) => record.event.type);
+      seenBeforeExecution = userTypes(bundle);
       return "ok";
     });
 
@@ -49,7 +55,9 @@ describe("ActionGate", () => {
     const result = await gate.run(makeAction(), async () => ({ status: "done" }));
 
     expect(result).toEqual({ status: "done" });
-    const events = bundle.records.map((record) => record.event);
+    const events = bundle.records
+      .filter((record) => record.event.type !== "atb.bundle.manifest")
+      .map((record) => record.event);
     expect(events.map((event) => event.type)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",
@@ -98,7 +106,9 @@ describe("ActionGate", () => {
     ).rejects.toBeInstanceOf(ActionGateDeniedError);
 
     expect(called).toBe(false);
-    const events = bundle.records.map((record) => record.event);
+    const events = bundle.records
+      .filter((record) => record.event.type !== "atb.bundle.manifest")
+      .map((record) => record.event);
     expect(events.map((event) => event.type)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",
@@ -123,7 +133,9 @@ describe("ActionGate", () => {
 
     expect(result).toBe("ran");
     expect(called).toBe(true);
-    const events = bundle.records.map((record) => record.event);
+    const events = bundle.records
+      .filter((record) => record.event.type !== "atb.bundle.manifest")
+      .map((record) => record.event);
     expect(events.map((event) => event.type)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",
@@ -141,7 +153,7 @@ describe("ActionGate", () => {
     let seenBeforeExecution: string[] = [];
 
     const result = await gate.run(makeAction(), async () => {
-      seenBeforeExecution = bundle.records.map((record) => record.event.type);
+      seenBeforeExecution = userTypes(bundle);
       return Promise.resolve({ status: "async-ok" });
     });
 
@@ -150,7 +162,7 @@ describe("ActionGate", () => {
       "ai.action.precommit",
       "ai.policy.decision",
     ]);
-    expect(bundle.records.map((record) => record.event.type)).toEqual([
+    expect(userTypes(bundle)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",
       "ai.action.executed",

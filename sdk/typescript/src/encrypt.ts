@@ -7,7 +7,7 @@ import {
 } from "node:crypto";
 import { canonicalize } from "./canonicalize.js";
 import { parseEvent, prepareForCanonical, type Event } from "./event.js";
-import { computeHash, GENESIS_HASH } from "./hash.js";
+import { GENESIS_HASH } from "./hash.js";
 import type { ATBRecord } from "./types.js";
 
 export const MAGIC = "ATBE";
@@ -32,14 +32,9 @@ export interface EncryptOptions {
   nonce?: Uint8Array;
 }
 
-interface WireRecord {
-  event: Event;
-  hash: string;
-}
-
 interface WirePayload {
   head_hash: string;
-  records: WireRecord[];
+  records: ATBRecord[];
 }
 
 export interface DecryptedBundlePayload {
@@ -57,7 +52,7 @@ function deriveKey(password: string, salt: Uint8Array): Buffer {
   return pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_SIZE, "sha256");
 }
 
-function computeWireHash(event: Event, prevHash: string): string {
+function computeEventHash(event: Event, prevHash: string): string {
   return createHash("sha256")
     .update(prevHash, "utf8")
     .update(canonicalize(prepareForCanonical(event)), "utf8")
@@ -136,43 +131,16 @@ export function decryptRaw(data: Uint8Array, password: string): Uint8Array {
 }
 
 function toWirePayload(records: readonly ATBRecord[]): WirePayload {
-  const wireRecords: WireRecord[] = [];
-  let prev = GENESIS_HASH;
-  for (let i = 0; i < records.length; i++) {
-    const source = records[i].event;
-    if (typeof source.type !== "string") {
-      throw new EncryptError("record event is missing type");
-    }
-    const wireEvent: Event = {
-      seq: i + 1,
-      prev_hash: prev,
-      type: source.type,
-      data: source.data,
-    };
-    if (source.actor_id !== undefined) {
-      wireEvent.actor_id = source.actor_id;
-    }
-    if (source.org_id !== undefined) {
-      wireEvent.org_id = source.org_id;
-    }
-    if (source.workspace_id !== undefined) {
-      wireEvent.workspace_id = source.workspace_id;
-    }
-    const wireHash = computeWireHash(wireEvent, prev);
-    wireRecords.push({
-      event: wireEvent,
-      hash: wireHash,
-    });
-    prev = wireHash;
-  }
-
   const headHash =
-    wireRecords.length > 0
-      ? wireRecords[wireRecords.length - 1].hash
+    records.length > 0
+      ? records[records.length - 1].hash
       : GENESIS_HASH;
   return {
     head_hash: headHash,
-    records: wireRecords,
+    records: records.map((record) => ({
+      event: parseEvent(record.event),
+      hash: record.hash,
+    })),
   };
 }
 
@@ -187,7 +155,7 @@ function fromWirePayload(payload: unknown): DecryptedBundlePayload {
     throw new EncryptError("decrypted payload missing required fields");
   }
 
-  const parsedRecords: WireRecord[] = recordsValue.map((item) => {
+  const parsedRecords: ATBRecord[] = recordsValue.map((item) => {
     if (!item || typeof item !== "object") {
       throw new EncryptError("record must be an object");
     }
@@ -207,68 +175,31 @@ function fromWirePayload(payload: unknown): DecryptedBundlePayload {
     };
   });
 
-  // Verify the decrypted wire payload chain (cross-language canonical form).
-  let prevWire = GENESIS_HASH;
+  const hasManifest =
+    parsedRecords.length > 0 &&
+    parsedRecords[0].event.type === "atb.bundle.manifest";
+  let prev = GENESIS_HASH;
   for (let i = 0; i < parsedRecords.length; i++) {
     const record = parsedRecords[i];
-    const event: Event = {
-      seq: i + 1,
-      prev_hash: prevWire,
-      type: record.event.type,
-      data: record.event.data,
-    };
-    if (record.event.actor_id !== undefined) {
-      event.actor_id = record.event.actor_id;
-    }
-    if (record.event.org_id !== undefined) {
-      event.org_id = record.event.org_id;
-    }
-    if (record.event.workspace_id !== undefined) {
-      event.workspace_id = record.event.workspace_id;
-    }
-    if (record.event.seq !== i + 1 || record.event.prev_hash !== prevWire) {
+    const expectedSeq = hasManifest ? (i === 0 ? 0 : i) : i + 1;
+    if (record.event.seq !== expectedSeq || record.event.prev_hash !== prev) {
       throw new EncryptError("decrypted payload failed hash-chain verification");
     }
-    const computed = computeWireHash(event, prevWire);
+    const computed = computeEventHash(record.event, prev);
     if (computed !== record.hash) {
       throw new EncryptError("decrypted payload failed hash-chain verification");
     }
-    prevWire = computed;
+    prev = computed;
   }
-  if (headHash !== prevWire) {
+  if (headHash !== prev) {
     throw new EncryptError(
-      `decrypted payload head_hash mismatch: expected ${headHash}, got ${prevWire}`
+      `decrypted payload head_hash mismatch: expected ${headHash}, got ${prev}`
     );
-  }
-
-  // Convert verified wire records into current SDK in-memory shape.
-  const records: ATBRecord[] = [];
-  let prevTS = GENESIS_HASH;
-  for (let i = 0; i < parsedRecords.length; i++) {
-    const wire = parsedRecords[i];
-    const event: Event = {
-      seq: i + 1,
-      prev_hash: prevTS,
-      type: wire.event.type,
-      data: wire.event.data,
-    };
-    if (wire.event.actor_id !== undefined) {
-      event.actor_id = wire.event.actor_id;
-    }
-    if (wire.event.org_id !== undefined) {
-      event.org_id = wire.event.org_id;
-    }
-    if (wire.event.workspace_id !== undefined) {
-      event.workspace_id = wire.event.workspace_id;
-    }
-    const hash = computeHash(event, prevTS);
-    records.push({ event, hash });
-    prevTS = hash;
   }
 
   return {
     headHash,
-    records,
+    records: parsedRecords,
   };
 }
 

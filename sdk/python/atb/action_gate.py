@@ -5,6 +5,7 @@ import time
 import uuid
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any, Literal, TypeVar
 
 from atb.bundle import Bundle
@@ -133,6 +134,7 @@ class ActionGate:
             actor_id=self.actor_id,
             org_id=self.org_id,
             workspace_id=self.workspace_id,
+            timestamp=_now_rfc3339(),
         )
         if self.auto_save:
             self.bundle.save(self.save_path)
@@ -205,3 +207,7 @@ def _normalize(value: str | None) -> str | None:
     if trimmed == "":
         return None
     return trimmed
+
+
+def _now_rfc3339() -> str:
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")

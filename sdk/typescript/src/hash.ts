@@ -33,8 +33,15 @@ export function computeHash(event: Event, prevHash: string): string {
 export function chainEvents(events: Event[]): string[] {
   const hashes: string[] = [];
   let prev = GENESIS_HASH;
+  const hasManifest =
+    events.length > 0 && events[0].type === "atb.bundle.manifest";
   for (let i = 0; i < events.length; i++) {
-    events[i].seq = i + 1;
+    events[i].seq = hasManifest ? Math.max(0, i - 0) : i + 1;
+    if (hasManifest && i === 0) {
+      events[i].seq = 0;
+    } else if (hasManifest) {
+      events[i].seq = i;
+    }
     events[i].prev_hash = prev;
     const h = computeHash(events[i], prev);
     hashes.push(h);

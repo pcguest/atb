@@ -430,6 +430,10 @@ class ATBCallbackHandler(BaseCallbackHandler):
             actor_id=self.actor_id,
             org_id=self.org_id,
             workspace_id=self.workspace_id,
+            timestamp=self._iso(now),
+            trace_id=state.trace_id,
+            span_id=state.span_id,
+            parent_span_id=state.parent_span_id,
         )
         if self.auto_save:
             self.bundle.save(self.save_path)

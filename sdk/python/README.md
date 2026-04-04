@@ -49,8 +49,10 @@ bundle.save("run.atb/bundle.atb")
 # Later - reload and verify integrity
 b = Bundle.load("run.atb/bundle.atb")
 b.verify()  # Raises ATBVerificationError if tampered
-print(f"Verified {len(b)} events - chain intact.")
+print(f"Verified {len(b)} records (including manifest) - chain intact.")
 ```
+
+`Bundle()` starts with an `atb.bundle.manifest` record at `seq = 0`. Appended events start at `seq = 1`.
 
 ## LangChain Integration
 
@@ -65,6 +67,8 @@ handler = ATBCallbackHandler(bundle, auto_save=True)
 llm = ChatOpenAI(callbacks=[handler])
 # All LLM calls are now automatically recorded in the bundle.
 ```
+
+The callback emits the canonical `ai.chain.run`, `ai.llm.call`, and `ai.tool.exec` event types and also sets the top-level `timestamp`, `trace_id`, `span_id`, and `parent_span_id` event fields used by the Go runtime.
 
 The deprecated shim import path `atb.integrations.langchain.ATBCallbackHandler` still works for compatibility, but it emits a `DeprecationWarning`. Use `atb.langchain_callback.ATBCallbackHandler` for new code.
 

@@ -3,6 +3,7 @@
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { dirname } from "node:path";
 import { decryptBundle, encryptBundle } from "./encrypt.js";
 import {
@@ -15,6 +16,21 @@ import { GENESIS_HASH, computeHash } from "./hash.js";
 import type { ATBRecord, BundleOptions } from "./types.js";
 
 const DEFAULT_PATH = "run.atb/bundle.atb";
+const MANIFEST_EVENT_TYPE = "atb.bundle.manifest";
+const MANIFEST_VERSION = "1";
+
+function normalizeOptionalField(
+  value: string | undefined
+): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+  return trimmed;
+}
 
 function withDerivedChain(event: Event, seq: number, prevHash: string): Event {
   const out: Event = {
@@ -23,6 +39,9 @@ function withDerivedChain(event: Event, seq: number, prevHash: string): Event {
     type: event.type,
     data: event.data,
   };
+  if (event.hash_algo !== undefined) {
+    out.hash_algo = event.hash_algo;
+  }
   if (event.actor_id !== undefined) {
     out.actor_id = event.actor_id;
   }
@@ -31,6 +50,18 @@ function withDerivedChain(event: Event, seq: number, prevHash: string): Event {
   }
   if (event.workspace_id !== undefined) {
     out.workspace_id = event.workspace_id;
+  }
+  if (event.timestamp !== undefined) {
+    out.timestamp = event.timestamp;
+  }
+  if (event.trace_id !== undefined) {
+    out.trace_id = event.trace_id;
+  }
+  if (event.span_id !== undefined) {
+    out.span_id = event.span_id;
+  }
+  if (event.parent_span_id !== undefined) {
+    out.parent_span_id = event.parent_span_id;
   }
   return out;
 }
@@ -68,6 +99,7 @@ export class Bundle {
 
   constructor(options: BundleOptions = {}) {
     this.path = options.path ?? DEFAULT_PATH;
+    this.records.push(this.createManifestRecord());
   }
 
   /** Append a new event to the bundle. */
@@ -82,10 +114,11 @@ export class Bundle {
         : GENESIS_HASH;
 
     const event: Event = {
-      seq: this.records.length + 1,
+      seq: this.hasManifestRecord() ? this.records.length : this.records.length + 1,
       prev_hash: prevHash,
       type,
       data,
+      hash_algo: "sha256",
     };
     const actorID = normalizeOptionalIdentity(options.actorId);
     const orgID = normalizeOptionalIdentity(options.orgId);
@@ -99,6 +132,22 @@ export class Bundle {
     if (workspaceID !== undefined) {
       event.workspace_id = workspaceID;
     }
+    const timestamp = normalizeOptionalField(options.timestamp);
+    const traceID = normalizeOptionalField(options.traceId);
+    const spanID = normalizeOptionalField(options.spanId);
+    const parentSpanID = normalizeOptionalField(options.parentSpanId);
+    if (timestamp !== undefined) {
+      event.timestamp = timestamp;
+    }
+    if (traceID !== undefined) {
+      event.trace_id = traceID;
+    }
+    if (spanID !== undefined) {
+      event.span_id = spanID;
+    }
+    if (parentSpanID !== undefined) {
+      event.parent_span_id = parentSpanID;
+    }
 
     const hash = computeHash(event, prevHash);
     const record: ATBRecord = { event, hash };
@@ -109,9 +158,11 @@ export class Bundle {
   /** Verify the integrity of the entire bundle. Throws on tampering. */
   verify(): void {
     let prev = GENESIS_HASH;
+    const hasManifest = this.hasManifestRecord();
     for (let i = 0; i < this.records.length; i++) {
       const record = this.records[i];
-      const event = withDerivedChain(record.event, i + 1, prev);
+      const seq = hasManifest ? (i === 0 ? 0 : i) : i + 1;
+      const event = withDerivedChain(record.event, seq, prev);
       const computed = computeHash(event, prev);
       if (computed !== record.hash) {
         throw new ATBVerificationError(
@@ -137,6 +188,7 @@ export class Bundle {
   static load(path?: string): Bundle {
     const target = path ?? DEFAULT_PATH;
     const bundle = new Bundle({ path: target });
+    bundle.records.length = 0;
     const content = readFileSync(target, "utf8");
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
@@ -170,6 +222,7 @@ export class Bundle {
   static async decrypt(password: string, data: Uint8Array): Promise<Bundle> {
     const decoded = await decryptBundle(password, data);
     const bundle = new Bundle();
+    bundle.records.length = 0;
     bundle.records.push(...decoded.records);
     bundle.verify();
     return bundle;
@@ -178,4 +231,32 @@ export class Bundle {
   get length(): number {
     return this.records.length;
   }
+
+  private hasManifestRecord(): boolean {
+    return (
+      this.records.length > 0 &&
+      this.records[0].event.type === MANIFEST_EVENT_TYPE
+    );
+  }
+
+  private createManifestRecord(): ATBRecord {
+    const createdAt = nowRFC3339();
+    const event: Event = {
+      seq: 0,
+      prev_hash: GENESIS_HASH,
+      type: MANIFEST_EVENT_TYPE,
+      hash_algo: "sha256",
+      data: JSON.stringify({
+        version: MANIFEST_VERSION,
+        created_at: createdAt,
+        bundle_id: randomBytes(16).toString("hex"),
+      }),
+      timestamp: createdAt,
+    };
+    return { event, hash: computeHash(event, GENESIS_HASH) };
+  }
+}
+
+function nowRFC3339(): string {
+  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }

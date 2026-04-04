@@ -8,6 +8,14 @@ from atb.langchain_callback import ATBCallbackHandler
 from atb.integrations.langchain import ATBCallbackHandler as ShimATBCallbackHandler
 
 
+def _user_records(bundle: Bundle) -> list:
+    return [
+        record
+        for record in bundle.records
+        if record.event["type"] != "atb.bundle.manifest"
+    ]
+
+
 class _Generation:
     def __init__(self, text: str, finish_reason: str = "stop") -> None:
         self.text = text
@@ -44,7 +52,8 @@ def test_langchain_callback_emits_chain_and_llm_events() -> None:
     handler.on_llm_end(_Response("ignored because stream exists"), run_id="llm-1")
     handler.on_chain_end({"answer": "AB"}, run_id="chain-1")
 
-    assert [record.event["type"] for record in bundle.records] == [
+    records = _user_records(bundle)
+    assert [record.event["type"] for record in records] == [
         "ai.chain.run",
         "ai.llm.call",
         "ai.llm.call",
@@ -53,12 +62,12 @@ def test_langchain_callback_emits_chain_and_llm_events() -> None:
         "ai.chain.run",
     ]
 
-    chain_start = bundle.records[0].event["data"]
-    llm_start = bundle.records[1].event["data"]
-    llm_end = bundle.records[4].event["data"]
+    chain_start = records[0].event
+    llm_start = records[1].event
+    llm_end = records[4].event["data"]
 
-    assert chain_start["phase"] == "start"
-    assert llm_start["phase"] == "start"
+    assert chain_start["data"]["phase"] == "start"
+    assert llm_start["data"]["phase"] == "start"
     assert llm_start["trace_id"] == chain_start["trace_id"]
     assert llm_start["parent_span_id"] == chain_start["span_id"]
 
@@ -73,7 +82,7 @@ def test_langchain_callback_privacy_hash_mode() -> None:
 
     handler.on_llm_start({"name": "gpt-4o-mini"}, ["private prompt"], run_id="llm-hash")
 
-    payload = bundle.records[0].event["data"]
+    payload = _user_records(bundle)[0].event["data"]
     prompt = payload["context"]["prompt"]
 
     assert prompt["text"].startswith("sha256:")
@@ -87,7 +96,7 @@ def test_langchain_callback_privacy_redact_mode_hashes_emitted_text() -> None:
 
     handler.on_llm_start({"name": "gpt-4o-mini"}, ["private prompt"], run_id="llm-redact")
 
-    payload = bundle.records[0].event["data"]
+    payload = _user_records(bundle)[0].event["data"]
     prompt = payload["context"]["prompt"]
 
     assert prompt["text"] == "[REDACTED]"
@@ -102,9 +111,10 @@ def test_langchain_callback_tool_mapping() -> None:
     handler.on_tool_start({"name": "weather.lookup"}, '{"city":"Melbourne"}', run_id="tool-1")
     handler.on_tool_end('{"temp_c":24}', run_id="tool-1")
 
-    assert [record.event["type"] for record in bundle.records] == ["ai.tool.exec", "ai.tool.exec"]
-    assert bundle.records[0].event["data"]["phase"] == "start"
-    assert bundle.records[1].event["data"]["phase"] == "end"
+    records = _user_records(bundle)
+    assert [record.event["type"] for record in records] == ["ai.tool.exec", "ai.tool.exec"]
+    assert records[0].event["data"]["phase"] == "start"
+    assert records[1].event["data"]["phase"] == "end"
 
 
 def test_langchain_callback_disabled_mode_noops() -> None:
@@ -114,7 +124,7 @@ def test_langchain_callback_disabled_mode_noops() -> None:
     handler.on_chain_start({"name": "qa_chain"}, {"query": "x"}, run_id="chain-1")
     handler.on_llm_start({"name": "gpt-4o-mini"}, ["hello"], run_id="llm-1")
 
-    assert len(bundle.records) == 0
+    assert [record.event["type"] for record in bundle.records] == ["atb.bundle.manifest"]
 
 
 def test_langchain_shim_emits_deprecation_warning() -> None:

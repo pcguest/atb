@@ -1,23 +1,30 @@
 /**
- * Canonical ATB event model with optional multi-tenant identity fields.
+ * Canonical ATB event model aligned with the Go runtime.
  */
-
-// TODO: align with the Go canonical event model.
 
 export interface Event {
   seq: number;
   prev_hash: string;
   type: string;
   data: unknown;
+  hash_algo?: "sha256";
   actor_id?: string;
   org_id?: string;
   workspace_id?: string;
+  timestamp?: string;
+  trace_id?: string;
+  span_id?: string;
+  parent_span_id?: string;
 }
 
 export interface AppendIdentityOptions {
   actorId?: string;
   orgId?: string;
   workspaceId?: string;
+  timestamp?: string;
+  traceId?: string;
+  spanId?: string;
+  parentSpanId?: string;
 }
 
 export function normalizeOptionalIdentity(
@@ -48,6 +55,21 @@ export function prepareForCanonical(event: Event): Record<string, unknown> {
   }
   if (event.workspace_id !== undefined) {
     out.workspace_id = event.workspace_id;
+  }
+  if (event.hash_algo !== undefined) {
+    out.hash_algo = event.hash_algo;
+  }
+  if (event.timestamp !== undefined) {
+    out.timestamp = event.timestamp;
+  }
+  if (event.trace_id !== undefined) {
+    out.trace_id = event.trace_id;
+  }
+  if (event.span_id !== undefined) {
+    out.span_id = event.span_id;
+  }
+  if (event.parent_span_id !== undefined) {
+    out.parent_span_id = event.parent_span_id;
   }
   return out;
 }
@@ -89,6 +111,36 @@ export function parseEvent(value: unknown): Event {
       throw new TypeError("event.workspace_id must be a string");
     }
     event.workspace_id = raw.workspace_id;
+  }
+  if (raw.hash_algo !== undefined) {
+    if (raw.hash_algo !== "sha256") {
+      throw new TypeError("event.hash_algo must be sha256");
+    }
+    event.hash_algo = raw.hash_algo;
+  }
+  if (raw.timestamp !== undefined) {
+    if (typeof raw.timestamp !== "string") {
+      throw new TypeError("event.timestamp must be a string");
+    }
+    event.timestamp = raw.timestamp;
+  }
+  if (raw.trace_id !== undefined) {
+    if (typeof raw.trace_id !== "string") {
+      throw new TypeError("event.trace_id must be a string");
+    }
+    event.trace_id = raw.trace_id;
+  }
+  if (raw.span_id !== undefined) {
+    if (typeof raw.span_id !== "string") {
+      throw new TypeError("event.span_id must be a string");
+    }
+    event.span_id = raw.span_id;
+  }
+  if (raw.parent_span_id !== undefined) {
+    if (typeof raw.parent_span_id !== "string") {
+      throw new TypeError("event.parent_span_id must be a string");
+    }
+    event.parent_span_id = raw.parent_span_id;
   }
 
   return event;

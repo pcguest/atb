@@ -8,6 +8,14 @@ from atb import Bundle
 from atb.action_gate import ActionGate, ActionGateDecision, ActionGateDeniedError, ActionGateInput
 
 
+def _user_records(bundle: Bundle) -> list:
+    return [
+        record
+        for record in bundle.records
+        if record.event["type"] != "atb.bundle.manifest"
+    ]
+
+
 def test_action_gate_run_records_precommit_before_execution() -> None:
     bundle = Bundle()
     gate = ActionGate(bundle=bundle, actor_id="actor-1")
@@ -20,7 +28,7 @@ def test_action_gate_run_records_precommit_before_execution() -> None:
     seen_before_execution: list[str] = []
 
     def fn() -> str:
-        seen_before_execution.extend(record.event["type"] for record in bundle.records)
+        seen_before_execution.extend(record.event["type"] for record in _user_records(bundle))
         return "ok"
 
     gate.run(action, fn)
@@ -50,7 +58,7 @@ def test_action_gate_run_records_policy_and_executed_after_success() -> None:
     result = gate.run(action, lambda: {"status": "done"})
 
     assert result == {"status": "done"}
-    events = [record.event for record in bundle.records]
+    events = [record.event for record in _user_records(bundle)]
     assert [event["type"] for event in events] == [
         "ai.action.precommit",
         "ai.policy.decision",
@@ -106,7 +114,7 @@ def test_action_gate_run_enforce_mode_blocks_when_policy_denies() -> None:
         gate.run(action, fn)
 
     assert called is False
-    events = [record.event for record in bundle.records]
+    events = [record.event for record in _user_records(bundle)]
     assert [event["type"] for event in events] == ["ai.action.precommit", "ai.policy.decision"]
     assert events[1]["data"]["decision"] == "deny"
 
@@ -136,7 +144,7 @@ def test_action_gate_run_log_only_never_blocks_on_deny() -> None:
 
     assert result == "ran"
     assert called is True
-    events = [record.event for record in bundle.records]
+    events = [record.event for record in _user_records(bundle)]
     assert [event["type"] for event in events] == [
         "ai.action.precommit",
         "ai.policy.decision",
@@ -158,17 +166,16 @@ def test_action_gate_arun_matches_sync_semantics() -> None:
     seen_before_execution: list[str] = []
 
     async def fn() -> dict[str, str]:
-        seen_before_execution.extend(record.event["type"] for record in bundle.records)
+        seen_before_execution.extend(record.event["type"] for record in _user_records(bundle))
         return {"status": "async-ok"}
 
     result = asyncio.run(gate.arun(action, fn))
 
     assert result == {"status": "async-ok"}
     assert seen_before_execution == ["ai.action.precommit", "ai.policy.decision"]
-    events = [record.event for record in bundle.records]
+    events = [record.event for record in _user_records(bundle)]
     assert [event["type"] for event in events] == [
         "ai.action.precommit",
         "ai.policy.decision",
         "ai.action.executed",
     ]
-

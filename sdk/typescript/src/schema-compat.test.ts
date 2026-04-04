@@ -21,6 +21,13 @@ function tempBundlePath(): string {
   return join(dir, "bundle.atb");
 }
 
+function cloneManifestRecord(bundle: Bundle) {
+  return {
+    event: { ...bundle.records[0].event },
+    hash: bundle.records[0].hash,
+  };
+}
+
 describe("schema compatibility", () => {
   it("canonical JSON is backward-compatible when optional fields are undefined", () => {
     const legacyEvent = {
@@ -49,6 +56,7 @@ describe("schema compatibility", () => {
     baseline.append("schema.compat", { x: 1 });
 
     const withUndefined = new Bundle();
+    withUndefined.records[0] = cloneManifestRecord(baseline);
     withUndefined.append("schema.compat", { x: 1 }, {
       actorId: undefined,
       orgId: undefined,
@@ -56,16 +64,17 @@ describe("schema compatibility", () => {
     });
 
     const withEmpty = new Bundle();
+    withEmpty.records[0] = cloneManifestRecord(baseline);
     withEmpty.append("schema.compat", { x: 1 }, {
       actorId: "",
       orgId: "   ",
       workspaceId: "",
     });
 
-    expect(withUndefined.records[0].event).toEqual(baseline.records[0].event);
-    expect(withEmpty.records[0].event).toEqual(baseline.records[0].event);
-    expect(withUndefined.records[0].hash).toBe(baseline.records[0].hash);
-    expect(withEmpty.records[0].hash).toBe(baseline.records[0].hash);
+    expect(withUndefined.records[1].event).toEqual(baseline.records[1].event);
+    expect(withEmpty.records[1].event).toEqual(baseline.records[1].event);
+    expect(withUndefined.records[1].hash).toBe(baseline.records[1].hash);
+    expect(withEmpty.records[1].hash).toBe(baseline.records[1].hash);
   });
 
   it("append with identity fields changes hash and still verifies", () => {
@@ -73,16 +82,17 @@ describe("schema compatibility", () => {
     baseline.append("schema.compat", { x: 1 });
 
     const withIdentity = new Bundle();
+    withIdentity.records[0] = cloneManifestRecord(baseline);
     withIdentity.append("schema.compat", { x: 1 }, {
       actorId: "paddy",
       orgId: "pcguest",
       workspaceId: "local",
     });
 
-    expect(withIdentity.records[0].hash).not.toBe(baseline.records[0].hash);
-    expect(withIdentity.records[0].event.actor_id).toBe("paddy");
-    expect(withIdentity.records[0].event.org_id).toBe("pcguest");
-    expect(withIdentity.records[0].event.workspace_id).toBe("local");
+    expect(withIdentity.records[1].hash).not.toBe(baseline.records[1].hash);
+    expect(withIdentity.records[1].event.actor_id).toBe("paddy");
+    expect(withIdentity.records[1].event.org_id).toBe("pcguest");
+    expect(withIdentity.records[1].event.workspace_id).toBe("local");
     expect(() => withIdentity.verify()).not.toThrow();
   });
 

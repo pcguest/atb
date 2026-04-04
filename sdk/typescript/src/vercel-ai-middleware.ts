@@ -279,6 +279,7 @@ class ATBMiddlewareImpl implements ATBMiddleware {
     endedAt: Date | undefined
   ): void {
     const latencyMs = endedAt ? Math.max(0, endedAt.getTime() - state.startedAt.getTime()) : null;
+    const emittedAt = new Date();
 
     const payload = {
       trace_id: state.traceId,
@@ -303,13 +304,17 @@ class ATBMiddlewareImpl implements ATBMiddleware {
         ok,
         error,
       },
-      emitted_at: toIso(new Date()),
+      emitted_at: toIso(emittedAt),
     };
 
     this.bundle.append(eventType, payload, {
       actorId: this.actorId,
       orgId: this.orgId,
       workspaceId: this.workspaceId,
+      timestamp: toIso(emittedAt),
+      traceId: state.traceId,
+      spanId: state.spanId,
+      parentSpanId: state.parentSpanId,
     });
 
     if (this.autoSave) {

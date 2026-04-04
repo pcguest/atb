@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -36,7 +37,7 @@ def test_append_with_none_or_empty_identity_is_backward_compatible() -> None:
     baseline = Bundle()
     baseline.append("schema.compat", {"x": 1})
 
-    with_none = Bundle()
+    with_none = Bundle(records=[deepcopy(baseline.records[0])])
     with_none.append(
         "schema.compat",
         {"x": 1},
@@ -45,7 +46,7 @@ def test_append_with_none_or_empty_identity_is_backward_compatible() -> None:
         workspace_id=None,
     )
 
-    with_empty = Bundle()
+    with_empty = Bundle(records=[deepcopy(baseline.records[0])])
     with_empty.append(
         "schema.compat",
         {"x": 1},
@@ -54,17 +55,17 @@ def test_append_with_none_or_empty_identity_is_backward_compatible() -> None:
         workspace_id="",
     )
 
-    assert baseline.records[0].event == with_none.records[0].event
-    assert baseline.records[0].event == with_empty.records[0].event
-    assert baseline.records[0].hash == with_none.records[0].hash
-    assert baseline.records[0].hash == with_empty.records[0].hash
+    assert baseline.records[-1].event == with_none.records[-1].event
+    assert baseline.records[-1].event == with_empty.records[-1].event
+    assert baseline.records[-1].hash == with_none.records[-1].hash
+    assert baseline.records[-1].hash == with_empty.records[-1].hash
 
 
 def test_append_with_identity_fields_changes_hash_and_verifies() -> None:
     baseline = Bundle()
     baseline.append("schema.compat", {"x": 1})
 
-    with_identity = Bundle()
+    with_identity = Bundle(records=[deepcopy(baseline.records[0])])
     with_identity.append(
         "schema.compat",
         {"x": 1},
@@ -73,11 +74,11 @@ def test_append_with_identity_fields_changes_hash_and_verifies() -> None:
         workspace_id="local",
     )
 
-    assert with_identity.records[0].hash != baseline.records[0].hash
+    assert with_identity.records[-1].hash != baseline.records[-1].hash
     with_identity.verify()
-    assert with_identity.records[0].event["actor_id"] == "paddy"
-    assert with_identity.records[0].event["org_id"] == "pcguest"
-    assert with_identity.records[0].event["workspace_id"] == "local"
+    assert with_identity.records[-1].event["actor_id"] == "paddy"
+    assert with_identity.records[-1].event["org_id"] == "pcguest"
+    assert with_identity.records[-1].event["workspace_id"] == "local"
 
 
 def test_legacy_bundle_verifies_with_new_sdk() -> None:

@@ -37,7 +37,9 @@ def _build_bundle() -> Bundle:
 
 def test_hash_chain_is_deterministic_for_identical_events() -> None:
     first = _build_bundle()
-    second = _build_bundle()
+    second = Bundle(records=[deepcopy(first.records[0])])
+    for event_type, data in _sample_events():
+        second.append(event_type, deepcopy(data))
     assert [record.hash for record in first.records] == [
         record.hash for record in second.records
     ]
@@ -71,7 +73,7 @@ def test_save_load_roundtrip_preserves_head_hash() -> None:
 
 def test_tampering_is_detected() -> None:
     bundle = _build_bundle()
-    bundle.records[1].event["data"]["choice"] = "tampered"
+    bundle.records[2].event["data"]["choice"] = "tampered"
 
     try:
         bundle.verify()
@@ -89,8 +91,8 @@ def test_prev_hash_linkage_is_continuous() -> None:
 
 def test_hash_is_stable_when_dict_key_order_changes() -> None:
     first = Bundle()
-    second = Bundle()
+    second = Bundle(records=[deepcopy(first.records[0])])
     first.append("canonical.order", {"a": 1, "b": 2, "nested": {"x": 3, "y": 4}})
     second.append("canonical.order", {"nested": {"y": 4, "x": 3}, "b": 2, "a": 1})
 
-    assert first.records[0].hash == second.records[0].hash
+    assert first.records[-1].hash == second.records[-1].hash
