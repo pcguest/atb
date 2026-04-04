@@ -471,7 +471,12 @@ func profileSupportsCAS(profile Profile) bool {
 	if profile == nil {
 		return false
 	}
-	schema, ok := loadSchemaIfAvailable(profile.ID())
+	return SupportsCAS(profile.ID())
+}
+
+// SupportsCAS reports whether a registered profile opts into CAS scoring.
+func SupportsCAS(profileID string) bool {
+	schema, ok := loadSchemaIfAvailable(profileID)
 	return ok && schema.SupportsCAS
 }
 

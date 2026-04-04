@@ -235,4 +235,10 @@ func TestBundleMetaIncludesIntegrityFields(t *testing.T) {
 	if _, err := time.Parse(time.RFC3339, out.VerifiedAt); err != nil {
 		t.Fatalf("verified_at should be RFC3339, got %q err=%v", out.VerifiedAt, err)
 	}
+	if out.FirstTimestamp != testBundleTimestamp() {
+		t.Fatalf("first_timestamp: got %q want %q", out.FirstTimestamp, testBundleTimestamp())
+	}
+	if out.LastTimestamp != testBundleTimestamp() {
+		t.Fatalf("last_timestamp: got %q want %q", out.LastTimestamp, testBundleTimestamp())
+	}
 }

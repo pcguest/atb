@@ -176,6 +176,15 @@ func TestBuildReport_WithProfileEmitsCAS(t *testing.T) {
 	}
 }
 
+func TestBuildReport_WithProfileWithoutCASOmitsCAS(t *testing.T) {
+	bundlePath := writeDataExportBundle(t)
+
+	report := BuildReport("", bundlePath, "atb.profile.data_export")
+	if report.CAS != nil {
+		t.Fatalf("expected CAS section to be omitted, got %+v", report.CAS)
+	}
+}
+
 func TestBuildReport_WithProfileIncludesCriticalFailures(t *testing.T) {
 	bundlePath := writePrivilegedToolActionBundle(t)
 
@@ -236,6 +245,59 @@ func writePrivilegedToolActionBundle(t testing.TB) string {
 		"commit_outcome":      "success",
 		"sink_receipt_digest": "sink-digest",
 	}, "2026-03-27T12:04:00Z")
+
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+	return bundlePath
+}
+
+func writeDataExportBundle(t testing.TB) string {
+	t.Helper()
+
+	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	b := bundle.New()
+
+	appendTrustRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-1",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "data_export",
+	}, "2026-03-27T12:00:00Z")
+	appendTrustRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+		"action_id":                "export-1",
+		"action_type":              "export_data",
+		"action_parameters_digest": "params-digest",
+		"target_resource_id":       "customer-dataset",
+		"intended_effect":          "export dataset",
+	}, "2026-03-27T12:01:00Z")
+	appendTrustRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+		"policy_id":             "pol-1",
+		"policy_version":        "2026-03",
+		"decision":              "allow",
+		"decision_reason_codes": []any{"ticket_present"},
+		"subject_id_hash":       "subject-hash",
+		"action_id":             "export-1",
+	}, "2026-03-27T12:02:00Z")
+	appendTrustRecord(t, b, event.TypeDataExportPrecommit, map[string]any{
+		"export_id":              "export-1",
+		"destination":            "s3://exports/customer",
+		"format":                 "jsonl",
+		"approval_ticket":        "TICK-1",
+		"subject_scope_declared": true,
+		"subject_id_hash":        "subject-hash",
+	}, "2026-03-27T12:03:00Z")
+	appendTrustRecord(t, b, event.TypeAIHumanApproval, map[string]any{
+		"approval_id":          "approval-1",
+		"approver_id_hash":     "approver-hash",
+		"approval_outcome":     "approved",
+		"justification_digest": "justification-digest",
+		"action_id":            "export-1",
+	}, "2026-03-27T12:04:00Z")
+	appendTrustRecord(t, b, event.TypeDataExportExecuted, map[string]any{
+		"export_id":                "export-1",
+		"destination_receipt_hash": "receipt-hash",
+		"row_count":                10,
+	}, "2026-03-27T12:05:00Z")
 
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)

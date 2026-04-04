@@ -389,17 +389,8 @@ func TestGoldenPath_DataExport(t *testing.T) {
 	if report.BundlePath != bundlePath {
 		t.Fatalf("unexpected trust bundle path: got %q want %q", report.BundlePath, bundlePath)
 	}
-	if report.CAS == nil {
-		t.Fatalf("expected CAS section")
-	}
-	if report.CAS.ProfileID != profileIDDataExport {
-		t.Fatalf("unexpected CAS profile id: got %q want %q", report.CAS.ProfileID, profileIDDataExport)
-	}
-	if report.CAS.WorkflowClass != "data_export" {
-		t.Fatalf("unexpected CAS workflow class: got %q want %q", report.CAS.WorkflowClass, "data_export")
-	}
-	if report.CAS.AnchorQuality.Label != "absent" {
-		t.Fatalf("unexpected anchor quality label: got %q want %q", report.CAS.AnchorQuality.Label, "absent")
+	if report.CAS != nil {
+		t.Fatalf("expected trust-report CAS to be nil for %q, got %+v", profileIDDataExport, report.CAS)
 	}
 	if report.ChainLength != 7 {
 		t.Fatalf("unexpected chain length: got %d want %d", report.ChainLength, 7)
@@ -471,8 +462,8 @@ func TestGoldenPath_DataExport(t *testing.T) {
 		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval required when data exports execute") {
 			t.Fatalf("expected trust report missing approval failure, got %+v", report.Categories)
 		}
-		if report.CAS == nil {
-			t.Fatalf("expected trust report CAS section")
+		if report.CAS != nil {
+			t.Fatalf("expected trust-report CAS to remain nil for %q, got %+v", profileIDDataExport, report.CAS)
 		}
 	})
 }

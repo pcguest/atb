@@ -46,17 +46,19 @@ func buildCASSection(bundlePath string, profileID string) (*CASSection, string) 
 		return nil, ""
 	}
 
+	profile := verifypkg.ProfileByID(profileID)
+	if profile == nil {
+		return nil, fmt.Sprintf("Profile %q was not found; CAS section omitted.", profileID)
+	}
+	if !verifypkg.SupportsCAS(profileID) {
+		return nil, ""
+	}
+
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
 		return nil, ""
 	}
 
-	profile := verifypkg.ProfileByID(profileID)
-	if profile == nil {
-		return nil, fmt.Sprintf("Profile %q was not found; CAS section omitted.", profileID)
-	}
-
-	profile.Evaluate(b.Records)
 	subScores := verifypkg.SubScoresForBundle(b, bundlePath, profile.ID())
 	casResult := verifypkg.ComputeCAS(subScores, profile.DefaultWeights(), b.Verify() == nil)
 

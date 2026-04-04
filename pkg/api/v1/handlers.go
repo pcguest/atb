@@ -183,14 +183,22 @@ func (s *APIServer) handleBundleMeta(w http.ResponseWriter, r *http.Request) {
 	lastTS := ""
 	for _, record := range s.b.Records {
 		typeCounts[record.Event.Type]++
-		ts := extractTimestamp(record.Event.Data)
+		if record.Event.Type == bundle.ManifestEventType {
+			continue
+		}
+		ts := record.Event.Timestamp
+		if ts == "" {
+			ts = extractTimestamp(record.Event.Data)
+		}
 		if ts == "" {
 			continue
 		}
-		if firstTS == "" {
+		if firstTS == "" || ts < firstTS {
 			firstTS = ts
 		}
-		lastTS = ts
+		if lastTS == "" || ts > lastTS {
+			lastTS = ts
+		}
 	}
 
 	verifiedAt := ""

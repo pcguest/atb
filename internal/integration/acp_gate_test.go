@@ -62,15 +62,17 @@ func TestACPControlPlaneGate(t *testing.T) {
 				t.Fatalf("expected non-failing trust gate status, got %q", happyTrustReport.Gate.Status)
 			}
 			if happyTrustReport.CAS == nil {
-				t.Fatalf("expected trust report CAS section")
-			}
-			happyGateScore := requireSubScore(t, happyTrustReport.CAS.SubScores, "GC")
-			if happyGateScore <= 0 {
-				t.Fatalf("expected positive happy-path GC sub-score, got %.3f", happyGateScore)
+				if profile.profileID == profileIDPrivilegedToolAction {
+					t.Fatalf("expected trust report CAS section")
+				}
 			}
 
 			switch profile.profileID {
 			case profileIDPrivilegedToolAction:
+				happyGateScore := requireSubScore(t, happyTrustReport.CAS.SubScores, "GC")
+				if happyGateScore <= 0 {
+					t.Fatalf("expected positive happy-path GC sub-score, got %.3f", happyGateScore)
+				}
 				if happyVerifyResult.CAS == nil {
 					t.Fatalf("expected verify CAS result for %q", profile.profileID)
 				}
@@ -81,6 +83,9 @@ func TestACPControlPlaneGate(t *testing.T) {
 					t.Fatalf("expected positive happy-path verify GC sub-score, got %.3f", happyVerifyResult.CAS.SubScores["GC"])
 				}
 			case profileIDDataExport:
+				if happyTrustReport.CAS != nil {
+					t.Fatalf("expected trust-report CAS to remain nil for %q, got %+v", profile.profileID, happyTrustReport.CAS)
+				}
 				if happyVerifyResult.CAS != nil {
 					t.Fatalf("expected verify CAS to remain nil for %q, got %+v", profile.profileID, happyVerifyResult.CAS)
 				}
@@ -111,26 +116,26 @@ func TestACPControlPlaneGate(t *testing.T) {
 				if !hasTrustCheckDetail(violationTrustReport, "obligation_profile", "missing_event: ai.action.precommit missing required fields") {
 					t.Fatalf("expected trust report missing precommit failure, got %+v", violationTrustReport.Categories)
 				}
-				if violationTrustReport.CAS == nil {
-					t.Fatalf("expected trust report CAS section")
-				}
-				if violationTrustReport.CAS.Overall >= happyTrustReport.CAS.Overall {
-					t.Fatalf(
-						"expected ACP violation trust CAS overall %.3f to be lower than happy path %.3f",
-						violationTrustReport.CAS.Overall,
-						happyTrustReport.CAS.Overall,
-					)
-				}
-				if violationGateScore := requireSubScore(t, violationTrustReport.CAS.SubScores, "GC"); violationGateScore >= happyGateScore {
-					t.Fatalf(
-						"expected ACP violation GC sub-score %.3f to be lower than happy path %.3f",
-						violationGateScore,
-						happyGateScore,
-					)
-				}
-
 				switch profile.profileID {
 				case profileIDPrivilegedToolAction:
+					happyGateScore := requireSubScore(t, happyTrustReport.CAS.SubScores, "GC")
+					if violationTrustReport.CAS == nil {
+						t.Fatalf("expected trust report CAS section")
+					}
+					if violationTrustReport.CAS.Overall >= happyTrustReport.CAS.Overall {
+						t.Fatalf(
+							"expected ACP violation trust CAS overall %.3f to be lower than happy path %.3f",
+							violationTrustReport.CAS.Overall,
+							happyTrustReport.CAS.Overall,
+						)
+					}
+					if violationGateScore := requireSubScore(t, violationTrustReport.CAS.SubScores, "GC"); violationGateScore >= happyGateScore {
+						t.Fatalf(
+							"expected ACP violation GC sub-score %.3f to be lower than happy path %.3f",
+							violationGateScore,
+							happyGateScore,
+						)
+					}
 					if violationVerifyResult.CAS == nil {
 						t.Fatalf("expected verify CAS result for %q", profile.profileID)
 					}
@@ -142,6 +147,9 @@ func TestACPControlPlaneGate(t *testing.T) {
 						)
 					}
 				case profileIDDataExport:
+					if violationTrustReport.CAS != nil {
+						t.Fatalf("expected trust-report CAS to remain nil for %q, got %+v", profile.profileID, violationTrustReport.CAS)
+					}
 					if violationVerifyResult.CAS != nil {
 						t.Fatalf("expected verify CAS to remain nil for %q, got %+v", profile.profileID, violationVerifyResult.CAS)
 					}
