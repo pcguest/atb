@@ -53,4 +53,4 @@ Best-fit workflows:
 - Security policy: https://github.com/pcguest/atb/blob/main/SECURITY.md
 - Issues: https://github.com/pcguest/atb/issues
 
-If you find a vulnerability, please report it privately to [security@pcguest.dev](mailto:security@pcguest.dev) before public disclosure.
+If you find a vulnerability, please report it privately to [patrickcguest@proton.me](mailto:patrickcguest@proton.me) before public disclosure.

@@ -6,7 +6,7 @@ This runbook is intentionally lightweight so it remains usable by a solo maintai
 
 Trigger conditions:
 
-- Report received through `security@pcguest.dev`
+- Report received through `patrickcguest@proton.me`
 - Suspicious release artifact behavior
 - Integrity mismatch or unexpected production workflow failures
 - Credential leak signal (logs, GitHub alert, third-party report)
@@ -37,7 +37,7 @@ Immediate actions:
 
 ## 4. Communication
 
-- Acknowledge security reports within 48 hours.
+- Acknowledge security reports within 5 business days.
 - For user-impacting incidents, publish a concise postmortem summary:
   - What happened
   - What was affected
@@ -52,5 +52,5 @@ Immediate actions:
 
 ## Contacts
 
-- Security intake: [security@pcguest.dev](mailto:security@pcguest.dev)
+- Security intake: [patrickcguest@proton.me](mailto:patrickcguest@proton.me)
 - Maintainer: [patrickcguest@proton.me](mailto:patrickcguest@proton.me)

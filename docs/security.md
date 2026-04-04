@@ -103,9 +103,10 @@ make security-scan
 
 Behavior:
 
-- `make security-scan` prefers local `trivy` and `gosec` binaries when installed.
-- For local development only, it may fall back to Docker-based execution when those binaries are missing.
+- `make security-scan` runs the local Trivy filesystem scan and the Go `gosec` repository scan.
+- For local development only, it may fall back to Docker-based execution for those two tools when local binaries are missing.
 - CI does not use Docker for the Go code scan. The security workflow installs `gosec` with `go install` and invokes the binary directly.
+- CI also runs Bandit on `sdk/python/atb` and `npm audit` in `sdk/typescript`.
 - CI runs Trivy filesystem scans via the GitHub Action on scheduled or manually dispatched security sweeps with `scan-type: fs`.
 - CI runs Trivy image scans only on scheduled or manually dispatched runs, building a local Docker image first and then scanning it with `scan-type: image`.
 

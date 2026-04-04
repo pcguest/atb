@@ -16,7 +16,7 @@ web:
 
 docs:
   - changed-files:
-      - any-glob-to-any-file: ['docs/**', 'README.md', 'LAUNCH.md', 'HN_POST.md']
+      - any-glob-to-any-file: ['docs/**', 'README.md', 'CONTRIBUTING.md', 'SECURITY.md', 'CHANGELOG.md']
 
 ci:
   - changed-files:

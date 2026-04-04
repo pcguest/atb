@@ -9,7 +9,7 @@ body:
     attributes:
       value: |
         Please do not disclose exploitable details publicly.
-        Preferred channel: security@pcguest.dev (response target: 48 hours).
+        Preferred channel: patrickcguest@proton.me (response target: 5 business days).
 
   - type: dropdown
     id: affected_component
