@@ -7,10 +7,70 @@ import (
 	"testing"
 )
 
-func TestResolveProfile_LoadsYAMLProfileAndEvaluatesMatchingBundle(t *testing.T) {
+func TestResolveProfile_LoadsSchemaBackedYAMLProfileAndEvaluatesMatchingBundle(t *testing.T) {
 	profilePath := writeProfileFixture(t, `
 id: "org.example.my_profile"
-display_name: "My Custom Profile"
+version: 1
+workflow_class: "custom_profile"
+blind_spots:
+  - "Custom profiles inherit the same blind-spot declaration surface as built-ins."
+weights:
+  EC: 0.20
+  FC: 0.15
+  RC: 0.20
+  TC: 0.05
+  SC: 0.10
+  XC: 0.10
+  AC: 0.10
+  GC: 0.10
+required:
+  - type: "ai.action.precommit"
+    fields:
+      - "action_id"
+    message: "Pre-commit record required"
+    severity: "critical"
+  - type: "ai.action.executed"
+    fields:
+      - "action_id"
+    message: "Execution record required"
+    severity: "critical"
+optional:
+  - type: "atb.bundle.anchor"
+    fields: []
+    message: "Anchor required"
+    severity: "warning"
+relations:
+  - name: "precommit_to_execution"
+    from: "ai.action.executed"
+    to: "ai.action.precommit"
+    field: "action_id"
+    message: "Precommit must precede execution"
+`)
+
+	profile, err := ResolveProfile(profilePath)
+	if err != nil {
+		t.Fatalf("ResolveProfile(%q): %v", profilePath, err)
+	}
+	if profile == nil {
+		t.Fatalf("expected loaded profile")
+	}
+	if profile.ID() != "org.example.my_profile" {
+		t.Fatalf("unexpected profile ID: got %q want %q", profile.ID(), "org.example.my_profile")
+	}
+
+	report := VerifyWithProfile(newPrivilegedToolActionBundle(t), "bundle.atb", profile)
+	if len(report.Profiles) != 1 {
+		t.Fatalf("expected one evaluated profile, got %d", len(report.Profiles))
+	}
+	if !report.Profiles[0].Pass {
+		t.Fatalf("expected custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+	}
+}
+
+func TestResolveProfile_LoadsLegacyYAMLProfileAndEvaluatesMatchingBundle(t *testing.T) {
+	profilePath := writeProfileFixture(t, `
+id: "org.example.legacy_profile"
+display_name: "My Legacy Profile"
 description: "Custom obligations for our deployment"
 detect:
   event_types:
@@ -37,8 +97,8 @@ relations:
 	if profile == nil {
 		t.Fatalf("expected loaded profile")
 	}
-	if profile.ID() != "org.example.my_profile" {
-		t.Fatalf("unexpected profile ID: got %q want %q", profile.ID(), "org.example.my_profile")
+	if profile.ID() != "org.example.legacy_profile" {
+		t.Fatalf("unexpected profile ID: got %q want %q", profile.ID(), "org.example.legacy_profile")
 	}
 
 	report := VerifyWithProfile(newPrivilegedToolActionBundle(t), "bundle.atb", profile)
@@ -46,7 +106,7 @@ relations:
 		t.Fatalf("expected one evaluated profile, got %d", len(report.Profiles))
 	}
 	if !report.Profiles[0].Pass {
-		t.Fatalf("expected custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+		t.Fatalf("expected legacy custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
 	}
 }
 

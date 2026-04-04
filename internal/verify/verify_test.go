@@ -598,12 +598,23 @@ func TestComputeSC_UnknownProfile_Zero(t *testing.T) {
 func TestProfileSupportsCAS_ExternalProfile(t *testing.T) {
 	profilePath := writeProfileFixture(t, `
 id: "org.example.my_profile"
-display_name: "My Custom Profile"
-description: "Custom obligations"
-obligations:
-  critical:
-    - event_type: "ai.action.precommit"
-      message: "Pre-commit record required"
+version: 1
+workflow_class: "custom_profile"
+weights:
+  EC: 0.20
+  FC: 0.15
+  RC: 0.20
+  TC: 0.05
+  SC: 0.10
+  XC: 0.10
+  AC: 0.10
+  GC: 0.10
+required:
+  - type: "ai.action.precommit"
+    fields:
+      - "action_id"
+    message: "Pre-commit record required"
+    severity: "critical"
 `)
 	profile, err := ResolveProfile(profilePath)
 	if err != nil {

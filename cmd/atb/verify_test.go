@@ -82,7 +82,72 @@ func TestRunVerify_ProfilePath_JSONOutput(t *testing.T) {
 	profilePath := filepath.Join(t.TempDir(), "profile.yaml")
 	profileYAML := `
 id: "org.example.my_profile"
-display_name: "My Custom Profile"
+version: 1
+workflow_class: "custom_profile"
+weights:
+  EC: 0.20
+  FC: 0.15
+  RC: 0.20
+  TC: 0.05
+  SC: 0.10
+  XC: 0.10
+  AC: 0.10
+  GC: 0.10
+required:
+  - type: "ai.action.precommit"
+    fields:
+      - "action_id"
+    message: "Pre-commit record required"
+    severity: "critical"
+  - type: "ai.action.executed"
+    fields:
+      - "action_id"
+    message: "Execution record required"
+    severity: "critical"
+optional:
+  - type: "atb.bundle.anchor"
+    fields: []
+    message: "Anchor required"
+    severity: "warning"
+relations:
+  - name: "precommit_to_execution"
+    from: "ai.action.executed"
+    to: "ai.action.precommit"
+    field: "action_id"
+    message: "Precommit must precede execution"
+`
+	if err := os.WriteFile(profilePath, []byte(profileYAML), 0600); err != nil {
+		t.Fatalf("write profile fixture: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--profile", profilePath, "--json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if len(report.Profiles) != 1 {
+		t.Fatalf("expected one evaluated profile, got %d", len(report.Profiles))
+	}
+	if report.Profiles[0].ProfileID != "org.example.my_profile" {
+		t.Fatalf("unexpected profile ID: got %q want %q", report.Profiles[0].ProfileID, "org.example.my_profile")
+	}
+	if !report.Profiles[0].Pass {
+		t.Fatalf("expected custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+	}
+}
+
+func TestRunVerify_ProfilePath_JSONOutput_LegacyFallback(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	profilePath := filepath.Join(t.TempDir(), "profile.yaml")
+	profileYAML := `
+id: "org.example.legacy_profile"
+display_name: "My Legacy Profile"
 description: "Custom obligations for our deployment"
 detect:
   event_types:
@@ -119,11 +184,11 @@ relations:
 	if len(report.Profiles) != 1 {
 		t.Fatalf("expected one evaluated profile, got %d", len(report.Profiles))
 	}
-	if report.Profiles[0].ProfileID != "org.example.my_profile" {
-		t.Fatalf("unexpected profile ID: got %q want %q", report.Profiles[0].ProfileID, "org.example.my_profile")
+	if report.Profiles[0].ProfileID != "org.example.legacy_profile" {
+		t.Fatalf("unexpected profile ID: got %q want %q", report.Profiles[0].ProfileID, "org.example.legacy_profile")
 	}
 	if !report.Profiles[0].Pass {
-		t.Fatalf("expected custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+		t.Fatalf("expected legacy custom profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
 	}
 }
 

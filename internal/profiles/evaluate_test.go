@@ -32,6 +32,36 @@ func TestEvaluate_MissingOptional(t *testing.T) {
 	}
 }
 
+func TestEvaluate_OptionalCriticalProducesFailure(t *testing.T) {
+	schema := testSchema()
+	schema.Optional[0].Severity = "critical"
+
+	records := []bundle.Record{
+		record("ai.request.received", map[string]any{"request_id": "req-1"}),
+	}
+
+	result := Evaluate(schema, records)
+	if !hasFailure(result.CriticalFailures, "missing_event", "ai.response.sent recommended") {
+		t.Fatalf("expected critical failure, got %+v", result.CriticalFailures)
+	}
+	if contains(result.RequiredWarnings, "ai.response.sent recommended") {
+		t.Fatalf("expected no warning duplication, got %+v", result.RequiredWarnings)
+	}
+}
+
+func TestEvaluate_RequiredWarningProducesWarning(t *testing.T) {
+	schema := testSchema()
+	schema.Required[0].Severity = "warning"
+
+	result := Evaluate(schema, nil)
+	if len(result.CriticalFailures) != 0 {
+		t.Fatalf("expected no critical failures, got %+v", result.CriticalFailures)
+	}
+	if !contains(result.RequiredWarnings, "ai.request.received required") {
+		t.Fatalf("expected warning, got %+v", result.RequiredWarnings)
+	}
+}
+
 func TestEvaluate_RelationViolation(t *testing.T) {
 	schema := testSchema()
 	records := []bundle.Record{

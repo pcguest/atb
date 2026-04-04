@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
+	profiledsl "github.com/pcguest/atb/internal/profiles"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,6 +44,18 @@ type profileRelationConfig struct {
 type externalProfile struct {
 	config profileFileConfig
 }
+
+type externalSchemaProfile struct {
+	schema profiledsl.ProfileSchema
+}
+
+type profileFileFormat int
+
+const (
+	profileFileFormatUnknown profileFileFormat = iota
+	profileFileFormatSchema
+	profileFileFormatLegacy
+)
 
 // ResolveProfile resolves either a built-in profile ID or a profile file path.
 func ResolveProfile(spec string) (Profile, error) {
@@ -80,16 +93,64 @@ func loadProfileFromFile(path string) (Profile, error) {
 		return nil, fmt.Errorf("load profile %q: %w", path, err)
 	}
 
-	var cfg profileFileConfig
-	if err := yaml.Unmarshal(content, &cfg); err != nil {
+	format, err := detectProfileFileFormat(content)
+	if err != nil {
 		return nil, fmt.Errorf("parse profile %q: %w", path, err)
 	}
+
+	if format == profileFileFormatSchema {
+		return loadSchemaProfileFromFile(path, content)
+	}
+
+	var cfg profileFileConfig
+	if err := yaml.Unmarshal(content, &cfg); err != nil {
+		if format == profileFileFormatLegacy {
+			return nil, fmt.Errorf("parse profile %q: %w", path, err)
+		}
+		return loadSchemaProfileFromFile(path, content)
+	}
 	if err := cfg.validate(path); err != nil {
+		if format != profileFileFormatLegacy {
+			return loadSchemaProfileFromFile(path, content)
+		}
 		return nil, err
 	}
 
 	cfg.normalise()
 	return &externalProfile{config: cfg}, nil
+}
+
+func detectProfileFileFormat(content []byte) (profileFileFormat, error) {
+	var raw map[string]any
+	if err := yaml.Unmarshal(content, &raw); err != nil {
+		return profileFileFormatUnknown, err
+	}
+
+	switch {
+	case hasAnyKeys(raw, "version", "workflow_class", "required", "optional"):
+		return profileFileFormatSchema, nil
+	case hasAnyKeys(raw, "display_name", "detect", "obligations"):
+		return profileFileFormatLegacy, nil
+	default:
+		return profileFileFormatUnknown, nil
+	}
+}
+
+func hasAnyKeys(values map[string]any, keys ...string) bool {
+	for _, key := range keys {
+		if _, ok := values[key]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func loadSchemaProfileFromFile(path string, content []byte) (Profile, error) {
+	schema, err := profiledsl.ParseSchema(content)
+	if err != nil {
+		return nil, fmt.Errorf("parse profile %q: %w", path, err)
+	}
+	return &externalSchemaProfile{schema: schema}, nil
 }
 
 func (c *profileFileConfig) validate(path string) error {
@@ -211,6 +272,24 @@ func (p *externalProfile) DefaultWeights() map[string]float64 {
 		"AC": 0,
 		"GC": 0,
 	}
+}
+
+func (p *externalSchemaProfile) ID() string { return p.schema.ID }
+
+func (p *externalSchemaProfile) Version() int { return p.schema.Version }
+
+func (p *externalSchemaProfile) WorkflowClass() string { return p.schema.WorkflowClass }
+
+func (p *externalSchemaProfile) Evaluate(records []bundle.Record) ProfileResult {
+	return evaluateSchemaProfile(p.schema, records)
+}
+
+func (p *externalSchemaProfile) BlindSpots() []string {
+	return copyStringSlice(p.schema.BlindSpots)
+}
+
+func (p *externalSchemaProfile) DefaultWeights() map[string]float64 {
+	return copyFloatMap(p.schema.Weights)
 }
 
 func obligationMessage(eventType, message string) string {

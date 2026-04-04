@@ -48,34 +48,40 @@ func Evaluate(schema ProfileSchema, records []bundle.Record) EvaluationResult {
 
 func evaluateRequiredRule(result *EvaluationResult, records []bundle.Record, rule EventRule) {
 	if len(records) == 0 {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind:   "missing_event",
-			Detail: messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)),
-		})
+		appendRuleFinding(result, rule, "missing_event", messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)))
 		return
 	}
 	if len(rule.Fields) == 0 {
 		return
 	}
 	if len(missingFields(dataMap(records[0].Event.Data), rule.Fields)) > 0 {
-		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
-			Kind:   "missing_field",
-			Detail: messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)),
-		})
+		appendRuleFinding(result, rule, "missing_field", messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)))
 	}
 }
 
 func evaluateOptionalRule(result *EvaluationResult, records []bundle.Record, rule EventRule) {
 	if len(records) == 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings, messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)))
+		appendRuleFinding(result, rule, "missing_event", messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)))
 		return
 	}
 	if len(rule.Fields) == 0 {
 		return
 	}
 	if len(missingFields(dataMap(records[0].Event.Data), rule.Fields)) > 0 {
-		result.RequiredWarnings = append(result.RequiredWarnings, messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)))
+		appendRuleFinding(result, rule, "missing_field", messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)))
 	}
+}
+
+func appendRuleFinding(result *EvaluationResult, rule EventRule, kind string, detail string) {
+	if strings.EqualFold(rule.Severity, "warning") {
+		result.RequiredWarnings = append(result.RequiredWarnings, detail)
+		return
+	}
+
+	result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+		Kind:   kind,
+		Detail: detail,
+	})
 }
 
 func evaluateRelationRule(result *EvaluationResult, recordsByType map[string][]bundle.Record, rule RelationRule) {

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pcguest/atb/internal/event"
+	profiledsl "github.com/pcguest/atb/internal/profiles"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
@@ -295,47 +296,57 @@ func relationLines(report verifypkg.Report) []verifyOutputLine {
 }
 
 func obligationSpecs(profileID string) []verifyObligationSpec {
-	switch profileID {
-	case "atb.profile.privileged_tool_action":
-		return []verifyObligationSpec{
-			{eventType: event.TypeBundleManifest, message: "Manifest record required"},
-			{eventType: event.TypeAIRequestReceived, message: "Request record required"},
-			{eventType: event.TypeAIActionPrecommit, message: "Pre-commit record required"},
-			{eventType: event.TypeAIPolicyDecision, message: "Policy decision required"},
-			{eventType: event.TypeAIActionExecuted, message: "Execution record required"},
-			{eventType: event.TypeAIActionCommitted, message: "Commit record required"},
-			{eventType: event.TypeAIHumanApproval, message: "Human approval required", warning: true},
-			{eventType: event.TypeBundleAnchor, message: "Anchor required", warning: true},
-		}
-	case "atb.profile.rag_answer":
-		return []verifyObligationSpec{
-			{eventType: event.TypeBundleManifest, message: "Manifest record required"},
-			{eventType: event.TypeAIRequestReceived, message: "Request record required"},
-			{eventType: event.TypeAIModelInvoked, message: "Model invocation required"},
-			{eventType: event.TypeAIModelOutput, message: "Model output required"},
-			{eventType: event.TypeAIPolicyDecision, message: "Policy decision recommended", warning: true},
-			{eventType: event.TypeAIRetrievalExecuted, message: "Retrieval evidence recommended", warning: true},
-			{eventType: event.TypeAIResponseSent, message: "Response delivery evidence recommended", warning: true},
-			{eventType: event.TypeBundleAnchor, message: "Anchor required", warning: true},
-		}
-	default:
+	schema, ok := loadOutputSchema(profileID)
+	if !ok {
 		return nil
 	}
+
+	specs := make([]verifyObligationSpec, 0, len(schema.Required)+len(schema.Optional))
+	for _, rule := range schema.Required {
+		specs = append(specs, verifyObligationSpec{
+			eventType: rule.Type,
+			message:   schemaRuleMessage(rule),
+			warning:   strings.EqualFold(rule.Severity, "warning"),
+		})
+	}
+	for _, rule := range schema.Optional {
+		specs = append(specs, verifyObligationSpec{
+			eventType: rule.Type,
+			message:   schemaRuleMessage(rule),
+			warning:   strings.EqualFold(rule.Severity, "warning"),
+		})
+	}
+	return specs
 }
 
 func relationSpecs(profileID string) []verifyRelationSpec {
-	switch profileID {
-	case "atb.profile.privileged_tool_action":
-		return []verifyRelationSpec{
-			{from: event.TypeAIActionPrecommit, to: event.TypeAIActionExecuted},
-		}
-	case "atb.profile.rag_answer":
-		return []verifyRelationSpec{
-			{from: event.TypeAIRequestReceived, to: event.TypeAIResponseSent},
-		}
-	default:
+	schema, ok := loadOutputSchema(profileID)
+	if !ok {
 		return nil
 	}
+
+	specs := make([]verifyRelationSpec, 0, len(schema.Relations))
+	for _, rule := range schema.Relations {
+		specs = append(specs, verifyRelationSpec{from: rule.From, to: rule.To})
+	}
+	return specs
+}
+
+func loadOutputSchema(profileID string) (profiledsl.ProfileSchema, bool) {
+	if !profiledsl.HasSchema(profileID) {
+		return profiledsl.ProfileSchema{}, false
+	}
+	return profiledsl.MustLoadSchema(profileID), true
+}
+
+func schemaRuleMessage(rule profiledsl.EventRule) string {
+	if strings.TrimSpace(rule.Message) != "" {
+		return rule.Message
+	}
+	if strings.EqualFold(rule.Severity, "warning") {
+		return "Recommended"
+	}
+	return "Required"
 }
 
 func obligationFailures(profile verifypkg.ProfileResult) []verifypkg.CriticalFailure {
