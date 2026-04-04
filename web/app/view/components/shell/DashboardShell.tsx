@@ -3,6 +3,7 @@
 import { LayoutDashboard, Menu, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import type { ReactNode } from "react";
 
+import packageMeta from "@/package.json";
 import { Button } from "@/app/view/components/ui/button";
 import { ThemeToggle } from "@/app/view/components/ui/theme-toggle";
 import { dashboardRoleLabel } from "@/lib/roles";
@@ -121,7 +122,7 @@ export function DashboardShell({
                 </Button>
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    Version 1.1.0
+                    Version {packageMeta.version}
                   </p>
                   <p className="text-sm font-medium text-foreground">
                     Enterprise Trust Control Plane

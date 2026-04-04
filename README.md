@@ -93,7 +93,7 @@ ATB is not intended to be a generic hosted LLM observability platform.
 
 ## Installation
 
-- Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest` (requires Go 1.21+)
+- Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest` (requires Go 1.26.1+)
 - Python SDK: `pip install atb-sdk`
 - TypeScript SDK: `npm install @pcguest/atb-sdk`
 - Docker: build locally with `docker build -t atb .`

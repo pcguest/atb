@@ -73,7 +73,7 @@ body:
     attributes:
       label: ATB Version
       description: Output of `atb version` (CLI) or SDK version.
-      placeholder: "e.g. atb 1.1.0 or atb-sdk 1.1.0"
+      placeholder: "e.g. atb 1.8.1 or atb-sdk 1.8.1"
     validations:
       required: true
 

@@ -22,20 +22,20 @@ COPY pkg ./pkg
 COPY uiembed.go trust_embed.go docs_embed.go ./
 COPY docs ./docs
 COPY schemas ./schemas
-COPY SECURITY.md incident-response.md ./
+COPY SECURITY.md ./
 COPY test/golden/golden_test.go ./test/golden/golden_test.go
 COPY sdk/python/tests/test_properties.py ./sdk/python/tests/test_properties.py
 COPY --from=web-builder /src/web/out ./web/out
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
-ARG ATB_VERSION=1.1.0
+ARG ATB_VERSION=1.8.1
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
 
 FROM gcr.io/distroless/static-debian12:nonroot AS runtime
 WORKDIR /app
-ARG ATB_VERSION=1.1.0
+ARG ATB_VERSION=1.8.1
 LABEL org.opencontainers.image.version="${ATB_VERSION}"
 
 COPY --from=go-builder /out/atb /app/atb
