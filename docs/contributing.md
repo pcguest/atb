@@ -17,6 +17,16 @@ atb init
 atb view --ui-experimental --no-open
 ```
 
+When building the CLI from a source checkout, build the web export before testing `atb view`:
+
+```bash
+cd web
+npm ci
+npm run build
+cd ..
+go build -o atb ./cmd/atb
+```
+
 ## Local Validation
 
 Match the CI setup order in a clean checkout before opening a PR:

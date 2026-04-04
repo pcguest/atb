@@ -63,6 +63,16 @@ go test ./...
 go build -o atb ./cmd/atb
 ```
 
+If you need `atb view` or the embedded dashboard from a source checkout, build the web export first:
+
+```bash
+cd web
+npm ci
+npm run build
+cd ..
+go build -o atb ./cmd/atb
+```
+
 ### Python SDK
 
 ```bash

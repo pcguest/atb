@@ -6,6 +6,16 @@ The web app is configured for static export (`output: "export"` in `next.config.
 Next.js warns that `headers()` rules are not applied to static exports. This is expected in ATB.
 
 Runtime security headers (including CSP) are enforced by the Go viewer server in `cmd/atb/view.go`.
+Source builds of the Go CLI embed whatever is present under `web/out/`, so run a fresh web build before testing `atb view` from a checkout:
+
+```bash
+cd web
+npm ci
+npm run build
+cd ..
+go build -o atb ./cmd/atb
+```
+
 Validate header delivery through the embed flow:
 
 ```bash

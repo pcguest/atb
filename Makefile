@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan test-docker install-hooks
+.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks
 
 GOTOOLCHAIN ?= go1.26.1
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
@@ -110,19 +110,6 @@ deps-fix-npm:
 
 deps-audit: deps-audit-go deps-audit-npm
 	@echo "✅ Dependency audit complete"
-
-test-docker:
-	@echo "🐳 Running tests in Docker..."
-	@set -e; \
-	if command -v docker-compose >/dev/null 2>&1; then \
-		compose_cmd="docker-compose"; \
-	else \
-		compose_cmd="docker compose"; \
-	fi; \
-	$$compose_cmd -f docker-compose.test.yml up -d --build; \
-	trap "$$compose_cmd -f docker-compose.test.yml down --remove-orphans" EXIT INT TERM; \
-	$$compose_cmd -f docker-compose.test.yml exec -T test bash -lc 'Xvfb :99 -screen 0 1280x720x24 >/tmp/xvfb.log 2>&1 & sleep 2 && make test-e2e'
-	@echo "✅ Docker tests complete"
 
 install-hooks:
 	@echo "🔧 Installing Git hooks..."

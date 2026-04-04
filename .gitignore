@@ -79,7 +79,9 @@ trivy-report.json
 
 # Next.js
 web/.next/
-web/out/
+!web/out/
+web/out/*
+!web/out/placeholder.txt
 web/cypress/screenshots/
 
 # Go build cache

@@ -1,0 +1,2 @@
+This placeholder keeps the embedded web asset tree present in clean source checkouts.
+Run `cd web && npm ci && npm run build` before testing `atb view` from source.
