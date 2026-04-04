@@ -32,7 +32,7 @@ bundle.append("dev.session", {
 
 bundle.append("decision", {
   choice: "Go over Rust for CLI",
-  reason: "Solo founder velocity",
+  reason: "fast static binaries with straightforward cross-platform builds",
 });
 
 bundle.save(); // Writes to run.atb/bundle.atb

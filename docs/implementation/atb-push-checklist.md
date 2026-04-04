@@ -4,9 +4,9 @@ Do not start implementation unless the validation gate below is met.
 
 ## Validation Gate
 
-- [ ] 3+ qualified buyer conversations identify secure handoff as the blocker after local bundles are already useful
-- [ ] At least 2 of those conversations are about customer handoff, incident review, or privacy review rather than generic observability
-- [ ] Founder can explain `atb push` in one sentence as encrypted handoff, not hosted tracing
+- [ ] The feature is justified by a concrete secure-handoff workflow after local bundles are already useful
+- [ ] The target workflows are customer handoff, incident review, or privacy review rather than generic observability
+- [ ] Project docs can describe `atb push` in one sentence as encrypted handoff, not hosted tracing
 - [ ] The proposed flow preserves ATB's local-first default when unused
 
 ## If Validation Passes
@@ -36,7 +36,7 @@ Do not start implementation unless the validation gate below is met.
 
 - [ ] Update README only after the command ships
 - [ ] Document the feature as optional encrypted handoff, not cloud tracing
-- [ ] Keep quickstart focused on the local workflow unless buyers prove otherwise
+- [ ] Keep quickstart focused on the local workflow unless usage proves otherwise
 
 ## Explicit Non-Goals
 

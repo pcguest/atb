@@ -30,7 +30,7 @@ Cross-language consistency mattered from day one, so I anchored hashing on RFC 8
 - Python SDK packaging and publish automation
 - TypeScript SDK scaffold with typechecking and package-lock reproducibility
 - Cross-platform CI on macOS, Linux, and Windows
-- Dogfooding traces in `dev-log/` to keep myself honest
+- Public example bundles in `examples/` to keep the format grounded in real workflows
 
 ## Decisions That Increased Velocity
 
