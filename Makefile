@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks fuzz
+.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks fuzz
 
 GOTOOLCHAIN ?= go1.26.1
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
@@ -52,6 +52,10 @@ test-performance:
 	@echo "⚡ Running performance tests..."
 	$(GOENV) go test ./test/performance -v -bench=. -benchmem
 	@echo "✅ Performance tests passed"
+
+test-integration:
+	@echo "🔁 Running integration tests..."
+	$(GOENV) go test -tags=integration -count=1 -v ./test/integration/...
 
 fuzz:
 	go test ./internal/canonicalize/... -fuzz=FuzzMarshal -fuzztime=30s

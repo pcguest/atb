@@ -20,11 +20,35 @@ Quick start::
 
 from atb.bundle import Bundle
 from atb.action_gate import ActionGate, ActionGateDecision, ActionGateDeniedError, ActionGateInput
-from atb.encrypt import ATBDecryptionError, ATBEncryptionError, decrypt_bundle, encrypt_bundle
 from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
 from atb.langchain_gate import gate_langchain_tool
+
+_encrypt_import_error: ModuleNotFoundError | None = None
+
+try:
+    from atb.encrypt import ATBDecryptionError, ATBEncryptionError, decrypt_bundle, encrypt_bundle
+except ModuleNotFoundError as exc:
+    _encrypt_import_error = exc
+
+    class ATBEncryptionError(ATBError):
+        """Raised when encryption support is unavailable."""
+
+    class ATBDecryptionError(ATBError):
+        """Raised when decryption support is unavailable."""
+
+    def encrypt_bundle(*args, **kwargs):
+        raise ModuleNotFoundError(
+            "ATB encryption helpers require the 'cryptography' package. "
+            "Install sdk/python dependencies to use encrypt_bundle()."
+        ) from _encrypt_import_error
+
+    def decrypt_bundle(*args, **kwargs):
+        raise ModuleNotFoundError(
+            "ATB encryption helpers require the 'cryptography' package. "
+            "Install sdk/python dependencies to use decrypt_bundle()."
+        ) from _encrypt_import_error
 
 __version__ = "0.9.0b1"
 __all__ = [
