@@ -91,3 +91,6 @@ coverage.out
 trivy-report.json
 web/cypress/screenshots/
 .gomodcache/
+sdk/python/dist/
+sdk/python/build/
+sdk/python/*.egg-info/
