@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -63,6 +64,31 @@ func TestVerify_ProfileAutoDetect(t *testing.T) {
 	}
 	if !report.Profiles[0].Pass {
 		t.Fatalf("expected profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+	}
+}
+
+func TestScanAnchoring_CollectsWarningsAndKeepsScanning(t *testing.T) {
+	records := []bundle.Record{
+		{Event: hash.Event{Type: bundle.AnchorEventType, Data: `{"bundle_hash":"0123456789abcdef"}`}},
+		{Event: hash.Event{Type: bundle.AnchorEventType, Data: `{"bundle_hash":`}},
+		{Event: hash.Event{Type: bundle.AnchorEventType, Data: 42}},
+	}
+
+	result := scanAnchoring(records)
+	if !result.AnchorPresent {
+		t.Fatalf("expected anchor_present=true")
+	}
+	if got, want := result.AnchorHash, "0123456789abcdef"; got != want {
+		t.Fatalf("unexpected anchor hash: got %q want %q", got, want)
+	}
+	if got, want := len(result.Errors), 2; got != want {
+		t.Fatalf("unexpected error count: got %d want %d (%v)", got, want, result.Errors)
+	}
+	if !strings.Contains(result.Errors[0], "index 2") || !strings.Contains(result.Errors[0], "want string") {
+		t.Fatalf("unexpected first error: %q", result.Errors[0])
+	}
+	if !strings.Contains(result.Errors[1], "index 1") || !strings.Contains(result.Errors[1], "invalid JSON payload") {
+		t.Fatalf("unexpected second error: %q", result.Errors[1])
 	}
 }
 

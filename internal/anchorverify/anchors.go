@@ -1,6 +1,7 @@
 package anchorverify
 
 import (
+	"bytes"
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
@@ -304,7 +305,7 @@ func messageImprintMatches(bundleHash string, algorithm asn1.ObjectIdentifier, h
 	if err != nil {
 		return false, fmt.Errorf("decode bundle hash: %w", err)
 	}
-	return string(expected) == string(hashedMessage), nil
+	return bytes.Equal(expected, hashedMessage), nil
 }
 
 func parseSequenceElements(der []byte) ([]asn1.RawValue, error) {

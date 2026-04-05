@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
 	profiledsl "github.com/pcguest/atb/internal/profiles"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 func TestObligationSpecs_DeriveFromSchema(t *testing.T) {
@@ -39,5 +41,29 @@ func TestRelationSpecs_DeriveFromSchema(t *testing.T) {
 	}
 	if specs[0].from != schema.Relations[0].From || specs[0].to != schema.Relations[0].To {
 		t.Fatalf("unexpected first relation spec: got %+v want from=%q to=%q", specs[0], schema.Relations[0].From, schema.Relations[0].To)
+	}
+}
+
+func TestRenderVerifyTerminalReport_PrintsAnchorWarnings(t *testing.T) {
+	var output bytes.Buffer
+
+	renderVerifyTerminalReport(&output, verifypkg.Report{
+		BundlePath: "bundle.atb",
+		Anchoring: verifypkg.AnchoringResult{
+			AnchorPresent: true,
+			Errors: []string{
+				"anchor record at index 2: data is int, want string",
+				"anchor record at index 1: invalid JSON payload: unexpected end of JSON input",
+			},
+		},
+		ResidualRisk: verifypkg.ResidualRisk{Level: "High"},
+	})
+
+	rendered := output.String()
+	if !strings.Contains(rendered, "  anchor warning: anchor record at index 2: data is int, want string\n") {
+		t.Fatalf("expected first anchor warning in output, got:\n%s", rendered)
+	}
+	if !strings.Contains(rendered, "  anchor warning: anchor record at index 1: invalid JSON payload: unexpected end of JSON input\n") {
+		t.Fatalf("expected second anchor warning in output, got:\n%s", rendered)
 	}
 }

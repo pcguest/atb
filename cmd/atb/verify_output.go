@@ -79,6 +79,9 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 	if report.Anchoring.AnchorHash != "" {
 		fmt.Fprintf(w, "Anchor hash: %s\n", report.Anchoring.AnchorHash)
 	}
+	for _, err := range report.Anchoring.Errors {
+		fmt.Fprintf(w, "  anchor warning: %s\n", err)
+	}
 	fmt.Fprintln(w)
 
 	fmt.Fprintln(w, "CAS Scores")

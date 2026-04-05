@@ -5,6 +5,7 @@ package verify
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"sort"
 	"strings"
@@ -31,8 +32,9 @@ type AnchoringResult struct {
 	AnchorRequired bool `json:"anchor_required"`
 	AnchorPresent  bool `json:"anchor_present"`
 	// TSAVerified is false in v1; network TSA verification is a v2 feature.
-	TSAVerified bool   `json:"tsa_verified"`
-	AnchorHash  string `json:"anchor_hash,omitempty"`
+	TSAVerified bool     `json:"tsa_verified"`
+	AnchorHash  string   `json:"anchor_hash,omitempty"`
+	Errors      []string `json:"errors,omitempty"`
 }
 
 // CriticalFailure describes a specific critical-obligation failure.
@@ -304,21 +306,22 @@ func scanAnchoring(records []bundle.Record) AnchoringResult {
 
 		raw, ok := records[i].Event.Data.(string)
 		if !ok {
-			return result
+			result.Errors = append(result.Errors, fmt.Sprintf("anchor record at index %d: data is %T, want string", i, records[i].Event.Data))
+			continue
 		}
 
 		var payload map[string]any
 		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-			return result
+			result.Errors = append(result.Errors, fmt.Sprintf("anchor record at index %d: invalid JSON payload: %v", i, err))
+			continue
 		}
-		if anchorHash, ok := payload["bundle_hash"].(string); ok && anchorHash != "" {
+		if anchorHash, ok := payload["bundle_hash"].(string); ok && anchorHash != "" && result.AnchorHash == "" {
 			result.AnchorHash = anchorHash
-			return result
+			continue
 		}
-		if anchorHash, ok := payload["tsr_hash"].(string); ok && anchorHash != "" {
+		if anchorHash, ok := payload["tsr_hash"].(string); ok && anchorHash != "" && result.AnchorHash == "" {
 			result.AnchorHash = anchorHash
 		}
-		return result
 	}
 	return result
 }
