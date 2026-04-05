@@ -31,10 +31,11 @@ type IntegrityResult struct {
 type AnchoringResult struct {
 	AnchorRequired bool `json:"anchor_required"`
 	AnchorPresent  bool `json:"anchor_present"`
-	// TSAVerified is false in v1; network TSA verification is a v2 feature.
-	TSAVerified bool     `json:"tsa_verified"`
-	AnchorHash  string   `json:"anchor_hash,omitempty"`
-	Errors      []string `json:"errors,omitempty"`
+	// TSAVerified reports only the RFC 3161 message-imprint/status check in v1.
+	TSAVerified       bool     `json:"tsa_verified"`
+	CertChainVerified bool     `json:"cert_chain_verified"`
+	AnchorHash        string   `json:"anchor_hash,omitempty"`
+	Errors            []string `json:"errors,omitempty"`
 }
 
 // CriticalFailure describes a specific critical-obligation failure.
@@ -71,14 +72,15 @@ type ResidualRisk struct {
 
 // Report is the top-level verification output for a bundle.
 type Report struct {
-	BundlePath      string                 `json:"bundle_path"`
-	Integrity       IntegrityResult        `json:"integrity"`
-	Anchoring       AnchoringResult        `json:"anchoring"`
-	BundleSignature *BundleSignatureResult `json:"bundle_signature,omitempty"`
-	Profiles        []ProfileResult        `json:"profiles"`
-	CAS             *CASResult             `json:"cas,omitempty"` // nil if integrity fails or no profile matched
-	Exclusions      []string               `json:"exclusions"`
-	ResidualRisk    ResidualRisk           `json:"residual_risk"`
+	BundlePath         string                 `json:"bundle_path"`
+	Integrity          IntegrityResult        `json:"integrity"`
+	Anchoring          AnchoringResult        `json:"anchoring"`
+	BundleSignature    *BundleSignatureResult `json:"bundle_signature,omitempty"`
+	Profiles           []ProfileResult        `json:"profiles"`
+	CAS                *CASResult             `json:"cas,omitempty"` // nil if integrity fails or no profile matched
+	InformationalNotes []string               `json:"informational_notes,omitempty"`
+	Exclusions         []string               `json:"exclusions"`
+	ResidualRisk       ResidualRisk           `json:"residual_risk"`
 }
 
 var recommendationBySubScore = map[string]string{
@@ -297,9 +299,10 @@ func computeSC(b *bundle.Bundle, profileID string) float64 {
 
 func scanAnchoring(records []bundle.Record) AnchoringResult {
 	result := AnchoringResult{
-		AnchorRequired: false,
-		AnchorPresent:  false,
-		TSAVerified:    false,
+		AnchorRequired:    false,
+		AnchorPresent:     false,
+		TSAVerified:       false,
+		CertChainVerified: false,
 	}
 	for i := len(records) - 1; i >= 0; i-- {
 		if records[i].Event.Type != bundle.AnchorEventType {
@@ -336,10 +339,11 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 			Canonicalization: "rfc8785",
 			HashAlgo:         "sha256",
 		},
-		Anchoring:    scanAnchoring(nil),
-		Profiles:     []ProfileResult{},
-		Exclusions:   []string{},
-		ResidualRisk: ResidualRisk{Level: "High"},
+		Anchoring:          scanAnchoring(nil),
+		Profiles:           []ProfileResult{},
+		InformationalNotes: []string{},
+		Exclusions:         []string{},
+		ResidualRisk:       ResidualRisk{Level: "High"},
 	}
 	if b == nil {
 		report.Integrity.Error = "bundle is nil"
@@ -351,10 +355,12 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 	}
 
 	report.Anchoring = scanAnchoring(b.Records)
+	report.InformationalNotes = appendUniqueStrings(report.InformationalNotes, ValidateTimestamps(b.Records)...)
 	if anchorResults := anchorverify.VerifyAnchors(b); len(anchorResults) > 0 {
 		for _, r := range anchorResults {
 			if r.TSAVerified {
 				report.Anchoring.TSAVerified = true
+				report.Anchoring.CertChainVerified = r.CertChainVerified
 				break
 			}
 		}

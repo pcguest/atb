@@ -67,3 +67,42 @@ func TestRenderVerifyTerminalReport_PrintsAnchorWarnings(t *testing.T) {
 		t.Fatalf("expected second anchor warning in output, got:\n%s", rendered)
 	}
 }
+
+func TestRenderVerifyTerminalReport_PrintsTSACertChainLimitation(t *testing.T) {
+	var output bytes.Buffer
+
+	renderVerifyTerminalReport(&output, verifypkg.Report{
+		BundlePath: "bundle.atb",
+		Anchoring: verifypkg.AnchoringResult{
+			AnchorPresent:     true,
+			TSAVerified:       true,
+			CertChainVerified: false,
+		},
+		ResidualRisk: verifypkg.ResidualRisk{Level: "Medium"},
+	})
+
+	rendered := output.String()
+	if !strings.Contains(rendered, "TSA message imprint verified. Certificate chain not verified (v1 limitation).\n") {
+		t.Fatalf("expected TSA cert-chain limitation warning in output, got:\n%s", rendered)
+	}
+}
+
+func TestRenderVerifyTerminalReport_PrintsInformationalNotes(t *testing.T) {
+	var output bytes.Buffer
+
+	renderVerifyTerminalReport(&output, verifypkg.Report{
+		BundlePath: "bundle.atb",
+		InformationalNotes: []string{
+			`timestamp validation: seq 2 (ai.action.executed) timestamp "2026-03-27T11:59:00Z" is earlier than the preceding timestamp "2026-03-27T12:00:00Z"`,
+		},
+		ResidualRisk: verifypkg.ResidualRisk{Level: "Medium"},
+	})
+
+	rendered := output.String()
+	if !strings.Contains(rendered, "Notes\n") {
+		t.Fatalf("expected Notes section in output, got:\n%s", rendered)
+	}
+	if !strings.Contains(rendered, `timestamp validation: seq 2 (ai.action.executed) timestamp "2026-03-27T11:59:00Z" is earlier than the preceding timestamp "2026-03-27T12:00:00Z"`) {
+		t.Fatalf("expected informational note in output, got:\n%s", rendered)
+	}
+}

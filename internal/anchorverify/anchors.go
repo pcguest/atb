@@ -44,9 +44,13 @@ type AnchorVerificationResult struct {
 	MessageImprintMatch bool   `json:"message_imprint_match"`
 	// TSAVerified is true only when MessageImprintMatch is true and the
 	// PKIStatus in the TimeStampResponse is GRANTED (0).
-	// Certificate chain verification is deferred to v2.
-	TSAVerified bool   `json:"tsa_verified"`
-	Error       string `json:"error,omitempty"`
+	// Certificate chain verification is tracked separately and remains a
+	// v2 milestone.
+	TSAVerified bool `json:"tsa_verified"`
+	// CertChainVerified is always false in v1 because the TSA certificate
+	// chain is not checked against a trusted root.
+	CertChainVerified bool   `json:"cert_chain_verified"`
+	Error             string `json:"error,omitempty"`
 }
 
 // VerifyAnchors scans the bundle for anchor records and verifies each one.
@@ -62,7 +66,12 @@ func VerifyAnchors(b *bundle.Bundle) []AnchorVerificationResult {
 			continue
 		}
 
-		result := AnchorVerificationResult{AnchorIndex: i}
+		result := AnchorVerificationResult{
+			AnchorIndex:         i,
+			CertChainVerified:   false,
+			MessageImprintMatch: false,
+			TSAVerified:         false,
+		}
 		data, err := parseTrustAnchorEventData(record.Event.Data)
 		if err != nil {
 			result.Error = err.Error()
@@ -96,6 +105,7 @@ func VerifyAnchors(b *bundle.Bundle) []AnchorVerificationResult {
 		}
 		result.MessageImprintMatch = messageImprintMatch
 		result.TSAVerified = messageImprintMatch && parsed.status == 0
+		result.CertChainVerified = false
 		results = append(results, result)
 	}
 

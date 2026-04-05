@@ -76,6 +76,9 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "Anchor present: %s\n", yesNo(report.Anchoring.AnchorPresent))
 	fmt.Fprintf(w, "TSA verified: %s\n", yesNo(report.Anchoring.TSAVerified))
+	if report.Anchoring.TSAVerified && !report.Anchoring.CertChainVerified {
+		fmt.Fprintln(w, "TSA message imprint verified. Certificate chain not verified (v1 limitation).")
+	}
 	if report.Anchoring.AnchorHash != "" {
 		fmt.Fprintf(w, "Anchor hash: %s\n", report.Anchoring.AnchorHash)
 	}
@@ -103,6 +106,15 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 	fmt.Fprintln(w, "CAS Scores")
 	fmt.Fprintln(w)
 	renderer.renderCASScores(w, report.CAS)
+
+	if len(report.InformationalNotes) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Notes")
+		fmt.Fprintln(w)
+		for _, note := range report.InformationalNotes {
+			renderer.renderLine(w, verifyOutputLine{status: verifyLineNote, text: note})
+		}
+	}
 
 	if len(report.Exclusions) > 0 {
 		fmt.Fprintln(w)

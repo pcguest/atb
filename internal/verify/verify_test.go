@@ -276,6 +276,46 @@ func TestVerify_PolicyDecision_Unsigned(t *testing.T) {
 	}
 }
 
+func TestVerify_AnchoringTracksCertChainVerification(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeBundleAnchor, `{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","certified_time":"2026-03-27T12:00:00Z"}`, "2026-03-27T12:00:00Z")
+
+	report := Verify(b, "bundle.atb", "")
+	if report.Anchoring.CertChainVerified {
+		t.Fatalf("expected cert_chain_verified=false in v1")
+	}
+}
+
+func TestVerify_AddsTimestampValidationNotes(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-1",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "policy_decision",
+	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+		"policy_id":             "pol-1",
+		"policy_version":        "2026-03",
+		"decision":              "allow",
+		"decision_reason_codes": []any{"approved"},
+		"subject_id_hash":       "subject-hash",
+		"action_id":             "act-1",
+	}, "not-rfc3339")
+	appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+		"action_id":           "act-1",
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "tool-digest",
+	}, "2026-03-27T11:59:00Z")
+
+	report := Verify(b, "bundle.atb", "")
+	if !hasInformationalNote(report.InformationalNotes, `timestamp validation: seq 2 (ai.policy.decision) has invalid RFC 3339 timestamp "not-rfc3339"`) {
+		t.Fatalf("expected invalid timestamp note, got %v", report.InformationalNotes)
+	}
+	if !hasInformationalNote(report.InformationalNotes, `timestamp validation: seq 3 (ai.action.executed) timestamp "2026-03-27T11:59:00Z" is earlier than the preceding timestamp "2026-03-27T12:00:00Z"`) {
+		t.Fatalf("expected ordering note, got %v", report.InformationalNotes)
+	}
+}
+
 func TestVerify_CAS_GradeThresholds(t *testing.T) {
 	weights := map[string]float64{
 		"EC": 0.125,
