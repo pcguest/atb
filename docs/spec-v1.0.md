@@ -110,7 +110,7 @@ Event types use dot-namespaced identifiers. The following types are defined by t
 
 ### Legacy event types (v1.0, superseded)
 
-These types are defined for backward compatibility with bundles created before the Phase 5 AI trace specification. New integrations MUST use the types defined in `docs/spec-ai-traces.md` instead.
+These types are defined for backward compatibility with bundles created before the current AI trace specification. New integrations MUST use the types defined in `docs/spec-ai-traces.md` instead.
 
 | Type | Description |
 |------|-------------|
@@ -128,7 +128,7 @@ These types are defined for backward compatibility with bundles created before t
 
 Custom event types are permitted using reverse-domain notation (e.g., `com.example.custom_event`).
 
-### Current AI trace event types (Phase 5)
+### Current AI trace event types (current AI trace specification)
 
 | Type | Description | Reference |
 |------|-------------|-----------|

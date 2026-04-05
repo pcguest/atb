@@ -35,7 +35,7 @@ configuration in PyPI instead of restoring a repository secret.
 
 5. Record outcome
 
-- Save date, operator, pass/fail, and blockers in `docs/maintenance/weekly-checklist.md` notes or release log.
+- Save date, operator, pass/fail, and blockers in the release log.
 
 ## RTO/RPO Targets (Pragmatic)
 

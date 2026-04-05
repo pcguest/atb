@@ -1,4 +1,4 @@
-# How I Built ATB in 3 Weeks as a Solo Founder
+# Building ATB: A Solo Developer Project
 
 ATB (Agent Trace Bundle) started from one problem: AI agents are hard to audit after the fact.
 
@@ -24,7 +24,7 @@ If any event changes, verification fails.
 
 Cross-language consistency mattered from day one, so I anchored hashing on RFC 8785 canonical JSON.
 
-## What Shipped in v1.0.x
+## What Shipped in v0.9.0-beta
 
 - CLI commands for init, append, snapshot, verify, and local trace viewing
 - Python SDK packaging and publish automation
@@ -62,14 +62,3 @@ The next step is not a broad hosted platform.
 I am keeping the local-first core intact and validating a narrower question first: whether teams need secure bundle handoff badly enough to justify a minimal `atb push` path.
 
 If that demand is real, the right shape is encrypted transfer that preserves local control. If it is not, ATB stays focused on local verification, incident review, and portable evidence.
-
-## Advice for Other Solo Founders
-
-- Ship narrow, then automate repeatable toil.
-- Keep your architecture reversible.
-- Record your own development process as product telemetry.
-- Trust user pull more than roadmap intuition.
-
-If you are building agent systems and need auditability, ATB is open source:
-
-<https://github.com/pcguest/atb>

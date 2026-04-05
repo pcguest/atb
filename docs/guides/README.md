@@ -14,7 +14,6 @@ Practical guides for integrating and operating ATB in production workflows.
 - [Customer Handoff Workflow](./customer-handoff-workflow.md)
 - [Security Model](../security.md)
 - [Incident Response](../incident-response.md)
-- [Maintenance Checklist](../maintenance/weekly-checklist.md)
 - [Disaster Recovery](../maintenance/disaster-recovery.md)
 
 ## Compliance

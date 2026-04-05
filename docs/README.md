@@ -47,4 +47,3 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 
 - [Root Contributing Guide](../CONTRIBUTING.md)
 - [Contributor Workflow](./contributing.md)
-- [Maintenance Checklist](./maintenance/weekly-checklist.md)

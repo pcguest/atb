@@ -1,4 +1,4 @@
-# ATB AI Trace Specification (Phase 5)
+# ATB AI Trace Specification (current AI trace specification)
 
 This specification defines how framework runtime callbacks map into ATB events without changing the core ATB bundle record format in `docs/spec-v1.0.md`.
 
@@ -142,7 +142,7 @@ Notes:
 
 - `prompt.text`, `completion.text`, tool input/output text are privacy-filtered.
 - `*.sha256` values are computed from emitted text (post-privacy transform) for deterministic verification.
-- PII category guidance follows Phase 4 GDPR policy (`email`, `ip`, `user_id`, `payment`, `health`, `bio`, third-party IDs).
+- PII category guidance follows the prior specification GDPR policy (`email`, `ip`, `user_id`, `payment`, `health`, `bio`, third-party IDs).
 
 ## Streaming and Async Behavior
 
