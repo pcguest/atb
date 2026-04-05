@@ -1,10 +1,10 @@
 {
   "name": "@pcguest/atb-sdk",
-  "version": "1.8.1",
-  "description": "ATB (Agent Trace Bundle) TypeScript SDK - local-first, tamper-evident audit trails for AI workflows",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "version": "0.9.0-beta.1",
+  "description": "TypeScript SDK for ATB (Agent Trace Bundle) - local-first AI audit trail",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
   "bin": {
     "atb": "./bin/atb"
   },
@@ -17,8 +17,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
-    }
+      "require": "./dist/index.js",
+      "default": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts",
@@ -42,7 +44,10 @@
     "url": "https://github.com/pcguest/atb.git",
     "directory": "sdk/typescript"
   },
-  "homepage": "https://atb.dev",
+  "homepage": "https://github.com/pcguest/atb",
+  "bugs": {
+    "url": "https://github.com/pcguest/atb/issues"
+  },
   "publishConfig": {
     "access": "public"
   },

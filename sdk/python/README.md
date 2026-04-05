@@ -2,6 +2,8 @@
 
 The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb) - local-first, tamper-evident audit trails for AI workflows.
 
+Source repository: [github.com/pcguest/atb](https://github.com/pcguest/atb)
+
 ## Installation
 
 ```bash
