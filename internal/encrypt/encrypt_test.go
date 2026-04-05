@@ -114,7 +114,10 @@ func TestDecryptRejectsUnsupportedVersion(t *testing.T) {
 }
 
 func TestDecryptThenVerify(t *testing.T) {
-	b := bundle.New()
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
 	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
 	if err := b.AppendWithOptions("dev.session", map[string]any{"msg": "hello"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		t.Fatalf("append 1: %v", err)

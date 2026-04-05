@@ -496,7 +496,22 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "~ Dry run: would initialise ATB bundle at %s.\n", path)
 		return exitSuccess
 	}
-	b := bundle.New()
+	b, err := bundle.New()
+	if err != nil {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "init",
+				DryRun:   dryRun,
+				Path:     path,
+				Error:    err.Error(),
+				ExitCode: exitSystemError,
+			}, "init")
+			return exitSystemError
+		}
+		fmt.Fprintf(stderr, "atb init: %v\n", err)
+		return exitSystemError
+	}
 	if err := b.Save(path); err != nil {
 		if outputFormat == verifyFormatJSON {
 			printMutationJSON(mutationResult{
@@ -876,7 +891,10 @@ func appendToDefaultBundle(eventType string, data interface{}, dryRun bool, opts
 	b, err := bundle.Load(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			b = bundle.New()
+			b, err = bundle.New()
+			if err != nil {
+				return bundle.Record{}, err
+			}
 		} else {
 			return bundle.Record{}, mutationLoadError{err: err}
 		}

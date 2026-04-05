@@ -29,7 +29,7 @@ func createTestBundle(t *testing.T) (string, *bundle.Bundle) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"email":    "auditor@example.com",
 		"user_id":  "usr_123",

@@ -16,14 +16,14 @@ import (
 )
 
 func TestClassifyAnchor_Absent(t *testing.T) {
-	if got := ClassifyAnchor(bundle.New(), "bundle.atb"); got != AnchorAbsent {
+	if got := ClassifyAnchor(newVerifyTestBundle(t), "bundle.atb"); got != AnchorAbsent {
 		t.Fatalf("ClassifyAnchor() = %v, want %v", got, AnchorAbsent)
 	}
 }
 
 func TestClassifyAnchor_PresentBadData(t *testing.T) {
 	fixture := readAnchorTSRFixture(t)
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T03:04:05Z")
 
 	if got := ClassifyAnchor(b, ""); got != AnchorPresentBadData {
@@ -33,7 +33,7 @@ func TestClassifyAnchor_PresentBadData(t *testing.T) {
 
 func TestClassifyAnchor_DigestMismatch(t *testing.T) {
 	fixture := readAnchorTSRFixture(t)
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T03:04:05Z")
 
 	path := filepath.Join(t.TempDir(), "bundle.atb")

@@ -33,6 +33,8 @@ const (
 	ManifestVersion = "1"
 )
 
+var eventTypeRegexp = regexp.MustCompile(`^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$`)
+
 // Record is a single line in an ATB bundle file.
 type Record struct {
 	Event hash.Event `json:"event"`
@@ -63,7 +65,7 @@ type AppendOptions struct {
 }
 
 // New creates a new empty bundle.
-func New() *Bundle {
+func New() (*Bundle, error) {
 	b := &Bundle{}
 	createdAt := time.Now().UTC().Format(time.RFC3339)
 	manifestPayload, err := json.Marshal(ManifestData{
@@ -71,12 +73,15 @@ func New() *Bundle {
 		CreatedAt: createdAt,
 		BundleID:  newBundleID(),
 	})
-	if err == nil {
-		_ = b.AppendWithOptions(ManifestEventType, string(manifestPayload), &AppendOptions{
-			Timestamp: createdAt,
-		})
+	if err != nil {
+		return nil, fmt.Errorf("bundle: new: marshal manifest: %w", err)
 	}
-	return b
+	if err := b.AppendWithOptions(ManifestEventType, string(manifestPayload), &AppendOptions{
+		Timestamp: createdAt,
+	}); err != nil {
+		return nil, fmt.Errorf("bundle: new: append manifest: %w", err)
+	}
+	return b, nil
 }
 
 // Append adds a new event to the bundle, computing its hash automatically.
@@ -94,8 +99,7 @@ func (b *Bundle) AppendWithOptions(eventType string, data interface{}, opts *App
 	if len(b.Records) > 0 {
 		prevHash = b.Records[len(b.Records)-1].Hash
 	}
-	matched, _ := regexp.MatchString(`^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$`, eventType)
-	if !matched {
+	if !eventTypeRegexp.MatchString(eventType) {
 		return fmt.Errorf("bundle: event type %q does not match required pattern (e.g. \"ai.tool.exec\")", eventType)
 	}
 

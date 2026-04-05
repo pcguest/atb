@@ -39,7 +39,7 @@ func TestRunVerify_JSONOutput(t *testing.T) {
 }
 
 func TestRunVerify_IntegrityFail_ExitCode(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"event_id": "evt-1"})
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"event_id": "evt-2"})
 	b.Records[1].Event.Type = "dev.session.tampered"
@@ -54,7 +54,7 @@ func TestRunVerify_IntegrityFail_ExitCode(t *testing.T) {
 }
 
 func TestRunVerify_ProfileFail_ExitCode(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "ai.request.received", map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",
@@ -244,7 +244,7 @@ func TestVerifyWithAnchorUsesCustomRoots(t *testing.T) {
 func buildCLIPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEventWithOptions(t, b, "ai.request.received", map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",

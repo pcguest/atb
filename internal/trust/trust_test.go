@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 )
 
 func TestVerifyAnchors_NoAnchors(t *testing.T) {
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 	if err := b.Append(event.TypeDevSession, map[string]any{"event_id": "evt-1"}); err != nil {
 		t.Fatalf("append dev session: %v", err)
 	}
@@ -52,7 +51,7 @@ type anchorErrorCase struct {
 func testVerifyAnchorErrorCase(t *testing.T, tc anchorErrorCase) {
 	t.Helper()
 
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 	if err := b.Append(event.TypeDevSession, map[string]any{"event_id": tc.name}); err != nil {
 		t.Fatalf("append dev session: %v", err)
 	}

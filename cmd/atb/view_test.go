@@ -84,7 +84,7 @@ func TestBuildViewHandlerServesTimeline(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"timestamp": "2026-03-03T04:00:00Z",
 		"actor":     "assistant",
@@ -141,7 +141,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "x"})
 	if len(b.Records) == 0 {
 		t.Fatalf("expected at least one record")
@@ -191,7 +191,7 @@ func TestBuildViewServerTamperModeDisablesExperimentalDashboard(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "x"})
 	if len(b.Records) == 0 {
 		t.Fatalf("expected at least one record")
@@ -323,7 +323,7 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"email":  "auditor@example.com",
 		"prompt": "hello",
@@ -390,7 +390,7 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
 		"email": "auditor@example.com",
 	})
@@ -417,7 +417,7 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "hello"})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
@@ -447,7 +447,7 @@ func TestBuildViewServerUIExperimentalServesViewRoute(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "hello"})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)

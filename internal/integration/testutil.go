@@ -25,7 +25,10 @@ func newTempBundle(t *testing.T) string {
 	})
 
 	bundlePath := filepath.Join(root, bundle.BundleDir, bundle.BundleFile)
-	b := bundle.New()
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}

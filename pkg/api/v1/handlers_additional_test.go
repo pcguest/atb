@@ -20,7 +20,7 @@ func createRichTestBundle(t *testing.T) (string, *bundle.Bundle) {
 
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEventAt(t, b, "ai.chain.start", map[string]interface{}{
 		"timestamp": "2026-03-12T00:00:00Z",
 		"trace_id":  "trace-1",
@@ -531,7 +531,7 @@ func TestPaginationAndExtractionHelpers(t *testing.T) {
 }
 
 func TestFindRecordTamperHandlerAndPIIRuleLoad(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "evt.one", map[string]interface{}{"a": 1})
 	appendTestBundleEvent(t, b, "evt.two", map[string]interface{}{"a": 2})
 	records := b.Records

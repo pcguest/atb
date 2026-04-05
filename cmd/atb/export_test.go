@@ -511,7 +511,7 @@ func preparePhase4Docs(t *testing.T) {
 
 func writePhase4Bundle(t *testing.T, path string) {
 	t.Helper()
-	b := bundle.New()
+	b := newTestBundle(t)
 
 	subject := "usr_9f8e7d6c"
 	org := "org_xyz"

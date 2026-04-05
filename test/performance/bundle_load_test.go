@@ -50,7 +50,10 @@ func buildBenchmarkBundle(b *testing.B, numBlocks int) string {
 
 	tmpDir := b.TempDir()
 	bundlePath := filepath.Join(tmpDir, fmt.Sprintf("benchmark-%d.atb", numBlocks))
-	bun := bundle.New()
+	bun, err := bundle.New()
+	if err != nil {
+		b.Fatalf("create benchmark bundle: %v", err)
+	}
 
 	for i := 0; i < numBlocks; i++ {
 		timestamp := time.Unix(int64(i), 0).UTC().Format(time.RFC3339Nano)

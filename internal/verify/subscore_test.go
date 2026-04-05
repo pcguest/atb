@@ -118,7 +118,7 @@ func allZeroSubScores(subScores map[string]float64) bool {
 func newDataExportBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-data-export",
 		"actor_id_hash": "actor-hash",
@@ -162,7 +162,7 @@ func newDataExportBundle(t testing.TB) *bundle.Bundle {
 func newPolicyDecisionBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-policy-decision",
 		"actor_id_hash": "actor-hash",
@@ -182,7 +182,7 @@ func newPolicyDecisionBundle(t testing.TB) *bundle.Bundle {
 func newHumanOverrideBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-human-override",
 		"actor_id_hash": "actor-hash",
@@ -213,7 +213,7 @@ func newHumanOverrideBundle(t testing.TB) *bundle.Bundle {
 func newBackgroundAutomationBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-background",
 		"actor_id_hash": "actor-hash",

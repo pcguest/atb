@@ -14,7 +14,7 @@ import (
 )
 
 func TestVerify_IntegrityFail(t *testing.T) {
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, "dev.session", map[string]any{"event_id": "evt-1"}, "2026-03-27T12:00:00Z")
 	appendVerifyRecord(t, b, "dev.session", map[string]any{"event_id": "evt-2"}, "2026-03-27T12:01:00Z")
 	b.Records[1].Event.Type = "dev.session.tampered"
@@ -32,7 +32,7 @@ func TestVerify_IntegrityFail(t *testing.T) {
 }
 
 func TestVerify_NoProfile(t *testing.T) {
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, "dev.session", map[string]any{"event_id": "evt-1"}, "2026-03-27T12:00:00Z")
 	appendVerifyRecord(t, b, "dev.session", map[string]any{"event_id": "evt-2"}, "2026-03-27T12:01:00Z")
 
@@ -76,7 +76,7 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 			name:      "data_export",
 			profileID: profileIDDataExport,
 			build: func() *bundle.Bundle {
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-data-export",
 					"actor_id_hash": "actor-hash",
@@ -121,7 +121,7 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 			name:      "policy_decision",
 			profileID: profileIDPolicyDecision,
 			build: func() *bundle.Bundle {
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-policy-decision",
 					"actor_id_hash": "actor-hash",
@@ -142,7 +142,7 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 			name:      "human_override",
 			profileID: profileIDHumanOverride,
 			build: func() *bundle.Bundle {
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-human-override",
 					"actor_id_hash": "actor-hash",
@@ -174,7 +174,7 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 			name:      "background_automation",
 			profileID: profileIDBackgroundAutomation,
 			build: func() *bundle.Bundle {
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-background",
 					"actor_id_hash": "actor-hash",
@@ -310,7 +310,7 @@ func TestComputeSC(t *testing.T) {
 
 				// With policy present this still reaches the clamp without a signature:
 				// 0.40 + 0.25 + 0.20 + 0.15 = 1.00.
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-1",
 					"actor_id_hash": "actor-hash",
@@ -338,7 +338,7 @@ func TestComputeSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-1",
 					"actor_id_hash": "actor-hash",
@@ -364,7 +364,7 @@ func TestComputeSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-1",
 					"actor_id_hash": "actor-hash",
@@ -391,7 +391,7 @@ func TestComputeSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-1",
 					"actor_id_hash": "actor-hash",
@@ -407,7 +407,7 @@ func TestComputeSC(t *testing.T) {
 			wantCAS:   true,
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
-				return bundle.New()
+				return newVerifyTestBundle(t)
 			},
 		},
 		{
@@ -464,7 +464,7 @@ func TestComputeSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 					"request_id":    "req-1",
 					"actor_id_hash": "actor-hash",
@@ -533,7 +533,7 @@ func TestCASSubScoresSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeBundleSignature, map[string]any{
 					"algorithm":   "ed25519",
 					"public_key":  "cHVibGljLWtleQ==",
@@ -562,7 +562,7 @@ func TestCASSubScoresSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeDevSession, map[string]any{
 					"event_id": "evt-1",
 				}, "2026-03-27T12:00:00Z")
@@ -597,7 +597,7 @@ func TestCASSubScoresSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeBundleAnchor,
 					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","certified_time":"2026-03-27T12:00:30Z"}`,
 					"2026-03-27T12:00:30Z")
@@ -642,7 +642,7 @@ func TestCASSubScoresSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeDevSession, map[string]any{
 					"event_id": "evt-1",
 				}, "2026-03-27T12:00:00Z")
@@ -668,7 +668,7 @@ func TestCASSubScoresSC(t *testing.T) {
 			build: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
-				b := bundle.New()
+				b := newVerifyTestBundle(t)
 				appendVerifyRecord(t, b, event.TypeBundleSignature, map[string]any{
 					"algorithm":   "ed25519",
 					"public_key":  "cHVibGljLWtleQ==",
@@ -789,10 +789,20 @@ func appendVerifyRecord(t testing.TB, b *bundle.Bundle, eventType string, data i
 	}
 }
 
+func newVerifyTestBundle(t testing.TB) *bundle.Bundle {
+	t.Helper()
+
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
+	return b
+}
+
 func newPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, "ai.request.received", map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",
@@ -844,7 +854,7 @@ func newPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 func newSignedPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, "ai.request.received", map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",

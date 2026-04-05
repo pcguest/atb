@@ -19,7 +19,7 @@ func TestPrivilegedToolAction_AllCriticalPresent(t *testing.T) {
 }
 
 func TestPrivilegedToolAction_MissingPrecommit(t *testing.T) {
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, "ai.request.received", map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",
@@ -72,7 +72,7 @@ func TestRAGAnswer_AllCriticalPresent(t *testing.T) {
 }
 
 func TestRAGAnswer_MissingModelInvoked(t *testing.T) {
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, "ai.request.received", map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",
@@ -127,7 +127,7 @@ func TestAnchorSubScoreScaling(t *testing.T) {
 func newRAGAnswerBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, "ai.request.received", map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",

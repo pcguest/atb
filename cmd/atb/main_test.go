@@ -604,7 +604,7 @@ func TestAppendToDefaultBundleRejectsCorruptExistingBundle(t *testing.T) {
 }
 
 func TestVerifyWithTraceIncludesPerEventLogs(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 	b.Records[0].Hash = strings.Repeat("0", 64)
 

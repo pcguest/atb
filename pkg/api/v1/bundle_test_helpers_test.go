@@ -18,6 +18,16 @@ func testBundleID() string {
 	return strings.Repeat("a", 32)
 }
 
+func newTestBundle(t testing.TB) *bundle.Bundle {
+	t.Helper()
+
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
+	return b
+}
+
 func appendTestBundleEvent(t testing.TB, b *bundle.Bundle, eventType string, data interface{}) {
 	t.Helper()
 	appendTestBundleEventAt(t, b, eventType, data, testBundleTimestamp())

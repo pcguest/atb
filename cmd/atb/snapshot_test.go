@@ -208,7 +208,7 @@ func TestSnapshotCreatesBundleWhenMissing(t *testing.T) {
 func writeSnapshotFixtureBundle(t *testing.T, path string) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	if err := b.AppendWithOptions(event.TypeDevSession, "snapshot-fixture", &bundle.AppendOptions{
 		Timestamp: "2026-03-28T03:04:05Z",
 	}); err != nil {

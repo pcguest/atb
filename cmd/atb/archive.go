@@ -235,7 +235,10 @@ func runArchive(now time.Time, cfg archiveConfig, out io.Writer) (archiveSummary
 	}
 
 	if !cfg.DryRun && archivedDefault {
-		fresh := bundle.New()
+		fresh, err := bundle.New()
+		if err != nil {
+			return summary, fmt.Errorf("recreate default bundle: %w", err)
+		}
 		if err := fresh.Save(bundle.DefaultPath()); err != nil {
 			return summary, fmt.Errorf("recreate default bundle: %w", err)
 		}

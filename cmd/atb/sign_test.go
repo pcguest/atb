@@ -134,7 +134,7 @@ func TestRunSign(t *testing.T) {
 func buildSignSCBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEventWithOptions(t, b, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-1",
 		"actor_id_hash": "actor-hash",

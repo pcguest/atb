@@ -12,8 +12,18 @@ import (
 	"github.com/pcguest/atb/internal/hash"
 )
 
+func newTestBundle(t testing.TB) *bundle.Bundle {
+	t.Helper()
+
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
+	return b
+}
+
 func TestAppendRejectsInvalidEventType(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 
 	if err := b.AppendWithOptions("INVALID", nil, &bundle.AppendOptions{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
@@ -23,7 +33,7 @@ func TestAppendRejectsInvalidEventType(t *testing.T) {
 }
 
 func TestAppendWithOptionsRoundTripsCanonicalFields(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 	path := filepath.Join(t.TempDir(), "bundle.atb")
 
 	opts := &bundle.AppendOptions{
@@ -63,7 +73,7 @@ func TestAppendWithOptionsRoundTripsCanonicalFields(t *testing.T) {
 }
 
 func TestNewBundleHasManifest(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 
 	manifest := b.Manifest()
 	if manifest == nil {
@@ -122,7 +132,7 @@ func TestLoadLegacyBundleNoManifest(t *testing.T) {
 
 func TestVerifyDetectsSequenceTampering(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bundle.atb")
-	b := bundle.New()
+	b := newTestBundle(t)
 
 	if err := b.Append("ai.tool.exec", map[string]any{"step": 1}); err != nil {
 		t.Fatalf("append first event: %v", err)
@@ -152,7 +162,7 @@ func TestVerifyDetectsSequenceTampering(t *testing.T) {
 
 func TestVerifyDetectsHashTampering(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bundle.atb")
-	b := bundle.New()
+	b := newTestBundle(t)
 
 	if err := b.Append("ai.tool.exec", map[string]any{"step": 1}); err != nil {
 		t.Fatalf("append event: %v", err)

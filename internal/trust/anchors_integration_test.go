@@ -22,7 +22,7 @@ func TestVerifyAnchors_RealAnchorRoundTrip(t *testing.T) {
 	}
 
 	bundlePath := filepath.Join(t.TempDir(), "run.atb", bundle.BundleFile)
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 	if err := b.Append(event.TypeDevSession, map[string]any{"event_id": "anchor-round-trip"}); err != nil {
 		t.Fatalf("append dev session: %v", err)
 	}

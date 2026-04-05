@@ -23,7 +23,7 @@ func TestBuildReportIncludesAllCategories(t *testing.T) {
 	mustWriteFile(t, filepath.Join(root, "test/golden/golden_test.go"), "oracle")
 
 	bundlePath := filepath.Join(root, "run.atb", "bundle.atb")
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
 	if err := b.AppendWithOptions("agent.session", map[string]interface{}{"id": "report-test"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		t.Fatalf("append: %v", err)
@@ -80,7 +80,7 @@ func TestBuildReportGateFailsOnTamperedChain(t *testing.T) {
 	mustWriteFile(t, filepath.Join(root, "docs/spec-v1.0.md"), "spec")
 	bundlePath := filepath.Join(root, "run.atb", "bundle.atb")
 
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
 	if err := b.AppendWithOptions("agent.session", map[string]interface{}{"id": "tamper-test"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		t.Fatalf("append: %v", err)
@@ -113,7 +113,7 @@ func TestBuildReportPortableModeUsesEmbeddedEvidence(t *testing.T) {
 	root := t.TempDir()
 	bundlePath := filepath.Join(root, "bundle.atb")
 
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
 	if err := b.AppendWithOptions("agent.session", map[string]interface{}{"id": "portable-report"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		t.Fatalf("append: %v", err)
@@ -213,7 +213,7 @@ func writePrivilegedToolActionBundle(t testing.TB) string {
 	t.Helper()
 
 	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 
 	appendTrustRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-1",
@@ -256,7 +256,7 @@ func writeDataExportBundle(t testing.TB) string {
 	t.Helper()
 
 	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
-	b := bundle.New()
+	b := newTrustTestBundle(t)
 
 	appendTrustRecord(t, b, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-1",

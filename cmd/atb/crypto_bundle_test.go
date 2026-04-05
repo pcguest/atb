@@ -3,13 +3,12 @@ package main
 import (
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/canonicalize"
 	"github.com/pcguest/atb/internal/hash"
 )
 
 func TestBundlePayloadRoundTripVerifies(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 
 	raw, err := canonicalPayloadFromBundle(b)
@@ -26,7 +25,7 @@ func TestBundlePayloadRoundTripVerifies(t *testing.T) {
 }
 
 func TestBundlePayloadHeadHashMismatchFails(t *testing.T) {
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 	payload := encryptedBundlePayload{
 		HeadHash: hash.GenesisHash,

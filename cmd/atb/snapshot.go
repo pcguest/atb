@@ -223,7 +223,7 @@ func loadSnapshotBundle(path string) (*bundle.Bundle, error) {
 		return b, nil
 	}
 	if errors.Is(err, os.ErrNotExist) {
-		return bundle.New(), nil
+		return bundle.New()
 	}
 	return nil, mutationLoadError{err: err}
 }

@@ -146,7 +146,7 @@ func TestRunInspect(t *testing.T) {
 func buildInspectTestBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, event.TypeDevSession, map[string]any{
 		"note": strings.Repeat("test-note-", 12),
 	})

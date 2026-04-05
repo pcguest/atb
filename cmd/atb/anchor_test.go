@@ -164,7 +164,7 @@ func writeAnchorTestBundle(t *testing.T) (string, []byte) {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "run.atb", bundle.BundleFile)
-	b := bundle.New()
+	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 	if err := b.Save(path); err != nil {
 		t.Fatalf("save test bundle: %v", err)
