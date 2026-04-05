@@ -1,6 +1,6 @@
 module github.com/pcguest/atb
 
-go 1.26.1
+go 1.25.0
 
 require (
 	github.com/securego/gosec/v2 v2.20.0

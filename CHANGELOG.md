@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.9.0-beta] — 2026-04-XX
+
+### Changed
+- Versioning reset to v0.9.0-beta to accurately reflect pre-production status
+- TSA verification note: certificate chain validation is not yet implemented (v1.0 milestone)
+- Bundle-level Ed25519 signing not yet implemented (v1.0 milestone)
+
 ## [v1.8.1] - 2026-04-02
 
 ### Changed

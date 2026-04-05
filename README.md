@@ -1,6 +1,6 @@
 # ATB
 
-[![Version](https://img.shields.io/badge/version-v1.8.1-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.9.0--beta-blue)](CHANGELOG.md)
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security Gate](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -20,7 +20,7 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 
 ## Release Status
 
-- Current release: [`v1.8.1`](CHANGELOG.md)
+- Current release: [`v0.9.0-beta`](CHANGELOG.md)
 - All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 
 ## 5 Minute Start
@@ -70,6 +70,8 @@ atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 | Developer integrations | Native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript. |
 | Go CLI as the primary distribution path | Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path. |
 
+> **Implementation status:** Bundle-level Ed25519 signing (`atb.bundle.signature`) and full RFC 3161 certificate chain verification are planned for v1.0. Current signing covers `ai.policy.decision` events only. Current TSA verification validates message imprint and PKIStatus but does not verify the TSA certificate chain.
+
 - [Why ATB: integrity, completeness, and what we claim](docs/why-atb.md)
 
 ## Verification model
@@ -93,9 +95,9 @@ ATB is not intended to be a generic hosted LLM observability platform.
 
 ## Installation
 
-- Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest` (requires Go 1.26.1+)
-- Python SDK: `pip install atb-sdk`
-- TypeScript SDK: `npm install @pcguest/atb-sdk`
+- Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest` (requires Go 1.25.0+)
+- Python SDK: `pip install atb-sdk  # PyPI package coming in v1.0`
+- TypeScript SDK: `npm install @pcguest/atb-sdk  # npm package coming in v1.0`
 - Docker: build locally with `docker build -t atb .`
 
 Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
