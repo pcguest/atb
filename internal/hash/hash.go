@@ -62,6 +62,7 @@ func Verify(events []Event, hashes []string) error {
 	for i, e := range events {
 		expectedSeq := i + 1
 		storedSeq := e.Sequence
+		storedPrevHash := e.PrevHash
 		e.PrevHash = prev
 		e.Sequence = expectedSeq
 		computed, err := Compute(e)
@@ -71,6 +72,10 @@ func Verify(events []Event, hashes []string) error {
 		if storedSeq != expectedSeq {
 			return fmt.Errorf("hash: verify: sequence mismatch at index %d: expected seq %d, got seq %d",
 				i, expectedSeq, storedSeq)
+		}
+		if storedPrevHash != prev {
+			return fmt.Errorf("hash: verify: prev_hash mismatch at index %d: expected %s, got %s",
+				i, prev, storedPrevHash)
 		}
 		if computed != hashes[i] {
 			return fmt.Errorf("hash: verify: tamper detected at event %d (seq %d): expected %s, got %s",

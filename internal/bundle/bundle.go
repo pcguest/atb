@@ -247,6 +247,7 @@ func verifyManifestBundle(records []Record) error {
 		}
 
 		event := record.Event
+		storedPrevHash := record.Event.PrevHash
 		event.PrevHash = prev
 		event.Sequence = expectedSeq
 
@@ -260,6 +261,14 @@ func verifyManifestBundle(records []Record) error {
 				i,
 				expectedSeq,
 				record.Event.Sequence,
+			)
+		}
+		if storedPrevHash != prev {
+			return fmt.Errorf(
+				"bundle: verify: prev_hash mismatch at index %d: expected %s, got %s",
+				i,
+				prev,
+				storedPrevHash,
 			)
 		}
 		if computed != record.Hash {
