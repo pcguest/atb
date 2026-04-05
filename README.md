@@ -1,6 +1,6 @@
 # ATB
 
-[![Version](https://img.shields.io/badge/version-v0.9.0--beta-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.8.1-blue)](CHANGELOG.md)
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security Gate](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -20,7 +20,7 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 
 ## Release Status
 
-- Current release: [`v0.9.0-beta`](CHANGELOG.md)
+- Current release: [`v1.8.1`](CHANGELOG.md)
 - All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 
 ## 5 Minute Start
@@ -97,7 +97,7 @@ ATB is not intended to be a generic hosted LLM observability platform.
 
 - Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest` (requires Go 1.25.0+)
 - Python SDK: `pip install atb-sdk`
-- TypeScript SDK: `npm install @dingalwa/atb-sdk`
+- TypeScript SDK: `npm install @pcguest/atb-sdk`
 - Docker: build locally with `docker build -t atb .`
 
 Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
