@@ -119,3 +119,60 @@ func TestLoadLegacyBundleNoManifest(t *testing.T) {
 		t.Fatalf("expected nil manifest for legacy bundle")
 	}
 }
+
+func TestVerifyDetectsSequenceTampering(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	b := bundle.New()
+
+	if err := b.Append("ai.tool.exec", map[string]any{"step": 1}); err != nil {
+		t.Fatalf("append first event: %v", err)
+	}
+	if err := b.Append("ai.tool.exec", map[string]any{"step": 2}); err != nil {
+		t.Fatalf("append second event: %v", err)
+	}
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+
+	loaded.Records[2].Event.Sequence = 99
+
+	err = loaded.Verify()
+	if err == nil {
+		t.Fatal("expected sequence tampering to be detected")
+	}
+	if !strings.Contains(err.Error(), "sequence mismatch") {
+		t.Fatalf("expected sequence mismatch error, got %v", err)
+	}
+}
+
+func TestVerifyDetectsHashTampering(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	b := bundle.New()
+
+	if err := b.Append("ai.tool.exec", map[string]any{"step": 1}); err != nil {
+		t.Fatalf("append event: %v", err)
+	}
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+
+	loaded.Records[1].Hash = strings.Repeat("0", 64)
+
+	err = loaded.Verify()
+	if err == nil {
+		t.Fatal("expected hash tampering to be detected")
+	}
+	if !strings.Contains(err.Error(), "tamper detected") {
+		t.Fatalf("expected tamper detected error, got %v", err)
+	}
+}

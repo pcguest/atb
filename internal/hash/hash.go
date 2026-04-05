@@ -60,15 +60,21 @@ func Verify(events []Event, hashes []string) error {
 	}
 	prev := GenesisHash
 	for i, e := range events {
+		expectedSeq := i + 1
+		storedSeq := e.Sequence
 		e.PrevHash = prev
-		e.Sequence = i + 1
+		e.Sequence = expectedSeq
 		computed, err := Compute(e)
 		if err != nil {
 			return fmt.Errorf("hash: verify at index %d: %w", i, err)
 		}
+		if storedSeq != expectedSeq {
+			return fmt.Errorf("hash: verify: sequence mismatch at index %d: expected seq %d, got seq %d",
+				i, expectedSeq, storedSeq)
+		}
 		if computed != hashes[i] {
 			return fmt.Errorf("hash: verify: tamper detected at event %d (seq %d): expected %s, got %s",
-				i, e.Sequence, hashes[i], computed)
+				i, expectedSeq, hashes[i], computed)
 		}
 		prev = computed
 	}

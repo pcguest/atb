@@ -237,23 +237,32 @@ func hasManifestRecord(records []Record) bool {
 func verifyManifestBundle(records []Record) error {
 	prev := hash.GenesisHash
 	for i, record := range records {
+		expectedSeq := i
+		if i == 0 {
+			expectedSeq = 0
+		}
+
 		event := record.Event
 		event.PrevHash = prev
-		if i == 0 {
-			event.Sequence = 0
-		} else {
-			event.Sequence = i
-		}
+		event.Sequence = expectedSeq
 
 		computed, err := hash.Compute(event)
 		if err != nil {
 			return fmt.Errorf("bundle: verify at index %d: %w", i, err)
 		}
+		if record.Event.Sequence != expectedSeq {
+			return fmt.Errorf(
+				"bundle: verify: sequence mismatch at index %d: expected seq %d, got seq %d",
+				i,
+				expectedSeq,
+				record.Event.Sequence,
+			)
+		}
 		if computed != record.Hash {
 			return fmt.Errorf(
 				"bundle: verify: tamper detected at event %d (seq %d): expected %s, got %s",
 				i,
-				event.Sequence,
+				expectedSeq,
 				record.Hash,
 				computed,
 			)

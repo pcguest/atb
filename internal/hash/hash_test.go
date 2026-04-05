@@ -1,6 +1,7 @@
 package hash_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/hash"
@@ -89,5 +90,35 @@ func TestVerifyTamperDetection(t *testing.T) {
 
 	if err := hash.Verify(events, hashes); err == nil {
 		t.Error("Verify should have detected tampering but returned nil")
+	}
+}
+
+func TestVerifyDetectsSequenceTampering(t *testing.T) {
+	events := []hash.Event{
+		{Type: "dev.session", Data: map[string]interface{}{"date": "2025-01-15"}},
+		{Type: "decision", Data: map[string]interface{}{"choice": "Go over Rust"}},
+	}
+
+	if _, err := hash.Chain(events); err != nil {
+		t.Fatalf("Chain: %v", err)
+	}
+
+	hashes := make([]string, len(events))
+	for i, e := range events {
+		h, err := hash.Compute(e)
+		if err != nil {
+			t.Fatalf("Compute at %d: %v", i, err)
+		}
+		hashes[i] = h
+	}
+
+	events[1].Sequence = 99
+
+	err := hash.Verify(events, hashes)
+	if err == nil {
+		t.Fatal("expected sequence tampering to be detected")
+	}
+	if !strings.Contains(err.Error(), "sequence mismatch") {
+		t.Fatalf("expected sequence mismatch error, got %v", err)
 	}
 }
