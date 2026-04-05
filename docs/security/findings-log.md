@@ -1,5 +1,5 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# Security Findings Resolution Log (v1.1.0)
+<!-- Archived release-planning draft. Not maintained. -->
+# Security Findings Resolution Log (current beta)
 
 ## Finding #1: Reveal Auth Missing
 - **Severity:** Critical

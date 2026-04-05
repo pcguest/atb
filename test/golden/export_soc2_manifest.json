@@ -73,5 +73,5 @@
     }
   ],
   "verifier_signature": null,
-  "signature_status": "unsigned — see docs/spec/atb-push-v1.1.md"
+  "signature_status": "unsigned (encrypted handoff spec forthcoming)"
 }

@@ -1,10 +1,10 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# Getting Started with ATB v1.1.0
+<!-- Archived release-planning draft. Not maintained. -->
+# Getting Started with ATB v0.9.0-beta
 
-This guide is for evaluating the `v1.1.0` tag from source. For day-to-day use, install the Go CLI directly with `go install github.com/pcguest/atb/cmd/atb@v1.1.0`.
+This guide is for evaluating the current beta snapshot from source. For day-to-day use, install the Go CLI directly with `go install github.com/pcguest/atb/cmd/atb@v0.9.0-beta`.
 
 ## Prerequisites
-- Go 1.26.1
+- Go 1.25.0
 - Node.js 20.9+ if you need to rebuild the embedded web export
 - npm 10+ if you need to rebuild the embedded web export
 
@@ -14,7 +14,7 @@ This guide is for evaluating the `v1.1.0` tag from source. For day-to-day use, i
 ```bash
 git clone https://github.com/pcguest/atb.git
 cd atb
-git checkout v1.1.0
+git checkout main
 go build -o atb ./cmd/atb
 ```
 
@@ -36,7 +36,7 @@ go build -o atb ./cmd/atb
 # Opens http://localhost:8080/view/
 ```
 
-Plain `./atb view` still serves the default local viewer. The role-based dashboard remains behind `--ui-experimental` in `v1.1.0`.
+Plain `./atb view` still serves the default local viewer. The role-based dashboard remains behind `--ui-experimental` in the current beta.
 
 ### 5. Verify Integrity
 ```bash
@@ -72,7 +72,7 @@ ATB ships with bundled default PII masking rules. To override them, point `ATB_P
 }
 ```
 
-Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log-reveals` flag is retained for CLI compatibility but is no longer required.
+Privacy reveal auditing is always appended to `bundle.atb` in the current beta. The `--log-reveals` flag is retained for CLI compatibility but is no longer required.
 
 ### Export Evidence
 
@@ -95,4 +95,4 @@ Privacy reveal auditing is always appended to `bundle.atb` in v1.1.0. The `--log
 - Read `docs/api/openapi.yaml` for API details
 - Explore `docs/security.md` for security model
 - Read `docs/use-cases/internal-audit-privacy-review.md` for buyer-facing review workflow
-- Open an issue with the `v1.1.0` label if you find a problem
+- Open an issue if you find a problem

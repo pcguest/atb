@@ -80,7 +80,7 @@ body:
     attributes:
       label: ATB Version
       description: Output of `atb version` (CLI) or SDK version.
-      placeholder: "e.g. atb 1.8.1 or atb-sdk 1.8.1"
+      placeholder: "e.g. atb v0.9.0-beta or @pcguest/atb-sdk 0.9.0-beta.1"
     validations:
       required: true
 

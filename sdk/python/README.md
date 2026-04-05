@@ -24,6 +24,8 @@ With LangChain integration:
 pip install atb-sdk[langchain]
 ```
 
+`atb-sdk[langchain]` is not yet published to PyPI; use `pip install atb-sdk` plus the LangChain packages directly until that extra is available.
+
 ## Quick Start
 
 ```python

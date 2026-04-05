@@ -34,7 +34,7 @@ const (
 	exportGDPRTypeDSR  = "dsr"
 	exportGDPRTypeROPA = "ropa"
 
-	unsignedSignatureStatus = "unsigned — see docs/spec/atb-push-v1.1.md"
+	unsignedSignatureStatus = "unsigned (encrypted handoff spec forthcoming)"
 )
 
 type exportConfig struct {

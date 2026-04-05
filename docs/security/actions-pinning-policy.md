@@ -1,5 +1,5 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# GitHub Actions Pinning Policy (v1.1.0+)
+<!-- Archived release-planning draft. Not maintained. -->
+# GitHub Actions Pinning Policy
 
 ## Policy
 All GitHub Actions `uses:` directives MUST be pinned to full commit SHA, not version tags.
@@ -13,12 +13,12 @@ All GitHub Actions `uses:` directives MUST be pinned to full commit SHA, not ver
 1. When adding a new action, identify the upstream tag or branch being adopted.
 2. Resolve that ref to a full commit SHA.
 3. Pin the workflow entry as `uses: owner/repo@SHA # original-ref`.
-4. Add the mapping to [pin-actions.sh](/Users/paddyguest/atb/scripts/pin-actions.sh) so future bulk refreshes stay consistent.
+4. Add the mapping to [pin-actions.sh](../../scripts/pin-actions.sh) so future bulk refreshes stay consistent.
 
 ## Updating Pins
 Quarterly, or when intentionally upgrading an action:
 1. Resolve the new upstream ref to a full SHA.
-2. Update [pin-actions.sh](/Users/paddyguest/atb/scripts/pin-actions.sh).
+2. Update [pin-actions.sh](../../scripts/pin-actions.sh).
 3. Re-run the script across `.github/workflows`.
 4. Validate that no `@v*` refs remain and all workflow actions are SHA-pinned.
 

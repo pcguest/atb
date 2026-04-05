@@ -2,7 +2,7 @@
 
 ## Goal
 
-Ship ATB v1.0.0 with deterministic, secure, automated release pipelines for:
+Ship ATB v0.9.0-beta with deterministic, secure, automated release pipelines for:
 
 - PyPI
 - npm
@@ -44,14 +44,14 @@ Bump PATCH for backward-compatible fixes:
 - Mark deprecations in one MINOR release
 - Keep deprecated behavior through at least one additional MINOR
 - Remove deprecated behavior only in next MAJOR
-- Current v1.x stance: Python and TypeScript ship SDKs only. Their `atb` entrypoints are compatibility stubs pending removal in the next MAJOR release.
+- Current beta stance: Python and TypeScript ship SDKs only. Their `atb` entrypoints are compatibility stubs pending removal in the next MAJOR release.
 
-## Release Checklist (v1.0.0)
+## Release Checklist (v0.9.0-beta)
 
 1. Freeze release branch; merge only release-critical fixes.
 2. Confirm versions and changelog are updated.
 3. Run local preflight (`scripts/release-check.sh`).
-4. Create annotated tag `v1.0.0`.
+4. Create annotated tag `v0.9.0-beta`.
 5. Push tag and monitor release and Docker publish workflows.
 6. Verify published artifacts:
    - GitHub release binaries + checksums

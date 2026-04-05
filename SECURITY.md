@@ -6,9 +6,7 @@ Security fixes are shipped on the current release tag only.
 
 | Version | Supported |
 | --- | --- |
-| `v1.8.1` | Yes |
-| `v1.8.0` | No |
-| `v1.7.0` | No |
+| `v0.9.0-beta` | Yes |
 | Older releases | No |
 
 ## Reporting a Vulnerability

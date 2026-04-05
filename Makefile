@@ -1,6 +1,6 @@
 .PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks fuzz
 
-GOTOOLCHAIN ?= go1.26.1
+GOTOOLCHAIN ?= go1.25.0
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
@@ -142,5 +142,5 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" ./...; \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.1 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \
+		docker run --rm -v "$$(pwd):/work" -w /work golang:1.25.0 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \
 	fi

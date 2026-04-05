@@ -10,7 +10,7 @@ RUN npm ci
 COPY web/ ./
 RUN npm run build
 
-FROM golang:1.26.1-alpine AS go-builder
+FROM golang:1.25.0-alpine AS go-builder
 WORKDIR /src
 
 COPY go.mod go.sum ./
@@ -29,13 +29,13 @@ COPY --from=web-builder /src/web/out ./web/out
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
-ARG ATB_VERSION=1.8.1
+ARG ATB_VERSION=v0.9.0-beta
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
 
 FROM gcr.io/distroless/static-debian12:nonroot AS runtime
 WORKDIR /app
-ARG ATB_VERSION=1.8.1
+ARG ATB_VERSION=v0.9.0-beta
 LABEL org.opencontainers.image.version="${ATB_VERSION}"
 
 COPY --from=go-builder /out/atb /app/atb

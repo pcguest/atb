@@ -114,7 +114,7 @@ The export command MUST fail if:
 ## 6. Right to Erasure (Article 17)
 
 ATB records an immutable hash-chained event log. Physical deletion from
-the chain is not supported. The v1.5.0 exporter does not implement an
+the chain is not supported. The current exporter does not implement an
 Article 17 deletion-marker flow. Teams with Article 17 obligations should:
 
 - Record an explicit `atb.data.erasure_requested` event via `atb append`.

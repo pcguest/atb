@@ -1,8 +1,8 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# ATB v1.1.0 Gold Release Security Sign-Off
+<!-- Archived release-planning draft. Not maintained. -->
+# ATB v0.9.0-beta Gold Release Security Sign-Off
 **Date:** 2026-03-19  
 **Review:** Security release validation  
-**Version:** v1.1.0
+**Version:** v0.9.0-beta
 
 ## Executive Summary
 ATB runtime controls and release security gates passed validation.  

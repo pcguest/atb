@@ -1,5 +1,5 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# ATB v1.1.0 Gold Gate Validation
+<!-- Archived release-planning draft. Not maintained. -->
+# ATB Gold Gate Validation
 **Date:** 2026-03-16  
 **Validator:** Release validation  
 **Branch:** main  

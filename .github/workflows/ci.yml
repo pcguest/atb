@@ -22,7 +22,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26.1"
+          go-version: "1.25.0"
 
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -71,7 +71,6 @@ jobs:
         run: |
           set -euo pipefail
           test -f docs/quickstart.md
-          test -f docs/spec/atb-push-v1.1.md
 
           go run ./cmd/atb --help > /tmp/atb-help.txt
           CLI_VERSION="$(go run ./cmd/atb version | awk '{print $2}')"
@@ -88,7 +87,7 @@ jobs:
           grep -Fq "atb bundle new" docs/quickstart.md
           grep -Fq -- "--profile atb.profile.privileged_tool_action" docs/quickstart.md
           grep -Fq "atb view" docs/quickstart.md
-          grep -Fq "atb push" docs/spec/atb-push-v1.1.md
+          grep -Fq "bundle-push.md (forthcoming)" docs/spec-v1.0.md
 
       - name: Notify Discord
         if: ${{ always() && env.DISCORD_WEBHOOK_URL != '' }}
@@ -111,7 +110,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26.1"
+          go-version: "1.25.0"
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -175,7 +174,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: "1.26.1"
+          go-version: "1.25.0"
 
       - name: Seed minimal UI embed tree
         run: |

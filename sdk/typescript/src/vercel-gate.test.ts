@@ -23,9 +23,9 @@ describe("gateVercelTool", () => {
       gate,
     );
 
-    const result = await tool.execute({ version: "1.5.0" });
+    const result = await tool.execute({ version: "0.9.0-beta" });
 
-    expect(result).toEqual({ result: "1.5.0" });
+    expect(result).toEqual({ result: "0.9.0-beta" });
     expect(userTypes(bundle)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",
@@ -51,7 +51,7 @@ describe("gateVercelTool", () => {
       gate,
     );
 
-    await expect(tool.execute({ version: "1.5.0" })).rejects.toBeInstanceOf(ActionGateDeniedError);
+    await expect(tool.execute({ version: "0.9.0-beta" })).rejects.toBeInstanceOf(ActionGateDeniedError);
     expect(userTypes(bundle)).toEqual([
       "ai.action.precommit",
       "ai.policy.decision",

@@ -1,8 +1,8 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# ATB v1.1.0-rc1 Security Audit
+<!-- Archived release-planning draft. Not maintained. -->
+# ATB v0.9.0-beta Security Audit
 **Date:** 2026-03-16  
 **Auditor:** Security review  
-**Requested Tag:** v1.1.0-rc1  
+**Requested Tag:** v0.9.0-beta  
 **Audited Revision:** main @ `6315310b0b880b01e9f91513516058427169b92d` (tag not found locally or on `origin`)
 
 ## Test Results
@@ -15,7 +15,7 @@
 | PII masking | ✅ Pass | API responses include `[REDACTED]` markers for sensitive fields (`id`, `ip`); current dataset did not include `email` samples |
 
 ## Remaining Issues
-- Release traceability gap: `v1.1.0-rc1` tag is missing in this repository snapshot.
+- Release traceability gap: the expected beta tag is missing in this repository snapshot.
 - G304 gosec findings in `export.go` / `config.go` (pre-existing; previously documented).
 - Trivy local execution still depends on local binary or Docker fallback.
 

@@ -1,5 +1,5 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# ATB v1.1.0 Gold Release Checklist
+<!-- Archived release-planning draft. Not maintained. -->
+# ATB Gold Release Checklist
 
 ## Pre-Release Gates
 - [ ] Security sign-off (docs/security/gold-signoff.md)
@@ -11,11 +11,11 @@
 - [ ] UI coverage >=80% (web/components)
 
 ## Documentation
-- [ ] Release notes updated (docs/releases/v1.1.0.md)
-- [ ] Getting started guide validated (docs/guides/getting-started-v1.1.0.md)
+- [ ] Release notes updated in `docs/releases/`
+- [ ] Getting started guide validated in `docs/guides/`
 - [ ] API docs synced (docs/api/openapi.yaml regenerated)
 - [ ] SECURITY.md updated with known issues
-- [ ] CHANGELOG.md updated with all changes since v1.0.3
+- [ ] CHANGELOG.md updated with all changes since the previous beta release
 - [ ] README.md badges updated (version, security, coverage)
 
 ## Build & Distribution
@@ -23,7 +23,7 @@
 - [ ] UI builds cleanly (cd web && npm run build)
 - [ ] Embed test passes (make test-embed)
 - [ ] Docker image builds (if applicable)
-- [ ] Binary size <20% growth from v1.0.3
+- [ ] Binary size <20% growth from the previous beta snapshot
 
 ## Testing
 - [ ] All unit tests pass (go test ./...)
@@ -45,7 +45,7 @@
 
 ## Post-Release
 - [ ] GitHub Release published with notes
-- [ ] Git tag pushed (v1.1.0)
+- [ ] Git tag pushed (current beta tag)
 - [ ] PyPI package updated (if applicable)
 - [ ] NPM package updated (if applicable)
 - [ ] Docker Hub image pushed (if applicable)
@@ -54,9 +54,9 @@
 
 ## Rollback Plan
 If critical issues found post-release:
-1. Document issue in GitHub Issues with `v1.1.0-blocker` label
-2. Create hotfix branch: `hotfix/v1.1.1-<issue-name>`
-3. Fix, test, tag v1.1.1
+1. Document the issue in GitHub Issues with a `release-blocker` label
+2. Create hotfix branch: `hotfix/current-beta-<issue-name>`
+3. Fix, test, and retag the current beta patch
 4. Communicate to users via release notes + announcement
 
 ---

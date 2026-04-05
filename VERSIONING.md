@@ -43,4 +43,4 @@ A PATCH bump is used for backward-compatible fixes:
 ## Pre-Release Versioning
 
 - Pre-release versions use SemVer pre-release suffixes (for npm) and PEP 440 style for Python
-- Example: `1.0.0.dev0` for Python while release candidate work is in progress
+- Current examples: `v0.9.0-beta` for the CLI/release tag, `0.9.0-beta.1` for npm, and `0.9.0b1` for Python

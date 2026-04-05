@@ -1,17 +1,17 @@
-<!-- Archive: historical release doc for v1.1.0. Not maintained. -->
-# Dependency Security Audit (v1.1.0-rc1)
+<!-- Archived release-planning draft. Not maintained. -->
+# Dependency Security Audit (current beta snapshot)
 
 ## Go Dependencies
 - Total: 6 modules (`go list -m all`)
 - Vulnerabilities: 0 reachable vulnerabilities (`govulncheck ./...`)
 - Outdated: 5 modules with updates available (`go list -m -u -json all`)
-- Remediation: `go.mod` moved to `go 1.26.1` with `toolchain go1.26.1`
+- Remediation: `go.mod` moved to `go 1.25.0` with `toolchain go1.25.0`
 
 ## NPM Dependencies
 - Total: 984 dependencies (`npm audit --json`)
 - High/Critical vulns: 1 (High: 1, Critical: 0)
 - Remaining package: `next@14.2.35`
-- Status: documented in [known-vulns.md](/Users/paddyguest/atb/docs/security/known-vulns.md) because the shipped product embeds static export output (`web/out`) instead of running a self-hosted Next.js server
+- Status: documented in [known-vulns.md](./known-vulns.md) because the shipped product embeds static export output (`web/out`) instead of running a self-hosted Next.js server
 - Remediation completed:
   - `next` bumped from `14.2.21` to `14.2.35`
   - `eslint-config-next` bumped from `14.2.5` to `14.2.35`

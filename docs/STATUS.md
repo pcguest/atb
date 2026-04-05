@@ -1,10 +1,10 @@
 # ATB Status
 
-Last updated: 2026-04-02
+Last updated: 2026-04-05
 
 ## Release Status
 
-- ✅ Public release: `v1.8.1`
+- ✅ Public release: `v0.9.0-beta`
 - ✅ CI and security gates passing
 - ⚠️ Documentation alignment is in progress
 
