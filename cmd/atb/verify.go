@@ -253,6 +253,9 @@ func verificationExitCode(report verifypkg.Report) int {
 	if !report.Integrity.ChainValid {
 		return exitIntegrityFailure
 	}
+	if report.BundleSignature != nil && !report.BundleSignature.Verified {
+		return exitIntegrityFailure
+	}
 	for _, profile := range report.Profiles {
 		if !profile.Pass {
 			return exitVerifyFailure

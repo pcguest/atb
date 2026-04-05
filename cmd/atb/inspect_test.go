@@ -152,7 +152,7 @@ func buildInspectTestBundle(t testing.TB) *bundle.Bundle {
 	})
 	appendTestBundleEvent(t, b, event.TypeBundleSignature, map[string]string{
 		"algorithm":   "ed25519",
-		"public_key":  strings.Repeat("a", 44),
+		"pubkey":      strings.Repeat("a", 44),
 		"signature":   strings.Repeat("b", 96),
 		"bundle_hash": strings.Repeat("c", 64),
 	})

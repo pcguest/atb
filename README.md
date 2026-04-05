@@ -35,7 +35,7 @@ atb verify
 atb trust-report --format markdown
 ```
 
-That sequence creates a local incident bundle with a named review snapshot and a valid evidence chain. The snapshot name carries workflow state; `atb verify` still checks only bundle integrity. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md). For sender and recipient handoff, use the [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md).
+That sequence creates a local incident bundle with a named review snapshot and a valid evidence chain. The snapshot name carries workflow state; `atb verify` checks the hash chain and any recorded bundle signature or anchor evidence. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md). For sender and recipient handoff, use the [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md).
 
 ## Verification Profiles
 
@@ -70,7 +70,7 @@ atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 | Developer integrations | Native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript. |
 | Go CLI as the primary distribution path | Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path. |
 
-> **Implementation status:** Bundle-level Ed25519 signing (`atb.bundle.signature`) and full RFC 3161 certificate chain verification are planned for v1.0. Current signing covers `ai.policy.decision` events only. Current TSA verification validates message imprint and PKIStatus but does not verify the TSA certificate chain.
+> **Implementation status:** Bundle-level Ed25519 signing (`atb sign`, `atb.bundle.signature`) is implemented. `atb verify` reports bundle-signature verification when a signature record is present.
 
 - [Why ATB: integrity, completeness, and what we claim](docs/why-atb.md)
 

@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"math/big"
@@ -16,6 +18,7 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
@@ -35,6 +38,59 @@ func TestRunVerify_JSONOutput(t *testing.T) {
 	}
 	if !report.Integrity.ChainValid {
 		t.Fatalf("expected integrity pass, got %+v", report.Integrity)
+	}
+}
+
+func TestRunVerify_InvalidBundleSignatureFails(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	keyPath := writeSignTestPrivateKey(t, t.TempDir())
+
+	var signStdout bytes.Buffer
+	var signStderr bytes.Buffer
+	exitCode := runSign([]string{"--bundle", bundlePath, "--key", keyPath}, &signStdout, &signStderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected sign exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, signStderr.String())
+	}
+
+	signedBundle, err := bundle.Load(bundlePath)
+	if err != nil {
+		t.Fatalf("load signed bundle: %v", err)
+	}
+	for i := range signedBundle.Records {
+		if signedBundle.Records[i].Event.Type != event.TypeBundleSignature {
+			continue
+		}
+		data, ok := signedBundle.Records[i].Event.Data.(map[string]any)
+		if !ok {
+			t.Fatalf("signature record data type = %T, want map[string]any", signedBundle.Records[i].Event.Data)
+		}
+		data["signature"] = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x7f}, ed25519.SignatureSize))
+		break
+	}
+	rehashTestBundle(t, signedBundle)
+	if err := signedBundle.Save(bundlePath); err != nil {
+		t.Fatalf("save tampered signed bundle: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode = runVerify([]string{"--bundle", bundlePath, "--json"}, &stdout, &stderr)
+	if exitCode != exitIntegrityFailure {
+		t.Fatalf("unexpected verify exit code: got %d want %d (stderr=%q)", exitCode, exitIntegrityFailure, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if report.BundleSignature == nil {
+		t.Fatalf("expected bundle signature result")
+	}
+	if report.BundleSignature.Verified {
+		t.Fatalf("expected invalid bundle signature, got %+v", *report.BundleSignature)
+	}
+	if !strings.Contains(report.BundleSignature.Error, "signature mismatch") {
+		t.Fatalf("expected signature mismatch error, got %+v", *report.BundleSignature)
 	}
 }
 

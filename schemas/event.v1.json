@@ -43,6 +43,23 @@
           "format": "date-time"
         }
       }
+    },
+    "atb.bundle.signature": {
+      "description": "Ed25519 bundle signature record. Written after signing the pre-sign bundle NDJSON bytes. Reserved system type; appended after the bundle snapshot it signs, so it uses the next normal event sequence rather than seq 0.",
+      "properties": {
+        "bundle_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "signature": {
+          "type": "string",
+          "description": "Base64-encoded Ed25519 signature over the raw 32-byte bundle hash."
+        },
+        "pubkey": {
+          "type": "string",
+          "description": "Base64-encoded Ed25519 public key."
+        }
+      }
     }
   },
   "type": "object",

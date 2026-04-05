@@ -84,6 +84,22 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 	}
 	fmt.Fprintln(w)
 
+	fmt.Fprintln(w, "Bundle Signature")
+	fmt.Fprintln(w)
+	if report.BundleSignature == nil {
+		fmt.Fprintln(w, "Signature present: no")
+	} else {
+		fmt.Fprintf(w, "Signature present: %s\n", yesNo(report.BundleSignature.Present))
+		fmt.Fprintf(w, "Signature verified: %s\n", yesNo(report.BundleSignature.Verified))
+		if report.BundleSignature.BundleHash != "" {
+			fmt.Fprintf(w, "Bundle hash: %s\n", report.BundleSignature.BundleHash)
+		}
+		if report.BundleSignature.Error != "" {
+			fmt.Fprintf(w, "Signature error: %s\n", report.BundleSignature.Error)
+		}
+	}
+	fmt.Fprintln(w)
+
 	fmt.Fprintln(w, "CAS Scores")
 	fmt.Fprintln(w)
 	renderer.renderCASScores(w, report.CAS)
@@ -431,6 +447,8 @@ func (r verifyTextRenderer) renderCASScores(w io.Writer, cas *verifypkg.CASResul
 func (r verifyTextRenderer) renderVerificationStatus(report verifypkg.Report) string {
 	switch {
 	case !report.Integrity.ChainValid:
+		return r.colourise("FAIL", ansiRed)
+	case report.BundleSignature != nil && !report.BundleSignature.Verified:
 		return r.colourise("FAIL", ansiRed)
 	case len(report.Profiles) == 0:
 		return r.colourise("NOT EVALUATED", ansiYellow)

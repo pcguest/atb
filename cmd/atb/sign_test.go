@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -51,8 +52,11 @@ func TestRunSign(t *testing.T) {
 					if data["signature"] == "" {
 						t.Fatalf("expected non-empty signature field")
 					}
-					if data["public_key"] == "" {
-						t.Fatalf("expected non-empty public_key field")
+					if data["pubkey"] == "" {
+						t.Fatalf("expected non-empty pubkey field")
+					}
+					if data["public_key"] != nil {
+						t.Fatalf("expected signature record to use pubkey, got legacy public_key field")
 					}
 				}
 				if signatureCount != 1 {
@@ -83,6 +87,46 @@ func TestRunSign(t *testing.T) {
 				exitCode := runSign([]string{"--bundle", bundlePath, "--key", filepath.Join(t.TempDir(), "missing-key.pem")}, &stdout, &stderr)
 				if exitCode == exitSuccess {
 					t.Fatalf("expected sign to fail for missing key")
+				}
+			},
+		},
+		{
+			name: "sign_then_verify_signature_round_trip",
+			run: func(t *testing.T) {
+				bundlePath := writeVerifyTestBundle(t, buildSignSCBundle(t))
+				keyDir := t.TempDir()
+
+				var keygenStdout bytes.Buffer
+				var keygenStderr bytes.Buffer
+				exitCode := runKeygen([]string{"--out-dir", keyDir}, &keygenStdout, &keygenStderr)
+				if exitCode != exitSuccess {
+					t.Fatalf("unexpected keygen exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, keygenStderr.String())
+				}
+
+				keyPath := filepath.Join(keyDir, "atb-key.pem")
+				var signStdout bytes.Buffer
+				var signStderr bytes.Buffer
+				exitCode = runSign([]string{"--bundle", bundlePath, "--key", keyPath}, &signStdout, &signStderr)
+				if exitCode != exitSuccess {
+					t.Fatalf("unexpected sign exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, signStderr.String())
+				}
+
+				var verifyStdout bytes.Buffer
+				var verifyStderr bytes.Buffer
+				exitCode = runVerify([]string{"--bundle", bundlePath, "--json"}, &verifyStdout, &verifyStderr)
+				if exitCode != exitSuccess {
+					t.Fatalf("unexpected verify exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, verifyStderr.String())
+				}
+
+				var report verifypkg.Report
+				if err := json.Unmarshal(verifyStdout.Bytes(), &report); err != nil {
+					t.Fatalf("unmarshal verify report: %v", err)
+				}
+				if report.BundleSignature == nil {
+					t.Fatalf("expected bundle signature result")
+				}
+				if !report.BundleSignature.Present || !report.BundleSignature.Verified {
+					t.Fatalf("expected verified bundle signature, got %+v", *report.BundleSignature)
 				}
 			},
 		},

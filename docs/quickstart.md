@@ -16,7 +16,7 @@ atb trust-report --format markdown
 
 The Go CLI is the primary install path. The Python and TypeScript packages are SDKs that write the same `.atb` format.
 
-This is the canonical ATB workflow: the AI workflow itself can fail while the audit evidence still verifies cleanly. Use the snapshot name to label workflow state; `atb verify` still checks only bundle integrity. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full local review and export path, continue with the [Incident Review Workflow](./guides/incident-review-workflow.md).
+This is the canonical ATB workflow: the AI workflow itself can fail while the audit evidence still verifies cleanly. Use the snapshot name to label workflow state; `atb verify` checks the hash chain and any recorded bundle signature or anchor evidence. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full local review and export path, continue with the [Incident Review Workflow](./guides/incident-review-workflow.md).
 
 ### Verify Against a Specific Profile
 

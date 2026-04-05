@@ -2,9 +2,10 @@ package main
 
 import (
 	"crypto/ed25519"
+	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -14,12 +15,13 @@ import (
 	"strings"
 	"time"
 
-	anchorpkg "github.com/pcguest/atb/internal/anchor"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
 var errSignHelp = errors.New("sign help requested")
+var errSignBundleIntegrity = errors.New("bundle integrity invalid")
 
 type signConfig struct {
 	BundlePath string
@@ -127,16 +129,21 @@ func signBundle(cfg signConfig) (signResult, error) {
 		OutputPath: cfg.OutputPath,
 	}
 
+	rawBundle, err := os.ReadFile(cfg.BundlePath) // #nosec G304 -- bundle path is supplied explicitly by the user
+	if err != nil {
+		return result, fmt.Errorf("read bundle: %w", err)
+	}
+
 	b, err := bundle.Load(cfg.BundlePath)
 	if err != nil {
 		return result, err
 	}
-
-	digest, err := anchorpkg.HashBundle(cfg.BundlePath)
-	if err != nil {
-		return result, err
+	if err := b.Verify(); err != nil {
+		return result, fmt.Errorf("%w: %v", errSignBundleIntegrity, err)
 	}
-	result.BundleHash = hex.EncodeToString(digest)
+
+	digest := sha256.Sum256(rawBundle)
+	result.BundleHash = hex.EncodeToString(digest[:])
 
 	privateKey, err := loadEd25519PrivateKey(cfg.KeyPath)
 	if err != nil {
@@ -148,27 +155,51 @@ func signBundle(cfg signConfig) (signResult, error) {
 		return result, fmt.Errorf("derive public key: loaded key is not Ed25519")
 	}
 
-	signature := ed25519.Sign(privateKey, digest)
+	signature := ed25519.Sign(privateKey, digest[:])
 	if len(signature) == 0 {
 		return result, fmt.Errorf("sign bundle digest: empty signature")
 	}
 
-	if err := b.AppendWithOptions(event.TypeBundleSignature, map[string]string{
-		"algorithm":   result.Algorithm,
-		"public_key":  base64.StdEncoding.EncodeToString(publicKey),
-		"signature":   base64.StdEncoding.EncodeToString(signature),
-		"bundle_hash": result.BundleHash,
-	}, &bundle.AppendOptions{
+	if err := b.AppendWithOptions(event.TypeBundleSignature, signpkg.NewBundleSignatureRecord(digest[:], publicKey, signature), &bundle.AppendOptions{
 		Timestamp: time.Now().UTC().Format(time.RFC3339),
 	}); err != nil {
 		return result, err
 	}
 
-	if err := b.Save(cfg.OutputPath); err != nil {
-		return result, fmt.Errorf("save: %w", err)
+	signedRecord := b.Records[len(b.Records)-1]
+	if err := appendSignedRecord(cfg, rawBundle, signedRecord); err != nil {
+		return result, err
 	}
 
 	return result, nil
+}
+
+func appendSignedRecord(cfg signConfig, rawBundle []byte, record bundle.Record) error {
+	encodedRecord, err := json.Marshal(record)
+	if err != nil {
+		return fmt.Errorf("encode signature record: %w", err)
+	}
+
+	info, err := os.Stat(cfg.BundlePath)
+	if err != nil {
+		return fmt.Errorf("stat source bundle: %w", err)
+	}
+
+	payload := make([]byte, 0, len(rawBundle)+len(encodedRecord)+2)
+	payload = append(payload, rawBundle...)
+	if len(payload) > 0 && payload[len(payload)-1] != '\n' {
+		payload = append(payload, '\n')
+	}
+	payload = append(payload, encodedRecord...)
+	payload = append(payload, '\n')
+
+	if err := os.MkdirAll(filepath.Dir(cfg.OutputPath), 0750); err != nil { // #nosec G301 -- CLI-created directory; tightened permissions
+		return fmt.Errorf("create output directory: %w", err)
+	}
+	if err := os.WriteFile(cfg.OutputPath, payload, info.Mode().Perm()); err != nil { // #nosec G304 G703 -- output path is filepath.Clean-sanitised at parse time and chosen explicitly by the operator
+		return fmt.Errorf("write signed bundle: %w", err)
+	}
+	return nil
 }
 
 func loadEd25519PrivateKey(path string) (ed25519.PrivateKey, error) {
@@ -200,6 +231,8 @@ func classifySignError(err error) int {
 		return exitUserError
 	case errors.Is(err, os.ErrPermission):
 		return exitSystemError
+	case errors.Is(err, errSignBundleIntegrity):
+		return exitIntegrityFailure
 	}
 
 	msg := strings.ToLower(err.Error())

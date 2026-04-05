@@ -71,13 +71,14 @@ type ResidualRisk struct {
 
 // Report is the top-level verification output for a bundle.
 type Report struct {
-	BundlePath   string          `json:"bundle_path"`
-	Integrity    IntegrityResult `json:"integrity"`
-	Anchoring    AnchoringResult `json:"anchoring"`
-	Profiles     []ProfileResult `json:"profiles"`
-	CAS          *CASResult      `json:"cas,omitempty"` // nil if integrity fails or no profile matched
-	Exclusions   []string        `json:"exclusions"`
-	ResidualRisk ResidualRisk    `json:"residual_risk"`
+	BundlePath      string                 `json:"bundle_path"`
+	Integrity       IntegrityResult        `json:"integrity"`
+	Anchoring       AnchoringResult        `json:"anchoring"`
+	BundleSignature *BundleSignatureResult `json:"bundle_signature,omitempty"`
+	Profiles        []ProfileResult        `json:"profiles"`
+	CAS             *CASResult             `json:"cas,omitempty"` // nil if integrity fails or no profile matched
+	Exclusions      []string               `json:"exclusions"`
+	ResidualRisk    ResidualRisk           `json:"residual_risk"`
 }
 
 var recommendationBySubScore = map[string]string{
@@ -98,6 +99,7 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 	if !ok {
 		return report
 	}
+	report.BundleSignature = inspectBundleSignature(b, bundlePath)
 
 	profiles := matchingProfiles(b.Records, profileID)
 	if len(profiles) == 0 {
@@ -153,6 +155,7 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 	if !ok {
 		return report
 	}
+	report.BundleSignature = inspectBundleSignature(b, bundlePath)
 	if profile == nil {
 		report.ResidualRisk = residualRiskNoMatchingProfile()
 		return report
