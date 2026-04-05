@@ -1,4 +1,4 @@
-# Publishing `@pcguest/atb-sdk`
+# Publishing `@dingalwa/atb-sdk`
 
 These commands prepare and publish the TypeScript SDK to npm from `sdk/typescript/`.
 

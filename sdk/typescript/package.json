@@ -1,12 +1,12 @@
 {
-  "name": "@pcguest/atb-sdk",
+  "name": "@dingalwa/atb-sdk",
   "version": "0.9.0-beta.1",
   "description": "TypeScript SDK for ATB (Agent Trace Bundle) - local-first AI audit trail",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "bin": {
-    "atb": "./bin/atb"
+    "atb": "bin/atb"
   },
   "files": [
     "dist",
@@ -41,7 +41,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pcguest/atb.git",
+    "url": "git+https://github.com/pcguest/atb.git",
     "directory": "sdk/typescript"
   },
   "homepage": "https://github.com/pcguest/atb",
