@@ -25,7 +25,8 @@ ATB is designed for tamper evidence first and local-first operation.
 - Hashing and cryptographic primitives rely on standard language libraries and audited dependencies.
 
 6. RFC 3161 token verification
-- `atb verify --with-anchor` verifies the full RFC 3161 token: digest match, TSA certificate chain against system roots, and SignerInfo signature.
+- `atb verify --with-anchor` verifies the full RFC 3161 token: digest match, TSA certificate chain against system roots, and SignerInfo signature. This verification is used for completeness scoring (XC/AC).
+- Note: The terminal report currently identifies the TSA cert status as unverified in the summary block for v1 status reporting consistency, even when the underlying verification engine has validated the chain.
 
 ## Assurance Layers
 

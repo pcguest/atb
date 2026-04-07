@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Roadmap and versioning narrative doc (`docs/roadmap.md`) explaining the reset from v1.x to v0.9.0-beta.
+- Obligation profile and CAS documentation (`docs/profiles.md`).
+- SIEM and GRC integration documentation (`docs/integrations/siem-grc.md`).
+- Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
+
 ## [v0.9.0-beta] — 2026-04-XX
 
 ### Changed
 - Versioning reset to v0.9.0-beta to accurately reflect pre-production status
-- TSA verification note: certificate chain validation is not yet implemented (v1.0 milestone)
-- Bundle-level Ed25519 signing not yet implemented (v1.0 milestone)
+- TSA verification: certificate chain validation is implemented and used for CAS scoring
+- Bundle-level Ed25519 signing: fully implemented via `atb sign` and `atb verify`
 
 ## [v1.8.1] - 2026-04-02
 

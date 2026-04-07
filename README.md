@@ -21,6 +21,7 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 ## Release Status
 
 - Current release: [`v0.9.0-beta`](CHANGELOG.md)
+- ATB is currently in **pre-production beta**, suitable for internal pilots and experiments. See [docs/roadmap.md](docs/roadmap.md) for the journey to a stable v1.0.
 - All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 
 ## 5 Minute Start
@@ -58,6 +59,14 @@ atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --json
 atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 ```
 
+### Obligation Profiles & CAS
+
+While the hash chain ensures **integrity** (the record was not changed), **Obligation Profiles** and the **Completeness Assurance Score (CAS)** measure **completeness** (that all necessary events for a workflow were recorded). Profiles define required events, field expectations, and causal ordering (e.g., human approval must occur at or after a high-impact action). See [docs/profiles.md](docs/profiles.md) for a full breakdown of each profile and its compliance mapping (EU AI Act, ISO 42001, SOC 2).
+
+### Integrations: SIEM and GRC
+
+ATB exports are deterministic artifacts designed for ingestion into SIEM (Security Information and Event Management) and GRC (Governance, Risk, and Compliance) platforms. The `soc2` format includes a JSONL audit trail for security monitoring, while the `.verify.json` sidecar allows GRC systems to automate evidence validation via integrity checks and CAS grades. See [docs/integrations/siem-grc.md](docs/integrations/siem-grc.md) for architectural patterns and ingestion guidance.
+
 ## What ATB Includes
 
 | Capability | Detail |
@@ -70,7 +79,7 @@ atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 | Developer integrations | Native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript. |
 | Go CLI as the primary distribution path | Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path. |
 
-> **Implementation status:** Bundle-level Ed25519 signing (`atb sign`, `atb.bundle.signature`) is implemented. `atb verify` reports bundle-signature verification when a signature record is present.
+> **Implementation status:** Bundle-level Ed25519 signing (`atb sign`) and RFC 3161 TSA anchoring (`atb anchor`) are implemented. `atb verify` validates bundle signatures and TSA certificate chains against system roots for CAS scoring.
 
 - [Why ATB: integrity, completeness, and what we claim](docs/why-atb.md)
 
