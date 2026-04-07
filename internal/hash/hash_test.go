@@ -39,7 +39,7 @@ func TestChainAndVerify(t *testing.T) {
 	events := []hash.Event{
 		{Type: "dev.session", Data: map[string]interface{}{"date": "2025-01-15"}},
 		{Type: "decision", Data: map[string]interface{}{"choice": "Go over Rust"}},
-		{Type: "release", Data: map[string]interface{}{"version": "v0.9.0-beta"}},
+		{Type: "release", Data: map[string]interface{}{"version": "v0.9.1-beta"}},
 	}
 
 	finalHash, err := hash.Chain(events)
