@@ -23,6 +23,7 @@ ATB is designed for tamper evidence first and local-first operation.
 
 5. Zero custom cryptography
 - Hashing and cryptographic primitives rely on standard language libraries and audited dependencies.
+- For detailed guidance on key lifecycles and signing operations, see [docs/key-management.md](./key-management.md).
 
 6. RFC 3161 token verification
 - `atb verify --with-anchor` verifies the full RFC 3161 token: digest match, TSA certificate chain against system roots, and SignerInfo signature. This verification is used for completeness scoring (XC/AC).

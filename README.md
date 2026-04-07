@@ -82,6 +82,7 @@ ATB exports are deterministic artifacts designed for ingestion into SIEM (Securi
 > **Implementation status:** Bundle-level Ed25519 signing (`atb sign`) and RFC 3161 TSA anchoring (`atb anchor`) are implemented. `atb verify` validates bundle signatures and TSA certificate chains against system roots for CAS scoring.
 
 - [Why ATB: integrity, completeness, and what we claim](docs/why-atb.md)
+- [Key Management](docs/key-management.md)
 
 ## Verification model
 
