@@ -100,7 +100,7 @@ func TestPrivacyRevealRateLimitAdversarial(t *testing.T) {
 	if rr.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 Too Many Requests, got %d", rr.Code)
 	}
-	
+
 	var apiErr APIError
 	if err := json.Unmarshal(rr.Body.Bytes(), &apiErr); err != nil {
 		t.Fatalf("failed to decode error: %v", err)

@@ -94,3 +94,4 @@ web/cypress/screenshots/
 sdk/python/dist/
 sdk/python/build/
 sdk/python/*.egg-info/
+.gocache-go-test/
