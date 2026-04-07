@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SIEM and GRC integration documentation (`docs/integrations/siem-grc.md`).
 - Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
 
+## [v0.9.1-beta] — 2026-04-07
+
+### Changed
+- Align release metadata across CLI version output, README badges/status, and SECURITY supported-version table.
+
 ## [v0.9.0-beta] — 2026-04-XX
 
 ### Changed

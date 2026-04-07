@@ -128,13 +128,27 @@ These types are defined for backward compatibility with bundles created before t
 
 Custom event types are permitted using reverse-domain notation (e.g., `com.example.custom_event`).
 
-### Current AI trace event types (current AI trace specification)
+### Current AI integration lifecycle event types (current AI trace specification)
 
 | Type | Description | Reference |
 |------|-------------|-----------|
 | `ai.llm.call` | Canonical LLM lifecycle event type for new integrations | `docs/spec-ai-traces.md` |
 | `ai.tool.exec` | Canonical tool execution event type for new integrations | `docs/spec-ai-traces.md` |
 | `ai.chain.run` | Canonical chain or step lifecycle event type for new integrations | `docs/spec-ai-traces.md` |
+
+### Governance and control-plane event types (verification/profile flows)
+
+The following canonical event families are used by obligation profiles and verification workflows:
+
+- `ai.request.received`, `ai.response.sent`
+- `ai.policy.decision`
+- `ai.retrieval.executed`, `ai.model.invoked`, `ai.model.output`
+- `ai.action.precommit`, `ai.action.executed`, `ai.action.committed`
+- `ai.human.approval`, `ai.override.requested`
+- `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`
+- `data.export.precommit`, `data.export.executed`
+
+For the machine-readable registry and profile-scoped criticality, see `atb events` and `internal/event/types.go`.
 
 ---
 
