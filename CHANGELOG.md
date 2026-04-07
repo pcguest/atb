@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Obligation profile and CAS documentation (`docs/profiles.md`).
 - SIEM and GRC integration documentation (`docs/integrations/siem-grc.md`).
 - Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
+- Key management guidance for bundle/policy signing and encryption operations (`docs/key-management.md`).
 
 ## [v0.9.1-beta] — 2026-04-07
 

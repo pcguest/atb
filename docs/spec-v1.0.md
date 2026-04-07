@@ -146,7 +146,8 @@ The following canonical event families are used by obligation profiles and verif
 - `ai.action.precommit`, `ai.action.executed`, `ai.action.committed`
 - `ai.human.approval`, `ai.override.requested`
 - `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`
-- `data.export.precommit`, `data.export.executed`
+`data.export.*` event types are canonical registry events, but the current built-in
+`atb.profile.data_export` template evaluates the `ai.action.*` control-plane flow.
 
 For the machine-readable registry and profile-scoped criticality, see `atb events` and `internal/event/types.go`.
 
