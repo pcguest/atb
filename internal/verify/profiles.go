@@ -67,10 +67,10 @@ var humanOverrideCriticalRequirements = []eventRequirement{
 var backgroundAutomationCriticalRequirements = []eventRequirement{
 	{eventType: event.TypeBundleManifest},
 	{eventType: event.TypeAIRequestReceived, requiredFields: []string{"request_id", "actor_id_hash", "purpose_tag"}},
-	{eventType: event.TypeAIPolicyDecision, requiredFields: []string{"policy_id", "policy_version", "decision", "decision_reason_codes", "subject_id_hash", "action_id"}},
-	{eventType: event.TypeAIActionPrecommit, requiredFields: []string{"action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"}},
-	{eventType: event.TypeAIActionExecuted, requiredFields: []string{"action_id", "execution_outcome", "tool_receipt_digest"}},
-	{eventType: event.TypeAIActionCommitted, requiredFields: []string{"action_id", "commit_outcome", "sink_receipt_digest"}},
+	{eventType: event.TypeAIJobScheduled, requiredFields: []string{"job_id", "schedule_id", "job_type", "trigger_type"}},
+	{eventType: event.TypeAIJobStarted, requiredFields: []string{"job_id", "worker_id", "start_reason"}},
+	{eventType: event.TypeAIJobStep, requiredFields: []string{"job_id", "step_id", "step_name", "step_outcome"}},
+	{eventType: event.TypeAIJobCompleted, requiredFields: []string{"job_id", "completion_outcome", "result_digest"}},
 }
 
 var registeredProfiles []Profile
@@ -442,36 +442,36 @@ func humanOverrideSubScores(records []bundle.Record, anchorResult AnchorVerifyRe
 
 func backgroundAutomationSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
-	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
-	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
-	executedByAction := indexByField(recordsByType[event.TypeAIActionExecuted], "action_id")
-	committedByAction := indexByField(recordsByType[event.TypeAIActionCommitted], "action_id")
+	scheduledByJob := indexByField(recordsByType[event.TypeAIJobScheduled], "job_id")
+	startedByJob := indexByField(recordsByType[event.TypeAIJobStarted], "job_id")
+	stepByJob := indexByField(recordsByType[event.TypeAIJobStep], "job_id")
 
 	rc := averageScores(
-		boolScore(len(recordsByType[event.TypeAIActionCommitted]) > 0 &&
-			len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", precommitByAction)),
-		boolScore(len(recordsByType[event.TypeAIPolicyDecision]) > 0 &&
-			len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIPolicyDecision], "action_id", precommitByAction)),
-		boolScore(len(recordsByType[event.TypeAIActionExecuted]) > 0 &&
-			len(recordsByType[event.TypeAIPolicyDecision]) > 0 &&
-			allExecutedAuthorised(recordsByType[event.TypeAIActionExecuted], policyByAction)),
+		boolScore(len(recordsByType[event.TypeAIJobStarted]) > 0 &&
+			len(recordsByType[event.TypeAIJobScheduled]) > 0 &&
+			allRecordsBound(recordsByType[event.TypeAIJobStarted], "job_id", scheduledByJob)),
+		boolScore(len(recordsByType[event.TypeAIJobStep]) > 0 &&
+			len(recordsByType[event.TypeAIJobStarted]) > 0 &&
+			allRecordsBound(recordsByType[event.TypeAIJobStep], "job_id", startedByJob)),
+		boolScore(len(recordsByType[event.TypeAIJobCompleted]) > 0 &&
+			len(recordsByType[event.TypeAIJobStarted]) > 0 &&
+			allRecordsBound(recordsByType[event.TypeAIJobCompleted], "job_id", startedByJob)),
 	)
 
 	tc := 1.0
-	if len(boundedExecutionWindowWarnings(precommitByAction, executedByAction)) > 0 {
+	if len(boundedExecutionWindowWarnings(scheduledByJob, startedByJob)) > 0 {
 		tc = 0.7
 	}
 
 	gc := boolScore(
-		len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-			len(recordsByType[event.TypeAIActionExecuted]) > 0 &&
-			len(recordsByType[event.TypeAIActionCommitted]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", precommitByAction) &&
-			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", precommitByAction) &&
-			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", executedByAction) &&
-			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", committedByAction),
+		len(recordsByType[event.TypeAIJobScheduled]) > 0 &&
+			len(recordsByType[event.TypeAIJobStarted]) > 0 &&
+			len(recordsByType[event.TypeAIJobStep]) > 0 &&
+			len(recordsByType[event.TypeAIJobCompleted]) > 0 &&
+			allRecordsBound(recordsByType[event.TypeAIJobStarted], "job_id", scheduledByJob) &&
+			allRecordsBound(recordsByType[event.TypeAIJobStep], "job_id", startedByJob) &&
+			allRecordsBound(recordsByType[event.TypeAIJobCompleted], "job_id", startedByJob) &&
+			allRecordsBound(recordsByType[event.TypeAIJobCompleted], "job_id", stepByJob),
 	)
 
 	return map[string]float64{

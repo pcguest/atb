@@ -3,7 +3,7 @@ version: 1
 workflow_class: background_automation
 blind_spots:
   - Scheduling system integrity is not attested; a compromised scheduler could trigger executions without a corresponding schedule record.
-  - Does not verify that the automated action's actual effect matches the declared intended_effect beyond what tool receipts provide.
+  - Does not verify that the automated job's real-world effect matches the recorded completion outcome or result digest.
 weights:
   EC: 0.20
   FC: 0.15
@@ -25,53 +25,50 @@ required:
       - purpose_tag
     message: ai.request.received missing required fields
     severity: critical
-  - type: ai.policy.decision
+  - type: ai.job.scheduled
     fields:
-      - policy_id
-      - policy_version
-      - decision
-      - decision_reason_codes
-      - subject_id_hash
-      - action_id
-    message: ai.policy.decision missing required fields
+      - job_id
+      - schedule_id
+      - job_type
+      - trigger_type
+    message: ai.job.scheduled missing required fields
     severity: critical
-  - type: ai.action.precommit
+  - type: ai.job.started
     fields:
-      - action_id
-      - action_type
-      - action_parameters_digest
-      - target_resource_id
-      - intended_effect
-    message: ai.action.precommit missing required fields
+      - job_id
+      - worker_id
+      - start_reason
+    message: ai.job.started missing required fields
     severity: critical
-  - type: ai.action.executed
+  - type: ai.job.step
     fields:
-      - action_id
-      - execution_outcome
-      - tool_receipt_digest
-    message: ai.action.executed missing required fields
+      - job_id
+      - step_id
+      - step_name
+      - step_outcome
+    message: ai.job.step missing required fields
     severity: critical
-  - type: ai.action.committed
+  - type: ai.job.completed
     fields:
-      - action_id
-      - commit_outcome
-      - sink_receipt_digest
-    message: ai.action.committed missing required fields
+      - job_id
+      - completion_outcome
+      - result_digest
+    message: ai.job.completed missing required fields
     severity: critical
 optional: []
 relations:
-  - name: commit_requires_precommit
-    from: ai.action.committed
-    to: ai.action.precommit
-    field: action_id
-    message: "commit_requires_precommit: ai.action.committed action_id does not match ai.action.precommit"
-  - name: policy_binds_action
-    from: ai.policy.decision
-    to: ai.action.precommit
-    field: action_id
-    message: "policy_binds_action: ai.policy.decision action_id does not match ai.action.precommit"
-  - name: execution_after_authorization
-    from: ai.action.executed
-    to: ai.policy.decision
-    field: action_id
-    message: "execution_after_authorization: ai.policy.decision decision is not allow for executed action_id"
+  - name: start_requires_schedule
+    from: ai.job.started
+    to: ai.job.scheduled
+    field: job_id
+    message: "start_requires_schedule: ai.job.started job_id does not match ai.job.scheduled"
+  - name: step_requires_start
+    from: ai.job.step
+    to: ai.job.started
+    field: job_id
+    message: "step_requires_start: ai.job.step job_id does not match ai.job.started"
+  - name: completion_requires_start
+    from: ai.job.completed
+    to: ai.job.started
+    field: job_id
+    message: "completion_requires_start: ai.job.completed job_id does not match ai.job.started"

@@ -53,8 +53,8 @@ A profile defines which events and fields are required for a specific workflow. 
 **Workflow:** Scheduled tasks or autonomous agent execution without a direct human trigger.
 **Risk:** "Ghost" executions where actions happen without a recorded request or trigger.
 
-*   **Required Events:** Same as Privileged Tool Action.
-*   **PASS:** The automation trace includes the full authorization and execution lifecycle.
+*   **Required Events:** `atb.bundle.manifest`, `ai.request.received`, `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`.
+*   **PASS:** The automation trace includes the scheduled lifecycle from job scheduling through start, step execution, and completion.
 
 ---
 

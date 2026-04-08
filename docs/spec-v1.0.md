@@ -146,8 +146,10 @@ The following canonical event families are used by obligation profiles and verif
 - `ai.action.precommit`, `ai.action.executed`, `ai.action.committed`
 - `ai.human.approval`, `ai.override.requested`
 - `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`
-`data.export.*` event types are canonical registry events, but the current built-in
-`atb.profile.data_export` template evaluates the `ai.action.*` control-plane flow.
+
+The built-in `atb.profile.background_automation` template evaluates the `ai.job.*` lifecycle together with the general workflow-envelope events above.
+
+`data.export.*` event types remain the target taxonomy for export-specific lifecycle records, but the current built-in `atb.profile.data_export` template still evaluates `ai.request.received`, `ai.policy.decision`, and the `ai.action.*` control-plane flow. Migration to `data.export.*` is planned for a future release.
 
 For the machine-readable registry and profile-scoped criticality, see `atb events` and `internal/event/types.go`.
 
@@ -182,7 +184,7 @@ ATB supports optional client-side bundle encryption via `atb encrypt` / `atb dec
 - Key derivation: PBKDF2-SHA256 (`100000` iterations)
 - Wire format: `ATBE` magic + version + salt + nonce + auth tag + ciphertext
 
-Optional encrypted handoff is being evaluated separately in docs/spec/bundle-push.md (forthcoming). It is not part of the v1.0 local storage contract.
+Optional encrypted handoff is being evaluated separately in [docs/spec/bundle-push.md](./spec/bundle-push.md), which is currently a placeholder for the forthcoming bundle-push specification. It is not part of the v1.0 local storage contract.
 
 ---
 

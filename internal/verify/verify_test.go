@@ -206,30 +206,27 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 					"actor_id_hash": "actor-hash",
 					"purpose_tag":   "background_automation",
 				}, "2026-03-27T12:00:00Z")
-				appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
-					"policy_id":             "pol-1",
-					"policy_version":        "2026-03",
-					"decision":              "allow",
-					"decision_reason_codes": []any{"approved"},
-					"subject_id_hash":       "subject-hash",
-					"action_id":             "act-1",
+				appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
+					"job_id":       "job-1",
+					"schedule_id":  "schedule-1",
+					"job_type":     "nightly_sync",
+					"trigger_type": "cron",
 				}, "2026-03-27T12:01:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
-					"action_id":                "act-1",
-					"action_type":              "run_job",
-					"action_parameters_digest": "params-digest",
-					"target_resource_id":       "job-1",
-					"intended_effect":          "run scheduled job",
+				appendVerifyRecord(t, b, event.TypeAIJobStarted, map[string]any{
+					"job_id":       "job-1",
+					"worker_id":    "worker-1",
+					"start_reason": "scheduled_trigger",
 				}, "2026-03-27T12:02:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
-					"action_id":           "act-1",
-					"execution_outcome":   "success",
-					"tool_receipt_digest": "tool-digest",
+				appendVerifyRecord(t, b, event.TypeAIJobStep, map[string]any{
+					"job_id":       "job-1",
+					"step_id":      "step-1",
+					"step_name":    "fetch_inputs",
+					"step_outcome": "success",
 				}, "2026-03-27T12:03:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionCommitted, map[string]any{
-					"action_id":           "act-1",
-					"commit_outcome":      "success",
-					"sink_receipt_digest": "sink-digest",
+				appendVerifyRecord(t, b, event.TypeAIJobCompleted, map[string]any{
+					"job_id":             "job-1",
+					"completion_outcome": "success",
+					"result_digest":      "sink-digest",
 				}, "2026-03-27T12:04:00Z")
 				return b
 			},

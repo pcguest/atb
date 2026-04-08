@@ -299,30 +299,27 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 		"actor_id_hash": "actor-background-001",
 		"purpose_tag":   "background_automation",
 	})
-	appendEvent(t, bundlePath, event.TypeAIPolicyDecision, map[string]any{
-		"policy_id":             "policy-background-001",
-		"policy_version":        "2026-04",
-		"decision":              "allow",
-		"decision_reason_codes": []string{"scheduled"},
-		"subject_id_hash":       "subject-background-001",
-		"action_id":             "act-background-001",
+	appendEvent(t, bundlePath, event.TypeAIJobScheduled, map[string]any{
+		"job_id":       "job-background-001",
+		"schedule_id":  "schedule-background-001",
+		"job_type":     "nightly_sync",
+		"trigger_type": "cron",
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionPrecommit, map[string]any{
-		"action_id":                "act-background-001",
-		"action_type":              "run_job",
-		"action_parameters_digest": "sha256:params-background-001",
-		"target_resource_id":       "job-001",
-		"intended_effect":          "run scheduled job",
+	appendEvent(t, bundlePath, event.TypeAIJobStarted, map[string]any{
+		"job_id":       "job-background-001",
+		"worker_id":    "worker-background-001",
+		"start_reason": "scheduled_trigger",
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
-		"action_id":           "act-background-001",
-		"execution_outcome":   "success",
-		"tool_receipt_digest": "sha256:tool-receipt-background-001",
+	appendEvent(t, bundlePath, event.TypeAIJobStep, map[string]any{
+		"job_id":       "job-background-001",
+		"step_id":      "step-background-001",
+		"step_name":    "sync_customers",
+		"step_outcome": "success",
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
-		"action_id":           "act-background-001",
-		"commit_outcome":      "success",
-		"sink_receipt_digest": "sha256:sink-receipt-background-001",
+	appendEvent(t, bundlePath, event.TypeAIJobCompleted, map[string]any{
+		"job_id":             "job-background-001",
+		"completion_outcome": "success",
+		"result_digest":      "sha256:result-background-001",
 	})
 
 	b := loadBundle(t, bundlePath)
@@ -344,33 +341,30 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 		t.Fatalf("expected trust-report CAS to be nil for %q, got %+v", profileIDBackgroundAutomation, report.CAS)
 	}
 
-	t.Run("missing_commit", func(t *testing.T) {
+	t.Run("missing_completion", func(t *testing.T) {
 		bundlePath := newTempBundle(t)
 
 		appendEvent(t, bundlePath, event.TypeAIRequestReceived, map[string]any{
-			"request_id":    "req-background-missing-commit-001",
-			"actor_id_hash": "actor-background-missing-commit-001",
+			"request_id":    "req-background-missing-completion-001",
+			"actor_id_hash": "actor-background-missing-completion-001",
 			"purpose_tag":   "background_automation",
 		})
-		appendEvent(t, bundlePath, event.TypeAIPolicyDecision, map[string]any{
-			"policy_id":             "policy-background-missing-commit-001",
-			"policy_version":        "2026-04",
-			"decision":              "allow",
-			"decision_reason_codes": []string{"scheduled"},
-			"subject_id_hash":       "subject-background-missing-commit-001",
-			"action_id":             "act-background-missing-commit-001",
+		appendEvent(t, bundlePath, event.TypeAIJobScheduled, map[string]any{
+			"job_id":       "job-background-missing-completion-001",
+			"schedule_id":  "schedule-background-missing-completion-001",
+			"job_type":     "nightly_sync",
+			"trigger_type": "cron",
 		})
-		appendEvent(t, bundlePath, event.TypeAIActionPrecommit, map[string]any{
-			"action_id":                "act-background-missing-commit-001",
-			"action_type":              "run_job",
-			"action_parameters_digest": "sha256:params-background-missing-commit-001",
-			"target_resource_id":       "job-001",
-			"intended_effect":          "run scheduled job",
+		appendEvent(t, bundlePath, event.TypeAIJobStarted, map[string]any{
+			"job_id":       "job-background-missing-completion-001",
+			"worker_id":    "worker-background-missing-completion-001",
+			"start_reason": "scheduled_trigger",
 		})
-		appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
-			"action_id":           "act-background-missing-commit-001",
-			"execution_outcome":   "success",
-			"tool_receipt_digest": "sha256:tool-receipt-background-missing-commit-001",
+		appendEvent(t, bundlePath, event.TypeAIJobStep, map[string]any{
+			"job_id":       "job-background-missing-completion-001",
+			"step_id":      "step-background-missing-completion-001",
+			"step_name":    "sync_customers",
+			"step_outcome": "success",
 		})
 
 		b := loadBundle(t, bundlePath)
@@ -378,16 +372,16 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 		if result.Profiles[0].Pass {
 			t.Fatalf("expected profile failure, got warnings %v", result.Profiles[0].RequiredWarnings)
 		}
-		if !hasCriticalFailure(result.Profiles[0].CriticalFailures, "missing_event", "ai.action.committed missing required fields") {
-			t.Fatalf("expected missing commit failure, got %+v", result.Profiles[0].CriticalFailures)
+		if !hasCriticalFailure(result.Profiles[0].CriticalFailures, "missing_event", "ai.job.completed missing required fields") {
+			t.Fatalf("expected missing completion failure, got %+v", result.Profiles[0].CriticalFailures)
 		}
 
 		report := trust.BuildReport("", bundlePath, profileIDBackgroundAutomation)
 		if report.Status != trust.StatusFail {
 			t.Fatalf("expected failing trust report status, got %q", report.Status)
 		}
-		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.action.committed missing required fields") {
-			t.Fatalf("expected trust report missing commit failure, got %+v", report.Categories)
+		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.job.completed missing required fields") {
+			t.Fatalf("expected trust report missing completion failure, got %+v", report.Categories)
 		}
 	})
 }
