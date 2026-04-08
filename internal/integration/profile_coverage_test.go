@@ -295,26 +295,26 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 	bundlePath := newTempBundle(t)
 
 	appendEvent(t, bundlePath, event.TypeAIJobScheduled, map[string]any{
-		"job_id":       "job-background-001",
-		"schedule_id":  "schedule-background-001",
-		"job_type":     "nightly_sync",
-		"trigger_type": "cron",
+		"job_id":               "job-background-001",
+		"job_type":             "nightly_sync",
+		"trigger_source":       "cron",
+		"scheduled_by_id_hash": "scheduler-background-001",
 	})
 	appendEvent(t, bundlePath, event.TypeAIJobStarted, map[string]any{
-		"job_id":       "job-background-001",
-		"worker_id":    "worker-background-001",
-		"start_reason": "scheduled_trigger",
+		"job_id":         "job-background-001",
+		"worker_id_hash": "worker-background-001",
+		"started_at":     "2026-03-27T12:02:00Z",
 	})
 	appendEvent(t, bundlePath, event.TypeAIJobStep, map[string]any{
 		"job_id":       "job-background-001",
-		"step_id":      "step-background-001",
-		"step_name":    "sync_customers",
+		"step_index":   1,
+		"step_type":    "sync_customers",
 		"step_outcome": "success",
 	})
 	appendEvent(t, bundlePath, event.TypeAIJobCompleted, map[string]any{
-		"job_id":             "job-background-001",
-		"completion_outcome": "success",
-		"result_digest":      "sha256:result-background-001",
+		"job_id":            "job-background-001",
+		"outcome":           "success",
+		"completion_reason": "completed",
 	})
 
 	b := loadBundle(t, bundlePath)
@@ -340,20 +340,20 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 		bundlePath := newTempBundle(t)
 
 		appendEvent(t, bundlePath, event.TypeAIJobScheduled, map[string]any{
-			"job_id":       "job-background-missing-completion-001",
-			"schedule_id":  "schedule-background-missing-completion-001",
-			"job_type":     "nightly_sync",
-			"trigger_type": "cron",
+			"job_id":               "job-background-missing-completion-001",
+			"job_type":             "nightly_sync",
+			"trigger_source":       "cron",
+			"scheduled_by_id_hash": "scheduler-background-missing-completion-001",
 		})
 		appendEvent(t, bundlePath, event.TypeAIJobStarted, map[string]any{
-			"job_id":       "job-background-missing-completion-001",
-			"worker_id":    "worker-background-missing-completion-001",
-			"start_reason": "scheduled_trigger",
+			"job_id":         "job-background-missing-completion-001",
+			"worker_id_hash": "worker-background-missing-completion-001",
+			"started_at":     "2026-03-27T12:02:00Z",
 		})
 		appendEvent(t, bundlePath, event.TypeAIJobStep, map[string]any{
 			"job_id":       "job-background-missing-completion-001",
-			"step_id":      "step-background-missing-completion-001",
-			"step_name":    "sync_customers",
+			"step_index":   1,
+			"step_type":    "sync_customers",
 			"step_outcome": "success",
 		})
 

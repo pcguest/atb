@@ -66,10 +66,9 @@ var humanOverrideCriticalRequirements = []eventRequirement{
 
 var backgroundAutomationCriticalRequirements = []eventRequirement{
 	{eventType: event.TypeBundleManifest},
-	{eventType: event.TypeAIJobScheduled, requiredFields: []string{"job_id", "schedule_id", "job_type", "trigger_type"}},
-	{eventType: event.TypeAIJobStarted, requiredFields: []string{"job_id", "worker_id", "start_reason"}},
-	{eventType: event.TypeAIJobStep, requiredFields: []string{"job_id", "step_id", "step_name", "step_outcome"}},
-	{eventType: event.TypeAIJobCompleted, requiredFields: []string{"job_id", "completion_outcome", "result_digest"}},
+	{eventType: event.TypeAIJobScheduled, requiredFields: []string{"job_id", "job_type", "trigger_source", "scheduled_by_id_hash"}},
+	{eventType: event.TypeAIJobStarted, requiredFields: []string{"job_id", "worker_id_hash", "started_at"}},
+	{eventType: event.TypeAIJobCompleted, requiredFields: []string{"job_id", "outcome", "completion_reason"}},
 }
 
 var registeredProfiles []Profile
@@ -443,35 +442,18 @@ func backgroundAutomationSubScores(records []bundle.Record, anchorResult AnchorV
 	recordsByType := indexRecordsByType(records)
 	scheduledByJob := indexByField(recordsByType[event.TypeAIJobScheduled], "job_id")
 	startedByJob := indexByField(recordsByType[event.TypeAIJobStarted], "job_id")
-	stepByJob := indexByField(recordsByType[event.TypeAIJobStep], "job_id")
+	completedByJob := indexByField(recordsByType[event.TypeAIJobCompleted], "job_id")
 
-	rc := averageScores(
-		boolScore(len(recordsByType[event.TypeAIJobStarted]) > 0 &&
-			len(recordsByType[event.TypeAIJobScheduled]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIJobStarted], "job_id", scheduledByJob)),
-		boolScore(len(recordsByType[event.TypeAIJobStep]) > 0 &&
-			len(recordsByType[event.TypeAIJobStarted]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIJobStep], "job_id", startedByJob)),
-		boolScore(len(recordsByType[event.TypeAIJobCompleted]) > 0 &&
-			len(recordsByType[event.TypeAIJobStarted]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIJobCompleted], "job_id", startedByJob)),
-	)
+	jobLifecycleConsistent := len(recordsByType[event.TypeAIJobScheduled]) > 0 &&
+		len(recordsByType[event.TypeAIJobStarted]) > 0 &&
+		len(recordsByType[event.TypeAIJobCompleted]) > 0 &&
+		allRecordsBound(recordsByType[event.TypeAIJobStarted], "job_id", scheduledByJob) &&
+		allRecordsBound(recordsByType[event.TypeAIJobCompleted], "job_id", startedByJob) &&
+		allRecordsBound(recordsByType[event.TypeAIJobStarted], "job_id", completedByJob)
 
+	rc := boolScore(jobLifecycleConsistent)
 	tc := 1.0
-	if len(boundedExecutionWindowWarnings(scheduledByJob, startedByJob)) > 0 {
-		tc = 0.7
-	}
-
-	gc := boolScore(
-		len(recordsByType[event.TypeAIJobScheduled]) > 0 &&
-			len(recordsByType[event.TypeAIJobStarted]) > 0 &&
-			len(recordsByType[event.TypeAIJobStep]) > 0 &&
-			len(recordsByType[event.TypeAIJobCompleted]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIJobStarted], "job_id", scheduledByJob) &&
-			allRecordsBound(recordsByType[event.TypeAIJobStep], "job_id", startedByJob) &&
-			allRecordsBound(recordsByType[event.TypeAIJobCompleted], "job_id", startedByJob) &&
-			allRecordsBound(recordsByType[event.TypeAIJobCompleted], "job_id", stepByJob),
-	)
+	gc := boolScore(jobLifecycleConsistent)
 
 	return map[string]float64{
 		"EC": eventCoverage(recordsByType, backgroundAutomationCriticalRequirements),

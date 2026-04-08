@@ -410,13 +410,16 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 		return []Profile{profile}
 	}
 
-	hasJobLifecycle := false
+	hasJobScheduled := false
+	hasJobStarted := false
 	hasPrecommit := false
 	hasModelInvoked := false
 	for _, record := range records {
 		switch record.Event.Type {
-		case event.TypeAIJobScheduled, event.TypeAIJobStarted, event.TypeAIJobStep, event.TypeAIJobCompleted:
-			hasJobLifecycle = true
+		case event.TypeAIJobScheduled:
+			hasJobScheduled = true
+		case event.TypeAIJobStarted:
+			hasJobStarted = true
 		case "ai.action.precommit":
 			hasPrecommit = true
 		case "ai.model.invoked":
@@ -425,7 +428,7 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 	}
 
 	switch {
-	case hasJobLifecycle:
+	case hasJobScheduled || hasJobStarted:
 		if profile := ProfileByID(profileIDBackgroundAutomation); profile != nil {
 			return []Profile{profile}
 		}

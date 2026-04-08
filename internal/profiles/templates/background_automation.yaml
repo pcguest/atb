@@ -4,6 +4,7 @@ workflow_class: background_automation
 blind_spots:
   - Scheduling system integrity is not attested; a compromised scheduler could trigger executions without a corresponding schedule record.
   - Does not verify that the automated job's real-world effect matches the recorded completion outcome or result digest.
+  - Policy authorisation is not required by this profile; append ai.policy.decision separately if the workflow requires it.
 weights:
   EC: 0.20
   FC: 0.15
@@ -21,47 +22,42 @@ required:
   - type: ai.job.scheduled
     fields:
       - job_id
-      - schedule_id
       - job_type
-      - trigger_type
+      - trigger_source
+      - scheduled_by_id_hash
     message: ai.job.scheduled missing required fields
     severity: critical
   - type: ai.job.started
     fields:
       - job_id
-      - worker_id
-      - start_reason
+      - worker_id_hash
+      - started_at
     message: ai.job.started missing required fields
-    severity: critical
-  - type: ai.job.step
-    fields:
-      - job_id
-      - step_id
-      - step_name
-      - step_outcome
-    message: ai.job.step missing required fields
     severity: critical
   - type: ai.job.completed
     fields:
       - job_id
-      - completion_outcome
-      - result_digest
+      - outcome
+      - completion_reason
     message: ai.job.completed missing required fields
     severity: critical
-optional: []
+optional:
+  - type: ai.job.step
+    fields:
+      - job_id
+      - step_index
+      - step_type
+      - step_outcome
+    message: ai.job.step missing required fields
+    severity: warning
 relations:
-  - name: start_requires_schedule
+  - name: job_started_requires_scheduled
     from: ai.job.started
     to: ai.job.scheduled
     field: job_id
-    message: "start_requires_schedule: ai.job.started job_id does not match ai.job.scheduled"
-  - name: step_requires_start
-    from: ai.job.step
-    to: ai.job.started
-    field: job_id
-    message: "step_requires_start: ai.job.step job_id does not match ai.job.started"
-  - name: completion_requires_start
+    message: "job_started_requires_scheduled: ai.job.started job_id does not match ai.job.scheduled"
+  - name: job_completed_requires_started
     from: ai.job.completed
     to: ai.job.started
     field: job_id
-    message: "completion_requires_start: ai.job.completed job_id does not match ai.job.started"
+    message: "job_completed_requires_started: ai.job.completed job_id does not match ai.job.started"

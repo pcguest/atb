@@ -214,26 +214,26 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 func TestVerify_ProfileAutoDetect_BackgroundAutomationByJobEvents(t *testing.T) {
 	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
-		"job_id":       "job-1",
-		"schedule_id":  "schedule-1",
-		"job_type":     "nightly_sync",
-		"trigger_type": "cron",
+		"job_id":               "job-1",
+		"job_type":             "nightly_sync",
+		"trigger_source":       "cron",
+		"scheduled_by_id_hash": "scheduler-hash",
 	}, "2026-03-27T12:01:00Z")
 	appendVerifyRecord(t, b, event.TypeAIJobStarted, map[string]any{
-		"job_id":       "job-1",
-		"worker_id":    "worker-1",
-		"start_reason": "scheduled_trigger",
+		"job_id":         "job-1",
+		"worker_id_hash": "worker-hash",
+		"started_at":     "2026-03-27T12:02:00Z",
 	}, "2026-03-27T12:02:00Z")
 	appendVerifyRecord(t, b, event.TypeAIJobStep, map[string]any{
 		"job_id":       "job-1",
-		"step_id":      "step-1",
-		"step_name":    "fetch_inputs",
+		"step_index":   1,
+		"step_type":    "fetch_inputs",
 		"step_outcome": "success",
 	}, "2026-03-27T12:03:00Z")
 	appendVerifyRecord(t, b, event.TypeAIJobCompleted, map[string]any{
-		"job_id":             "job-1",
-		"completion_outcome": "success",
-		"result_digest":      "sink-digest",
+		"job_id":            "job-1",
+		"outcome":           "success",
+		"completion_reason": "completed",
 	}, "2026-03-27T12:04:00Z")
 
 	report := Verify(b, "bundle.atb", "")
