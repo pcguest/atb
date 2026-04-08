@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
 - Key management guidance for bundle/policy signing and encryption operations (`docs/key-management.md`).
 
-## [0.9.2-beta] — 2026-04-08
+## [v0.9.2-beta] — 2026-04-08
 
 ### Changed
 - Version bump to 0.9.2-beta; closes the April 2026 release window
