@@ -1,10 +1,13 @@
 package event_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/internal/profiles"
+	"github.com/pcguest/atb/internal/verify"
 )
 
 // TestRegistryNotEmpty verifies the registry is populated.
@@ -63,4 +66,37 @@ func TestAllCriticalProfileEventsPresent(t *testing.T) {
 			t.Errorf("required event type missing from Registry: %q", requiredType)
 		}
 	}
+}
+
+func TestRegistryProfileAnnotationsCoverEmbeddedTemplates(t *testing.T) {
+	registryByType := make(map[string]event.EventInfo, len(event.Registry))
+	for _, entry := range event.Registry {
+		registryByType[entry.Type] = entry
+	}
+
+	for _, profile := range verify.AllProfiles() {
+		schema := profiles.MustLoadSchema(profile.ID())
+		rules := make([]profiles.EventRule, 0, len(schema.Required)+len(schema.Optional))
+		rules = append(rules, schema.Required...)
+		rules = append(rules, schema.Optional...)
+
+		for _, rule := range rules {
+			entry, ok := registryByType[rule.Type]
+			if !ok {
+				t.Fatalf("registry missing event type %q for profile %q", rule.Type, profile.ID())
+			}
+			if !profileListed(entry.Profile, profile.ID()) {
+				t.Errorf("registry entry %q missing profile annotation %q", rule.Type, profile.ID())
+			}
+		}
+	}
+}
+
+func profileListed(profileList string, profileID string) bool {
+	for _, candidate := range strings.Split(profileList, ",") {
+		if strings.TrimSpace(candidate) == profileID {
+			return true
+		}
+	}
+	return false
 }

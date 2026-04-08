@@ -147,7 +147,7 @@ The following canonical event families are used by obligation profiles and verif
 - `ai.human.approval`, `ai.override.requested`
 - `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`
 
-The built-in `atb.profile.background_automation` template evaluates the `ai.job.*` lifecycle together with the general workflow-envelope events above.
+The built-in `atb.profile.background_automation` template evaluates the `ai.job.*` lifecycle only. It does not require `ai.request.received`, and profile auto-detection should rely on recorded `ai.job.*` events rather than `purpose_tag` on request events.
 
 `data.export.*` event types remain the target taxonomy for export-specific lifecycle records, but the current built-in `atb.profile.data_export` template still evaluates `ai.request.received`, `ai.policy.decision`, and the `ai.action.*` control-plane flow. Migration to `data.export.*` is planned for a future release.
 

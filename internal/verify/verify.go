@@ -410,10 +410,13 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 		return []Profile{profile}
 	}
 
+	hasJobLifecycle := false
 	hasPrecommit := false
 	hasModelInvoked := false
 	for _, record := range records {
 		switch record.Event.Type {
+		case event.TypeAIJobScheduled, event.TypeAIJobStarted, event.TypeAIJobStep, event.TypeAIJobCompleted:
+			hasJobLifecycle = true
 		case "ai.action.precommit":
 			hasPrecommit = true
 		case "ai.model.invoked":
@@ -422,6 +425,10 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 	}
 
 	switch {
+	case hasJobLifecycle:
+		if profile := ProfileByID(profileIDBackgroundAutomation); profile != nil {
+			return []Profile{profile}
+		}
 	case hasPrecommit:
 		if profile := ProfileByID(profileIDPrivilegedToolAction); profile != nil {
 			return []Profile{profile}
@@ -457,7 +464,6 @@ func profileFromPurposeTag(records []bundle.Record) Profile {
 			profileIDDataExport,
 			profileIDPolicyDecision,
 			profileIDHumanOverride,
-			profileIDBackgroundAutomation,
 			profileIDRAGAnswer,
 		} {
 			profile := ProfileByID(candidateID)

@@ -66,7 +66,6 @@ var humanOverrideCriticalRequirements = []eventRequirement{
 
 var backgroundAutomationCriticalRequirements = []eventRequirement{
 	{eventType: event.TypeBundleManifest},
-	{eventType: event.TypeAIRequestReceived, requiredFields: []string{"request_id", "actor_id_hash", "purpose_tag"}},
 	{eventType: event.TypeAIJobScheduled, requiredFields: []string{"job_id", "schedule_id", "job_type", "trigger_type"}},
 	{eventType: event.TypeAIJobStarted, requiredFields: []string{"job_id", "worker_id", "start_reason"}},
 	{eventType: event.TypeAIJobStep, requiredFields: []string{"job_id", "step_id", "step_name", "step_outcome"}},

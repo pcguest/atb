@@ -294,11 +294,6 @@ func TestIntegrationProfiles_HumanOverride(t *testing.T) {
 func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 	bundlePath := newTempBundle(t)
 
-	appendEvent(t, bundlePath, event.TypeAIRequestReceived, map[string]any{
-		"request_id":    "req-background-001",
-		"actor_id_hash": "actor-background-001",
-		"purpose_tag":   "background_automation",
-	})
 	appendEvent(t, bundlePath, event.TypeAIJobScheduled, map[string]any{
 		"job_id":       "job-background-001",
 		"schedule_id":  "schedule-background-001",
@@ -344,11 +339,6 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 	t.Run("missing_completion", func(t *testing.T) {
 		bundlePath := newTempBundle(t)
 
-		appendEvent(t, bundlePath, event.TypeAIRequestReceived, map[string]any{
-			"request_id":    "req-background-missing-completion-001",
-			"actor_id_hash": "actor-background-missing-completion-001",
-			"purpose_tag":   "background_automation",
-		})
 		appendEvent(t, bundlePath, event.TypeAIJobScheduled, map[string]any{
 			"job_id":       "job-background-missing-completion-001",
 			"schedule_id":  "schedule-background-missing-completion-001",

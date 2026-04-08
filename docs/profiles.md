@@ -51,10 +51,10 @@ A profile defines which events and fields are required for a specific workflow. 
 
 ### 6. Background Automation (`atb.profile.background_automation`)
 **Workflow:** Scheduled tasks or autonomous agent execution without a direct human trigger.
-**Risk:** "Ghost" executions where actions happen without a recorded request or trigger.
+**Risk:** "Ghost" executions where scheduled or worker activity happens without a recorded job lifecycle.
 
-*   **Required Events:** `atb.bundle.manifest`, `ai.request.received`, `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`.
-*   **PASS:** The automation trace includes the scheduled lifecycle from job scheduling through start, step execution, and completion.
+*   **Required Events:** `atb.bundle.manifest`, `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`.
+*   **PASS:** The automation trace includes the recorded job lifecycle from scheduling through start, step execution, and completion.
 
 ---
 

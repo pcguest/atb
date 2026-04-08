@@ -214,11 +214,6 @@ func newBackgroundAutomationBundle(t testing.TB) *bundle.Bundle {
 	t.Helper()
 
 	b := newVerifyTestBundle(t)
-	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
-		"request_id":    "req-background",
-		"actor_id_hash": "actor-hash",
-		"purpose_tag":   "background_automation",
-	}, "2026-03-27T12:00:00Z")
 	appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
 		"job_id":       "job-1",
 		"schedule_id":  "schedule-1",

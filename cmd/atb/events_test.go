@@ -38,11 +38,27 @@ func TestRunEvents_JSONOutput(t *testing.T) {
 // TestRunEvents_ProfileFilter verifies that --profile filters output.
 func TestRunEvents_ProfileFilter(t *testing.T) {
 	out := captureEventsOutput(t, []string{"--profile", "atb.profile.rag_answer"})
+	if !strings.Contains(out, event.TypeBundleManifest) {
+		t.Error("expected atb.bundle.manifest in rag_answer filter output")
+	}
 	if !strings.Contains(out, event.TypeAIModelInvoked) {
 		t.Error("expected ai.model.invoked in rag_answer filter output")
 	}
 	if strings.Contains(out, event.TypeAIActionPrecommit) {
 		t.Error("ai.action.precommit should not appear when filtering by rag_answer profile")
+	}
+}
+
+func TestRunEvents_BackgroundAutomationProfileFilter(t *testing.T) {
+	out := captureEventsOutput(t, []string{"--profile", "atb.profile.background_automation"})
+	if !strings.Contains(out, event.TypeBundleManifest) {
+		t.Error("expected atb.bundle.manifest in background_automation filter output")
+	}
+	if !strings.Contains(out, event.TypeAIJobScheduled) {
+		t.Error("expected ai.job.scheduled in background_automation filter output")
+	}
+	if strings.Contains(out, event.TypeAIRequestReceived) {
+		t.Error("ai.request.received should not appear when filtering by background_automation profile")
 	}
 }
 

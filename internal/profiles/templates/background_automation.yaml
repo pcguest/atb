@@ -18,13 +18,6 @@ required:
     fields: []
     message: atb.bundle.manifest missing
     severity: critical
-  - type: ai.request.received
-    fields:
-      - request_id
-      - actor_id_hash
-      - purpose_tag
-    message: ai.request.received missing required fields
-    severity: critical
   - type: ai.job.scheduled
     fields:
       - job_id

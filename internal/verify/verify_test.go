@@ -196,41 +196,6 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 				return b
 			},
 		},
-		{
-			name:      "background_automation",
-			profileID: profileIDBackgroundAutomation,
-			build: func() *bundle.Bundle {
-				b := newVerifyTestBundle(t)
-				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
-					"request_id":    "req-background",
-					"actor_id_hash": "actor-hash",
-					"purpose_tag":   "background_automation",
-				}, "2026-03-27T12:00:00Z")
-				appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
-					"job_id":       "job-1",
-					"schedule_id":  "schedule-1",
-					"job_type":     "nightly_sync",
-					"trigger_type": "cron",
-				}, "2026-03-27T12:01:00Z")
-				appendVerifyRecord(t, b, event.TypeAIJobStarted, map[string]any{
-					"job_id":       "job-1",
-					"worker_id":    "worker-1",
-					"start_reason": "scheduled_trigger",
-				}, "2026-03-27T12:02:00Z")
-				appendVerifyRecord(t, b, event.TypeAIJobStep, map[string]any{
-					"job_id":       "job-1",
-					"step_id":      "step-1",
-					"step_name":    "fetch_inputs",
-					"step_outcome": "success",
-				}, "2026-03-27T12:03:00Z")
-				appendVerifyRecord(t, b, event.TypeAIJobCompleted, map[string]any{
-					"job_id":             "job-1",
-					"completion_outcome": "success",
-					"result_digest":      "sink-digest",
-				}, "2026-03-27T12:04:00Z")
-				return b
-			},
-		},
 	}
 
 	for _, tc := range tests {
@@ -243,6 +208,54 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 				t.Fatalf("unexpected profile ID: got %q want %q", report.Profiles[0].ProfileID, tc.profileID)
 			}
 		})
+	}
+}
+
+func TestVerify_ProfileAutoDetect_BackgroundAutomationByJobEvents(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
+		"job_id":       "job-1",
+		"schedule_id":  "schedule-1",
+		"job_type":     "nightly_sync",
+		"trigger_type": "cron",
+	}, "2026-03-27T12:01:00Z")
+	appendVerifyRecord(t, b, event.TypeAIJobStarted, map[string]any{
+		"job_id":       "job-1",
+		"worker_id":    "worker-1",
+		"start_reason": "scheduled_trigger",
+	}, "2026-03-27T12:02:00Z")
+	appendVerifyRecord(t, b, event.TypeAIJobStep, map[string]any{
+		"job_id":       "job-1",
+		"step_id":      "step-1",
+		"step_name":    "fetch_inputs",
+		"step_outcome": "success",
+	}, "2026-03-27T12:03:00Z")
+	appendVerifyRecord(t, b, event.TypeAIJobCompleted, map[string]any{
+		"job_id":             "job-1",
+		"completion_outcome": "success",
+		"result_digest":      "sink-digest",
+	}, "2026-03-27T12:04:00Z")
+
+	report := Verify(b, "bundle.atb", "")
+	if len(report.Profiles) != 1 {
+		t.Fatalf("expected one matched profile, got %d", len(report.Profiles))
+	}
+	if report.Profiles[0].ProfileID != profileIDBackgroundAutomation {
+		t.Fatalf("unexpected profile ID: got %q want %q", report.Profiles[0].ProfileID, profileIDBackgroundAutomation)
+	}
+}
+
+func TestVerify_ProfileAutoDetect_BackgroundAutomationDoesNotUsePurposeTag(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-background",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "background_automation",
+	}, "2026-03-27T12:00:00Z")
+
+	report := Verify(b, "bundle.atb", "")
+	if len(report.Profiles) != 0 {
+		t.Fatalf("expected no matched profiles, got %d", len(report.Profiles))
 	}
 }
 
