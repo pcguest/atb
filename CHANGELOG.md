@@ -14,6 +14,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
 - Key management guidance for bundle/policy signing and encryption operations (`docs/key-management.md`).
 
+## [v0.9.1-beta] — 2026-04-08
+
+### Added
+- `atb trust-report --format json` TrustReport output with profile-specific evidence sections for all six built-in profiles
+- `atb export --format compliance --json` ComplianceManifest output
+- MCP integration guide (`docs/integrations/mcp.md`)
+- Event type constants for Python and TypeScript SDKs
+- AGENTS.md repo orientation and working standards
+
+### Fixed
+- `background_automation` profile migrated to `ai.job.*` taxonomy; template, verifier, and auto-detection all consistent
+- ResidualRisk now set to Critical when chain integrity fails
+- TSA and CAS capability claims corrected in README and security.md
+
+### Tests
+- Snapshot tests for `atb verify --format json` across all six profiles
+- Snapshot tests for `atb trust-report --format json` across all six profiles, including negative and edge cases
+- Golden fixture for compliance manifest JSON output
+
 ## [v0.9.1-beta] — 2026-04-07
 
 ### Changed
