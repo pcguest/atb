@@ -61,11 +61,13 @@ atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 
 ### Obligation Profiles & CAS
 
-While the hash chain ensures **integrity** (the record was not changed), **Obligation Profiles** and the **Completeness Assurance Score (CAS)** measure **completeness** (that all necessary events for a workflow were recorded). Profiles define required events, field expectations, and causal ordering (e.g., human approval must occur at or after a high-impact action). See [docs/profiles.md](docs/profiles.md) for a full breakdown of each profile and its compliance mapping (EU AI Act, ISO 42001, SOC 2).
+<!-- ATB: corrected overstatement -->
+While the hash chain ensures **integrity** (the record was not changed), **Obligation Profiles** and the **Completeness Assurance Score (CAS)** provide a profile-scoped indication of **recorded evidence completeness** for the events and relations ATB currently knows how to evaluate. Profiles define required events, field expectations, and causal ordering (e.g., human approval must occur at or after a high-impact action). See [docs/profiles.md](docs/profiles.md) for a full breakdown of each profile and its compliance mapping (EU AI Act, ISO 42001, SOC 2).
 
 ### Integrations: SIEM and GRC
 
-ATB exports are deterministic artifacts designed for ingestion into SIEM (Security Information and Event Management) and GRC (Governance, Risk, and Compliance) platforms. The `soc2` format includes a JSONL audit trail for security monitoring, while the `.verify.json` sidecar allows GRC systems to automate evidence validation via integrity checks and CAS grades. See [docs/integrations/siem-grc.md](docs/integrations/siem-grc.md) for architectural patterns and ingestion guidance.
+<!-- ATB: corrected overstatement -->
+ATB exports are deterministic artefacts designed for ingestion into SIEM (Security Information and Event Management) and GRC (Governance, Risk, and Compliance) platforms. The `soc2` format includes a JSONL audit trail for security monitoring, while the `.verify.json` sidecar can expose integrity results and current CAS outputs for downstream review workflows. Those CAS outputs are implementation-level signals, not external attestations or third-party validation. See [docs/integrations/siem-grc.md](docs/integrations/siem-grc.md) for architectural patterns and ingestion guidance.
 
 ## What ATB Includes
 
@@ -79,7 +81,8 @@ ATB exports are deterministic artifacts designed for ingestion into SIEM (Securi
 | Developer integrations | Native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript. |
 | Go CLI as the primary distribution path | Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path. |
 
-> **Implementation status:** Bundle-level Ed25519 signing (`atb sign`) and RFC 3161 TSA anchoring (`atb anchor`) are implemented. `atb verify` validates bundle signatures and TSA certificate chains against system roots for CAS scoring.
+<!-- ATB: corrected overstatement -->
+> **Implementation status:** Bundle-level Ed25519 signing (`atb sign`) and RFC 3161 TSA anchoring (`atb anchor`) are implemented. `atb verify` can check recorded bundle signatures and perform local RFC 3161 token checks, including digest and signature validation plus certificate-chain evaluation against the roots available in the current environment. This remains pre-production beta behaviour and should not be treated as an external trust service or formal attestation.
 
 - [Why ATB: integrity, completeness, and what we claim](docs/why-atb.md)
 - [Key Management](docs/key-management.md)

@@ -26,13 +26,16 @@ ATB is designed for tamper evidence first and local-first operation.
 - For detailed guidance on key lifecycles and signing operations, see [docs/key-management.md](./key-management.md).
 
 6. RFC 3161 token verification
-- `atb verify --with-anchor` verifies the full RFC 3161 token: digest match, TSA certificate chain against system roots, and SignerInfo signature. This verification is used for completeness scoring (XC/AC).
-- Note: The terminal report currently identifies the TSA cert status as unverified in the summary block for v1 status reporting consistency, even when the underlying verification engine has validated the chain.
+<!-- ATB: corrected overstatement -->
+- `atb verify --with-anchor` performs local RFC 3161 token checks for recorded anchors: digest match, SignerInfo signature validation, and TSA certificate-chain evaluation against the system roots available in the current environment. These checks feed the current XC/AC scoring path, but they are implementation-level verification steps rather than a standalone external trust guarantee.
+<!-- ATB: corrected overstatement -->
+- Note: The terminal report currently identifies the TSA cert status as unverified in the summary block for v1 status reporting consistency, even when the underlying verification engine has completed a successful chain check against the roots available in that environment.
 
 ## Assurance Layers
 
 - Layer A, Integrity: ATB bundles, SHA-256 hash chaining, RFC 8785 canonical JSON, and optional RFC 3161 TSA anchors.
-- Layer B, Profiles and CAS: schema-backed obligation profiles and profile-scoped completeness scoring for workflow evidence.
+<!-- ATB: corrected overstatement -->
+- Layer B, Profiles and CAS: schema-backed obligation profiles and profile-scoped completeness signals for recorded workflow evidence. CAS is a local scoring model over the events ATB can evaluate, not an external audit opinion or independent attestation.
 - Layer C, ACP: control-plane gating for high-impact actions, with the invariant that no gated action should execute without an ATB pre-commit.
 - Layer D, Security scanning: `gosec`, Bandit, and `npm audit` on the repository, plus scheduled or manually requested Trivy filesystem and Docker image scans.
 - Layer E, Distribution and ops: Git tags, GitHub releases, checksums, PyPI, npm, and Docker image publication.
