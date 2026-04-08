@@ -11,10 +11,14 @@ import (
 	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/trust"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 var errTrustReportHelp = errors.New("trust-report help requested")
+
+const trustReportRAGAnswerProfileID = "atb.profile.rag_answer"
 
 type trustReportConfig struct {
 	BundlePath string
@@ -22,39 +26,78 @@ type trustReportConfig struct {
 	ProfileID  string
 }
 
+type ragAnswerReportDetails struct {
+	ModelProvider                string
+	ModelID                      string
+	ModelParametersDigestPresent bool
+	RetrievalPresent             bool
+	ResponsePresent              bool
+	RequestIDBindingConfirmed    bool
+}
+
 func cmdTrustReport() {
-	cfg, err := parseTrustReportArgs(os.Args[2:])
+	os.Exit(runTrustReport(os.Args[2:], os.Stdout, os.Stderr))
+}
+
+func runTrustReport(args []string, stdout, stderr io.Writer) int {
+	cfg, err := parseTrustReportArgs(args)
 	if err != nil {
 		if errors.Is(err, errTrustReportHelp) {
 			printTrustReportUsage()
-			return
+			return exitSuccess
 		}
-		fmt.Fprintf(os.Stderr, "atb trust-report: %v\n", err)
+		fmt.Fprintf(stderr, "atb trust-report: %v\n", err)
 		printTrustReportUsage()
-		os.Exit(exitUserError)
+		return exitUserError
 	}
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "atb trust-report: current directory: %v\n", err)
-		os.Exit(exitSystemError)
+		fmt.Fprintf(stderr, "atb trust-report: current directory: %v\n", err)
+		return exitSystemError
 	}
 
-	report := trust.BuildReport(cwd, cfg.BundlePath, cfg.ProfileID)
+	resolvedProfile, resolvedProfileID, err := resolveTrustReportProfile(cfg.BundlePath, cfg.ProfileID)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb trust-report: %v\n", err)
+		printTrustReportUsage()
+		return exitUserError
+	}
+
+	buildProfileID := cfg.ProfileID
+	if buildProfileID == "" && resolvedProfileID == trustReportRAGAnswerProfileID {
+		buildProfileID = resolvedProfileID
+	} else if buildProfileID != "" && isVerifyProfilePath(buildProfileID) {
+		buildProfileID = resolvedProfileID
+	}
+
+	report := trust.BuildReport(cwd, cfg.BundlePath, buildProfileID)
+	ragDetails, hasRAGDetails := loadRAGAnswerReportDetails(cfg.BundlePath, resolvedProfileID)
 	switch cfg.Format {
 	case "json":
-		if err := json.NewEncoder(os.Stdout).Encode(report); err != nil {
-			fmt.Fprintf(os.Stderr, "atb trust-report: encode json: %v\n", err)
-			os.Exit(exitSystemError)
+		if resolvedProfileID == trustReportRAGAnswerProfileID {
+			verifierReport, ok := buildRAGAnswerVerifierReport(cfg.BundlePath, cfg.ProfileID, resolvedProfile, ragDetails)
+			if ok {
+				if err := json.NewEncoder(stdout).Encode(verifierReport); err != nil {
+					fmt.Fprintf(stderr, "atb trust-report: encode json: %v\n", err)
+					return exitSystemError
+				}
+				return exitSuccess
+			}
+		}
+		if err := json.NewEncoder(stdout).Encode(report); err != nil {
+			fmt.Fprintf(stderr, "atb trust-report: encode json: %v\n", err)
+			return exitSystemError
 		}
 	case "text":
-		renderTrustReportText(os.Stdout, report)
+		renderTrustReportText(stdout, report)
 	case "markdown":
-		printTrustReportMarkdown(report)
+		renderTrustReportMarkdown(stdout, report, hasRAGDetails, ragDetails)
 	default:
-		fmt.Fprintf(os.Stderr, "atb trust-report: unsupported format %q\n", cfg.Format)
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb trust-report: unsupported format %q\n", cfg.Format)
+		return exitUserError
 	}
+	return exitSuccess
 }
 
 func parseTrustReportArgs(args []string) (trustReportConfig, error) {
@@ -104,56 +147,230 @@ func printTrustReportUsage() {
 	fmt.Println("Usage: atb trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]")
 }
 
-func printTrustReportMarkdown(report trust.Report) {
-	fmt.Println("# ATB Trust Report")
-	fmt.Println()
-	fmt.Printf("- Verdict: **%s**\n", strings.ToUpper(report.Status))
-	fmt.Printf("- CI Gate: **%s**\n", strings.ToUpper(report.Gate.Status))
-	fmt.Printf("- Blocking failures: %d\n", report.Gate.BlockingFailures)
-	fmt.Printf("- Generated: %s\n", report.GeneratedAt)
-	fmt.Printf("- Bundle: `%s`\n", report.BundlePath)
-	fmt.Printf("- Chain length: %d\n", report.ChainLength)
+func renderTrustReportMarkdown(w io.Writer, report trust.Report, includeRAGDetails bool, ragDetails ragAnswerReportDetails) {
+	fmt.Fprintln(w, "# ATB Trust Report")
+	fmt.Fprintln(w)
+	fmt.Fprintf(w, "- Verdict: **%s**\n", strings.ToUpper(report.Status))
+	fmt.Fprintf(w, "- CI Gate: **%s**\n", strings.ToUpper(report.Gate.Status))
+	fmt.Fprintf(w, "- Blocking failures: %d\n", report.Gate.BlockingFailures)
+	fmt.Fprintf(w, "- Generated: %s\n", report.GeneratedAt)
+	fmt.Fprintf(w, "- Bundle: `%s`\n", report.BundlePath)
+	fmt.Fprintf(w, "- Chain length: %d\n", report.ChainLength)
 	if report.HeadHash != "" {
-		fmt.Printf("- Head hash: `%s`\n", report.HeadHash)
+		fmt.Fprintf(w, "- Head hash: `%s`\n", report.HeadHash)
 	}
-	fmt.Printf("- Checks: total=%d pass=%d warn=%d fail=%d\n", report.Summary.Total, report.Summary.Pass, report.Summary.Warn, report.Summary.Fail)
+	fmt.Fprintf(w, "- Checks: total=%d pass=%d warn=%d fail=%d\n", report.Summary.Total, report.Summary.Pass, report.Summary.Warn, report.Summary.Fail)
 	if len(report.Gate.FailedChecks) > 0 {
-		fmt.Printf("- Failed blocking checks: `%s`\n", strings.Join(report.Gate.FailedChecks, "`, `"))
+		fmt.Fprintf(w, "- Failed blocking checks: `%s`\n", strings.Join(report.Gate.FailedChecks, "`, `"))
 	}
-	fmt.Println()
+	fmt.Fprintln(w)
 	if report.CAS != nil {
-		fmt.Println("## Completeness Assurance")
-		fmt.Println()
-		fmt.Printf("- Profile: `%s`\n", report.CAS.ProfileID)
-		fmt.Printf("- Workflow class: `%s`\n", report.CAS.WorkflowClass)
-		fmt.Printf("- Overall: %.3f (%s)\n", report.CAS.Overall, report.CAS.Grade)
-		fmt.Printf("- Anchor quality: `%s` (XC=%.3f, AC=%.3f)\n", report.CAS.AnchorQuality.Label, report.CAS.AnchorQuality.XC, report.CAS.AnchorQuality.AC)
+		fmt.Fprintln(w, "## Completeness Assurance")
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "- Profile: `%s`\n", report.CAS.ProfileID)
+		fmt.Fprintf(w, "- Workflow class: `%s`\n", report.CAS.WorkflowClass)
+		fmt.Fprintf(w, "- Overall: %.3f (%s)\n", report.CAS.Overall, report.CAS.Grade)
+		fmt.Fprintf(w, "- Anchor quality: `%s` (XC=%.3f, AC=%.3f)\n", report.CAS.AnchorQuality.Label, report.CAS.AnchorQuality.XC, report.CAS.AnchorQuality.AC)
 
 		scoreKeys := sortedFloatKeys(report.CAS.SubScores)
 		if len(scoreKeys) > 0 {
-			fmt.Printf("- Sub-scores: `%s`\n", formatFloatMap(report.CAS.SubScores, scoreKeys))
+			fmt.Fprintf(w, "- Sub-scores: `%s`\n", formatFloatMap(report.CAS.SubScores, scoreKeys))
 		}
 
 		weightKeys := sortedFloatKeys(report.CAS.Weights)
 		if len(weightKeys) > 0 {
-			fmt.Printf("- Weights: `%s`\n", formatFloatMap(report.CAS.Weights, weightKeys))
+			fmt.Fprintf(w, "- Weights: `%s`\n", formatFloatMap(report.CAS.Weights, weightKeys))
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
+	}
+	if includeRAGDetails {
+		fmt.Fprintln(w, "## Model invocation")
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "- model_provider: `%s`\n", ragDetails.ModelProvider)
+		fmt.Fprintf(w, "- model_id: `%s`\n", ragDetails.ModelID)
+		fmt.Fprintf(w, "- model_parameters_digest present: `%t`\n", ragDetails.ModelParametersDigestPresent)
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "## Retrieval")
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "- ai.retrieval.executed present: `%t`\n", ragDetails.RetrievalPresent)
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "## Response")
+		fmt.Fprintln(w)
+		fmt.Fprintf(w, "- ai.response.sent present: `%t`\n", ragDetails.ResponsePresent)
+		fmt.Fprintf(w, "- request_id binding confirmed: `%t`\n", ragDetails.RequestIDBindingConfirmed)
+		fmt.Fprintln(w)
 	}
 	for _, category := range report.Categories {
-		fmt.Printf("## %s (%s)\n\n", category.Title, strings.ToUpper(category.Status))
+		fmt.Fprintf(w, "## %s (%s)\n\n", category.Title, strings.ToUpper(category.Status))
 		for _, check := range category.Checks {
 			blocking := "non-blocking"
 			if check.Blocking {
 				blocking = "blocking"
 			}
-			fmt.Printf("- [%s] (%s, %s) %s: %s\n", strings.ToUpper(check.Status), check.Severity, blocking, check.Title, check.Details)
+			fmt.Fprintf(w, "- [%s] (%s, %s) %s: %s\n", strings.ToUpper(check.Status), check.Severity, blocking, check.Title, check.Details)
 			if len(check.Evidence) > 0 {
-				fmt.Printf("  Evidence: `%s`\n", relativeOrOriginal(report.BundlePath, check.Evidence[0]))
+				fmt.Fprintf(w, "  Evidence: `%s`\n", relativeOrOriginal(report.BundlePath, check.Evidence[0]))
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 	}
+}
+
+func resolveTrustReportProfile(bundlePath string, profileSpec string) (verifypkg.Profile, string, error) {
+	profileSpec = strings.TrimSpace(profileSpec)
+	if profileSpec == "" {
+		b, err := bundle.Load(bundlePath)
+		if err != nil {
+			return nil, "", nil
+		}
+		report := verifypkg.Verify(b, bundlePath, "")
+		if len(report.Profiles) == 0 {
+			return nil, "", nil
+		}
+		profileID := report.Profiles[0].ProfileID
+		return verifypkg.ProfileByID(profileID), profileID, nil
+	}
+
+	if isVerifyProfilePath(profileSpec) {
+		profile, err := verifypkg.ResolveProfile(profileSpec)
+		if err != nil {
+			return nil, "", err
+		}
+		if profile == nil {
+			return nil, "", fmt.Errorf("unknown profile: %s", profileSpec)
+		}
+		return profile, profile.ID(), nil
+	}
+
+	profile := verifypkg.ProfileByID(profileSpec)
+	if profile == nil {
+		return nil, "", fmt.Errorf("unknown profile: %s", profileSpec)
+	}
+	return profile, profile.ID(), nil
+}
+
+func loadRAGAnswerReportDetails(bundlePath string, resolvedProfileID string) (ragAnswerReportDetails, bool) {
+	if resolvedProfileID != trustReportRAGAnswerProfileID {
+		return ragAnswerReportDetails{}, false
+	}
+
+	b, err := bundle.Load(bundlePath)
+	if err != nil {
+		return ragAnswerReportDetails{}, false
+	}
+
+	details := ragAnswerReportDetails{
+		ModelProvider:             "unknown",
+		ModelID:                   "unknown",
+		RequestIDBindingConfirmed: false,
+	}
+	requestIDs := map[string]struct{}{}
+	responseRequestIDs := []string{}
+
+	for _, record := range b.Records {
+		switch record.Event.Type {
+		case event.TypeAIRequestReceived:
+			if requestID := trustReportFieldString(record, "request_id"); requestID != "" {
+				requestIDs[requestID] = struct{}{}
+			}
+		case event.TypeAIModelInvoked:
+			if fields := trustReportDataMap(record); fields != nil {
+				if details.ModelProvider == "unknown" {
+					if provider, ok := fields["model_provider"].(string); ok && strings.TrimSpace(provider) != "" {
+						details.ModelProvider = provider
+					}
+				}
+				if details.ModelID == "unknown" {
+					if modelID, ok := fields["model_id"].(string); ok && strings.TrimSpace(modelID) != "" {
+						details.ModelID = modelID
+					}
+				}
+				if hasField := trustReportHasField(fields, "model_parameters_digest"); hasField {
+					details.ModelParametersDigestPresent = true
+				}
+			}
+		case event.TypeAIRetrievalExecuted:
+			details.RetrievalPresent = true
+		case event.TypeAIResponseSent:
+			details.ResponsePresent = true
+			if requestID := trustReportFieldString(record, "request_id"); requestID != "" {
+				responseRequestIDs = append(responseRequestIDs, requestID)
+			}
+		}
+	}
+
+	if len(responseRequestIDs) > 0 {
+		details.RequestIDBindingConfirmed = true
+		for _, requestID := range responseRequestIDs {
+			if _, ok := requestIDs[requestID]; !ok {
+				details.RequestIDBindingConfirmed = false
+				break
+			}
+		}
+	}
+
+	return details, true
+}
+
+func buildRAGAnswerVerifierReport(
+	bundlePath string,
+	profileSpec string,
+	profile verifypkg.Profile,
+	ragDetails ragAnswerReportDetails,
+) (verifypkg.VerifierReport, bool) {
+	b, err := bundle.Load(bundlePath)
+	if err != nil {
+		return verifypkg.VerifierReport{}, false
+	}
+
+	var report verifypkg.Report
+	if profile != nil && strings.TrimSpace(profileSpec) != "" {
+		report = verifypkg.VerifyWithProfile(b, bundlePath, profile)
+	} else {
+		report = verifypkg.Verify(b, bundlePath, "")
+	}
+
+	verifierReport := verifypkg.ReportFromVerify(report)
+	verifierReport.Notes = append(verifierReport.Notes,
+		fmt.Sprintf(
+			`model_invocation: model_provider=%q model_id=%q model_parameters_digest_present=%t`,
+			ragDetails.ModelProvider,
+			ragDetails.ModelID,
+			ragDetails.ModelParametersDigestPresent,
+		),
+		fmt.Sprintf("retrieval: ai.retrieval.executed_present=%t", ragDetails.RetrievalPresent),
+		fmt.Sprintf(
+			"response: ai.response.sent_present=%t request_id_binding_confirmed=%t",
+			ragDetails.ResponsePresent,
+			ragDetails.RequestIDBindingConfirmed,
+		),
+	)
+	return verifierReport, true
+}
+
+func trustReportDataMap(record bundle.Record) map[string]any {
+	fields, _ := record.Event.Data.(map[string]any)
+	return fields
+}
+
+func trustReportFieldString(record bundle.Record, field string) string {
+	fields := trustReportDataMap(record)
+	if fields == nil {
+		return ""
+	}
+	value, _ := fields[field].(string)
+	return strings.TrimSpace(value)
+}
+
+func trustReportHasField(fields map[string]any, field string) bool {
+	value, ok := fields[field]
+	if !ok {
+		return false
+	}
+	if stringValue, ok := value.(string); ok {
+		return strings.TrimSpace(stringValue) != ""
+	}
+	return value != nil
 }
 
 func renderTrustReportText(w io.Writer, report trust.Report) {

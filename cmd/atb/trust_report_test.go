@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/trust"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 func TestTrustReportParseArgs(t *testing.T) {
@@ -257,4 +260,119 @@ func TestTrustReportRenderTextIncludesCheckDetails(t *testing.T) {
 			t.Fatalf("renderTrustReportText() missing %q in output:\n%s", want, got)
 		}
 	}
+}
+
+func TestRunTrustReportMarkdown_AutoDetectedRAGIncludesSections(t *testing.T) {
+	bundlePath := writeTrustReportRAGBundle(t, true, true)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runTrustReport([]string{bundlePath, "--format", "markdown"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("runTrustReport() exit code = %d, want %d, stderr=%s", exitCode, exitSuccess, stderr.String())
+	}
+
+	rendered := stdout.String()
+	for _, want := range []string{
+		"## Model invocation",
+		"- model_provider: `openai`",
+		"- model_id: `gpt-4o`",
+		"- model_parameters_digest present: `true`",
+		"## Retrieval",
+		"- ai.retrieval.executed present: `true`",
+		"## Response",
+		"- ai.response.sent present: `true`",
+		"- request_id binding confirmed: `true`",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("runTrustReport() missing %q in markdown output:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestRunTrustReportJSON_RAGUsesVerifierReportNotes(t *testing.T) {
+	bundlePath := writeTrustReportRAGBundle(t, false, false)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runTrustReport(
+		[]string{bundlePath, "--format", "json", "--profile", trustReportRAGAnswerProfileID},
+		&stdout,
+		&stderr,
+	)
+	if exitCode != exitSuccess {
+		t.Fatalf("runTrustReport() exit code = %d, want %d, stderr=%s", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.VerifierReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verifier report: %v\noutput=%s", err, stdout.String())
+	}
+
+	if report.ProfileID != trustReportRAGAnswerProfileID {
+		t.Fatalf("ProfileID = %q, want %q", report.ProfileID, trustReportRAGAnswerProfileID)
+	}
+	for _, want := range []string{
+		`model_invocation: model_provider="openai" model_id="gpt-4o" model_parameters_digest_present=true`,
+		"retrieval: ai.retrieval.executed_present=false",
+		"response: ai.response.sent_present=false request_id_binding_confirmed=false",
+	} {
+		if !containsTrustReportString(report.Notes, want) {
+			t.Fatalf("expected note %q in %+v", want, report.Notes)
+		}
+	}
+}
+
+func writeTrustReportRAGBundle(t testing.TB, includeRetrieval bool, includeResponse bool) string {
+	t.Helper()
+
+	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	b := newTestBundle(t)
+
+	appendTestBundleEventWithOptions(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-1",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "rag_answer",
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:00:00Z"})
+	if includeRetrieval {
+		appendTestBundleEventWithOptions(t, b, event.TypeAIRetrievalExecuted, map[string]any{
+			"retrieval_query_hash":     "query-hash",
+			"retrieval_corpus_id":      "corpus-1",
+			"retrieval_corpus_version": "v7",
+			"top_k":                    5,
+			"result_set_digest":        "results-digest",
+		}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:01:00Z"})
+	}
+	appendTestBundleEventWithOptions(t, b, event.TypeAIModelInvoked, map[string]any{
+		"model_provider":          "openai",
+		"model_id":                "gpt-4o",
+		"model_parameters_digest": "sha256-params-def",
+		"prompt_digest":           "sha256-prompt-ghi",
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:02:00Z"})
+	appendTestBundleEventWithOptions(t, b, event.TypeAIModelOutput, map[string]any{
+		"output_digest": "sha256-output-jkl",
+		"output_format": "text/plain",
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:03:00Z"})
+	if includeResponse {
+		appendTestBundleEventWithOptions(t, b, event.TypeAIResponseSent, map[string]any{
+			"request_id":    "req-1",
+			"output_digest": "sha256-output-jkl",
+		}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:04:00Z"})
+	}
+
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+	return bundlePath
+}
+
+func containsTrustReportString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }
