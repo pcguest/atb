@@ -1,98 +1,192 @@
-# Obligation Profiles & CAS
+# Obligation Profiles and CAS
 
-ATB uses **Obligation Profiles** and the **Completeness Assurance Score (CAS)** to evaluate the quality and completeness of recorded evidence. While the hash chain ensures **integrity** (that the record was not changed), profiles and CAS measure **completeness** (that the necessary events were recorded).
+ATB uses obligation profiles to evaluate whether a bundle contains the minimum evidence expected for a workflow. Hash-chain verification answers whether recorded evidence was changed. Profiles and CAS answer whether enough of the workflow was recorded to support later review.
 
-## Obligation Profiles
+## Profile Summary
 
-A profile defines which events and fields are required for a specific workflow. ATB includes six built-in profiles.
+| Profile ID | Workflow class | CAS support |
+|------------|----------------|-------------|
+| `atb.profile.privileged_tool_action` | `privileged_tool_action` | Yes |
+| `atb.profile.rag_answer` | `rag_answer` | Yes |
+| `atb.profile.data_export` | `data_export` | No |
+| `atb.profile.policy_decision` | `policy_decision` | No |
+| `atb.profile.human_override` | `human_override` | No |
+| `atb.profile.background_automation` | `background_automation` | No |
+
+## Built-in Profiles
 
 ### 1. Privileged Tool Action (`atb.profile.privileged_tool_action`)
-**Workflow:** High-impact actions such as shell command execution, database mutations, or cloud infrastructure changes.
-**Risk:** Unauthorized or unrecorded high-impact changes that bypass security gates.
 
-*   **Required Events:** `atb.bundle.manifest`, `ai.request.received`, `ai.action.precommit`, `ai.policy.decision`, `ai.action.executed`, `ai.action.committed`.
-*   **Key Rules:**
-    *   `ai.human.approval` is required when `ai.action.executed` is present and must occur at or after the execution timestamp.
-    *   `ai.action.executed` must occur after `ai.policy.decision` for the same `action_id`.
-*   **PASS:** All required events exist, fields are populated, and the sequence (precommit → policy → execute → commit) is causally ordered.
-*   **FAIL/WARN:** Missing execution records, failed policy checks for executed actions, or missing human approval for high-impact tools.
+Workflow class: `privileged_tool_action`
+
+CAS support: Yes
+
+Required events:
+
+- `atb.bundle.manifest`
+- `ai.request.received`
+- `ai.action.precommit`
+- `ai.policy.decision`
+- `ai.action.executed`
+- `ai.action.committed`
+
+Optional evidence:
+
+- `ai.human.approval` is warning-level evidence and becomes required when `ai.action.executed` is present.
+
+Relation checks:
+
+- `ai.action.committed` must bind to `ai.action.precommit` by `action_id`.
+- `ai.policy.decision` must bind to `ai.action.precommit` by `action_id`.
+- `ai.action.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
 
 ### 2. RAG Answer (`atb.profile.rag_answer`)
-**Workflow:** AI-generated responses that rely on retrieved context (Retrieval-Augmented Generation).
-**Risk:** Hallucinations or lack of provenance for model-generated claims.
 
-*   **Required Events:** `atb.bundle.manifest`, `ai.request.received`, `ai.model.invoked`, `ai.model.output`.
-*   **Optional (Recommended):** `ai.retrieval.executed`, `ai.policy.decision`, `ai.response.sent`.
-*   **PASS:** The model invocation and output are recorded, binding the prompt to the result.
-*   **WARN:** Missing `ai.retrieval.executed` reduces the provenance signal for where the model found its context.
+Workflow class: `rag_answer`
+
+CAS support: Yes
+
+Required events:
+
+- `atb.bundle.manifest`
+- `ai.request.received`
+- `ai.model.invoked`
+- `ai.model.output`
+
+Optional evidence:
+
+- `ai.policy.decision`
+- `ai.retrieval.executed`
+- `ai.response.sent`
+
+Relation checks:
+
+- `ai.response.sent` must bind to `ai.request.received` by `request_id` when both are present.
 
 ### 3. Data Export (`atb.profile.data_export`)
-**Workflow:** Exporting or exfiltrating data records from the system.
-**Risk:** Unmonitored or unauthorized data egress.
 
-*   **Required Events:** Same as Privileged Tool Action.
-*   **Key Rules:**
-    *   `ai.human.approval` is required when `ai.action.executed` is present.
-*   **PASS:** Full audit trail from request to commit, including the target resource and intended effect.
+Workflow class: `data_export`
+
+CAS support: No
+
+Required events:
+
+- `atb.bundle.manifest`
+- `ai.request.received`
+- `ai.policy.decision`
+- `ai.action.precommit`
+- `ai.action.executed`
+- `ai.action.committed`
+
+Optional evidence:
+
+- `ai.human.approval` is warning-level evidence and becomes required when `ai.action.executed` is present.
+
+Relation checks:
+
+- `ai.action.committed` must bind to `ai.action.precommit` by `action_id`.
+- `ai.policy.decision` must bind to `ai.action.precommit` by `action_id`.
+- `ai.action.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
 
 ### 4. Policy Decision (`atb.profile.policy_decision`)
-**Workflow:** Standalone policy evaluations or guardrail checks.
-**Risk:** Unrecorded or opaque policy outcomes driving system behaviour.
 
-*   **Required Events:** `atb.bundle.manifest`, `ai.request.received`, `ai.policy.decision`.
-*   **PASS:** A clear decision (allow/deny) and reason codes are recorded for the subject.
+Workflow class: `policy_decision`
+
+CAS support: No
+
+Required events:
+
+- `atb.bundle.manifest`
+- `ai.request.received`
+- `ai.policy.decision`
+
+Optional evidence:
+
+- `ai.action.precommit`
+
+Relation checks:
+
+- `ai.policy.decision` must bind to `ai.action.precommit` by `action_id` when both are present.
 
 ### 5. Human Override (`atb.profile.human_override`)
-**Workflow:** Manual intervention, override, or approval of an AI-driven action.
-**Risk:** Unjustified or unrecorded bypass of automated controls.
 
-*   **Required Events:** `atb.bundle.manifest`, `ai.request.received`, `ai.human.approval`, `ai.action.precommit`, `ai.action.executed`.
-*   **PASS:** A signed approval record with a justification digest exists and is linked to the executed action.
+Workflow class: `human_override`
+
+CAS support: No
+
+Required events:
+
+- `atb.bundle.manifest`
+- `ai.request.received`
+- `ai.human.approval`
+- `ai.action.precommit`
+- `ai.action.executed`
+
+Optional evidence:
+
+- `ai.action.committed`
+
+Relation checks:
+
+- `ai.human.approval` must bind to `ai.action.precommit` by `action_id`.
+- `ai.action.executed` must bind to an approved `ai.human.approval` for the same `action_id`.
 
 ### 6. Background Automation (`atb.profile.background_automation`)
-**Workflow:** Scheduled tasks or autonomous agent execution without a direct human trigger.
-**Risk:** "Ghost" executions where scheduled or worker activity happens without a recorded job lifecycle.
 
-*   **Required Events:** `atb.bundle.manifest`, `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`.
-*   **PASS:** The automation trace includes the recorded job lifecycle from scheduling through start, step execution, and completion.
+Workflow class: `background_automation`
 
----
+CAS support: No
 
-## Completeness Assurance Score (CAS)
+Required events:
 
-The CAS is a weighted score from 0.0 to 1.0 that measures how well the recorded evidence matches the profile's expectations.
+- `atb.bundle.manifest`
+- `ai.job.scheduled`
+- `ai.job.started`
+- `ai.job.completed`
+
+Optional evidence:
+
+- `ai.job.step`
+
+Relation checks:
+
+- `ai.job.started` must bind to `ai.job.scheduled` by `job_id`.
+- `ai.job.completed` must bind to `ai.job.started` by `job_id`.
+
+## Completeness Assurance Score
+
+CAS is a weighted score from 0.0 to 1.0 that measures how well the recorded evidence matches the selected profile. It is currently emitted only for `atb.profile.privileged_tool_action` and `atb.profile.rag_answer`.
 
 ### CAS Grades
-*   **High (A):** ≥ 0.85 — Strong evidence coverage across all dimensions.
-*   **Medium (B):** ≥ 0.60 — Sufficient evidence for review, with minor gaps.
-*   **Low (C):** ≥ 0.30 — Significant evidence gaps; residual risk is high.
-*   **Insufficient (F):** < 0.30 — Minimal or no reliable evidence for the workflow.
 
-### Sub-Scores
+- High, `>= 0.85`: strong evidence coverage across all dimensions.
+- Medium, `>= 0.60`: sufficient evidence for review, with minor gaps.
+- Low, `>= 0.30`: significant evidence gaps; residual risk is high.
+- Insufficient, `< 0.30`: minimal or no reliable evidence for the workflow.
+
+### Sub-scores
+
 | Code | Name | What it measures |
-| :--- | :--- | :--- |
-| **EC** | Event Coverage | Are all required event types present in the bundle? |
-| **FC** | Field Completeness | Do the recorded events contain all required data fields? |
-| **RC** | Relation Consistency | Are events correctly linked (e.g., via `action_id`)? |
-| **TC** | Temporal Consistency | Are events recorded in a causally valid chronological order? |
-| **SC** | Source Commitment | Are events signed by the originating source or policy engine? |
-| **XC** | External Corroboration | Is there an RFC 3161 TSA anchor for the bundle? |
-| **AC** | Anchor Coverage | Does the TSA anchor cover the most recent bundle state? |
-| **GC** | Gating Completeness | Is the precommit-to-commit lifecycle fully represented? |
+|------|------|------------------|
+| `EC` | Event Coverage | Are all required event types present in the bundle? |
+| `FC` | Field Completeness | Do the recorded events contain all required data fields? |
+| `RC` | Relation Consistency | Are events correctly linked, for example by `action_id` or `request_id`? |
+| `TC` | Temporal Consistency | Are events recorded in a causally valid chronological order? |
+| `SC` | Source Commitment | Are events bound to their originating source and governance context? |
+| `XC` | External Corroboration | Is corroborating evidence present beyond the bundle itself? |
+| `AC` | Anchor Coverage | Does RFC 3161 anchoring cover the relevant bundle state? |
+| `GC` | Gating Completeness | Is the control-plane path fully represented from intent to committed effect? |
 
-### Integrity vs. Completeness
-*   **Integrity (The Hash Chain):** Proves that *what was recorded* has not been changed. Verification fails if a single byte is mutated.
-*   **Completeness (CAS):** Measures *how much of the workflow* was recorded. A "passing" integrity check does not mean the audit trail is complete; it only means the (possibly incomplete) trail is authentic.
+### Integrity vs. completeness
 
----
+- Integrity, the hash chain: proves that what was recorded has not been changed.
+- Completeness, CAS: measures how much of the workflow was recorded.
 
 ## Compliance Mapping
 
-Obligation profiles help teams meet specific regulatory and framework requirements for AI logging and auditability.
-
-| Requirement | Description | Relevant ATB Profile(s) |
-| :--- | :--- | :--- |
-| **EU AI Act Art. 12** | Logging of events throughout the AI system's life cycle. | All (EC/TC scores) |
-| **ISO/IEC 42001 A.6.2.8** | Requirements for recording system activity and lifecycle events. | `background_automation`, `privileged_tool_action` |
-| **SOC 2 CC6.1 / CC7.2** | Audit trail for logical access and system operations. | `policy_decision`, `human_override` |
-| **NIST AI RMF** | Measurement and tracking of system behaviour and transparency. | `rag_answer`, `policy_decision` |
+| Requirement | Description | Relevant ATB profile(s) |
+|-------------|-------------|-------------------------|
+| EU AI Act Art. 12 | Logging of events throughout the AI system life cycle. | All profiles, especially where `EC` and `TC` are relevant |
+| ISO/IEC 42001 A.6.2.8 | Requirements for recording system activity and lifecycle events. | `atb.profile.background_automation`, `atb.profile.privileged_tool_action` |
+| SOC 2 CC6.1 / CC7.2 | Audit trail for logical access and system operations. | `atb.profile.policy_decision`, `atb.profile.human_override` |
+| NIST AI RMF | Measurement and tracking of system behaviour and transparency. | `atb.profile.rag_answer`, `atb.profile.policy_decision` |
