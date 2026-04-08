@@ -22,6 +22,7 @@ import (
 	archiveledger "github.com/pcguest/atb/internal/archive"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/canonicalize"
+	exportpkg "github.com/pcguest/atb/internal/export"
 	"github.com/pcguest/atb/internal/trust"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
@@ -222,6 +223,13 @@ type gdprProcessingActivity struct {
 
 var errExportHelp = errors.New("export help requested")
 
+var complianceManifestRegulatoryCoverage = []string{
+	"EU AI Act Article 12",
+	"NIST AI RMF GOVERN",
+	"NIST AI RMF MANAGE",
+	"UK DSIT AI Code of Practice",
+}
+
 var soc2Controls = []soc2ControlDefinition{
 	{
 		ControlID:   "CC6.1",
@@ -273,6 +281,24 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 		exitCode := exitSystemError
 		if strings.Contains(strings.ToLower(err.Error()), "verification") {
 			exitCode = exitUserError
+		}
+		return exitCode
+	}
+
+	if cfg.Format == exportFormatCompliance && cfg.JSON {
+		manifest, exitCode, err := buildComplianceJSONManifest(now, cfg, result)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb export: %v\n", err)
+			return exitSystemError
+		}
+		data, err := json.MarshalIndent(manifest, "", "  ")
+		if err != nil {
+			fmt.Fprintf(stderr, "atb export: encode json output: %v\n", err)
+			return exitSystemError
+		}
+		if _, err := stdout.Write(append(data, '\n')); err != nil {
+			fmt.Fprintf(stderr, "atb export: write json output: %v\n", err)
+			return exitSystemError
 		}
 		return exitCode
 	}
@@ -358,6 +384,77 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "Sidecar written: %s\n", verificationSummary.Sidecar)
 	}
 	return exitCode
+}
+
+func buildComplianceJSONManifest(now time.Time, cfg exportConfig, result exportBuildResult) (exportpkg.ComplianceManifest, int, error) {
+	bundlePath, err := filepath.Abs(bundle.DefaultPath())
+	if err != nil {
+		return exportpkg.ComplianceManifest{}, exitSystemError, fmt.Errorf("resolve bundle path: %w", err)
+	}
+
+	manifest := exportpkg.ComplianceManifest{
+		BundlePath:         bundlePath,
+		ExportFormat:       exportFormatCompliance,
+		GeneratedAt:        now.UTC().Format(time.RFC3339),
+		Files:              complianceManifestFiles(result.Files),
+		RegulatoryCoverage: append([]string(nil), complianceManifestRegulatoryCoverage...),
+	}
+	if cfg.DryRun {
+		return manifest, exitSuccess, nil
+	}
+
+	b, err := bundle.Load(bundlePath)
+	if err != nil {
+		return exportpkg.ComplianceManifest{}, exitSystemError, fmt.Errorf("load bundle %s for manifest verification: %w", bundlePath, err)
+	}
+
+	report := verifypkg.ReportFromVerify(verifypkg.Verify(b, bundlePath, ""))
+	manifest.VerifyResult = &report
+	if report.Pass {
+		return manifest, exitSuccess, nil
+	}
+	return manifest, exitUserError, nil
+}
+
+func complianceManifestFiles(files []exportFileEntry) []exportpkg.ComplianceFile {
+	manifestFiles := make([]exportpkg.ComplianceFile, 0, len(files))
+	for _, file := range files {
+		manifestFiles = append(manifestFiles, exportpkg.ComplianceFile{
+			Name:        file.ZipPath,
+			Description: complianceManifestFileDescription(file.ZipPath),
+			SizeBytes:   int64(len(file.Data)),
+		})
+	}
+	return manifestFiles
+}
+
+func complianceManifestFileDescription(name string) string {
+	switch {
+	case strings.HasPrefix(name, "evidence/bundles/active/"):
+		return "Active bundle included in the compliance export."
+	case strings.HasPrefix(name, "evidence/bundles/archived/") && strings.HasSuffix(name, archiveledger.LedgerFile):
+		return "Archive ledger included in the compliance export."
+	case strings.HasPrefix(name, "evidence/bundles/archived/"):
+		return "Archived bundle included in the compliance export."
+	case name == "evidence/reports/verify.json":
+		return "Aggregate verification report for active and archived bundles."
+	case name == "evidence/reports/trust-report.json":
+		return "Trust report for the primary active bundle."
+	case name == "evidence/reports/archive-ledger.json":
+		return "Archive ledger verification summary."
+	case name == "evidence/config/atb-config.json":
+		return "ATB configuration snapshot."
+	case strings.HasPrefix(name, "evidence/docs/"):
+		return fmt.Sprintf("Documentation reference: %s.", path.Base(name))
+	case name == "evidence/checksums.sha256":
+		return "SHA-256 checksums for exported files."
+	case name == "evidence/checksums.chain":
+		return "Checksum chain metadata for exported files."
+	case name == "evidence/manifest.json":
+		return "Archive manifest that would be embedded in the zip export."
+	default:
+		return "Compliance export file."
+	}
 }
 
 func parseExportArgs(args []string) (exportConfig, error) {

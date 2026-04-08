@@ -15,6 +15,7 @@ import (
 	archiveledger "github.com/pcguest/atb/internal/archive"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/canonicalize"
+	exportpkg "github.com/pcguest/atb/internal/export"
 )
 
 func TestExportParseArgs(t *testing.T) {
@@ -109,6 +110,105 @@ func TestExportDryRunBuildsWithoutWritingZip(t *testing.T) {
 		}
 		if _, err := os.Stat(filepath.Join(tmp, "evidence.zip")); !os.IsNotExist(err) {
 			t.Fatalf("dry-run should not create zip output")
+		}
+	})
+}
+
+func TestExportComplianceJSONManifestDryRunOmitsVerifyResult(t *testing.T) {
+	withTempCWD(t, func(tmp string) {
+		writeValidBundle(t, bundle.DefaultPath())
+		prepareComplianceDocs(t)
+
+		result := captureExportRun(t, []string{"--format", "compliance", "--output", "evidence.zip", "--json", "--dry-run"})
+		if result.exitCode != exitSuccess {
+			t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", result.exitCode, exitSuccess, result.stderr)
+		}
+
+		var manifest exportpkg.ComplianceManifest
+		if err := json.Unmarshal([]byte(result.stdout), &manifest); err != nil {
+			t.Fatalf("unmarshal compliance manifest: %v\noutput=%s", err, result.stdout)
+		}
+		if manifest.VerifyResult != nil {
+			t.Fatalf("expected verify_result to be omitted on dry-run")
+		}
+		if manifest.ExportFormat != exportFormatCompliance {
+			t.Fatalf("unexpected export format: got %q want %q", manifest.ExportFormat, exportFormatCompliance)
+		}
+		if got, want := len(manifest.RegulatoryCoverage), 4; got != want {
+			t.Fatalf("unexpected regulatory coverage count: got %d want %d", got, want)
+		}
+		if len(manifest.Files) == 0 {
+			t.Fatalf("expected manifest files to be enumerated")
+		}
+
+		wantBundlePath, err := filepath.Abs(bundle.DefaultPath())
+		if err != nil {
+			t.Fatalf("resolve bundle path: %v", err)
+		}
+		if manifest.BundlePath != wantBundlePath {
+			t.Fatalf("unexpected bundle path: got %q want %q", manifest.BundlePath, wantBundlePath)
+		}
+
+		if _, err := os.Stat(filepath.Join(tmp, "evidence.zip")); !os.IsNotExist(err) {
+			t.Fatalf("json manifest mode should not create zip output")
+		}
+	})
+}
+
+func TestExportComplianceJSONManifestIncludesVerifyResult(t *testing.T) {
+	withTempCWD(t, func(tmp string) {
+		prepareComplianceDocs(t)
+		writeExportVerifyBundle(t, bundle.DefaultPath(), true)
+
+		result := captureExportRun(t, []string{"--format", "compliance", "--output", "evidence.zip", "--json"})
+		if result.exitCode != exitSuccess {
+			t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", result.exitCode, exitSuccess, result.stderr)
+		}
+
+		var manifest exportpkg.ComplianceManifest
+		if err := json.Unmarshal([]byte(result.stdout), &manifest); err != nil {
+			t.Fatalf("unmarshal compliance manifest: %v\noutput=%s", err, result.stdout)
+		}
+		if manifest.VerifyResult == nil {
+			t.Fatalf("expected verify_result to be present")
+		}
+		if !manifest.VerifyResult.Pass {
+			t.Fatalf("expected verify_result.pass true, got false: %+v", manifest.VerifyResult)
+		}
+		if manifest.VerifyResult.ProfileID != "atb.profile.privileged_tool_action" {
+			t.Fatalf("unexpected verify profile: got %q want %q", manifest.VerifyResult.ProfileID, "atb.profile.privileged_tool_action")
+		}
+		if !containsComplianceManifestFile(manifest.Files, "evidence/manifest.json") {
+			t.Fatalf("expected evidence/manifest.json in manifest files")
+		}
+		if _, err := os.Stat(filepath.Join(tmp, "evidence.zip")); !os.IsNotExist(err) {
+			t.Fatalf("json manifest mode should not create zip output")
+		}
+	})
+}
+
+func TestExportComplianceJSONManifestReturnsExitOneOnVerifyFailure(t *testing.T) {
+	withTempCWD(t, func(tmp string) {
+		writeValidBundle(t, bundle.DefaultPath())
+		prepareComplianceDocs(t)
+
+		result := captureExportRun(t, []string{"--format", "compliance", "--output", "evidence.zip", "--json"})
+		if result.exitCode != exitUserError {
+			t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", result.exitCode, exitUserError, result.stderr)
+		}
+
+		var manifest exportpkg.ComplianceManifest
+		if err := json.Unmarshal([]byte(result.stdout), &manifest); err != nil {
+			t.Fatalf("unmarshal compliance manifest: %v\noutput=%s", err, result.stdout)
+		}
+		if manifest.VerifyResult == nil {
+			t.Fatalf("expected verify_result to be present")
+		}
+		if manifest.VerifyResult.Pass {
+			t.Fatalf("expected verify_result.pass false, got true")
+		}
+		if _, err := os.Stat(filepath.Join(tmp, "evidence.zip")); !os.IsNotExist(err) {
+			t.Fatalf("json manifest mode should not create zip output")
 		}
 	})
 }
@@ -634,4 +734,13 @@ func readZipFile(t *testing.T, files []*zip.File, name string) []byte {
 	}
 	t.Fatalf("zip entry not found: %s", name)
 	return nil
+}
+
+func containsComplianceManifestFile(files []exportpkg.ComplianceFile, name string) bool {
+	for _, file := range files {
+		if file.Name == name {
+			return true
+		}
+	}
+	return false
 }
