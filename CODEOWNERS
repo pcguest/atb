@@ -1,0 +1,18 @@
+# Global fallback owner for all files.
+* @pcguest
+
+# Core product surfaces.
+/cmd/ @pcguest
+/internal/ @pcguest
+/sdk/ @pcguest
+/web/ @pcguest
+
+# Governance, release, and compliance docs.
+/docs/ @pcguest
+/SECURITY.md @pcguest
+/CHANGELOG.md @pcguest
+/README.md @pcguest
+
+# CI and release automation.
+/.github/ @pcguest
+/scripts/ @pcguest
