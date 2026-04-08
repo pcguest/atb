@@ -1,16 +1,13 @@
-CI Known Issues
-Windows runner flake (tracking)
+# CI known issues
 
-ATB CI runs on `windows-latest` in `.github/workflows/ci.yml`.
-Intermittent Windows-only failures should be treated as infra flakes unless
-reproducible locally or on rerun.
+This document records currently known CI issues so they can be tracked consistently without overstating their scope.
 
-When a Windows-only failure occurs:
+## Windows runner flake
 
-    link the failing run
+**Description:** ATB CI runs on `windows-latest` in `.github/workflows/ci.yml`. Intermittent Windows-only failures should be treated as infrastructure flakes unless they are reproducible locally or on rerun.
 
-    note whether rerun passed
+**Impact:** A failing Windows job can block confidence in the pipeline until it is clear whether the failure is a real regression or a runner-specific flake.
 
-    capture the failing step/test name for trend tracking
+**Current status:** Tracking only. No permanent fix is recorded in this document.
 
-text
+**Workaround:** When a Windows-only failure occurs, link the failing run, note whether the rerun passed, and capture the failing step or test name for trend tracking.
