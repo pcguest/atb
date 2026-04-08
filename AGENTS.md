@@ -132,7 +132,7 @@ Do not treat `internal/event/types.go` alone as the profile source of truth. The
 
 These are current repo realities. Do not "fix" them casually or by editing docs only:
 
-- Version drift exists. The Go CLI reports `0.9.1-beta`, while `sdk/python/pyproject.toml`, `sdk/typescript/package.json`, and `web/package.json` still carry `0.9.0` prerelease versions.
+- Version drift exists. The Go CLI reports `0.9.2-beta`, the Python SDK reports `0.9.2b1`, the TypeScript SDK reports `0.9.2-beta`, while `web/package.json` still carries `0.9.0-beta.0`.
 - Profile drift exists. The verifier's built-in profiles are the YAML templates, but `internal/event/types.go` profile metadata is not fully aligned with them. In particular, `ai.request.received` and `ai.policy.decision` are under-mapped for several profiles, and `data_export` in the registry still points at `data.export.*` while the embedded template currently evaluates the `ai.action.*` control-plane flow.
 - `docs/spec-v1.0.md` contains live spec text plus transitional notes. It already notes that `data_export` currently evaluates `ai.action.*`, and it still references a missing future doc at `docs/spec/bundle-push.md`.
 - Archived docs exist and are explicitly not maintained: `docs/guides/getting-started-v1.1.0.md`, `docs/security/actions-pinning-policy.md`, `docs/security/dependency-audit.md`, and `docs/security/known-vulns.md`.

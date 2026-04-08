@@ -1,6 +1,6 @@
 # ATB
 
-[![Version](https://img.shields.io/badge/version-v0.9.1-beta-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v0.9.2-beta-blue)](CHANGELOG.md)
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Security Gate](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -20,7 +20,7 @@ It records AI workflow events as tamper-evident bundles you can inspect locally,
 
 ## Release Status
 
-- Current release: [`v0.9.1-beta`](CHANGELOG.md)
+- Current release: [`v0.9.2-beta`](CHANGELOG.md)
 - ATB is currently in **pre-production beta**, suitable for internal pilots and experiments. See [docs/roadmap.md](docs/roadmap.md) for the journey to a stable v1.0.
 - All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
 

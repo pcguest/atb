@@ -17,7 +17,7 @@ function makeAction(input: Partial<ActionGateInput> = {}): ActionGateInput {
     actionType: "deploy_change",
     targetResourceId: "svc-prod",
     intendedEffect: "roll out release",
-    actionParameters: { version: "0.9.1-beta" },
+    actionParameters: { version: "0.9.2-beta" },
     ...input,
   };
 }
