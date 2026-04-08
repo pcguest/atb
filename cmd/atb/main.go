@@ -134,9 +134,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "verify",
-				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]",
+				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]",
 				Description: "Verify bundle integrity and evaluate obligation profiles.",
-				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--quiet", "--trace", "--with-anchor", "--roots"},
+				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--dry-run", "--quiet", "--trace", "--with-anchor", "--roots"},
 				Mutating:    false,
 			},
 			{
@@ -273,7 +273,7 @@ func main() {
 	case "sign":
 		cmdSign()
 	case "verify":
-		cmdVerifyProfile()
+		cmdVerify()
 	case "inspect":
 		cmdInspect()
 	case "events":
@@ -328,7 +328,7 @@ Commands:
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
   sign --bundle <path> --key <path> [--out <path>]  Append an Ed25519 bundle signature record
-  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]  Verify integrity of a bundle and evaluate obligation profiles
+  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]  Verify integrity of a bundle and evaluate obligation profiles
   inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]  Inspect bundle records in table or JSON form
   events [--json] [--profile <id>]  List canonical ATB event types
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
@@ -369,6 +369,7 @@ Examples:
   atb sign --bundle run.atb/bundle.atb --key ./atb-key.pem
   atb verify
   atb verify --json
+  atb verify --dry-run
   atb verify --quiet
   atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
   atb verify --bundle run.atb/bundle.atb --profile ./my-profile.yaml
@@ -1056,80 +1057,4 @@ func verifyWithTrace(b *bundle.Bundle, out io.Writer) error {
 		prev = computed
 	}
 	return nil
-}
-
-// cmdVerify verifies the integrity of the current bundle.
-func cmdVerify() {
-	path, outputFormat, trace, withAnchor, rootsPath, err := parseVerifyArgs(os.Args[2:])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
-		os.Exit(exitUserError)
-	}
-	b, err := bundle.Load(path)
-	if err != nil {
-		exitCode := classifyBundleLoadError(err)
-		if outputFormat == verifyFormatJSON {
-			result := newVerifyResult(path, nil, "error")
-			result.Error = err.Error()
-			printVerifyJSON(result)
-		}
-		fmt.Fprintf(os.Stderr, "atb verify: %v\n", err)
-		os.Exit(exitCode)
-	}
-	if len(b.Records) == 0 {
-		if outputFormat == verifyFormatJSON {
-			result := newVerifyResult(path, b, "empty")
-			result.Message = "bundle is empty — nothing to verify"
-			printVerifyJSON(result)
-			return
-		}
-		fmt.Println("atb verify: bundle is empty — nothing to verify.")
-		return
-	}
-	verifyErr := error(nil)
-	if trace {
-		verifyErr = verifyWithTrace(b, os.Stderr)
-	} else {
-		verifyErr = b.Verify()
-	}
-	if verifyErr != nil {
-		if outputFormat == verifyFormatJSON {
-			result := newVerifyResult(path, b, "invalid")
-			result.Error = verifyErr.Error()
-			printVerifyJSON(result)
-		}
-		fmt.Fprintf(os.Stderr, "✗ VERIFICATION FAILED: %v\n", verifyErr)
-		os.Exit(exitIntegrityFailure)
-	}
-	if withAnchor {
-		roots, err := loadVerifyRoots(rootsPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "✗ ANCHOR VERIFICATION FAILED: %v\n", err)
-			os.Exit(exitIntegrityFailure)
-		}
-		prevRoots := verifyBundleAnchorRoots
-		verifyBundleAnchorRoots = roots
-		defer func() {
-			verifyBundleAnchorRoots = prevRoots
-		}()
-
-		anchorOut := io.Writer(os.Stdout)
-		if outputFormat == verifyFormatJSON {
-			anchorOut = io.Discard
-		}
-		if err := verifyBundleAnchor(path, b, anchorOut); err != nil {
-			if outputFormat == verifyFormatJSON {
-				result := newVerifyResult(path, b, "invalid")
-				result.Error = err.Error()
-				printVerifyJSON(result)
-			}
-			fmt.Fprintf(os.Stderr, "✗ ANCHOR VERIFICATION FAILED: %v\n", err)
-			os.Exit(exitIntegrityFailure)
-		}
-	}
-	if outputFormat == verifyFormatJSON {
-		printVerifyJSON(newVerifyResult(path, b, "valid"))
-		return
-	}
-	fmt.Printf("✓ Bundle verified: %d events, chain intact.\n", len(b.Records))
 }

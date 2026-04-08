@@ -21,6 +21,7 @@ import (
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/trust"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 	apiv1 "github.com/pcguest/atb/pkg/api/v1"
 )
 
@@ -62,12 +63,18 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		t.Fatalf("expected append hash to be present")
 	}
 
-	verifyResult := runCLIJSON[verifyResult](t, binaryPath, workDir, "verify", "--format", "json")
-	if verifyResult.Status != "valid" {
-		t.Fatalf("unexpected verify status: %+v", verifyResult)
+	verifyResult := runCLIJSON[verifypkg.VerifierReport](t, binaryPath, workDir, "verify", "--format", "json")
+	if verifyResult.BundlePath != bundle.DefaultPath() {
+		t.Fatalf("unexpected verify bundle path: got %q want %q", verifyResult.BundlePath, bundle.DefaultPath())
 	}
-	if verifyResult.ChainLength != 2 {
-		t.Fatalf("unexpected chain length: got %d want 2", verifyResult.ChainLength)
+	if verifyResult.ProfileID != "" {
+		t.Fatalf("expected no matched profile, got %+v", verifyResult)
+	}
+	if verifyResult.Pass {
+		t.Fatalf("expected no-profile verify report to remain unpassed, got %+v", verifyResult)
+	}
+	if len(verifyResult.Failures) != 0 {
+		t.Fatalf("expected no critical failures for generic workflow, got %+v", verifyResult.Failures)
 	}
 
 	trustReport := runCLIJSON[trust.Report](t, binaryPath, workDir, "trust-report", "--format", "json")

@@ -27,38 +27,39 @@ type verifyCLIConfig struct {
 	RootsPath    string
 }
 
-func cmdVerifyProfile() {
+func cmdVerify() {
 	os.Exit(runVerify(os.Args[2:], os.Stdout, os.Stderr))
 }
 
 func runVerify(args []string, stdout, stderr io.Writer) int {
-	cfg, err := parseVerifyCommandArgs(args)
+	cfg, dryRun, err := parseVerifyArgsWithDryRun(args)
 	if err != nil {
 		if errors.Is(err, errVerifyHelp) {
 			if !cfg.Quiet {
-				printVerifyCommandUsage(stdout)
+				printVerifyUsage(stdout)
 			}
 			return exitSuccess
 		}
 		if !cfg.Quiet {
 			fmt.Fprintf(stderr, "atb verify: %v\n", err)
-			printVerifyCommandUsage(stderr)
+			printVerifyUsage(stderr)
 		}
 		return exitUserError
 	}
 
-	if cfg.Quiet {
+	if cfg.Quiet && !dryRun && !verifyWantsStructuredJSON(cfg) && !cfg.JSON {
 		stdout = io.Discard
 		stderr = io.Discard
 	}
 
 	var profile verifypkg.Profile
+	resolvedProfileID := ""
 	if cfg.ProfileID != "" {
 		if isVerifyProfilePath(cfg.ProfileID) {
 			profile, err = verifypkg.ResolveProfile(cfg.ProfileID)
 			if err != nil {
 				fmt.Fprintf(stderr, "atb verify: %v\n", err)
-				printVerifyCommandUsage(stderr)
+				printVerifyUsage(stderr)
 				return exitUserError
 			}
 		} else {
@@ -68,6 +69,24 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 				return exitIntegrityFailure
 			}
 		}
+		resolvedProfileID = profile.ID()
+	}
+
+	if dryRun {
+		report := verifypkg.VerifierReport{
+			BundlePath:   cfg.BundlePath,
+			ProfileID:    resolvedProfileID,
+			Pass:         false,
+			Failures:     []verifypkg.ReportFailure{},
+			Warnings:     []string{},
+			Notes:        []string{"dry-run: no evaluation performed"},
+			ResidualRisk: "Unknown",
+		}
+		if err := writeVerifierReportJSON(stdout, report); err != nil {
+			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
+			return exitSystemError
+		}
+		return exitSuccess
 	}
 
 	b, err := bundle.Load(cfg.BundlePath)
@@ -119,6 +138,23 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
+	if verifyWantsStructuredJSON(cfg) {
+		verifierReport := verifypkg.ReportFromVerify(report)
+		if err := writeVerifierReportJSON(stdout, verifierReport); err != nil {
+			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
+			return exitSystemError
+		}
+		return verificationExitCode(report)
+	}
+
+	if cfg.JSON {
+		if err := json.NewEncoder(stdout).Encode(report); err != nil {
+			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
+			return exitSystemError
+		}
+		return verificationExitCode(report)
+	}
+
 	if isLegacyJSONMode(cfg) {
 		status := "valid"
 		if len(b.Records) == 0 {
@@ -143,16 +179,23 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 		return exitSuccess
 	}
 
-	if cfg.JSON {
-		if err := json.NewEncoder(stdout).Encode(report); err != nil {
-			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
-			return exitSystemError
-		}
-		return verificationExitCode(report)
-	}
-
 	renderVerifyText(stdout, report)
 	return verificationExitCode(report)
+}
+
+func parseVerifyArgsWithDryRun(args []string) (verifyCLIConfig, bool, error) {
+	filtered := make([]string, 0, len(args))
+	dryRun := false
+	for _, arg := range args {
+		if arg == "--dry-run" {
+			dryRun = true
+			continue
+		}
+		filtered = append(filtered, arg)
+	}
+
+	cfg, err := parseVerifyCommandArgs(filtered)
+	return cfg, dryRun, err
 }
 
 func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
@@ -243,8 +286,8 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 	return cfg, nil
 }
 
-func printVerifyCommandUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]")
+func printVerifyUsage(w io.Writer) {
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]")
 	fmt.Fprintln(w, "  --with-anchor  verify RFC 3161 timestamp token: digest, cert chain, and signature")
 	fmt.Fprintln(w, "  --roots <pem-file>   PEM file containing trusted root certificates for TSA chain verification (default: system roots)")
 }
@@ -266,6 +309,20 @@ func verificationExitCode(report verifypkg.Report) int {
 
 func isLegacyJSONMode(cfg verifyCLIConfig) bool {
 	return !cfg.JSON && cfg.LegacyFormat == verifyFormatJSON
+}
+
+func verifyWantsStructuredJSON(cfg verifyCLIConfig) bool {
+	return !cfg.JSON && cfg.LegacyFormat == verifyFormatJSON
+}
+
+func writeVerifierReportJSON(w io.Writer, report verifypkg.VerifierReport) error {
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		return err
+	}
+	data = append(data, '\n')
+	_, err = w.Write(data)
+	return err
 }
 
 func writeLegacyVerifyJSON(w io.Writer, result verifyResult, verifyErr error) error {

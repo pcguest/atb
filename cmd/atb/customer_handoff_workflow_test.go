@@ -11,6 +11,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/trust"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 func TestCustomerHandoffWorkflow(t *testing.T) {
@@ -69,8 +70,11 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		t.Fatalf("unexpected handoff snapshot: %+v", snapshot)
 	}
 
-	senderVerify := runCLIJSON[verifyResult](t, binaryPath, senderDir, "verify", "--format", "json")
-	if senderVerify.Status != "valid" || senderVerify.ChainLength != 4 {
+	senderVerify := runCLIJSON[verifypkg.VerifierReport](t, binaryPath, senderDir, "verify", "--format", "json")
+	if senderVerify.BundlePath != bundle.DefaultPath() {
+		t.Fatalf("unexpected sender verify bundle path: got %q want %q", senderVerify.BundlePath, bundle.DefaultPath())
+	}
+	if senderVerify.ProfileID != "" || senderVerify.Pass || len(senderVerify.Failures) != 0 {
 		t.Fatalf("unexpected sender verify result: %+v", senderVerify)
 	}
 
@@ -152,7 +156,7 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		recipientBundleRelativePath,
 	)
 
-	recipientVerify := runCLIJSON[verifyResult](
+	recipientVerify := runCLIJSON[verifypkg.VerifierReport](
 		t,
 		binaryPath,
 		recipientDir,
@@ -161,7 +165,10 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		"--format",
 		"json",
 	)
-	if recipientVerify.Status != "valid" || recipientVerify.ChainLength != 4 {
+	if recipientVerify.BundlePath != recipientBundleRelativePath {
+		t.Fatalf("unexpected recipient verify bundle path: got %q want %q", recipientVerify.BundlePath, recipientBundleRelativePath)
+	}
+	if recipientVerify.ProfileID != "" || recipientVerify.Pass || len(recipientVerify.Failures) != 0 {
 		t.Fatalf("unexpected recipient verify result: %+v", recipientVerify)
 	}
 

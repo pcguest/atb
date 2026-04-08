@@ -9,6 +9,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/trust"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 func TestIncidentReviewWorkflow(t *testing.T) {
@@ -65,8 +66,11 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 		t.Fatalf("unexpected incident snapshot type: %+v", snapshot)
 	}
 
-	verifyResult := runCLIJSON[verifyResult](t, binaryPath, workDir, "verify", "--format", "json")
-	if verifyResult.Status != "valid" || verifyResult.ChainLength != 4 {
+	verifyResult := runCLIJSON[verifypkg.VerifierReport](t, binaryPath, workDir, "verify", "--format", "json")
+	if verifyResult.BundlePath != bundle.DefaultPath() {
+		t.Fatalf("unexpected incident verify bundle path: got %q want %q", verifyResult.BundlePath, bundle.DefaultPath())
+	}
+	if verifyResult.ProfileID != "" || verifyResult.Pass || len(verifyResult.Failures) != 0 {
 		t.Fatalf("unexpected incident verify result: %+v", verifyResult)
 	}
 

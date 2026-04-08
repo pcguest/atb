@@ -41,6 +41,51 @@ func TestRunVerify_JSONOutput(t *testing.T) {
 	}
 }
 
+func TestRunVerify_FormatJSONOutput(t *testing.T) {
+	path := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", path, "--format", "json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.VerifierReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verifier report: %v", err)
+	}
+	if report.ProfileID != "atb.profile.privileged_tool_action" {
+		t.Fatalf("unexpected profile ID: got %q", report.ProfileID)
+	}
+	if !report.Pass {
+		t.Fatalf("expected verifier report pass, got %+v", report)
+	}
+	if report.CASGrade == "" {
+		t.Fatalf("expected CAS grade, got %+v", report)
+	}
+	if report.ResidualRisk == "" {
+		t.Fatalf("expected residual risk, got %+v", report)
+	}
+}
+
+func TestRunVerify_DryRunOutputsVerifierReport(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--dry-run"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.VerifierReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal dry-run verifier report: %v", err)
+	}
+	if len(report.Notes) != 1 || report.Notes[0] != "dry-run: no evaluation performed" {
+		t.Fatalf("unexpected dry-run notes: %+v", report.Notes)
+	}
+}
+
 func TestRunVerify_InvalidBundleSignatureFails(t *testing.T) {
 	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
 	keyPath := writeSignTestPrivateKey(t, t.TempDir())
