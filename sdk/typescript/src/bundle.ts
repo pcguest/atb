@@ -83,10 +83,13 @@ export class ATBVerificationError extends Error {
  *
  * @example
  * ```ts
- * import { Bundle } from "@pcguest/atb-sdk";
+ * import {
+ *   AI_REQUEST_RECEIVED_EVENT_TYPE,
+ *   Bundle,
+ * } from "@pcguest/atb-sdk";
  *
  * const bundle = new Bundle();
- * bundle.append("dev.session", { date: "2025-01-15" });
+ * bundle.append(AI_REQUEST_RECEIVED_EVENT_TYPE, { request_id: "req-001" });
  * bundle.save();
  *
  * const loaded = Bundle.load();

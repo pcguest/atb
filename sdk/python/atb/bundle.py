@@ -36,8 +36,10 @@ class Bundle:
 
     Usage::
 
+        from atb.event_types import AI_REQUEST_RECEIVED_EVENT_TYPE
+
         bundle = Bundle()
-        bundle.append("dev.session", {"date": "2025-01-15"})
+        bundle.append(AI_REQUEST_RECEIVED_EVENT_TYPE, {"request_id": "req-001"})
         bundle.save()
 
         # Reload and verify
