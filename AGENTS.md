@@ -8,6 +8,8 @@ ATB (Audit Trail Bundles) is a local-first, tamper-evident audit trail system fo
 
 ```text
 cmd/atb/                  Go CLI entrypoint and subcommands
+cmd/atb/trust_report_snapshot_test.go  JSON snapshot coverage for `atb trust-report`
+cmd/atb/verify_snapshot_test.go        JSON snapshot coverage for `atb verify`
 internal/                 Core Go implementation
   anchor/                 RFC 3161 anchoring
   archive/                Archive ledger support
@@ -15,15 +17,18 @@ internal/                 Core Go implementation
   canonicalize/           RFC 8785 canonical JSON
   encrypt/                AES-256-GCM bundle encryption
   event/                  Event type registry and event model
+  export/manifest.go      Compliance JSON manifest types
   profiles/               Embedded YAML profile schemas and validation
   sign/                   Ed25519 bundle and policy signing
   trust/                  Trust report generation
   verify/                 Integrity and profile verification
+  verify/trust_report.go  Structured trust-report JSON model and section builder
 pkg/api/v1/               Viewer/dashboard API handlers and OpenAPI template
 sdk/python/               Python SDK, tests, packaging metadata
 sdk/typescript/           TypeScript SDK, tests, packaging metadata
 web/                      Next.js dashboard used by `atb view --ui-experimental`
 docs/                     Product, spec, security, workflow, and integration docs
+docs/integrations/mcp.md  MCP integration guide
 examples/                 Public examples and sample bundles
 schemas/                  JSON schema artefacts
 scripts/                  Release and maintenance helpers
@@ -128,9 +133,8 @@ Do not treat `internal/event/types.go` alone as the profile source of truth. The
 These are current repo realities. Do not "fix" them casually or by editing docs only:
 
 - Version drift exists. The Go CLI reports `0.9.1-beta`, while `sdk/python/pyproject.toml`, `sdk/typescript/package.json`, and `web/package.json` still carry `0.9.0` prerelease versions.
-- Profile drift exists. The verifier's built-in profiles are the YAML templates, but `internal/event/types.go` profile metadata is not fully aligned with them. In particular, `ai.request.received` and `ai.policy.decision` are under-mapped for several profiles, `data_export` still points at `data.export.*`, and `background_automation` is documented in the registry/spec as `ai.job.*` while the embedded template currently evaluates an `ai.action.*` control-plane flow.
+- Profile drift exists. The verifier's built-in profiles are the YAML templates, but `internal/event/types.go` profile metadata is not fully aligned with them. In particular, `ai.request.received` and `ai.policy.decision` are under-mapped for several profiles, and `data_export` in the registry still points at `data.export.*` while the embedded template currently evaluates the `ai.action.*` control-plane flow.
 - `docs/spec-v1.0.md` contains live spec text plus transitional notes. It already notes that `data_export` currently evaluates `ai.action.*`, and it still references a missing future doc at `docs/spec/bundle-push.md`.
-- `docs/ci-known-issues.md` is not a finished document. It is a rough tracking note for the Windows runner flake and should not be expanded with invented details.
 - Archived docs exist and are explicitly not maintained: `docs/guides/getting-started-v1.1.0.md`, `docs/security/actions-pinning-policy.md`, `docs/security/dependency-audit.md`, and `docs/security/known-vulns.md`.
 - `docs/security.md` records an important nuance: TSA certificate-chain verification is implemented for anchor scoring, but the terminal summary wording is intentionally conservative. Do not over-claim TSA assurance in docs or output changes.
 
@@ -142,6 +146,7 @@ A task in this repo is done only when all of the following are true:
 - Docs match code and examples still reflect the current behaviour.
 - No new spec drift is introduced between code, templates, and prose docs.
 - Any version or packaging changes are kept consistent across the affected artefacts.
+- Snapshot tests cover the JSON output shape of both `atb verify` and `atb trust-report` for all six built-in profiles, including negative cases.
 
 ## Do Not Rules
 
@@ -150,3 +155,4 @@ A task in this repo is done only when all of the following are true:
 - Do not modify `docs/spec-v1.0.md` without also updating the corresponding profile templates and any affected registry/docs.
 - Do not "fix" profile drift by editing only docs or only `internal/event/types.go`.
 - Do not delete archived docs unless the change explicitly handles their references.
+- Do not change `VerifierReport` or `TrustReport` field names or JSON keys without updating both the snapshot tests and `docs/ai-integration.md`.
