@@ -73,11 +73,37 @@ ATB is a local-first tool and does not provide a built-in secrets vault. Follow 
 
 ## Key rotation
 
+Rotate Ed25519 signing keys by generating a new keypair, switching future signing operations to the new private key, and retaining the old public key for historical verification.
+
+1. Generate a new Ed25519 keypair:
+
+   ```bash
+   atb keygen --out-dir ./keys-2026-04
+   ```
+
+2. Keep the previous verification material during the transition period:
+   - Bundles already signed with the old key remain valid.
+   - Historical `ai.policy.decision` records signed with the old key remain valid.
+   - Retain the old public key for as long as any historical bundle or policy record signed with it may need to be verified.
+
+3. Update the active signing key used by your ATB workflow:
+   - ATB v0.9.x does not store an active signing key in `./.atb/config.json`.
+   - Future bundle signing must use the new key path with `atb sign --bundle <path> --key <new-key.pem>`.
+   - Future policy signing must use the new key path with `atb append ai.policy.decision ... --sign-policy <new-key.pem>`.
+   - If you use wrapper scripts, CI jobs, or secret injection around ATB, update that operational configuration to point at the new PEM file.
+
+4. Re-sign or re-anchor only when required:
+   - Historical bundles do not need to be re-signed solely because a key was rotated.
+   - If a current bundle must carry the new signing key, run `atb sign` again with the new private key. This appends a new `atb.bundle.signature` record, and `atb verify` evaluates the latest bundle signature record in the chain.
+   - If external time-bounding evidence is required for the newly signed bundle state, run `atb anchor [bundle_path] [--tsa-url <url>]` again after re-signing so the new state has its own RFC 3161 anchor.
+
 ATB supports signature verification using the public key embedded within the signature record itself.
 
-- **Backward Compatibility**: Bundles signed with a rotated (old) key remain verifiable because the old public key is stored alongside the signature in the `atb.bundle.signature` or `ai.policy.decision` record.
-- **Supercession**: When `atb sign` is run again with a new key, a new signature record is appended to the chain. `atb verify` evaluates the **latest** bundle signature record in the chain.
-- **Multi-key Support**: A bundle can contain policy decisions signed by different keys over time; `atb verify` validates each decision record individually.
+- **Backward compatibility**: Bundles signed with a rotated key remain verifiable because the signing public key is stored in the `atb.bundle.signature` or `ai.policy.decision` record that used it.
+- **Supersession**: When `atb sign` is run again with a new key, a new signature record is appended to the chain. `atb verify` evaluates the latest bundle signature record in the chain.
+- **Multi-key support**: A bundle can contain policy decisions signed by different keys over time; `atb verify` validates each decision record individually.
+
+The public key used to sign a bundle must be available to any party verifying that bundle. ATB records the signing public key in the bundle evidence, but key custody, distribution, and the mapping of keys to trusted organisational identities remain the responsibility of the operating organisation.
 
 ## Threat model boundary
 
