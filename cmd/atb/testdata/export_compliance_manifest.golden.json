@@ -1,0 +1,105 @@
+{
+  "bundle_path": "NORMALISED",
+  "export_format": "compliance",
+  "files": [
+    {
+      "description": "Active bundle included in the compliance export.",
+      "name": "evidence/bundles/active/run.atb/bundle.atb"
+    },
+    {
+      "description": "Checksum chain metadata for exported files.",
+      "name": "evidence/checksums.chain"
+    },
+    {
+      "description": "SHA-256 checksums for exported files.",
+      "name": "evidence/checksums.sha256"
+    },
+    {
+      "description": "Documentation reference: export.md.",
+      "name": "evidence/docs/compliance/export.md"
+    },
+    {
+      "description": "Documentation reference: gdpr.md.",
+      "name": "evidence/docs/compliance/gdpr.md"
+    },
+    {
+      "description": "Documentation reference: pii-fields.json.",
+      "name": "evidence/docs/compliance/pii-fields.json"
+    },
+    {
+      "description": "Documentation reference: retention.md.",
+      "name": "evidence/docs/compliance/retention.md"
+    },
+    {
+      "description": "Documentation reference: soc2.md.",
+      "name": "evidence/docs/compliance/soc2.md"
+    },
+    {
+      "description": "Documentation reference: incident-response.md.",
+      "name": "evidence/docs/incident-response.md"
+    },
+    {
+      "description": "Documentation reference: security.md.",
+      "name": "evidence/docs/security.md"
+    },
+    {
+      "description": "Documentation reference: spec-v1.0.md.",
+      "name": "evidence/docs/spec-v1.0.md"
+    },
+    {
+      "description": "Archive manifest that would be embedded in the zip export.",
+      "name": "evidence/manifest.json"
+    },
+    {
+      "description": "Archive ledger verification summary.",
+      "name": "evidence/reports/archive-ledger.json"
+    },
+    {
+      "description": "Trust report for the primary active bundle.",
+      "name": "evidence/reports/trust-report.json"
+    },
+    {
+      "description": "Aggregate verification report for active and archived bundles.",
+      "name": "evidence/reports/verify.json"
+    }
+  ],
+  "generated_at": "NORMALISED",
+  "regulatory_coverage": [
+    "EU AI Act Article 12",
+    "NIST AI RMF GOVERN",
+    "NIST AI RMF MANAGE",
+    "UK DSIT AI Code of Practice"
+  ],
+  "verify_result": {
+    "bundle_path": "NORMALISED",
+    "cas_grade": "Low",
+    "cas_score": 0.5975,
+    "critical_failures": [],
+    "exclusions": [
+      "Does not prove retrieval completeness beyond recorded corpus/version.",
+      "Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle."
+    ],
+    "informational_notes": [
+      "Does not prove retrieval completeness beyond recorded corpus/version.",
+      "Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle."
+    ],
+    "pass": true,
+    "profile_id": "atb.profile.rag_answer",
+    "required_warnings": [
+      "ai.policy.decision recommended for recorded authorisation context",
+      "ai.response.sent recommended for response delivery evidence",
+      "ai.retrieval.executed recommended for RAG answer provenance"
+    ],
+    "residual_risk": "High",
+    "sub_scores": {
+      "AC": 0,
+      "EC": 1,
+      "FC": 1,
+      "GC": 0.3,
+      "RC": 0,
+      "SC": 0.45,
+      "TC": 1,
+      "XC": 0
+    }
+  }
+}
