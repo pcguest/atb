@@ -14,44 +14,39 @@ By moving to `v0.9.0-beta`, we are signaling that:
 
 ## Current Status: v0.9.x (Beta)
 
-The `v0.9.x` series focuses on **hardening and transparency**. 
+The `v0.9.x` series is the hardening window for the local verification model, the built-in profiles, and the reviewer-facing documentation set. The Go CLI remains the authoritative implementation for verification and reporting, but the main release surfaces now exist across the repository and are being aligned for the `v1.0.0-rc` cut.
 
-### Guarantees
--   **Integrity-First:** The SHA-256 hash-chaining and RFC 8785 canonicalization are the most stable parts of the system.
--   **Verified Core:** TSA anchoring and Ed25519 bundle signing are fully implemented and verified by the CLI.
--   **Open Specifications:** The bundle format and AI trace taxonomy are documented and open for review.
+### Shipped in v0.9.x
+-   [x] Six-profile verifier with YAML-backed profile templates and CAS evaluation where supported.
+-   [x] `VerifierReport` and `TrustReport` JSON output shapes for `atb verify` and `atb trust-report`.
+-   [x] `ComplianceManifest` export for `atb export --format compliance --json`.
+-   [x] MCP integration guide in `docs/integrations/mcp.md`.
+-   [x] Python and TypeScript SDK event type constants.
+-   [x] Performance baseline and benchmark suite.
 
-### Known Limitations
--   **Schema Fluidity:** Event types and field requirements may shift as we align with emerging AI safety standards.
--   **CLI-Centric:** While Python and TypeScript SDKs exist, the Go CLI remains the authoritative implementation for verification and reporting.
+### Remaining limitations in beta
+-   **Schema Fluidity:** Event types and field requirements may still shift before the 1.0 surface is frozen.
+-   **CLI-Centric:** Python and TypeScript SDKs assist with writing and integration, but the Go CLI remains the verification source of truth.
+-   **Partial CAS Coverage:** CAS scoring is not yet available for all six built-in profiles.
 
-## Target: v1.0.0 (Stable)
+## v1.0.0-rc target
 
-The `v1.0.0` milestone represents the point where ATB becomes a stable, predictable foundation for production AI audit trails.
+The `v1.0.0-rc` checkpoint is a release-readiness pass over the already shipped surfaces, plus a small set of remaining gaps that need to be tracked explicitly.
 
-### v1.0.0 Guarantees
--   **Stable Specification:** [spec-v1.0.md](spec-v1.0.md) will be frozen. Future changes will follow a strict, versioned migration path.
--   **Certified Profiles:** The built-in obligation profiles will be fully validated against regulatory frameworks like the EU AI Act and ISO 42001.
--   **Cross-SDK Parity:** Full feature parity across Go, Python, and TypeScript for bundle writing and basic integrity checks.
--   **Support Policy:** A clear support and deprecation policy for older bundle formats and CLI versions.
+-   [ ] Add an Ed25519 signing integration test that exercises the end-to-end signing path.
+-   [ ] Native MCP server mode. Post-rc.
+-   [ ] Add the canonical `ai.mcp.tool_call` event type. Post-rc.
+-   [ ] Extend CAS support to `data_export`, `background_automation`, `policy_decision`, and `human_override`. Post-rc.
 
----
+## Path to v1.0.0
 
-## Milestones to 1.0
+The stable `v1.0.0` milestone remains the point where ATB becomes a predictable foundation for production AI audit trails, with frozen JSON output shapes, a stable profile DSL, and clear reviewer guidance.
 
-### Phase 1: Hardening (v0.9.x - Current)
--   [x] Align documentation with actual TSA/Ed25519 behavior.
--   [x] Document all built-in Obligation Profiles and CAS scoring.
--   [x] Strengthen adversarial testing for bundles and dashboard APIs.
--   [x] Document SIEM and GRC integration patterns.
-
-### Phase 2: Refinement (v0.10.x)
--   [ ] **Spec Finalization:** Lock the `ai.*` event taxonomy and profile DSL.
--   [ ] **SDK Parity:** Ensure Python/TS SDKs support the latest profile evaluation signals.
--   [ ] **Enhanced Export:** Add support for signed evidence exports (encrypted handoff).
--   [ ] **Performance:** Optimize bundle scanning for very large traces (100k+ events).
-
-### Phase 3: Launch (v1.0.0)
--   [ ] **Final Audit:** Internal security review of the 1.0 candidate.
--   [ ] **Stable API:** Freeze the CLI command structure and JSON output formats.
--   [ ] **Governance Docs:** Comprehensive guidance for CISOs and Auditors on accepting ATB evidence.
+### Future work after rc
+-   [ ] Freeze `spec-v1.0.md` and the profile DSL with a versioned migration path for later changes.
+-   [ ] Ensure Python and TypeScript SDKs cover the final profile evaluation signals expected at 1.0.
+-   [ ] Add signed or encrypted evidence handoff improvements to export workflows.
+-   [ ] Optimise bundle scanning for very large traces (100k+ events).
+-   [ ] Complete the internal security review of the 1.0 candidate.
+-   [ ] Freeze the CLI command structure and JSON output formats.
+-   [ ] Finalise governance guidance for CISO and auditor acceptance of ATB evidence.
