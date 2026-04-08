@@ -1,6 +1,6 @@
 # AI Integration Guide
 
-This guide defines a stable contract for AI agents that read, verify, and extend ATB workflows.
+This guide defines the stable CLI and JSON contract for automated ATB integrations in `0.9.2-beta`.
 
 ## CLI Contract
 
@@ -12,7 +12,7 @@ This guide defines a stable contract for AI agents that read, verify, and extend
 - `atb append ... --format json`
 - `atb snapshot ... --format json`
 - `atb verify --trace` (debug hash-step logging to stderr)
-- `atb --help --format json` (machine-discoverable command contract)
+- `atb help --format json` (machine-discoverable command contract)
 
 If a command does not support `--format json`, treat its output as human-only text.
 
@@ -24,6 +24,8 @@ For JSON-enabled mutating commands (`init`, `append`, `snapshot`), both success 
 - `path`: target bundle path
 - `message` (success) or `error` (failure)
 - `exit_code` (on failure)
+
+For verification workflows, prefer `atb verify --format json`. That command returns the structured `VerifierReport` contract. `atb verify --json` emits the internal verification report shape and should be treated as a diagnostic surface rather than the stable automation contract.
 
 ### Mutation safety
 
@@ -40,7 +42,7 @@ Mutating commands support `--dry-run` previews with no filesystem side effects:
 - `0`: success
 - `1`: user/input error
 - `2`: integrity failure
-- `3`: system/runtime error
+- `3`: profile verification failure or system/runtime error
 
 Automation should always gate on non-zero exit codes and parse JSON only when `--format json` is explicitly passed.
 
@@ -61,25 +63,40 @@ Example valid event:
 {
   "seq": 3,
   "prev_hash": "4271a98316d03e240233c0e0a759f0c8e9998523ffff985e5e6ea528871d884d",
-  "type": "agent.snapshot",
+  "type": "atb.snapshot",
   "data": {
-    "gate": "pass",
-    "reason": "all checks green"
+    "name": "build_complete"
   }
 }
 ```
+
+## Verifier Report Schema
+
+`atb verify --format json` returns:
+
+- `bundle_path`: bundle file path used for evaluation
+- `profile_id`: canonical profile id in the form `atb.profile.<name>` when a profile matched or was selected
+- `pass`: whether the evaluated profile passed
+- `cas_score` (optional): completeness assurance score when the profile supports CAS
+- `cas_grade` (optional): `High|Medium|Low|Insufficient`
+- `sub_scores` (optional): CAS sub-score map keyed by `EC`, `FC`, `RC`, `TC`, `SC`, `XC`, `AC`, `GC`
+- `critical_failures[]`: blocking failures, each with `kind` and `detail`
+- `required_warnings[]`: non-blocking required warnings
+- `informational_notes[]`: informational notes from verification
+- `exclusions[]` (optional): declared blind spots for the matched profile
+- `residual_risk`: `Low|Medium|High|Critical`
 
 ## Trust Report Schema
 
 `atb trust-report --format json` returns:
 
 - `bundle_path`: bundle file path used for evaluation
-- `profile_id`: matched or explicitly selected profile id when present
+- `profile_id`: matched or explicitly selected canonical profile id in the form `atb.profile.<name>` when present
 - `workflow_class`: workflow class from the evaluated profile when present
 - `pass`: whether the evaluated profile passed
 - `cas_score` (optional): completeness assurance score when the profile supports CAS
 - `cas_grade` (optional): `High|Medium|Low|Insufficient`
-- `residual_risk`: `Low|Medium|High`
+- `residual_risk`: `Low|Medium|High|Critical`
 - `chain`: hash-chain summary object
 - `anchoring`: TSA anchoring summary object
 - `sections[]`: profile-specific evidence sections
@@ -113,8 +130,10 @@ The command exits `0` when `pass` is `true`, and `1` otherwise.
 ## CI Assertion Examples
 
 ```bash
-atb verify --format json | jq -e '.status == "valid"'
-atb trust-report --format json > trust-report.json
+atb verify --format json --profile atb.profile.rag_answer > verify-report.json
+jq -e '.pass == true' verify-report.json
+jq -e '.critical_failures | length == 0' verify-report.json
+atb trust-report --format json --profile atb.profile.rag_answer > trust-report.json
 jq -e '.pass == true' trust-report.json
 jq -e '.chain.valid == true' trust-report.json
 ```
@@ -123,7 +142,7 @@ jq -e '.chain.valid == true' trust-report.json
 
 1. Load existing bundle and run `atb verify --format json`.
 2. Apply code/documentation changes.
-3. Re-run `atb verify --format json` and compare status + head hash behavior.
+3. Re-run `atb verify --format json` and compare `pass`, `critical_failures`, `required_warnings`, and `cas_score` where applicable.
 4. Run `atb trust-report --format json` and block if the trust report no longer passes.
 5. Store report artifacts alongside CI logs for audit replay.
 
