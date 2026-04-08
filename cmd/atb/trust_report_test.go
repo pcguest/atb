@@ -291,7 +291,7 @@ func TestRunTrustReportMarkdown_AutoDetectedRAGIncludesSections(t *testing.T) {
 	}
 }
 
-func TestRunTrustReportJSON_RAGUsesVerifierReportNotes(t *testing.T) {
+func TestRunTrustReportJSON_RAGUsesTrustReportSections(t *testing.T) {
 	bundlePath := writeTrustReportRAGBundle(t, false, false)
 
 	var stdout bytes.Buffer
@@ -306,23 +306,88 @@ func TestRunTrustReportJSON_RAGUsesVerifierReportNotes(t *testing.T) {
 		t.Fatalf("runTrustReport() exit code = %d, want %d, stderr=%s", exitCode, exitSuccess, stderr.String())
 	}
 
-	var report verifypkg.VerifierReport
+	var report verifypkg.TrustReport
 	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
-		t.Fatalf("unmarshal verifier report: %v\noutput=%s", err, stdout.String())
+		t.Fatalf("unmarshal trust report: %v\noutput=%s", err, stdout.String())
 	}
 
 	if report.ProfileID != trustReportRAGAnswerProfileID {
 		t.Fatalf("ProfileID = %q, want %q", report.ProfileID, trustReportRAGAnswerProfileID)
 	}
-	for _, want := range []string{
-		`model_invocation: model_provider="openai" model_id="gpt-4o" model_parameters_digest_present=true`,
-		"retrieval: ai.retrieval.executed_present=false",
-		"response: ai.response.sent_present=false request_id_binding_confirmed=false",
-	} {
-		if !containsTrustReportString(report.Notes, want) {
-			t.Fatalf("expected note %q in %+v", want, report.Notes)
+	if report.BundlePath != bundlePath {
+		t.Fatalf("BundlePath = %q, want %q", report.BundlePath, bundlePath)
+	}
+	if !report.Pass {
+		t.Fatalf("expected trust report pass, got %+v", report)
+	}
+	if report.ResidualRisk == "" {
+		t.Fatalf("expected residual risk, got %+v", report)
+	}
+	if len(report.Sections) != 4 {
+		t.Fatalf("expected 4 sections, got %d", len(report.Sections))
+	}
+
+	wantSections := []struct {
+		title string
+		note  string
+	}{
+		{title: "Model invocation", note: "model_parameters_digest present"},
+		{title: "Retrieval", note: "ai.retrieval.executed absent — retrieval step not recorded"},
+		{title: "Response", note: "ai.response.sent absent"},
+	}
+	for _, want := range wantSections {
+		section := trustReportSectionByTitle(t, report.Sections, want.title)
+		if !containsTrustReportString(section.Notes, want.note) {
+			t.Fatalf("expected note %q in section %+v", want.note, section)
 		}
 	}
+}
+
+func TestRunTrustReportJSON_NoProfileReturnsExitOne(t *testing.T) {
+	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	b := newTestBundle(t)
+	appendTestBundleEventWithOptions(t, b, "agent.run", map[string]any{
+		"workflow": "incident-review",
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:00:00Z"})
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runTrustReport([]string{bundlePath, "--format", "json"}, &stdout, &stderr)
+	if exitCode != exitUserError {
+		t.Fatalf("runTrustReport() exit code = %d, want %d, stderr=%s", exitCode, exitUserError, stderr.String())
+	}
+
+	var report verifypkg.TrustReport
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal trust report: %v\noutput=%s", err, stdout.String())
+	}
+	if report.Pass {
+		t.Fatalf("expected trust report pass=false, got %+v", report)
+	}
+	if report.ProfileID != "" {
+		t.Fatalf("expected empty profile ID, got %+v", report)
+	}
+	if report.Chain.RecordCount != len(b.Records) {
+		t.Fatalf("unexpected record count: got %d want %d", report.Chain.RecordCount, len(b.Records))
+	}
+	if len(report.Sections) != 0 {
+		t.Fatalf("expected no sections, got %+v", report.Sections)
+	}
+}
+
+func trustReportSectionByTitle(t testing.TB, sections []verifypkg.TrustSection, title string) verifypkg.TrustSection {
+	t.Helper()
+	for _, section := range sections {
+		if section.Title == title {
+			return section
+		}
+	}
+	t.Fatalf("section %q not found in %+v", title, sections)
+	return verifypkg.TrustSection{}
 }
 
 func writeTrustReportRAGBundle(t testing.TB, includeRetrieval bool, includeResponse bool) string {

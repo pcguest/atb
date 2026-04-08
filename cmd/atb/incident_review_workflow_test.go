@@ -74,15 +74,15 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 		t.Fatalf("unexpected incident verify result: %+v", verifyResult)
 	}
 
-	trustReport := runCLIJSON[trust.Report](t, binaryPath, workDir, "trust-report", "--format", "json")
-	if trustReport.Status != trust.StatusPass {
-		t.Fatalf("expected incident trust report to pass, got %+v", trustReport)
+	trustReport := runCLIJSONExpectExitCode[verifypkg.TrustReport](t, exitUserError, binaryPath, workDir, "trust-report", "--format", "json")
+	if trustReport.Pass {
+		t.Fatalf("expected incident trust report to fail without a matched profile, got %+v", trustReport)
 	}
-	if trustReport.Gate.Status != trust.StatusPass {
-		t.Fatalf("expected incident trust gate to pass, got %+v", trustReport.Gate)
+	if trustReport.ProfileID != "" {
+		t.Fatalf("expected no matched profile, got %+v", trustReport)
 	}
-	if trustReport.ChainLength != 4 {
-		t.Fatalf("unexpected incident trust chain length: got %d want 4", trustReport.ChainLength)
+	if trustReport.Chain.RecordCount != 4 {
+		t.Fatalf("unexpected incident trust chain length: got %d want 4", trustReport.Chain.RecordCount)
 	}
 
 	loaded, err := bundle.Load(filepath.Join(workDir, bundle.DefaultPath()))

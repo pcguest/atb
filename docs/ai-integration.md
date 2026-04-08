@@ -69,56 +69,54 @@ Example valid event:
 }
 ```
 
-## Trust Report Schema (for CI)
+## Trust Report Schema
 
 `atb trust-report --format json` returns:
 
-- `status`: `pass|warn|fail`
-- `generated_at`: RFC3339 UTC timestamp
 - `bundle_path`: bundle file path used for evaluation
-- `chain_length`: event count when load succeeds
-- `head_hash`: last event hash when available
-- `gate`: blocking-check gate object
-- `summary`: aggregate check counts
-- `categories[]`: category objects
+- `profile_id`: matched or explicitly selected profile id when present
+- `workflow_class`: workflow class from the evaluated profile when present
+- `pass`: whether the evaluated profile passed
+- `cas_score` (optional): completeness assurance score when the profile supports CAS
+- `cas_grade` (optional): `High|Medium|Low|Insufficient`
+- `residual_risk`: `Low|Medium|High`
+- `chain`: hash-chain summary object
+- `anchoring`: TSA anchoring summary object
+- `sections[]`: profile-specific evidence sections
+- `warnings[]` (optional): required warnings from the evaluated profile
+- `blind_spots[]` (optional): declared profile blind spots
 
-Gate object:
+Chain object:
 
-- `status`: `pass|fail` (blocking checks only)
-- `blocking_failures`: number of failing blocking checks
-- `failed_checks[]` (optional): fully qualified check ids (e.g. `cryptographic_integrity.hash_chain`)
+- `valid`: whether hash-chain verification succeeded
+- `record_count`: number of records in the bundle
+- `first_seq`: first observed sequence number
+- `last_seq`: last observed sequence number
+- `canonicalisation`: currently `rfc8785`
+- `hash_algo`: currently `sha256`
 
-Summary object:
+Anchoring object:
 
-- `total`: total checks
-- `pass`: passing checks
-- `warn`: warning checks
-- `fail`: failing checks
+- `present`: whether an anchor record is present
+- `tsa_verified`: whether TSA verification succeeded
+- `anchor_hash` (optional): bundle or TSR hash surfaced from the anchor payload
 
-Category object:
+Section object:
 
-- `key`: `cryptographic_integrity|operational_safety|test_coverage|documentation`
-- `title`: human-readable category title
-- `status`: `pass|warn|fail`
-- `checks[]`: check objects
+- `title`: evidence section label
+- `pass`: whether that section's evidence checks passed
+- `fields` (optional): string fields surfaced for review
+- `notes` (optional): section notes
 
-Check object:
-
-- `id`: stable machine identifier
-- `title`: human-readable check label
-- `status`: `pass|warn|fail`
-- `severity`: `critical|advisory`
-- `blocking`: whether check failure should fail the CI gate
-- `details`: assertion explanation
-- `evidence[]` (optional): file paths or bundle path
+The command exits `0` when `pass` is `true`, and `1` otherwise.
 
 ## CI Assertion Examples
 
 ```bash
 atb verify --format json | jq -e '.status == "valid"'
 atb trust-report --format json > trust-report.json
-jq -e '.gate.status == "pass"' trust-report.json
-jq -e '.categories[] | select(.key=="cryptographic_integrity") | .status == "pass"' trust-report.json
+jq -e '.pass == true' trust-report.json
+jq -e '.chain.valid == true' trust-report.json
 ```
 
 ## AI Self-Audit Loop
@@ -126,7 +124,7 @@ jq -e '.categories[] | select(.key=="cryptographic_integrity") | .status == "pas
 1. Load existing bundle and run `atb verify --format json`.
 2. Apply code/documentation changes.
 3. Re-run `atb verify --format json` and compare status + head hash behavior.
-4. Run `atb trust-report --format json` and block if critical category status regresses.
+4. Run `atb trust-report --format json` and block if the trust report no longer passes.
 5. Store report artifacts alongside CI logs for audit replay.
 
 ## Cross-Language Encryption Testing

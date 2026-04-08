@@ -77,15 +77,15 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		t.Fatalf("expected no critical failures for generic workflow, got %+v", verifyResult.Failures)
 	}
 
-	trustReport := runCLIJSON[trust.Report](t, binaryPath, workDir, "trust-report", "--format", "json")
-	if trustReport.Status != trust.StatusPass {
-		t.Fatalf("unexpected trust report status: %+v", trustReport)
+	trustReport := runCLIJSONExpectExitCode[verifypkg.TrustReport](t, exitUserError, binaryPath, workDir, "trust-report", "--format", "json")
+	if trustReport.Pass {
+		t.Fatalf("expected no-profile trust report to remain unpassed, got %+v", trustReport)
 	}
-	if trustReport.Gate.Status != trust.StatusPass {
-		t.Fatalf("unexpected trust gate status: %+v", trustReport.Gate)
+	if trustReport.ProfileID != "" {
+		t.Fatalf("expected no matched profile, got %+v", trustReport)
 	}
-	if trustReport.ChainLength != 2 {
-		t.Fatalf("unexpected trust report chain length: got %d want 2", trustReport.ChainLength)
+	if trustReport.Chain.RecordCount != 2 {
+		t.Fatalf("unexpected trust report chain length: got %d want 2", trustReport.Chain.RecordCount)
 	}
 
 	runCLI(
@@ -200,13 +200,36 @@ func runCLIJSON[T any](t *testing.T, binaryPath string, workDir string, args ...
 	return out
 }
 
+func runCLIJSONExpectExitCode[T any](t *testing.T, wantExitCode int, binaryPath string, workDir string, args ...string) T {
+	t.Helper()
+
+	data := runCLIExpectExitCode(t, wantExitCode, binaryPath, workDir, args...)
+	var out T
+	if err := json.Unmarshal(data, &out); err != nil {
+		t.Fatalf("decode JSON for %q: %v\noutput:\n%s", strings.Join(args, " "), err, string(data))
+	}
+	return out
+}
+
 func runCLI(t *testing.T, binaryPath string, workDir string, args ...string) []byte {
 	t.Helper()
 
-	return runCLIWithEnv(t, binaryPath, workDir, nil, args...)
+	return runCLIExpectExitCode(t, exitSuccess, binaryPath, workDir, args...)
+}
+
+func runCLIExpectExitCode(t *testing.T, wantExitCode int, binaryPath string, workDir string, args ...string) []byte {
+	t.Helper()
+
+	return runCLIWithEnvExpectExitCode(t, wantExitCode, binaryPath, workDir, nil, args...)
 }
 
 func runCLIWithEnv(t *testing.T, binaryPath string, workDir string, env []string, args ...string) []byte {
+	t.Helper()
+
+	return runCLIWithEnvExpectExitCode(t, exitSuccess, binaryPath, workDir, env, args...)
+}
+
+func runCLIWithEnvExpectExitCode(t *testing.T, wantExitCode int, binaryPath string, workDir string, env []string, args ...string) []byte {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -221,12 +244,29 @@ func runCLIWithEnv(t *testing.T, binaryPath string, workDir string, env []string
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	exitCode := exitSuccess
+	if err != nil {
+		var exitErr *exec.ExitError
+		if !errors.As(err, &exitErr) {
+			t.Fatalf(
+				"run %s %s: %v\nstdout:\n%s\nstderr:\n%s",
+				binaryPath,
+				strings.Join(args, " "),
+				err,
+				stdout.String(),
+				stderr.String(),
+			)
+		}
+		exitCode = exitErr.ExitCode()
+	}
+	if exitCode != wantExitCode {
 		t.Fatalf(
-			"run %s %s: %v\nstdout:\n%s\nstderr:\n%s",
+			"run %s %s: exit code %d, want %d\nstdout:\n%s\nstderr:\n%s",
 			binaryPath,
 			strings.Join(args, " "),
-			err,
+			exitCode,
+			wantExitCode,
 			stdout.String(),
 			stderr.String(),
 		)

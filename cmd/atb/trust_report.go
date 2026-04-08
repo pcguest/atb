@@ -51,13 +51,17 @@ func runTrustReport(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
+	if cfg.Format == "json" {
+		return runTrustReportJSON(cfg, stdout, stderr)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(stderr, "atb trust-report: current directory: %v\n", err)
 		return exitSystemError
 	}
 
-	resolvedProfile, resolvedProfileID, err := resolveTrustReportProfile(cfg.BundlePath, cfg.ProfileID)
+	_, resolvedProfileID, err := resolveTrustReportProfile(cfg.BundlePath, cfg.ProfileID)
 	if err != nil {
 		fmt.Fprintf(stderr, "atb trust-report: %v\n", err)
 		printTrustReportUsage()
@@ -74,21 +78,6 @@ func runTrustReport(args []string, stdout, stderr io.Writer) int {
 	report := trust.BuildReport(cwd, cfg.BundlePath, buildProfileID)
 	ragDetails, hasRAGDetails := loadRAGAnswerReportDetails(cfg.BundlePath, resolvedProfileID)
 	switch cfg.Format {
-	case "json":
-		if resolvedProfileID == trustReportRAGAnswerProfileID {
-			verifierReport, ok := buildRAGAnswerVerifierReport(cfg.BundlePath, cfg.ProfileID, resolvedProfile, ragDetails)
-			if ok {
-				if err := json.NewEncoder(stdout).Encode(verifierReport); err != nil {
-					fmt.Fprintf(stderr, "atb trust-report: encode json: %v\n", err)
-					return exitSystemError
-				}
-				return exitSuccess
-			}
-		}
-		if err := json.NewEncoder(stdout).Encode(report); err != nil {
-			fmt.Fprintf(stderr, "atb trust-report: encode json: %v\n", err)
-			return exitSystemError
-		}
 	case "text":
 		renderTrustReportText(stdout, report)
 	case "markdown":
@@ -98,6 +87,45 @@ func runTrustReport(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 	return exitSuccess
+}
+
+func runTrustReportJSON(cfg trustReportConfig, stdout, stderr io.Writer) int {
+	var profile verifypkg.Profile
+	if strings.TrimSpace(cfg.ProfileID) != "" {
+		var err error
+		profile, _, err = resolveTrustReportProfile(cfg.BundlePath, cfg.ProfileID)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb trust-report: %v\n", err)
+			printTrustReportUsage()
+			return exitUserError
+		}
+	}
+
+	b, err := bundle.Load(cfg.BundlePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb trust-report: %v\n", err)
+		return classifyBundleLoadError(err)
+	}
+
+	report := verifypkg.Verify(b, cfg.BundlePath, "")
+	if profile != nil {
+		report = verifypkg.VerifyWithProfile(b, cfg.BundlePath, profile)
+	}
+
+	trustReport := verifypkg.TrustReportFromVerify(report, b)
+	payload, err := json.MarshalIndent(trustReport, "", "  ")
+	if err != nil {
+		fmt.Fprintf(stderr, "atb trust-report: marshal json: %v\n", err)
+		return exitSystemError
+	}
+	if _, err := stdout.Write(append(payload, '\n')); err != nil {
+		fmt.Fprintf(stderr, "atb trust-report: write json: %v\n", err)
+		return exitSystemError
+	}
+	if trustReport.Pass {
+		return exitSuccess
+	}
+	return exitUserError
 }
 
 func parseTrustReportArgs(args []string) (trustReportConfig, error) {
@@ -310,42 +338,6 @@ func loadRAGAnswerReportDetails(bundlePath string, resolvedProfileID string) (ra
 	}
 
 	return details, true
-}
-
-func buildRAGAnswerVerifierReport(
-	bundlePath string,
-	profileSpec string,
-	profile verifypkg.Profile,
-	ragDetails ragAnswerReportDetails,
-) (verifypkg.VerifierReport, bool) {
-	b, err := bundle.Load(bundlePath)
-	if err != nil {
-		return verifypkg.VerifierReport{}, false
-	}
-
-	var report verifypkg.Report
-	if profile != nil && strings.TrimSpace(profileSpec) != "" {
-		report = verifypkg.VerifyWithProfile(b, bundlePath, profile)
-	} else {
-		report = verifypkg.Verify(b, bundlePath, "")
-	}
-
-	verifierReport := verifypkg.ReportFromVerify(report)
-	verifierReport.Notes = append(verifierReport.Notes,
-		fmt.Sprintf(
-			`model_invocation: model_provider=%q model_id=%q model_parameters_digest_present=%t`,
-			ragDetails.ModelProvider,
-			ragDetails.ModelID,
-			ragDetails.ModelParametersDigestPresent,
-		),
-		fmt.Sprintf("retrieval: ai.retrieval.executed_present=%t", ragDetails.RetrievalPresent),
-		fmt.Sprintf(
-			"response: ai.response.sent_present=%t request_id_binding_confirmed=%t",
-			ragDetails.ResponsePresent,
-			ragDetails.RequestIDBindingConfirmed,
-		),
-	)
-	return verifierReport, true
 }
 
 func trustReportDataMap(record bundle.Record) map[string]any {

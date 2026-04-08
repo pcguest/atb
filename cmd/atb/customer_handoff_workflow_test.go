@@ -78,9 +78,15 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		t.Fatalf("unexpected sender verify result: %+v", senderVerify)
 	}
 
-	senderTrust := runCLIJSON[trust.Report](t, binaryPath, senderDir, "trust-report", "--format", "json")
-	if senderTrust.Status != trust.StatusPass || senderTrust.Gate.Status != trust.StatusPass {
+	senderTrust := runCLIJSONExpectExitCode[verifypkg.TrustReport](t, exitUserError, binaryPath, senderDir, "trust-report", "--format", "json")
+	if senderTrust.Pass {
 		t.Fatalf("unexpected sender trust report: %+v", senderTrust)
+	}
+	if senderTrust.ProfileID != "" {
+		t.Fatalf("expected no matched profile, got %+v", senderTrust)
+	}
+	if senderTrust.Chain.RecordCount != 4 {
+		t.Fatalf("unexpected sender trust chain length: got %d want 4", senderTrust.Chain.RecordCount)
 	}
 
 	encryptedRelativePath := filepath.Join("handoff", "acme-review.atb.enc")
@@ -172,8 +178,9 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		t.Fatalf("unexpected recipient verify result: %+v", recipientVerify)
 	}
 
-	recipientTrust := runCLIJSON[trust.Report](
+	recipientTrust := runCLIJSONExpectExitCode[verifypkg.TrustReport](
 		t,
+		exitUserError,
 		binaryPath,
 		recipientDir,
 		"trust-report",
@@ -181,8 +188,14 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 		"--format",
 		"json",
 	)
-	if recipientTrust.Status != trust.StatusPass || recipientTrust.Gate.Status != trust.StatusPass {
+	if recipientTrust.Pass {
 		t.Fatalf("unexpected recipient trust report: %+v", recipientTrust)
+	}
+	if recipientTrust.ProfileID != "" {
+		t.Fatalf("expected no matched profile, got %+v", recipientTrust)
+	}
+	if recipientTrust.Chain.RecordCount != 4 {
+		t.Fatalf("unexpected recipient trust chain length: got %d want 4", recipientTrust.Chain.RecordCount)
 	}
 
 	receivedBundle, err := bundle.Load(filepath.Join(recipientDir, recipientBundleRelativePath))
