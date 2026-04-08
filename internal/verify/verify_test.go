@@ -27,8 +27,8 @@ func TestVerify_IntegrityFail(t *testing.T) {
 	if report.CAS != nil {
 		t.Fatalf("expected nil CAS on integrity failure")
 	}
-	if report.ResidualRisk.Level != "High" {
-		t.Fatalf("unexpected residual risk level: got %q want %q", report.ResidualRisk.Level, "High")
+	if report.ResidualRisk.Level != "Critical" {
+		t.Fatalf("unexpected residual risk level: got %q want %q", report.ResidualRisk.Level, "Critical")
 	}
 }
 

@@ -65,7 +65,7 @@ type CASResult struct {
 
 // ResidualRisk summarises the main outstanding concerns.
 type ResidualRisk struct {
-	Level                   string   `json:"level"` // "Low" | "Medium" | "High"
+	Level                   string   `json:"level"` // "Low" | "Medium" | "High" | "Critical"
 	Drivers                 []string `json:"drivers"`
 	RecommendedNextEvidence []string `json:"recommended_next_evidence"`
 }
@@ -343,12 +343,12 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 		Profiles:           []ProfileResult{},
 		InformationalNotes: []string{},
 		Exclusions:         []string{},
-		ResidualRisk:       ResidualRisk{Level: "High"},
+		ResidualRisk:       ResidualRisk{Level: "Critical"},
 	}
 	if b == nil {
 		report.Integrity.Error = "bundle is nil"
 		report.ResidualRisk = ResidualRisk{
-			Level:   "High",
+			Level:   "Critical",
 			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
 		}
 		return report, false
@@ -370,7 +370,7 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 	if err := b.Verify(); err != nil {
 		report.Integrity.Error = err.Error()
 		report.ResidualRisk = ResidualRisk{
-			Level:   "High",
+			Level:   "Critical",
 			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
 		}
 		return report, false
