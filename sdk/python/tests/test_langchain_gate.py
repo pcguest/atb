@@ -32,9 +32,9 @@ def test_gate_langchain_tool_records_events() -> None:
     gate = ActionGate(bundle=bundle, actor_id="actor-1")
 
     wrapped = gate_langchain_tool(StubTool(), gate)
-    result = wrapped._run({"version": "0.9.0-beta"})
+    result = wrapped._run({"version": "0.9.1-beta"})
 
-    assert result == {"result": "0.9.0-beta"}
+    assert result == {"result": "0.9.1-beta"}
     assert _user_event_types(bundle) == [
         "ai.action.precommit",
         "ai.policy.decision",
@@ -54,7 +54,7 @@ def test_gate_langchain_tool_enforce_blocks() -> None:
     wrapped = gate_langchain_tool(StubTool(), gate)
 
     with pytest.raises(ActionGateDeniedError):
-        wrapped._run({"version": "0.9.0-beta"})
+        wrapped._run({"version": "0.9.1-beta"})
 
     assert _user_event_types(bundle) == [
         "ai.action.precommit",

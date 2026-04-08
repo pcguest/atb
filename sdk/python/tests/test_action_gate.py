@@ -23,7 +23,7 @@ def test_action_gate_run_records_precommit_before_execution() -> None:
         action_type="deploy_change",
         target_resource_id="svc-prod",
         intended_effect="roll out release",
-        action_parameters={"version": "0.9.0-beta"},
+        action_parameters={"version": "0.9.1-beta"},
     )
     seen_before_execution: list[str] = []
 
@@ -52,7 +52,7 @@ def test_action_gate_run_records_policy_and_executed_after_success() -> None:
         action_type="deploy_change",
         target_resource_id="svc-prod",
         intended_effect="roll out release",
-        action_parameters={"version": "0.9.0-beta"},
+        action_parameters={"version": "0.9.1-beta"},
     )
 
     result = gate.run(action, lambda: {"status": "done"})
@@ -131,7 +131,7 @@ def test_action_gate_run_log_only_never_blocks_on_deny() -> None:
         action_type="deploy_change",
         target_resource_id="svc-prod",
         intended_effect="roll out release",
-        action_parameters={"version": "0.9.0-beta"},
+        action_parameters={"version": "0.9.1-beta"},
     )
     called = False
 
@@ -161,7 +161,7 @@ def test_action_gate_arun_matches_sync_semantics() -> None:
         action_type="deploy_change",
         target_resource_id="svc-prod",
         intended_effect="roll out release",
-        action_parameters={"version": "0.9.0-beta"},
+        action_parameters={"version": "0.9.1-beta"},
     )
     seen_before_execution: list[str] = []
 
