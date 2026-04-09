@@ -292,6 +292,8 @@ func main() {
 		cmdTrustReport()
 	case "view":
 		cmdView()
+	case "serve":
+		cmdServe()
 	case "doc":
 		cmdDoc()
 	case "version", "--version", "-v":
