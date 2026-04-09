@@ -1,6 +1,6 @@
 {
   "name": "@pcguest/atb-sdk",
-  "version": "0.9.2-beta",
+  "version": "1.0.0-rc",
   "description": "TypeScript SDK for ATB (Agent Trace Bundle) - local-first AI audit trail",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

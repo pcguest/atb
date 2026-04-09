@@ -41,10 +41,10 @@ func TestBundleSignAndVerify(t *testing.T) {
 	}
 
 	if err := b.AppendWithOptions(event.TypeAIModelInvoked, map[string]any{
-		"model_provider":           "openai",
-		"model_id":                 "gpt-5.4",
-		"model_parameters_digest":  "params-sha256",
-		"prompt_digest":            "prompt-sha256",
+		"model_provider":          "openai",
+		"model_id":                "gpt-5.4",
+		"model_parameters_digest": "params-sha256",
+		"prompt_digest":           "prompt-sha256",
 	}, &bundle.AppendOptions{Timestamp: "2026-04-09T00:00:01Z"}); err != nil {
 		t.Fatalf("append model event: %v", err)
 	}
