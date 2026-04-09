@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
 - Key management guidance for bundle/policy signing and encryption operations (`docs/key-management.md`).
 
+## [v1.0.0] — 2026-04-09
+
+### Changed
+- Version bumped to `1.0.0` across CLI, Python SDK, TypeScript SDK, and web package
+- GitHub Actions updated to Node 24-compatible versions
+- Docker publish workflow reviewed against `DOCKERHUB_USERNAME` secret presence; no gate added because the repository secrets are configured
+
+### Notes
+- `v1.0.0-rc` tag remains at `a65a70b`; `v1.0.0` supersedes it
+- `v1.0.0` tag from 2026-03-10 (`bb2cccb`) refers to an earlier development iteration and is distinct from this release
+
 ## [v1.0.0-rc] — 2026-04-09
 
 ### Added
