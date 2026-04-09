@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
 - Key management guidance for bundle/policy signing and encryption operations (`docs/key-management.md`).
 
+## [v1.0.0-rc] — 2026-04-09
+
+### Added
+- Ed25519 bundle signing integration test
+- v1.0.0-rc readiness checklist (`docs/v1.0.0-rc-checklist.md`)
+- Key rotation procedure in `docs/key-management.md`
+
+### Changed
+- Version bumped to `1.0.0-rc` across the CLI, Python SDK, TypeScript SDK, and web package
+- Roadmap updated to reflect completed `v0.9.x` items and `v1.0.0-rc` scope
+
 ## [v0.9.2-beta] — 2026-04-08
 
 ### Changed
