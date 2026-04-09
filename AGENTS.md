@@ -11,6 +11,8 @@ cmd/atb/                  Go CLI entrypoint and subcommands
 cmd/atb/trust_report_snapshot_test.go  JSON snapshot coverage for `atb trust-report`
 cmd/atb/verify_snapshot_test.go        JSON snapshot coverage for `atb verify`
 internal/                 Core Go implementation
+  bundle/bench_test.go    Bundle benchmark coverage
+  bundle/sign_integration_test.go  Bundle signing integration coverage
   anchor/                 RFC 3161 anchoring
   archive/                Archive ledger support
   bundle/                 Bundle load/save/verify helpers
@@ -28,7 +30,10 @@ sdk/python/               Python SDK, tests, packaging metadata
 sdk/typescript/           TypeScript SDK, tests, packaging metadata
 web/                      Next.js dashboard used by `atb view --ui-experimental`
 docs/                     Product, spec, security, workflow, and integration docs
+docs/ciso-acceptance-guide.md  CISO acceptance guidance
 docs/integrations/mcp.md  MCP integration guide
+docs/performance.md       Performance baseline and methodology
+docs/v1.0.0-rc-checklist.md  Release candidate checklist
 examples/                 Public examples and sample bundles
 schemas/                  JSON schema artefacts
 scripts/                  Release and maintenance helpers
@@ -132,11 +137,12 @@ Do not treat `internal/event/types.go` alone as the profile source of truth. The
 
 These are current repo realities. Do not "fix" them casually or by editing docs only:
 
-- Version drift exists. The Go CLI reports `0.9.2-beta`, the Python SDK reports `0.9.2b1`, the TypeScript SDK reports `0.9.2-beta`, while `web/package.json` still carries `0.9.0-beta.0`.
+- Version drift exists. The Go CLI, TypeScript SDK, and `web/package.json` report `1.0.0-rc`; `sdk/python/pyproject.toml` reports `1.0.0rc1`; `sdk/python/atb/__init__.py` still reports `0.9.2b1`.
 - Profile drift exists. The verifier's built-in profiles are the YAML templates, but `internal/event/types.go` profile metadata is not fully aligned with them. In particular, `ai.request.received` and `ai.policy.decision` are under-mapped for several profiles, and `data_export` in the registry still points at `data.export.*` while the embedded template currently evaluates the `ai.action.*` control-plane flow.
 - `docs/spec-v1.0.md` contains live spec text plus transitional notes. It already notes that `data_export` currently evaluates `ai.action.*`, and it still references a missing future doc at `docs/spec/bundle-push.md`.
 - Archived docs exist and are explicitly not maintained: `docs/guides/getting-started-v1.1.0.md`, `docs/security/actions-pinning-policy.md`, `docs/security/dependency-audit.md`, and `docs/security/known-vulns.md`.
 - `docs/security.md` records an important nuance: TSA certificate-chain verification is implemented for anchor scoring, but the terminal summary wording is intentionally conservative. Do not over-claim TSA assurance in docs or output changes.
+- `v1.0.0` tag exists at an earlier commit; do not retag or move it without explicit instruction from Paddy.
 
 ## Definition Of Done
 
@@ -147,6 +153,7 @@ A task in this repo is done only when all of the following are true:
 - No new spec drift is introduced between code, templates, and prose docs.
 - Any version or packaging changes are kept consistent across the affected artefacts.
 - Snapshot tests cover the JSON output shape of both `atb verify` and `atb trust-report` for all six built-in profiles, including negative cases.
+- CI must be green on ubuntu, macos, and windows before any release tag is pushed.
 
 ## Do Not Rules
 
