@@ -14,6 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
 - Key management guidance for bundle/policy signing and encryption operations (`docs/key-management.md`).
 
+## [v1.0.0.1] — 2026-04-09
+
+### Changed
+- Version metadata aligned to `v1.0.0.1` release tag
+- Docker publish hang fixed; login logout disabled, timeout added
+- Smoke check drift resolved in checklist and AGENTS.md
+
 ## [v1.0.0] — 2026-04-09
 
 ### Changed
