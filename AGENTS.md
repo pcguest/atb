@@ -33,7 +33,7 @@ docs/                     Product, spec, security, workflow, and integration doc
 docs/ciso-acceptance-guide.md  CISO acceptance guidance
 docs/integrations/mcp.md  MCP integration guide
 docs/performance.md       Performance baseline and methodology
-docs/v1.0.0-rc-checklist.md  Release candidate checklist
+docs/v1.0.0-rc-checklist.md  Archived v1.0.0 release checklist
 examples/                 Public examples and sample bundles
 schemas/                  JSON schema artefacts
 scripts/                  Release and maintenance helpers
@@ -142,6 +142,7 @@ These are current repo realities. Do not "fix" them casually or by editing docs 
 - Archived docs exist and are explicitly not maintained: `docs/guides/getting-started-v1.1.0.md`, `docs/security/actions-pinning-policy.md`, `docs/security/dependency-audit.md`, and `docs/security/known-vulns.md`.
 - `docs/security.md` records an important nuance: TSA certificate-chain verification is implemented for anchor scoring, but the terminal summary wording is intentionally conservative. Do not over-claim TSA assurance in docs or output changes.
 - `v1.0.0` tag exists at an earlier commit; do not retag or move it without explicit instruction from Paddy.
+- Docker Publish (Layer E) requires `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets before the publish step can authenticate to Docker Hub. The repository secrets are configured, but workflow contexts without secret access will not be able to publish.
 
 ## Definition Of Done
 
