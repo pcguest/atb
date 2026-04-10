@@ -12,6 +12,8 @@ deterministic evidence for incident review, audit, and customer
 handoff. It does not require a backend and does not send trace data to
 external storage by default.
 
+Current release: [`v1.0.0.1`](CHANGELOG.md).
+
 ## Install
 
 ```bash
@@ -37,6 +39,8 @@ atb verify
 signature material. Add `--with-anchor` to verify RFC 3161 timestamp
 token material when an anchor is present. Mutation, reordering, or
 deletion breaks the chain.
+
+`atb bundle new` is the explicit alias for `atb init`.
 
 ## How It Works
 
