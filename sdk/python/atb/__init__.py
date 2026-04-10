@@ -52,6 +52,7 @@ from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
 from atb.langchain_gate import gate_langchain_tool
+from atb.pageindex import ATBAppendError, ATBPageIndexRetriever, PageIndexRetrievalError
 
 _encrypt_import_error: ModuleNotFoundError | None = None
 
@@ -90,6 +91,9 @@ __all__ = [
     "Event",
     "ATBError",
     "ATBVerificationError",
+    "ATBPageIndexRetriever",
+    "ATBAppendError",
+    "PageIndexRetrievalError",
     "ATBEncryptionError",
     "ATBDecryptionError",
     "encrypt_bundle",
