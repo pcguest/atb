@@ -33,6 +33,11 @@ const (
 	TypeAIRetrievalExecuted = "ai.retrieval.executed"
 	TypeAIModelInvoked      = "ai.model.invoked"
 	TypeAIModelOutput       = "ai.model.output"
+
+	// PageIndex-specific RAG events (Mode B in-process integration).
+	// See sdk/python/atb/pageindex.py and THIRD_PARTY_NOTICES.
+	TypeRAGIndex     = "atb.event.rag_index"
+	TypeRAGRetrieval = "atb.event.rag_retrieval"
 )
 
 // Privileged action / ACP-gating events.
@@ -108,4 +113,6 @@ var Registry = []EventInfo{
 	{TypeDataExportExecuted, "Data export executed to sink", "atb.profile.data_export", "critical"},
 	{TypeDevSession, "Developer session marker (tooling use)", "", "informational"},
 	{TypeSnapshotBuild, "Build snapshot (tooling use)", "", "informational"},
+	{TypeRAGIndex, "PageIndex document tree build record (index_hash, node_count)", "atb.profile.rag_answer", "required"},
+	{TypeRAGRetrieval, "PageIndex reasoning-based retrieval result (node_id, page_start/end)", "atb.profile.rag_answer", "required"},
 }
