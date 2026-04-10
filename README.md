@@ -1,147 +1,143 @@
 # ATB
 
-[![Version](https://img.shields.io/badge/version-v1.0.0.1-blue)](CHANGELOG.md)
-[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
-[![Security Gate](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+Tamper-evident audit trails for privacy-sensitive AI systems.
 
-ATB is the local-first audit trail for privacy-sensitive AI systems.
+[![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-It records AI workflow events as tamper-evident bundles you can inspect locally, verify cryptographically, and export as deterministic evidence for incident review, customer handoff, and internal audit or privacy review. It is designed for teams that need a tamper-evident record of what was recorded without default external trace storage.
+## What It Is
 
-## Why Teams Pick ATB
+ATB records AI workflow events as tamper-evident, hash-chained bundles
+you can inspect locally, verify cryptographically, and export as
+deterministic evidence for incident review, audit, and customer
+handoff. It does not require a backend and does not send trace data to
+external storage by default.
 
-| Need | How ATB addresses it |
-| --- | --- |
-| Keep raw traces local by default | ATB records bundles locally and does not require default external trace storage. |
-| Reconstruct failures, tool misuse, and high-risk decisions | Every appended event is hash-chained in a verifiable execution trail you can inspect locally. |
-| Hand over portable audit evidence | Bundles and deterministic exports travel as artifacts instead of reconstructed notes or screenshots. |
-| Record privacy reveals in the same evidence trail | Privacy reveal events are appended to the same tamper-evident bundle as the rest of the workflow. |
-
-## Release Status
-
-- Current release: [`v1.0.0.1`](CHANGELOG.md)
-- ATB is currently in **pre-production beta**, suitable for internal pilots and experiments. See [docs/roadmap.md](docs/roadmap.md) for the journey to a stable v1.0.
-- All CI and security gates pass on `main`. See [Actions](https://github.com/pcguest/atb/actions).
-
-## 5 Minute Start
+## Install
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
-atb bundle new
-atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
-atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042"}'
-atb snapshot incident_review_failed
-atb verify
-atb trust-report --format markdown
 ```
 
-That sequence creates a local incident bundle with a named review snapshot and a valid evidence chain. The snapshot name carries workflow state; `atb verify` checks the hash chain and any recorded bundle signature or anchor evidence. `atb bundle new` is the explicit alias for `atb init`; both are supported. For the full review path, including the local dashboard and evidence export, use the [Incident Review Workflow](docs/guides/incident-review-workflow.md). For sender and recipient handoff, use the [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md).
+Requires Go 1.25.0+. Python and TypeScript SDKs are available for
+in-process instrumentation. See [SDK docs](docs/guides/README.md).
 
-## Verification Profiles
-
-ATB includes six built-in obligation profiles. Use `--profile <id>` to evaluate against a specific built-in profile, or pass a local YAML profile path when you are validating a custom definition:
-
-```text
-atb.profile.privileged_tool_action
-atb.profile.rag_answer
-atb.profile.data_export
-atb.profile.policy_decision
-atb.profile.human_override
-atb.profile.background_automation
-```
+## Quickstart
 
 ```bash
-atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
-atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --json
-# For CAS-enabled profiles (for example: privileged_tool_action, rag_answer),
-# the JSON output includes a "cas" object with "grade" and sub_scores.
-atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
+atb init
+atb append ai.request.received \
+  '{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
+atb append ai.action.precommit \
+  '{"action":"escalate","target":"tier-2","approved_by":"ops-lead"}'
+atb snapshot incident_review
+atb verify
 ```
 
-### Obligation Profiles & CAS
+`atb verify` checks the SHA-256 hash chain and any recorded bundle
+signature material. Add `--with-anchor` to verify RFC 3161 timestamp
+token material when an anchor is present. Mutation, reordering, or
+deletion breaks the chain.
 
-<!-- ATB: corrected overstatement -->
-While the hash chain ensures **integrity** (the record was not changed), **Obligation Profiles** and the **Completeness Assurance Score (CAS)** provide a profile-scoped indication of **recorded evidence completeness** for the events and relations ATB currently knows how to evaluate. Profiles define required events, field expectations, and causal ordering (e.g., human approval must occur at or after a high-impact action). See [docs/profiles.md](docs/profiles.md) for a full breakdown of each profile and its compliance mapping (EU AI Act, ISO 42001, SOC 2).
-
-### Integrations: SIEM and GRC
-
-<!-- ATB: corrected overstatement -->
-ATB exports are deterministic artefacts designed for ingestion into SIEM (Security Information and Event Management) and GRC (Governance, Risk, and Compliance) platforms. The `soc2` format includes a JSONL audit trail for security monitoring, while the `.verify.json` sidecar can expose integrity results and current CAS outputs for downstream review workflows. Those CAS outputs are implementation-level signals, not external attestations or third-party validation. See [docs/integrations/siem-grc.md](docs/integrations/siem-grc.md) for architectural patterns and ingestion guidance.
-
-## What ATB Includes
-
-| Capability | Detail |
-| --- | --- |
-| Tamper-evident event logs | SHA-256 hash chains with RFC 8785 canonical JSON catch mutation, reordering, and deletion. |
-| Local-first verification | Trace inspection and verification run locally, with no required backend. |
-| Client-side encryption | AES-256-GCM encryption for protected bundle handoff workflows. |
-| Deterministic evidence export | `compliance`, `soc2`, and `gdpr` export paths for incident review, controls evidence, DSR, and RoPA workflows. |
-| Local viewer and dashboard | `atb view` serves the local viewer, and `atb view --ui-experimental` enables the role-based dashboard with timeline, graph, inspector, and privacy reveal audit logging. |
-| Developer integrations | Native tracing middleware for LangChain in Python and Vercel AI SDK in TypeScript. |
-| Go CLI as the primary distribution path | Python and TypeScript packages are SDKs that write the same bundle format, not the primary CLI install path. |
-
-<!-- ATB: corrected overstatement -->
-> **Implementation status:** Bundle-level Ed25519 signing (`atb sign`) and RFC 3161 TSA anchoring (`atb anchor`) are implemented. `atb verify` can check recorded bundle signatures and perform local RFC 3161 token checks, including digest and signature validation plus certificate-chain evaluation against the roots available in the current environment. This remains pre-production beta behaviour and should not be treated as an external trust service or formal attestation.
-
-- [Why ATB: integrity, completeness, and what we claim](docs/why-atb.md)
-- [Key Management](docs/key-management.md)
-
-## Verification model
+## How It Works
 
 ```text
 event_hash = SHA-256(prev_hash || RFC8785(event_json))
-genesis:    prev_hash = "0000...0000" (64 zeros)
+genesis:    prev_hash = 0000...0000 (64 zeros)
 ```
 
-Every event in a bundle is bound to its predecessor; any mutation, reordering, or deletion breaks the chain.
+Events are appended sequentially. Each event seals the previous one.
+The resulting bundle is a portable artefact that can be verified later
+without a server.
 
-## Best Fit
+## Verification Profiles
 
-ATB is best suited to:
+ATB ships six built-in obligation profiles. Use `--profile` to evaluate
+whether a bundle contains the expected event sequence, field coverage,
+and causal relations for a workflow.
 
-- security-minded AI teams running internal copilots or agent workflows with sensitive data
-- consultancies and delivery teams that need a portable audit artefact for handoff or review
-- enterprise builders that need a reviewable local evidence layer for internal audit or privacy review
+```bash
+atb verify --profile atb.profile.rag_answer
+atb verify --profile atb.profile.privileged_tool_action --format json
+atb verify --profile ./profiles/custom.yaml
+```
 
-ATB is not intended to be a generic hosted LLM observability platform.
+| Profile | Use case |
+| --- | --- |
+| `atb.profile.rag_answer` | RAG answer provenance |
+| `atb.profile.privileged_tool_action` | Gated high-impact tool execution |
+| `atb.profile.data_export` | Data export evidence trail |
+| `atb.profile.policy_decision` | Policy engine allow or deny record |
+| `atb.profile.human_override` | Human-in-the-loop override chain |
+| `atb.profile.background_automation` | Scheduled job audit trail |
 
-## Installation
+CAS is emitted in JSON output for CAS-enabled profiles. It is a
+profile-scoped completeness signal for recorded evidence, not an
+external attestation.
 
-- Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest` (requires Go 1.25.0+)
-- Python SDK: `pip install atb-sdk`
-- TypeScript SDK: `npm install @pcguest/atb-sdk`
-- Docker: build locally with `docker build -t atb .`
+## Integrations
 
-Python and TypeScript packages are SDKs only. Their installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
+ATB includes a native MCP server and SDKs for Python and TypeScript.
+Run `atb events` to inspect the canonical event registry and built-in
+profile membership.
 
-## Documentation
+### MCP Server
 
-Start at [Docs Home](docs/README.md).
+```bash
+atb mcp serve
+```
 
-- [Examples](examples/README.md)
+| Tool | Description |
+| --- | --- |
+| `atb_init` | Initialise a new bundle |
+| `status` | Report version, bundle presence, chain length, and head hash |
+| `verify` | Verify bundle integrity and profile results |
+| `rag_index_record` | Record a PageIndex index build as `atb.event.rag_index` |
+| `rag_retrieval_record` | Record a PageIndex retrieval as `atb.event.rag_retrieval` |
+
+### PageIndex
+
+The Python SDK includes `ATBPageIndexRetriever` for PageIndex-backed
+document indexing and retrieval. `build_index()` records
+`atb.event.rag_index`. `retrieve()` records `atb.event.rag_retrieval`.
+
+```python
+from atb import ATBPageIndexRetriever
+
+retriever = ATBPageIndexRetriever(model="gpt-4o-2024-11-20")
+tree, index_id = retriever.build_index("report.pdf")
+node = retriever.retrieve(
+    "What were net interest margins?",
+    tree,
+    index_id,
+    "report.pdf",
+)
+```
+
+Those records join the same bundle as your request, model, and response
+events when you emit them, so retrieval evidence can be reviewed
+alongside the rest of the workflow.
+
+## Docs Index
+
 - [Quickstart](docs/quickstart.md)
-- [Incident Review Workflow](docs/guides/incident-review-workflow.md)
-- [Incident Review for Private AI Workflows](docs/use-cases/incident-review.md)
-- [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md)
-- [Customer Handoff Without Platform Lock-In](docs/use-cases/customer-handoff.md)
-- [Internal Audit and Privacy Review](docs/use-cases/internal-audit-privacy-review.md)
-- [ATB vs Hosted AI Observability](docs/comparisons/hosted-observability.md)
-- [ATB vs Logs, Screenshots, and Ad Hoc Exports](docs/comparisons/logs-and-screenshots.md)
-- [Dashboard Specification](docs/spec-dashboard.md)
-- [AI Integrations](docs/guides/README.md)
 - [ATB Specification v1.0](docs/spec-v1.0.md)
 - [AI Trace Event Specification](docs/spec-ai-traces.md)
-- [Compliance Export Overview](docs/compliance/export.md)
-- [Contributing Guide](CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
+- [Verification Profiles](docs/profiles.md)
+- [MCP Integration](docs/integrations/mcp.md)
+- [Incident Review Workflow](docs/guides/incident-review-workflow.md)
+- [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md)
+- [Key Management](docs/key-management.md)
+- [Compliance Export](docs/compliance/export.md)
+- [SIEM and GRC Integration](docs/integrations/siem-grc.md)
 - [Changelog](CHANGELOG.md)
 
 ## Attribution
 
-ATB integrates with third-party open-source libraries.
-See [THIRD_PARTY_NOTICES](./THIRD_PARTY_NOTICES) for full licence text.
+ATB uses [PageIndex](https://github.com/VectifyAI/PageIndex) by
+Vectify AI under the MIT Licence in the Python SDK. See
+[THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES) for the full licence text.
 
-- [PageIndex](https://github.com/VectifyAI/PageIndex) by Vectify AI -
-  MIT License. Used in `sdk/python` for reasoning-based, vectorless
-  document retrieval.
+## Licence
+
+MIT. See [LICENSE](LICENSE).
+Copyright (c) 2026 Patrick Guest.

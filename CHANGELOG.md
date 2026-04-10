@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Version metadata aligned to `v1.0.0.1` release tag
 - Docker publish hang fixed; login logout disabled, timeout added
-- Smoke check drift resolved in checklist and AGENTS.md
+- Smoke check drift resolved in release guidance and checklist
 
 ## [v1.0.0] — 2026-04-09
 
@@ -36,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Ed25519 bundle signing integration test
-- v1.0.0-rc readiness checklist (`docs/v1.0.0-rc-checklist.md`)
+- v1.0.0-rc release-readiness checklist
 - Key rotation procedure in `docs/key-management.md`
 
 ### Changed
@@ -56,7 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `atb export --format compliance --json` ComplianceManifest output
 - MCP integration guide (`docs/integrations/mcp.md`)
 - Event type constants for Python and TypeScript SDKs
-- AGENTS.md repo orientation and working standards
+- Contributor orientation and working standards documentation
 
 ### Fixed
 - `background_automation` profile migrated to `ai.job.*` taxonomy; template, verifier, and auto-detection all consistent

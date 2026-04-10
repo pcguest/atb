@@ -4,6 +4,10 @@
 
 Model Context Protocol, or MCP, is a protocol for agent hosts to invoke tools through a stable interface. ATB integrates with that execution path so MCP tool activity can be recorded as structured bundle events rather than left to mutable application logs. A tamper-evident bundle gives an auditor a hash-chained record that can be verified locally and exported deterministically. A plain activity log can show what was written, but it does not show whether the sequence was altered afterwards.
 
+ATB includes a native MCP stdio server via `atb mcp serve`. It exposes
+bundle initialisation, verification, status, and PageIndex RAG
+recording tools.
+
 ## How it works
 
 An MCP host invokes a tool through the MCP boundary. The ATB CLI or an SDK wrapper appends a structured event for the request, model call, tool call, or response. Each appended record is written into the bundle as NDJSON and linked to the previous record by hash. The resulting bundle can then be checked with `atb verify` and summarised with `atb trust-report`.
@@ -132,7 +136,13 @@ Bundles produced through MCP wrapping are designed to assist with evidence colle
 
 ## Limitations and roadmap
 
-- Tool-call interception requires explicit SDK wrapping or CLI invocation; there is no native MCP server mode in the current release.
-- Auto-detection matches on ai.request.received or ai.model.invoked; bundles that emit only custom event types may not match a built-in profile automatically and will require --profile to be set explicitly.
-- Planned: native MCP server mode (zero-code instrumentation).
-- Planned: ai.mcp.tool_call canonical event type for first-class MCP event taxonomy.
+- Recording arbitrary external tool activity still requires explicit ATB
+  instrumentation or an MCP host that calls ATB's tools. The server
+  does not auto-instrument third-party MCP servers.
+- Auto-detection matches on `ai.request.received` or
+  `ai.model.invoked`. Bundles that emit only custom event types may not
+  match a built-in profile automatically and will require `--profile`.
+- `rag_index_record` and `rag_retrieval_record` record PageIndex
+  indexing and retrieval evidence. They do not record downstream model
+  answer provenance unless the surrounding workflow emits those events
+  separately.

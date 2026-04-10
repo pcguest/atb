@@ -1,6 +1,6 @@
 # Building ATB: A Solo Developer Project
 
-ATB (Agent Trace Bundle) started from one problem: AI agents are hard to audit after the fact.
+ATB started from one problem: AI agents are hard to audit after the fact.
 
 When an agent makes a bad decision, most teams only have logs that are hard to trust and harder to replay.
 I wanted a format that was simple, local-first, and cryptographically verifiable.
@@ -28,7 +28,7 @@ Cross-language consistency mattered from day one, so I anchored hashing on RFC 8
 
 - CLI commands for init, append, snapshot, verify, and local trace viewing
 - Python SDK packaging and publish automation
-- TypeScript SDK scaffold with typechecking and package-lock reproducibility
+- TypeScript SDK with typechecking and package-lock reproducibility
 - Cross-platform CI on macOS, Linux, and Windows
 - Public example bundles in `examples/` to keep the format grounded in real workflows
 
