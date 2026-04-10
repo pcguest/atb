@@ -12,8 +12,10 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 )
 
 const protocolVersion = "2024-11-05"
@@ -30,9 +32,17 @@ type VerifyHandler func(context.Context, VerifyInput, io.Writer, io.Writer) int
 
 type InitHandler func(context.Context, io.Writer, io.Writer) int
 
+// MCP RAG tool notes:
+// 1. handleToolsList registers tools inline via a []toolDefinition slice literal.
+// 2. cmd/atb appendToDefaultBundle is called as appendToDefaultBundle(eventType string, data interface{}, dryRun bool, opts ...bundle.AppendOptions) (bundle.Record, error), so the CLI-side append handler returns the appended bundle.Record for sequence/hash reporting here.
+// 3. The existing status tool returns a structured JSON object such as {"version":"...","bundle_present":false} and adds chain_length/head_hash when a bundle exists before wrapping it with newStructuredToolResponse.
+// 4. Input validation in this server is manual after json.Unmarshal; inputSchema is descriptive only, so required-field and type checks for the RAG tools must stay in code.
+type AppendHandler func(context.Context, string, map[string]any) (bundle.Record, error)
+
 type ToolHandlers struct {
 	Verify VerifyHandler
 	Init   InitHandler
+	Append AppendHandler
 }
 
 type Server struct {
@@ -256,6 +266,114 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 					"additionalProperties": false,
 				},
 			},
+			{
+				Name:        "rag_index_record",
+				Description: "Record a PageIndex document tree build and append atb.event.rag_index to the current bundle",
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"index_id": map[string]any{
+							"type":        "string",
+							"description": "Unique identifier for this index build",
+						},
+						"source_uri": map[string]any{
+							"type":        "string",
+							"description": "Absolute path or URI of the indexed document",
+						},
+						"page_count": map[string]any{
+							"type":        "integer",
+							"description": "Total pages in the document",
+						},
+						"node_count": map[string]any{
+							"type":        "integer",
+							"description": "Total nodes in the PageIndex tree (recursive count)",
+						},
+						"model_id": map[string]any{
+							"type":        "string",
+							"description": "LLM model used to build the index",
+						},
+						"index_hash": map[string]any{
+							"type":        "string",
+							"description": "SHA-256 hex digest of json.dumps(tree, sort_keys=True)",
+						},
+						"indexed_at": map[string]any{
+							"type":        "string",
+							"description": "RFC3339 timestamp — defaults to server time if omitted",
+						},
+					},
+					"required": []string{
+						"index_id",
+						"source_uri",
+						"page_count",
+						"node_count",
+						"model_id",
+						"index_hash",
+					},
+					"additionalProperties": false,
+				},
+			},
+			{
+				Name:        "rag_retrieval_record",
+				Description: "Record a PageIndex reasoning-based retrieval result and append atb.event.rag_retrieval to the current bundle",
+				InputSchema: map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"query": map[string]any{
+							"type": "string",
+						},
+						"retrieval_id": map[string]any{
+							"type": "string",
+						},
+						"index_id": map[string]any{
+							"type":        "string",
+							"description": "Foreign key — must match a prior rag_index_record.index_id",
+						},
+						"node_id": map[string]any{
+							"type":        "string",
+							"description": "PageIndex node_id from the matched tree node",
+						},
+						"node_title": map[string]any{
+							"type":        "string",
+							"description": "PageIndex title field from the matched tree node",
+						},
+						"source_uri": map[string]any{
+							"type": "string",
+						},
+						"page_start": map[string]any{
+							"type":        "integer",
+							"description": "PageIndex start_index of the matched node",
+						},
+						"page_end": map[string]any{
+							"type":        "integer",
+							"description": "PageIndex end_index of the matched node",
+						},
+						"node_summary": map[string]any{
+							"type":        "string",
+							"description": "PageIndex summary field — omit if absent",
+						},
+						"model_id": map[string]any{
+							"type": "string",
+						},
+						"latency_ms": map[string]any{
+							"type":        "integer",
+							"description": "Wall-clock milliseconds for the retrieval call",
+						},
+					},
+					"required": []string{
+						"query",
+						"retrieval_id",
+						"index_id",
+						"node_id",
+						"node_title",
+						"source_uri",
+						"page_start",
+						"page_end",
+						"model_id",
+						"latency_ms",
+					},
+					"additionalProperties": false,
+				},
+			},
 		},
 	}
 
@@ -279,6 +397,10 @@ func (s *Server) handleToolsCall(id *json.RawMessage, raw json.RawMessage) error
 		result, err = s.toolInit(params.Arguments)
 	case "status":
 		result, err = s.toolStatus()
+	case "rag_index_record":
+		result, err = s.toolRAGIndexRecord(params.Arguments)
+	case "rag_retrieval_record":
+		result, err = s.toolRAGRetrievalRecord(params.Arguments)
 	default:
 		result = newToolResponse(fmt.Sprintf("unknown tool: %s", params.Name), true)
 	}
@@ -390,6 +512,184 @@ func (s *Server) toolInit(raw json.RawMessage) (toolResponse, error) {
 	}
 
 	return newStructuredToolResponse(result)
+}
+
+func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
+	if s.handlers.Append == nil {
+		return newToolResponse("system error: append handler is not configured", true), nil
+	}
+
+	args, err := decodeObjectArguments(raw)
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := rejectUnknownFields(args, map[string]struct{}{
+		"index_id":   {},
+		"source_uri": {},
+		"page_count": {},
+		"node_count": {},
+		"model_id":   {},
+		"index_hash": {},
+		"indexed_at": {},
+	}); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+
+	indexID, err := requireStringField(args, "index_id")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	sourceURI, err := requireStringField(args, "source_uri")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	pageCount, err := requireIntegerField(args, "page_count")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	nodeCount, err := requireIntegerField(args, "node_count")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	modelID, err := requireStringField(args, "model_id")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	indexHash, err := requireStringField(args, "index_hash")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+
+	indexedAt, present, err := optionalStringField(args, "indexed_at")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if !present || strings.TrimSpace(indexedAt) == "" {
+		// Default server-side so the hashed event payload is complete even when clients omit the timestamp.
+		indexedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	data := map[string]any{
+		"index_id":   indexID,
+		"source_uri": sourceURI,
+		"page_count": pageCount,
+		"node_count": nodeCount,
+		"model_id":   modelID,
+		"index_hash": indexHash,
+		"indexed_at": indexedAt,
+	}
+
+	record, err := s.handlers.Append(s.commandContext(), event.TypeRAGIndex, data)
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("system error: %v", err), true), nil
+	}
+
+	return newStructuredToolResponse(map[string]any{
+		"status":     "ok",
+		"event_type": event.TypeRAGIndex,
+		"index_id":   indexID,
+		"sequence":   record.Event.Sequence,
+		"hash":       abbreviateHash(record.Hash),
+	})
+}
+
+func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, error) {
+	if s.handlers.Append == nil {
+		return newToolResponse("system error: append handler is not configured", true), nil
+	}
+
+	args, err := decodeObjectArguments(raw)
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := rejectUnknownFields(args, map[string]struct{}{
+		"query":        {},
+		"retrieval_id": {},
+		"index_id":     {},
+		"node_id":      {},
+		"node_title":   {},
+		"source_uri":   {},
+		"page_start":   {},
+		"page_end":     {},
+		"node_summary": {},
+		"model_id":     {},
+		"latency_ms":   {},
+	}); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+
+	query, err := requireStringField(args, "query")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	retrievalID, err := requireStringField(args, "retrieval_id")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	indexID, err := requireStringField(args, "index_id")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	nodeID, err := requireStringField(args, "node_id")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	nodeTitle, err := requireStringField(args, "node_title")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	sourceURI, err := requireStringField(args, "source_uri")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	pageStart, err := requireIntegerField(args, "page_start")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	pageEnd, err := requireIntegerField(args, "page_end")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	modelID, err := requireStringField(args, "model_id")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	latencyMS, err := requireIntegerField(args, "latency_ms")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+
+	data := map[string]any{
+		"query":        query,
+		"retrieval_id": retrievalID,
+		"index_id":     indexID,
+		"node_id":      nodeID,
+		"node_title":   nodeTitle,
+		"source_uri":   sourceURI,
+		"page_start":   pageStart,
+		"page_end":     pageEnd,
+		"model_id":     modelID,
+		"latency_ms":   latencyMS,
+	}
+	if nodeSummary, present, err := optionalStringField(args, "node_summary"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	} else if present && strings.TrimSpace(nodeSummary) != "" {
+		data["node_summary"] = nodeSummary
+	}
+
+	record, err := s.handlers.Append(s.commandContext(), event.TypeRAGRetrieval, data)
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("system error: %v", err), true), nil
+	}
+
+	return newStructuredToolResponse(map[string]any{
+		"status":       "ok",
+		"event_type":   event.TypeRAGRetrieval,
+		"retrieval_id": retrievalID,
+		"index_id":     indexID,
+		"sequence":     record.Event.Sequence,
+		"hash":         abbreviateHash(record.Hash),
+	})
 }
 
 func (s *Server) respond(id *json.RawMessage, result any) error {
@@ -515,6 +815,84 @@ func abbreviateHash(hash string) string {
 		return hash
 	}
 	return hash[:16] + "..."
+}
+
+func decodeObjectArguments(raw json.RawMessage) (map[string]any, error) {
+	if len(raw) == 0 {
+		return map[string]any{}, nil
+	}
+
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+
+	var args map[string]any
+	if err := decoder.Decode(&args); err != nil {
+		return nil, err
+	}
+	if args == nil {
+		return map[string]any{}, nil
+	}
+	return args, nil
+}
+
+func rejectUnknownFields(args map[string]any, allowed map[string]struct{}) error {
+	for key := range args {
+		if _, ok := allowed[key]; !ok {
+			return fmt.Errorf("unknown field %q", key)
+		}
+	}
+	return nil
+}
+
+func requireStringField(args map[string]any, field string) (string, error) {
+	value, ok := args[field]
+	if !ok {
+		return "", fmt.Errorf("missing required field %q", field)
+	}
+	text, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("field %q must be a string", field)
+	}
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return "", fmt.Errorf("field %q must not be empty", field)
+	}
+	return text, nil
+}
+
+func optionalStringField(args map[string]any, field string) (string, bool, error) {
+	value, ok := args[field]
+	if !ok {
+		return "", false, nil
+	}
+	text, ok := value.(string)
+	if !ok {
+		return "", false, fmt.Errorf("field %q must be a string", field)
+	}
+	return text, true, nil
+}
+
+func requireIntegerField(args map[string]any, field string) (int, error) {
+	value, ok := args[field]
+	if !ok {
+		return 0, fmt.Errorf("missing required field %q", field)
+	}
+
+	switch typed := value.(type) {
+	case json.Number:
+		n, err := typed.Int64()
+		if err != nil {
+			return 0, fmt.Errorf("field %q must be an integer", field)
+		}
+		return int(n), nil
+	case float64:
+		if typed != float64(int(typed)) {
+			return 0, fmt.Errorf("field %q must be an integer", field)
+		}
+		return int(typed), nil
+	default:
+		return 0, fmt.Errorf("field %q must be an integer", field)
+	}
 }
 
 func rawMessageValue(id *json.RawMessage) any {

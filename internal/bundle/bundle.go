@@ -33,7 +33,7 @@ const (
 	ManifestVersion = "1"
 )
 
-var eventTypeRegexp = regexp.MustCompile(`^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$`)
+var eventTypeRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
 
 // Record is a single line in an ATB bundle file.
 type Record struct {
