@@ -81,6 +81,15 @@ The callback emits the canonical `ai.chain.run`, `ai.llm.call`, and `ai.tool.exe
 
 The deprecated shim import path `atb.integrations.langchain.ATBCallbackHandler` still works for compatibility, but it emits a `DeprecationWarning`. Use `atb.langchain_callback.ATBCallbackHandler` for new code.
 
+## Third-Party Dependencies
+
+This SDK uses [PageIndex](https://github.com/VectifyAI/PageIndex)
+(MIT License, Copyright (c) 2025 Vectify AI) for reasoning-based,
+vectorless document retrieval. PageIndex is imported directly as a
+Python package dependency (Mode B in-process integration).
+
+Full licence text: [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES)
+
 ## Licence
 
 MIT

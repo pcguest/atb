@@ -136,3 +136,12 @@ Start at [Docs Home](docs/README.md).
 - [Contributing Guide](CONTRIBUTING.md)
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
+
+## Attribution
+
+ATB integrates with third-party open-source libraries.
+See [THIRD_PARTY_NOTICES](./THIRD_PARTY_NOTICES) for full licence text.
+
+- [PageIndex](https://github.com/VectifyAI/PageIndex) by Vectify AI -
+  MIT License. Used in `sdk/python` for reasoning-based, vectorless
+  document retrieval.
