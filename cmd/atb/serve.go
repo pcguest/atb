@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/mcp"
 )
 
@@ -20,11 +21,40 @@ Configure in Claude Desktop's claude_desktop_config.json:
     "mcpServers": {
       "atb": {
         "command": "atb",
-        "args": ["serve"]
+        "args": ["mcp", "serve"]
       }
     }
   }
 `
+
+const mcpLongDescription = `ATB Model Context Protocol commands.
+
+Usage:
+  atb mcp serve
+`
+
+func cmdMCP() {
+	os.Exit(runMCPCommand(os.Args[2:], os.Stdout, os.Stderr))
+}
+
+func runMCPCommand(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		printMCPHelp(stderr)
+		return exitUserError
+	}
+
+	switch args[0] {
+	case "serve":
+		return runServeCommand(args[1:], stdout, stderr)
+	case "-h", "--help", "help":
+		printMCPHelp(stdout)
+		return exitSuccess
+	default:
+		fmt.Fprintf(stderr, "atb mcp: unknown sub-command %q\n", args[0])
+		printMCPHelp(stderr)
+		return exitUserError
+	}
+}
 
 func cmdServe() {
 	os.Exit(runServeCommand(os.Args[2:], os.Stdout, os.Stderr))
@@ -45,7 +75,10 @@ func runServeCommand(args []string, stdout, stderr io.Writer) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	srv := mcp.New(version, os.Stdin, os.Stdout)
+	srv := mcp.NewWithHandlers(version, os.Stdin, stdout, mcp.ToolHandlers{
+		Verify: mcpVerifyHandler,
+		Init:   mcpInitHandler,
+	})
 	if err := srv.Serve(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		fmt.Fprintf(stderr, "atb serve: %v\n", err)
 		return exitSystemError
@@ -58,4 +91,31 @@ func printServeHelp(w io.Writer) {
 	fmt.Fprintln(w, "Start ATB as an MCP server (stdio transport)")
 	fmt.Fprintln(w)
 	fmt.Fprint(w, serveLongDescription)
+}
+
+func printMCPHelp(w io.Writer) {
+	fmt.Fprintln(w, "ATB Model Context Protocol commands")
+	fmt.Fprintln(w)
+	fmt.Fprint(w, mcpLongDescription)
+}
+
+func mcpVerifyHandler(_ context.Context, input mcp.VerifyInput, stdout, stderr io.Writer) int {
+	cfg := verifyCLIConfig{
+		BundlePath:   bundle.DefaultPath(),
+		ProfileID:    input.Profile,
+		LegacyFormat: verifyFormatJSON,
+		Quiet:        input.Quiet,
+		Trace:        input.Trace,
+		WithAnchor:   input.WithAnchor,
+	}
+	if input.Path != "" {
+		cfg.BundlePath = input.Path
+	}
+	return runVerifyWithConfig(cfg, false, stdout, stderr)
+}
+
+func mcpInitHandler(_ context.Context, stdout, stderr io.Writer) int {
+	return runInitWithOptions(initRunOptions{
+		OutputFormat: verifyFormatJSON,
+	}, stdout, stderr)
 }

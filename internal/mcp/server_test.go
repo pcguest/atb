@@ -3,8 +3,11 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/pcguest/atb/internal/bundle"
 )
 
 type rpcResponse struct {
@@ -67,15 +70,17 @@ func TestServeToolsList(t *testing.T) {
 		names[tool.Name] = true
 	}
 
-	for _, name := range []string{"verify", "bundle", "status"} {
+	for _, name := range []string{"verify", "atb_init", "status"} {
 		if !names[name] {
 			t.Fatalf("tool %q missing from tools/list response", name)
 		}
 	}
 }
 
-func TestServeToolsCallStatus(t *testing.T) {
-	t.Parallel()
+func TestServeToolsCallStatusNoBundle(t *testing.T) {
+	tempDir := t.TempDir()
+	restore := chdirTempDir(t, tempDir)
+	defer restore()
 
 	responses := runServer(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"status","arguments":{}}}`+"\n")
 	if len(responses) != 1 {
@@ -93,8 +98,63 @@ func TestServeToolsCallStatus(t *testing.T) {
 	if len(result.Content) != 1 {
 		t.Fatalf("unexpected content count: got %d want 1", len(result.Content))
 	}
-	if !strings.Contains(result.Content[0].Text, "ATB v") {
+	var status map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].Text), &status); err != nil {
+		t.Fatalf("unmarshal status content: %v", err)
+	}
+	if bundlePresent, ok := status["bundle_present"].(bool); !ok || bundlePresent {
+		t.Fatalf("unexpected bundle_present value: %#v", status["bundle_present"])
+	}
+	if _, exists := status["chain_length"]; exists {
+		t.Fatalf("chain_length should be absent when no bundle is present: %#v", status)
+	}
+	if !strings.Contains(result.Content[0].Text, `"bundle_present": false`) {
 		t.Fatalf("unexpected status text: %q", result.Content[0].Text)
+	}
+}
+
+func TestServeToolsCallStatusWithBundle(t *testing.T) {
+	tempDir := t.TempDir()
+	restore := chdirTempDir(t, tempDir)
+	defer restore()
+
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("bundle.New: %v", err)
+	}
+	if err := b.Save(bundle.DefaultPath()); err != nil {
+		t.Fatalf("bundle.Save: %v", err)
+	}
+
+	responses := runServer(t, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"status","arguments":{}}}`+"\n")
+	if len(responses) != 1 {
+		t.Fatalf("unexpected response count: got %d want 1", len(responses))
+	}
+
+	var result toolResponse
+	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
+		t.Fatalf("unmarshal tools/call status result: %v", err)
+	}
+
+	if result.IsError {
+		t.Fatalf("unexpected isError=true for status tool")
+	}
+	if len(result.Content) != 1 {
+		t.Fatalf("unexpected content count: got %d want 1", len(result.Content))
+	}
+
+	var status map[string]any
+	if err := json.Unmarshal([]byte(result.Content[0].Text), &status); err != nil {
+		t.Fatalf("unmarshal status content: %v", err)
+	}
+	if bundlePresent, ok := status["bundle_present"].(bool); !ok || !bundlePresent {
+		t.Fatalf("unexpected bundle_present value: %#v", status["bundle_present"])
+	}
+	if chainLength, ok := status["chain_length"].(float64); !ok || chainLength < 1 {
+		t.Fatalf("unexpected chain_length value: %#v", status["chain_length"])
+	}
+	if headHash, ok := status["head_hash"].(string); !ok || headHash == "" {
+		t.Fatalf("unexpected head_hash value: %#v", status["head_hash"])
 	}
 }
 
@@ -157,4 +217,22 @@ func runServer(t *testing.T, input string) []rpcResponse {
 	}
 
 	return responses
+}
+
+func chdirTempDir(t *testing.T, dir string) func() {
+	t.Helper()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd: %v", err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("os.Chdir(%q): %v", dir, err)
+	}
+
+	return func() {
+		if err := os.Chdir(cwd); err != nil {
+			t.Fatalf("restore os.Chdir(%q): %v", cwd, err)
+		}
+	}
 }

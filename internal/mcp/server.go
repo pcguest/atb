@@ -5,15 +5,35 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
-	"os/exec"
+	"strings"
 	"sync"
+
+	"github.com/pcguest/atb/internal/bundle"
 )
 
 const protocolVersion = "2024-11-05"
+
+type VerifyInput struct {
+	Path       string `json:"path,omitempty"`
+	Profile    string `json:"profile,omitempty"`
+	Trace      bool   `json:"trace,omitempty"`
+	WithAnchor bool   `json:"with_anchor,omitempty"`
+	Quiet      bool   `json:"quiet,omitempty"`
+}
+
+type VerifyHandler func(context.Context, VerifyInput, io.Writer, io.Writer) int
+
+type InitHandler func(context.Context, io.Writer, io.Writer) int
+
+type ToolHandlers struct {
+	Verify VerifyHandler
+	Init   InitHandler
+}
 
 type Server struct {
 	version string
@@ -21,7 +41,8 @@ type Server struct {
 	out     *bufio.Writer
 	mu      sync.Mutex
 
-	ctx context.Context
+	ctx      context.Context
+	handlers ToolHandlers
 }
 
 type request struct {
@@ -47,16 +68,6 @@ type callParams struct {
 	Arguments json.RawMessage `json:"arguments"`
 }
 
-type verifyArgs struct {
-	Path   string `json:"path"`
-	Strict bool   `json:"strict"`
-}
-
-type bundleArgs struct {
-	Source string `json:"source"`
-	Output string `json:"output"`
-}
-
 type toolDefinition struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
@@ -64,8 +75,9 @@ type toolDefinition struct {
 }
 
 type toolResponse struct {
-	Content []toolContent `json:"content"`
-	IsError bool          `json:"isError"`
+	Content           []toolContent `json:"content"`
+	StructuredContent any           `json:"structuredContent,omitempty"`
+	IsError           bool          `json:"isError"`
 }
 
 type toolContent struct {
@@ -79,10 +91,15 @@ type readResult struct {
 }
 
 func New(version string, in io.Reader, out io.Writer) *Server {
+	return NewWithHandlers(version, in, out, ToolHandlers{})
+}
+
+func NewWithHandlers(version string, in io.Reader, out io.Writer, handlers ToolHandlers) *Server {
 	return &Server{
-		version: version,
-		in:      bufio.NewReader(in),
-		out:     bufio.NewWriter(out),
+		version:  version,
+		in:       bufio.NewReader(in),
+		out:      bufio.NewWriter(out),
+		handlers: handlers,
 	}
 }
 
@@ -201,38 +218,42 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 							"type":        "string",
 							"description": "Path to the .atb bundle file",
 						},
-						"strict": map[string]any{
+						"profile": map[string]any{
+							"type":        "string",
+							"description": "Profile ID or path to a YAML profile file",
+						},
+						"trace": map[string]any{
 							"type":        "boolean",
-							"description": "Fail on warnings (default false)",
+							"description": "Emit trace diagnostics during verification",
+						},
+						"with_anchor": map[string]any{
+							"type":        "boolean",
+							"description": "Verify RFC 3161 timestamp token material when present",
+						},
+						"quiet": map[string]any{
+							"type":        "boolean",
+							"description": "Suppress non-JSON terminal chatter",
 						},
 					},
-					"required": []string{"path"},
+					"additionalProperties": false,
 				},
 			},
 			{
-				Name:        "bundle",
-				Description: "Create an ATB bundle from a directory or file",
+				Name:        "atb_init",
+				Description: "Initialise a new ATB bundle at the current working directory (idempotent)",
 				InputSchema: map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"source": map[string]any{
-							"type":        "string",
-							"description": "Path to the source directory or file",
-						},
-						"output": map[string]any{
-							"type":        "string",
-							"description": "Output path for the .atb bundle",
-						},
-					},
-					"required": []string{"source", "output"},
+					"type":                 "object",
+					"properties":           map[string]any{},
+					"additionalProperties": false,
 				},
 			},
 			{
 				Name:        "status",
-				Description: "Return ATB server status and version",
+				Description: "Return ATB server status, version, and local bundle state",
 				InputSchema: map[string]any{
-					"type":       "object",
-					"properties": map[string]any{},
+					"type":                 "object",
+					"properties":           map[string]any{},
+					"additionalProperties": false,
 				},
 			},
 		},
@@ -247,63 +268,128 @@ func (s *Server) handleToolsCall(id *json.RawMessage, raw json.RawMessage) error
 		return s.respondError(id, -32602, "invalid params")
 	}
 
-	var result toolResponse
+	var (
+		result toolResponse
+		err    error
+	)
 	switch params.Name {
 	case "verify":
-		result = s.toolVerify(params.Arguments)
-	case "bundle":
-		result = s.toolBundle(params.Arguments)
+		result, err = s.toolVerify(params.Arguments)
+	case "atb_init":
+		result, err = s.toolInit(params.Arguments)
 	case "status":
-		result = s.toolStatus()
+		result, err = s.toolStatus()
 	default:
 		result = newToolResponse(fmt.Sprintf("unknown tool: %s", params.Name), true)
+	}
+
+	if err != nil {
+		return s.respondCallError(id, err)
 	}
 
 	return s.respond(id, result)
 }
 
-func (s *Server) toolStatus() toolResponse {
-	return newToolResponse(fmt.Sprintf("ATB v%s \u2014 operational", s.version), false)
+func (s *Server) toolStatus() (toolResponse, error) {
+	status := map[string]any{
+		"version":        s.version,
+		"bundle_present": false,
+	}
+
+	b, err := bundle.Load(bundle.DefaultPath())
+	switch {
+	case err == nil:
+		status["bundle_present"] = true
+		status["chain_length"] = len(b.Records)
+		if len(b.Records) > 0 {
+			status["head_hash"] = abbreviateHash(b.Records[len(b.Records)-1].Hash)
+		}
+	case os.IsNotExist(err):
+		// No bundle is a normal status condition.
+	default:
+		status["error"] = err.Error()
+	}
+
+	return newStructuredToolResponse(status)
 }
 
-func (s *Server) toolVerify(raw json.RawMessage) toolResponse {
-	var args verifyArgs
-	if err := json.Unmarshal(raw, &args); err != nil {
-		return newToolResponse(fmt.Sprintf("invalid verify arguments: %v", err), true)
+func (s *Server) toolVerify(raw json.RawMessage) (toolResponse, error) {
+	if s.handlers.Verify == nil {
+		return toolResponse{}, &callError{Code: -32002, Message: "system error", Data: map[string]any{
+			"details":   "verify handler is not configured",
+			"exit_code": 3,
+		}}
 	}
 
-	cmdArgs := []string{"verify", args.Path}
-	if args.Strict {
-		cmdArgs = append(cmdArgs, "--strict")
+	var args VerifyInput
+	if len(raw) > 0 {
+		if err := json.Unmarshal(raw, &args); err != nil {
+			return toolResponse{}, &callError{Code: -32602, Message: "invalid params", Data: map[string]any{
+				"details": err.Error(),
+			}}
+		}
 	}
 
-	out, err := exec.CommandContext(s.commandContext(), os.Args[0], cmdArgs...).CombinedOutput()
-	if err != nil {
-		return newToolResponse(string(out), true)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := s.handlers.Verify(s.commandContext(), args, &stdout, &stderr)
+	if exitCode != 0 {
+		return toolResponse{}, mcpError(exitCode, stderr.String())
 	}
 
-	return newToolResponse(string(out), false)
+	var report any
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		return toolResponse{}, &callError{Code: -32002, Message: "system error", Data: map[string]any{
+			"details":   fmt.Sprintf("decode verify json: %v", err),
+			"exit_code": 3,
+		}}
+	}
+
+	return newStructuredToolResponse(map[string]any{
+		"status":    "ok",
+		"exit_code": exitCode,
+		"report":    report,
+	})
 }
 
-func (s *Server) toolBundle(raw json.RawMessage) toolResponse {
-	var args bundleArgs
-	if err := json.Unmarshal(raw, &args); err != nil {
-		return newToolResponse(fmt.Sprintf("invalid bundle arguments: %v", err), true)
+func (s *Server) toolInit(raw json.RawMessage) (toolResponse, error) {
+	if s.handlers.Init == nil {
+		return toolResponse{}, &callError{Code: -32002, Message: "system error", Data: map[string]any{
+			"details":   "init handler is not configured",
+			"exit_code": 3,
+		}}
 	}
 
-	out, err := exec.CommandContext(
-		s.commandContext(),
-		os.Args[0],
-		"bundle",
-		args.Source,
-		"--output",
-		args.Output,
-	).CombinedOutput()
-	if err != nil {
-		return newToolResponse(string(out), true)
+	if len(raw) > 0 {
+		var args map[string]any
+		if err := json.Unmarshal(raw, &args); err != nil {
+			return toolResponse{}, &callError{Code: -32602, Message: "invalid params", Data: map[string]any{
+				"details": err.Error(),
+			}}
+		}
+		if len(args) > 0 {
+			return toolResponse{}, &callError{Code: -32602, Message: "invalid params", Data: map[string]any{
+				"details": "atb_init does not accept arguments",
+			}}
+		}
 	}
 
-	return newToolResponse(string(out), false)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := s.handlers.Init(s.commandContext(), &stdout, &stderr)
+	if exitCode != 0 {
+		return toolResponse{}, mcpError(exitCode, stderr.String())
+	}
+
+	var result any
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		return toolResponse{}, &callError{Code: -32002, Message: "system error", Data: map[string]any{
+			"details":   fmt.Sprintf("decode init json: %v", err),
+			"exit_code": 3,
+		}}
+	}
+
+	return newStructuredToolResponse(result)
 }
 
 func (s *Server) respond(id *json.RawMessage, result any) error {
@@ -316,13 +402,21 @@ func (s *Server) respond(id *json.RawMessage, result any) error {
 }
 
 func (s *Server) respondError(id *json.RawMessage, code int, message string) error {
+	return s.respondErrorWithData(id, code, message, nil)
+}
+
+func (s *Server) respondErrorWithData(id *json.RawMessage, code int, message string, data any) error {
+	errPayload := map[string]any{
+		"code":    code,
+		"message": message,
+	}
+	if data != nil {
+		errPayload["data"] = data
+	}
 	payload := map[string]any{
 		"jsonrpc": "2.0",
 		"id":      rawMessageValue(id),
-		"error": map[string]any{
-			"code":    code,
-			"message": message,
-		},
+		"error":   errPayload,
 	}
 	return s.writeResponse(payload)
 }
@@ -360,6 +454,67 @@ func newToolResponse(text string, isError bool) toolResponse {
 		}},
 		IsError: isError,
 	}
+}
+
+func newStructuredToolResponse(data any) (toolResponse, error) {
+	text, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return toolResponse{}, err
+	}
+
+	return toolResponse{
+		Content: []toolContent{{
+			Type: "text",
+			Text: string(text),
+		}},
+		StructuredContent: data,
+	}, nil
+}
+
+type callError struct {
+	Code    int
+	Message string
+	Data    any
+}
+
+func (e *callError) Error() string {
+	return e.Message
+}
+
+func mcpError(exitCode int, stderr string) error {
+	data := map[string]any{
+		"exit_code": exitCode,
+	}
+	if details := strings.TrimSpace(stderr); details != "" {
+		data["details"] = details
+	}
+
+	switch exitCode {
+	case 1:
+		return &callError{Code: -32602, Message: "invalid params", Data: data}
+	case 2:
+		return &callError{Code: -32001, Message: "integrity verification failure", Data: data}
+	case 3:
+		return &callError{Code: -32002, Message: "system error", Data: data}
+	default:
+		data["details"] = fmt.Sprintf("unexpected exit code %d", exitCode)
+		return &callError{Code: -32002, Message: "system error", Data: data}
+	}
+}
+
+func (s *Server) respondCallError(id *json.RawMessage, err error) error {
+	var callErr *callError
+	if !errors.As(err, &callErr) {
+		return s.respondError(id, -32002, "system error")
+	}
+	return s.respondErrorWithData(id, callErr.Code, callErr.Message, callErr.Data)
+}
+
+func abbreviateHash(hash string) string {
+	if len(hash) <= 16 {
+		return hash
+	}
+	return hash[:16] + "..."
 }
 
 func rawMessageValue(id *json.RawMessage) any {

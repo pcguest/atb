@@ -47,12 +47,17 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
+	return runVerifyWithConfig(cfg, dryRun, stdout, stderr)
+}
+
+func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Writer) int {
 	if cfg.Quiet && !dryRun && !verifyWantsStructuredJSON(cfg) && !cfg.JSON {
 		stdout = io.Discard
 		stderr = io.Discard
 	}
 
 	var profile verifypkg.Profile
+	var err error
 	resolvedProfileID := ""
 	if cfg.ProfileID != "" {
 		if isVerifyProfilePath(cfg.ProfileID) {

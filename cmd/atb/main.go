@@ -53,6 +53,11 @@ type mutationResult struct {
 	ExitCode  int    `json:"exit_code,omitempty"`
 }
 
+type initRunOptions struct {
+	DryRun       bool
+	OutputFormat string
+}
+
 type helpCommand struct {
 	Name        string   `json:"name"`
 	Usage       string   `json:"usage"`
@@ -203,6 +208,12 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "mcp",
+				Usage:       "atb mcp serve",
+				Description: "Start the MCP stdio server.",
+				Mutating:    false,
+			},
+			{
 				Name:        "doc",
 				Usage:       "atb doc gen-openapi [--output docs/api/openapi.yaml]",
 				Description: "Generate API documentation artifacts.",
@@ -292,6 +303,8 @@ func main() {
 		cmdTrustReport()
 	case "view":
 		cmdView()
+	case "mcp":
+		cmdMCP()
 	case "serve":
 		cmdServe()
 	case "doc":
@@ -340,6 +353,7 @@ Commands:
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
   view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]  Open the local viewer (dashboard preview behind --ui-experimental)
+  mcp serve         Start the MCP stdio server
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
   version           Print the ATB version
 
@@ -399,6 +413,7 @@ Examples:
   atb view
   atb view --ui-experimental
   atb view --bundle run.atb/bundle.atb --port 8080 --no-open
+  atb mcp serve
   atb doc gen-openapi
 `)
 }
@@ -442,103 +457,103 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "Usage: atb init [--dry-run] [--format text|json]")
 		return exitUserError
 	}
+	return runInitWithOptions(initRunOptions{
+		DryRun:       dryRun,
+		OutputFormat: outputFormat,
+	}, stdout, stderr)
+}
+
+func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 	path := bundle.DefaultPath()
 	if _, err := os.Stat(path); err == nil {
-		if dryRun {
-			if outputFormat == verifyFormatJSON {
-				printMutationJSON(mutationResult{
+		if opts.DryRun {
+			if opts.OutputFormat == verifyFormatJSON {
+				return writeMutationJSON(stdout, mutationResult{
 					Status:  "ok",
 					Action:  "noop",
 					DryRun:  true,
 					Path:    path,
 					Message: "bundle already exists; no changes",
-				}, "init")
-				return exitSuccess
+				}, stderr, "init")
 			}
 			fmt.Fprintf(stdout, "~ Dry run: bundle already exists at %s (no changes).\n", path)
 			return exitSuccess
 		}
-		if outputFormat == verifyFormatJSON {
-			printMutationJSON(mutationResult{
+		if opts.OutputFormat == verifyFormatJSON {
+			return writeMutationJSON(stdout, mutationResult{
 				Status:  "ok",
 				Action:  "noop",
 				DryRun:  false,
 				Path:    path,
 				Message: "bundle already exists; no changes",
-			}, "init")
-			return exitSuccess
+			}, stderr, "init")
 		}
 		fmt.Fprintf(stdout, "atb init: bundle already exists at %s (no changes).\n", path)
 		return exitSuccess
 	} else if !errors.Is(err, os.ErrNotExist) {
-		if outputFormat == verifyFormatJSON {
-			printMutationJSON(mutationResult{
+		if opts.OutputFormat == verifyFormatJSON {
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
-				DryRun:   dryRun,
+				DryRun:   opts.DryRun,
 				Path:     path,
 				Error:    fmt.Sprintf("stat %s: %v", path, err),
 				ExitCode: exitSystemError,
-			}, "init")
-			return exitSystemError
+			}, stderr, "init")
 		}
 		fmt.Fprintf(stderr, "atb init: stat %s: %v\n", path, err)
 		return exitSystemError
 	}
-	if dryRun {
-		if outputFormat == verifyFormatJSON {
-			printMutationJSON(mutationResult{
+	if opts.DryRun {
+		if opts.OutputFormat == verifyFormatJSON {
+			return writeMutationJSON(stdout, mutationResult{
 				Status:  "ok",
 				Action:  "init",
 				DryRun:  true,
 				Path:    path,
 				Message: "bundle would be initialised",
-			}, "init")
-			return exitSuccess
+			}, stderr, "init")
 		}
 		fmt.Fprintf(stdout, "~ Dry run: would initialise ATB bundle at %s.\n", path)
 		return exitSuccess
 	}
 	b, err := bundle.New()
 	if err != nil {
-		if outputFormat == verifyFormatJSON {
-			printMutationJSON(mutationResult{
+		if opts.OutputFormat == verifyFormatJSON {
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
-				DryRun:   dryRun,
+				DryRun:   opts.DryRun,
 				Path:     path,
 				Error:    err.Error(),
 				ExitCode: exitSystemError,
-			}, "init")
-			return exitSystemError
+			}, stderr, "init")
 		}
 		fmt.Fprintf(stderr, "atb init: %v\n", err)
 		return exitSystemError
 	}
 	if err := b.Save(path); err != nil {
-		if outputFormat == verifyFormatJSON {
-			printMutationJSON(mutationResult{
+		if opts.OutputFormat == verifyFormatJSON {
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
-				DryRun:   dryRun,
+				DryRun:   opts.DryRun,
 				Path:     path,
 				Error:    err.Error(),
 				ExitCode: exitSystemError,
-			}, "init")
-			return exitSystemError
+			}, stderr, "init")
 		}
 		fmt.Fprintf(stderr, "atb init: %v\n", err)
 		return exitSystemError
 	}
-	if outputFormat == verifyFormatJSON {
-		printMutationJSON(mutationResult{
+	if opts.OutputFormat == verifyFormatJSON {
+		return writeMutationJSON(stdout, mutationResult{
 			Status:  "ok",
 			Action:  "init",
 			DryRun:  false,
 			Path:    path,
 			Message: "bundle initialised",
-		}, "init")
-		return exitSuccess
+		}, stderr, "init")
 	}
 	fmt.Fprintf(stdout, "✓ Initialised ATB bundle at %s\n", path)
 	return exitSuccess
@@ -856,10 +871,17 @@ func (e mutationLoadError) Unwrap() error {
 }
 
 func printMutationJSON(result mutationResult, command string) {
-	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
-		fmt.Fprintf(os.Stderr, "atb %s: encode json output: %v\n", command, err)
-		os.Exit(exitSystemError)
+	if exitCode := writeMutationJSON(os.Stdout, result, os.Stderr, command); exitCode != exitSuccess {
+		os.Exit(exitCode)
 	}
+}
+
+func writeMutationJSON(stdout io.Writer, result mutationResult, stderr io.Writer, command string) int {
+	if err := json.NewEncoder(stdout).Encode(result); err != nil {
+		fmt.Fprintf(stderr, "atb %s: encode json output: %v\n", command, err)
+		return exitSystemError
+	}
+	return result.ExitCode
 }
 
 func parseMutationFlags(args []string) ([]string, string, bool, error) {
