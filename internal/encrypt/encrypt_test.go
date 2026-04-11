@@ -103,13 +103,33 @@ func TestDecryptRejectsUnsupportedVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encrypt: %v", err)
 	}
-	enc[len(Magic)] = 0x02
+	enc[len(Magic)] = 0x03
 	_, err = Decrypt(enc, "test123")
 	if err == nil {
 		t.Fatalf("expected unsupported version error")
 	}
 	if !errors.Is(err, ErrUnsupportedVersion) {
 		t.Fatalf("expected ErrUnsupportedVersion, got: %v", err)
+	}
+}
+
+func TestDecryptLegacyVersionRoundTrip(t *testing.T) {
+	plaintext := []byte(`{"head_hash":"abc","records":[]}`)
+
+	enc, err := encryptWithVersion(plaintext, "test123", fixedSalt(), fixedNonce(), LegacyVersion)
+	if err != nil {
+		t.Fatalf("encrypt legacy payload: %v", err)
+	}
+	if got := enc[len(Magic)]; got != LegacyVersion {
+		t.Fatalf("unexpected legacy version: got 0x%02x want 0x%02x", got, LegacyVersion)
+	}
+
+	gotPlaintext, err := Decrypt(enc, "test123")
+	if err != nil {
+		t.Fatalf("decrypt legacy payload: %v", err)
+	}
+	if string(gotPlaintext) != string(plaintext) {
+		t.Fatalf("legacy plaintext mismatch\ngot:  %s\nwant: %s", gotPlaintext, plaintext)
 	}
 }
 

@@ -1,7 +1,7 @@
 """
 ATB bundle encryption helpers.
 
-Wire format (v1):
+Wire format:
     [4 bytes magic "ATBE"]
     [1 byte version]
     [16 bytes salt]
@@ -30,12 +30,14 @@ if TYPE_CHECKING:
 
 
 MAGIC = b"ATBE"
-VERSION = 0x01
+LEGACY_VERSION = 0x01
+VERSION = 0x02
 SALT_SIZE = 16
 NONCE_SIZE = 12
 TAG_SIZE = 16
 KEY_SIZE = 32
-PBKDF2_ITERATIONS = 100_000
+LEGACY_PBKDF2_ITERATIONS = 100_000
+PBKDF2_ITERATIONS = 600_000
 HEADER_SIZE = len(MAGIC) + 1 + SALT_SIZE + NONCE_SIZE + TAG_SIZE
 
 
@@ -47,18 +49,63 @@ class ATBDecryptionError(ATBError):
     """Raised when decryption fails."""
 
 
-def _derive_key(password: str, salt: bytes) -> bytes:
+def _derive_key(
+    password: str,
+    salt: bytes,
+    iterations: int,
+    *,
+    error_cls: type[ATBError],
+) -> bytes:
     if not password:
-        raise ATBEncryptionError("password cannot be empty")
+        raise error_cls("password cannot be empty")
     if len(salt) != SALT_SIZE:
-        raise ATBEncryptionError(f"salt must be {SALT_SIZE} bytes")
+        raise error_cls(f"salt must be {SALT_SIZE} bytes")
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=KEY_SIZE,
         salt=salt,
-        iterations=PBKDF2_ITERATIONS,
+        iterations=iterations,
     )
     return kdf.derive(password.encode("utf-8"))
+
+
+def _kdf_iterations_for_version(version: int, *, error_cls: type[ATBError]) -> int:
+    if version == LEGACY_VERSION:
+        return LEGACY_PBKDF2_ITERATIONS
+    if version == VERSION:
+        return PBKDF2_ITERATIONS
+    raise error_cls(f"unsupported version: 0x{version:02x}")
+
+
+def _encrypt_raw_with_version(
+    plaintext: bytes,
+    password: str,
+    *,
+    version: int,
+    salt: bytes | None = None,
+    nonce: bytes | None = None,
+) -> bytes:
+    salt_bytes = salt if salt is not None else os.urandom(SALT_SIZE)
+    nonce_bytes = nonce if nonce is not None else os.urandom(NONCE_SIZE)
+    if len(salt_bytes) != SALT_SIZE:
+        raise ATBEncryptionError(f"salt must be {SALT_SIZE} bytes")
+    if len(nonce_bytes) != NONCE_SIZE:
+        raise ATBEncryptionError(f"nonce must be {NONCE_SIZE} bytes")
+
+    iterations = _kdf_iterations_for_version(version, error_cls=ATBEncryptionError)
+    key = _derive_key(
+        password,
+        salt_bytes,
+        iterations,
+        error_cls=ATBEncryptionError,
+    )
+    aesgcm = AESGCM(key)
+    sealed = aesgcm.encrypt(nonce_bytes, plaintext, None)
+    if len(sealed) < TAG_SIZE:
+        raise ATBEncryptionError("invalid AES-GCM output")
+    ciphertext = sealed[:-TAG_SIZE]
+    tag = sealed[-TAG_SIZE:]
+    return MAGIC + bytes([version]) + salt_bytes + nonce_bytes + tag + ciphertext
 
 
 def encrypt_raw(
@@ -72,21 +119,13 @@ def encrypt_raw(
 
     Optional salt/nonce are intended for deterministic tests and golden vectors.
     """
-    salt_bytes = salt if salt is not None else os.urandom(SALT_SIZE)
-    nonce_bytes = nonce if nonce is not None else os.urandom(NONCE_SIZE)
-    if len(salt_bytes) != SALT_SIZE:
-        raise ATBEncryptionError(f"salt must be {SALT_SIZE} bytes")
-    if len(nonce_bytes) != NONCE_SIZE:
-        raise ATBEncryptionError(f"nonce must be {NONCE_SIZE} bytes")
-
-    key = _derive_key(password, salt_bytes)
-    aesgcm = AESGCM(key)
-    sealed = aesgcm.encrypt(nonce_bytes, plaintext, None)
-    if len(sealed) < TAG_SIZE:
-        raise ATBEncryptionError("invalid AES-GCM output")
-    ciphertext = sealed[:-TAG_SIZE]
-    tag = sealed[-TAG_SIZE:]
-    return MAGIC + bytes([VERSION]) + salt_bytes + nonce_bytes + tag + ciphertext
+    return _encrypt_raw_with_version(
+        plaintext,
+        password,
+        version=VERSION,
+        salt=salt,
+        nonce=nonce,
+    )
 
 
 def decrypt_raw(data: bytes, password: str) -> bytes:
@@ -96,10 +135,9 @@ def decrypt_raw(data: bytes, password: str) -> bytes:
     if data[: len(MAGIC)] != MAGIC:
         raise ATBDecryptionError("invalid format")
     version = data[len(MAGIC)]
-    if version != VERSION:
-        raise ATBDecryptionError(f"unsupported version: 0x{version:02x}")
     if not password:
         raise ATBDecryptionError("password cannot be empty")
+    iterations = _kdf_iterations_for_version(version, error_cls=ATBDecryptionError)
 
     offset = len(MAGIC) + 1
     salt = data[offset : offset + SALT_SIZE]
@@ -110,7 +148,12 @@ def decrypt_raw(data: bytes, password: str) -> bytes:
     offset += TAG_SIZE
     ciphertext = data[offset:]
 
-    key = _derive_key(password, salt)
+    key = _derive_key(
+        password,
+        salt,
+        iterations,
+        error_cls=ATBDecryptionError,
+    )
     aesgcm = AESGCM(key)
     try:
         return aesgcm.decrypt(nonce, ciphertext + tag, None)

@@ -1,6 +1,6 @@
 // Package encrypt provides authenticated encryption for ATB bundles.
 //
-// Wire format (v1):
+// Wire format:
 // [4 bytes magic "ATBE"][1 byte version][16 bytes salt][12 bytes nonce][16 bytes auth tag][N bytes ciphertext]
 package encrypt
 
@@ -16,14 +16,16 @@ import (
 )
 
 const (
-	Magic                 = "ATBE"
-	Version          byte = 0x01
-	SaltSize              = 16
-	NonceSize             = 12
-	TagSize               = 16
-	KeySize               = 32
-	PBKDF2Iterations      = 100_000
-	HeaderSize            = len(Magic) + 1 + SaltSize + NonceSize + TagSize
+	Magic                       = "ATBE"
+	LegacyVersion          byte = 0x01
+	Version                byte = 0x02
+	SaltSize                    = 16
+	NonceSize                   = 12
+	TagSize                     = 16
+	KeySize                     = 32
+	LegacyPBKDF2Iterations      = 100_000
+	PBKDF2Iterations            = 600_000
+	HeaderSize                  = len(Magic) + 1 + SaltSize + NonceSize + TagSize
 )
 
 var (
@@ -31,6 +33,11 @@ var (
 	ErrUnsupportedVersion = errors.New("encrypt: unsupported version")
 	ErrDecryptFailed      = errors.New("encrypt: decrypt failed")
 )
+
+type kdfParams struct {
+	version          byte
+	pbkdf2Iterations int
+}
 
 // Encrypt encrypts plaintext using AES-256-GCM with a random salt and nonce.
 func Encrypt(plaintext []byte, password string) ([]byte, error) {
@@ -48,6 +55,18 @@ func Encrypt(plaintext []byte, password string) ([]byte, error) {
 // EncryptWithSaltNonce encrypts plaintext with caller-provided salt and nonce.
 // This is intended for deterministic test vectors and golden fixtures.
 func EncryptWithSaltNonce(plaintext []byte, password string, salt []byte, nonce []byte) ([]byte, error) {
+	return encryptWithVersion(plaintext, password, salt, nonce, Version)
+}
+
+func encryptWithVersion(plaintext []byte, password string, salt []byte, nonce []byte, version byte) ([]byte, error) {
+	params, err := kdfParamsForVersion(version)
+	if err != nil {
+		return nil, err
+	}
+	return encryptWithParams(plaintext, password, salt, nonce, params)
+}
+
+func encryptWithParams(plaintext []byte, password string, salt []byte, nonce []byte, params kdfParams) ([]byte, error) {
 	if len(salt) != SaltSize {
 		return nil, fmt.Errorf("encrypt: salt must be %d bytes", SaltSize)
 	}
@@ -58,7 +77,7 @@ func EncryptWithSaltNonce(plaintext []byte, password string, salt []byte, nonce 
 		return nil, fmt.Errorf("encrypt: password cannot be empty")
 	}
 
-	key := pbkdf2.Key([]byte(password), salt, PBKDF2Iterations, KeySize, sha256.New)
+	key := pbkdf2.Key([]byte(password), salt, params.pbkdf2Iterations, KeySize, sha256.New)
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt: aes cipher: %w", err)
@@ -80,7 +99,7 @@ func EncryptWithSaltNonce(plaintext []byte, password string, salt []byte, nonce 
 	offset := 0
 	copy(out[offset:offset+len(Magic)], []byte(Magic))
 	offset += len(Magic)
-	out[offset] = Version
+	out[offset] = params.version
 	offset++
 	copy(out[offset:offset+SaltSize], salt)
 	offset += SaltSize
@@ -109,8 +128,9 @@ func Decrypt(data []byte, password string) ([]byte, error) {
 
 	version := data[offset]
 	offset++
-	if version != Version {
-		return nil, fmt.Errorf("%w: got 0x%02x", ErrUnsupportedVersion, version)
+	params, err := kdfParamsForVersion(version)
+	if err != nil {
+		return nil, err
 	}
 
 	salt := data[offset : offset+SaltSize]
@@ -121,7 +141,7 @@ func Decrypt(data []byte, password string) ([]byte, error) {
 	offset += TagSize
 	ciphertext := data[offset:]
 
-	key := pbkdf2.Key([]byte(password), salt, PBKDF2Iterations, KeySize, sha256.New)
+	key := pbkdf2.Key([]byte(password), salt, params.pbkdf2Iterations, KeySize, sha256.New)
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, fmt.Errorf("encrypt: aes cipher: %w", err)
@@ -140,4 +160,15 @@ func Decrypt(data []byte, password string) ([]byte, error) {
 		return nil, fmt.Errorf("%w: %v", ErrDecryptFailed, err)
 	}
 	return plaintext, nil
+}
+
+func kdfParamsForVersion(version byte) (kdfParams, error) {
+	switch version {
+	case LegacyVersion:
+		return kdfParams{version: LegacyVersion, pbkdf2Iterations: LegacyPBKDF2Iterations}, nil
+	case Version:
+		return kdfParams{version: Version, pbkdf2Iterations: PBKDF2Iterations}, nil
+	default:
+		return kdfParams{}, fmt.Errorf("%w: got 0x%02x", ErrUnsupportedVersion, version)
+	}
 }

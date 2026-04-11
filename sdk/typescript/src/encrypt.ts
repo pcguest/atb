@@ -11,12 +11,14 @@ import { GENESIS_HASH } from "./hash.js";
 import type { ATBRecord } from "./types.js";
 
 export const MAGIC = "ATBE";
-export const VERSION = 0x01;
+export const LEGACY_VERSION = 0x01;
+export const VERSION = 0x02;
 export const SALT_SIZE = 16;
 export const NONCE_SIZE = 12;
 export const TAG_SIZE = 16;
 export const KEY_SIZE = 32;
-export const PBKDF2_ITERATIONS = 100_000;
+export const LEGACY_PBKDF2_ITERATIONS = 100_000;
+export const PBKDF2_ITERATIONS = 600_000;
 export const HEADER_SIZE =
   MAGIC.length + 1 + SALT_SIZE + NONCE_SIZE + TAG_SIZE;
 
@@ -42,14 +44,31 @@ export interface DecryptedBundlePayload {
   records: ATBRecord[];
 }
 
-function deriveKey(password: string, salt: Uint8Array): Buffer {
+function deriveKey(
+  password: string,
+  salt: Uint8Array,
+  iterations: number
+): Buffer {
   if (!password) {
     throw new EncryptError("password cannot be empty");
   }
   if (salt.length !== SALT_SIZE) {
     throw new EncryptError(`salt must be ${SALT_SIZE} bytes`);
   }
-  return pbkdf2Sync(password, salt, PBKDF2_ITERATIONS, KEY_SIZE, "sha256");
+  return pbkdf2Sync(password, salt, iterations, KEY_SIZE, "sha256");
+}
+
+function kdfIterationsForVersion(version: number): number {
+  switch (version) {
+    case LEGACY_VERSION:
+      return LEGACY_PBKDF2_ITERATIONS;
+    case VERSION:
+      return PBKDF2_ITERATIONS;
+    default:
+      throw new EncryptError(
+        `unsupported version: 0x${version.toString(16).padStart(2, "0")}`
+      );
+  }
 }
 
 function computeEventHash(event: Event, prevHash: string): string {
@@ -64,6 +83,15 @@ export function encryptRaw(
   password: string,
   options: EncryptOptions = {}
 ): Uint8Array {
+  return encryptRawWithVersion(plaintext, password, VERSION, options);
+}
+
+function encryptRawWithVersion(
+  plaintext: Uint8Array,
+  password: string,
+  version: number,
+  options: EncryptOptions = {}
+): Uint8Array {
   const salt = options.salt ? Buffer.from(options.salt) : randomBytes(SALT_SIZE);
   const nonce = options.nonce
     ? Buffer.from(options.nonce)
@@ -72,7 +100,7 @@ export function encryptRaw(
     throw new EncryptError(`nonce must be ${NONCE_SIZE} bytes`);
   }
 
-  const key = deriveKey(password, salt);
+  const key = deriveKey(password, salt, kdfIterationsForVersion(version));
   const cipher = createCipheriv("aes-256-gcm", key, nonce);
   const ciphertext = Buffer.concat([
     cipher.update(Buffer.from(plaintext)),
@@ -85,7 +113,7 @@ export function encryptRaw(
 
   return Buffer.concat([
     Buffer.from(MAGIC, "ascii"),
-    Buffer.from([VERSION]),
+    Buffer.from([version]),
     salt,
     nonce,
     tag,
@@ -102,14 +130,10 @@ export function decryptRaw(data: Uint8Array, password: string): Uint8Array {
     throw new EncryptError("invalid format");
   }
   const version = bytes[MAGIC.length];
-  if (version !== VERSION) {
-    throw new EncryptError(
-      `unsupported version: 0x${version.toString(16).padStart(2, "0")}`
-    );
-  }
   if (!password) {
     throw new EncryptError("password cannot be empty");
   }
+  const iterations = kdfIterationsForVersion(version);
 
   let offset = MAGIC.length + 1;
   const salt = bytes.subarray(offset, offset + SALT_SIZE);
@@ -120,7 +144,7 @@ export function decryptRaw(data: Uint8Array, password: string): Uint8Array {
   offset += TAG_SIZE;
   const ciphertext = bytes.subarray(offset);
 
-  const key = deriveKey(password, salt);
+  const key = deriveKey(password, salt, iterations);
   const decipher = createDecipheriv("aes-256-gcm", key, nonce);
   decipher.setAuthTag(tag);
   try {
