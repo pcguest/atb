@@ -17,14 +17,15 @@ import (
 var errVerifyHelp = errors.New("verify help requested")
 
 type verifyCLIConfig struct {
-	BundlePath   string
-	ProfileID    string
-	JSON         bool
-	LegacyFormat string
-	Quiet        bool
-	Trace        bool
-	WithAnchor   bool
-	RootsPath    string
+	BundlePath        string
+	ProfileID         string
+	JSON              bool
+	LegacyFormat      string
+	Quiet             bool
+	Trace             bool
+	WithAnchor        bool
+	WithSnapshotCheck bool
+	RootsPath         string
 }
 
 func cmdVerify() {
@@ -113,6 +114,15 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 	if profile != nil {
 		report = verifypkg.VerifyWithProfile(b, cfg.BundlePath, profile)
 	}
+	snapshotCheckFailed := false
+	if cfg.WithSnapshotCheck {
+		snapshotFailures := verifypkg.VerifySnapshotHashes(b.Records)
+		if len(snapshotFailures) > 0 {
+			report.InformationalNotes = append(report.InformationalNotes, snapshotFailures...)
+			snapshotCheckFailed = true
+			report.ResidualRisk.Level = "Critical"
+		}
+	}
 	if cfg.WithAnchor && report.Integrity.ChainValid {
 		roots, err := loadVerifyRoots(cfg.RootsPath)
 		if err != nil {
@@ -149,6 +159,9 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
 		}
+		if snapshotCheckFailed {
+			return exitIntegrityFailure
+		}
 		return verificationExitCode(report)
 	}
 
@@ -156,6 +169,9 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 		if err := json.NewEncoder(stdout).Encode(report); err != nil {
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
+		}
+		if snapshotCheckFailed {
+			return exitIntegrityFailure
 		}
 		return verificationExitCode(report)
 	}
@@ -185,6 +201,9 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 	}
 
 	renderVerifyText(stdout, report)
+	if snapshotCheckFailed {
+		return exitIntegrityFailure
+	}
 	return verificationExitCode(report)
 }
 
@@ -263,6 +282,8 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.Trace = true
 		case arg == "--with-anchor":
 			cfg.WithAnchor = true
+		case arg == "--with-snapshot-check":
+			cfg.WithSnapshotCheck = true
 		case arg == "--roots":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --roots")
@@ -292,8 +313,9 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 }
 
 func printVerifyUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]")
 	fmt.Fprintln(w, "  --with-anchor  verify RFC 3161 timestamp token: digest, cert chain, and signature")
+	fmt.Fprintln(w, "  --with-snapshot-check  verify each atb.snapshot bundle_hash against the recorded bundle prefix")
 	fmt.Fprintln(w, "  --roots <pem-file>   PEM file containing trusted root certificates for TSA chain verification (default: system roots)")
 }
 

@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +12,7 @@ import (
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 var errSnapshotHelp = errors.New("snapshot help requested")
@@ -188,15 +187,14 @@ func appendSnapshot(cfg snapshotConfig) (snapshotResult, error) {
 		return snapshotResult{}, err
 	}
 
-	serialized, err := serializeBundleSnapshot(b)
-	if err != nil {
-		return snapshotResult{}, fmt.Errorf("serialize bundle: %w", err)
-	}
-	bundleHash := sha256.Sum256(serialized)
 	snapshotAt := time.Now().UTC().Format(time.RFC3339)
+	bundleHash, err := verifypkg.SnapshotBundleHash(b.Records)
+	if err != nil {
+		return snapshotResult{}, fmt.Errorf("compute snapshot bundle hash: %w", err)
+	}
 	data := snapshotEventData{
 		Name:        cfg.Name,
-		BundleHash:  hex.EncodeToString(bundleHash[:]),
+		BundleHash:  bundleHash,
 		RecordCount: len(b.Records),
 		SnapshotAt:  snapshotAt,
 	}

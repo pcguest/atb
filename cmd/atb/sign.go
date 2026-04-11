@@ -179,6 +179,9 @@ func classifySignError(err error) int {
 	}
 
 	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "no signing key found") {
+		return exitUserError
+	}
 	if strings.Contains(msg, "malformed pem") || strings.Contains(msg, "not ed25519") {
 		return exitUserError
 	}

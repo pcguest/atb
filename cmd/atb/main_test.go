@@ -194,6 +194,39 @@ func TestRunAppendSignPolicyAddsSignatureFields(t *testing.T) {
 	}
 }
 
+func TestRunAppendSignPolicyMissingKeypairFailsClearly(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runAppend([]string{
+		event.TypeAIPolicyDecision,
+		"--data",
+		`{"policy_id":"pol-1","policy_version":"2026-04","decision":"allow","decision_reason_codes":["ticket_present"],"subject_id_hash":"subject-hash","action_id":"act-1"}`,
+		"--sign-policy",
+		filepath.Join(tmp, "keys", "atb-key.pem"),
+	}, &stdout, &stderr)
+	if exitCode != exitUserError {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitUserError, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("expected empty stdout, got %q", stdout.String())
+	}
+	if got := strings.TrimSpace(stderr.String()); got != "atb append: no signing key found; run 'atb keygen' before using --sign-policy" {
+		t.Fatalf("unexpected stderr: got %q", got)
+	}
+}
+
 func TestRunAppendSignPolicyIgnoredForNonPolicyDecision(t *testing.T) {
 	tmp := t.TempDir()
 	oldWD, err := os.Getwd()
@@ -242,102 +275,123 @@ func TestParseVerifyArgs(t *testing.T) {
 	custom := filepath.Join(tmp, "custom.atb")
 
 	tests := []struct {
-		name           string
-		args           []string
-		wantPath       string
-		wantFormat     string
-		wantTrace      bool
-		wantWithAnchor bool
-		wantRoots      string
-		wantErr        bool
+		name                  string
+		args                  []string
+		wantPath              string
+		wantFormat            string
+		wantTrace             bool
+		wantWithAnchor        bool
+		wantWithSnapshotCheck bool
+		wantRoots             string
+		wantErr               bool
 	}{
 		{
-			name:           "defaults",
-			args:           nil,
-			wantPath:       bundle.DefaultPath(),
-			wantFormat:     verifyFormatText,
-			wantTrace:      false,
-			wantWithAnchor: false,
-			wantRoots:      "",
+			name:                  "defaults",
+			args:                  nil,
+			wantPath:              bundle.DefaultPath(),
+			wantFormat:            verifyFormatText,
+			wantTrace:             false,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "",
 		},
 		{
-			name:           "path only",
-			args:           []string{custom},
-			wantPath:       custom,
-			wantFormat:     verifyFormatText,
-			wantTrace:      false,
-			wantWithAnchor: false,
+			name:                  "path only",
+			args:                  []string{custom},
+			wantPath:              custom,
+			wantFormat:            verifyFormatText,
+			wantTrace:             false,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
 		},
 		{
-			name:           "json format flag",
-			args:           []string{"--format", "json"},
-			wantPath:       bundle.DefaultPath(),
-			wantFormat:     verifyFormatJSON,
-			wantTrace:      false,
-			wantWithAnchor: false,
-			wantRoots:      "",
+			name:                  "json format flag",
+			args:                  []string{"--format", "json"},
+			wantPath:              bundle.DefaultPath(),
+			wantFormat:            verifyFormatJSON,
+			wantTrace:             false,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "",
 		},
 		{
-			name:           "json format equals syntax",
-			args:           []string{"--format=json"},
-			wantPath:       bundle.DefaultPath(),
-			wantFormat:     verifyFormatJSON,
-			wantTrace:      false,
-			wantWithAnchor: false,
-			wantRoots:      "",
+			name:                  "json format equals syntax",
+			args:                  []string{"--format=json"},
+			wantPath:              bundle.DefaultPath(),
+			wantFormat:            verifyFormatJSON,
+			wantTrace:             false,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "",
 		},
 		{
-			name:           "path and format",
-			args:           []string{custom, "--format", "json"},
-			wantPath:       custom,
-			wantFormat:     verifyFormatJSON,
-			wantTrace:      false,
-			wantWithAnchor: false,
+			name:                  "path and format",
+			args:                  []string{custom, "--format", "json"},
+			wantPath:              custom,
+			wantFormat:            verifyFormatJSON,
+			wantTrace:             false,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
 		},
 		{
-			name:           "trace flag",
-			args:           []string{"--trace"},
-			wantPath:       bundle.DefaultPath(),
-			wantFormat:     verifyFormatText,
-			wantTrace:      true,
-			wantWithAnchor: false,
-			wantRoots:      "",
+			name:                  "trace flag",
+			args:                  []string{"--trace"},
+			wantPath:              bundle.DefaultPath(),
+			wantFormat:            verifyFormatText,
+			wantTrace:             true,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "",
 		},
 		{
-			name:           "path format and trace",
-			args:           []string{custom, "--format", "json", "--trace"},
-			wantPath:       custom,
-			wantFormat:     verifyFormatJSON,
-			wantTrace:      true,
-			wantWithAnchor: false,
-			wantRoots:      "",
+			name:                  "path format and trace",
+			args:                  []string{custom, "--format", "json", "--trace"},
+			wantPath:              custom,
+			wantFormat:            verifyFormatJSON,
+			wantTrace:             true,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "",
 		},
 		{
-			name:           "with-anchor flag",
-			args:           []string{"--with-anchor"},
-			wantPath:       bundle.DefaultPath(),
-			wantFormat:     verifyFormatText,
-			wantTrace:      false,
-			wantWithAnchor: true,
-			wantRoots:      "",
+			name:                  "with-anchor flag",
+			args:                  []string{"--with-anchor"},
+			wantPath:              bundle.DefaultPath(),
+			wantFormat:            verifyFormatText,
+			wantTrace:             false,
+			wantWithAnchor:        true,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "",
 		},
 		{
-			name:           "path format trace with-anchor and roots",
-			args:           []string{custom, "--format", "json", "--trace", "--with-anchor", "--roots", "tsa-roots.pem"},
-			wantPath:       custom,
-			wantFormat:     verifyFormatJSON,
-			wantTrace:      true,
-			wantWithAnchor: true,
-			wantRoots:      "tsa-roots.pem",
+			name:                  "with-snapshot-check flag",
+			args:                  []string{"--with-snapshot-check"},
+			wantPath:              bundle.DefaultPath(),
+			wantFormat:            verifyFormatText,
+			wantTrace:             false,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: true,
+			wantRoots:             "",
 		},
 		{
-			name:           "roots equals syntax",
-			args:           []string{"--roots=tsa-roots.pem"},
-			wantPath:       bundle.DefaultPath(),
-			wantFormat:     verifyFormatText,
-			wantTrace:      false,
-			wantWithAnchor: false,
-			wantRoots:      "tsa-roots.pem",
+			name:                  "path format trace with-anchor and roots",
+			args:                  []string{custom, "--format", "json", "--trace", "--with-anchor", "--roots", "tsa-roots.pem"},
+			wantPath:              custom,
+			wantFormat:            verifyFormatJSON,
+			wantTrace:             true,
+			wantWithAnchor:        true,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "tsa-roots.pem",
+		},
+		{
+			name:                  "roots equals syntax",
+			args:                  []string{"--roots=tsa-roots.pem"},
+			wantPath:              bundle.DefaultPath(),
+			wantFormat:            verifyFormatText,
+			wantTrace:             false,
+			wantWithAnchor:        false,
+			wantWithSnapshotCheck: false,
+			wantRoots:             "tsa-roots.pem",
 		},
 		{
 			name:    "missing format value",
@@ -368,7 +422,7 @@ func TestParseVerifyArgs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			gotPath, gotFormat, gotTrace, gotWithAnchor, gotRoots, err := parseVerifyArgs(tc.args)
+			gotPath, gotFormat, gotTrace, gotWithAnchor, gotWithSnapshotCheck, gotRoots, err := parseVerifyArgs(tc.args)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error")
@@ -389,6 +443,9 @@ func TestParseVerifyArgs(t *testing.T) {
 			}
 			if gotWithAnchor != tc.wantWithAnchor {
 				t.Fatalf("unexpected with-anchor value: got %v want %v", gotWithAnchor, tc.wantWithAnchor)
+			}
+			if gotWithSnapshotCheck != tc.wantWithSnapshotCheck {
+				t.Fatalf("unexpected with-snapshot-check value: got %v want %v", gotWithSnapshotCheck, tc.wantWithSnapshotCheck)
 			}
 			if gotRoots != tc.wantRoots {
 				t.Fatalf("unexpected roots value: got %q want %q", gotRoots, tc.wantRoots)
@@ -706,6 +763,9 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 			}
 			if !strings.Contains(cmd.Usage, "--with-anchor") {
 				t.Fatalf("verify usage missing --with-anchor flag: %q", cmd.Usage)
+			}
+			if !strings.Contains(cmd.Usage, "--with-snapshot-check") {
+				t.Fatalf("verify usage missing --with-snapshot-check flag: %q", cmd.Usage)
 			}
 			if !strings.Contains(cmd.Usage, "--roots") {
 				t.Fatalf("verify usage missing --roots flag: %q", cmd.Usage)

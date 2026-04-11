@@ -84,6 +84,11 @@ func TestExportComplianceManifestGolden(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(goldenPath), 0750); err != nil {
 		t.Fatalf("mkdir golden dir: %v", err)
 	}
+	if os.Getenv("ATB_UPDATE_GOLDEN") == "1" {
+		if err := os.WriteFile(goldenPath, got, 0600); err != nil {
+			t.Fatalf("write golden file: %v", err)
+		}
+	}
 
 	if _, err := os.Stat(goldenPath); err != nil {
 		if os.IsNotExist(err) {

@@ -78,6 +78,7 @@ func runServeCommand(args []string, stdout, stderr io.Writer) int {
 	srv := mcp.NewWithHandlers(version, os.Stdin, stdout, mcp.ToolHandlers{
 		Verify: mcpVerifyHandler,
 		Init:   mcpInitHandler,
+		Append: mcpAppendHandler,
 	})
 	if err := srv.Serve(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		fmt.Fprintf(stderr, "atb serve: %v\n", err)
@@ -118,4 +119,8 @@ func mcpInitHandler(_ context.Context, stdout, stderr io.Writer) int {
 	return runInitWithOptions(initRunOptions{
 		OutputFormat: verifyFormatJSON,
 	}, stdout, stderr)
+}
+
+func mcpAppendHandler(_ context.Context, eventType string, data map[string]any) (bundle.Record, error) {
+	return appendToDefaultBundle(eventType, data, false)
 }

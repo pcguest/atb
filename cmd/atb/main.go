@@ -139,9 +139,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "verify",
-				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]",
+				Usage:       "atb verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]",
 				Description: "Verify bundle integrity and evaluate obligation profiles.",
-				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--dry-run", "--quiet", "--trace", "--with-anchor", "--roots"},
+				Flags:       []string{"--bundle", "--profile", "--json", "--format", "--dry-run", "--quiet", "--trace", "--with-anchor", "--with-snapshot-check", "--roots"},
 				Mutating:    false,
 			},
 			{
@@ -343,7 +343,7 @@ Commands:
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
   sign --bundle <path> --key <path> [--out <path>]  Append an Ed25519 bundle signature record
-  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--roots <pem-file>]  Verify integrity of a bundle and evaluate obligation profiles
+  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]  Verify integrity of a bundle and evaluate obligation profiles
   inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]  Inspect bundle records in table or JSON form
   events [--json] [--profile <id>]  List canonical ATB event types
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
@@ -392,6 +392,7 @@ Examples:
   atb verify --format json
   atb verify --trace
   atb verify --with-anchor
+  atb verify --with-snapshot-check
   atb verify --with-anchor --roots ./tsa-roots.pem
   atb inspect --bundle run.atb/bundle.atb
   atb inspect --bundle run.atb/bundle.atb --seq 0
@@ -833,6 +834,9 @@ func maybeSignPolicyDecisionEvent(eventType string, data interface{}, keyPath st
 
 	privateKey, err := loadEd25519PrivateKey(keyPath)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("no signing key found; run 'atb keygen' before using --sign-policy")
+		}
 		return err
 	}
 
@@ -965,18 +969,19 @@ func normalizeBundlePath(raw string) string {
 	return clean
 }
 
-func parseVerifyArgs(args []string) (string, string, bool, bool, string, error) {
+func parseVerifyArgs(args []string) (string, string, bool, bool, bool, string, error) {
 	path := ""
 	format := verifyFormatText
 	trace := false
 	withAnchor := false
+	withSnapshotCheck := false
 	rootsPath := ""
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "--format":
 			if i+1 >= len(args) {
-				return "", "", false, false, "", fmt.Errorf("missing value for --format (expected text|json)")
+				return "", "", false, false, false, "", fmt.Errorf("missing value for --format (expected text|json)")
 			}
 			format = strings.ToLower(strings.TrimSpace(args[i+1]))
 			i++
@@ -986,19 +991,21 @@ func parseVerifyArgs(args []string) (string, string, bool, bool, string, error) 
 			trace = true
 		case arg == "--with-anchor":
 			withAnchor = true
+		case arg == "--with-snapshot-check":
+			withSnapshotCheck = true
 		case arg == "--roots":
 			if i+1 >= len(args) {
-				return "", "", false, false, "", fmt.Errorf("missing value for --roots")
+				return "", "", false, false, false, "", fmt.Errorf("missing value for --roots")
 			}
 			i++
 			rootsPath = filepath.Clean(strings.TrimSpace(args[i]))
 		case strings.HasPrefix(arg, "--roots="):
 			rootsPath = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--roots=")))
 		case strings.HasPrefix(arg, "--"):
-			return "", "", false, false, "", fmt.Errorf("unknown flag %q", arg)
+			return "", "", false, false, false, "", fmt.Errorf("unknown flag %q", arg)
 		default:
 			if path != "" {
-				return "", "", false, false, "", fmt.Errorf("verify accepts at most one bundle path")
+				return "", "", false, false, false, "", fmt.Errorf("verify accepts at most one bundle path")
 			}
 			path = normalizeBundlePath(arg)
 		}
@@ -1007,9 +1014,9 @@ func parseVerifyArgs(args []string) (string, string, bool, bool, string, error) 
 		path = bundle.DefaultPath()
 	}
 	if format != verifyFormatText && format != verifyFormatJSON {
-		return "", "", false, false, "", fmt.Errorf("invalid format %q (expected text|json)", format)
+		return "", "", false, false, false, "", fmt.Errorf("invalid format %q (expected text|json)", format)
 	}
-	return path, format, trace, withAnchor, rootsPath, nil
+	return path, format, trace, withAnchor, withSnapshotCheck, rootsPath, nil
 }
 
 func newVerifyResult(path string, b *bundle.Bundle, status string) verifyResult {
