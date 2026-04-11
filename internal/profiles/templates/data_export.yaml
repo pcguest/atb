@@ -5,15 +5,16 @@ blind_spots:
   - Does not verify downstream data handling or recipient controls after export is committed.
   - Classification labels on exported records are presence-checked only; correctness of labelling is not attested.
 weights:
-  EC: 0.20
-  FC: 0.15
-  RC: 0.20
-  TC: 0.05
+  EC: 0.15
+  FC: 0.10
+  RC: 0.15
+  TC: 0.10
   SC: 0.10
-  XC: 0.10
+  XC: 0.20
   AC: 0.10
   GC: 0.10
-supports_cas: false
+supports_cas: true
+sc_mode: policy_decision
 required:
   - type: atb.bundle.manifest
     fields: []

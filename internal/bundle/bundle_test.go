@@ -32,6 +32,16 @@ func TestAppendRejectsInvalidEventType(t *testing.T) {
 	}
 }
 
+func TestAppendAcceptsUnderscoreEventTypeSegments(t *testing.T) {
+	b := newTestBundle(t)
+
+	if err := b.AppendWithOptions("atb.event.rag_index", map[string]any{"ok": true}, &bundle.AppendOptions{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("expected underscore-bearing event type to append cleanly: %v", err)
+	}
+}
+
 func TestAppendWithOptionsRoundTripsCanonicalFields(t *testing.T) {
 	b := newTestBundle(t)
 	path := filepath.Join(t.TempDir(), "bundle.atb")

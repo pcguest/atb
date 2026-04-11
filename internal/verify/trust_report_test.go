@@ -83,8 +83,8 @@ func TestTrustReportFromVerify_BackgroundAutomation(t *testing.T) {
 	if trustReport.ProfileID != profileIDBackgroundAutomation {
 		t.Fatalf("unexpected profile ID: got %q want %q", trustReport.ProfileID, profileIDBackgroundAutomation)
 	}
-	if trustReport.CASGrade != "" {
-		t.Fatalf("expected no CAS grade, got %+v", trustReport)
+	if trustReport.CASGrade == "" {
+		t.Fatalf("expected CAS grade, got %+v", trustReport)
 	}
 	if len(trustReport.Sections) != 2 {
 		t.Fatalf("expected 2 sections, got %d", len(trustReport.Sections))

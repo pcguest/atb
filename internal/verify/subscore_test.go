@@ -25,22 +25,22 @@ func TestBuiltInProfileCASRegistryAlignment(t *testing.T) {
 		},
 		{
 			profileID: profileIDDataExport,
-			wantCAS:   false,
+			wantCAS:   true,
 			build:     newDataExportBundle,
 		},
 		{
 			profileID: profileIDPolicyDecision,
-			wantCAS:   false,
+			wantCAS:   true,
 			build:     newPolicyDecisionBundle,
 		},
 		{
 			profileID: profileIDHumanOverride,
-			wantCAS:   false,
+			wantCAS:   true,
 			build:     newHumanOverrideBundle,
 		},
 		{
 			profileID: profileIDBackgroundAutomation,
-			wantCAS:   false,
+			wantCAS:   true,
 			build:     newBackgroundAutomationBundle,
 		},
 	}
@@ -81,15 +81,16 @@ func TestBuiltInProfileCASRegistryAlignment(t *testing.T) {
 	}
 }
 
-func TestSubScoresForBundle_NonCASProfilesRemainAvailable(t *testing.T) {
+func TestSubScoresForBundle_CASProfilesRemainAvailable(t *testing.T) {
 	tests := []struct {
 		profileID string
 		build     func(testing.TB) *bundle.Bundle
+		wantSC    float64
 	}{
-		{profileID: profileIDDataExport, build: newDataExportBundle},
-		{profileID: profileIDPolicyDecision, build: newPolicyDecisionBundle},
-		{profileID: profileIDHumanOverride, build: newHumanOverrideBundle},
-		{profileID: profileIDBackgroundAutomation, build: newBackgroundAutomationBundle},
+		{profileID: profileIDDataExport, build: newDataExportBundle, wantSC: 0.60},
+		{profileID: profileIDPolicyDecision, build: newPolicyDecisionBundle, wantSC: 0.60},
+		{profileID: profileIDHumanOverride, build: newHumanOverrideBundle, wantSC: 0.45},
+		{profileID: profileIDBackgroundAutomation, build: newBackgroundAutomationBundle, wantSC: 0.25},
 	}
 
 	for _, tc := range tests {
@@ -99,8 +100,8 @@ func TestSubScoresForBundle_NonCASProfilesRemainAvailable(t *testing.T) {
 			if allZeroSubScores(subScores) {
 				t.Fatalf("expected retained sub-score builder for %q to produce non-zero output", tc.profileID)
 			}
-			if subScores["SC"] != 0 {
-				t.Fatalf("expected SC=0 for non-CAS profile %q, got %.3f", tc.profileID, subScores["SC"])
+			if subScores["SC"] != tc.wantSC {
+				t.Fatalf("expected SC=%.2f for %q, got %.3f", tc.wantSC, tc.profileID, subScores["SC"])
 			}
 		})
 	}

@@ -176,12 +176,12 @@ func TestBuildReport_WithProfileEmitsCAS(t *testing.T) {
 	}
 }
 
-func TestBuildReport_WithProfileWithoutCASOmitsCAS(t *testing.T) {
+func TestBuildReport_WithProfileEmitsCASForDataExport(t *testing.T) {
 	bundlePath := writeDataExportBundle(t)
 
 	report := BuildReport("", bundlePath, "atb.profile.data_export")
-	if report.CAS != nil {
-		t.Fatalf("expected CAS section to be omitted, got %+v", report.CAS)
+	if report.CAS == nil {
+		t.Fatalf("expected CAS section, got nil")
 	}
 }
 

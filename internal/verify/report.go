@@ -49,7 +49,7 @@ func ReportFromVerify(r Report) VerifierReport {
 
 	profile := r.Profiles[0]
 	report.ProfileID = profile.ProfileID
-	report.Pass = profile.Pass
+	report.Pass = r.Integrity.ChainValid && profile.Pass
 	report.Failures = make([]ReportFailure, 0, len(profile.CriticalFailures))
 	for _, failure := range profile.CriticalFailures {
 		report.Failures = append(report.Failures, ReportFailure{

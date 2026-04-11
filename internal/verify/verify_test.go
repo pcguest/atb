@@ -24,8 +24,11 @@ func TestVerify_IntegrityFail(t *testing.T) {
 	if report.Integrity.ChainValid {
 		t.Fatalf("expected integrity failure")
 	}
-	if report.CAS != nil {
-		t.Fatalf("expected nil CAS on integrity failure")
+	if report.CAS == nil {
+		t.Fatalf("expected diagnostic CAS on integrity failure")
+	}
+	if report.CAS.Overall != 0 {
+		t.Fatalf("expected CAS overall 0 on integrity failure, got %.3f", report.CAS.Overall)
 	}
 	if report.ResidualRisk.Level != "Critical" {
 		t.Fatalf("unexpected residual risk level: got %q want %q", report.ResidualRisk.Level, "Critical")
@@ -363,6 +366,232 @@ func TestVerify_CAS_GradeThresholds(t *testing.T) {
 		if result.Grade != tc.grade {
 			t.Fatalf("score %.2f produced grade %q want %q", tc.score, result.Grade, tc.grade)
 		}
+	}
+}
+
+func TestVerify_NewCASProfiles(t *testing.T) {
+	tests := []struct {
+		profileID        string
+		buildConformant  func(testing.TB) *bundle.Bundle
+		buildMissing     func(testing.TB) *bundle.Bundle
+		wantFailureMatch string
+	}{
+		{
+			profileID: profileIDDataExport,
+			buildConformant: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newDataExportBundle(t)
+				appendVerifyRecord(
+					t,
+					b,
+					event.TypeBundleAnchor,
+					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","tsr_der":"dGVzdA==","certified_time":"2026-03-27T12:05:30Z"}`,
+					"2026-03-27T12:05:30Z",
+				)
+				return b
+			},
+			buildMissing: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newVerifyTestBundle(t)
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-data-export",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "data_export",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+					"policy_id":             "pol-1",
+					"policy_version":        "2026-03",
+					"decision":              "allow",
+					"decision_reason_codes": []any{"export_allowed"},
+					"subject_id_hash":       "subject-hash",
+					"action_id":             "act-1",
+				}, "2026-03-27T12:01:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+					"action_id":                "act-1",
+					"action_type":              "export_data",
+					"action_parameters_digest": "params-digest",
+					"target_resource_id":       "dataset-1",
+					"intended_effect":          "export approved dataset",
+				}, "2026-03-27T12:02:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+					"action_id":           "act-1",
+					"execution_outcome":   "success",
+					"tool_receipt_digest": "tool-digest",
+				}, "2026-03-27T12:03:00Z")
+				return b
+			},
+			wantFailureMatch: event.TypeAIActionCommitted,
+		},
+		{
+			profileID: profileIDBackgroundAutomation,
+			buildConformant: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newBackgroundAutomationBundle(t)
+				appendVerifyRecord(
+					t,
+					b,
+					event.TypeBundleAnchor,
+					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","tsr_der":"dGVzdA==","certified_time":"2026-03-27T12:04:30Z"}`,
+					"2026-03-27T12:04:30Z",
+				)
+				return b
+			},
+			buildMissing: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newVerifyTestBundle(t)
+				appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
+					"job_id":               "job-1",
+					"job_type":             "nightly_sync",
+					"trigger_source":       "cron",
+					"scheduled_by_id_hash": "scheduler-hash",
+				}, "2026-03-27T12:01:00Z")
+				appendVerifyRecord(t, b, event.TypeAIJobStarted, map[string]any{
+					"job_id":         "job-1",
+					"worker_id_hash": "worker-hash",
+					"started_at":     "2026-03-27T12:02:00Z",
+				}, "2026-03-27T12:02:00Z")
+				return b
+			},
+			wantFailureMatch: event.TypeAIJobCompleted,
+		},
+		{
+			profileID: profileIDPolicyDecision,
+			buildConformant: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newPolicyDecisionBundle(t)
+				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+					"action_id":                "act-1",
+					"action_type":              "policy_decision",
+					"action_parameters_digest": "params-digest",
+					"target_resource_id":       "resource-1",
+					"intended_effect":          "record decision context",
+				}, "2026-03-27T12:00:30Z")
+				appendVerifyRecord(
+					t,
+					b,
+					event.TypeBundleAnchor,
+					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","tsr_der":"dGVzdA==","certified_time":"2026-03-27T12:01:30Z"}`,
+					"2026-03-27T12:01:30Z",
+				)
+				return b
+			},
+			buildMissing: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newVerifyTestBundle(t)
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-policy-decision",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "policy_decision",
+				}, "2026-03-27T12:00:00Z")
+				return b
+			},
+			wantFailureMatch: event.TypeAIPolicyDecision,
+		},
+		{
+			profileID: profileIDHumanOverride,
+			buildConformant: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newHumanOverrideBundle(t)
+				appendVerifyRecord(
+					t,
+					b,
+					event.TypeBundleAnchor,
+					`{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","tsr_der":"dGVzdA==","certified_time":"2026-03-27T12:03:30Z"}`,
+					"2026-03-27T12:03:30Z",
+				)
+				return b
+			},
+			buildMissing: func(t testing.TB) *bundle.Bundle {
+				t.Helper()
+
+				b := newVerifyTestBundle(t)
+				appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+					"request_id":    "req-human-override",
+					"actor_id_hash": "actor-hash",
+					"purpose_tag":   "human_override",
+				}, "2026-03-27T12:00:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+					"action_id":                "act-1",
+					"action_type":              "override_action",
+					"action_parameters_digest": "params-digest",
+					"target_resource_id":       "svc-1",
+					"intended_effect":          "run approved override",
+				}, "2026-03-27T12:02:00Z")
+				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+					"action_id":           "act-1",
+					"execution_outcome":   "success",
+					"tool_receipt_digest": "tool-digest",
+				}, "2026-03-27T12:03:00Z")
+				return b
+			},
+			wantFailureMatch: event.TypeAIHumanApproval,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.profileID+"_conformant", func(t *testing.T) {
+			b := tc.buildConformant(t)
+			profile := ProfileByID(tc.profileID)
+			if profile == nil {
+				t.Fatalf("ProfileByID(%q) returned nil", tc.profileID)
+			}
+
+			subScores := subScoresForProfile(profile, b.Records, AnchorVerified)
+			cas := ComputeCAS(subScores, profile.DefaultWeights(), true)
+			if cas.Overall < 0.85 {
+				t.Fatalf("CAS overall = %.3f, want >= 0.85", cas.Overall)
+			}
+
+			report := Verify(b, "bundle.atb", tc.profileID)
+			if report.CAS == nil {
+				t.Fatalf("expected CAS for profile %q", tc.profileID)
+			}
+			if !report.Profiles[0].Pass {
+				t.Fatalf("expected pass, got failures %+v", report.Profiles[0].CriticalFailures)
+			}
+		})
+
+		t.Run(tc.profileID+"_missing_critical", func(t *testing.T) {
+			report := Verify(tc.buildMissing(t), "bundle.atb", tc.profileID)
+			if report.CAS == nil {
+				t.Fatalf("expected diagnostic CAS for profile %q", tc.profileID)
+			}
+			if len(report.Profiles) != 1 {
+				t.Fatalf("expected one profile result, got %d", len(report.Profiles))
+			}
+			if report.Profiles[0].Pass {
+				t.Fatalf("expected profile failure for %q", tc.profileID)
+			}
+			if !hasFailure(report.Profiles[0].CriticalFailures, "missing_event", tc.wantFailureMatch) {
+				t.Fatalf("expected missing_event for %q, got %+v", tc.wantFailureMatch, report.Profiles[0].CriticalFailures)
+			}
+		})
+
+		t.Run(tc.profileID+"_integrity_failure", func(t *testing.T) {
+			b := tc.buildConformant(t)
+			if len(b.Records) < 2 {
+				t.Fatalf("test bundle for %q has insufficient records", tc.profileID)
+			}
+			b.Records[1].Event.Type += ".tampered"
+
+			report := Verify(b, "bundle.atb", tc.profileID)
+			if report.CAS == nil {
+				t.Fatalf("expected diagnostic CAS for integrity failure on %q", tc.profileID)
+			}
+			if report.CAS.Overall != 0 {
+				t.Fatalf("expected CAS overall 0 on integrity failure, got %.3f", report.CAS.Overall)
+			}
+			if report.ResidualRisk.Level != "Critical" {
+				t.Fatalf("ResidualRisk.Level = %q, want %q", report.ResidualRisk.Level, "Critical")
+			}
+		})
 	}
 }
 
@@ -790,20 +1019,23 @@ func TestProfileSupportsCAS_SchemaBackedTrue(t *testing.T) {
 	if !profileSupportsCAS(&RAGAnswerProfile{}) {
 		t.Fatalf("expected CAS support for RAG profile")
 	}
+	if !profileSupportsCAS(&DataExportProfile{}) {
+		t.Fatalf("expected CAS support for data export profile")
+	}
+	if !profileSupportsCAS(&PolicyDecisionProfile{}) {
+		t.Fatalf("expected CAS support for policy decision profile")
+	}
+	if !profileSupportsCAS(&HumanOverrideProfile{}) {
+		t.Fatalf("expected CAS support for human override profile")
+	}
+	if !profileSupportsCAS(&BackgroundAutomationProfile{}) {
+		t.Fatalf("expected CAS support for background automation profile")
+	}
 }
 
 func TestProfileSupportsCAS_SchemaBackedFalse(t *testing.T) {
-	if profileSupportsCAS(&DataExportProfile{}) {
-		t.Fatalf("did not expect CAS support for data export profile")
-	}
-	if profileSupportsCAS(&PolicyDecisionProfile{}) {
-		t.Fatalf("did not expect CAS support for policy decision profile")
-	}
-	if profileSupportsCAS(&HumanOverrideProfile{}) {
-		t.Fatalf("did not expect CAS support for human override profile")
-	}
-	if profileSupportsCAS(&BackgroundAutomationProfile{}) {
-		t.Fatalf("did not expect CAS support for background automation profile")
+	if profileSupportsCAS(nil) {
+		t.Fatalf("did not expect nil profile to support CAS")
 	}
 }
 
