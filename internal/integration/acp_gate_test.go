@@ -62,9 +62,7 @@ func TestACPControlPlaneGate(t *testing.T) {
 				t.Fatalf("expected non-failing trust gate status, got %q", happyTrustReport.Gate.Status)
 			}
 			if happyTrustReport.CAS == nil {
-				if profile.profileID == profileIDPrivilegedToolAction {
-					t.Fatalf("expected trust report CAS section")
-				}
+				t.Fatalf("expected trust report CAS section for %q", profile.profileID)
 			}
 
 			switch profile.profileID {
@@ -83,11 +81,14 @@ func TestACPControlPlaneGate(t *testing.T) {
 					t.Fatalf("expected positive happy-path verify GC sub-score, got %.3f", happyVerifyResult.CAS.SubScores["GC"])
 				}
 			case profileIDDataExport:
-				if happyTrustReport.CAS != nil {
-					t.Fatalf("expected trust-report CAS to remain nil for %q, got %+v", profile.profileID, happyTrustReport.CAS)
+				if happyTrustReport.CAS.Overall <= 0 {
+					t.Fatalf("expected positive happy-path trust-report CAS overall, got %.3f", happyTrustReport.CAS.Overall)
 				}
-				if happyVerifyResult.CAS != nil {
-					t.Fatalf("expected verify CAS to remain nil for %q, got %+v", profile.profileID, happyVerifyResult.CAS)
+				if happyVerifyResult.CAS == nil {
+					t.Fatalf("expected verify CAS to be present for %q", profile.profileID)
+				}
+				if happyVerifyResult.CAS.Overall <= 0 {
+					t.Fatalf("expected positive happy-path CAS overall, got %.3f", happyVerifyResult.CAS.Overall)
 				}
 			default:
 				t.Fatalf("unhandled profile id %q", profile.profileID)
@@ -147,11 +148,18 @@ func TestACPControlPlaneGate(t *testing.T) {
 						)
 					}
 				case profileIDDataExport:
-					if violationTrustReport.CAS != nil {
-						t.Fatalf("expected trust-report CAS to remain nil for %q, got %+v", profile.profileID, violationTrustReport.CAS)
+					if violationTrustReport.CAS == nil {
+						t.Fatalf("expected trust-report CAS to be present for %q on violation path", profile.profileID)
 					}
-					if violationVerifyResult.CAS != nil {
-						t.Fatalf("expected verify CAS to remain nil for %q, got %+v", profile.profileID, violationVerifyResult.CAS)
+					if violationVerifyResult.CAS == nil {
+						t.Fatalf("expected verify CAS to be present for %q on violation path", profile.profileID)
+					}
+					if violationVerifyResult.CAS.Overall >= happyVerifyResult.CAS.Overall {
+						t.Fatalf(
+							"expected violation CAS %.3f to be lower than happy-path CAS %.3f",
+							violationVerifyResult.CAS.Overall,
+							happyVerifyResult.CAS.Overall,
+						)
 					}
 				}
 			})
