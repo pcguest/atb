@@ -45,6 +45,8 @@ type CriticalFailure struct {
 }
 
 // ProfileResult holds the outcome of evaluating one obligation profile.
+// A critical obligation failure forces Pass=false regardless of CAS; CAS is
+// diagnostic only in that case and must not be treated as exculpatory.
 type ProfileResult struct {
 	ProfileID          string            `json:"profile_id"`
 	Version            int               `json:"version"`
@@ -56,6 +58,8 @@ type ProfileResult struct {
 }
 
 // CASResult holds the Completeness Assurance Score and its decomposition.
+// It does not override obligation outcome: a profile can FAIL while Overall is
+// non-zero; treat CAS as diagnostic completeness evidence only in that case.
 type CASResult struct {
 	Overall      float64            `json:"overall"`
 	Grade        string             `json:"grade"` // "High" >=0.85 | "Medium" >=0.60 | "Low" >=0.30 | "Insufficient" <0.30
@@ -115,14 +119,18 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 					"SC": computeSC(b, profileIDPrivilegedToolAction),
 				},
 			}
-			if sc := report.CAS.SubScores["SC"]; sc > 0 {
+			if sc := report.CAS.SubScores["SC"]; sc > 0 && report.Integrity.ChainValid {
 				// Partial CAS: only SC is available when no profile matched.
 				// PA and IC remain 0.0; overall reflects source-commitment only.
 				report.CAS.Overall = sc
 				report.CAS.Grade = gradeFromScore(sc)
 			}
 		}
-		report.ResidualRisk = residualRiskNoMatchingProfile()
+		if !report.Integrity.ChainValid {
+			report.ResidualRisk = integrityFailureResidualRisk()
+		} else {
+			report.ResidualRisk = residualRiskNoMatchingProfile()
+		}
 		return report
 	}
 
@@ -138,14 +146,22 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 		}
 
 		if !profileSupportsCAS(profile) {
-			report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
+			if !report.Integrity.ChainValid {
+				report.ResidualRisk = integrityFailureResidualRisk()
+			} else {
+				report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
+			}
 			continue
 		}
 
 		subScores := subScoresForBundleWithAnchorResult(b, profile.ID(), anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
-		report.ResidualRisk = deriveResidualRisk(cas, result)
+		if !report.Integrity.ChainValid {
+			report.ResidualRisk = integrityFailureResidualRisk()
+		} else {
+			report.ResidualRisk = deriveResidualRisk(cas, result)
+		}
 	}
 
 	return report
@@ -159,7 +175,11 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 	}
 	report.BundleSignature = inspectBundleSignature(b, bundlePath)
 	if profile == nil {
-		report.ResidualRisk = residualRiskNoMatchingProfile()
+		if !report.Integrity.ChainValid {
+			report.ResidualRisk = integrityFailureResidualRisk()
+		} else {
+			report.ResidualRisk = residualRiskNoMatchingProfile()
+		}
 		return report
 	}
 
@@ -174,11 +194,19 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 		subScores := subScoresForBundleWithAnchorResult(b, profile.ID(), anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
-		report.ResidualRisk = deriveResidualRisk(cas, result)
+		if !report.Integrity.ChainValid {
+			report.ResidualRisk = integrityFailureResidualRisk()
+		} else {
+			report.ResidualRisk = deriveResidualRisk(cas, result)
+		}
 		return report
 	}
 
-	report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
+	if !report.Integrity.ChainValid {
+		report.ResidualRisk = integrityFailureResidualRisk()
+	} else {
+		report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
+	}
 	return report
 }
 
@@ -347,10 +375,7 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 	}
 	if b == nil {
 		report.Integrity.Error = "bundle is nil"
-		report.ResidualRisk = ResidualRisk{
-			Level:   "Critical",
-			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
-		}
+		report.ResidualRisk = integrityFailureResidualRisk()
 		return report, false
 	}
 
@@ -369,11 +394,8 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 
 	if err := b.Verify(); err != nil {
 		report.Integrity.Error = err.Error()
-		report.ResidualRisk = ResidualRisk{
-			Level:   "Critical",
-			Drivers: []string{"Chain integrity invalid; no further evaluation possible."},
-		}
-		return report, false
+		report.ResidualRisk = integrityFailureResidualRisk()
+		return report, true
 	}
 	report.Integrity.ChainValid = true
 	return report, true
@@ -394,6 +416,13 @@ func residualRiskNoMatchingProfile() ResidualRisk {
 		RecommendedNextEvidence: []string{
 			"Select an obligation profile explicitly or emit profile-identifying events.",
 		},
+	}
+}
+
+func integrityFailureResidualRisk() ResidualRisk {
+	return ResidualRisk{
+		Level:   "Critical",
+		Drivers: []string{"Chain integrity invalid; completeness scoring is diagnostic only."},
 	}
 }
 

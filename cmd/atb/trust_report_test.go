@@ -332,7 +332,7 @@ func TestRunTrustReportJSON_RAGUsesTrustReportSections(t *testing.T) {
 		note  string
 	}{
 		{title: "Model invocation", note: "model_parameters_digest present"},
-		{title: "Retrieval", note: "ai.retrieval.executed absent — retrieval step not recorded"},
+		{title: "Retrieval", note: "ai.retrieval.executed absent: retrieval step not recorded"},
 		{title: "Response", note: "ai.response.sent absent"},
 	}
 	for _, want := range wantSections {

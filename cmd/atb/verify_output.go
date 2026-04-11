@@ -106,6 +106,10 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 	fmt.Fprintln(w, "CAS Scores")
 	fmt.Fprintln(w)
 	renderer.renderCASScores(w, report.CAS)
+	if report.CAS != nil && len(report.Profiles) > 0 && !report.Profiles[0].Pass {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Note: CAS is diagnostic only when obligation checks fail; it does not overturn FAIL.")
+	}
 
 	if len(report.InformationalNotes) > 0 {
 		fmt.Fprintln(w)

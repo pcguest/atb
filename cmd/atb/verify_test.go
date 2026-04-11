@@ -41,6 +41,36 @@ func TestRunVerify_JSONOutput(t *testing.T) {
 	}
 }
 
+func TestRunVerify_JSONOutput_AllBuiltInProfilesEmitCAS(t *testing.T) {
+	for _, tc := range snapshotProfileCases() {
+		tc := tc
+		t.Run(tc.profileID, func(t *testing.T) {
+			bundlePath := buildSnapshotBundle(t, tc.events)
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := runVerify([]string{"--bundle", bundlePath, "--profile", tc.profileID, "--json"}, &stdout, &stderr)
+			if exitCode != exitSuccess {
+				t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+			}
+
+			var report verifypkg.Report
+			if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+				t.Fatalf("unmarshal verify report: %v", err)
+			}
+			if len(report.Profiles) != 1 {
+				t.Fatalf("expected one evaluated profile, got %d", len(report.Profiles))
+			}
+			if report.Profiles[0].ProfileID != tc.profileID {
+				t.Fatalf("ProfileID = %q, want %q", report.Profiles[0].ProfileID, tc.profileID)
+			}
+			if report.CAS == nil {
+				t.Fatalf("expected CAS output for %q", tc.profileID)
+			}
+		})
+	}
+}
+
 func TestRunVerify_FormatJSONOutput(t *testing.T) {
 	path := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
 
@@ -151,6 +181,86 @@ func TestRunVerify_IntegrityFail_ExitCode(t *testing.T) {
 	exitCode := runVerify([]string{"--bundle", path}, &stdout, &stderr)
 	if exitCode != exitIntegrityFailure {
 		t.Fatalf("unexpected exit code: got %d want %d", exitCode, exitIntegrityFailure)
+	}
+}
+
+func TestRunVerify_WithSnapshotCheckDetectsTamperedPrefix(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if exitCode := runInit(nil, &stdout, &stderr); exitCode != exitSuccess {
+		t.Fatalf("runInit() exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if exitCode := runAppend([]string{"dev.session", `{"state":"before-snapshot","message":"original"}`}, &stdout, &stderr); exitCode != exitSuccess {
+		t.Fatalf("runAppend() exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if exitCode := runSnapshot([]string{"before-export"}, &stdout, &stderr); exitCode != exitSuccess {
+		t.Fatalf("runSnapshot() exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if exitCode := runAppend([]string{"dev.session", `{"state":"after-snapshot"}`}, &stdout, &stderr); exitCode != exitSuccess {
+		t.Fatalf("runAppend() after snapshot exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	b, err := bundle.Load(bundle.DefaultPath())
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	fields, ok := b.Records[1].Event.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("event data type = %T, want map[string]any", b.Records[1].Event.Data)
+	}
+	fields["message"] = "tampered-after-snapshot"
+	rehashTestBundle(t, b)
+	if err := b.Save(bundle.DefaultPath()); err != nil {
+		t.Fatalf("save tampered bundle: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	exitCode := runVerify([]string{"--bundle", bundle.DefaultPath(), "--with-snapshot-check", "--json"}, &stdout, &stderr)
+	if exitCode != exitIntegrityFailure {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitIntegrityFailure, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if !report.Integrity.ChainValid {
+		t.Fatalf("expected chain integrity to remain valid, got %+v", report.Integrity)
+	}
+	if !containsVerifyNote(report.InformationalNotes, "snapshot_hash_mismatch at seq 2") {
+		t.Fatalf("expected snapshot mismatch note, got %+v", report.InformationalNotes)
+	}
+	if report.ResidualRisk.Level != "Critical" {
+		t.Fatalf("ResidualRisk.Level = %q, want %q", report.ResidualRisk.Level, "Critical")
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	exitCode = runVerify([]string{"--bundle", bundle.DefaultPath(), "--json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("verify without --with-snapshot-check should exit 0, got %d (stderr=%q)", exitCode, stderr.String())
 	}
 }
 
@@ -391,6 +501,15 @@ func buildCLIPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 		&bundle.AppendOptions{Timestamp: "2026-03-27T12:06:30Z"},
 	)
 	return b
+}
+
+func containsVerifyNote(notes []string, wantSubstring string) bool {
+	for _, note := range notes {
+		if strings.Contains(note, wantSubstring) {
+			return true
+		}
+	}
+	return false
 }
 
 func writeVerifyTestBundle(t testing.TB, b *bundle.Bundle) string {

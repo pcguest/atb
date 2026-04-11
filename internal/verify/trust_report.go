@@ -18,6 +18,7 @@ type TrustReport struct {
 	ProfileID     string             `json:"profile_id"`
 	WorkflowClass string             `json:"workflow_class"`
 	Pass          bool               `json:"pass"`
+	CAS           *CASResult         `json:"cas,omitempty"`
 	CASScore      float64            `json:"cas_score,omitempty"`
 	CASGrade      string             `json:"cas_grade,omitempty"`
 	ResidualRisk  string             `json:"residual_risk"`
@@ -79,6 +80,8 @@ func TrustReportFromVerify(r Report, b *bundle.Bundle) TrustReport {
 		report.BlindSpots = append([]string(nil), r.Exclusions...)
 	}
 	if r.CAS != nil {
+		cas := *r.CAS
+		report.CAS = &cas
 		report.CASScore = r.CAS.Overall
 		report.CASGrade = r.CAS.Grade
 	}
@@ -89,7 +92,7 @@ func TrustReportFromVerify(r Report, b *bundle.Bundle) TrustReport {
 	profile := r.Profiles[0]
 	report.ProfileID = profile.ProfileID
 	report.WorkflowClass = profile.WorkflowClass
-	report.Pass = profile.Pass
+	report.Pass = r.Integrity.ChainValid && profile.Pass
 	if len(profile.RequiredWarnings) > 0 {
 		report.Warnings = append([]string(nil), profile.RequiredWarnings...)
 	}
@@ -377,7 +380,7 @@ func retrievalPresenceNote(present bool) string {
 	if present {
 		return "ai.retrieval.executed present"
 	}
-	return "ai.retrieval.executed absent — retrieval step not recorded"
+	return "ai.retrieval.executed absent: retrieval step not recorded"
 }
 
 func outcomeNote(label string, value string) string {

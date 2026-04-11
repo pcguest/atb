@@ -17,7 +17,7 @@ ATB is designed for tamper evidence first and local-first operation.
 - Core workflow (`init`, `append`, `snapshot`, `verify`, `view`) does not require network access.
 
 4. Optional client-side encryption for handoff/storage
-- `atb encrypt`/`atb decrypt` use AES-256-GCM with PBKDF2-SHA256 key derivation (`100000` iterations).
+- `atb encrypt`/`atb decrypt` use AES-256-GCM with versioned PBKDF2-SHA256 key derivation (`0x01` legacy decrypt compatibility at `100000` iterations; `0x02` current default at `600000` iterations).
 - Local `.atb` bundles are hash-chained for integrity; encryption is opt-in and applied when you explicitly encrypt payloads.
 - Any future handoff flow must keep encryption client-side and must not change the local-first default.
 
@@ -41,6 +41,25 @@ ATB is designed for tamper evidence first and local-first operation.
 - Layer E, Distribution and ops: Git tags, GitHub releases, checksums, PyPI, npm, and Docker image publication.
 
 Docker images are published by a separate `Docker Publish` workflow on tag pushes or manual dispatch. They remain part of Layer E distribution rather than the Layer A-C assurance boundary.
+
+## Limitations
+
+Hash chaining proves intra-bundle integrity: if verification passes, the
+sequence of records you are reading is internally consistent with the
+declared hashes. It does not prove capture completeness, that every
+operation that mattered for compliance was logged, or that an
+integration emitted events for every code path.
+
+Local-first storage means trust in the bundle is bounded by trust in the
+host environment. A process with filesystem access can replace or roll
+back files before you export them unless you add independent controls.
+
+ATB proves that a bundle was not altered after recording. It does not
+prove that recording was complete, that every relevant event was
+captured, or that the bundle file itself has not been replaced
+wholesale by an attacker with write access before export. For regulated
+deployments, pair ATB with filesystem integrity monitoring or export to
+a WORM-capable store before relying on bundles as primary evidence.
 
 ## Client-Side Security Flow
 

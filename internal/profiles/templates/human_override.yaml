@@ -6,13 +6,14 @@ blind_spots:
   - Justification digest binds the recorded justification text only; content quality is not assessed.
 weights:
   EC: 0.15
-  FC: 0.15
-  RC: 0.15
-  TC: 0.10
+  FC: 0.10
+  RC: 0.20
+  TC: 0.20
   SC: 0.10
   XC: 0.10
-  AC: 0.15
+  AC: 0.05
   GC: 0.10
+supports_cas: true
 required:
   - type: atb.bundle.manifest
     fields: []

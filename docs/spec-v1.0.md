@@ -106,7 +106,20 @@ Event types use dot-namespaced identifiers. The following types are defined by t
 | `atb.bundle.manifest` | Bundle manifest record. First record in a new bundle (`seq = 0`). |
 | `atb.bundle.anchor` | RFC 3161 TSA anchor record appended after anchoring. |
 | `atb.bundle.signature` | Ed25519 bundle signature record. |
-| `atb.snapshot` | Named bundle checkpoint appended by `atb snapshot`. |
+| `atb.snapshot` | Named bundle checkpoint appended by `atb snapshot`; `bundle_hash` commits to the serialised bundle prefix that existed immediately before the snapshot record was appended. |
+
+The `bundle_hash` field is the SHA-256 (hex) of the serialised bundle
+prefix that existed immediately before the snapshot record was appended,
+using the same NDJSON serialisation as `atb snapshot`.
+
+When `atb verify --with-snapshot-check` is used, the verifier recomputes
+that prefix hash for each `atb.snapshot` record and compares it with the
+recorded `bundle_hash`. On mismatch the verifier reports
+`snapshot_hash_mismatch at seq N` and exits non-zero.
+
+Without `--with-snapshot-check`, `bundle_hash` is not verified: ordinary
+integrity checks still validate the hash chain, but they do not prove the
+snapshot metadata matches the historical prefix.
 
 ### Legacy event types (v1.0, superseded)
 
@@ -186,8 +199,12 @@ The default storage location is `run.atb/bundle.atb` relative to the current wor
 ATB supports optional client-side bundle encryption via `atb encrypt` / `atb decrypt`.
 
 - Cipher: AES-256-GCM
-- Key derivation: PBKDF2-SHA256 (`100000` iterations)
 - Wire format: `ATBE` magic + version + salt + nonce + auth tag + ciphertext
+- Key derivation: PBKDF2-SHA256 with versioned parameters
+  - `0x01`: PBKDF2-SHA256 (`100000` iterations). Retained for decrypt compatibility with existing encrypted bundles.
+  - `0x02`: PBKDF2-SHA256 (`600000` iterations). Default for newly encrypted bundles.
+
+`atb decrypt` accepts both wire-format versions. `atb encrypt` writes version `0x02`.
 
 Optional encrypted handoff is being evaluated separately in [docs/spec/bundle-push.md](./spec/bundle-push.md). The referenced `docs/spec/bundle-push.md (forthcoming)` specification remains a placeholder and is not part of the v1.0 local storage contract.
 

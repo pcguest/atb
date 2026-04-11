@@ -8,11 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Roadmap and versioning narrative doc (`docs/roadmap.md`) explaining the reset from v1.x to v0.9.0-beta.
-- Obligation profile and CAS documentation (`docs/profiles.md`).
-- SIEM and GRC integration documentation (`docs/integrations/siem-grc.md`).
-- Strengthened adversarial test coverage for bundle parsing and dashboard APIs.
-- Key management guidance for bundle/policy signing and encryption operations (`docs/key-management.md`).
+- `atb verify --with-snapshot-check` validates each `atb.snapshot` `bundle_hash` against the serialised prefix; mismatches report `snapshot_hash_mismatch at seq N`.
+- `cas` object on `atb trust-report --json` output (alongside existing `cas_score` / `cas_grade`), aligned with verify report CAS.
+- EU AI Act Article 12 mapping (`docs/compliance/eu-ai-act.md`) with profile table and limitations.
+- Text verify output note when obligations fail: CAS is diagnostic only and does not overturn FAIL.
+
+### Changed
+- CAS weight vectors for `background_automation`, `policy_decision`, and `human_override` YAML templates to the documented profile-specific values (`data_export` unchanged).
+- README: Install moved to follow Trust Model (verification narrative before installation).
+- `docs/security.md` Limitations expanded: intra-bundle integrity vs capture completeness, local-first filesystem trust boundary.
+- `docs/spec-v1.0.md`: snapshot `bundle_hash` definition, `--with-snapshot-check` behaviour, and that the field is not verified without the flag.
+- `docs/compliance/eu-ai-act.md` rewritten to match the Article 12 mapping structure (overview, profile table, out-of-scope paragraph).
+
+### Fixed
+- `--sign-policy` exits non-zero when no signing key is present (`no signing key found; run 'atb keygen' before using --sign-policy`).
+
+### Security
+- `atb encrypt` writes ATBE wire version `0x02` with PBKDF2-SHA256 at `600000` iterations; `atb decrypt` accepts `0x01` (`100000`) and `0x02`.
+
+### Tests
+- CLI: `--sign-policy` without keypair; `--with-snapshot-check` tamper path and verify without the flag unchanged.
+- `internal/verify`: CAS scenarios for extended profiles; trust-report JSON asserts `cas` when present.
 
 ## [v1.0.0.1] — 2026-04-09
 

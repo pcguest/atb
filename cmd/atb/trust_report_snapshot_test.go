@@ -15,7 +15,7 @@ import (
 
 type snapshotAppend struct {
 	eventType string
-	data      map[string]any
+	data      any
 }
 
 type snapshotProfileCase struct {
@@ -178,7 +178,7 @@ func snapshotProfileCases() []snapshotProfileCase {
 			name:                    "atb.profile.data_export",
 			profileID:               "atb.profile.data_export",
 			minRecordCount:          6,
-			expectCAS:               false,
+			expectCAS:               true,
 			wantTrustReportExitCode: exitSuccess,
 			wantVerifyExitCode:      exitSuccess,
 			events: []snapshotAppend{
@@ -243,7 +243,7 @@ func snapshotProfileCases() []snapshotProfileCase {
 			name:                    "atb.profile.background_automation",
 			profileID:               "atb.profile.background_automation",
 			minRecordCount:          4,
-			expectCAS:               false,
+			expectCAS:               true,
 			wantTrustReportExitCode: exitSuccess,
 			wantVerifyExitCode:      exitSuccess,
 			events: []snapshotAppend{
@@ -277,8 +277,8 @@ func snapshotProfileCases() []snapshotProfileCase {
 		{
 			name:                    "atb.profile.policy_decision",
 			profileID:               "atb.profile.policy_decision",
-			minRecordCount:          3,
-			expectCAS:               false,
+			minRecordCount:          4,
+			expectCAS:               true,
 			wantTrustReportExitCode: exitSuccess,
 			wantVerifyExitCode:      exitSuccess,
 			events: []snapshotAppend{
@@ -288,6 +288,16 @@ func snapshotProfileCases() []snapshotProfileCase {
 						"request_id":    "req-policy",
 						"actor_id_hash": "actor-hash",
 						"purpose_tag":   "policy_decision",
+					},
+				},
+				{
+					eventType: event.TypeAIActionPrecommit,
+					data: map[string]any{
+						"action_id":                "act-1",
+						"action_type":              "policy_decision",
+						"action_parameters_digest": "params-digest",
+						"target_resource_id":       "resource-1",
+						"intended_effect":          "record decision context",
 					},
 				},
 				{
@@ -307,7 +317,7 @@ func snapshotProfileCases() []snapshotProfileCase {
 			name:                    "atb.profile.human_override",
 			profileID:               "atb.profile.human_override",
 			minRecordCount:          6,
-			expectCAS:               false,
+			expectCAS:               true,
 			wantTrustReportExitCode: exitSuccess,
 			wantVerifyExitCode:      exitSuccess,
 			events: []snapshotAppend{
@@ -649,11 +659,17 @@ func verifySnapshotCases() []snapshotProfileCase {
 				if report.BundlePath == "" {
 					t.Errorf("BundlePath is empty")
 				}
-				if report.ProfileID != "" {
-					t.Errorf("ProfileID = %q, want empty when integrity fails before profile evaluation", report.ProfileID)
+				if report.ProfileID != "atb.profile.rag_answer" {
+					t.Errorf("ProfileID = %q, want %q", report.ProfileID, "atb.profile.rag_answer")
 				}
 				if report.Pass {
 					t.Errorf("Pass = true, want false")
+				}
+				if report.CASGrade != "Insufficient" {
+					t.Errorf("CASGrade = %q, want %q", report.CASGrade, "Insufficient")
+				}
+				if len(report.SubScores) == 0 {
+					t.Errorf("SubScores is empty, want diagnostic CAS output")
 				}
 				if report.ResidualRisk != "Critical" {
 					t.Errorf("ResidualRisk = %q, want %q", report.ResidualRisk, "Critical")
@@ -686,6 +702,9 @@ func assertDefaultTrustReportSnapshot(t *testing.T, tc snapshotProfileCase, repo
 	}
 	if tc.expectCAS && report.CASGrade == "" {
 		t.Errorf("CASGrade is empty")
+	}
+	if tc.expectCAS && report.CAS == nil {
+		t.Errorf("CAS object is nil, want cas block in JSON output")
 	}
 }
 

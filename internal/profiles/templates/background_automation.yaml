@@ -6,14 +6,15 @@ blind_spots:
   - Does not verify that the automated job's real-world effect matches the recorded completion outcome or result digest.
   - Policy authorisation is not required by this profile; append ai.policy.decision separately if the workflow requires it.
 weights:
-  EC: 0.20
-  FC: 0.15
-  RC: 0.20
+  EC: 0.15
+  FC: 0.10
+  RC: 0.15
   TC: 0.10
-  SC: 0.10
-  XC: 0.05
+  SC: 0.05
+  XC: 0.20
   AC: 0.05
-  GC: 0.15
+  GC: 0.20
+supports_cas: true
 required:
   - type: atb.bundle.manifest
     fields: []

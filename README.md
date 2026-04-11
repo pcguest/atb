@@ -14,15 +14,6 @@ external storage by default.
 
 Current release: [`v1.0.0.1`](CHANGELOG.md).
 
-## Install
-
-```bash
-go install github.com/pcguest/atb/cmd/atb@latest
-```
-
-Requires Go 1.25.0+. Python and TypeScript SDKs are available for
-in-process instrumentation. See [SDK docs](docs/guides/README.md).
-
 ## Quickstart
 
 ```bash
@@ -53,6 +44,26 @@ Events are appended sequentially. Each event seals the previous one.
 The resulting bundle is a portable artefact that can be verified later
 without a server.
 
+## Trust Model
+
+ATB proves that a bundle was not altered after recording. It does not
+prove that recording was complete, that every relevant event was
+captured, or that the bundle file itself has not been replaced
+wholesale by an attacker with write access before export. For regulated
+deployments, pair ATB with filesystem integrity monitoring or export to
+a WORM-capable store before relying on bundles as primary evidence.
+
+## Install
+
+```bash
+go install github.com/pcguest/atb/cmd/atb@latest
+```
+
+> Note: `go install` from the module proxy builds without the embedded web UI. For `atb view` and `atb view --ui-experimental`, build from source: `go build ./cmd/atb`
+
+Requires Go 1.25.0+. Python and TypeScript SDKs are available for
+in-process instrumentation. See [SDK docs](docs/guides/README.md).
+
 ## Verification Profiles
 
 ATB ships six built-in obligation profiles. Use `--profile` to evaluate
@@ -74,17 +85,19 @@ atb verify --profile ./profiles/custom.yaml
 | `atb.profile.human_override` | Human-in-the-loop override chain |
 | `atb.profile.background_automation` | Scheduled job audit trail |
 
-CAS is emitted in JSON output for CAS-enabled profiles. It is a
-profile-scoped completeness signal for recorded evidence, not an
-external attestation.
+CAS is emitted in JSON output for all six built-in profiles. It is a
+profile-scoped completeness signal for recorded evidence within the
+declared profile and trust boundary, not an external attestation or a
+universal completeness score.
 
 ## Integrations
 
-ATB includes a native MCP server and SDKs for Python and TypeScript.
-Run `atb events` to inspect the canonical event registry and built-in
+ATB includes SDKs for Python and TypeScript. Native MCP server mode is
+not yet implemented; current MCP integrations require SDK wrapping. Run
+`atb events` to inspect the canonical event registry and built-in
 profile membership.
 
-### MCP Server
+### MCP Bridge
 
 ```bash
 atb mcp serve
@@ -127,11 +140,13 @@ alongside the rest of the workflow.
 - [ATB Specification v1.0](docs/spec-v1.0.md)
 - [AI Trace Event Specification](docs/spec-ai-traces.md)
 - [Verification Profiles](docs/profiles.md)
+- [Security Model](docs/security.md)
 - [MCP Integration](docs/integrations/mcp.md)
 - [Incident Review Workflow](docs/guides/incident-review-workflow.md)
 - [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md)
 - [Key Management](docs/key-management.md)
 - [Compliance Export](docs/compliance/export.md)
+- [EU AI Act Mapping](docs/compliance/eu-ai-act.md)
 - [SIEM and GRC Integration](docs/integrations/siem-grc.md)
 - [Changelog](CHANGELOG.md)
 
