@@ -190,7 +190,9 @@ To add encryption support for a new language:
 
 If your implementation produces different output, check:
 
-- PBKDF2 iterations (must be `100000`)
+- Wire-format version and PBKDF2 iterations:
+  - `0x01`: `100000` iterations for legacy decrypt compatibility
+  - `0x02`: `600000` iterations for newly encrypted payloads
 - Hash algorithm (must be `SHA-256`)
 - AES-GCM tag size (must be `16` bytes)
 - Wire format byte order and field ordering

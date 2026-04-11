@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks fuzz
+.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz
 
 GOTOOLCHAIN ?= go1.25.0
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
@@ -63,6 +63,10 @@ fuzz:
 
 test-all: hygiene-full test-e2e
 	@echo "✅ All tests passed"
+
+## install-noembed: install CLI without embedded web UI (for go install compatibility)
+install-noembed:
+	$(GOENV) go install -tags noembed ./cmd/atb
 
 gate-gold-release: test-all
 	@echo "🏆 Running gold release gate..."

@@ -35,6 +35,7 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 ## Compliance and Audit
 
 - [Compliance Export Overview](./compliance/export.md)
+- [EU AI Act Article 12 Mapping](./compliance/eu-ai-act.md)
 - [SOC 2 Export Specification](./compliance/soc2.md)
 - [GDPR Export Specification](./compliance/gdpr.md)
 - [Retention](./compliance/retention.md)

@@ -4,9 +4,11 @@
 
 Model Context Protocol, or MCP, is a protocol for agent hosts to invoke tools through a stable interface. ATB integrates with that execution path so MCP tool activity can be recorded as structured bundle events rather than left to mutable application logs. A tamper-evident bundle gives an auditor a hash-chained record that can be verified locally and exported deterministically. A plain activity log can show what was written, but it does not show whether the sequence was altered afterwards.
 
-ATB includes a native MCP stdio server via `atb mcp serve`. It exposes
-bundle initialisation, verification, status, and PageIndex RAG
-recording tools.
+ATB can be exposed to an MCP host through the `atb mcp serve` stdio
+bridge. This path wraps the existing CLI and SDK event model rather
+than providing a separate native MCP server mode. It exposes bundle
+initialisation, verification, status, and PageIndex RAG recording
+tools.
 
 ## How it works
 
