@@ -18,3 +18,15 @@ write the same bundle format.
 - Run the Python and TypeScript SDK tests when SDK-facing behaviour or documentation changes.
 - Keep version strings aligned across the CLI, SDK manifests, web package, and README release markers.
 - Do not add undocumented CLI behaviour or leave stale workflow examples in the docs.
+
+## Release tag messages
+
+Tag messages use the format: `vX.Y.Z — <brief description>`
+
+- British English throughout.
+- Describe what the release contains, not how it was produced.
+- No references to tooling, AI assistants, or session names.
+- Maximum 80 characters including the version prefix.
+- Use an en dash (—) as the separator between version and description.
+
+Example: `v1.4.0 — audit remediation, CAS full coverage, PBKDF2 hardening`
