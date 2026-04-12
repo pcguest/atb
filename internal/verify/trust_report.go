@@ -41,9 +41,15 @@ type TrustChainSection struct {
 
 // TrustAnchorSection summarises TSA anchoring state.
 type TrustAnchorSection struct {
-	Present     bool   `json:"present"`
-	TSAVerified bool   `json:"tsa_verified"`
-	AnchorHash  string `json:"anchor_hash,omitempty"`
+	Present                bool   `json:"present"`
+	Status                 string `json:"status"`
+	Summary                string `json:"summary"`
+	MessageImprintVerified bool   `json:"message_imprint_verified"`
+	SignatureVerified      bool   `json:"signature_verified"`
+	TSAVerified            bool   `json:"tsa_verified"`
+	CertChainVerified      bool   `json:"cert_chain_verified"`
+	Reason                 string `json:"reason,omitempty"`
+	AnchorHash             string `json:"anchor_hash,omitempty"`
 }
 
 // TrustSection is one profile-specific evidence section.
@@ -66,9 +72,15 @@ func TrustReportFromVerify(r Report, b *bundle.Bundle) TrustReport {
 			HashAlgo:         r.Integrity.HashAlgo,
 		},
 		Anchoring: TrustAnchorSection{
-			Present:     r.Anchoring.AnchorPresent,
-			TSAVerified: r.Anchoring.TSAVerified,
-			AnchorHash:  r.Anchoring.AnchorHash,
+			Present:                r.Anchoring.AnchorPresent,
+			Status:                 r.Anchoring.Status,
+			Summary:                r.Anchoring.Summary,
+			MessageImprintVerified: r.Anchoring.MessageImprintVerified,
+			SignatureVerified:      r.Anchoring.SignatureVerified,
+			TSAVerified:            r.Anchoring.TSAVerified,
+			CertChainVerified:      r.Anchoring.CertChainVerified,
+			Reason:                 r.Anchoring.Reason,
+			AnchorHash:             r.Anchoring.AnchorHash,
 		},
 		Sections: buildTrustSections(r, b),
 	}

@@ -42,6 +42,13 @@ jobs:
       - name: Build Go CLI
         run: go build -v ./...
 
+      - name: Check internal Markdown links
+        shell: bash
+        run: |
+          set -euo pipefail
+          find README.md docs -type f -name '*.md' -exec \
+            npx --yes markdown-link-check --quiet --config .markdown-link-check.json {} \;
+
       - name: Installed binary smoke gate
         run: go test -v -run TestInstalledBinarySmokeFlow ./cmd/atb
 

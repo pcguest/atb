@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pcguest/atb/internal/anchorverify"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	profiledsl "github.com/pcguest/atb/internal/profiles"
@@ -29,13 +28,17 @@ type IntegrityResult struct {
 
 // AnchoringResult holds the outcome of TSA anchor checking.
 type AnchoringResult struct {
-	AnchorRequired bool `json:"anchor_required"`
-	AnchorPresent  bool `json:"anchor_present"`
-	// TSAVerified reports only the RFC 3161 message-imprint/status check in v1.
-	TSAVerified       bool     `json:"tsa_verified"`
-	CertChainVerified bool     `json:"cert_chain_verified"`
-	AnchorHash        string   `json:"anchor_hash,omitempty"`
-	Errors            []string `json:"errors,omitempty"`
+	AnchorRequired         bool     `json:"anchor_required"`
+	AnchorPresent          bool     `json:"anchor_present"`
+	Status                 string   `json:"status"`
+	Summary                string   `json:"summary"`
+	MessageImprintVerified bool     `json:"message_imprint_verified"`
+	SignatureVerified      bool     `json:"signature_verified"`
+	TSAVerified            bool     `json:"tsa_verified"`
+	CertChainVerified      bool     `json:"cert_chain_verified"`
+	AnchorHash             string   `json:"anchor_hash,omitempty"`
+	Reason                 string   `json:"reason,omitempty"`
+	Errors                 []string `json:"errors,omitempty"`
 }
 
 // CriticalFailure describes a specific critical-obligation failure.
@@ -329,6 +332,8 @@ func scanAnchoring(records []bundle.Record) AnchoringResult {
 	result := AnchoringResult{
 		AnchorRequired:    false,
 		AnchorPresent:     false,
+		Status:            string(anchorStatusFailed),
+		Summary:           anchorFailedSummary("anchor record not present"),
 		TSAVerified:       false,
 		CertChainVerified: false,
 	}
@@ -380,16 +385,19 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 	}
 
 	report.Anchoring = scanAnchoring(b.Records)
-	report.InformationalNotes = appendUniqueStrings(report.InformationalNotes, ValidateTimestamps(b.Records)...)
-	if anchorResults := anchorverify.VerifyAnchors(b); len(anchorResults) > 0 {
-		for _, r := range anchorResults {
-			if r.TSAVerified {
-				report.Anchoring.TSAVerified = true
-				report.Anchoring.CertChainVerified = r.CertChainVerified
-				break
-			}
-		}
+	anchorInspection := inspectAnchor(b, bundlePath)
+	report.Anchoring.AnchorPresent = anchorInspection.AnchorPresent
+	report.Anchoring.Status = string(anchorInspection.Status)
+	report.Anchoring.Summary = anchorInspection.Summary
+	report.Anchoring.MessageImprintVerified = anchorInspection.MessageImprintVerified
+	report.Anchoring.SignatureVerified = anchorInspection.SignatureVerified
+	report.Anchoring.TSAVerified = anchorInspection.Result == AnchorVerified
+	report.Anchoring.CertChainVerified = anchorInspection.CertChainVerified
+	report.Anchoring.Reason = anchorInspection.Reason
+	if report.Anchoring.AnchorHash == "" {
+		report.Anchoring.AnchorHash = anchorInspection.AnchorHash
 	}
+	report.InformationalNotes = appendUniqueStrings(report.InformationalNotes, ValidateTimestamps(b.Records)...)
 	setIntegritySequenceBounds(&report.Integrity, b.Records)
 
 	if err := b.Verify(); err != nil {

@@ -67,6 +67,27 @@ func TestClassifyAnchor_Verified(t *testing.T) {
 	}
 }
 
+func TestClassifyAnchor_ChainNotVerified(t *testing.T) {
+	fixture := readVerifiedAnchorTSRFixture(t)
+	prevRoots := classifyAnchorRoots
+	classifyAnchorRoots = x509.NewCertPool()
+	defer func() {
+		classifyAnchorRoots = prevRoots
+	}()
+
+	b := buildVerifiedAnchorFixtureBundle(t)
+	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	if got := ClassifyAnchor(b, path); got != AnchorDigestOnly {
+		t.Fatalf("ClassifyAnchor() = %v, want %v", got, AnchorDigestOnly)
+	}
+}
+
 func readAnchorTSRFixture(t testing.TB) []byte {
 	t.Helper()
 

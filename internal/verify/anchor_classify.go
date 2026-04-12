@@ -14,6 +14,8 @@ import (
 
 type AnchorVerifyResult int
 
+type anchorStatus string
+
 const (
 	AnchorAbsent AnchorVerifyResult = iota
 	AnchorPresentBadData
@@ -21,40 +23,92 @@ const (
 	AnchorVerified
 )
 
+const (
+	anchorStatusVerified anchorStatus = "verified"
+	anchorStatusPartial  anchorStatus = "partial"
+	anchorStatusFailed   anchorStatus = "failed"
+
+	anchorSummaryVerified = "anchor: verified (message imprint, signature, chain)"
+	anchorSummaryPartial  = "anchor: partial (message imprint only - chain not verified)"
+)
+
 type anchorClassifyEventData struct {
-	TSRDER string `json:"tsr_der"`
+	BundleHash string `json:"bundle_hash"`
+	TSRDER     string `json:"tsr_der"`
+}
+
+type anchorInspection struct {
+	Result                 AnchorVerifyResult
+	Status                 anchorStatus
+	Summary                string
+	Reason                 string
+	AnchorPresent          bool
+	AnchorHash             string
+	MessageImprintVerified bool
+	SignatureVerified      bool
+	CertChainVerified      bool
 }
 
 var classifyAnchorRoots *x509.CertPool
 
 func ClassifyAnchor(b *bundle.Bundle, bundlePath string) AnchorVerifyResult {
+	return inspectAnchor(b, bundlePath).Result
+}
+
+func inspectAnchor(b *bundle.Bundle, bundlePath string) anchorInspection {
 	if b == nil {
-		return AnchorAbsent
+		return newFailedAnchorInspection(AnchorAbsent, false, "", "anchor record not present")
 	}
 
-	anchorIndex, tokenBytes, found, err := latestAnchorTokenBytes(b)
+	anchorIndex, payload, tokenBytes, found, err := latestAnchorTokenBytes(b)
 	if !found {
-		return AnchorAbsent
+		return newFailedAnchorInspection(AnchorAbsent, false, "", "anchor record not present")
 	}
 	if err != nil || len(tokenBytes) == 0 {
-		return AnchorPresentBadData
+		return newFailedAnchorInspection(AnchorPresentBadData, true, payload.BundleHash, normaliseAnchorReason(err))
 	}
 	if strings.TrimSpace(bundlePath) == "" {
-		return AnchorPresentBadData
+		return newFailedAnchorInspection(AnchorPresentBadData, true, payload.BundleHash, "bundle path required for anchor verification")
 	}
 
 	snapshotHash, err := hashBundleSnapshotBeforeAnchor(b, anchorIndex)
 	if err != nil {
-		return AnchorPresentBadData
+		return newFailedAnchorInspection(AnchorPresentBadData, true, payload.BundleHash, err.Error())
 	}
 
-	if err := anchorpkg.VerifyToken(tokenBytes, snapshotHash, classifyAnchorRoots); err != nil {
-		if isDigestOnlyAnchorError(err) {
-			return AnchorDigestOnly
+	verification, err := anchorpkg.VerifyTokenDetailed(tokenBytes, snapshotHash, classifyAnchorRoots)
+	if err != nil {
+		inspection := anchorInspection{
+			Result:                 AnchorPresentBadData,
+			Status:                 anchorStatusFailed,
+			Reason:                 normaliseAnchorReason(err),
+			AnchorPresent:          true,
+			AnchorHash:             payload.BundleHash,
+			MessageImprintVerified: verification.MessageImprintVerified,
+			SignatureVerified:      verification.SignatureVerified,
+			CertChainVerified:      verification.CertChainVerified,
 		}
-		return AnchorPresentBadData
+		if isChainNotVerifiedAnchorError(err) {
+			inspection.Result = AnchorDigestOnly
+			inspection.Status = anchorStatusPartial
+			inspection.Summary = anchorSummaryPartial
+			return inspection
+		}
+		inspection.Summary = anchorFailedSummary(inspection.Reason)
+		return inspection
 	}
-	return AnchorVerified
+
+	return anchorInspection{
+		Result:                 AnchorVerified,
+		Status:                 anchorStatusVerified,
+		Summary:                anchorSummaryVerified,
+		AnchorPresent:          true,
+		AnchorHash:             payload.BundleHash,
+		Reason:                 "",
+		MessageImprintVerified: verification.MessageImprintVerified,
+		SignatureVerified:      verification.SignatureVerified,
+		CertChainVerified:      verification.CertChainVerified,
+	}
 }
 
 func xcScore(r AnchorVerifyResult) float64 {
@@ -72,8 +126,6 @@ func xcScore(r AnchorVerifyResult) float64 {
 
 func acScore(r AnchorVerifyResult) float64 {
 	switch r {
-	case AnchorDigestOnly:
-		return 0.4
 	case AnchorVerified:
 		return 1.0
 	default:
@@ -81,7 +133,7 @@ func acScore(r AnchorVerifyResult) float64 {
 	}
 }
 
-func latestAnchorTokenBytes(b *bundle.Bundle) (int, []byte, bool, error) {
+func latestAnchorTokenBytes(b *bundle.Bundle) (int, anchorClassifyEventData, []byte, bool, error) {
 	for i := len(b.Records) - 1; i >= 0; i-- {
 		if b.Records[i].Event.Type != event.TypeBundleAnchor {
 			continue
@@ -89,20 +141,20 @@ func latestAnchorTokenBytes(b *bundle.Bundle) (int, []byte, bool, error) {
 
 		raw, ok := b.Records[i].Event.Data.(string)
 		if !ok {
-			return i, nil, true, os.ErrInvalid
+			return i, anchorClassifyEventData{}, nil, true, os.ErrInvalid
 		}
 
 		var payload anchorClassifyEventData
 		if err := json.Unmarshal([]byte(raw), &payload); err != nil {
-			return i, nil, true, err
+			return i, anchorClassifyEventData{}, nil, true, err
 		}
 		tokenBytes, err := base64.StdEncoding.DecodeString(strings.TrimSpace(payload.TSRDER))
 		if err != nil {
-			return i, nil, true, err
+			return i, payload, nil, true, err
 		}
-		return i, tokenBytes, true, nil
+		return i, payload, tokenBytes, true, nil
 	}
-	return -1, nil, false, nil
+	return -1, anchorClassifyEventData{}, nil, false, nil
 }
 
 func hashBundleSnapshotBeforeAnchor(b *bundle.Bundle, anchorIndex int) ([]byte, error) {
@@ -127,7 +179,34 @@ func hashBundleSnapshotBeforeAnchor(b *bundle.Bundle, anchorIndex int) ([]byte, 
 	return anchorpkg.HashBundle(tmpPath)
 }
 
-func isDigestOnlyAnchorError(err error) bool {
-	msg := err.Error()
-	return strings.Contains(msg, "certificate verification failed") || strings.Contains(msg, "signature verification failed")
+func isChainNotVerifiedAnchorError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "certificate verification failed")
+}
+
+func normaliseAnchorReason(err error) string {
+	if err == nil {
+		return ""
+	}
+	return strings.TrimPrefix(strings.TrimSpace(err.Error()), "anchor: ")
+}
+
+func anchorFailedSummary(reason string) string {
+	if strings.TrimSpace(reason) == "" {
+		return "anchor: failed"
+	}
+	return "anchor: failed (" + reason + ")"
+}
+
+func newFailedAnchorInspection(result AnchorVerifyResult, present bool, anchorHash string, reason string) anchorInspection {
+	return anchorInspection{
+		Result:        result,
+		Status:        anchorStatusFailed,
+		Summary:       anchorFailedSummary(reason),
+		Reason:        reason,
+		AnchorPresent: present,
+		AnchorHash:    anchorHash,
+	}
 }

@@ -107,7 +107,7 @@ func TestAnchorSubScoreScaling(t *testing.T) {
 		wantXC float64
 		wantAC float64
 	}{
-		{name: "digest_only", input: AnchorDigestOnly, wantXC: 0.5, wantAC: 0.4},
+		{name: "digest_only", input: AnchorDigestOnly, wantXC: 0.5, wantAC: 0.0},
 		{name: "present_bad_data", input: AnchorPresentBadData, wantXC: 0.1, wantAC: 0.0},
 	}
 

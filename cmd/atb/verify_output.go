@@ -74,15 +74,17 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 
 	fmt.Fprintln(w, "Anchoring")
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Anchor present: %s\n", yesNo(report.Anchoring.AnchorPresent))
-	fmt.Fprintf(w, "TSA verified: %s\n", yesNo(report.Anchoring.TSAVerified))
-	if report.Anchoring.TSAVerified && !report.Anchoring.CertChainVerified {
-		fmt.Fprintln(w, "TSA message imprint verified. Certificate chain not verified (v1 limitation).")
-	}
+	fmt.Fprintln(w, report.Anchoring.Summary)
 	if report.Anchoring.AnchorHash != "" {
 		fmt.Fprintf(w, "Anchor hash: %s\n", report.Anchoring.AnchorHash)
 	}
+	if report.Anchoring.Reason != "" && report.Anchoring.Status != "verified" {
+		fmt.Fprintf(w, "Reason: %s\n", report.Anchoring.Reason)
+	}
 	for _, err := range report.Anchoring.Errors {
+		if err == report.Anchoring.Reason {
+			continue
+		}
 		fmt.Fprintf(w, "  anchor warning: %s\n", err)
 	}
 	fmt.Fprintln(w)

@@ -3,8 +3,10 @@ package verify
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/x509"
 	"encoding/base64"
 	"math"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -289,13 +291,100 @@ func TestVerify_PolicyDecision_Unsigned(t *testing.T) {
 	}
 }
 
-func TestVerify_AnchoringTracksCertChainVerification(t *testing.T) {
-	b := newVerifyTestBundle(t)
-	appendVerifyRecord(t, b, event.TypeBundleAnchor, `{"bundle_hash":"bundle-hash","tsr_hash":"tsr-hash","certified_time":"2026-03-27T12:00:00Z"}`, "2026-03-27T12:00:00Z")
+func TestVerify_AnchoringVerifiedState(t *testing.T) {
+	fixture := readVerifiedAnchorTSRFixture(t)
+	prevRoots := classifyAnchorRoots
+	classifyAnchorRoots = verifiedAnchorFixtureRoots(t, fixture)
+	defer func() {
+		classifyAnchorRoots = prevRoots
+	}()
 
-	report := Verify(b, "bundle.atb", "")
-	if report.Anchoring.CertChainVerified {
-		t.Fatalf("expected cert_chain_verified=false in v1")
+	b := buildVerifiedAnchorFixtureBundle(t)
+	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	report := Verify(b, path, "")
+	if report.Anchoring.Status != "verified" {
+		t.Fatalf("expected verified anchor status, got %+v", report.Anchoring)
+	}
+	if report.Anchoring.Summary != anchorSummaryVerified {
+		t.Fatalf("unexpected anchor summary: %q", report.Anchoring.Summary)
+	}
+	if !report.Anchoring.MessageImprintVerified || !report.Anchoring.SignatureVerified || !report.Anchoring.CertChainVerified {
+		t.Fatalf("expected all anchor verification flags to pass, got %+v", report.Anchoring)
+	}
+	if !report.Anchoring.TSAVerified {
+		t.Fatalf("expected tsa_verified=true, got %+v", report.Anchoring)
+	}
+}
+
+func TestVerify_AnchoringPartialState(t *testing.T) {
+	fixture := readVerifiedAnchorTSRFixture(t)
+	prevRoots := classifyAnchorRoots
+	classifyAnchorRoots = x509.NewCertPool()
+	defer func() {
+		classifyAnchorRoots = prevRoots
+	}()
+
+	b := buildVerifiedAnchorFixtureBundle(t)
+	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	report := Verify(b, path, "")
+	if report.Anchoring.Status != "partial" {
+		t.Fatalf("expected partial anchor status, got %+v", report.Anchoring)
+	}
+	if report.Anchoring.Summary != anchorSummaryPartial {
+		t.Fatalf("unexpected anchor summary: %q", report.Anchoring.Summary)
+	}
+	if !report.Anchoring.MessageImprintVerified {
+		t.Fatalf("expected message imprint verification to pass, got %+v", report.Anchoring)
+	}
+	if report.Anchoring.SignatureVerified || report.Anchoring.CertChainVerified || report.Anchoring.TSAVerified {
+		t.Fatalf("expected signature and chain verification to remain unset, got %+v", report.Anchoring)
+	}
+	if !strings.Contains(report.Anchoring.Reason, "certificate verification failed") {
+		t.Fatalf("expected chain verification reason, got %q", report.Anchoring.Reason)
+	}
+}
+
+func TestVerify_AnchoringFailedState(t *testing.T) {
+	fixture := readVerifiedAnchorTSRFixture(t)
+	prevRoots := classifyAnchorRoots
+	classifyAnchorRoots = verifiedAnchorFixtureRoots(t, fixture)
+	defer func() {
+		classifyAnchorRoots = prevRoots
+	}()
+
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeDevSession, "wrong-anchor-fixture", "2026-03-28T03:04:05Z")
+	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	report := Verify(b, path, "")
+	if report.Anchoring.Status != "failed" {
+		t.Fatalf("expected failed anchor status, got %+v", report.Anchoring)
+	}
+	if !strings.Contains(report.Anchoring.Summary, "anchor: failed") {
+		t.Fatalf("unexpected anchor summary: %q", report.Anchoring.Summary)
+	}
+	if report.Anchoring.MessageImprintVerified || report.Anchoring.SignatureVerified || report.Anchoring.CertChainVerified || report.Anchoring.TSAVerified {
+		t.Fatalf("expected anchor verification flags to remain false on failure, got %+v", report.Anchoring)
+	}
+	if !strings.Contains(report.Anchoring.Reason, "digest mismatch") {
+		t.Fatalf("expected digest mismatch reason, got %q", report.Anchoring.Reason)
 	}
 }
 

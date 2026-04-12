@@ -27,6 +27,10 @@
       "name": "evidence/docs/compliance/gdpr.md"
     },
     {
+      "description": "Documentation reference: nist-ai-rmf.md.",
+      "name": "evidence/docs/compliance/nist-ai-rmf.md"
+    },
+    {
       "description": "Documentation reference: pii-fields.json.",
       "name": "evidence/docs/compliance/pii-fields.json"
     },

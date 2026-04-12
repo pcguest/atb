@@ -28,12 +28,15 @@ var errViewHelp = errors.New("view help requested")
 
 type viewConfig struct {
 	BundlePath     string
+	Host           string
 	Port           int
 	PortSet        bool
 	NoOpen         bool
 	LogReveals     bool
 	UIExperimental bool
 }
+
+const defaultViewHost = "127.0.0.1"
 
 func cmdView() {
 	cfg, err := parseViewArgs(os.Args[2:])
@@ -59,14 +62,14 @@ func cmdView() {
 		os.Exit(classifyBundleLoadError(err))
 	}
 
-	ln, port, err := listenViewPort(cfg.Port, cfg.PortSet)
+	ln, port, err := listenViewPort(cfg.Host, cfg.Port, cfg.PortSet)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		os.Exit(exitSystemError)
 	}
 	defer ln.Close()
 
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(port))
 	url := "http://" + addr + openPath
 	if port != cfg.Port {
 		fmt.Fprintf(os.Stderr, "atb view: port %d unavailable; using %d\n", cfg.Port, port)
@@ -133,6 +136,9 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 
 	openPath := "/"
 	if uiExperimental {
+		// The experimental dashboard and JSON API share one listener.
+		// Keep this listener loopback-only or same-origin. There is no
+		// separate cross-origin browser policy for exposing it remotely.
 		if dashboardFS, ok := embeddedDashboardFS(); ok {
 			openPath = "/view/"
 			static := http.FileServer(dashboardFS)
@@ -149,16 +155,32 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
-	cfg := viewConfig{Port: 8080}
+	cfg := viewConfig{Host: defaultViewHost, Port: 8080}
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "-h" || arg == "--help":
 			return cfg, errViewHelp
+		case arg == "--host":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --host")
+			}
+			i++
+			host := strings.TrimSpace(args[i])
+			if host == "" {
+				return cfg, fmt.Errorf("--host cannot be empty")
+			}
+			cfg.Host = host
+		case strings.HasPrefix(arg, "--host="):
+			host := strings.TrimSpace(strings.TrimPrefix(arg, "--host="))
+			if host == "" {
+				return cfg, fmt.Errorf("--host cannot be empty")
+			}
+			cfg.Host = host
 		case arg == "--port":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --port")
@@ -248,9 +270,12 @@ func openBrowser(url string) error {
 	return cmd.Start()
 }
 
-func listenViewPort(startPort int, explicit bool) (net.Listener, int, error) {
+func listenViewPort(host string, startPort int, explicit bool) (net.Listener, int, error) {
+	if strings.TrimSpace(host) == "" {
+		host = defaultViewHost
+	}
 	for _, port := range candidateViewPorts(startPort, explicit) {
-		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		addr := net.JoinHostPort(host, strconv.Itoa(port))
 		ln, err := net.Listen("tcp", addr)
 		if err == nil {
 			return ln, port, nil

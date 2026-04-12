@@ -24,27 +24,37 @@ func TestParseViewArgs(t *testing.T) {
 		{
 			name: "default config",
 			args: nil,
-			want: viewConfig{Port: 8080},
+			want: viewConfig{Host: defaultViewHost, Port: 8080},
 		},
 		{
 			name: "path and port",
 			args: []string{"trace.atb", "--port", "9090"},
-			want: viewConfig{BundlePath: "trace.atb", Port: 9090, PortSet: true},
+			want: viewConfig{BundlePath: "trace.atb", Host: defaultViewHost, Port: 9090, PortSet: true},
 		},
 		{
 			name: "bundle flag and no-open",
 			args: []string{"--bundle", "run.atb/bundle.atb", "--no-open", "--log-reveals"},
 			want: viewConfig{
 				BundlePath: "run.atb/bundle.atb",
+				Host:       defaultViewHost,
 				Port:       8080,
 				NoOpen:     true,
 				LogReveals: true,
 			},
 		},
 		{
+			name: "host override",
+			args: []string{"--host", "0.0.0.0"},
+			want: viewConfig{
+				Host: "0.0.0.0",
+				Port: 8080,
+			},
+		},
+		{
 			name: "ui experimental",
 			args: []string{"--ui-experimental"},
 			want: viewConfig{
+				Host:           defaultViewHost,
 				Port:           8080,
 				UIExperimental: true,
 			},
@@ -52,7 +62,7 @@ func TestParseViewArgs(t *testing.T) {
 		{
 			name: "port first",
 			args: []string{"--port=7070", "run.atb"},
-			want: viewConfig{BundlePath: "run.atb", Port: 7070, PortSet: true},
+			want: viewConfig{BundlePath: "run.atb", Host: defaultViewHost, Port: 7070, PortSet: true},
 		},
 		{
 			name:    "invalid port",
@@ -246,6 +256,25 @@ func TestCandidateViewPorts(t *testing.T) {
 	})
 }
 
+func TestListenViewPortBindsLoopbackByDefault(t *testing.T) {
+	ln, _, err := listenViewPort(defaultViewHost, 0, true)
+	if err != nil {
+		t.Fatalf("listenViewPort returned error: %v", err)
+	}
+	defer ln.Close()
+
+	addr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("unexpected listener addr type: %T", ln.Addr())
+	}
+	if addr.IP == nil || !addr.IP.IsLoopback() {
+		t.Fatalf("expected loopback bind address, got %v", addr.IP)
+	}
+	if addr.IP.String() != defaultViewHost {
+		t.Fatalf("expected bind address %s, got %s", defaultViewHost, addr.IP.String())
+	}
+}
+
 func TestListenViewPortFallsBackWhenBusy(t *testing.T) {
 	baseListener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -255,7 +284,7 @@ func TestListenViewPortFallsBackWhenBusy(t *testing.T) {
 
 	basePort := baseListener.Addr().(*net.TCPAddr).Port
 
-	ln, gotPort, err := listenViewPort(basePort, false)
+	ln, gotPort, err := listenViewPort(defaultViewHost, basePort, false)
 	if err != nil {
 		t.Fatalf("listenViewPort returned error: %v", err)
 	}
@@ -278,7 +307,7 @@ func TestListenViewPortExplicitPortBusy(t *testing.T) {
 
 	basePort := baseListener.Addr().(*net.TCPAddr).Port
 
-	_, _, err = listenViewPort(basePort, true)
+	_, _, err = listenViewPort(defaultViewHost, basePort, true)
 	if err == nil {
 		t.Fatalf("expected error for busy explicit port")
 	}

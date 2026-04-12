@@ -61,6 +61,14 @@ type messageImprint struct {
 	HashedMessage []byte
 }
 
+type TokenVerification struct {
+	MessageImprintVerified bool
+	SignatureVerified      bool
+	CertChainVerified      bool
+	SignerCommonName       string
+	IssuerCommonName       string
+}
+
 type issuerAndSerialNumber struct {
 	Issuer       asn1.RawValue
 	SerialNumber *big.Int
@@ -176,41 +184,51 @@ func HashBundle(path string) ([]byte, error) {
 }
 
 func VerifyToken(tsrDER []byte, bundleHash []byte, roots *x509.CertPool) error {
+	_, err := VerifyTokenDetailed(tsrDER, bundleHash, roots)
+	return err
+}
+
+func VerifyTokenDetailed(tsrDER []byte, bundleHash []byte, roots *x509.CertPool) (TokenVerification, error) {
+	result := TokenVerification{}
+
 	parsed, err := parseToken(tsrDER)
 	if err != nil {
-		return err
+		return result, err
 	}
 
 	if !bytes.Equal(parsed.Info.MessageImprint.HashedMessage, bundleHash) {
-		return fmt.Errorf("anchor: digest mismatch")
+		return result, fmt.Errorf("anchor: digest mismatch")
 	}
+	result.MessageImprintVerified = true
 
 	certs, err := extractCertificates(parsed.SignedDataDER)
 	if err != nil {
-		return err
+		return result, err
 	}
 	if len(certs) == 0 {
-		return fmt.Errorf("anchor: no signer certificate in timestamp token")
+		return result, fmt.Errorf("anchor: no signer certificate in timestamp token")
 	}
 
 	signers, err := extractSignerInfos(parsed.SignedData.SignerInfos.FullBytes)
 	if err != nil {
-		return err
+		return result, err
 	}
 	if len(signers) == 0 {
-		return fmt.Errorf("anchor: missing signer info")
+		return result, fmt.Errorf("anchor: missing signer info")
 	}
 
 	signerCert, err := findSignerCertificate(signers[0], certs)
 	if err != nil {
-		return err
+		return result, err
 	}
+	result.SignerCommonName = signerCert.Subject.CommonName
+	result.IssuerCommonName = signerCert.Issuer.CommonName
 
 	rootPool := roots
 	if rootPool == nil {
 		rootPool, err = x509.SystemCertPool()
 		if err != nil {
-			return fmt.Errorf("anchor: load system roots: %w", err)
+			return result, fmt.Errorf("anchor: load system roots: %w", err)
 		}
 	}
 	verifyOpts := x509.VerifyOptions{
@@ -220,13 +238,15 @@ func VerifyToken(tsrDER []byte, bundleHash []byte, roots *x509.CertPool) error {
 		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageTimeStamping},
 	}
 	if _, err := signerCert.Verify(verifyOpts); err != nil {
-		return fmt.Errorf("anchor: certificate verification failed: %w", err)
+		return result, fmt.Errorf("anchor: certificate verification failed: %w", err)
 	}
+	result.CertChainVerified = true
 
 	if err := verifySignerSignature(signers[0], signerCert, parsed.TSTInfoDER); err != nil {
-		return fmt.Errorf("anchor: signature verification failed: %w", err)
+		return result, fmt.Errorf("anchor: signature verification failed: %w", err)
 	}
-	return nil
+	result.SignatureVerified = true
+	return result, nil
 }
 
 func buildIntermediatesPool(certs []*x509.Certificate, signer *x509.Certificate) *x509.CertPool {
