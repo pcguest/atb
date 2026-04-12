@@ -7,11 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.4.0] - 2026-04-12
+
 ### Added
 - `atb verify --with-snapshot-check` validates each `atb.snapshot` `bundle_hash` against the serialised prefix; mismatches report `snapshot_hash_mismatch at seq N`.
 - `cas` object on `atb trust-report --json` output (alongside existing `cas_score` / `cas_grade`), aligned with verify report CAS.
 - EU AI Act Article 12 mapping (`docs/compliance/eu-ai-act.md`) with profile table and limitations.
 - Text verify output note when obligations fail: CAS is diagnostic only and does not overturn FAIL.
+- NIST AI RMF practitioner mapping (`docs/compliance/nist-ai-rmf.md`) for CAS sub-scores and built-in profiles.
+- End-to-end quickstart example under `examples/quickstart/`, including a runnable script and captured terminal output for a verifiable `privileged_tool_action` bundle with a CAS grade line.
+- OpenTelemetry comparison guide (`docs/comparisons/opentelemetry.md`).
 
 ### Changed
 - CAS weight vectors for `background_automation`, `policy_decision`, and `human_override` YAML templates to the documented profile-specific values (`data_export` unchanged).
@@ -19,25 +24,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/security.md` Limitations expanded: intra-bundle integrity vs capture completeness, local-first filesystem trust boundary.
 - `docs/spec-v1.0.md`: snapshot `bundle_hash` definition, `--with-snapshot-check` behaviour, and that the field is not verified without the flag.
 - `docs/compliance/eu-ai-act.md` rewritten to match the Article 12 mapping structure (overview, profile table, out-of-scope paragraph).
+- `atb view` keeps a loopback default host and accepts an explicit `--host` override.
+- `atb verify` and `atb trust-report` now report RFC 3161 anchor state explicitly as verified, partial, or failed.
+- `docs/security.md` now states the local viewer exposure boundary and the exact RFC 3161 checks performed during `--with-anchor`.
+- `docs/key-management.md` now states the versioned PBKDF2-SHA256 parameters for new and legacy encrypted bundles.
+- CI now checks internal Markdown links under `docs/` and `README.md`.
+- `sdk/python/README.md` now reflects the actual exported Python SDK import paths, append flow, and event type constants from `sdk/python/atb/`.
+- `sdk/typescript/README.md` now reflects the actual exported TypeScript SDK package imports, append flow, and event type constants from `sdk/typescript/src/`.
+- Docs and examples navigation updated to add the quickstart and comparison entries after auditing the edited index links.
 
 ### Fixed
 - `--sign-policy` exits non-zero when no signing key is present (`no signing key found; run 'atb keygen' before using --sign-policy`).
+- `atb verify` no longer reports a successfully validated TSA anchor as unverified in text or JSON output.
 
 ### Security
 - `atb encrypt` writes ATBE wire version `0x02` with PBKDF2-SHA256 at `600000` iterations; `atb decrypt` accepts `0x01` (`100000`) and `0x02`.
+- `atb verify --with-anchor` now requires TSA certificate-chain verification against the system roots in production before AC receives anchor credit.
 
 ### Tests
 - CLI: `--sign-policy` without keypair; `--with-snapshot-check` tamper path and verify without the flag unchanged.
 - `internal/verify`: CAS scenarios for extended profiles; trust-report JSON asserts `cas` when present.
+- Viewer listener test now asserts that the default bind address is `127.0.0.1`.
+- Anchor verification tests now cover verified, partial, and failed reporting states.
 
-## [v1.0.0.1] — 2026-04-09
+## [v1.0.0.1] - 2026-04-09
 
 ### Changed
 - Version metadata aligned to `v1.0.0.1` release tag
 - Docker publish hang fixed; login logout disabled, timeout added
 - Smoke check drift resolved in release guidance and checklist
 
-## [v1.0.0] — 2026-04-09
+## [v1.0.0] - 2026-04-09
 
 ### Changed
 - Version bumped to `1.0.0` across CLI, Python SDK, TypeScript SDK, and web package
@@ -48,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `v1.0.0-rc` tag remains at `a65a70b`; `v1.0.0` supersedes it
 - `v1.0.0` tag from 2026-03-10 (`bb2cccb`) refers to an earlier development iteration and is distinct from this release
 
-## [v1.0.0-rc] — 2026-04-09
+## [v1.0.0-rc] - 2026-04-09
 
 ### Added
 - Ed25519 bundle signing integration test
@@ -59,13 +76,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version bumped to `1.0.0-rc` across the CLI, Python SDK, TypeScript SDK, and web package
 - Roadmap updated to reflect completed `v0.9.x` items and `v1.0.0-rc` scope
 
-## [v0.9.2-beta] — 2026-04-08
+## [v0.9.2-beta] - 2026-04-08
 
 ### Changed
 - Version bump to 0.9.2-beta; closes the April 2026 release window
 - Python SDK version aligned to 0.9.2b1
 
-## [v0.9.1-beta] — 2026-04-08
+## [v0.9.1-beta] - 2026-04-08
 
 ### Added
 - `atb trust-report --format json` TrustReport output with profile-specific evidence sections for all six built-in profiles
@@ -84,12 +101,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Snapshot tests for `atb trust-report --format json` across all six profiles, including negative and edge cases
 - Golden fixture for compliance manifest JSON output
 
-## [v0.9.1-beta] — 2026-04-07
+## [v0.9.1-beta] - 2026-04-07
 
 ### Changed
 - Align release metadata across CLI version output, README badges/status, and SECURITY supported-version table.
 
-## [v0.9.0-beta] — 2026-04-XX
+## [v0.9.0-beta] - 2026-04-XX
 
 ### Changed
 - Versioning reset to v0.9.0-beta to accurately reflect pre-production status
@@ -174,15 +191,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.5.0] - 2026-03-31
 
-### Features
+### Added
 - Add `atb bundle new` as an alias for `atb init`.
 
-### Bug Fixes
+### Fixed
 - Guard against a `nil` `SubScores` map in verify output and add SC fallback
   handling for unmatched profiles.
 - Copy all embedded source files into the Go builder Docker stage.
 
-### CI/Chores
+### Changed
 - Build web assets before `go vet` in the Gold Release Gate workflow.
 - Install `sdk/typescript` dependencies before Gold Release Gate tests.
 - Bump SDK versions to `1.4.0` for release tag parity.
@@ -239,5 +256,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundles created before this change load correctly; `Manifest()` returns `nil`
   for legacy bundles.
 
+<!-- Version series reset. v1.1.0 and above are the clean release series. Entries below this line are from the pre-reset development history and are retained for reference. -->
 ## [v1.1.0] - 2026-03-12
 ...
