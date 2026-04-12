@@ -62,7 +62,7 @@ bash run.sh
     }
   ],
   "cas": {
-    "overall": 0.76,
+    "overall": 0.7600000000000002,
     "grade": "Medium",
     "sub_scores": {
       "AC": 0,
