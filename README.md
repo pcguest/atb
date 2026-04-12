@@ -2,7 +2,7 @@
 
 Tamper-evident audit trails for privacy-sensitive AI systems.
 
-[![Release](https://img.shields.io/badge/release-v1.4.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.5.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
 ## What it is
 
@@ -12,7 +12,7 @@ deterministic evidence for incident review, audit, and customer
 handoff. It does not require a backend and does not send trace data to
 external storage by default.
 
-Current release: [`v1.4.0`](CHANGELOG.md).
+Current release: [`v1.5.0`](CHANGELOG.md).
 
 ## Quickstart
 
