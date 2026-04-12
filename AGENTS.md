@@ -5,6 +5,33 @@ authoritative implementation for bundle creation, verification, export,
 and the local viewer. The Python and TypeScript packages are SDKs that
 write the same bundle format.
 
+## Hard invariants
+
+- `go test ./...` passes before every commit
+- British English, no em dashes, in any committed file
+- One logical change per commit, 72-character subject, imperative mood
+- Never edit a test to make it pass — fix the implementation
+- Bundle format is frozen at v1.0 (docs/spec-v1.0.md)
+
+## Do not implement without explicit instruction
+
+- WORM/S3 export
+- ACP gating middleware
+- Article 17 GDPR deletion
+- Web dashboard changes
+
+## Key packages
+
+- `cmd/atb/` — CLI and MCP server entry points
+- `internal/bundle/` — bundle read/write
+- `internal/verify/` — chain verification and CAS scoring
+- `internal/profiles/` — YAML profile templates
+- `internal/anchor/` — RFC 3161 TSA anchoring
+- `internal/encrypt/` — AES-256-GCM versioned KDF
+- `pkg/api/v1/` — local viewer API (127.0.0.1 only)
+- `sdk/python/` — Python SDK
+- `sdk/typescript/` — TypeScript SDK
+
 ## Working assumptions
 
 - Treat `cmd/atb/main.go` as the CLI source of truth for command names, flags, and version output.
