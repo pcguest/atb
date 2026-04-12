@@ -1,4 +1,4 @@
-# ATB v1.0 Specification
+# ATB v1.0 specification
 
 **ATB (Agent Trace Bundle)** is a file format and protocol for creating tamper-evident, verifiable audit trails of AI workflow events.
 
@@ -6,7 +6,7 @@
 
 ## 1. Overview
 
-An ATB bundle is a newline-delimited JSON (NDJSON) file where each line contains a single JSON object — a **record** — consisting of an **event** and its **hash**. New bundles start with a manifest record at `seq = 0`; later records form a cryptographic chain on top of that manifest.
+An ATB bundle is a newline-delimited JSON (NDJSON) file where each line contains a single JSON object, a **record**, consisting of an **event** and its **hash**. New bundles start with a manifest record at `seq = 0`; later records form a cryptographic chain on top of that manifest.
 
 ---
 
@@ -16,7 +16,7 @@ An ATB bundle is a newline-delimited JSON (NDJSON) file where each line contains
 
 A bundle file uses the `.atb` extension and is stored in the `run.atb/` directory by default. Each line is a valid JSON object terminated by a newline character (`\n`).
 
-```
+```text
 run.atb/
 └── bundle.atb
 ```
@@ -63,7 +63,7 @@ Each line in a bundle file is a JSON object with the following schema:
 
 The manifest record in a new bundle uses a **genesis hash** as its `prev_hash`. Legacy manifest-less bundles also use this value on their first record:
 
-```
+```text
 prev_hash = "0000000000000000000000000000000000000000000000000000000000000000"
 ```
 
@@ -71,7 +71,7 @@ prev_hash = "0000000000000000000000000000000000000000000000000000000000000000"
 
 The hash for event `n` is computed as follows:
 
-```
+```text
 hash(n) = SHA256( UTF8(hex(hash(n-1))) || RFC8785(event(n)) )
 ```
 

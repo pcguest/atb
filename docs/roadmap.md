@@ -1,4 +1,8 @@
-# ATB Roadmap & Versioning
+# ATB roadmap and versioning
+
+This document explains the historical version reset that led into the
+stable series. For the current release state, use [docs/STATUS.md](./STATUS.md)
+and [CHANGELOG.md](../CHANGELOG.md).
 
 This document outlines the journey of ATB from its experimental origins to a stable 1.0 release.
 

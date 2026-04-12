@@ -4,7 +4,7 @@ Many teams do not start by comparing ATB to a vendor. They start by comparing it
 
 That is the more practical comparison.
 
-## Category Difference
+## Category difference
 
 Ad hoc evidence is usually optimised for speed:
 
@@ -22,7 +22,7 @@ ATB is optimised for:
 - masked review with explicit reveal logging
 - deterministic evidence export when a formal pack is needed
 
-## Practical Comparison
+## Practical comparison
 
 | Question | Logs, screenshots, ad hoc exports | ATB |
 | --- | --- | --- |
@@ -32,7 +32,7 @@ ATB is optimised for:
 | What does customer handoff look like? | Notes, screenshots, or continued platform access | Portable bundle plus optional deterministic export |
 | Is the review pack repeatable? | Usually no | Yes, by design |
 
-## When ATB Is The Better Fit
+## When ATB is the better fit
 
 Use ATB first when:
 
@@ -41,7 +41,7 @@ Use ATB first when:
 - privacy-sensitive data makes ad hoc copying risky
 - the team needs to prove the record has not been altered
 
-## When Ad Hoc Evidence Is Fine
+## When ad hoc evidence is fine
 
 Use logs and screenshots when:
 

@@ -1,10 +1,12 @@
-# Customer Handoff Without Platform Lock-In
+# Customer handoff without platform lock-in
 
-ATB is useful when a team needs to hand over a trustworthy AI execution record to someone outside the delivery team.
+ATB is useful when a team needs to hand over a trustworthy AI execution
+record to someone outside the delivery team.
 
-This is common for consultancies, internal platform teams, and enterprise builders shipping AI workflows into regulated environments.
+This is common for consultancies, internal platform teams, and
+enterprise builders shipping AI workflows into regulated environments.
 
-## The Problem
+## The problem
 
 Customer handoff usually breaks down in one of three ways:
 
@@ -12,9 +14,10 @@ Customer handoff usually breaks down in one of three ways:
 - the customer is asked to trust a hosted observability platform they do not control
 - the original trace is spread across logs, dashboards, and ad hoc exports
 
-That makes review harder than it should be. It also creates unnecessary dependency on the original delivery environment.
+That makes review harder than it should be. It also creates unnecessary
+dependency on the original delivery environment.
 
-## What ATB Changes
+## What ATB changes
 
 ATB produces a portable bundle that can be:
 
@@ -23,17 +26,22 @@ ATB produces a portable bundle that can be:
 - inspected through the local viewer
 - exported into deterministic evidence archives when formal review is needed
 
-The handoff is the bundle itself, not continued reliance on the original platform.
+The handoff is the bundle itself, not continued reliance on the
+original platform.
 
-For the operator runbook, use the [Customer Handoff Workflow](../guides/customer-handoff-workflow.md).
+For the operator runbook, use the [Customer handoff
+workflow](../guides/customer-handoff-workflow.md).
 
-## Example Workflow
+## Example workflow
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
-atb init
-atb append agent.run --data='{"workflow":"claims-triage","customer":"acme"}'
-atb append decision --data='{"action":"route_to_manual_review","reason":"confidence_below_threshold"}'
+atb bundle new
+atb append ai.request.received --data='{"request_id":"req-204","workflow":"claims-triage","customer":"acme"}'
+atb append ai.action.precommit --data='{"action_id":"act-204","action_type":"route_to_manual_review","target_resource_id":"claims-queue","intended_effect":"manual_review"}'
+atb append ai.policy.decision --data='{"policy_id":"pol-claims-review","policy_version":"2026-04","decision":"allow","decision_reason_codes":["confidence_below_threshold"],"subject_id_hash":"sha256-customer-acme","action_id":"act-204"}'
+atb append ai.action.executed --data='{"action_id":"act-204","execution_outcome":"success","tool_receipt_digest":"sha256-tool-receipt-204"}'
+atb append ai.action.committed --data='{"action_id":"act-204","commit_outcome":"committed","sink_receipt_digest":"sha256-sink-receipt-204"}'
 atb snapshot customer_handoff_ready
 atb verify --format json
 ATB_PASSWORD='shared-review-secret' atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
@@ -43,20 +51,20 @@ ATB_PASSWORD='shared-review-secret' atb decrypt incoming/acme-review.atb.enc --o
 atb verify review/acme-review.atb --format json
 ```
 
-## Why Teams Use This
+## Why teams use this
 
 - **Portable review artefact:** the bundle can move with the delivery, not stay trapped in an environment.
 - **Independent verification:** the recipient can check integrity without trusting the original operator.
 - **Clear privacy posture:** traces stay local by default and can be encrypted before transfer.
 - **Deterministic outputs:** evidence exports are reproducible instead of hand-built slide decks or one-off notes.
 
-## Best-Fit Teams
+## Best-fit teams
 
 - consultancies shipping AI systems into customer environments
 - internal platform teams handing an AI workflow to security, legal, or audit
 - enterprises that need a reviewable artefact for procurement or post-incident follow-up
 
-## Weak Fit
+## Weak fit
 
 ATB is not the best answer if the handoff requirement is:
 

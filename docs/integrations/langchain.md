@@ -1,4 +1,4 @@
-# LangChain Integration
+# LangChain integration
 
 ATB provides an opt-in callback middleware for LangChain that emits AI trace events into a standard `run.atb/bundle.atb` bundle.
 
@@ -11,7 +11,7 @@ pip install langchain langchain-openai
 
 Use `pip install atb-sdk` as the base package install.
 
-## Quick Start
+## Quick start
 
 ```python
 from atb import Bundle
@@ -32,7 +32,7 @@ llm = ChatOpenAI(model="gpt-4o-mini", callbacks=[callback])
 _ = llm.invoke("Summarize this text")
 ```
 
-## Event Mapping
+## Event mapping
 
 - `on_llm_start` -> `ai.llm.call` (`phase=start`)
 - `on_llm_new_token` -> `ai.llm.call` (`phase=delta`)
@@ -40,7 +40,7 @@ _ = llm.invoke("Summarize this text")
 - `on_tool_start` / `on_tool_end` -> `ai.tool.exec`
 - `on_chain_start` / `on_chain_end` -> `ai.chain.run`
 
-## Privacy Modes
+## Privacy modes
 
 - `off`: plain prompt/completion text is recorded.
 - `hash`: text fields are replaced with deterministic SHA-256 values.
@@ -48,7 +48,7 @@ _ = llm.invoke("Summarize this text")
 
 All modes also store `sha256` values for emitted text payloads.
 
-## Disable Tracing
+## Disable tracing
 
 Set `enabled=False` to make the handler a no-op without changing app flow:
 

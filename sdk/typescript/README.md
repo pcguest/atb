@@ -1,60 +1,74 @@
-# @pcguest/atb-sdk - ATB TypeScript SDK
+# @pcguest/atb-sdk
 
-The official TypeScript/JavaScript SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb).
+The ATB TypeScript SDK writes tamper-evident audit bundles in the same format as the Go CLI; bundles written by the SDK are verifiable with `atb verify`.
 
 ## Installation
 
 ```bash
 npm install @pcguest/atb-sdk
-# or
-pnpm add @pcguest/atb-sdk
 ```
 
-Use this package when you need to write or verify bundles from TypeScript or JavaScript code. The Go CLI remains the authoritative CLI path:
+## Quick example
 
-```bash
-go install github.com/pcguest/atb/cmd/atb@latest
-```
-
-The package does not include a standalone ATB CLI. The installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
-
-## Quick Start
-
-```typescript
+```ts
 import {
   AI_MODEL_INVOKED_EVENT_TYPE,
-  AI_MODEL_OUTPUT_EVENT_TYPE,
   AI_REQUEST_RECEIVED_EVENT_TYPE,
   Bundle,
 } from "@pcguest/atb-sdk";
 
 const bundle = new Bundle();
+const bundlePath = "run.atb/bundle.atb";
 
 bundle.append(AI_REQUEST_RECEIVED_EVENT_TYPE, {
   request_id: "req-001",
-  actor_id_hash: "sha256-actor-abc",
-  purpose_tag: "rag_answer",
+  actor_id_hash: "hash-user-01",
+  purpose_tag: "quickstart_demo",
 });
+
 bundle.append(AI_MODEL_INVOKED_EVENT_TYPE, {
   model_provider: "openai",
-  model_id: "gpt-4o",
-  model_parameters_digest: "sha256-params-def",
-  prompt_digest: "sha256-prompt-ghi",
-});
-bundle.append(AI_MODEL_OUTPUT_EVENT_TYPE, {
-  output_digest: "sha256-output-jkl",
-  output_format: "text/plain",
+  model_id: "gpt-4o-mini",
+  model_parameters_digest: "sha256-params-abc",
+  prompt_digest: "sha256-prompt-def",
 });
 
-bundle.save();
-
-const loaded = Bundle.load();
-loaded.verify();
-console.log(`Verified ${loaded.length} records (including manifest).`);
+bundle.save(bundlePath);
+console.log(bundlePath);
 ```
 
-`new Bundle()` starts with an `atb.bundle.manifest` record at `seq = 0`. Appended events start at `seq = 1`.
+## Supported event types
+
+| Event type constant name | Event type string |
+| --- | --- |
+| `BUNDLE_MANIFEST_EVENT_TYPE` | `atb.bundle.manifest` |
+| `BUNDLE_ANCHOR_EVENT_TYPE` | `atb.bundle.anchor` |
+| `BUNDLE_SIGNATURE_EVENT_TYPE` | `atb.bundle.signature` |
+| `AI_REQUEST_RECEIVED_EVENT_TYPE` | `ai.request.received` |
+| `AI_RESPONSE_SENT_EVENT_TYPE` | `ai.response.sent` |
+| `AI_POLICY_DECISION_EVENT_TYPE` | `ai.policy.decision` |
+| `AI_RETRIEVAL_EXECUTED_EVENT_TYPE` | `ai.retrieval.executed` |
+| `AI_MODEL_INVOKED_EVENT_TYPE` | `ai.model.invoked` |
+| `AI_MODEL_OUTPUT_EVENT_TYPE` | `ai.model.output` |
+| `AI_ACTION_PRECOMMIT_EVENT_TYPE` | `ai.action.precommit` |
+| `AI_ACTION_EXECUTED_EVENT_TYPE` | `ai.action.executed` |
+| `AI_ACTION_COMMITTED_EVENT_TYPE` | `ai.action.committed` |
+| `AI_HUMAN_APPROVAL_EVENT_TYPE` | `ai.human.approval` |
+| `AI_JOB_SCHEDULED_EVENT_TYPE` | `ai.job.scheduled` |
+| `AI_JOB_STARTED_EVENT_TYPE` | `ai.job.started` |
+| `AI_JOB_STEP_EVENT_TYPE` | `ai.job.step` |
+| `AI_JOB_COMPLETED_EVENT_TYPE` | `ai.job.completed` |
+| `DATA_EXPORT_PRECOMMIT_EVENT_TYPE` | `data.export.precommit` |
+| `DATA_EXPORT_EXECUTED_EVENT_TYPE` | `data.export.executed` |
+
+## Profile support
+
+To verify a bundle against a profile, use the Go CLI: `atb verify --bundle <path> --profile <profile-id>`. The TypeScript SDK does not include a verifier.
+
+## Vercel AI SDK integration
+
+For Vercel AI SDK middleware guidance, see [docs/integrations/](../../docs/integrations/README.md).
 
 ## Licence
 
-MIT
+MIT.

@@ -2,7 +2,7 @@
 
 ATB uses Semantic Versioning (`MAJOR.MINOR.PATCH`) for the CLI, SDKs, and release artifacts.
 
-## What Triggers a Major Version
+## What triggers a major version
 
 A MAJOR bump is required for any breaking change:
 
@@ -11,7 +11,7 @@ A MAJOR bump is required for any breaking change:
 - Breaking change to SOC2/GDPR export contract fields
 - Breaking public API changes in Python/TypeScript SDKs
 
-## What Triggers a Minor Version
+## What triggers a minor version
 
 A MINOR bump is used for backward-compatible feature additions:
 
@@ -20,7 +20,7 @@ A MINOR bump is used for backward-compatible feature additions:
 - New export/report formats
 - New dashboard capabilities
 
-## What Triggers a Patch Version
+## What triggers a patch version
 
 A PATCH bump is used for backward-compatible fixes:
 
@@ -28,19 +28,19 @@ A PATCH bump is used for backward-compatible fixes:
 - Security patches
 - Documentation and release tooling fixes
 
-## Deprecation Policy
+## Deprecation policy
 
 - Deprecations are announced in changelog and release notes
 - Deprecated behavior remains available for at least one subsequent MINOR release
 - Deprecated behavior is only removed in a later MAJOR release
 
-## Tagging Rules
+## Tagging rules
 
 - Release tags are annotated and formatted as `vMAJOR.MINOR.PATCH`
 - CI publish workflows trigger only on tags matching `v*.*.*`
 - Tag version must match package versions validated in release workflow
 
-## Pre-Release Versioning
+## Pre-release versioning
 
-- Pre-release versions use SemVer pre-release suffixes (for npm) and PEP 440 style for Python
-- Current examples: `v0.9.0-beta` for the CLI/release tag, `0.9.0-beta.1` for npm, and `0.9.0b1` for Python
+- Pre-release versions use SemVer pre-release suffixes for release tags and npm, and PEP 440 pre-release forms for Python
+- Example forms: `v1.5.0-rc.1` for the release tag, `1.5.0-rc.1` for npm, and `1.5.0rc1` for Python

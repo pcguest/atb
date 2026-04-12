@@ -1,4 +1,10 @@
-# ATB Launch Specification
+# Archived ATB launch specification
+
+This document is retained for historical reference. It describes the
+beta-series release plan and is not the current release process. Use
+[CONTRIBUTING.md](../CONTRIBUTING.md), [VERSIONING.md](../VERSIONING.md),
+and the GitHub workflows under `.github/workflows/` for the current
+release path.
 
 ## Goal
 

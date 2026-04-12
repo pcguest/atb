@@ -1,16 +1,16 @@
-# SOC2 Type II Evidence Bundle
+# SOC 2 Type II evidence bundle
 
 This template provides a standard structure for SOC2 evidence generated from ATB bundles.
 
 ATB provides tamper-evident records of the events that were appended during the workflow. Completeness against the SOC2 control is evaluated per the declared obligation profile, not by universal capture.
 
-## Control Criteria
+## Control criteria
 
 - **CC6.1:** Logical Access Controls
 - **CC7.2:** System Operations
 - **CC8.1:** Change Management
 
-## Evidence Requirements
+## Evidence requirements
 
 The exporter should include the following ATB-derived evidence:
 
@@ -27,14 +27,14 @@ The SOC2 export produces a zip containing:
 - `evidence/verification_report.json` (bundle verification summary)
 - `evidence/checksums.sha256` (artifact integrity manifest)
 
-## Instructions for Auditors
+## Instructions for auditors
 
 1. Confirm the source bundle was verified before evidence generation.
 2. Review the event log against the declared obligation profile and selected audit period.
 3. Confirm the integrity section indicates a valid hash chain.
 4. Sample-check actor-attributed events against control criteria.
 
-## Auditor Notes
+## Auditor notes
 
 This bundle was generated automatically by the current release. Verify the
 `chain_valid` field in `evidence/verification_report.json` before proceeding with attestation.

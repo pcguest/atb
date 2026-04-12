@@ -2,7 +2,7 @@
 
 ATB retention is local-first and controlled through CLI config.
 
-## Configure Retention
+## Configure retention
 
 Set retention days in local config:
 
@@ -17,7 +17,7 @@ This writes `./.atb/config.json` with:
 - `retention.scope` (default: `run.atb/*.atb`)
 - `retention.cutoff_basis` (current supported value: `file_mtime`)
 
-## Run Archive
+## Run archive
 
 Archive using configured retention days:
 
@@ -37,7 +37,7 @@ Preview actions without moving files:
 atb archive --dry-run
 ```
 
-## Archive Behavior
+## Archive behaviour
 
 - Candidate bundles are discovered from configured `scope`.
 - Bundles are verified before archiving; invalid bundles are skipped.
@@ -45,7 +45,7 @@ atb archive --dry-run
 - A tamper-evident archive ledger is maintained at `archive.atb/index.ndjson`.
 - If `run.atb/bundle.atb` is archived, ATB recreates an empty default bundle at `run.atb/bundle.atb`.
 
-## Audit Expectations
+## Audit expectations
 
 - Keep `archive.atb/` and `run.atb/` as local evidence stores.
 - Use `atb export --format compliance --output <path.zip>` to package active bundles, archived bundles, and reports for audit review.

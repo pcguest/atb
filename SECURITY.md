@@ -1,15 +1,15 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
 Security fixes are shipped on the current release tag only.
 
 | Version | Supported |
 | --- | --- |
-| `v0.9.2-beta` | Yes |
+| `v1.4.0` | Yes |
 | Older releases | No |
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
 Please report vulnerabilities privately to
 [patrickcguest@proton.me](mailto:patrickcguest@proton.me).
@@ -22,7 +22,7 @@ Include:
 
 Do not open public GitHub issues for unpatched vulnerabilities.
 
-## Disclosure Process
+## Disclosure process
 
 - Initial acknowledgment target: within 5 business days.
 - Triage and remediation plan: after issue reproduction.
@@ -39,6 +39,6 @@ This policy applies to:
 
 Trivy vulnerability scanning runs on a weekly schedule via GitHub Actions.
 
-## Safe Harbor
+## Safe harbour
 
 Good-faith research is authorized when you avoid privacy violations, data loss, service disruption, and social engineering.

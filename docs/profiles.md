@@ -1,8 +1,8 @@
-# Obligation Profiles and CAS
+# Obligation profiles and CAS
 
 ATB uses obligation profiles to evaluate whether a bundle contains the minimum evidence expected for a workflow. Hash-chain verification answers whether recorded evidence was changed. Profiles and CAS answer whether enough of the workflow was recorded to support later review.
 
-## Profile Summary
+## Profile summary
 
 | Profile ID | Workflow class | CAS support |
 |------------|----------------|-------------|
@@ -13,7 +13,7 @@ ATB uses obligation profiles to evaluate whether a bundle contains the minimum e
 | `atb.profile.human_override` | `human_override` | No |
 | `atb.profile.background_automation` | `background_automation` | No |
 
-## Built-in Profiles
+## Built-in profiles
 
 ### 1. Privileged Tool Action (`atb.profile.privileged_tool_action`)
 
@@ -153,11 +153,11 @@ Relation checks:
 - `ai.job.started` must bind to `ai.job.scheduled` by `job_id`.
 - `ai.job.completed` must bind to `ai.job.started` by `job_id`.
 
-## Completeness Assurance Score
+## Completeness assurance score
 
 CAS is a weighted score from 0.0 to 1.0 that measures how well the recorded evidence matches the selected profile. It is currently emitted only for `atb.profile.privileged_tool_action` and `atb.profile.rag_answer`.
 
-### CAS Grades
+### CAS grades
 
 - High, `>= 0.85`: strong evidence coverage across all dimensions.
 - Medium, `>= 0.60`: sufficient evidence for review, with minor gaps.
@@ -182,7 +182,7 @@ CAS is a weighted score from 0.0 to 1.0 that measures how well the recorded evid
 - Integrity, the hash chain: proves that what was recorded has not been changed.
 - Completeness, CAS: measures how much of the workflow was recorded.
 
-## Compliance Mapping
+## Compliance mapping
 
 | Requirement | Description | Relevant ATB profile(s) |
 |-------------|-------------|-------------------------|

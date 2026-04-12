@@ -4,13 +4,13 @@ text as of April 2026 and have not been reviewed by counsel. -->
 
 # EU AI Act Article 12 and ATB
 
-## Section 1: Overview
+## Overview
 
 Article 12 of Regulation (EU) 2024/1689 requires providers of high-risk AI systems to ensure that their systems are technically capable of automatically recording events (logs) over the lifetime of the system, with logging appropriate to the intended purpose and sufficient to ensure traceability. Broad application of many obligations under the Act, including for providers placing high-risk systems on the market, begins on 2 August 2026 (subject to sector-specific and transitional rules elsewhere in the Regulation).
 
 ATB contributes tamper-evident integrity for whatever events are written into a bundle, and profile-scoped completeness assurance scoring (CAS) against declared obligation templates. It does not by itself demonstrate that every legally material event in a real-world workflow was captured, or that operators configured instrumentation exhaustively.
 
-## Section 2: Profile mapping
+## Profile mapping
 
 | Profile ID | Workflow class | Article 12 traceability addressed | Gap / out of scope |
 | --- | --- | --- | --- |
@@ -21,6 +21,6 @@ ATB contributes tamper-evident integrity for whatever events are written into a 
 | `atb.profile.human_override` | `human_override` | Traceability of human approval identity and justification for overridden actions when approval and action events are recorded. | Physical-world identity is not verified beyond the IdP assertion, and approver comprehension of context is not attested. |
 | `atb.profile.background_automation` | `background_automation` | Traceability of job scheduling, execution steps, and outputs when job lifecycle events are recorded. | Steps inside the worker that are not explicitly logged are invisible, and external side effects are out of scope. |
 
-## Section 3: What ATB does not satisfy alone
+## What ATB does not satisfy alone
 
 ATB does not provide: (a) a certified WORM storage path for the retention period Article 12 implies (operators must arrange durable immutable storage independently); (b) proof of capture completeness (CAS is a bounded proxy over recorded evidence, not a universal guarantee); (c) legal advice on whether a given system is high-risk under the Act or how Article 12 applies to a specific deployment.

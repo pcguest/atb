@@ -4,7 +4,7 @@ ATB should not be evaluated as a cheaper hosted observability platform.
 
 Hosted AI observability tools and ATB solve adjacent problems, but they optimise for different constraints.
 
-## Category Difference
+## Category difference
 
 Hosted platforms are usually optimised for:
 
@@ -19,7 +19,7 @@ ATB is optimised for:
 - privacy-sensitive review workflows where raw traces should not default to external storage
 - deterministic evidence exports for customer, audit, or incident workflows
 
-## Important Boundary
+## Important boundary
 
 Hosted and self-hosted observability platforms have become better at compliance packaging, identity controls, and enterprise deployment. That is real progress in the category.
 
@@ -28,7 +28,7 @@ ATB should not be positioned as if it wins simply because it is "more private" o
 - hosted platforms give you a control plane
 - ATB gives you a portable, verifiable evidence artefact
 
-## Practical Comparison
+## Practical comparison
 
 | Question | Hosted AI observability | ATB |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ ATB should not be positioned as if it wins simply because it is "more private" o
 | How does collaboration work today? | Shared dashboards and workspaces | Portable local artefacts, no hosted workspace |
 | Is local control part of the product shape? | Sometimes optional | Yes, by design |
 
-## When ATB Is The Better Fit
+## When ATB is the better fit
 
 Use ATB first when:
 
@@ -47,7 +47,7 @@ Use ATB first when:
 - you need a portable artefact for handoff or formal review
 - you do not want post-incident review to depend on continued access to a vendor control plane
 
-## When A Hosted Platform Is The Better Fit
+## When a hosted platform is the better fit
 
 Use a hosted platform first when:
 
@@ -55,7 +55,7 @@ Use a hosted platform first when:
 - you need managed collaboration, evals, or prompt tooling
 - the team is comfortable centralising trace storage in a vendor platform
 
-## Current Product Boundary
+## Current product boundary
 
 ATB does not currently claim:
 

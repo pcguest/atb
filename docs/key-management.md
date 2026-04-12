@@ -1,45 +1,57 @@
-# Key Management
+# Key management
 
-This document provides guidance for security engineers and auditors on the lifecycle of cryptographic keys used in ATB for tamper evidence and bundle protection.
+This document describes the lifecycle of cryptographic keys used by ATB
+for bundle signing, policy-event signing, and optional encrypted bundle
+handoff.
 
 ## Overview
 
-In ATB, cryptographic signing is used for tamper evidence, ensuring that a bundle or specific policy event was produced by a known key holder and has not been modified since. It is not an access control mechanism.
+In ATB, signing provides tamper evidence. It proves that a bundle, or a
+specific policy event, was produced by a holder of a private key and was
+not modified afterwards. It is not an access-control mechanism.
 
-The v0.9.x release supports:
-- **Ed25519 Bundle Signing**: Signing the entire state of a hash chain to provide non-repudiation of the audit trail.
-- **Policy Event Signing**: Signing individual `ai.policy.decision` events to prove the origin of a policy evaluation.
-- **AES-256-GCM Encryption**: Passphrase-based encryption for protecting bundles during handoff or storage.
+ATB v1.4.0 supports:
 
-Out of scope for v0.9.x: Server-side key custody, multi-tenant key management, and hardware security module (HSM) integration.
+- Ed25519 bundle signing for whole-bundle state attestation.
+- Policy event signing for `ai.policy.decision` events.
+- AES-256-GCM encryption for passphrase-based bundle handoff or storage.
+
+Out of scope for v1.4.0: server-side key custody, multi-tenant key
+management, and hardware security module integration.
 
 ## Generating a keypair
 
-Use the `atb keygen` command to generate an Ed25519 signing keypair.
+Use `atb keygen` to generate an Ed25519 signing keypair.
 
 ```bash
 atb keygen --out-dir ./keys
 ```
 
-By default, this command writes two PEM-encoded files to the specified directory (or the current directory if omitted):
-- `atb-key.pem`: The private key (keep this secret).
-- `atb-key.pub.pem`: The public key.
+By default, this writes two PEM-encoded files to the specified directory
+or the current directory if omitted:
 
-Keys are stored in raw Ed25519 PEM format. The private key is written with restricted file permissions (`0600`).
+- `atb-key.pem`: the private key. Keep this secret.
+- `atb-key.pub.pem`: the public key.
+
+The private key is written with restricted file permissions, `0600`.
 
 ## Signing a bundle
 
-Bundle signing captures a SHA-256 digest of the current bundle state and appends a signed record. Note that `atb bundle new` (or `atb init`) does not auto-generate a keypair; you must generate one before signing.
+Bundle signing captures a SHA-256 digest of the current bundle state and
+appends a signed record. `atb bundle new`, or `atb init`, does not
+generate a keypair automatically.
 
 ```bash
 atb sign --bundle run.atb/bundle.atb --key ./keys/atb-key.pem
 ```
 
-The signature record (`atb.bundle.signature`) includes the bundle hash, the signature, and the public key used for verification.
+The signature record, `atb.bundle.signature`, includes the bundle hash,
+the signature, and the public key used for verification.
 
-## Policy event signing
+## Signing a policy event
 
-To ensure the integrity and origin of policy guardrails, you can sign `ai.policy.decision` events using the `--sign-policy` flag. This requires an Ed25519 private key.
+Use `--sign-policy` on `ai.policy.decision` events when you need
+cryptographic proof of policy-decision origin.
 
 ```bash
 atb append ai.policy.decision \
@@ -47,75 +59,86 @@ atb append ai.policy.decision \
   --sign-policy ./keys/atb-key.pem
 ```
 
-This operation adds a `policy_signature` and `policy_signer_pubkey` to the event payload. ATB verifies these fields during profile evaluation to ensure the decision has not been tampered with.
+This adds `policy_signature` and `policy_signer_pubkey` to the event
+payload. ATB verifies those fields during profile evaluation.
 
-## Verification
+## Verification behaviour
 
-`atb verify` and `atb trust-report` surface signature status during validation.
+`atb verify` and `atb trust-report` surface signature status during
+validation.
 
-- **Bundle Signatures**: The terminal output reports:
-  - `Signature present: yes/no`
-  - `Signature verified: yes/no`
-  If a signature is absent from the bundle, the `Bundle Signature` block is still shown in the terminal report with `Signature present: no`. In JSON output, the `bundle_signature` field is omitted if no signature record is found.
-- **Policy Signatures**:
-  - `ai.policy.decision: signature verified`: Displayed as an informational note when a valid signature is found.
-  - `ai.policy.decision: policy_signature absent`: Displayed as a warning if a policy event is unsigned.
-  - `ai.policy.decision: signature verification failed`: Displayed as a critical failure if the signature is invalid or the data has been mutated.
+- Bundle signatures:
+  `atb verify` reports whether a signature record is present and whether
+  it verifies. In JSON output, `bundle_signature` is omitted when no
+  signature record is found.
+- Policy signatures:
+  valid signatures are reported as informational notes; absent signatures
+  are warnings; invalid signatures are critical failures.
 
 ## Key storage recommendations
 
-ATB is a local-first tool and does not provide a built-in secrets vault. Follow these practices:
+ATB is local-first and does not provide a built-in secrets vault.
 
-- **Do NOT commit** `.pem` files to git. Add them to your `.gitignore`.
-- **Do NOT embed** private keys in environment variables where they may be logged by CI/CD systems.
-- **File Permissions**: Use `chmod 600 atb-key.pem` to ensure only the owner can read the private key. `atb keygen` sets these permissions automatically.
-- **Secret Management**: In production environments, use a dedicated manager (e.g., AWS Secrets Manager, HashiCorp Vault) to inject key files at runtime.
+- Do not commit `.pem` files to Git.
+- Do not embed private keys in environment variables that may be logged by CI systems.
+- Use `chmod 600 atb-key.pem` if you create or move key files outside `atb keygen`.
+- Use an external secret manager in production when keys must be injected at runtime.
 
 ## Key rotation
 
-Rotate Ed25519 signing keys by generating a new keypair, switching future signing operations to the new private key, and retaining the old public key for historical verification.
+Rotate Ed25519 signing keys by generating a new keypair, switching new
+signing operations to the new private key, and retaining the old public
+key for historical verification.
 
-1. Generate a new Ed25519 keypair:
+1. Generate a new Ed25519 keypair.
 
    ```bash
    atb keygen --out-dir ./keys-2026-04
    ```
 
-2. Keep the previous verification material during the transition period:
-   - Bundles already signed with the old key remain valid.
-   - Historical `ai.policy.decision` records signed with the old key remain valid.
-   - Retain the old public key for as long as any historical bundle or policy record signed with it may need to be verified.
+2. Keep the previous verification material during the transition.
+- Bundles already signed with the old key remain valid.
+- Historical `ai.policy.decision` records signed with the old key remain valid.
+- Retain the old public key for as long as any historical bundle or policy record signed with it may need verification.
 
-3. Update the active signing key used by your ATB workflow:
-   - ATB v0.9.x does not store an active signing key in `./.atb/config.json`.
-   - Future bundle signing must use the new key path with `atb sign --bundle <path> --key <new-key.pem>`.
-   - Future policy signing must use the new key path with `atb append ai.policy.decision ... --sign-policy <new-key.pem>`.
-   - If you use wrapper scripts, CI jobs, or secret injection around ATB, update that operational configuration to point at the new PEM file.
+3. Update the active signing key in the surrounding operational workflow.
+- ATB v1.4.0 does not store an active signing key in `./.atb/config.json`.
+- Future bundle signing must use the new key path with `atb sign --bundle <path> --key <new-key.pem>`.
+- Future policy signing must use the new key path with `atb append ai.policy.decision ... --sign-policy <new-key.pem>`.
+- If wrapper scripts, CI jobs, or secret injection layers choose the key path, update that operational configuration as well.
 
-4. Re-sign or re-anchor only when required:
-   - Historical bundles do not need to be re-signed solely because a key was rotated.
-   - If a current bundle must carry the new signing key, run `atb sign` again with the new private key. This appends a new `atb.bundle.signature` record, and `atb verify` evaluates the latest bundle signature record in the chain.
-   - If external time-bounding evidence is required for the newly signed bundle state, run `atb anchor [bundle_path] [--tsa-url <url>]` again after re-signing so the new state has its own RFC 3161 anchor.
+4. Re-sign or re-anchor only when required.
+- Historical bundles do not need re-signing solely because a key rotated.
+- If a current bundle must carry the new signing key, run `atb sign` again with the new private key. This appends a new `atb.bundle.signature` record, and `atb verify` evaluates the latest bundle signature record in the chain.
+- If external time-bounding evidence is required for the newly signed bundle state, run `atb anchor [bundle_path] [--tsa-url <url>]` again after re-signing.
 
-ATB supports signature verification using the public key embedded within the signature record itself.
-
-- **Backward compatibility**: Bundles signed with a rotated key remain verifiable because the signing public key is stored in the `atb.bundle.signature` or `ai.policy.decision` record that used it.
-- **Supersession**: When `atb sign` is run again with a new key, a new signature record is appended to the chain. `atb verify` evaluates the latest bundle signature record in the chain.
-- **Multi-key support**: A bundle can contain policy decisions signed by different keys over time; `atb verify` validates each decision record individually.
-
-The public key used to sign a bundle must be available to any party verifying that bundle. ATB records the signing public key in the bundle evidence, but key custody, distribution, and the mapping of keys to trusted organisational identities remain the responsibility of the operating organisation.
+ATB stores the signing public key inside the bundle evidence, so bundles
+remain verifiable after rotation. Key custody, distribution, and the
+mapping of keys to trusted organisational identities remain the
+responsibility of the operating organisation.
 
 ## Threat model boundary
 
-Ed25519 signing proves that the bundle (or policy event) was signed by a holder of the private key. It does not prove the key holder is authorized to perform the action, nor does it prevent a key holder from signing a modified or incomplete bundle. ATB does not manage key authorization; the mapping of public keys to trusted identities is the responsibility of the auditor. See `docs/security.md` for the full security model.
+Ed25519 signing proves that a bundle, or policy event, was signed by a
+holder of the private key. It does not prove that the key holder was
+authorised to perform the action, and it does not prevent a key holder
+from signing an incomplete or misleading bundle.
 
-## Encryption (AES-256-GCM)
+## Encryption
 
-ATB provides opt-in, client-side encryption for secure bundle handoff using the `atb encrypt` and `atb decrypt` commands.
+ATB provides opt-in, client-side encryption for bundle handoff with
+`atb encrypt` and `atb decrypt`.
 
 ```bash
 ATB_PASSWORD=secret123 atb encrypt run.atb/bundle.atb --output handoff/bundle.atb.enc
 ATB_PASSWORD=secret123 atb decrypt handoff/bundle.atb.enc --output ./bundle.atb
 ```
 
-Encryption uses AES-256-GCM with PBKDF2-SHA256 key derivation (100,000 iterations). You can provide the password via the `--password` flag or the `ATB_PASSWORD` environment variable. Encryption is separate from signing; for maximum assurance, sign a bundle before encrypting it.
+Encryption uses AES-256-GCM with versioned PBKDF2-SHA256 key derivation:
+
+- New encrypted bundles use wire version `0x02` with `600000` iterations.
+- Legacy `0x01` encrypted bundles remain decryptable with `100000` iterations.
+
+The password can be provided with `--password` or `ATB_PASSWORD`.
+Encryption is separate from signing. For maximum assurance, sign a
+bundle before encrypting it.

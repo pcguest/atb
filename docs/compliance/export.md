@@ -1,4 +1,4 @@
-# Compliance Export
+# Compliance export
 
 ATB can package local audit evidence into zip archives for `compliance`, `soc2`, and `gdpr` workflows.
 
@@ -38,7 +38,7 @@ atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip 
 - [SOC 2 Type II Export Specification](./soc2.md)
 - [GDPR Export Specification](./gdpr.md)
 
-## What Gets Verified During Export
+## What gets verified during export
 
 - Active bundles under `run.atb/*.atb` are loaded and verified.
 - Archived bundles under `archive.atb/` are loaded and verified.
@@ -46,13 +46,13 @@ atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip 
 
 If bundle or ledger verification fails, export exits with a non-zero status.
 
-## Format Scope
+## Format scope
 
 - `compliance` produces a general-purpose evidence zip for incident review, audit follow-up, and cross-functional handoff.
 - `soc2` produces a zip with SOC2-specific evidence files and control-oriented structure.
 - `gdpr` produces a zip with GDPR-specific structure for either DSR (`--type dsr`) or RoPA (`--type ropa`) output.
 
-## Evidence Package Layout
+## Evidence package layout
 
 The `compliance` export zip is structured under `evidence/` and includes:
 
@@ -73,7 +73,7 @@ The `soc2` and `gdpr` formats also write zip archives under `evidence/`, but eac
 - `gdpr --type dsr` adds `evidence/dsr_<subject_id>.json`.
 - `gdpr --type ropa` adds `evidence/ropa_summary.json`.
 
-## Verify Sidecar
+## Verify sidecar
 
 Use `--with-verify` when you want the full verify report JSON written next to the export zip.
 
@@ -81,7 +81,7 @@ Use `--with-verify` when you want the full verify report JSON written next to th
 - The sidecar contains the full `atb verify --json` report for the exported bundle.
 - Dry-run mode previews the export and does not write the zip or the sidecar.
 
-## Operational Notes
+## Operational notes
 
 - Use dry-run mode in CI or pre-audit checks to validate expected inclusion paths.
 - Store generated evidence zips in your organization-controlled audit repository.

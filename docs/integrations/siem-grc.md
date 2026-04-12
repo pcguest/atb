@@ -1,12 +1,12 @@
-# SIEM and GRC Integration
+# SIEM and GRC integration
 
 ATB is designed as a local-first system where audit traces are stored on the originating infrastructure. To support centralized monitoring and governance, ATB provides deterministic export formats that can be ingested into SIEM (Security Information and Event Management) and GRC (Governance, Risk, and Compliance) platforms.
 
-## Exporting Evidence
+## Exporting evidence
 
 Evidence is exported as a ZIP archive using the `atb export` command. ATB supports three primary formats: `compliance`, `soc2`, and `gdpr`.
 
-### Example Commands
+### Example commands
 
 ```bash
 # General compliance export for incident review
@@ -19,17 +19,17 @@ atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-audit.zip --w
 atb export --format gdpr --type dsr --subject-id user_99 --output dsr-user99.zip
 ```
 
-## ZIP Structure and Artifacts
+## ZIP structure and artefacts
 
 Every export ZIP is structured under an `evidence/` directory to ensure consistent ingestion.
 
-### Common Base Files
+### Common base files
 *   `evidence/manifest.json`: Metadata about the export, including generated date and verification status.
 *   `evidence/checksums.sha256`: SHA-256 hashes for all files in the archive.
 *   `evidence/checksums.chain`: Metadata linking file hashes to the cryptographic head hashes of the source bundles.
 *   `evidence/docs/`: Core ATB security and compliance documentation.
 
-### Format-Specific Artifacts
+### Format-specific artefacts
 
 | Format | Key Artifacts | Purpose |
 | :--- | :--- | :--- |
@@ -39,28 +39,28 @@ Every export ZIP is structured under an `evidence/` directory to ensure consiste
 | **`gdpr`** | `evidence/dsr_<id>.json` | Redacted subject-specific records for Article 15 requests. |
 | **`gdpr`** | `evidence/ropa_summary.json` | Summary of processing activities for Article 30 (RoPA). |
 
-### The Verification Sidecar (`.verify.json`)
+### The verification sidecar (`.verify.json`)
 When `--with-verify` is used, ATB writes a `<output>.verify.json` file next to the ZIP. This sidecar contains the full output of `atb verify --json`. GRC systems should ingest this file to automatically confirm the **integrity** (chain valid) and **completeness** (CAS grade) of the evidence package.
 
 ---
 
-## Ingestion Patterns
+## Ingestion patterns
 
-### SIEM Integration (Monitoring)
+### SIEM integration (monitoring)
 For security monitoring, the `soc2` export format is recommended because it produces an `audit_trail.jsonl` file filtered for high-impact events (auth, config changes, alerts).
 
 1.  **Extract**: Automate the extraction of `evidence/audit_trail.jsonl` from the ZIP.
 2.  **Ship**: Forward the JSONL lines to your SIEM collector (e.g., via Splunk HEC, Syslog-ng, or a cloud-native log ingestor).
 3.  **Map**: Map the standard ATB fields (`type`, `timestamp`, `actor_id_hash`, `data`) to your SIEM’s common information model.
 
-### GRC Integration (Audit & Governance)
+### GRC integration (audit and governance)
 For GRC platforms (e.g., Vanta, Drata, or custom evidence lockers), the goal is to store the ZIP as an immutable artifact of proof.
 
 1.  **Store**: Upload the ZIP archive to your GRC’s evidence repository or an S3 bucket with versioning and object lock enabled.
 2.  **Verify**: Ingest the `.verify.json` sidecar. Use the `integrity.chain_valid` and `cas.overall` fields to trigger automated alerts if evidence is tampered with or falls below a required completeness threshold (e.g., CAS Grade < B).
 3.  **Audit**: During a formal audit, provide the ZIP and the sidecar. The auditor can run `atb verify` against the included `.atb` bundles to independently confirm the evidence.
 
-## Data Ownership and Privacy
+## Data ownership and privacy
 
 ATB follows a local-first model. Traces remain on your infrastructure until you explicitly choose to export them. 
 

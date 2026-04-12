@@ -1,8 +1,6 @@
 # ATB Python SDK
 
-The official Python SDK for [ATB (Agent Trace Bundle)](https://github.com/pcguest/atb) - local-first, tamper-evident audit trails for AI workflows.
-
-Source repository: [github.com/pcguest/atb](https://github.com/pcguest/atb)
+The ATB Python SDK writes tamper-evident audit bundles in the same format as the Go CLI; bundles written by the SDK are verifiable with `atb verify`.
 
 ## Installation
 
@@ -10,86 +8,72 @@ Source repository: [github.com/pcguest/atb](https://github.com/pcguest/atb)
 pip install atb-sdk
 ```
 
-Use this package when you need to write or verify bundles from Python code. The Go CLI remains the authoritative CLI path:
-
-```bash
-go install github.com/pcguest/atb/cmd/atb@latest
-```
-
-The package does not include a standalone ATB CLI. The installed `atb` command is a compatibility stub that prints Go CLI install guidance and will be removed in a future major release.
-
-With LangChain integration:
-
-```bash
-pip install atb-sdk[langchain]
-```
-
-`atb-sdk[langchain]` is not yet published to PyPI; use `pip install atb-sdk` plus the LangChain packages directly until that extra is available.
-
-## Quick Start
+## Quick example
 
 ```python
 from atb import Bundle
 from atb.event_types import (
     AI_MODEL_INVOKED_EVENT_TYPE,
-    AI_MODEL_OUTPUT_EVENT_TYPE,
     AI_REQUEST_RECEIVED_EVENT_TYPE,
 )
 
 bundle = Bundle()
 
-bundle.append(AI_REQUEST_RECEIVED_EVENT_TYPE, {
-    "request_id": "req-001",
-    "actor_id_hash": "sha256-actor-abc",
-    "purpose_tag": "rag_answer",
-})
-bundle.append(AI_MODEL_INVOKED_EVENT_TYPE, {
-    "model_provider": "openai",
-    "model_id": "gpt-4o",
-    "model_parameters_digest": "sha256-params-def",
-    "prompt_digest": "sha256-prompt-ghi",
-})
-bundle.append(AI_MODEL_OUTPUT_EVENT_TYPE, {
-    "output_digest": "sha256-output-jkl",
-    "output_format": "text/plain",
-})
+bundle.append(
+    AI_REQUEST_RECEIVED_EVENT_TYPE,
+    {
+        "request_id": "req-001",
+        "actor_id_hash": "hash-user-01",
+        "purpose_tag": "quickstart_demo",
+    },
+)
 
-bundle.save("run.atb/bundle.atb")
+bundle.append(
+    AI_MODEL_INVOKED_EVENT_TYPE,
+    {
+        "model_provider": "openai",
+        "model_id": "gpt-4o-mini",
+        "model_parameters_digest": "sha256-params-abc",
+        "prompt_digest": "sha256-prompt-def",
+    },
+)
 
-b = Bundle.load("run.atb/bundle.atb")
-b.verify()
-print(f"Verified {len(b)} records (including manifest).")
+path = bundle.save("run.atb/bundle.atb")
+print(path)
 ```
 
-`Bundle()` starts with an `atb.bundle.manifest` record at `seq = 0`. Appended events start at `seq = 1`.
+## Supported event types
 
-## LangChain Integration
+| Event type constant name | Event type string |
+| --- | --- |
+| `BUNDLE_MANIFEST_EVENT_TYPE` | `atb.bundle.manifest` |
+| `BUNDLE_ANCHOR_EVENT_TYPE` | `atb.bundle.anchor` |
+| `BUNDLE_SIGNATURE_EVENT_TYPE` | `atb.bundle.signature` |
+| `AI_REQUEST_RECEIVED_EVENT_TYPE` | `ai.request.received` |
+| `AI_RESPONSE_SENT_EVENT_TYPE` | `ai.response.sent` |
+| `AI_POLICY_DECISION_EVENT_TYPE` | `ai.policy.decision` |
+| `AI_RETRIEVAL_EXECUTED_EVENT_TYPE` | `ai.retrieval.executed` |
+| `AI_MODEL_INVOKED_EVENT_TYPE` | `ai.model.invoked` |
+| `AI_MODEL_OUTPUT_EVENT_TYPE` | `ai.model.output` |
+| `AI_ACTION_PRECOMMIT_EVENT_TYPE` | `ai.action.precommit` |
+| `AI_ACTION_EXECUTED_EVENT_TYPE` | `ai.action.executed` |
+| `AI_ACTION_COMMITTED_EVENT_TYPE` | `ai.action.committed` |
+| `AI_HUMAN_APPROVAL_EVENT_TYPE` | `ai.human.approval` |
+| `AI_JOB_SCHEDULED_EVENT_TYPE` | `ai.job.scheduled` |
+| `AI_JOB_STARTED_EVENT_TYPE` | `ai.job.started` |
+| `AI_JOB_STEP_EVENT_TYPE` | `ai.job.step` |
+| `AI_JOB_COMPLETED_EVENT_TYPE` | `ai.job.completed` |
+| `DATA_EXPORT_PRECOMMIT_EVENT_TYPE` | `data.export.precommit` |
+| `DATA_EXPORT_EXECUTED_EVENT_TYPE` | `data.export.executed` |
 
-```python
-from atb import Bundle
-from atb.langchain_callback import ATBCallbackHandler
-from langchain.chat_models import ChatOpenAI
+## Profile support
 
-bundle = Bundle()
-handler = ATBCallbackHandler(bundle, auto_save=True)
+To verify a bundle against a profile, use the Go CLI: `atb verify --bundle <path> --profile <profile-id>`. The Python SDK does not include a verifier.
 
-llm = ChatOpenAI(callbacks=[handler])
-# All LLM calls are now automatically recorded in the bundle.
-```
+## LangChain integration
 
-The callback emits the canonical `ai.chain.run`, `ai.llm.call`, and `ai.tool.exec` event types and also sets the top-level `timestamp`, `trace_id`, `span_id`, and `parent_span_id` event fields used by the Go runtime.
-
-The deprecated shim import path `atb.integrations.langchain.ATBCallbackHandler` still works for compatibility, but it emits a `DeprecationWarning`. Use `atb.langchain_callback.ATBCallbackHandler` for new code.
-
-## Third-Party Dependencies
-
-This SDK uses [PageIndex](https://github.com/VectifyAI/PageIndex)
-(MIT License, Copyright (c) 2025 Vectify AI) for reasoning-based,
-vectorless document retrieval. PageIndex is imported directly as a
-Python package dependency (Mode B in-process integration).
-
-Full licence text: [THIRD_PARTY_NOTICES](../../THIRD_PARTY_NOTICES)
+For LangChain middleware guidance, see [docs/integrations/](../../docs/integrations/README.md).
 
 ## Licence
 
-MIT
+MIT.

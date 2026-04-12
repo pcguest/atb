@@ -3,7 +3,7 @@
 ATB is an open project. Contributions, bug reports, and feedback are
 welcome.
 
-## Local Setup
+## Local setup
 
 ```bash
 git clone https://github.com/pcguest/atb.git
@@ -19,7 +19,7 @@ cd web && npm ci && npm run build && cd ..
 go build -o atb ./cmd/atb
 ```
 
-## Development Workflow
+## Development workflow
 
 - Work lands on `main`.
 - Run `make hygiene-quick` before every push. It runs `go fmt`,
@@ -43,7 +43,7 @@ cd sdk/typescript
 npm ci && npm run typecheck && npm run build
 ```
 
-## Commit Style
+## Commit style
 
 Use conventional commits:
 
@@ -55,7 +55,7 @@ chore(scope): description
 test(scope): description
 ```
 
-## Pull Requests
+## Pull requests
 
 Open a short-lived branch or fork and submit against `main`. Include:
 
@@ -63,18 +63,21 @@ Open a short-lived branch or fork and submit against `main`. Include:
 - `go test ./...` and `make hygiene-quick` output
 - any follow-up work intentionally left out
 
-## Schema Changes
+## Schema changes
 
 Changes to `schemas/event.v1.json` that alter the canonical hash input
 require a CHANGELOG entry noting that bundles written before the change
 will not re-verify against the new implementation. Additive optional
 fields do not require this notice.
 
-## Release Process
+## Release process
 
 1. Run `./scripts/release-check.sh`
-2. Confirm version parity across `sdk/python/pyproject.toml`,
-   `sdk/typescript/package.json`, and `cmd/atb/main.go`
+2. Confirm version parity across `cmd/atb/main.go`,
+   `sdk/python/pyproject.toml`, `sdk/python/atb/__init__.py`,
+   `sdk/typescript/package.json`, `sdk/typescript/package-lock.json`,
+   `web/package.json`, `web/package-lock.json`, `README.md`, and any
+   release metadata that carries the current version string
 3. Tag and push with
    `git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`
 4. Monitor the `Release` workflow in GitHub Actions

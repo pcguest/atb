@@ -1,8 +1,8 @@
-# GDPR Export Specification (Article 15 and 30)
+# GDPR export specification (Article 15 and 30)
 
 This document defines the schema for Data Subject Requests (DSR) and Records of Processing Activities (RoPA). It enforces strict PII handling, legal basis declaration, and retention compliance.
 
-## 1. Export Command Usage
+## 1. Export command usage
 
 Data Subject Request (Portability/Access):
 
@@ -16,7 +16,7 @@ Records of Processing (RoPA):
 atb export --format gdpr --type ropa --bundle <path> --output gdpr-ropa.zip
 ```
 
-## 2. PII Classification and Redaction Rules
+## 2. PII classification and redaction rules
 
 Before export, the CLI MUST scan all event payloads for fields matched against the heuristic PII classifier (see `docs/compliance/pii-fields.json` for the field list).
 
@@ -29,7 +29,7 @@ Before export, the CLI MUST scan all event payloads for fields matched against t
 
 Implementation note: Redaction is deterministic. The same input always yields the same redacted output to allow verification of the redaction logic itself.
 
-## 3. Data Subject Request (DSR) Schema
+## 3. Data Subject Request (DSR) schema
 
 Output: `dsr_<subject_id>.json`
 
@@ -64,7 +64,7 @@ Output: `dsr_<subject_id>.json`
 }
 ```
 
-## 4. Records of Processing Activities (RoPA) Schema
+## 4. Records of Processing Activities (RoPA) schema
 
 Output: `ropa_summary.json`
 
@@ -103,7 +103,7 @@ This aggregates processing activities without exposing individual user data.
 }
 ```
 
-## 5. Compliance Checks
+## 5. Compliance checks
 
 The export command MUST fail if:
 
@@ -111,7 +111,7 @@ The export command MUST fail if:
 - Any event in the chain fails hash verification.
 - The bundle retention policy has expired for the requested data range.
 
-## 6. Right to Erasure (Article 17)
+## 6. Right to erasure (Article 17)
 
 ATB records an immutable hash-chained event log. Physical deletion from
 the chain is not supported. The current exporter does not implement an

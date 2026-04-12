@@ -1,14 +1,17 @@
 <!-- Archived release-planning draft. Not maintained. -->
-# Getting Started with ATB v0.9.0-beta
+# Archived getting-started draft for v0.9.0-beta
 
-This guide is for evaluating the current beta snapshot from source. For day-to-day use, install the Go CLI directly with `go install github.com/pcguest/atb/cmd/atb@v0.9.0-beta`.
+This document is retained for historical reference only. It describes a
+beta evaluation flow from the pre-release series and is not current
+operator guidance. Use [docs/quickstart.md](../quickstart.md) for the
+current quickstart.
 
 ## Prerequisites
 - Go 1.25.0
 - Node.js 20.9+ if you need to rebuild the embedded web export
 - npm 10+ if you need to rebuild the embedded web export
 
-## Quick Start (5 minutes)
+## Quick start (5 minutes)
 
 ### 1. Build ATB
 ```bash
@@ -44,26 +47,26 @@ Plain `./atb view` still serves the default local viewer. The role-based dashboa
 # Output: {"status":"valid","chain_length":2,...}
 ```
 
-## Role-Based Views
+## Role-based views
 
-### Engineer View
+### Engineer view
 - See raw event payloads
 - Debug information
 - Full hash chain visualization
 
-### Auditor View
+### Auditor view
 - Compliance statistics
 - Export summary button for a local JSON evidence snapshot
 - No raw PII (backend-filtered)
 
-### Executive View
+### Executive view
 - Trust Score (0-100)
 - High-level trends
 - Summary cards only
 
-## Advanced Usage
+## Advanced usage
 
-### Configure PII Masking
+### Configure PII masking
 ATB ships with bundled default PII masking rules. To override them, point `ATB_PII_FIELDS_PATH` to your own JSON file:
 
 ```json
@@ -74,7 +77,7 @@ ATB ships with bundled default PII masking rules. To override them, point `ATB_P
 
 Privacy reveal auditing is always appended to `bundle.atb` in the current beta. The `--log-reveals` flag is retained for CLI compatibility but is no longer required.
 
-### Export Evidence
+### Export evidence
 
 ```bash
 ./atb export --format soc2 --bundle run.atb/bundle.atb --output evidence.zip
@@ -87,11 +90,11 @@ Privacy reveal auditing is always appended to `bundle.atb` in the current beta. 
 - Check port: `lsof -i :8080`
 - Rebuild UI: `cd web && npm run build`
 
-### Trust Score is 0
+### Trust score is 0
 - Run `./atb verify` first
 - Check bundle integrity
 
-## Next Steps
+## Next steps
 - Read `docs/api/openapi.yaml` for API details
 - Explore `docs/security.md` for security model
 - Read `docs/use-cases/internal-audit-privacy-review.md` for buyer-facing review workflow

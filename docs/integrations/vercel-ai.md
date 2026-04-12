@@ -1,4 +1,4 @@
-# Vercel AI SDK Integration
+# Vercel AI SDK integration
 
 ATB includes a middleware helper for emitting `ai.llm.call`, `ai.tool.exec`, and `ai.chain.run` events from Vercel AI SDK style callbacks.
 
@@ -10,7 +10,7 @@ npm install @pcguest/atb-sdk ai
 
 This uses the same TypeScript package listed in the README installation options.
 
-## Quick Start
+## Quick start
 
 ```ts
 import { Bundle, atbMiddleware } from "@pcguest/atb-sdk";
@@ -54,7 +54,7 @@ const result = streamText({
 await result.text;
 ```
 
-## Disable Tracing
+## Disable tracing
 
 ```ts
 const trace = atbMiddleware({ enabled: false });

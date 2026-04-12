@@ -1,4 +1,4 @@
-# ATB AI Trace Specification (current AI trace specification)
+# ATB AI trace specification (current AI trace specification)
 
 This specification defines how framework runtime callbacks map into ATB events without changing the core ATB bundle record format in `docs/spec-v1.0.md`.
 
@@ -13,7 +13,7 @@ Integrations MUST also populate the top-level canonical event fields `timestamp`
 - Keep privacy handling explicit and deterministic.
 - Keep output compatible with existing ATB verification and hashing.
 
-## Event Mapping
+## Event mapping
 
 ### LangChain
 
@@ -38,7 +38,7 @@ Use the same ATB event types and phases:
 - Tool lifecycle: `ai.tool.exec`
 - Chain or step lifecycle: `ai.chain.run`
 
-## Canonical `event.data` Envelope
+## Canonical `event.data` envelope
 
 All AI integration events MUST use this envelope.
 
@@ -75,7 +75,7 @@ Required fields:
 - `parent_span_id` is optional
 - `run_id` is optional but recommended
 
-## Context Payloads by Type
+## Context payloads by type
 
 ### `ai.llm.call`
 
@@ -130,7 +130,7 @@ Required fields:
 }
 ```
 
-## Privacy Modes
+## Privacy modes
 
 Integrations MUST support privacy mode as an explicit option:
 
@@ -144,7 +144,7 @@ Notes:
 - `*.sha256` values are computed from emitted text (post-privacy transform) for deterministic verification.
 - PII category guidance follows the prior specification GDPR policy (`email`, `ip`, `user_id`, `payment`, `health`, `bio`, third-party IDs).
 
-## Streaming and Async Behavior
+## Streaming and async behaviour
 
 For streaming LLM output:
 
@@ -158,9 +158,9 @@ Ordering guarantees:
 - Preserve callback emission order in the bundle.
 - A single LLM run must follow `start -> delta* -> end|error` for the same `trace_id`/`span_id`.
 
-## JSON Examples
+## JSON examples
 
-### LLM Start
+### LLM start
 
 ```json
 {
@@ -196,7 +196,7 @@ Ordering guarantees:
 }
 ```
 
-### Tool End
+### Tool end
 
 ```json
 {
@@ -234,7 +234,7 @@ Ordering guarantees:
 }
 ```
 
-### Chain Start
+### Chain start
 
 ```json
 {
