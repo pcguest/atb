@@ -2,9 +2,9 @@
 
 Tamper-evident audit trails for privacy-sensitive AI systems.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.4.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-## What It Is
+## What it is
 
 ATB records AI workflow events as tamper-evident, hash-chained bundles
 you can inspect locally, verify cryptographically, and export as
@@ -12,16 +12,16 @@ deterministic evidence for incident review, audit, and customer
 handoff. It does not require a backend and does not send trace data to
 external storage by default.
 
-Current release: [`v1.0.0.1`](CHANGELOG.md).
+Current release: [`v1.4.0`](CHANGELOG.md).
 
 ## Quickstart
 
 ```bash
-atb init
+atb bundle new
 atb append ai.request.received \
-  '{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
+  --data '{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
 atb append ai.action.precommit \
-  '{"action":"escalate","target":"tier-2","approved_by":"ops-lead"}'
+  --data '{"action_id":"act-1042","action":"escalate","target":"tier-2","approved_by":"ops-lead"}'
 atb snapshot incident_review
 atb verify
 ```
@@ -33,7 +33,7 @@ deletion breaks the chain.
 
 `atb bundle new` is the explicit alias for `atb init`.
 
-## How It Works
+## How it works
 
 ```text
 event_hash = SHA-256(prev_hash || RFC8785(event_json))
@@ -44,7 +44,7 @@ Events are appended sequentially. Each event seals the previous one.
 The resulting bundle is a portable artefact that can be verified later
 without a server.
 
-## Trust Model
+## Trust model
 
 ATB proves that a bundle was not altered after recording. It does not
 prove that recording was complete, that every relevant event was
@@ -62,9 +62,10 @@ go install github.com/pcguest/atb/cmd/atb@latest
 > Note: `go install` from the module proxy builds without the embedded web UI. For `atb view` and `atb view --ui-experimental`, build from source: `go build ./cmd/atb`
 
 Requires Go 1.25.0+. Python and TypeScript SDKs are available for
-in-process instrumentation. See [SDK docs](docs/guides/README.md).
+in-process instrumentation. See the [Python SDK](sdk/python/README.md)
+and [TypeScript SDK](sdk/typescript/README.md).
 
-## Verification Profiles
+## Verification profiles
 
 ATB ships six built-in obligation profiles. Use `--profile` to evaluate
 whether a bundle contains the expected event sequence, field coverage,
@@ -92,12 +93,14 @@ universal completeness score.
 
 ## Integrations
 
-ATB includes SDKs for Python and TypeScript. Native MCP server mode is
-not yet implemented; current MCP integrations require SDK wrapping. Run
-`atb events` to inspect the canonical event registry and built-in
-profile membership.
+ATB includes SDKs for Python and TypeScript, and it ships a local MCP
+stdio bridge via `atb mcp serve`. The bridge exposes status,
+verification, bundle initialisation, and PageIndex RAG recording tools.
+It does not auto-instrument third-party MCP servers, and the current SDKs
+do not include MCP-specific helper APIs. Run `atb events` to inspect the
+canonical event registry and built-in profile membership.
 
-### MCP Bridge
+### MCP bridge (beta)
 
 ```bash
 atb mcp serve
@@ -134,7 +137,7 @@ Those records join the same bundle as your request, model, and response
 events when you emit them, so retrieval evidence can be reviewed
 alongside the rest of the workflow.
 
-## Docs Index
+## Docs index
 
 - [Quickstart](docs/quickstart.md)
 - [ATB Specification v1.0](docs/spec-v1.0.md)
@@ -142,6 +145,8 @@ alongside the rest of the workflow.
 - [Verification Profiles](docs/profiles.md)
 - [Security Model](docs/security.md)
 - [MCP Integration](docs/integrations/mcp.md)
+- [Python SDK](sdk/python/README.md)
+- [TypeScript SDK](sdk/typescript/README.md)
 - [Incident Review Workflow](docs/guides/incident-review-workflow.md)
 - [Customer Handoff Workflow](docs/guides/customer-handoff-workflow.md)
 - [Key Management](docs/key-management.md)

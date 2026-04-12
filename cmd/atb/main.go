@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	version          = "1.0.0.1"
+	version          = "1.4.0"
 	verifyFormatText = "text"
 	verifyFormatJSON = "json"
 	verifyAlgorithm  = "SHA-256||RFC8785"
@@ -202,9 +202,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "view",
-				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]",
+				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]",
 				Description: "Open the local viewer. Add --ui-experimental for the dashboard preview.",
-				Flags:       []string{"--bundle", "--port", "--no-open", "--log-reveals", "--ui-experimental"},
+				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--ui-experimental"},
 				Mutating:    false,
 			},
 			{
@@ -352,7 +352,7 @@ Commands:
   export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]  Export auditor-friendly local evidence bundle
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
-  view [bundle_path] [--bundle path/to/file.atb] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]  Open the local viewer (dashboard preview behind --ui-experimental)
+  view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]  Open the local viewer (dashboard preview behind --ui-experimental)
   mcp serve         Start the MCP stdio server
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
   version           Print the ATB version
@@ -413,7 +413,7 @@ Examples:
   atb trust-report --format json --profile atb.profile.privileged_tool_action
   atb view
   atb view --ui-experimental
-  atb view --bundle run.atb/bundle.atb --port 8080 --no-open
+  atb view --bundle run.atb/bundle.atb --host 127.0.0.1 --port 8080 --no-open
   atb mcp serve
   atb doc gen-openapi
 `)

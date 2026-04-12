@@ -29,13 +29,13 @@ COPY --from=web-builder /src/web/out ./web/out
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
-ARG ATB_VERSION=v0.9.0-beta
+ARG ATB_VERSION=v1.4.0
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
 
 FROM gcr.io/distroless/static-debian12:nonroot AS runtime
 WORKDIR /app
-ARG ATB_VERSION=v0.9.0-beta
+ARG ATB_VERSION=v1.4.0
 LABEL org.opencontainers.image.version="${ATB_VERSION}"
 
 COPY --from=go-builder /out/atb /app/atb
