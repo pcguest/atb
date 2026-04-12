@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.5.0] - 2026-04-13
+
+### Added
+- MCP in-process integration test (`TestServeMCPVerifyIntegration`) exercises `atb_init` and `verify` via the MCP server without shelling out: initialises a bundle, appends an event via the bundle package, calls `verify` through the MCP tool handler, and asserts `exit_code=0` with no critical failures (implies `chain_valid=true`). Closes the test gap noted by the TODO in `internal/mcp/server_test.go`.
+- `docs/integrations/mcp.md`: Claude Code CLI configuration example (`claude mcp add` and `.mcp.json`); MCP `initialize` handshake response shape; full input schemas and required-field tables for `verify`, `rag_index_record`, and `rag_retrieval_record`; tool list order now matches the implementation.
+
 ## [v1.4.0] - 2026-04-12
 
 ### Added
