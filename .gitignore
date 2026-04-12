@@ -34,6 +34,8 @@ out/
 # ATB bundles (local development only — do not commit run.atb/)
 run.atb/
 run.atb/*.atb
+*.atb
+*.atb.enc
 .atb/
 viewer-audit.log
 
@@ -46,6 +48,7 @@ viewer-audit.log
 
 # Coverage
 coverage.out
+coverage/
 coverage.html
 .coverage
 htmlcov/
@@ -53,8 +56,11 @@ htmlcov/
 # Secrets
 .env.local
 .env.*.local
+atb-key.pem
+atb-key.pub.pem
 *.pem
 *.key
+keys/
 credentials.json
 
 # Build artifacts
@@ -66,11 +72,14 @@ credentials.json
 *.asciinema
 /dist
 /build
+dist/
+tmp/
 
 # Local agent artifacts
 .minimax/
 # Go cache
 .gocache/
+.gocache-codex/
 
 # Build artifacts
 coverage.out
@@ -79,6 +88,7 @@ trivy-report.json
 
 # Next.js
 web/.next/
+web/node_modules/
 !web/out/
 web/out/*
 !web/out/placeholder.txt
@@ -95,3 +105,6 @@ sdk/python/dist/
 sdk/python/build/
 sdk/python/*.egg-info/
 .gocache-go-test/
+sdk/python/venv/
+sdk/typescript/dist/
+sdk/typescript/node_modules/
