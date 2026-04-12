@@ -1,14 +1,14 @@
-# ATB Use Cases
+# ATB use cases
 
 ATB is most useful when teams need a verifiable record of AI behaviour without default external trace storage.
 
-## Current Use Cases
+## Current use cases
 
 - [Incident Review for Private AI Workflows](./incident-review.md)
 - [Customer Handoff Without Platform Lock-In](./customer-handoff.md)
 - [Internal Audit and Privacy Review on a Local Bundle](./internal-audit-privacy-review.md)
 
-## Fit Check
+## Fit check
 
 ATB is a strong fit when:
 

@@ -1,28 +1,33 @@
-# ATB Documentation
+# ATB documentation
 
 Use this index to navigate ATB docs by intent.
 
 ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs that write the same bundle format.
 
-## New Users
+## New users
 
 - [Getting Started Hub](./getting-started/README.md)
 - [Quickstart](./quickstart.md)
+- [Quickstart Example](../examples/quickstart/)
 - [Examples](../examples/README.md)
 - [Incident Review Workflow](./guides/incident-review-workflow.md)
 - [Customer Handoff Workflow](./guides/customer-handoff-workflow.md)
 - [Dashboard Specification](./spec-dashboard.md)
 
-## Buyer Guides
+## Buyer guides
 
 - [Use Cases](./use-cases/README.md)
 - [Incident Review for Private AI Workflows](./use-cases/incident-review.md)
 - [Customer Handoff Without Platform Lock-In](./use-cases/customer-handoff.md)
 - [Internal Audit and Privacy Review on a Local Bundle](./use-cases/internal-audit-privacy-review.md)
+
+## Comparisons
+
 - [ATB vs Hosted AI Observability](./comparisons/hosted-observability.md)
 - [ATB vs Logs, Screenshots, and Ad Hoc Exports](./comparisons/logs-and-screenshots.md)
+- [ATB vs OpenTelemetry](./comparisons/opentelemetry.md)
 
-## Engineering Guides
+## Engineering guides
 
 - [Guides Hub](./guides/README.md)
 - [AI Integration](./ai-integration.md)
@@ -32,9 +37,10 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 - [Configuration Reference](./config.md)
 - [Integration Guides](./integrations/README.md)
 
-## Compliance and Audit
+## Compliance and audit
 
 - [Compliance Export Overview](./compliance/export.md)
+- [NIST AI RMF Mapping](./compliance/nist-ai-rmf.md)
 - [EU AI Act Article 12 Mapping](./compliance/eu-ai-act.md)
 - [SOC 2 Export Specification](./compliance/soc2.md)
 - [GDPR Export Specification](./compliance/gdpr.md)
