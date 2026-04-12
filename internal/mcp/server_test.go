@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/verify"
 )
 
 type rpcResponse struct {
@@ -358,7 +359,106 @@ func TestServeRAGChainIntegrity(t *testing.T) {
 	}
 }
 
-// TODO: add verify and bundle tool exec-path tests once Session 2 replaces shell-out calls.
+func TestServeMCPVerifyIntegration(t *testing.T) {
+	tempDir := t.TempDir()
+	restore := chdirTempDir(t, tempDir)
+	defer restore()
+
+	handlers := ToolHandlers{
+		Init:   testInitHandler,
+		Append: testAppendHandler,
+		Verify: testVerifyHandler,
+	}
+
+	// Initialise the bundle via MCP.
+	initResult := callTool(t, handlers, "atb_init", map[string]any{})
+	if initResult.IsError {
+		t.Fatalf("unexpected isError=true for atb_init: %s", initResult.Content[0].Text)
+	}
+
+	// Append one event directly via the bundle package.
+	b, err := bundle.Load(bundle.DefaultPath())
+	if err != nil {
+		t.Fatalf("bundle.Load: %v", err)
+	}
+	if err := b.AppendWithOptions("ai.request.received", map[string]any{
+		"request_id":    "req-mcp-smoke-001",
+		"actor_id_hash": "sha256-test-actor",
+		"purpose_tag":   "audit",
+	}, &bundle.AppendOptions{
+		Timestamp: time.Now().UTC().Format(time.RFC3339),
+	}); err != nil {
+		t.Fatalf("b.AppendWithOptions: %v", err)
+	}
+	if err := b.Save(bundle.DefaultPath()); err != nil {
+		t.Fatalf("b.Save: %v", err)
+	}
+
+	// Verify via MCP and assert chain is valid.
+	verifyResult := callTool(t, handlers, "verify", map[string]any{})
+	if verifyResult.IsError {
+		t.Fatalf("unexpected isError=true for verify: %s", verifyResult.Content[0].Text)
+	}
+	if len(verifyResult.Content) != 1 {
+		t.Fatalf("unexpected content count: got %d want 1", len(verifyResult.Content))
+	}
+
+	var content map[string]any
+	if err := json.Unmarshal([]byte(verifyResult.Content[0].Text), &content); err != nil {
+		t.Fatalf("unmarshal verify content: %v", err)
+	}
+	if status, ok := content["status"].(string); !ok || status != "ok" {
+		t.Fatalf("unexpected status: %#v (want \"ok\")", content["status"])
+	}
+	exitCode, ok := content["exit_code"].(float64)
+	if !ok || exitCode != 0 {
+		t.Fatalf("unexpected exit_code: %#v (want 0, implies chain_valid=true)", content["exit_code"])
+	}
+	report, ok := content["report"].(map[string]any)
+	if !ok {
+		t.Fatalf("unexpected report type: %T", content["report"])
+	}
+	failures, ok := report["critical_failures"].([]any)
+	if !ok {
+		t.Fatalf("unexpected critical_failures type: %T", report["critical_failures"])
+	}
+	if len(failures) != 0 {
+		t.Fatalf("unexpected critical_failures (want empty): %v", failures)
+	}
+}
+
+func testVerifyHandler(_ context.Context, input VerifyInput, stdout, stderr io.Writer) int {
+	path := bundle.DefaultPath()
+	if input.Path != "" {
+		path = input.Path
+	}
+
+	b, err := bundle.Load(path)
+	if err != nil {
+		fmt.Fprintf(stderr, "bundle.Load: %v\n", err)
+		return 3
+	}
+
+	report := verify.Verify(b, path, input.Profile)
+	verifierReport := verify.ReportFromVerify(report)
+
+	data, err := json.MarshalIndent(verifierReport, "", "  ")
+	if err != nil {
+		fmt.Fprintf(stderr, "json.Marshal: %v\n", err)
+		return 3
+	}
+	data = append(data, '\n')
+	if _, err := stdout.Write(data); err != nil {
+		fmt.Fprintf(stderr, "write: %v\n", err)
+		return 3
+	}
+
+	if !report.Integrity.ChainValid {
+		return 2
+	}
+	return 0
+}
+
 func runServer(t *testing.T, input string) []rpcResponse {
 	return runServerWithHandlers(t, ToolHandlers{}, input)
 }
