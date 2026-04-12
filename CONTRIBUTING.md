@@ -82,6 +82,15 @@ fields do not require this notice.
    `git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`
 4. Monitor the `Release` workflow in GitHub Actions
 
+## Commit history
+
+The repository commit history includes entries from an AI-assisted
+development period. Some commit messages from before v1.5.0 may contain
+co-authorship attributions, session labels, or phrasing that does not
+follow the current style guide. New contributions must follow the commit
+style rules above. Historical commits are not being rewritten as they are
+already on the remote.
+
 ## Security
 
 See [SECURITY.md](SECURITY.md) for the vulnerability disclosure

@@ -262,6 +262,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bundles created before this change load correctly; `Manifest()` returns `nil`
   for legacy bundles.
 
-<!-- Version series reset. v1.1.0 and above are the clean release series. Entries below this line are from the pre-reset development history and are retained for reference. -->
+---
+
+> **Historical note:** Entries below this line are from a pre-release
+> development period. The stable release series begins at v1.0.0-rc above.
+> Version numbers in this section do not reflect the current release lineage.
+
 ## [v1.1.0] - 2026-03-12
 ...
