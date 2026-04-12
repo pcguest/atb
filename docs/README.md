@@ -33,7 +33,6 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 - [AI Integration](./ai-integration.md)
 - [Security Model](./security.md)
 - [Key Management](./key-management.md)
-- [CI Known Issues](./ci-known-issues.md)
 - [Configuration Reference](./config.md)
 - [Integration Guides](./integrations/README.md)
 
@@ -51,7 +50,6 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 - [ATB Specification v1.0](./spec-v1.0.md)
 - [AI Trace Event Specification](./spec-ai-traces.md)
 - [Dashboard Specification](./spec-dashboard.md)
-- [Launch Specification](./spec-launch.md)
 
 ## Contributors
 
