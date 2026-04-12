@@ -1,155 +1,176 @@
-# ATB Security Model
+# ATB security model
 
-ATB is designed for tamper evidence first and local-first operation.
+ATB is local-first evidence infrastructure for AI workflows. Its primary
+security property is tamper evidence over recorded events, not centralised
+storage, identity verification, or hosted control-plane governance.
 
-## Core Security Properties
+## Core security properties
 
 1. Integrity by default
 - Event records are hash chained with SHA-256.
 - Verification fails on mutation, reorder, insertion, or deletion.
 
-2. Deterministic canonicalization
-- Event payloads are canonicalized using RFC 8785 (JCS) before hashing.
-- Golden tests enforce byte-identical output across Go, Python, and TypeScript implementations.
+2. Deterministic canonicalisation
+- Event payloads are canonicalised with RFC 8785 before hashing.
+- Golden tests enforce byte-identical output across the Go, Python, and TypeScript implementations.
 
 3. Local-first data ownership
-- Bundles are local files (`run.atb/*.atb`) by default.
-- Core workflow (`init`, `append`, `snapshot`, `verify`, `view`) does not require network access.
+- Bundles are local files under `run.atb/` by default.
+- The core workflow, `init`, `append`, `snapshot`, `verify`, and `view`, does not require network access.
 
-4. Optional client-side encryption for handoff/storage
-- `atb encrypt`/`atb decrypt` use AES-256-GCM with versioned PBKDF2-SHA256 key derivation (`0x01` legacy decrypt compatibility at `100000` iterations; `0x02` current default at `600000` iterations).
-- Local `.atb` bundles are hash-chained for integrity; encryption is opt-in and applied when you explicitly encrypt payloads.
-- Any future handoff flow must keep encryption client-side and must not change the local-first default.
+4. Optional client-side encryption for handoff or storage
+- `atb encrypt` and `atb decrypt` use AES-256-GCM with versioned PBKDF2-SHA256 key derivation.
+- New encrypted bundles use wire version `0x02` with `600000` iterations.
+- Legacy `0x01` bundles remain decryptable with `100000` iterations.
 
-5. Zero custom cryptography
-- Hashing and cryptographic primitives rely on standard language libraries and audited dependencies.
-- For detailed guidance on key lifecycles and signing operations, see [docs/key-management.md](./key-management.md).
+5. Standard cryptographic primitives
+- Hashing, signatures, and symmetric encryption use standard libraries and established dependencies.
+- For key lifecycle guidance, see [Key management](./key-management.md).
 
 6. RFC 3161 token verification
-<!-- ATB: corrected overstatement -->
-- `atb verify --with-anchor` performs local RFC 3161 token checks for recorded anchors: digest match, SignerInfo signature validation, and TSA certificate-chain evaluation against the system roots available in the current environment. These checks feed the current XC/AC scoring path, but they are implementation-level verification steps rather than a standalone external trust guarantee.
-<!-- ATB: corrected overstatement -->
-- Note: The terminal report currently identifies the TSA cert status as unverified in the summary block for v1 status reporting consistency, even when the underlying verification engine has completed a successful chain check against the roots available in that environment.
+- `atb verify --with-anchor` validates the RFC 3161 message imprint against the bundle snapshot that existed immediately before the anchor record.
+- It verifies the SignerInfo signature with the TSA signing certificate.
+- It verifies the TSA certificate chain against the system roots in the current environment, or against `--roots` when a PEM root pool is supplied.
+- The text and JSON outputs report `anchor: verified` only when message imprint, signature, and chain verification all pass.
+- If the message imprint matches but the TSA certificate chain does not verify, the anchor is reported as partial and the AC sub-score does not receive anchor credit.
+- Digest mismatch, signature failure, malformed token data, or missing anchor evidence are reported as failed.
 
-## Assurance Layers
+## Assurance layers
 
-- Layer A, Integrity: ATB bundles, SHA-256 hash chaining, RFC 8785 canonical JSON, and optional RFC 3161 TSA anchors.
-<!-- ATB: corrected overstatement -->
-- Layer B, Profiles and CAS: schema-backed obligation profiles and profile-scoped completeness signals for recorded workflow evidence. CAS is a local scoring model over the events ATB can evaluate, not an external audit opinion or independent attestation.
-- Layer C, ACP: control-plane gating for high-impact actions, with the invariant that no gated action should execute without an ATB pre-commit.
-- Layer D, Security scanning: `gosec`, Bandit, and `npm audit` on the repository, plus scheduled or manually requested Trivy filesystem and Docker image scans.
-- Layer E, Distribution and ops: Git tags, GitHub releases, checksums, PyPI, npm, and Docker image publication.
+- Layer A, integrity: ATB bundles, SHA-256 hash chaining, RFC 8785 canonical JSON, and optional RFC 3161 TSA anchors.
+- Layer B, profiles and CAS: schema-backed obligation profiles and profile-scoped completeness signals for recorded workflow evidence. CAS is a local scoring model over the events ATB can evaluate, not an external audit opinion or independent attestation.
+- Layer C, ACP: control-plane gating for high-impact actions, with the invariant that no gated action should execute without an ATB precommit.
+- Layer D, security scanning: `gosec`, Bandit, and `npm audit` on the repository, plus scheduled or manually requested Trivy filesystem and Docker image scans.
+- Layer E, distribution and operations: Git tags, GitHub releases, checksums, PyPI, npm, and Docker image publication.
 
-Docker images are published by a separate `Docker Publish` workflow on tag pushes or manual dispatch. They remain part of Layer E distribution rather than the Layer A-C assurance boundary.
+Docker images are published by a separate `Docker Publish` workflow on tag pushes or manual dispatch. They are part of Layer E distribution rather than the Layer A-C assurance boundary.
 
 ## Limitations
 
 Hash chaining proves intra-bundle integrity: if verification passes, the
 sequence of records you are reading is internally consistent with the
 declared hashes. It does not prove capture completeness, that every
-operation that mattered for compliance was logged, or that an
-integration emitted events for every code path.
+material operation was logged, or that an integration emitted events for
+every code path.
 
-Local-first storage means trust in the bundle is bounded by trust in the
+Local-first storage means trust in a bundle is bounded by trust in the
 host environment. A process with filesystem access can replace or roll
-back files before you export them unless you add independent controls.
+back files before export unless you add independent controls.
 
-ATB proves that a bundle was not altered after recording. It does not
-prove that recording was complete, that every relevant event was
-captured, or that the bundle file itself has not been replaced
-wholesale by an attacker with write access before export. For regulated
-deployments, pair ATB with filesystem integrity monitoring or export to
-a WORM-capable store before relying on bundles as primary evidence.
+For regulated deployments, pair ATB with filesystem integrity
+monitoring, WORM-capable export, or equivalent external controls before
+relying on bundles as primary evidence.
 
-## Client-Side Security Flow
+### Identity attribution
 
-```mermaid
-graph LR
-    A["Your App"] --> B["ATB SDK/CLI"]
-    B --> C["Optional Client-Side Encryption"]
-    C --> D["Encrypted Artefact (Optional Handoff)"]
-    D --> E["Ciphertext-Only Storage"]
-    style C fill:#9f9,stroke:#393
-    style E fill:#f9f,stroke:#939
-```
+The `actor_id`, `org_id`, and `workspace_id` fields in bundle events are
+asserted by the recording process and are not independently verified by
+ATB. ATB proves these fields were not altered after recording, but does
+not prove the values are truthful. Multi-tenant deployments that
+require verified identity attribution must supply an independent
+identity layer.
 
-## Data Classification
+## Local viewer API
 
-ATB stores user-provided event payloads exactly as supplied.
+The local viewer, `atb view`, binds to `127.0.0.1` by default and has no
+authentication layer. It is intended for single-user local inspection
+only. Do not expose it on a network interface.
 
-- Public metadata: event type, sequence number, timestamp fields when present.
-- Potentially sensitive: event `data` payloads (prompts, outputs, tool arguments, internal context).
-- Secrets should not be embedded in event payloads unless explicitly required by your workflow.
+If `--host` is used to bind to a non-loopback address, bundle contents
+become accessible to any process that can reach that interface unless an
+independent network control blocks access.
 
-## Threat Model (v1)
+## Threat model
+
+ATB is intended to:
 
 - Detect tampering of stored trace files.
 - Maintain cross-language hash compatibility.
 - Prevent accidental secret leakage through repository hygiene and CI checks.
 
-Out of scope for v1:
+Out of scope for the current release:
 
-- Multi-tenant hosted trust boundaries
-- Server-side key custody
-- On-device malware compromise
+- Multi-tenant hosted trust boundaries.
+- Server-side key custody.
+- On-device malware compromise.
 
-## Security Controls
+## Security controls
 
 1. Build and release integrity
-- Dependency lock files/checksum manifests in Go, Python, and TypeScript packages.
-- CI gating before release workflows.
+- Dependency lock files and checksum manifests are used across the Go, Python, and TypeScript release surfaces.
+- CI gates run before release and publication workflows.
 
 2. Operational controls
-- Secrets in GitHub Actions are stored in repository secrets, and PyPI release access uses GitHub OIDC trusted publishing.
-- No secrets committed to source control.
-- Weekly registry health checks and maintenance checklist in `docs/maintenance/`.
+- GitHub Actions secrets are stored in repository secrets, and PyPI release access uses GitHub OIDC trusted publishing.
+- Secrets are not committed to source control.
+- Weekly registry health checks and the operational recovery material under `docs/maintenance/` support maintenance readiness.
 
 3. Incident readiness
-- Follow [docs/incident-response.md](./incident-response.md) for triage and containment.
-- Report vulnerabilities through [../SECURITY.md](../SECURITY.md).
+- Follow [Incident response](./incident-response.md) for triage and containment.
+- Report vulnerabilities through [SECURITY.md](../SECURITY.md).
 
-## SOC2-Oriented Control Mapping (Lightweight)
+### SOC 2-oriented control mapping (readiness baseline)
 
-- Access control: GitHub repository permissions + branch protection.
-- Change management: pull requests + CI status checks.
-- Audit evidence: immutable git history, CI logs, release tags.
-- Encryption/integrity: SHA-256 hash chain verification in all SDKs.
+- Access control: GitHub repository permissions and branch protection.
+- Change management: pull requests and CI status checks.
+- Audit evidence: immutable Git history, CI logs, and release tags.
+- Encryption and integrity: SHA-256 hash-chain verification across the CLI and SDKs.
 
-This mapping is a readiness baseline, not a formal SOC2 attestation.
+This mapping is a readiness baseline, not a formal SOC 2 attestation.
 
-## Security Scan Tooling
+## Operational guidance
 
-Run security scanners with:
+### Client-side security flow
+
+```mermaid
+graph LR
+    A["Your app"] --> B["ATB SDK or CLI"]
+    B --> C["Optional client-side encryption"]
+    C --> D["Encrypted artefact for handoff"]
+    D --> E["Ciphertext-only storage"]
+    style C fill:#9f9,stroke:#393
+    style E fill:#f9f,stroke:#939
+```
+
+### Data classification
+
+ATB stores user-provided event payloads exactly as supplied.
+
+- Public metadata: event type, sequence number, and canonical timestamp fields when present.
+- Potentially sensitive data: event `data` payloads such as prompts, outputs, tool arguments, and internal context.
+- Secrets should not be embedded in event payloads unless a workflow explicitly requires them.
+
+### Security scan tooling
+
+Run the local scan bundle with:
 
 ```bash
 make security-scan
 ```
 
-Behavior:
+Behaviour:
 
 - `make security-scan` runs the local Trivy filesystem scan and the Go `gosec` repository scan.
 - For local development only, it may fall back to Docker-based execution for those two tools when local binaries are missing.
 - CI does not use Docker for the Go code scan. The security workflow installs `gosec` with `go install` and invokes the binary directly.
 - CI also runs Bandit on `sdk/python/atb` and `npm audit` in `sdk/typescript`.
-- CI runs Trivy filesystem scans via the GitHub Action on scheduled or manually dispatched security sweeps with `scan-type: fs`.
-- CI runs Trivy image scans only on scheduled or manually dispatched runs, building a local Docker image first and then scanning it with `scan-type: image`.
+- CI runs Trivy filesystem scans only on scheduled or manually dispatched security sweeps.
+- CI runs Trivy image scans only on scheduled or manually dispatched runs, building a local Docker image first and then scanning it.
 
-This keeps local validation usable on workstations without preinstalled scanners while the CI gates stay on pinned action or binary-based execution paths.
+### Privacy reveal controls
 
-## Privacy Reveal Controls
+The `/api/v1/privacy/reveal` endpoint is rate-limited to reduce
+enumeration risk.
 
-The `/api/v1/privacy/reveal` endpoint is rate-limited to prevent enumeration attacks.
+Current defaults:
 
-Current default:
+- 10 requests per minute per token.
+- Reveal auditing appended into `bundle.atb`.
+- PII masking rules loaded from `ATB_PII_FIELDS_PATH` when set, otherwise the bundled default rules shipped with ATB.
 
-- 10 requests per minute per token
-- reveal auditing appended into `bundle.atb`
-- PII masking rules loaded from `ATB_PII_FIELDS_PATH` when set, otherwise the bundled default rules shipped with ATB
-
-### Testing
+#### Testing
 
 ```bash
-# Should return 429 on 11th request
 TOKEN="your-token"
 for i in {1..12}; do
   curl -s -o /dev/null -w "$i:%{http_code} " \
@@ -159,6 +180,9 @@ for i in {1..12}; do
 done
 ```
 
-### Monitoring
+The eleventh request should return `429`.
 
-Rate limit hits return `429` with `Retry-After` and are not appended to the audit chain. Successful privacy reveals are appended to `bundle.atb`.
+#### Monitoring
+
+Rate-limit hits return `429` with `Retry-After` and are not appended to
+the audit chain. Successful privacy reveals are appended to `bundle.atb`.
