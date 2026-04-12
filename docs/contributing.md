@@ -2,7 +2,7 @@
 
 Thanks for helping improve ATB.
 
-## Development Setup
+## Development setup
 
 ```bash
 git clone https://github.com/pcguest/atb.git
@@ -27,7 +27,7 @@ cd ..
 go build -o atb ./cmd/atb
 ```
 
-## Local Validation
+## Local validation
 
 Match the CI setup order in a clean checkout before opening a PR:
 
@@ -63,9 +63,9 @@ npm run build
 - Use conventional commit messages (`feat:`, `fix:`, `docs:`, `chore:`, `test:`)
 - Keep changes scoped and reviewable
 - Include test evidence in PR description
-- Update docs for behavior or contract changes
+- Update docs for behaviour or contract changes
 
-## Release Preflight
+## Release preflight
 
 Before creating a release tag, run:
 

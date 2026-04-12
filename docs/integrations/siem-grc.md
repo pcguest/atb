@@ -54,7 +54,7 @@ For security monitoring, the `soc2` export format is recommended because it prod
 3.  **Map**: Map the standard ATB fields (`type`, `timestamp`, `actor_id_hash`, `data`) to your SIEM’s common information model.
 
 ### GRC integration (audit and governance)
-For GRC platforms (e.g., Vanta, Drata, or custom evidence lockers), the goal is to store the ZIP as an immutable artifact of proof.
+For GRC platforms (e.g., Vanta, Drata, or custom evidence lockers), the goal is to store the ZIP as an immutable artefact of proof.
 
 1.  **Store**: Upload the ZIP archive to your GRC’s evidence repository or an S3 bucket with versioning and object lock enabled.
 2.  **Verify**: Ingest the `.verify.json` sidecar. Use the `integrity.chain_valid` and `cas.overall` fields to trigger automated alerts if evidence is tampered with or falls below a required completeness threshold (e.g., CAS Grade < B).
@@ -65,5 +65,5 @@ For GRC platforms (e.g., Vanta, Drata, or custom evidence lockers), the goal is 
 ATB follows a local-first model. Traces remain on your infrastructure until you explicitly choose to export them. 
 
 *   **Local Traces**: Raw `.atb` files are stored locally and are not automatically synced to any external service.
-*   **Artifact-Based Export**: Exports are discrete artifacts. You control when they are generated and where they are sent.
+*   **Artifact-Based Export**: Exports are discrete artefacts. You control when they are generated and where they are sent.
 *   **Privacy-Aware**: The `gdpr` export format automatically applies redacting or hashing to PII fields, ensuring that exported evidence complies with data minimization principles.

@@ -2,7 +2,7 @@
 
 Objective: prove ATB can be restored from source and secrets in a fresh environment.
 
-## Recovery Steps
+## Recovery steps
 
 1. Clone and bootstrap
 

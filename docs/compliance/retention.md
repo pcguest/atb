@@ -49,4 +49,4 @@ atb archive --dry-run
 
 - Keep `archive.atb/` and `run.atb/` as local evidence stores.
 - Use `atb export --format compliance --output <path.zip>` to package active bundles, archived bundles, and reports for audit review.
-- Re-run `atb verify` and `atb archive --dry-run` during periodic checks to confirm integrity and retention behavior.
+- Re-run `atb verify` and `atb archive --dry-run` during periodic checks to confirm integrity and retention behaviour.

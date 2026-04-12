@@ -2,7 +2,7 @@
 
 Source of truth: `cmd/atb/main.go` (`verifyResult`).
 
-## JSON Shape
+## JSON shape
 
 ```json
 {
@@ -28,7 +28,7 @@ Source of truth: `cmd/atb/main.go` (`verifyResult`).
 - `error` (`string`, optional): present for `invalid` and `error` statuses.
 - `message` (`string`, optional): present for user-friendly informational states (for example `empty`).
 
-## Status Semantics
+## Status semantics
 
 - `valid`: integrity checks passed.
 - `invalid`: hash-chain tamper/integrity failure.

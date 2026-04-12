@@ -14,7 +14,7 @@ Build a local-first visual dashboard for `.atb` bundles that is fast to audit an
 Auditor success bar:
 - Integrity status, trace flow, and key event details must be understandable in under 30 seconds.
 
-## CLI Interface
+## CLI interface
 
 ```bash
 atb view --ui-experimental [--port 8080] [--bundle path/to/file.atb]
@@ -50,9 +50,9 @@ Rationale:
 - no cloud dependency required
 - pagination and masking happen server-side for performance/privacy
 
-## Security Rules
+## Security rules
 
-### Verification Gate
+### Verification gate
 
 - `bundle.Verify()` runs before event APIs are available.
 - If verification fails:
@@ -60,14 +60,14 @@ Rationale:
   - `GET /api/v1/verification` returns `status=invalid`
   - data endpoints return `403`
 
-### Privacy Defaults
+### Privacy defaults
 
 - sensitive fields are masked by default in event payload API responses
 - reveal requires explicit `POST /api/v1/privacy/reveal`
 - reveal response returns only requested field
 - reveal actions are append-logged to `bundle.atb`
 
-## API DTO Summary
+## API DTO summary
 
 - `VerificationResponse`: status, message, bundle_path, chain_length, head_hash
 - `BundleMetaResponse`: event_count, type_counts, timestamp bounds, verification summary
@@ -75,33 +75,33 @@ Rationale:
 - `BundleGraphResponse`: nodes and edges for trace/span graph rendering
 - `PrivacyRevealRequest` / `PrivacyRevealResponse`: single field reveal flow
 
-## UI Components
+## UI components
 
-### Verification Banner
+### Verification banner
 - Green lock style when valid.
 - Red warning banner when invalid.
 - Invalid state disables interactive panels.
 
-### Timeline View
+### Timeline view
 - virtualized vertical list
 - color-coded event families (`llm`, `tool`, `chain`, default)
 - default page size from API: 200
 
-### Graph View
+### Graph view
 - React Flow node/edge model from `/api/v1/bundle/graph`
 - parent span and sequence relationships visualized
 
-### Inspector Panel
+### Inspector panel
 - selected event detail
 - masked fields by default
 - `Click to Reveal` triggers reveal endpoint
 
-### Stats Overview
+### Stats overview
 - total events
 - event family counts
 - verification status
 
-## Performance Requirements
+## Performance requirements
 
 - handle 10k+ events smoothly
 - required mechanisms:
@@ -109,7 +109,7 @@ Rationale:
   - timeline virtualization
   - lazy detail rendering
 
-## Error Handling
+## Error handling
 
 - missing bundle path/file: clear load error
 - parse errors: return explicit error JSON

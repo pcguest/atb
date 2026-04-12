@@ -2,7 +2,7 @@
 
 Start here if you are new to ATB.
 
-## First 5 Minutes
+## First 5 minutes
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
@@ -13,7 +13,7 @@ atb snapshot incident_review_failed
 atb verify
 ```
 
-## Recommended Path
+## Recommended path
 
 1. [Incident Review Workflow](../guides/incident-review-workflow.md)
 2. [Customer Handoff Workflow](../guides/customer-handoff-workflow.md)
@@ -21,7 +21,7 @@ atb verify
 4. [Compliance Export Overview](../compliance/export.md)
 5. [AI Integrations](../guides/README.md)
 
-## Install Options
+## Install options
 
 - Go CLI: `go install github.com/pcguest/atb/cmd/atb@latest`
 - Python SDK: `pip install atb-sdk`

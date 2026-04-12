@@ -2,12 +2,12 @@
 
 ATB core CLI is local-first and does not require environment variables for day-to-day use.
 
-## Runtime Defaults
+## Runtime defaults
 
 - Default bundle directory: `./run.atb/`
 - Default bundle file: `./run.atb/bundle.atb`
 
-## CLI Flags (Current)
+## CLI flags
 
 | Command | Flags |
 | --- | --- |
@@ -19,7 +19,7 @@ ATB core CLI is local-first and does not require environment variables for day-t
 | `atb trust-report` | optional `bundle_path`, `--format markdown, json, or text`, `--profile <id>` |
 | `atb view` | optional `bundle_path`, `--bundle <path>`, `--port <port>`, `--no-open`, `--log-reveals`, `--ui-experimental` |
 
-## CI/CD Secrets
+## CI/CD secrets
 
 These are configured in GitHub repository secrets for publish/notification workflows.
 
@@ -33,7 +33,7 @@ These are configured in GitHub repository secrets for publish/notification workf
 
 PyPI publishing uses GitHub OIDC trusted publishing through `.github/workflows/release.yml`, so no repository secret is required for PyPI.
 
-## Security Notes
+## Security notes
 
 - Do not commit `.env` files, tokens, or private keys.
 - Keep runtime payload secrets out of ATB event data unless explicitly required.

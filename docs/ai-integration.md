@@ -2,7 +2,7 @@
 
 This guide defines the stable CLI and JSON contract for automated ATB integrations in `0.9.2-beta`.
 
-## CLI Contract
+## CLI contract
 
 ### Machine-readable commands
 
@@ -53,7 +53,7 @@ Automation should always gate on non-zero exit codes and parse JSON only when `-
 3. Treat missing fields as contract drift and fail closed.
 4. Never assume implied defaults in CI; pass all critical flags explicitly.
 
-## Event Schema
+## Event schema
 
 Canonical event schema is at `schemas/event.v1.json`.
 
@@ -70,7 +70,7 @@ Example valid event:
 }
 ```
 
-## Verifier Report Schema
+## Verifier report schema
 
 `atb verify --format json` returns:
 
@@ -86,7 +86,7 @@ Example valid event:
 - `exclusions[]` (optional): declared blind spots for the matched profile
 - `residual_risk`: `Low|Medium|High|Critical`
 
-## Trust Report Schema
+## Trust report schema
 
 `atb trust-report --format json` returns:
 
@@ -127,7 +127,7 @@ Section object:
 
 The command exits `0` when `pass` is `true`, and `1` otherwise.
 
-## CI Assertion Examples
+## CI assertion examples
 
 ```bash
 atb verify --format json --profile atb.profile.rag_answer > verify-report.json
@@ -138,7 +138,7 @@ jq -e '.pass == true' trust-report.json
 jq -e '.chain.valid == true' trust-report.json
 ```
 
-## AI Self-Audit Loop
+## AI self-audit loop
 
 1. Load existing bundle and run `atb verify --format json`.
 2. Apply code/documentation changes.
@@ -146,11 +146,11 @@ jq -e '.chain.valid == true' trust-report.json
 4. Run `atb trust-report --format json` and block if the trust report no longer passes.
 5. Store report artifacts alongside CI logs for audit replay.
 
-## Cross-Language Encryption Testing
+## Cross-language encryption testing
 
 ATB encryption must produce byte-identical ciphertext across Go, Python, and TypeScript for the same inputs. This is verified via golden fixtures.
 
-### Deterministic Test Path
+### Deterministic test path
 
 For testing only, encryption functions accept fixed `salt` and `nonce` parameters:
 
@@ -169,7 +169,7 @@ ciphertext = encrypt_raw(plaintext, password, salt=salt, nonce=nonce)
 const ciphertext = encryptRaw(plaintext, password, { salt, nonce });
 ```
 
-### Adding a New SDK
+### Adding a new SDK
 
 To add encryption support for a new language:
 
@@ -179,7 +179,7 @@ To add encryption support for a new language:
 4. Compare output bytes against Go baseline in `test/golden/encrypt-vector.hex`.
 5. All SDKs must produce identical ciphertext for same inputs.
 
-### Golden Fixture Format
+### Golden fixture format
 
 `test/golden/encrypt-vector.hex` contains hex-encoded ciphertext for:
 

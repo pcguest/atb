@@ -25,7 +25,7 @@ The SOC2 export produces a zip containing:
 - `evidence/soc2_evidence_manifest.json` (control mapping for CC6.1, CC6.6, CC7.2, CC8.1, and CC9.1)
 - `evidence/audit_trail.jsonl` (SOC2-relevant event trail)
 - `evidence/verification_report.json` (bundle verification summary)
-- `evidence/checksums.sha256` (artifact integrity manifest)
+- `evidence/checksums.sha256` (artefact integrity manifest)
 
 ## Instructions for auditors
 

@@ -7,7 +7,7 @@ This runbook is intentionally lightweight so it remains usable by a solo maintai
 Trigger conditions:
 
 - Report received through `patrickcguest@proton.me`
-- Suspicious release artifact behavior
+- Suspicious release artefact behaviour
 - Integrity mismatch or unexpected production workflow failures
 - Credential leak signal (logs, GitHub alert, third-party report)
 
@@ -33,7 +33,7 @@ Immediate actions:
 
 - Patch root cause on `main`.
 - Add or update tests to prevent regression.
-- Rebuild and re-verify release artifacts.
+- Rebuild and re-verify release artefacts.
 - Re-enable workflows only after checks are green.
 
 ## 4. Communication

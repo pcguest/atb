@@ -10,13 +10,13 @@ In ATB, signing provides tamper evidence. It proves that a bundle, or a
 specific policy event, was produced by a holder of a private key and was
 not modified afterwards. It is not an access-control mechanism.
 
-ATB v1.4.0 supports:
+ATB v1.5.0 supports:
 
 - Ed25519 bundle signing for whole-bundle state attestation.
 - Policy event signing for `ai.policy.decision` events.
 - AES-256-GCM encryption for passphrase-based bundle handoff or storage.
 
-Out of scope for v1.4.0: server-side key custody, multi-tenant key
+Out of scope for the current release: server-side key custody, multi-tenant key
 management, and hardware security module integration.
 
 ## Generating a keypair
@@ -102,7 +102,7 @@ key for historical verification.
 - Retain the old public key for as long as any historical bundle or policy record signed with it may need verification.
 
 3. Update the active signing key in the surrounding operational workflow.
-- ATB v1.4.0 does not store an active signing key in `./.atb/config.json`.
+- ATB does not store an active signing key in `./.atb/config.json`.
 - Future bundle signing must use the new key path with `atb sign --bundle <path> --key <new-key.pem>`.
 - Future policy signing must use the new key path with `atb append ai.policy.decision ... --sign-policy <new-key.pem>`.
 - If wrapper scripts, CI jobs, or secret injection layers choose the key path, update that operational configuration as well.

@@ -2,13 +2,13 @@
 
 Practical guides for integrating and operating ATB in production workflows.
 
-## AI Integrations
+## AI integrations
 
 - [LangChain Integration (Python)](../integrations/langchain.md)
 - [Vercel AI SDK Integration (TypeScript)](../integrations/vercel-ai.md)
 - [AI Integration Overview](../ai-integration.md)
 
-## Security and Operations
+## Security and operations
 
 - [Incident Review Workflow](./incident-review-workflow.md)
 - [Customer Handoff Workflow](./customer-handoff-workflow.md)
@@ -23,7 +23,6 @@ Practical guides for integrating and operating ATB in production workflows.
 - [GDPR Export Specification](../compliance/gdpr.md)
 - [Retention](../compliance/retention.md)
 
-## Release and Governance
+## Release and governance
 
-- [Launch Specification](../spec-launch.md)
 - [Versioning Policy](../../VERSIONING.md)

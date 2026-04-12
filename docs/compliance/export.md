@@ -84,5 +84,5 @@ Use `--with-verify` when you want the full verify report JSON written next to th
 ## Operational notes
 
 - Use dry-run mode in CI or pre-audit checks to validate expected inclusion paths.
-- Store generated evidence zips in your organization-controlled audit repository.
+- Store generated evidence zips in your organisation-controlled audit repository.
 - Keep source bundles and archive ledger unchanged after export so evidence remains reproducible.

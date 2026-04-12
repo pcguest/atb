@@ -91,7 +91,7 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 
 This ensures that the same event produces the same hash in every language and runtime.
 
-Unset optional fields are omitted from canonicalization output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, or `parent_span_id` are not set, they are excluded from the canonical JSON bytes before hashing.
+Unset optional fields are omitted from canonicalisation output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, or `parent_span_id` are not set, they are excluded from the canonical JSON bytes before hashing.
 
 ---
 
@@ -226,12 +226,12 @@ ATB v1.0+ supports optional fields on events:
 Compatibility rules:
 
 - Old bundles (created before the manifest record or optional fields were added) verify unchanged with newer SDKs.
-- New bundles that set optional fields produce different hashes (expected, because those fields are included in canonicalization).
-- Unset optional fields are omitted from canonicalization (`omitempty` behavior), preserving canonical byte compatibility with legacy events that did not define them.
+- New bundles that set optional fields produce different hashes (expected, because those fields are included in canonicalisation).
+- Unset optional fields are omitted from canonicalisation (`omitempty` behaviour), preserving canonical byte compatibility with legacy events that did not define them.
 
 ### TypeScript SDK
 
-Optional fields (`actor_id`, `org_id`, `workspace_id`) are omitted from canonicalization when `undefined`. This ensures backward compatibility with bundles created before v1.0+.
+Optional fields (`actor_id`, `org_id`, `workspace_id`) are omitted from canonicalisation when `undefined`. This ensures backward compatibility with bundles created before v1.0+.
 
 ```ts
 // Omitted when undefined

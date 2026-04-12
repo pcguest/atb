@@ -15,7 +15,7 @@ All GitHub Actions `uses:` directives MUST be pinned to full commit SHA, not ver
 3. Pin the workflow entry as `uses: owner/repo@SHA # original-ref`.
 4. Add the mapping to [pin-actions.sh](../../scripts/pin-actions.sh) so future bulk refreshes stay consistent.
 
-## Updating Pins
+## Updating pins
 Quarterly, or when intentionally upgrading an action:
 1. Resolve the new upstream ref to a full SHA.
 2. Update [pin-actions.sh](../../scripts/pin-actions.sh).
