@@ -1813,10 +1813,10 @@ func writeExportZip(result exportBuildResult, modTime time.Time) error {
 	zw := zip.NewWriter(f)
 	for _, file := range result.Files {
 		hdr := &zip.FileHeader{
-			Name:   filepath.ToSlash(file.ZipPath),
-			Method: zip.Deflate,
+			Name:     filepath.ToSlash(file.ZipPath),
+			Method:   zip.Deflate,
+			Modified: modTime.UTC(),
 		}
-		hdr.SetModTime(modTime.UTC())
 		w, err := zw.CreateHeader(hdr)
 		if err != nil {
 			_ = zw.Close()

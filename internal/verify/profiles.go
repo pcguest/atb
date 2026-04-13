@@ -643,25 +643,6 @@ func boundedExecutionWindowWarnings(precommitByAction, executedByAction map[stri
 	return warnings
 }
 
-func beforeModelWarning(label string, beforeRecords, modelRecords []bundle.Record) string {
-	if len(beforeRecords) == 0 || len(modelRecords) == 0 {
-		return ""
-	}
-
-	beforeTime, beforePresent, beforeErr := parseEventTimestamp(beforeRecords[0])
-	modelTime, modelPresent, modelErr := parseEventTimestamp(modelRecords[0])
-	if !beforePresent || !modelPresent {
-		return ""
-	}
-	if beforeErr != nil || modelErr != nil {
-		return fmt.Sprintf("%s: invalid RFC 3339 timestamp detected", label)
-	}
-	if beforeTime.After(modelTime) {
-		return fmt.Sprintf("%s: event timestamp occurs after ai.model.invoked", label)
-	}
-	return ""
-}
-
 func temporalBeforeScore(beforeRecords, modelRecords []bundle.Record) float64 {
 	if len(beforeRecords) == 0 || len(modelRecords) == 0 {
 		return 1.0
@@ -772,16 +753,6 @@ func fieldString(record bundle.Record, field string) string {
 		return ""
 	}
 	return value
-}
-
-func missingFields(data map[string]any, requiredFields []string) []string {
-	missing := make([]string, 0, len(requiredFields))
-	for _, field := range requiredFields {
-		if !hasField(data, field) {
-			missing = append(missing, field)
-		}
-	}
-	return missing
 }
 
 func allRecordsBound(records []bundle.Record, field string, targetIndex map[string][]bundle.Record) bool {

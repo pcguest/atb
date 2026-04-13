@@ -1038,13 +1038,6 @@ func newVerifyResult(path string, b *bundle.Bundle, status string) verifyResult 
 	return result
 }
 
-func printVerifyJSON(result verifyResult) {
-	if err := json.NewEncoder(os.Stdout).Encode(result); err != nil {
-		fmt.Fprintf(os.Stderr, "atb verify: encode json output: %v\n", err)
-		os.Exit(exitSystemError)
-	}
-}
-
 func verifyWithTrace(b *bundle.Bundle, out io.Writer) error {
 	prev := hash.GenesisHash
 	hasManifest := len(b.Records) > 0 && b.Records[0].Event.Type == bundle.ManifestEventType

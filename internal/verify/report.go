@@ -52,10 +52,7 @@ func ReportFromVerify(r Report) VerifierReport {
 	report.Pass = r.Integrity.ChainValid && profile.Pass
 	report.Failures = make([]ReportFailure, 0, len(profile.CriticalFailures))
 	for _, failure := range profile.CriticalFailures {
-		report.Failures = append(report.Failures, ReportFailure{
-			Kind:   failure.Kind,
-			Detail: failure.Detail,
-		})
+		report.Failures = append(report.Failures, ReportFailure(failure))
 	}
 	report.Warnings = append([]string(nil), profile.RequiredWarnings...)
 	report.Notes = append([]string(nil), profile.InformationalNotes...)
