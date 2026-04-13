@@ -503,6 +503,69 @@ func buildCLIPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	return b
 }
 
+// TestRunVerify_ByteCorruptionDetected writes a valid bundle to disk, corrupts
+// a single byte in the event payload, and asserts that verify reports an
+// integrity failure and identifies the corrupted record by sequence number.
+func TestRunVerify_ByteCorruptionDetected(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	if exitCode := runInit(nil, &stdout, &stderr); exitCode != exitSuccess {
+		t.Fatalf("runInit() exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	if exitCode := runAppend([]string{"ai.request.received", `{"request_id":"req-1","actor_id_hash":"h1","purpose_tag":"test"}`}, &stdout, &stderr); exitCode != exitSuccess {
+		t.Fatalf("runAppend() exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	bundlePath := bundle.DefaultPath()
+	content, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle file: %v", err)
+	}
+
+	// Flip one byte inside the event type string of the appended record (seq 1).
+	// The stored hash will no longer match the recomputed hash of the modified event.
+	corrupted := bytes.Replace(content, []byte(`"ai.request.received"`), []byte(`"Xi.request.received"`), 1)
+	if bytes.Equal(corrupted, content) {
+		t.Fatal("byte replacement had no effect; event type string not found in bundle file")
+	}
+	if err := os.WriteFile(bundlePath, corrupted, 0600); err != nil {
+		t.Fatalf("write corrupted bundle: %v", err)
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--json"}, &stdout, &stderr)
+	if exitCode != exitIntegrityFailure {
+		t.Fatalf("runVerify() exit code = %d, want %d (stdout=%q stderr=%q)", exitCode, exitIntegrityFailure, stdout.String(), stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if report.Integrity.ChainValid {
+		t.Fatalf("expected chain integrity failure, got %+v", report.Integrity)
+	}
+	// The error must identify the corrupted record by sequence number.
+	if !strings.Contains(report.Integrity.Error, "seq 1") {
+		t.Fatalf("expected error to identify seq 1, got %q", report.Integrity.Error)
+	}
+}
+
 func containsVerifyNote(notes []string, wantSubstring string) bool {
 	for _, note := range notes {
 		if strings.Contains(note, wantSubstring) {
