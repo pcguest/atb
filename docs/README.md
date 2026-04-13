@@ -51,7 +51,13 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 - [AI Trace Event Specification](./spec-ai-traces.md)
 - [Dashboard Specification](./spec-dashboard.md)
 
+## Release and launch
+
+- [Release Announcement Template](./launch/release-announcement-template.md)
+- [Release Notes Template](./launch/release-notes-template.md)
+
 ## Contributors
 
 - [Root Contributing Guide](../CONTRIBUTING.md)
 - [Contributor Workflow](./contributing.md)
+- [GitHub Workflows Reference](../.github/WORKFLOWS.md)
