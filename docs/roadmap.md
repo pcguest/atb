@@ -42,3 +42,34 @@ The stable `v1.0.0` milestone was the point where ATB became a predictable found
 -   [x] Encrypted bundle support hardened with versioned PBKDF2-SHA256 parameters.
 -   [x] CLI command structure and JSON output formats frozen.
 -   [x] Governance guidance for CISO and auditor acceptance in `docs/compliance/` and `docs/security.md`.
+
+## Forward roadmap
+
+The following milestones are engineering intent, not committed ship dates.
+
+### v1.6 — Bundle push and WORM export
+
+**Status: Planned**
+
+- `atb push` command exports a sealed bundle to a configurable external target (S3-compatible storage or a local WORM path).
+- S3 target: `atb push --target s3://bucket/prefix` uses the standard AWS credential chain and writes the bundle as a single object with a content-addressed key (`sha256:<hash>.atb`).
+- WORM locking: ATB sets `x-amz-object-lock-mode: COMPLIANCE` and `x-amz-object-lock-retain-until-date` when `--lock-until` is supplied and the bucket has Object Lock enabled. ATB does not enforce WORM — the bucket policy does.
+- Remote verification: `atb verify --remote s3://bucket/sha256:<hash>.atb` verifies a remotely stored bundle without downloading it in full (streaming verify).
+
+See [`docs/spec/bundle-push.md`](./spec/bundle-push.md) for the full design-intent specification, including the current manual workaround.
+
+### v1.7 — LangChain native callback integration
+
+**Status: Planned**
+
+- `ATBCallbackHandler` for LangChain (Python) attaches to any LLM, Chain, or Agent and emits `ai.llm.call`, `ai.tool.exec`, and `ai.chain.run` events automatically.
+- Zero-config mode: `ATBCallbackHandler()` with no arguments uses the active bundle in the current working directory.
+- See [`docs/integrations/langchain.md`](./integrations/langchain.md) for the current integration guide.
+
+### v1.8 — Profile DSL v1
+
+**Status: Planned**
+
+- YAML-defined custom profiles: operators can define their own obligation profiles without modifying Go code.
+- Profile validation tooling: `atb profile validate ./my-profile.yaml` checks a custom profile schema for correctness.
+- Profile registry: `atb profile list` shows built-in and user-defined profiles.
