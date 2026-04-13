@@ -157,6 +157,7 @@ alongside the rest of the workflow.
 
 ## Docs index
 
+- [Architecture](docs/architecture.md)
 - [Quickstart](docs/quickstart.md)
 - [ATB Specification v1.0](docs/spec-v1.0.md)
 - [AI Trace Event Specification](docs/spec-ai-traces.md)
