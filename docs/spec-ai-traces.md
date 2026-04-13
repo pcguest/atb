@@ -265,3 +265,40 @@ Ordering guarantees:
   }
 }
 ```
+
+## Complete event type registry
+
+The table below lists every canonical ATB event type. The three integration events (`ai.llm.call`, `ai.tool.exec`, `ai.chain.run`) are documented in detail above. The remaining types are used directly via the CLI or SDKs without a framework callback mapping.
+
+Developer-only types (`dev.session`, `snapshot.build`) are used internally by tooling and tests and are not intended for operator use.
+
+| Event type | Category | Criticality | Primary profiles |
+| --- | --- | --- | --- |
+| `atb.bundle.manifest` | Bundle lifecycle | critical | All profiles |
+| `atb.bundle.anchor` | Bundle lifecycle | required | All profiles |
+| `atb.bundle.signature` | Bundle lifecycle | required | All profiles |
+| `atb.snapshot` | Bundle lifecycle | informational | — |
+| `ai.request.received` | AI request/response | critical | `rag_answer`, `privileged_tool_action`, `data_export`, `policy_decision`, `human_override` |
+| `ai.response.sent` | AI request/response | required | `rag_answer` |
+| `ai.llm.call` | AI integration (see above) | informational | — |
+| `ai.tool.exec` | AI integration (see above) | informational | — |
+| `ai.chain.run` | AI integration (see above) | informational | — |
+| `ai.policy.decision` | Policy | critical | `privileged_tool_action`, `rag_answer`, `data_export`, `policy_decision` |
+| `ai.retrieval.executed` | RAG | required | `rag_answer` |
+| `ai.model.invoked` | RAG | critical | `rag_answer` |
+| `ai.model.output` | RAG | critical | `rag_answer` |
+| `atb.event.rag_index` | RAG (PageIndex) | required | `rag_answer` |
+| `atb.event.rag_retrieval` | RAG (PageIndex) | required | `rag_answer` |
+| `ai.action.precommit` | Privileged action | critical | `privileged_tool_action`, `data_export`, `policy_decision`, `human_override` |
+| `ai.action.executed` | Privileged action | critical | `privileged_tool_action`, `data_export`, `human_override` |
+| `ai.action.committed` | Privileged action | critical | `privileged_tool_action`, `data_export`, `human_override` |
+| `ai.human.approval` | Human oversight | required | `privileged_tool_action`, `data_export`, `human_override` |
+| `ai.override.requested` | Human oversight | critical | — |
+| `ai.job.scheduled` | Background automation | critical | `background_automation` |
+| `ai.job.started` | Background automation | critical | `background_automation` |
+| `ai.job.step` | Background automation | critical | `background_automation` |
+| `ai.job.completed` | Background automation | critical | `background_automation` |
+| `data.export.precommit` | Data export | critical | `data_export` |
+| `data.export.executed` | Data export | critical | `data_export` |
+| `dev.session` | Developer tooling | informational | — |
+| `snapshot.build` | Developer tooling | informational | — |
