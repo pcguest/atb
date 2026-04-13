@@ -35,6 +35,7 @@ ATB ships primarily as a Go CLI. The Python and TypeScript packages are SDKs tha
 - [Key Management](./key-management.md)
 - [Configuration Reference](./config.md)
 - [Integration Guides](./integrations/README.md)
+- [WORM/S3 Export (planned v1.6)](./integrations/worm-s3.md)
 
 ## Compliance and audit
 

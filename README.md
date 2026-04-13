@@ -145,6 +145,7 @@ alongside the rest of the workflow.
 - [Verification Profiles](docs/profiles.md)
 - [Security Model](docs/security.md)
 - [MCP Integration](docs/integrations/mcp.md)
+- [WORM/S3 Export](docs/integrations/worm-s3.md)
 - [Python SDK](sdk/python/README.md)
 - [TypeScript SDK](sdk/typescript/README.md)
 - [Incident Review Workflow](docs/guides/incident-review-workflow.md)
