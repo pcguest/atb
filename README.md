@@ -12,7 +12,7 @@ deterministic evidence for incident review, audit, and customer
 handoff. It does not require a backend and does not send trace data to
 external storage by default.
 
-Current release: [`v1.5.0`](CHANGELOG.md).
+Current release: [`v1.5.1`](CHANGELOG.md).
 
 ## Quickstart
 
