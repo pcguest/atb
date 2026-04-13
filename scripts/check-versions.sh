@@ -33,6 +33,13 @@ check "sdk/python/atb/__init__.py"  "$PY_INIT"
 check "sdk/typescript/package.json" "$TS_VERSION"
 check "web/package.json"            "$WEB_VERSION"
 
+VERSION="$REF_VERSION"
+LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+if [ "$LATEST_TAG" != "v${VERSION}" ]; then
+  echo "error: latest tag $LATEST_TAG does not match version v${VERSION}"
+  exit 1
+fi
+
 if [ "$FAIL" -eq 0 ]; then
   printf "ok: all version strings agree (%s)\n" "$REF_VERSION"
 fi
