@@ -100,6 +100,24 @@ It does not auto-instrument third-party MCP servers, and the current SDKs
 do not include MCP-specific helper APIs. Run `atb events` to inspect the
 canonical event registry and built-in profile membership.
 
+### LangChain
+
+The Python SDK ships `ATBCallbackHandler`, a LangChain callback handler that emits `ai.llm.call`, `ai.tool.exec`, and `ai.chain.run` events into the active bundle automatically.
+
+```python
+from atb import Bundle
+from atb.langchain_callback import ATBCallbackHandler
+
+bundle = Bundle()
+handler = ATBCallbackHandler(bundle=bundle)
+
+llm = ChatOpenAI(model="gpt-4o-mini", callbacks=[handler])
+chain = prompt | llm
+chain.invoke({"question": "What is tamper-evident logging?"})
+```
+
+See [`docs/integrations/langchain.md`](docs/integrations/langchain.md) for the full integration guide.
+
 ### MCP bridge (beta)
 
 ```bash
