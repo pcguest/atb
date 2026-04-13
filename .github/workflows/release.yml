@@ -68,6 +68,9 @@ jobs:
           npm run test
           npm run build
 
+      - name: Check version parity across all artefacts
+        run: bash scripts/check-versions.sh
+
       - name: Validate tag version parity
         if: startsWith(github.ref, 'refs/tags/')
         run: |
