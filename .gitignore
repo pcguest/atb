@@ -110,3 +110,4 @@ sdk/python/*.egg-info/
 sdk/python/venv/
 sdk/typescript/dist/
 sdk/typescript/node_modules/
+CLAUDE.md
