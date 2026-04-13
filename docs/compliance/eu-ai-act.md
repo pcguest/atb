@@ -1,8 +1,6 @@
-<!-- TODO: legal review before citing this document in regulatory
-submissions. Claims are based on technical analysis of Article 12
-text as of April 2026 and have not been reviewed by counsel. -->
-
 # EU AI Act Article 12 and ATB
+
+> **Note:** This document is based on technical analysis of Article 12 of Regulation (EU) 2024/1689 as of April 2026 and has not been reviewed by legal counsel. Do not cite it in regulatory submissions without independent legal review.
 
 ## Overview
 
