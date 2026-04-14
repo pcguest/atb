@@ -4,6 +4,8 @@ Records workflow events as tamper-evident, SHA-256 hash-chained bundles on local
 
 [![Release](https://img.shields.io/badge/release-v1.5.1-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
+Current release: [`v1.5.1`](CHANGELOG.md)
+
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
 anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it
 does not prove recording completeness, model correctness, or that risk controls were applied.
