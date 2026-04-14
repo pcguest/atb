@@ -1,6 +1,6 @@
 # SIEM and GRC integration
 
-ATB is designed as a local-first system where audit traces are stored on the originating infrastructure. To support centralized monitoring and governance, ATB provides deterministic export formats that can be ingested into SIEM (Security Information and Event Management) and GRC (Governance, Risk, and Compliance) platforms.
+ATB is a local-first system: audit traces are stored on the originating infrastructure. For teams that forward evidence into centralised monitoring or audit tools, ATB provides deterministic export formats that can be ingested into SIEM (Security Information and Event Management) and GRC (Governance, Risk, and Compliance) platforms.
 
 ## Exporting evidence
 

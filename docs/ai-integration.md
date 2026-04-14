@@ -1,6 +1,6 @@
 # AI Integration Guide
 
-This guide defines the stable CLI and JSON contract for automated ATB integrations in `0.9.2-beta`.
+This guide defines the stable CLI and JSON contract for automated ATB integrations.
 
 ## CLI contract
 

@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -183,19 +184,26 @@ func Load(path string) (*Bundle, error) {
 		return nil, fmt.Errorf("bundle: load: open: %w", err)
 	}
 	defer f.Close()
+	return LoadReader(f)
+}
+
+// LoadReader reads a bundle from r in NDJSON format.
+// It is the streaming counterpart of Load and is used by atb verify --remote
+// to verify a bundle downloaded from S3 without writing a temporary file.
+func LoadReader(r io.Reader) (*Bundle, error) {
 	b := &Bundle{}
-	scanner := bufio.NewScanner(f)
+	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), MaxLineSizeBytes)
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if len(line) == 0 {
 			continue
 		}
-		var r Record
-		if err := json.Unmarshal(line, &r); err != nil {
+		var rec Record
+		if err := json.Unmarshal(line, &rec); err != nil {
 			return nil, fmt.Errorf("bundle: load: unmarshal: %w", err)
 		}
-		b.Records = append(b.Records, r)
+		b.Records = append(b.Records, rec)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("bundle: load: scan: %w", err)

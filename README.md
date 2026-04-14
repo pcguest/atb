@@ -1,6 +1,6 @@
 # ATB
 
-Tamper-evident audit trails for privacy-sensitive AI systems.
+Local-first, hash-chained bundle runtime for verifiable workflow evidence. No backend required.
 
 [![Release](https://img.shields.io/badge/release-v1.5.1-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
@@ -11,6 +11,21 @@ you can inspect locally, verify cryptographically, and export as
 deterministic evidence for incident review, audit, and customer
 handoff. It does not require a backend and does not send trace data to
 external storage by default.
+
+ATB is not an observability tool and does not stream events to a hosted
+backend. Events are written into a portable `.atb` bundle file on disk
+under your control. The file is verifiable cryptographically at any
+time, on any machine, without a server. Integrity relies on SHA-256
+hash chaining over RFC 8785 canonical JSON; optional RFC 3161 TSA
+anchoring adds a third-party timestamp commitment.
+
+Six schema-locked obligation profiles cover concrete workflows:
+`atb.profile.rag_answer`, `atb.profile.data_export`,
+`atb.profile.privileged_tool_action`, `atb.profile.policy_decision`,
+`atb.profile.human_override`, `atb.profile.background_automation`.
+
+Surfaces: Go CLI · Python SDK · TypeScript SDK · MCP stdio bridge ·
+PageIndex retriever integration.
 
 Current release: [`v1.5.1`](CHANGELOG.md).
 
@@ -90,6 +105,40 @@ CAS is emitted in JSON output for all six built-in profiles. It is a
 profile-scoped completeness signal for recorded evidence within the
 declared profile and trust boundary, not an external attestation or a
 universal completeness score.
+
+Example `atb verify --profile atb.profile.rag_answer --format json`
+output for a bundle with a broken hash chain. `pass: false` combined
+with `residual_risk: "Critical"` indicates chain integrity failure;
+`critical_failures` lists obligation gaps the profile found as a result.
+
+```json
+{
+  "bundle_path": "run.atb/2026-04-14T09-12-03Z.atb",
+  "profile_id": "atb.profile.rag_answer",
+  "pass": false,
+  "cas_score": 0.18,
+  "cas_grade": "Insufficient",
+  "sub_scores": {
+    "AC": 0.0,
+    "EC": 0.5,
+    "FC": 0.25,
+    "GC": 0.0,
+    "RC": 0.0,
+    "SC": 0.0,
+    "TC": 0.5,
+    "XC": 0.0
+  },
+  "critical_failures": [
+    {
+      "kind": "missing_event",
+      "detail": "required event type not present: ai.model.invoked"
+    }
+  ],
+  "required_warnings": [],
+  "informational_notes": [],
+  "residual_risk": "Critical"
+}
+```
 
 ## Integrations
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/push"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
@@ -18,6 +20,7 @@ var errVerifyHelp = errors.New("verify help requested")
 
 type verifyCLIConfig struct {
 	BundlePath        string
+	RemoteURI         string // --remote s3://bucket/key; mutually exclusive with BundlePath
 	ProfileID         string
 	JSON              bool
 	LegacyFormat      string
@@ -31,6 +34,9 @@ type verifyCLIConfig struct {
 func cmdVerify() {
 	os.Exit(runVerify(os.Args[2:], os.Stdout, os.Stderr))
 }
+
+// remoteVerifyUploader allows tests to inject a fake S3 client for --remote verify.
+var remoteVerifyUploader push.S3Uploader
 
 func runVerify(args []string, stdout, stderr io.Writer) int {
 	cfg, dryRun, err := parseVerifyArgsWithDryRun(args)
@@ -46,6 +52,11 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 			printVerifyUsage(stderr)
 		}
 		return exitUserError
+	}
+
+	// --remote: download from S3 and stream-verify, then check key hash.
+	if cfg.RemoteURI != "" {
+		return runVerifyRemote(cfg, stdout, stderr)
 	}
 
 	return runVerifyWithConfig(cfg, dryRun, stdout, stderr)
@@ -292,6 +303,14 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.RootsPath = filepath.Clean(strings.TrimSpace(args[i]))
 		case strings.HasPrefix(arg, "--roots="):
 			cfg.RootsPath = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--roots=")))
+		case arg == "--remote":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --remote (expected s3://bucket/key)")
+			}
+			i++
+			cfg.RemoteURI = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--remote="):
+			cfg.RemoteURI = strings.TrimSpace(strings.TrimPrefix(arg, "--remote="))
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -309,11 +328,15 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 	if cfg.ProfileID != "" && strings.TrimSpace(cfg.ProfileID) == "" {
 		return cfg, fmt.Errorf("--profile cannot be empty")
 	}
+	if cfg.RemoteURI != "" && bundlePathSet {
+		return cfg, fmt.Errorf("--remote and --bundle are mutually exclusive")
+	}
 	return cfg, nil
 }
 
 func printVerifyUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--remote s3://bucket/key] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]")
+	fmt.Fprintln(w, "  --remote s3://bucket/prefix/sha256-<hash>.atb  stream-verify a bundle stored on S3; checks key hash against computed head hash")
 	fmt.Fprintln(w, "  --with-anchor  verify RFC 3161 timestamp token: digest, cert chain, and signature")
 	fmt.Fprintln(w, "  --with-snapshot-check  verify each atb.snapshot bundle_hash against the recorded bundle prefix")
 	fmt.Fprintln(w, "  --roots <pem-file>   PEM file containing trusted root certificates for TSA chain verification (default: system roots)")
@@ -391,4 +414,145 @@ func loadVerifyRoots(path string) (*x509.CertPool, error) {
 
 func renderVerifyText(w io.Writer, report verifypkg.Report) {
 	renderVerifyTerminalReport(w, report)
+}
+
+// remoteVerifyReport wraps the normal VerifierReport with S3-specific fields for --remote.
+type remoteVerifyReport struct {
+	RemoteURI    string `json:"remote_uri"`
+	KeyHashOK    bool   `json:"key_hash_ok"`
+	KeyHashWarn  string `json:"key_hash_warn,omitempty"`
+	verifypkg.VerifierReport
+}
+
+// runVerifyRemote implements atb verify --remote s3://bucket/key.
+// It downloads the bundle, runs the normal verify pipeline, then checks
+// that the computed head hash matches the hash encoded in the S3 key name.
+func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
+	bucket, key, err := parseRemoteVerifyURI(cfg.RemoteURI)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb verify: %v\n", err)
+		return exitUserError
+	}
+
+	// Extract the expected head hash from the object key filename.
+	expectedHash, hasHash := push.KeyHash(cfg.RemoteURI)
+
+	// Resolve the S3 client (real or injected fake for tests).
+	uploader := remoteVerifyUploader
+	if uploader == nil {
+		uploader, err = push.NewHTTPClient()
+		if err != nil {
+			fmt.Fprintf(stderr, "atb verify: credential error: %v\n", err)
+			return exitSystemError
+		}
+	}
+
+	// Download the bundle from S3.
+	out, err := uploader.GetObject(context.Background(), push.GetObjectInput{
+		Bucket: bucket,
+		Key:    key,
+	})
+	if err != nil {
+		code := exitSystemError
+		if push.IsNotFound(err) {
+			code = exitUserError
+		}
+		fmt.Fprintf(stderr, "atb verify: download %s: %v\n", cfg.RemoteURI, err)
+		return code
+	}
+	defer out.Body.Close()
+
+	// Load bundle from the S3 response stream.
+	b, err := bundle.LoadReader(out.Body)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb verify: load remote bundle: %v\n", err)
+		return exitSystemError
+	}
+
+	// Run the normal verification pipeline (profile, chain integrity, etc.).
+	report := verifypkg.Verify(b, cfg.RemoteURI, cfg.ProfileID)
+	if cfg.ProfileID != "" {
+		if isVerifyProfilePath(cfg.ProfileID) {
+			profile, perr := verifypkg.ResolveProfile(cfg.ProfileID)
+			if perr != nil {
+				fmt.Fprintf(stderr, "atb verify: %v\n", perr)
+				return exitUserError
+			}
+			report = verifypkg.VerifyWithProfile(b, cfg.RemoteURI, profile)
+		} else {
+			profile := verifypkg.ProfileByID(cfg.ProfileID)
+			if profile == nil {
+				fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
+				return exitIntegrityFailure
+			}
+			report = verifypkg.VerifyWithProfile(b, cfg.RemoteURI, profile)
+		}
+	}
+
+	// Content-addressing check: computed head hash must match the hash in the key name.
+	keyHashOK := true
+	keyHashWarn := ""
+	if !hasHash {
+		keyHashWarn = "key does not follow sha256-<hash>.atb naming; content-address check skipped"
+	} else if len(b.Records) > 0 {
+		computedHead := b.Records[len(b.Records)-1].Hash
+		if computedHead != expectedHash {
+			keyHashOK = false
+			keyHashWarn = fmt.Sprintf(
+				"CRITICAL: key hash %s does not match computed head hash %s — bundle may have been replaced",
+				expectedHash, computedHead)
+		}
+	}
+
+	// Emit output.
+	verifierReport := verifypkg.ReportFromVerify(report)
+
+	if verifyWantsStructuredJSON(cfg) || cfg.JSON {
+		wrapped := remoteVerifyReport{
+			RemoteURI:      cfg.RemoteURI,
+			KeyHashOK:      keyHashOK,
+			KeyHashWarn:    keyHashWarn,
+			VerifierReport: verifierReport,
+		}
+		data, merr := json.MarshalIndent(wrapped, "", "  ")
+		if merr != nil {
+			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", merr)
+			return exitSystemError
+		}
+		data = append(data, '\n')
+		if _, werr := stdout.Write(data); werr != nil {
+			fmt.Fprintf(stderr, "atb verify: write output: %v\n", werr)
+			return exitSystemError
+		}
+	} else {
+		// Text output: print normal report then the remote-specific lines.
+		renderVerifyText(stdout, report)
+		fmt.Fprintln(stdout)
+		fmt.Fprintf(stdout, "Remote:    %s\n", cfg.RemoteURI)
+		if keyHashOK && hasHash {
+			fmt.Fprintf(stdout, "Key hash:  OK (%s)\n", expectedHash)
+		} else if keyHashWarn != "" {
+			fmt.Fprintf(stdout, "Key hash:  %s\n", keyHashWarn)
+		}
+	}
+
+	if !keyHashOK {
+		return exitIntegrityFailure
+	}
+	return verificationExitCode(report)
+}
+
+// parseRemoteVerifyURI splits a full S3 object URI into (bucket, key).
+// Unlike ParseS3URI which parses a prefix, here the entire path after the
+// bucket is the object key.
+func parseRemoteVerifyURI(uri string) (bucket, key string, err error) {
+	if !strings.HasPrefix(uri, "s3://") {
+		return "", "", fmt.Errorf("--remote must be an S3 URI (s3://bucket/key), got %q", uri)
+	}
+	rest := strings.TrimPrefix(uri, "s3://")
+	idx := strings.Index(rest, "/")
+	if idx == -1 || idx == len(rest)-1 {
+		return "", "", fmt.Errorf("--remote URI must include an object key: %q", uri)
+	}
+	return rest[:idx], rest[idx+1:], nil
 }

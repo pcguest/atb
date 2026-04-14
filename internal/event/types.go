@@ -10,6 +10,7 @@ const (
 	TypeBundleAnchor    = "atb.bundle.anchor"
 	TypeBundleSignature = "atb.bundle.signature"
 	TypeSnapshot        = "atb.snapshot"
+	TypeBundlePushed    = "atb.bundle.pushed"
 )
 
 // AI request and response events.
@@ -91,6 +92,7 @@ var Registry = []EventInfo{
 	{TypeBundleAnchor, "RFC 3161 TSA timestamp anchor", "all", "required"},
 	{TypeBundleSignature, "Ed25519 bundle signature", "all", "required"},
 	{TypeSnapshot, "Bundle snapshot marker", "", "informational"},
+	{TypeBundlePushed, "Bundle pushed to remote WORM target (atb push)", "", "informational"},
 	{TypeAIRequestReceived, "AI request received at app boundary", "atb.profile.rag_answer,atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.policy_decision,atb.profile.human_override", "critical"},
 	{TypeAIResponseSent, "AI response sent from app boundary", "atb.profile.rag_answer", "required"},
 	{TypeAILLMCall, "Canonical LLM lifecycle event for integrations", "", "informational"},

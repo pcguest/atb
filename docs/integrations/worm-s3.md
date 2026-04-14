@@ -1,6 +1,17 @@
-# WORM/S3 export — design intent
+# WORM/S3 export
 
 > **Status: Planned — v1.6. The `atb push` command described here is not yet implemented.**
+> CLI stub exists; full spec is in [`docs/spec/bundle-push.md`](../spec/bundle-push.md).
+
+## How this actually behaves
+
+Local capture → local bundle → optional push to S3 Object Lock. Three stages:
+
+1. **Local bundle**: events are appended to a local `.atb` file and hash-chained. `atb verify` detects any tampering at any point.
+2. **Push** (`atb push s3://bucket/prefix`): the sealed bundle is uploaded as a single content-addressed object (`sha256-<head-hash>.atb`). The push event is recorded in the local bundle.
+3. **WORM enforcement**: S3 Object Lock COMPLIANCE mode and the bucket retention policy prevent the uploaded object from being overwritten or deleted. ATB requests the lock header (`x-amz-object-lock-mode: COMPLIANCE`); the bucket configuration enforces it.
+
+ATB does not enforce WORM. All WORM guarantees live in the storage layer.
 
 ## Why WORM storage
 
