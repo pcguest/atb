@@ -4,15 +4,13 @@
 **Tag:** `vX.Y.Z`
 **Download:** https://github.com/pcguest/atb/releases/tag/vX.Y.Z
 
-ATB vX.Y.Z continues the local-first ATB runtime for teams that need to verify what an AI workflow did, keep trace data under their control, and produce a portable review artifact without default external trace storage.
+ATB vX.Y.Z is a local-first bundle runtime for recording tamper-evident workflow evidence. This release [state the concrete improvement in one sentence — what workflow or verification path this release advances].
 
 ## Highlights
 
-- Local viewer and dashboard preview for private review workflows
-- Hash-chained privacy reveal audit logging
-- Token-based auth and rate limiting on sensitive reveal paths
-- Deterministic SOC 2 and GDPR export workflows
-- Client-side encryption support for protected sharing workflows
+[Replace each bullet with a concrete, shipped item from this release. Do not carry forward
+placeholder bullets. Each bullet should state what changed and what it enables for the operator.
+Remove this block if the change is adequately covered by the release notes.]
 
 ## Release Quality
 
@@ -27,30 +25,28 @@ Current release validation covers:
 ## Quick Start
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
-atb init
-atb append agent.run --data='{"workflow":"support-triage"}'
+go install github.com/pcguest/atb/cmd/atb@vX.Y.Z
+atb bundle new
+atb append ai.action.precommit --data='{"action_id":"act-1","action":"escalate"}'
 atb verify
-atb view --ui-experimental
 ```
 
-## Product Positioning
+## Use cases
 
-ATB is for teams that need verifiable audit trails for privacy-sensitive AI systems. The Go CLI is the primary distribution path. The Python and TypeScript packages are SDKs, not the primary CLI install path.
-
-Best-fit workflows:
+ATB is suited for:
 
 - incident review without default external trace storage
 - customer handoff without platform lock-in
 - internal audit and privacy review on a local bundle
 
+The Go CLI is the primary distribution path. The Python and TypeScript packages are SDKs, not the
+primary CLI install path.
+
 ## Links
 
 - Docs: https://github.com/pcguest/atb/tree/main/docs
-- Incident review workflow: https://github.com/pcguest/atb/blob/main/docs/use-cases/incident-review.md
-- Internal audit and privacy review: https://github.com/pcguest/atb/blob/main/docs/use-cases/internal-audit-privacy-review.md
-- Hosted observability comparison: https://github.com/pcguest/atb/blob/main/docs/comparisons/hosted-observability.md
+- Compliance mappings: https://github.com/pcguest/atb/tree/main/docs/compliance
 - Security policy: https://github.com/pcguest/atb/blob/main/SECURITY.md
 - Issues: https://github.com/pcguest/atb/issues
 
-If you find a vulnerability, please report it privately to [patrickcguest@proton.me](mailto:patrickcguest@proton.me) before public disclosure.
+If you find a vulnerability, report it privately to [patrickcguest@proton.me](mailto:patrickcguest@proton.me) before public disclosure.

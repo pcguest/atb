@@ -15,7 +15,7 @@ Distinguishing properties:
 - SHA-256 hash chains over RFC 8785 canonical JSON. Conservative and auditable.
 - Six schema-locked obligation profiles aligned to concrete workflows.
 - Optional RFC 3161 TSA anchoring for third-party time commitment.
-- WORM export (v1.6, planned) complements local guarantees; it does not replace them.
+- WORM export (v1.6, in progress) complements local guarantees; it does not replace them.
 
 ## Hard invariants — do not break these
 

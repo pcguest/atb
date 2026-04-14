@@ -21,10 +21,12 @@ invariants that all forward work must preserve:
 
 ### v1.6 — Bundle push and WORM export
 
-**Status: Planned**
+**Status: In Progress — core implementation complete, pending release**
 
 - `atb push` exports a sealed bundle to a configurable external target
-  (S3-compatible storage or a local WORM path).
+  (S3-compatible storage or a local WORM path). Core implementation
+  committed; integration tests and CI secrets registration remain before
+  the v1.6 release cut.
 - S3 target: `atb push --target s3://bucket/prefix` uses the standard
   AWS credential chain and writes the bundle as a single object with a
   content-addressed key (`sha256:<hash>.atb`).
@@ -32,12 +34,13 @@ invariants that all forward work must preserve:
   `x-amz-object-lock-retain-until-date` when `--lock-until` is supplied
   and the bucket has Object Lock enabled. ATB does not enforce WORM —
   the bucket policy does.
+- `--dry-run`: validates args and prints the object key and lock headers
+  that would be sent; no upload performed.
 - Remote verification: `atb verify --remote s3://bucket/sha256:<hash>.atb`
-  verifies a remotely stored bundle without downloading it in full
-  (streaming verify).
+  verifies a remotely stored bundle without a full download (streaming verify).
 
 See [`docs/spec/bundle-push.md`](./spec/bundle-push.md) for the full
-design-intent specification, including the current manual workaround.
+design-intent specification.
 
 ### v1.7 — LangChain native callback integration
 

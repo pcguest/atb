@@ -1,33 +1,36 @@
 # ATB
 
-Local-first, hash-chained bundle runtime for verifiable workflow evidence. No backend required.
+Records workflow events as tamper-evident, SHA-256 hash-chained bundles on local disk. No backend required.
 
 [![Release](https://img.shields.io/badge/release-v1.5.1-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-## What it is
+Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
+anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it
+does not prove recording completeness, model correctness, or that risk controls were applied.
 
-ATB records AI workflow events as tamper-evident, hash-chained bundles
-you can inspect locally, verify cryptographically, and export as
-deterministic evidence for incident review, audit, and customer
-handoff. It does not require a backend and does not send trace data to
-external storage by default.
+## Obligation profiles
 
-ATB is not an observability tool and does not stream events to a hosted
-backend. Events are written into a portable `.atb` bundle file on disk
-under your control. The file is verifiable cryptographically at any
-time, on any machine, without a server. Integrity relies on SHA-256
-hash chaining over RFC 8785 canonical JSON; optional RFC 3161 TSA
-anchoring adds a third-party timestamp commitment.
+Six schema-locked profiles define the required event sets for concrete workflows:
 
-Six schema-locked obligation profiles cover concrete workflows:
-`atb.profile.rag_answer`, `atb.profile.data_export`,
-`atb.profile.privileged_tool_action`, `atb.profile.policy_decision`,
-`atb.profile.human_override`, `atb.profile.background_automation`.
+| Profile | Records |
+|---------|---------|
+| `atb.profile.privileged_tool_action` | A privileged tool invocation requiring explicit pre-commit authorisation |
+| `atb.profile.rag_answer` | A retrieval-augmented generation answer with cited sources |
+| `atb.profile.policy_decision` | A policy evaluation and its outcome |
+| `atb.profile.human_override` | A human operator overriding an automated decision |
+| `atb.profile.background_automation` | An unattended automated task running without human-in-the-loop |
+| `atb.profile.data_export` | A data export with recipient, data set, and recorded legal basis |
 
-Surfaces: Go CLI · Python SDK · TypeScript SDK · MCP stdio bridge ·
-PageIndex retriever integration.
+Surfaces: Go CLI · Python SDK · TypeScript SDK · MCP stdio bridge · PageIndex retriever integration.
 
-Current release: [`v1.5.1`](CHANGELOG.md).
+## Why ATB
+
+Observability tools stream events to a hosted backend for debugging running systems. ATB does the
+opposite: it writes a portable `.atb` bundle file to local disk under your control, verifiable
+cryptographically on any machine without a network connection. There is no telemetry by default,
+no third-party routing of payload data, and no hosted service to trust. The six schema-locked
+profiles enforce required event sets — an auditor reading the bundle can confirm exactly which
+fields were present. For compliance control mappings, see [`docs/compliance/`](docs/compliance/).
 
 ## Quickstart
 
