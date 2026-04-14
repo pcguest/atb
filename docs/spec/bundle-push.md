@@ -1,7 +1,7 @@
 # Bundle push — specification
 
-> **Status: Planned — v1.6. The `atb push` command is not yet implemented.**
-> CLI wiring exists as a stub; see `cmd/atb/push.go`.
+> **Status: In Progress — v1.6. Core implementation complete; integration tests and CI secrets registration pending before release cut.**
+> See `cmd/atb/push.go` and `internal/push/`.
 
 ## Problem statement
 

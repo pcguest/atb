@@ -96,6 +96,7 @@ web/cypress/screenshots/
 
 # Go build cache
 .gocache/
+.gocache-*/
 .gocache-run/
 .gocache-go-build/
 .gocache-docs/
@@ -105,6 +106,7 @@ web/cypress/screenshots/
 .gomodcache/
 sdk/python/dist/
 sdk/python/build/
+sdk/python/.venv/
 sdk/python/*.egg-info/
 .gocache-go-test/
 sdk/python/venv/

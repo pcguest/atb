@@ -59,7 +59,7 @@ The CAS score is a completeness measure for the matched profile, not a judgement
 | `AC` | Whether any RFC 3161 anchor covers the relevant bundle state | The reviewer cannot rely on the anchor as a complete time-bounding record |
 | `GC` | Whether the gated control-plane path is fully represented from intent to committed effect | The reviewer cannot show that the expected gate operated end to end |
 
-ATB currently emits CAS only for `atb.profile.privileged_tool_action` and `atb.profile.rag_answer`. `atb.profile.data_export`, `atb.profile.background_automation`, `atb.profile.policy_decision`, and `atb.profile.human_override` do not currently support CAS.
+ATB emits CAS for all six built-in profiles. The sub-score set and weighting are profile-scoped; not all sub-scores are equally weighted across profiles.
 
 ## 5. Residual risk levels
 
