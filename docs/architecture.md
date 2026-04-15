@@ -11,7 +11,7 @@ flowchart LR
     Core --> BundleStore["Bundle Store<br/>(.atb file)"]
     BundleStore --> Verify["Verify<br/>(hash chain + profiles)"]
     BundleStore --> Export["Export<br/>(compliance / soc2 / gdpr)"]
-    BundleStore --> Push["Push — v1.6<br/>(S3 / WORM)"]
+    BundleStore --> Push["Push<br/>(S3 / WORM, opt-in, explicit)"]
     Verify --> Report["Trust Report"]
     Export --> Archive["Evidence Archive"]
     Push --> RemoteStorage["Remote WORM Storage"]
@@ -25,4 +25,4 @@ Integrity is verified at the file boundary on read: `atb verify` runs the hash c
 
 Export and push operations seal the bundle before writing. A bundle that fails verification cannot be exported or pushed; the operator must address the integrity issue first.
 
-The `Push — v1.6` path is planned and not yet implemented. See [`docs/integrations/worm-s3.md`](./integrations/worm-s3.md) for the design intent.
+The `Push` path (`atb push s3://bucket/prefix`) is implemented as of v1.5.1. It is opt-in and explicit; bundles are not pushed automatically. See [`docs/integrations/worm-s3.md`](./integrations/worm-s3.md) for usage.
