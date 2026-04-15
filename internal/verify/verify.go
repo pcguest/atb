@@ -3,6 +3,7 @@
 package verify
 
 import (
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -102,9 +103,15 @@ var recommendationBySubScore = map[string]string{
 }
 
 // Verify evaluates the bundle against the matching registered profiles and
-// returns a structured verification report.
-func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
-	report, ok := prepareVerificationReport(b, bundlePath)
+// returns a structured verification report. The optional anchorRoots parameter
+// sets the trusted CA pool for RFC 3161 TSA certificate chain verification; pass
+// nil (or omit) to use the system roots.
+func Verify(b *bundle.Bundle, bundlePath string, profileID string, anchorRoots ...*x509.CertPool) Report {
+	var roots *x509.CertPool
+	if len(anchorRoots) > 0 {
+		roots = anchorRoots[0]
+	}
+	report, ok := prepareVerificationReport(b, bundlePath, roots)
 	if !ok {
 		return report
 	}
@@ -137,7 +144,7 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 		return report
 	}
 
-	anchorResult := ClassifyAnchor(b, bundlePath)
+	anchorResult := ClassifyAnchor(b, bundlePath, roots)
 	signatureWarnings, signatureNotes, signatureFailures := inspectPolicyDecisionSignatures(b.Records)
 	for i, profile := range profiles {
 		result := profile.Evaluate(b.Records)
@@ -170,9 +177,15 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string) Report {
 	return report
 }
 
-// VerifyWithProfile evaluates a bundle against a specific explicit profile.
-func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Report {
-	report, ok := prepareVerificationReport(b, bundlePath)
+// VerifyWithProfile evaluates a bundle against a specific explicit profile. The
+// optional anchorRoots parameter sets the trusted CA pool for RFC 3161 TSA
+// certificate chain verification; pass nil (or omit) to use the system roots.
+func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile, anchorRoots ...*x509.CertPool) Report {
+	var roots *x509.CertPool
+	if len(anchorRoots) > 0 {
+		roots = anchorRoots[0]
+	}
+	report, ok := prepareVerificationReport(b, bundlePath, roots)
 	if !ok {
 		return report
 	}
@@ -193,8 +206,10 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile) Rep
 	report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
 
 	if profileSupportsCAS(profile) {
-		anchorResult := ClassifyAnchor(b, bundlePath)
-		subScores := subScoresForBundleWithAnchorResult(b, profile.ID(), anchorResult)
+		anchorResult := ClassifyAnchor(b, bundlePath, roots)
+		// Use the profile object directly so that user-defined profiles get their
+		// own sub-score computation instead of a zero vector.
+		subScores := subScoresForProfile(profile, b.Records, anchorResult)
 		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
 		report.CAS = &cas
 		if !report.Integrity.ChainValid {
@@ -365,7 +380,7 @@ func scanAnchoring(records []bundle.Record) AnchoringResult {
 	return result
 }
 
-func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, bool) {
+func prepareVerificationReport(b *bundle.Bundle, bundlePath string, roots *x509.CertPool) (Report, bool) {
 	report := Report{
 		BundlePath: bundlePath,
 		Integrity: IntegrityResult{
@@ -385,7 +400,7 @@ func prepareVerificationReport(b *bundle.Bundle, bundlePath string) (Report, boo
 	}
 
 	report.Anchoring = scanAnchoring(b.Records)
-	anchorInspection := inspectAnchor(b, bundlePath)
+	anchorInspection := inspectAnchor(b, bundlePath, roots)
 	report.Anchoring.AnchorPresent = anchorInspection.AnchorPresent
 	report.Anchoring.Status = string(anchorInspection.Status)
 	report.Anchoring.Summary = anchorInspection.Summary
@@ -585,6 +600,12 @@ func profileSupportsCAS(profile Profile) bool {
 	if profile == nil {
 		return false
 	}
+	// For user-defined profiles loaded from file, check the schema directly.
+	// Built-in profiles do not implement profileWithSchema; they fall through
+	// to the ID-based lookup below.
+	if sp, ok := profile.(profileWithSchema); ok {
+		return sp.profileSchema().SupportsCAS
+	}
 	return SupportsCAS(profile.ID())
 }
 
@@ -594,15 +615,11 @@ func SupportsCAS(profileID string) bool {
 	return ok && schema.SupportsCAS
 }
 
-func loadSchemaIfAvailable(id string) (schema profiledsl.ProfileSchema, ok bool) {
-	defer func() {
-		if recover() != nil {
-			schema = profiledsl.ProfileSchema{}
-			ok = false
-		}
-	}()
-
-	schema = loadSchema(id)
+func loadSchemaIfAvailable(id string) (profiledsl.ProfileSchema, bool) {
+	schema, err := profiledsl.LoadSchema(id)
+	if err != nil {
+		return profiledsl.ProfileSchema{}, false
+	}
 	return schema, true
 }
 

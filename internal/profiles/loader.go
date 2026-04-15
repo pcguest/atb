@@ -32,12 +32,13 @@ func ParseSchema(data []byte) (ProfileSchema, error) {
 	return schema, nil
 }
 
+// LoadSchema returns the ProfileSchema for id, or an error if id is unknown
+// or the embedded templates failed to load.
 func LoadSchema(id string) (ProfileSchema, error) {
 	loadTemplatesOnce.Do(loadTemplates)
 	if loadTemplatesErr != nil {
 		return ProfileSchema{}, loadTemplatesErr
 	}
-
 	schema, ok := templateSchemas[id]
 	if !ok {
 		return ProfileSchema{}, fmt.Errorf("unknown profile schema %q", id)
