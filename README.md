@@ -2,9 +2,9 @@
 
 Records workflow events as tamper-evident, SHA-256 hash-chained bundles on local disk. No backend required.
 
-[![Release](https://img.shields.io/badge/release-v1.5.1-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.6.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-Current release: [`v1.5.1`](CHANGELOG.md)
+Current release: [`v1.6.0`](CHANGELOG.md)
 
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
 anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it
@@ -81,7 +81,7 @@ go install github.com/pcguest/atb/cmd/atb@latest
 
 > Note: `go install` from the module proxy builds without the embedded web UI. For `atb view` and `atb view --ui-experimental`, build from source: `go build ./cmd/atb`
 
-Requires Go 1.25.0+. Python and TypeScript SDKs are available for
+Requires Go 1.24.0+. Python and TypeScript SDKs are available for
 in-process instrumentation. See the [Python SDK](sdk/python/README.md)
 and [TypeScript SDK](sdk/typescript/README.md).
 

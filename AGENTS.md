@@ -15,7 +15,7 @@ Distinguishing properties:
 - SHA-256 hash chains over RFC 8785 canonical JSON. Conservative and auditable.
 - Six schema-locked obligation profiles aligned to concrete workflows.
 - Optional RFC 3161 TSA anchoring for third-party time commitment.
-- WORM export (v1.6, in progress) complements local guarantees; it does not replace them.
+- WORM export (v1.6) complements local guarantees; it does not replace them.
 
 ## Hard invariants — do not break these
 
@@ -29,7 +29,6 @@ Distinguishing properties:
 
 ## Do not implement without explicit instruction
 
-- `atb push` / WORM S3 export (planned v1.6; spec in `docs/spec/bundle-push.md`)
 - ACP gating middleware
 - Article 17 GDPR deletion-marker flow
 - Web dashboard changes (`atb view --ui-experimental`)
@@ -78,4 +77,4 @@ Format: `vX.Y.Z — <brief description>`
 - Maximum 80 characters including the version prefix.
 - En dash (—) as the separator.
 
-Example: `v1.5.1 — repository hygiene, docs consistency, version-parity gate`
+Example: `v1.6.0 — bundle push, profile DSL v1, view CAS/profile summary`

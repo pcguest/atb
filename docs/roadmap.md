@@ -2,7 +2,7 @@
 
 ## Stable baseline
 
-v1.5.1 is the current stable release. The following are non-negotiable
+v1.6.0 is the current stable release. The following are non-negotiable
 invariants that all forward work must preserve:
 
 - **Six schema-locked obligation profiles** — `atb.profile.rag_answer`,
@@ -17,30 +17,7 @@ invariants that all forward work must preserve:
   exports are always opt-in and complement, not replace, the local
   guarantee.
 
-## Near-term (v1.6 – v1.8)
-
-### v1.6 — Bundle push and WORM export
-
-**Status: In Progress — core implementation complete, pending release**
-
-- `atb push` exports a sealed bundle to a configurable external target
-  (S3-compatible storage or a local WORM path). Core implementation
-  committed; integration tests and CI secrets registration remain before
-  the v1.6 release cut.
-- S3 target: `atb push --target s3://bucket/prefix` uses the standard
-  AWS credential chain and writes the bundle as a single object with a
-  content-addressed key (`sha256:<hash>.atb`).
-- WORM locking: ATB sets `x-amz-object-lock-mode: COMPLIANCE` and
-  `x-amz-object-lock-retain-until-date` when `--lock-until` is supplied
-  and the bucket has Object Lock enabled. ATB does not enforce WORM —
-  the bucket policy does.
-- `--dry-run`: validates args and prints the object key and lock headers
-  that would be sent; no upload performed.
-- Remote verification: `atb verify --remote s3://bucket/sha256:<hash>.atb`
-  verifies a remotely stored bundle without a full download (streaming verify).
-
-See [`docs/spec/bundle-push.md`](./spec/bundle-push.md) for the full
-design-intent specification.
+## Near-term (v1.7 – v1.9)
 
 ### v1.7 — LangChain native callback integration
 
@@ -54,16 +31,29 @@ design-intent specification.
 - See [`docs/integrations/langchain.md`](./integrations/langchain.md)
   for the current integration guide.
 
-### v1.8 — Profile DSL v1
+### v1.8 — Enterprise hardening
 
 **Status: Planned**
 
-- YAML-defined custom profiles: operators can define their own
-  obligation profiles without modifying Go code.
-- Profile validation tooling: `atb profile validate ./my-profile.yaml`
-  checks a custom profile schema for correctness.
-- Profile registry: `atb profile list` shows built-in and user-defined
-  profiles.
+- Multi-bundle correlation: tooling to join bundles from parallel
+  workflow branches into a reviewable audit graph.
+- Key management workflow docs: expanded guidance on Ed25519 key
+  rotation, revocation, and handoff for bundle signing in regulated
+  environments. See [`docs/key-management.md`](../docs/key-management.md).
+- Performance tuning: verified baseline and tuning guide for very large
+  bundles (>100k events).
+
+### v1.9 — Opt-in telemetry
+
+**Status: Planned**
+
+- Disabled by default; no data is collected unless explicitly enabled
+  by a flag or environment variable (`ATB_TELEMETRY=1`).
+- Scope limited to anonymised, aggregated usage metrics (command
+  invocations, profile IDs used, bundle sizes). No event payload data
+  is ever included.
+- The telemetry design doc and data dictionary will ship before any
+  collection is enabled.
 
 ## Medium-term
 
@@ -75,26 +65,6 @@ design-intent specification.
   (EU AI Act, NIST AI RMF, ISO 42001, SOC 2 CC6/CC7).
 - See [`docs/integrations/siem-grc.md`](./integrations/siem-grc.md)
   for the current starting point.
-
-### Enterprise hardening
-
-- Multi-bundle correlation: tooling to join bundles from parallel
-  workflow branches into a reviewable audit graph.
-- Key management workflow docs: expanded guidance on Ed25519 key
-  rotation, revocation, and handoff for bundle signing in regulated
-  environments. See [`docs/key-management.md`](../docs/key-management.md).
-- Performance tuning: verified baseline and tuning guide for very large
-  bundles (>100k events).
-
-### Opt-in telemetry
-
-- Disabled by default; no data is collected unless explicitly enabled
-  by a flag or environment variable (`ATB_TELEMETRY=1`).
-- Scope limited to anonymised, aggregated usage metrics (command
-  invocations, profile IDs used, bundle sizes). No event payload data
-  is ever included.
-- The telemetry design doc and data dictionary will ship before any
-  collection is enabled.
 
 ## Historical context
 
@@ -120,9 +90,9 @@ By moving to `v0.9.0-beta`, the intention was to signal that:
    experiments, and portfolio-quality integration, but not yet for
    production systems where API stability is a hard requirement.
 
-### v0.9.x and v1.0 completed work
+### v0.9.x to v1.6.0 completed work
 
-All of the following shipped by v1.5.0:
+All of the following shipped by v1.6.0:
 
 - [x] Six-profile verifier with YAML-backed profile templates and CAS
       evaluation where supported.
@@ -142,3 +112,7 @@ All of the following shipped by v1.5.0:
 - [x] CLI command structure and JSON output formats frozen.
 - [x] Governance guidance for CISO and auditor acceptance in
       `docs/compliance/` and `docs/security.md`.
+- [x] `atb push` exports a sealed bundle to S3-compatible storage or a
+      local WORM path.
+- [x] Profile DSL v1: YAML-defined custom profiles.
+- [x] `atb view` UI polish with profile/CAS summary.
