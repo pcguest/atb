@@ -56,4 +56,4 @@ npm run test:a11y
 npm run build
 ```
 
-See [docs/roadmap/web-testing.md](../docs/roadmap/web-testing.md) for planned web testing improvements.
+See [docs/roadmap.md](../docs/roadmap.md) for planned improvements.

@@ -32,17 +32,25 @@ func ParseSchema(data []byte) (ProfileSchema, error) {
 	return schema, nil
 }
 
-func MustLoadSchema(id string) ProfileSchema {
+func LoadSchema(id string) (ProfileSchema, error) {
 	loadTemplatesOnce.Do(loadTemplates)
 	if loadTemplatesErr != nil {
-		panic(loadTemplatesErr)
+		return ProfileSchema{}, loadTemplatesErr
 	}
 
 	schema, ok := templateSchemas[id]
 	if !ok {
-		panic(fmt.Sprintf("unknown profile schema %q", id))
+		return ProfileSchema{}, fmt.Errorf("unknown profile schema %q", id)
 	}
-	return cloneSchema(schema)
+	return cloneSchema(schema), nil
+}
+
+func MustLoadSchema(id string) ProfileSchema {
+	schema, err := LoadSchema(id)
+	if err != nil {
+		panic(err)
+	}
+	return schema
 }
 
 func HasSchema(id string) bool {

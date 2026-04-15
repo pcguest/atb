@@ -79,13 +79,16 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 				printVerifyUsage(stderr)
 				return exitUserError
 			}
-		} else {
-			profile = verifypkg.ProfileByID(cfg.ProfileID)
-			if profile == nil {
-				fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
-				return exitIntegrityFailure
+			} else {
+				profile = verifypkg.ProfileByID(cfg.ProfileID)
+				if profile == nil && !strings.HasPrefix(cfg.ProfileID, "atb.profile.") {
+					profile = verifypkg.ProfileByID("atb.profile." + cfg.ProfileID)
+				}
+				if profile == nil {
+					fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
+					return exitIntegrityFailure
+				}
 			}
-		}
 		resolvedProfileID = profile.ID()
 	}
 

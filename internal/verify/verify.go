@@ -437,6 +437,9 @@ func integrityFailureResidualRisk() ResidualRisk {
 func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 	if profileID != "" {
 		profile := ProfileByID(profileID)
+		if profile == nil && !strings.HasPrefix(profileID, "atb.profile.") {
+			profile = ProfileByID("atb.profile." + profileID)
+		}
 		if profile == nil {
 			return nil
 		}

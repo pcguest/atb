@@ -1,0 +1,29 @@
+id: atb.profile.custom_support
+version: 1
+workflow_class: "Custom Support Workflow"
+description: "Example profile for a custom support triage workflow."
+
+obligations:
+  critical:
+    - event: ai.request.received
+      required_fields: ["case_id", "customer_id"]
+    - event: ai.model.invoked
+      required_fields: ["model_id"]
+    - event: ai.model.output
+      required_fields: ["output_digest"]
+  warning:
+    - event: ai.response.sent
+      reason: "Response delivery should be recorded for audit."
+
+cas_weights:
+  EC: 0.20
+  FC: 0.20
+  RC: 0.10
+  TC: 0.10
+  SC: 0.20
+  XC: 0.10
+  AC: 0.10
+
+blind_spots:
+  - "Does not verify the actual content of the support response."
+  - "Does not prove the customer actually received the email."
