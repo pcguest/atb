@@ -2,16 +2,16 @@
 
 ATB uses obligation profiles to evaluate whether a bundle contains the minimum evidence expected for a workflow. Hash-chain verification answers whether recorded evidence was changed. Profiles and CAS answer whether enough of the workflow was recorded to support later review.
 
-## Profile summary
+## CAS support matrix
 
-| Profile ID | Workflow class | CAS support |
-|------------|----------------|-------------|
-| `atb.profile.privileged_tool_action` | `privileged_tool_action` | Yes |
-| `atb.profile.rag_answer` | `rag_answer` | Yes |
-| `atb.profile.data_export` | `data_export` | Yes |
-| `atb.profile.policy_decision` | `policy_decision` | Yes |
-| `atb.profile.human_override` | `human_override` | Yes |
-| `atb.profile.background_automation` | `background_automation` | Yes |
+| Profile ID | CAS supported | Notes |
+|------------|---------------|-------|
+| `atb.profile.privileged_tool_action` | Yes | Local completeness score over request, policy, execution, and commit evidence. Overall CAS falls to `0` when chain integrity fails. |
+| `atb.profile.rag_answer` | Yes | Local completeness score over request, model, retrieval, and response evidence. Overall CAS falls to `0` when chain integrity fails. |
+| `atb.profile.data_export` | Yes | Local completeness score over export authorisation, execution, and commit evidence. Overall CAS falls to `0` when chain integrity fails. |
+| `atb.profile.policy_decision` | Yes | Local completeness score over request and policy decision evidence within the profile trust boundary. Overall CAS falls to `0` when chain integrity fails. |
+| `atb.profile.human_override` | Yes | Local completeness score over approval, precommit, and execution evidence for override workflows. Overall CAS falls to `0` when chain integrity fails. |
+| `atb.profile.background_automation` | Yes | Local completeness score over job scheduling, start, and completion evidence. Overall CAS falls to `0` when chain integrity fails. |
 
 ## Built-in profiles
 
@@ -72,6 +72,8 @@ Optional evidence:
 - `ai.retrieval.executed` — warning. Fields: `retrieval_query_hash`, `retrieval_corpus_id`, `retrieval_corpus_version`, `top_k`, `result_set_digest`
 - `ai.response.sent` — warning. Fields: `request_id`, `output_digest`
 
+> **MCP PageIndex note:** The MCP bridge RAG tools (`rag_index_record`, `rag_retrieval_record`) emit `atb.event.rag_index` and `atb.event.rag_retrieval`, not `ai.retrieval.executed`. A bundle produced by those tools alone will not satisfy the retrieval evidence check in this profile. Emit `ai.retrieval.executed` from the surrounding workflow if you want full profile coverage.
+
 Relation checks:
 
 - `ai.response.sent` must bind to `ai.request.received` by `request_id` when both are present.
@@ -88,6 +90,8 @@ CAS weight vector:
 | XC | 0.05 |
 | AC | 0.05 |
 | GC | 0.10 |
+
+> **GC note:** The GC sub-score for `atb.profile.rag_answer` is fixed at **0.3** regardless of bundle content. RAG workflows lack a full pre-commit gating chain, so GC cannot be computed from bundle events and is instead set to a static partial credit. This is intentional; do not rely on GC as a completeness signal for this profile.
 
 ### 3. Data Export (`atb.profile.data_export`)
 
@@ -231,9 +235,71 @@ CAS weight vector:
 | AC | 0.05 |
 | GC | 0.20 |
 
+## Custom profiles (DSL v1)
+
+ATB supports user-defined obligation profiles via a minimal YAML DSL. A DSL profile compiles to the same internal structures used by built-in profiles and goes through the same verification and CAS machinery.
+
+### Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Unique profile identifier. Must not collide with a built-in profile ID. |
+| `description` | No | Human-readable label; used as `workflow_class` in reports. Defaults to the last dot-segment of `id`. |
+| `version` | No | Integer >= 1; defaults to 1. |
+| `required_events` | No | List of event type strings. Each absent event type is a critical failure. |
+| `warning_events` | No | List of event type strings. Each absent event type is a warning, not a critical failure. |
+| `cas_weights` | No | Map of sub-score keys (`EC`, `FC`, `RC`, `TC`, `SC`, `XC`, `AC`, `GC`) to weights summing to 1.0. Omitting a key sets it to 0.0. Omitting the field entirely disables CAS for this profile. |
+
+### Example
+
+```yaml
+id: "org.example.custom_support"
+description: "Custom support escalation workflow"
+required_events:
+  - "ai.request.received"
+  - "ai.action.precommit"
+  - "ai.action.executed"
+warning_events:
+  - "ai.action.committed"
+cas_weights:
+  EC: 0.50
+  FC: 0.25
+  XC: 0.15
+  AC: 0.10
+```
+
+See [`docs/profiles/examples/custom-support.yaml`](profiles/examples/custom-support.yaml) for a copy-ready file.
+
+### Loading a custom profile
+
+```
+atb verify --bundle bundle.atb --profile ./profiles/custom-support.yaml
+```
+
+### CAS for custom profiles
+
+When `cas_weights` is defined, CAS is computed using the same pipeline as built-in profiles. Sub-scores EC and FC are derived from the schema's required event rules. XC and AC are derived from the anchor result. RC, TC, SC, and GC cannot be computed generically and are fixed at 0.0 for custom profiles.
+
+When `cas_weights` is omitted, no CAS score is produced.
+
+### Non-goals for DSL v1
+
+The following capabilities are out of scope for DSL v1:
+
+- Cross-bundle correlation or arbitrary predicates.
+- Per-event required-field checks (no `fields` list on event rules).
+- Temporal ordering constraints beyond the existing event model.
+- `required_when` conditional rules.
+- Relation rules (cross-event ID binding checks).
+- `sc_mode` or blind-spot declarations.
+
 ## Completeness assurance score
 
 CAS is a weighted score from 0.0 to 1.0 that measures how well the recorded evidence matches the selected profile. All six built-in profiles support CAS.
+
+CAS is a local scoring model over the events recorded in the bundle and evaluated inside the selected profile's trust boundary. It answers how much of the expected evidence ATB can see for that workflow, not whether the surrounding system was instrumented completely.
+
+CAS is not an external audit opinion, not proof of overall system compliance, and not proof that every material event in the real workflow was captured. It is a bounded completeness signal over recorded evidence. If chain verification fails, the overall CAS is forced to `0`.
 
 ### CAS grades
 
