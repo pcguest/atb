@@ -459,6 +459,66 @@ func testVerifyHandler(_ context.Context, input VerifyInput, stdout, stderr io.W
 	return 0
 }
 
+// TestServeRAGToolsRoundTrip exercises the full rag_index_record →
+// rag_retrieval_record dispatch path through the JSON-RPC server and asserts
+// that each response carries a non-empty hash and a sequence number >= 1.
+// This test covers the complete stdio round-trip, not just the tool handlers.
+func TestServeRAGToolsRoundTrip(t *testing.T) {
+	tempDir := t.TempDir()
+	restore := chdirTempDir(t, tempDir)
+	defer restore()
+
+	handlers := testToolHandlers()
+
+	// Initialise a bundle first.
+	callTool(t, handlers, "atb_init", map[string]any{})
+
+	// Send rag_index_record and assert seq + hash.
+	indexResult := callTool(t, handlers, "rag_index_record", map[string]any{
+		"index_id":   "idx-rt-001",
+		"source_uri": "/docs/roundtrip.pdf",
+		"page_count": 10,
+		"node_count": 4,
+		"model_id":   "gpt-4o-mini",
+		"index_hash": "aabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccddaabbccdd",
+	})
+	if indexResult.IsError {
+		t.Fatalf("rag_index_record: unexpected error: %v", indexResult.Content)
+	}
+	indexContent := decodeToolContentMap(t, indexResult)
+	if seq, ok := indexContent["sequence"].(float64); !ok || seq < 1 {
+		t.Fatalf("rag_index_record: expected sequence >= 1, got %#v", indexContent["sequence"])
+	}
+	if h, ok := indexContent["hash"].(string); !ok || h == "" {
+		t.Fatalf("rag_index_record: expected non-empty hash, got %#v", indexContent["hash"])
+	}
+
+	// Send rag_retrieval_record and assert seq + hash.
+	retrievalResult := callTool(t, handlers, "rag_retrieval_record", map[string]any{
+		"query":        "What is the summary?",
+		"retrieval_id": "ret-rt-001",
+		"index_id":     "idx-rt-001",
+		"node_id":      "0001",
+		"node_title":   "Introduction",
+		"source_uri":   "/docs/roundtrip.pdf",
+		"page_start":   1,
+		"page_end":     2,
+		"node_summary": "Summary text.",
+		"model_id":     "gpt-4o-mini",
+		"latency_ms":   50,
+	})
+	if retrievalResult.IsError {
+		t.Fatalf("rag_retrieval_record: unexpected error: %v", retrievalResult.Content)
+	}
+	retrievalContent := decodeToolContentMap(t, retrievalResult)
+	if seq, ok := retrievalContent["sequence"].(float64); !ok || seq < 1 {
+		t.Fatalf("rag_retrieval_record: expected sequence >= 1, got %#v", retrievalContent["sequence"])
+	}
+	if h, ok := retrievalContent["hash"].(string); !ok || h == "" {
+		t.Fatalf("rag_retrieval_record: expected non-empty hash, got %#v", retrievalContent["hash"])
+	}
+}
+
 func runServer(t *testing.T, input string) []rpcResponse {
 	return runServerWithHandlers(t, ToolHandlers{}, input)
 }

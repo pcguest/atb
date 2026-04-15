@@ -421,6 +421,137 @@ func TestRunVerify_ProfileEqualsPath_FileNotFound(t *testing.T) {
 	}
 }
 
+func TestRunVerify_DSLProfile_WithCAS_JSONOutput(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	profilePath := filepath.Join(t.TempDir(), "custom-support.yaml")
+	profileYAML := `
+id: "org.example.dsl_custom"
+description: "DSL v1 test profile"
+required_events:
+  - "ai.action.precommit"
+  - "ai.action.executed"
+warning_events:
+  - "ai.action.committed"
+cas_weights:
+  EC: 0.50
+  FC: 0.25
+  RC: 0.00
+  TC: 0.00
+  SC: 0.00
+  XC: 0.10
+  AC: 0.10
+  GC: 0.05
+`
+	if err := os.WriteFile(profilePath, []byte(strings.TrimSpace(profileYAML)+"\n"), 0600); err != nil {
+		t.Fatalf("write DSL profile: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--profile", profilePath, "--json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if len(report.Profiles) != 1 {
+		t.Fatalf("expected one evaluated profile, got %d", len(report.Profiles))
+	}
+	if report.Profiles[0].ProfileID != "org.example.dsl_custom" {
+		t.Fatalf("profile ID = %q, want %q", report.Profiles[0].ProfileID, "org.example.dsl_custom")
+	}
+	if !report.Profiles[0].Pass {
+		t.Fatalf("expected DSL profile pass, got failures %+v", report.Profiles[0].CriticalFailures)
+	}
+	if report.CAS == nil {
+		t.Fatalf("expected CAS to be present for profile with cas_weights")
+	}
+	if report.CAS.Overall <= 0 {
+		t.Fatalf("CAS overall = %f, want > 0", report.CAS.Overall)
+	}
+}
+
+func TestRunVerify_DSLProfile_NoCAS_JSONOutput(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	profilePath := filepath.Join(t.TempDir(), "no-cas.yaml")
+	profileYAML := `
+id: "org.example.dsl_nocas"
+required_events:
+  - "ai.action.precommit"
+  - "ai.action.executed"
+`
+	if err := os.WriteFile(profilePath, []byte(strings.TrimSpace(profileYAML)+"\n"), 0600); err != nil {
+		t.Fatalf("write DSL profile: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--profile", profilePath, "--json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if report.CAS != nil {
+		t.Fatalf("expected CAS to be nil for profile without cas_weights, got %+v", report.CAS)
+	}
+}
+
+func TestRunVerify_DSLProfile_InvalidWeights(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	profilePath := filepath.Join(t.TempDir(), "bad-weights.yaml")
+	profileYAML := `
+id: "org.example.dsl_bad"
+required_events:
+  - "ai.action.precommit"
+cas_weights:
+  EC: 0.50
+  FC: 0.30
+`
+	if err := os.WriteFile(profilePath, []byte(strings.TrimSpace(profileYAML)+"\n"), 0600); err != nil {
+		t.Fatalf("write DSL profile: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--profile", profilePath}, &stdout, &stderr)
+	if exitCode == exitSuccess {
+		t.Fatalf("expected non-zero exit for invalid DSL profile")
+	}
+	if !strings.Contains(stderr.String(), "cas_weights must sum to 1.0") {
+		t.Fatalf("expected sum-to-1 error, got stderr=%q", stderr.String())
+	}
+}
+
+func TestRunVerify_DSLProfile_CollidesWithBuiltIn(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	profilePath := filepath.Join(t.TempDir(), "collision.yaml")
+	profileYAML := `
+id: "atb.profile.privileged_tool_action"
+required_events:
+  - "ai.action.precommit"
+`
+	if err := os.WriteFile(profilePath, []byte(strings.TrimSpace(profileYAML)+"\n"), 0600); err != nil {
+		t.Fatalf("write DSL profile: %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--profile", profilePath}, &stdout, &stderr)
+	if exitCode == exitSuccess {
+		t.Fatalf("expected non-zero exit for ID collision with built-in")
+	}
+	if !strings.Contains(stderr.String(), "collides with a built-in profile") {
+		t.Fatalf("expected collision error, got stderr=%q", stderr.String())
+	}
+}
+
 func TestVerifyWithAnchorUsesCustomRoots(t *testing.T) {
 	bundlePath, originalHash := writeAnchorTestBundle(t)
 	fixture, _, err := buildCLISignedAnchorFixture(originalHash)
@@ -573,6 +704,40 @@ func containsVerifyNote(notes []string, wantSubstring string) bool {
 		}
 	}
 	return false
+}
+
+// TestRunVerify_ManifestOnlyBundle asserts that a bundle containing only a
+// manifest record (atb bundle new, no appended events) reports chain_valid=true,
+// has exactly one record, and matches no profiles. This documents the behaviour
+// for empty-ish bundles that have a valid chain but no workflow events.
+func TestRunVerify_ManifestOnlyBundle(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new bundle: %v", err)
+	}
+	// Only the manifest record — no events appended.
+	if len(b.Records) != 1 {
+		t.Fatalf("expected exactly 1 manifest record, got %d", len(b.Records))
+	}
+	path := writeVerifyTestBundle(t, b)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", path, "--json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if !report.Integrity.ChainValid {
+		t.Fatalf("expected chain_valid=true for manifest-only bundle, got %+v", report.Integrity)
+	}
+	if len(report.Profiles) != 0 {
+		t.Fatalf("expected no matched profiles for manifest-only bundle, got %d", len(report.Profiles))
+	}
 }
 
 func writeVerifyTestBundle(t testing.TB, b *bundle.Bundle) string {

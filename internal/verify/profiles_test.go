@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	profiledsl "github.com/pcguest/atb/internal/profiles"
 )
 
 func TestPrivilegedToolAction_AllCriticalPresent(t *testing.T) {
@@ -295,5 +296,160 @@ func TestProfileEvaluateEmptyBundle(t *testing.T) {
 func TestProfileByIDUnknown(t *testing.T) {
 	if got := ProfileByID("atb.profile.nonexistent"); got != nil {
 		t.Fatalf("ProfileByID(nonexistent) = %#v, want nil", got)
+	}
+}
+
+// stubSchemaProfile implements Profile and profileWithSchema for testing.
+type stubSchemaProfile struct {
+	schema profiledsl.ProfileSchema
+}
+
+func (s *stubSchemaProfile) ID() string            { return s.schema.ID }
+func (s *stubSchemaProfile) Version() int          { return s.schema.Version }
+func (s *stubSchemaProfile) WorkflowClass() string { return s.schema.WorkflowClass }
+func (s *stubSchemaProfile) BlindSpots() []string  { return nil }
+func (s *stubSchemaProfile) DefaultWeights() map[string]float64 {
+	return map[string]float64{"EC": 0, "FC": 0, "RC": 0, "TC": 0, "SC": 0, "XC": 0, "AC": 0, "GC": 0}
+}
+func (s *stubSchemaProfile) Evaluate(_ []bundle.Record) ProfileResult { return ProfileResult{} }
+func (s *stubSchemaProfile) profileSchema() profiledsl.ProfileSchema  { return s.schema }
+
+func dslSchema(supportsCAS bool) profiledsl.ProfileSchema {
+	return profiledsl.ProfileSchema{
+		ID:            "org.example.stub",
+		Version:       1,
+		WorkflowClass: "stub",
+		SupportsCAS:   supportsCAS,
+		Weights: map[string]float64{
+			"EC": 0, "FC": 0, "RC": 0, "TC": 0,
+			"SC": 0, "XC": 0, "AC": 0, "GC": 0,
+		},
+		Required: []profiledsl.EventRule{
+			{Type: "ai.request.received", Fields: []string{"request_id"}, Severity: "critical"},
+			{Type: "ai.action.precommit", Fields: []string{"action_id"}, Severity: "critical"},
+		},
+	}
+}
+
+func makeRecord(eventType string, data map[string]any) bundle.Record {
+	b, err := bundle.New()
+	if err != nil {
+		panic(err)
+	}
+	if err := b.Append(eventType, data); err != nil {
+		panic(err)
+	}
+	return b.Records[len(b.Records)-1]
+}
+
+func TestGenericSchemaSubScores_EventsPresent(t *testing.T) {
+	schema := dslSchema(true)
+	records := []bundle.Record{
+		makeRecord("ai.request.received", map[string]any{"request_id": "req-1"}),
+		makeRecord("ai.action.precommit", map[string]any{"action_id": "act-1"}),
+	}
+	scores := genericSchemaSubScores(schema, records, AnchorAbsent)
+	if scores["EC"] != 1.0 {
+		t.Errorf("EC = %f, want 1.0 (all required events present)", scores["EC"])
+	}
+	if scores["FC"] != 1.0 {
+		t.Errorf("FC = %f, want 1.0 (all required fields present)", scores["FC"])
+	}
+	// RC/TC/SC/GC must be zero — not computed generically.
+	for _, k := range []string{"RC", "TC", "SC", "GC"} {
+		if scores[k] != 0.0 {
+			t.Errorf("%s = %f, want 0.0", k, scores[k])
+		}
+	}
+}
+
+func TestGenericSchemaSubScores_EventsMissing(t *testing.T) {
+	schema := dslSchema(true)
+	scores := genericSchemaSubScores(schema, nil, AnchorAbsent)
+	if scores["EC"] != 0.0 {
+		t.Errorf("EC = %f, want 0.0 (no events)", scores["EC"])
+	}
+	if scores["FC"] != 0.0 {
+		t.Errorf("FC = %f, want 0.0 (no events)", scores["FC"])
+	}
+}
+
+func TestGenericSchemaSubScores_AnchorScores(t *testing.T) {
+	schema := dslSchema(true)
+	records := []bundle.Record{
+		makeRecord("ai.request.received", map[string]any{"request_id": "req-1"}),
+	}
+	cases := []struct {
+		anchor AnchorVerifyResult
+		wantXC float64
+		wantAC float64
+	}{
+		{AnchorVerified, 1.0, 1.0},
+		{AnchorAbsent, 0.0, 0.0},
+		{AnchorDigestOnly, 0.5, 0.0},
+	}
+	for _, tc := range cases {
+		scores := genericSchemaSubScores(schema, records, tc.anchor)
+		if scores["XC"] != tc.wantXC {
+			t.Errorf("anchor=%v XC = %f, want %f", tc.anchor, scores["XC"], tc.wantXC)
+		}
+		if scores["AC"] != tc.wantAC {
+			t.Errorf("anchor=%v AC = %f, want %f", tc.anchor, scores["AC"], tc.wantAC)
+		}
+	}
+}
+
+func TestSubScoresForProfile_DSLProfile(t *testing.T) {
+	profile := &stubSchemaProfile{schema: dslSchema(true)}
+	records := []bundle.Record{
+		makeRecord("ai.request.received", map[string]any{"request_id": "req-1"}),
+		makeRecord("ai.action.precommit", map[string]any{"action_id": "act-1"}),
+	}
+	scores := subScoresForProfile(profile, records, AnchorVerified)
+	if scores["EC"] != 1.0 {
+		t.Errorf("EC = %f, want 1.0", scores["EC"])
+	}
+	// XC and AC should reflect AnchorVerified.
+	if scores["XC"] != 1.0 {
+		t.Errorf("XC = %f, want 1.0", scores["XC"])
+	}
+	if scores["AC"] != 1.0 {
+		t.Errorf("AC = %f, want 1.0", scores["AC"])
+	}
+}
+
+func TestSubScoresForProfile_Nil(t *testing.T) {
+	scores := subScoresForProfile(nil, nil, AnchorAbsent)
+	for k, v := range scores {
+		if v != 0.0 {
+			t.Errorf("nil profile: scores[%s] = %f, want 0.0", k, v)
+		}
+	}
+}
+
+func TestProfileSupportsCAS_DSLWithWeights(t *testing.T) {
+	profile := &stubSchemaProfile{schema: dslSchema(true)}
+	if !profileSupportsCAS(profile) {
+		t.Errorf("expected CAS support for DSL profile with SupportsCAS=true")
+	}
+}
+
+func TestProfileSupportsCAS_DSLWithoutWeights(t *testing.T) {
+	profile := &stubSchemaProfile{schema: dslSchema(false)}
+	if profileSupportsCAS(profile) {
+		t.Errorf("expected no CAS support for DSL profile with SupportsCAS=false")
+	}
+}
+
+// TestRAGAnswerSubScores_GCIsFixed asserts that the GC sub-score for the
+// rag_answer profile is always 0.3 regardless of bundle contents. This value
+// is hardcoded in ragAnswerSubScores to reflect that RAG pipelines do not have
+// a full pre-commit gating chain. A refactor accidentally setting it to 0.0
+// would otherwise pass all other tests.
+func TestRAGAnswerSubScores_GCIsFixed(t *testing.T) {
+	scores := ragAnswerSubScores(nil, AnchorAbsent)
+	const want = 0.3
+	if got := scores["GC"]; got != want {
+		t.Fatalf("ragAnswerSubScores GC = %v, want %v", got, want)
 	}
 }
