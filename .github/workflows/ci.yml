@@ -63,7 +63,7 @@ jobs:
           python -m pip install -e ./sdk/python[dev]
 
       - name: Test Go packages
-        run: go test -v -skip TestInstalledBinarySmokeFlow ./...
+        run: go test -race -v -skip TestInstalledBinarySmokeFlow ./...
 
       - name: Test Python SDK
         working-directory: sdk/python
@@ -72,6 +72,10 @@ jobs:
       - name: Typecheck TypeScript SDK
         working-directory: sdk/typescript
         run: npm run typecheck
+
+      - name: Test TypeScript SDK
+        working-directory: sdk/typescript
+        run: npm test
 
       - name: Docs sync smoke check
         shell: bash
