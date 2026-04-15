@@ -159,21 +159,39 @@ func (b *Bundle) Verify() error {
 }
 
 // Save writes the bundle to the given file path in NDJSON format.
+// It writes to a temp file in the same directory first and then renames
+// atomically so a crash mid-write cannot truncate the existing bundle.
 func (b *Bundle) Save(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil { // #nosec G301 -- tightened to 0750 per gosec
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0750); err != nil { // #nosec G301 -- tightened to 0750 per gosec
 		return fmt.Errorf("bundle: save: mkdir: %w", err)
 	}
-	f, err := os.Create(filepath.Clean(path)) // #nosec G304 -- path is user-specified for CLI; caller validates
+	tmp, err := os.CreateTemp(dir, "*.atb.tmp") // #nosec G304 -- dir is derived from caller-validated path
 	if err != nil {
-		return fmt.Errorf("bundle: save: create: %w", err)
+		return fmt.Errorf("bundle: save: create temp: %w", err)
 	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
+	tmpPath := tmp.Name()
+	removeTemp := true
+	defer func() {
+		if removeTemp {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+
+	enc := json.NewEncoder(tmp)
 	for _, r := range b.Records {
 		if err := enc.Encode(r); err != nil {
+			_ = tmp.Close()
 			return fmt.Errorf("bundle: save: encode: %w", err)
 		}
 	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("bundle: save: close temp: %w", err)
+	}
+	if err := os.Rename(tmpPath, filepath.Clean(path)); err != nil {
+		return fmt.Errorf("bundle: save: rename: %w", err)
+	}
+	removeTemp = false
 	return nil
 }
 
