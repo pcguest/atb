@@ -73,20 +73,22 @@ from atb import Bundle
 
 bundle = Bundle()
 
-bundle.append("agent.prompt", {
-    "actor": "planner",
-    "model": "gpt-4",
-    "prompt": "Outline a blog post about AI safety",
+bundle.append("ai.request.received", {
+    "request_id": "req-001",
+    "actor_id_hash": "sha256-user-001",
+    "purpose_tag": "rag_answer",
 }, timestamp="2026-03-03T10:00:00Z")
 
-bundle.append("agent.response", {
-    "actor": "planner",
-    "tokens": 142,
-    "output": "Draft outline...",
+bundle.append("ai.model.invoked", {
+    "model_provider": "openai",
+    "model_id": "gpt-4",
+    "model_parameters_digest": "sha256-params-001",
+    "prompt_digest": "sha256-prompt-001",
 }, timestamp="2026-03-03T10:00:02Z")
 
-bundle.append("snapshot.build", {
-    "gate": "pass",
+bundle.append("ai.model.output", {
+    "output_digest": "sha256-output-001",
+    "output_format": "text",
 }, timestamp="2026-03-03T10:00:03Z")
 
 bundle.save("my-trace.atb")
@@ -102,12 +104,24 @@ atb view --ui-experimental
 # Custom bundle path
 atb view my-trace.atb --port 8080 --ui-experimental
 
-# Privacy reveal auditing is on by default
-atb view --bundle my-trace.atb --ui-experimental
+# Evaluate against a profile at startup (shows profile/CAS summary in the viewer)
+atb view --ui-experimental --profile atb.profile.rag_answer
+atb view --ui-experimental --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
 ```
+
+`--profile` runs verify at startup and makes the profile/CAS summary available immediately in
+the dashboard. Without `--profile`, use the "Run verify" button in the UI to trigger
+`POST /api/v1/bundle/verify`. The summary shows: profile ID, pass/fail, completeness (CAS)
+score and grade, chain/anchor status, and any critical obligation failures. See
+`docs/launch/assets/atb-verify-report.png` for an example verify report summary.
 
 Plain `atb view` still serves the legacy local viewer at `/`. The
 role-based dashboard UI is available behind `--ui-experimental`.
+
+Security note: `atb view` binds to `127.0.0.1` by default and has no
+authentication layer. It is for single-user local inspection only. Do
+not expose it on a network interface without independent auth and
+network controls.
 
 Dashboard details:
 
