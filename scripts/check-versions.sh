@@ -33,11 +33,15 @@ check "sdk/python/atb/__init__.py"  "$PY_INIT"
 check "sdk/typescript/package.json" "$TS_VERSION"
 check "web/package.json"            "$WEB_VERSION"
 
-VERSION="$REF_VERSION"
-LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
-if [ "$LATEST_TAG" != "v${VERSION}" ]; then
-  echo "error: latest tag $LATEST_TAG does not match version v${VERSION}"
-  exit 1
+# Skip the tag equality check when ATB_SKIP_TAG_CHECK=1 (e.g. feature branches
+# that have not yet been tagged). Cross-file version agreement is always checked.
+if [ "${ATB_SKIP_TAG_CHECK:-0}" != "1" ]; then
+  VERSION="$REF_VERSION"
+  LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "none")
+  if [ "$LATEST_TAG" != "v${VERSION}" ]; then
+    echo "error: latest tag $LATEST_TAG does not match version v${VERSION}"
+    exit 1
+  fi
 fi
 
 if [ "$FAIL" -eq 0 ]; then
