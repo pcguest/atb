@@ -245,3 +245,4 @@ matter.
 - The bridge does not auto-instrument third-party MCP servers.
 - Auto-detection matches on recorded AI event families. Bundles that emit only custom event types may require explicit `--profile` selection.
 - `rag_index_record` and `rag_retrieval_record` record PageIndex indexing and retrieval evidence only. They do not record downstream model answer provenance unless the surrounding workflow emits those events separately.
+- The PageIndex RAG tools emit `atb.event.rag_index` and `atb.event.rag_retrieval`. The `atb.profile.rag_answer` profile requires `ai.retrieval.executed`. These are different event types; a bundle produced by the MCP RAG tools alone will not satisfy the retrieval sub-score of `atb.profile.rag_answer`. To use that profile, the surrounding workflow must also emit `ai.retrieval.executed`.
