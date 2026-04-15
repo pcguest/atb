@@ -5,7 +5,7 @@ import "github.com/pcguest/atb/internal/bundle"
 // SubScoresForBundle derives profile sub-scores using the same anchor-aware
 // path as bundle verification.
 func SubScoresForBundle(b *bundle.Bundle, bundlePath string, profileID string) map[string]float64 {
-	return subScoresForBundleWithAnchorResult(b, profileID, ClassifyAnchor(b, bundlePath))
+	return subScoresForBundleWithAnchorResult(b, profileID, ClassifyAnchor(b, bundlePath, nil))
 }
 
 func subScoresForBundleWithAnchorResult(b *bundle.Bundle, profileID string, anchorResult AnchorVerifyResult) map[string]float64 {

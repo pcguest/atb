@@ -293,11 +293,7 @@ func TestVerify_PolicyDecision_Unsigned(t *testing.T) {
 
 func TestVerify_AnchoringVerifiedState(t *testing.T) {
 	fixture := readVerifiedAnchorTSRFixture(t)
-	prevRoots := classifyAnchorRoots
-	classifyAnchorRoots = verifiedAnchorFixtureRoots(t, fixture)
-	defer func() {
-		classifyAnchorRoots = prevRoots
-	}()
+	roots := verifiedAnchorFixtureRoots(t, fixture)
 
 	b := buildVerifiedAnchorFixtureBundle(t)
 	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
@@ -307,7 +303,7 @@ func TestVerify_AnchoringVerifiedState(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	report := Verify(b, path, "")
+	report := Verify(b, path, "", roots)
 	if report.Anchoring.Status != "verified" {
 		t.Fatalf("expected verified anchor status, got %+v", report.Anchoring)
 	}
@@ -324,11 +320,6 @@ func TestVerify_AnchoringVerifiedState(t *testing.T) {
 
 func TestVerify_AnchoringPartialState(t *testing.T) {
 	fixture := readVerifiedAnchorTSRFixture(t)
-	prevRoots := classifyAnchorRoots
-	classifyAnchorRoots = x509.NewCertPool()
-	defer func() {
-		classifyAnchorRoots = prevRoots
-	}()
 
 	b := buildVerifiedAnchorFixtureBundle(t)
 	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
@@ -338,7 +329,7 @@ func TestVerify_AnchoringPartialState(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	report := Verify(b, path, "")
+	report := Verify(b, path, "", x509.NewCertPool())
 	if report.Anchoring.Status != "partial" {
 		t.Fatalf("expected partial anchor status, got %+v", report.Anchoring)
 	}
@@ -358,11 +349,7 @@ func TestVerify_AnchoringPartialState(t *testing.T) {
 
 func TestVerify_AnchoringFailedState(t *testing.T) {
 	fixture := readVerifiedAnchorTSRFixture(t)
-	prevRoots := classifyAnchorRoots
-	classifyAnchorRoots = verifiedAnchorFixtureRoots(t, fixture)
-	defer func() {
-		classifyAnchorRoots = prevRoots
-	}()
+	roots := verifiedAnchorFixtureRoots(t, fixture)
 
 	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeDevSession, "wrong-anchor-fixture", "2026-03-28T03:04:05Z")
@@ -373,7 +360,7 @@ func TestVerify_AnchoringFailedState(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	report := Verify(b, path, "")
+	report := Verify(b, path, "", roots)
 	if report.Anchoring.Status != "failed" {
 		t.Fatalf("expected failed anchor status, got %+v", report.Anchoring)
 	}

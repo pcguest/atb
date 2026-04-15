@@ -49,13 +49,11 @@ type anchorInspection struct {
 	CertChainVerified      bool
 }
 
-var classifyAnchorRoots *x509.CertPool
-
-func ClassifyAnchor(b *bundle.Bundle, bundlePath string) AnchorVerifyResult {
-	return inspectAnchor(b, bundlePath).Result
+func ClassifyAnchor(b *bundle.Bundle, bundlePath string, roots *x509.CertPool) AnchorVerifyResult {
+	return inspectAnchor(b, bundlePath, roots).Result
 }
 
-func inspectAnchor(b *bundle.Bundle, bundlePath string) anchorInspection {
+func inspectAnchor(b *bundle.Bundle, bundlePath string, roots *x509.CertPool) anchorInspection {
 	if b == nil {
 		return newFailedAnchorInspection(AnchorAbsent, false, "", "anchor record not present")
 	}
@@ -76,7 +74,7 @@ func inspectAnchor(b *bundle.Bundle, bundlePath string) anchorInspection {
 		return newFailedAnchorInspection(AnchorPresentBadData, true, payload.BundleHash, err.Error())
 	}
 
-	verification, err := anchorpkg.VerifyTokenDetailed(tokenBytes, snapshotHash, classifyAnchorRoots)
+	verification, err := anchorpkg.VerifyTokenDetailed(tokenBytes, snapshotHash, roots)
 	if err != nil {
 		inspection := anchorInspection{
 			Result:                 AnchorPresentBadData,

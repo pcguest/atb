@@ -16,7 +16,7 @@ import (
 )
 
 func TestClassifyAnchor_Absent(t *testing.T) {
-	if got := ClassifyAnchor(newVerifyTestBundle(t), "bundle.atb"); got != AnchorAbsent {
+	if got := ClassifyAnchor(newVerifyTestBundle(t), "bundle.atb", nil); got != AnchorAbsent {
 		t.Fatalf("ClassifyAnchor() = %v, want %v", got, AnchorAbsent)
 	}
 }
@@ -26,7 +26,7 @@ func TestClassifyAnchor_PresentBadData(t *testing.T) {
 	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T03:04:05Z")
 
-	if got := ClassifyAnchor(b, ""); got != AnchorPresentBadData {
+	if got := ClassifyAnchor(b, "", nil); got != AnchorPresentBadData {
 		t.Fatalf("ClassifyAnchor() = %v, want %v", got, AnchorPresentBadData)
 	}
 }
@@ -41,18 +41,14 @@ func TestClassifyAnchor_DigestMismatch(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	if got := ClassifyAnchor(b, path); got != AnchorPresentBadData {
+	if got := ClassifyAnchor(b, path, nil); got != AnchorPresentBadData {
 		t.Fatalf("ClassifyAnchor() = %v, want %v", got, AnchorPresentBadData)
 	}
 }
 
 func TestClassifyAnchor_Verified(t *testing.T) {
 	fixture := readVerifiedAnchorTSRFixture(t)
-	prevRoots := classifyAnchorRoots
-	classifyAnchorRoots = verifiedAnchorFixtureRoots(t, fixture)
-	defer func() {
-		classifyAnchorRoots = prevRoots
-	}()
+	roots := verifiedAnchorFixtureRoots(t, fixture)
 
 	b := buildVerifiedAnchorFixtureBundle(t)
 	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
@@ -62,18 +58,13 @@ func TestClassifyAnchor_Verified(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	if got := ClassifyAnchor(b, path); got != AnchorVerified {
+	if got := ClassifyAnchor(b, path, roots); got != AnchorVerified {
 		t.Fatalf("ClassifyAnchor() = %v, want %v", got, AnchorVerified)
 	}
 }
 
 func TestClassifyAnchor_ChainNotVerified(t *testing.T) {
 	fixture := readVerifiedAnchorTSRFixture(t)
-	prevRoots := classifyAnchorRoots
-	classifyAnchorRoots = x509.NewCertPool()
-	defer func() {
-		classifyAnchorRoots = prevRoots
-	}()
 
 	b := buildVerifiedAnchorFixtureBundle(t)
 	appendVerifyRecord(t, b, event.TypeBundleAnchor, mustMarshalAnchorEventData(t, fixture), "2026-03-28T04:05:06Z")
@@ -83,7 +74,7 @@ func TestClassifyAnchor_ChainNotVerified(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	if got := ClassifyAnchor(b, path); got != AnchorDigestOnly {
+	if got := ClassifyAnchor(b, path, x509.NewCertPool()); got != AnchorDigestOnly {
 		t.Fatalf("ClassifyAnchor() = %v, want %v", got, AnchorDigestOnly)
 	}
 }
