@@ -22,6 +22,7 @@ const (
 type atbConfig struct {
 	Version   int              `json:"version"`
 	Retention *retentionPolicy `json:"retention,omitempty"`
+	Push      *pushSettings    `json:"push,omitempty"`
 }
 
 type retentionPolicy struct {
@@ -30,6 +31,15 @@ type retentionPolicy struct {
 	Scope       []string `json:"scope,omitempty"`
 	CutoffBasis string   `json:"cutoff_basis,omitempty"`
 	UpdatedAt   string   `json:"updated_at,omitempty"`
+}
+
+type pushSettings struct {
+	Target            string `json:"target,omitempty"`
+	EndpointURL       string `json:"endpoint_url,omitempty"`
+	Region            string `json:"region,omitempty"`
+	LockMode          string `json:"lock_mode,omitempty"`
+	LockUntil         string `json:"lock_until,omitempty"`
+	CredentialsSource string `json:"credentials_source,omitempty"`
 }
 
 type configCommandArgs struct {
@@ -153,6 +163,20 @@ func loadRetentionPolicy(configPath string) (*retentionPolicy, error) {
 		return nil, nil
 	}
 	return cfg.Retention, nil
+}
+
+func loadPushSettings(configPath string) (*pushSettings, error) {
+	cfg, err := loadATBConfig(configPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if cfg.Push == nil {
+		return nil, nil
+	}
+	return cfg.Push, nil
 }
 
 func loadATBConfig(path string) (atbConfig, error) {

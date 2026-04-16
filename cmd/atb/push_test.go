@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,6 +17,12 @@ import (
 )
 
 // ── fake S3 uploader ─────────────────────────────────────────────────────────
+
+type pushRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f pushRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 type fakeS3Uploader struct {
 	putCalls []*push.PutObjectInput
@@ -130,10 +138,12 @@ func TestParsePushArgs(t *testing.T) {
 			},
 		},
 		{
-			name:       "missing target",
-			args:       nil,
-			wantErr:    true,
-			wantErrMsg: "target URI required",
+			name: "missing target",
+			args: nil,
+			want: pushConfig{
+				BundlePath: bundle.DefaultPath(),
+				Format:     verifyFormatText,
+			},
 		},
 		{
 			name:       "duplicate target",
@@ -358,14 +368,21 @@ func TestRunPushSuccess(t *testing.T) {
 	if call.LockMode != "" {
 		t.Fatalf("lock mode should be empty without --lock-until")
 	}
-	// The push event should be recorded in the bundle.
+
+	// Successful push must not mutate the local bundle.
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
 		t.Fatalf("reload bundle: %v", err)
 	}
+	if got := len(b.Records); got != 2 {
+		t.Fatalf("expected bundle to remain unchanged with 2 records, got %d", got)
+	}
 	last := b.Records[len(b.Records)-1]
-	if last.Event.Type != "atb.bundle.pushed" {
-		t.Fatalf("last event type: got %q want atb.bundle.pushed", last.Event.Type)
+	if last.Event.Type == "atb.bundle.pushed" {
+		t.Fatalf("did not expect atb.bundle.pushed to be appended")
+	}
+	if last.Hash != headHash {
+		t.Fatalf("last hash: got %q want %q", last.Hash, headHash)
 	}
 }
 
@@ -514,6 +531,147 @@ func TestRunPushKeyScheme(t *testing.T) {
 	wantKey := "my/prefix/sha256-" + headHash + ".atb"
 	if fake.putCalls[0].Key != wantKey {
 		t.Fatalf("key: got %q want %q", fake.putCalls[0].Key, wantKey)
+	}
+}
+
+func TestRunPushUsesConfigDefaults(t *testing.T) {
+	bundlePath, headHash := newTestBundleFile(t)
+	fake := &fakeS3Uploader{}
+
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	cfgModel := atbConfig{
+		Version: configVersion,
+		Push: &pushSettings{
+			Target:    "s3://cfg-bucket/cfg-prefix",
+			LockMode:  "GOVERNANCE",
+			LockUntil: "2029-01-01",
+		},
+	}
+	if err := saveATBConfig(defaultConfigPath(), cfgModel); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runPushWithUploader([]string{"--bundle", bundlePath}, &stdout, &stderr, fake)
+	if code != exitSuccess {
+		t.Fatalf("expected exit code %d, got %d (stderr=%q)", exitSuccess, code, stderr.String())
+	}
+	if len(fake.putCalls) != 1 {
+		t.Fatalf("expected 1 PutObject call, got %d", len(fake.putCalls))
+	}
+	call := fake.putCalls[0]
+	if call.Bucket != "cfg-bucket" {
+		t.Fatalf("bucket: got %q want cfg-bucket", call.Bucket)
+	}
+	wantKey := "cfg-prefix/sha256-" + headHash + ".atb"
+	if call.Key != wantKey {
+		t.Fatalf("key: got %q want %q", call.Key, wantKey)
+	}
+	if call.LockMode != "GOVERNANCE" {
+		t.Fatalf("lock mode: got %q want GOVERNANCE", call.LockMode)
+	}
+	if call.LockUntil != "2029-01-01T00:00:00Z" {
+		t.Fatalf("lock until: got %q want 2029-01-01T00:00:00Z", call.LockUntil)
+	}
+}
+
+func TestRunPushWithConfiguredHTTPEndpoint(t *testing.T) {
+	bundlePath, headHash := newTestBundleFile(t)
+
+	var gotMethod string
+	var gotURL string
+	var gotLockMode string
+	var gotLockUntil string
+	var gotBody []byte
+
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	cfgModel := atbConfig{
+		Version: configVersion,
+		Push: &pushSettings{
+			Target:            "s3://cfg-bucket/cfg-prefix",
+			EndpointURL:       "http://storage.example.test",
+			Region:            "ap-southeast-2",
+			CredentialsSource: "aws_env_shared",
+		},
+	}
+	if err := saveATBConfig(defaultConfigPath(), cfgModel); err != nil {
+		t.Fatalf("save config: %v", err)
+	}
+
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+
+	uploader, err := push.NewHTTPClientWithConfig(push.ClientConfig{
+		EndpointURL: "http://storage.example.test",
+		Region:      "ap-southeast-2",
+		HTTPClient: &http.Client{
+			Transport: pushRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+				gotMethod = r.Method
+				gotURL = r.URL.String()
+				gotLockMode = r.Header.Get("x-amz-object-lock-mode")
+				gotLockUntil = r.Header.Get("x-amz-object-lock-retain-until-date")
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					return nil, err
+				}
+				gotBody = body
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     http.Header{"Etag": []string{`"etag-cli"`}},
+					Body:       io.NopCloser(strings.NewReader("")),
+					Request:    r,
+				}, nil
+			}),
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewHTTPClientWithConfig: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	code := runPushWithUploader([]string{"--bundle", bundlePath, "--lock-until", "2028-01-01"}, &stdout, &stderr, uploader)
+	if code != exitSuccess {
+		t.Fatalf("expected exit code %d, got %d (stderr=%q)", exitSuccess, code, stderr.String())
+	}
+	if gotMethod != http.MethodPut {
+		t.Fatalf("method: got %q want %q", gotMethod, http.MethodPut)
+	}
+	if gotURL != "http://storage.example.test/cfg-bucket/cfg-prefix/sha256-"+headHash+".atb" {
+		t.Fatalf("URL: got %q", gotURL)
+	}
+	if gotLockMode != "COMPLIANCE" {
+		t.Fatalf("lock mode: got %q want COMPLIANCE", gotLockMode)
+	}
+	if gotLockUntil != "2028-01-01T00:00:00Z" {
+		t.Fatalf("lock until: got %q want 2028-01-01T00:00:00Z", gotLockUntil)
+	}
+	wantBody, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle bytes: %v", err)
+	}
+	if string(gotBody) != string(wantBody) {
+		t.Fatalf("uploaded body does not match local bundle bytes")
+	}
+	if !strings.Contains(stdout.String(), "s3://cfg-bucket/cfg-prefix/sha256-"+headHash+".atb") {
+		t.Fatalf("stdout %q missing remote URI", stdout.String())
 	}
 }
 

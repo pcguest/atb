@@ -88,6 +88,14 @@ func TestConfigRoundTrip(t *testing.T) {
 	cfg := atbConfig{
 		Version:   configVersion,
 		Retention: policy,
+		Push: &pushSettings{
+			Target:            "s3://audit-bucket/atb-prod",
+			EndpointURL:       "https://storage.example.test",
+			Region:            "ap-southeast-2",
+			LockMode:          "COMPLIANCE",
+			LockUntil:         "2028-01-01",
+			CredentialsSource: "aws_env_shared",
+		},
 	}
 
 	path := filepath.Join(t.TempDir(), ".atb", "config.json")
@@ -121,6 +129,27 @@ func TestConfigRoundTrip(t *testing.T) {
 	if loaded.Retention.UpdatedAt != "2026-03-05T10:00:00Z" {
 		t.Fatalf("unexpected updated_at: got %q", loaded.Retention.UpdatedAt)
 	}
+	if loaded.Push == nil {
+		t.Fatalf("expected push settings")
+	}
+	if loaded.Push.Target != "s3://audit-bucket/atb-prod" {
+		t.Fatalf("unexpected push target: got %q", loaded.Push.Target)
+	}
+	if loaded.Push.EndpointURL != "https://storage.example.test" {
+		t.Fatalf("unexpected endpoint URL: got %q", loaded.Push.EndpointURL)
+	}
+	if loaded.Push.Region != "ap-southeast-2" {
+		t.Fatalf("unexpected region: got %q", loaded.Push.Region)
+	}
+	if loaded.Push.LockMode != "COMPLIANCE" {
+		t.Fatalf("unexpected lock mode: got %q", loaded.Push.LockMode)
+	}
+	if loaded.Push.LockUntil != "2028-01-01" {
+		t.Fatalf("unexpected lock_until: got %q", loaded.Push.LockUntil)
+	}
+	if loaded.Push.CredentialsSource != "aws_env_shared" {
+		t.Fatalf("unexpected credentials source: got %q", loaded.Push.CredentialsSource)
+	}
 }
 
 func TestConfigLoadRetentionMissingFile(t *testing.T) {
@@ -136,5 +165,16 @@ func TestConfigLoadRetentionMissingFile(t *testing.T) {
 	_, err = loadATBConfig(missingPath)
 	if !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("expected os.ErrNotExist, got %v", err)
+	}
+}
+
+func TestConfigLoadPushMissingFile(t *testing.T) {
+	missingPath := filepath.Join(t.TempDir(), ".atb", "config.json")
+	settings, err := loadPushSettings(missingPath)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if settings != nil {
+		t.Fatalf("expected nil push settings when config file is missing")
 	}
 }

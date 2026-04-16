@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/push"
 )
 
@@ -20,8 +19,38 @@ const pushUsageLine = "Usage: atb push <s3://bucket/prefix> [--bundle <path>] [-
 
 var errPushHelp = errors.New("push help requested")
 
-// pushConfig holds parsed arguments for the push command.
-// Fields map 1:1 to the CLI surface in docs/spec/bundle-push.md.
+// atb push contract
+//
+// CLI surface:
+//   - Explicit operator action only. No background uploads.
+//   - Primary form is `atb push <s3://bucket/prefix>`.
+//   - `--bundle` selects the local bundle path. Default is run.atb/bundle.atb.
+//   - `--lock-until` requests S3 Object Lock headers for the upload.
+//   - `--dry-run` resolves the target object key without contacting the remote.
+//   - `--format text|json` controls output shape only.
+//
+// Configuration and credential source:
+//   - The target object location is taken from the explicit S3 URI. Minimal
+//     defaults for S3-compatible endpoints may also come from ./.atb/config.json.
+//   - AWS credentials continue to come from the existing standard sources only:
+//     environment variables and ~/.aws/credentials. atb push does not add new
+//     credential resolution logic or make implicit network calls.
+//
+// Success criteria:
+//   - The local bundle is loaded from disk and uploaded unchanged.
+//   - The object key is content addressed as `sha256-<bundle-head-hash>.atb`.
+//   - Success means the remote returned a 2xx response to the PUT request.
+//   - When lock headers are requested, ATB only sends the headers. It does not
+//     inspect or validate bucket-side WORM policy.
+//
+// Error reporting:
+//   - Usage and local bundle problems are user errors.
+//   - Credential, transport, and non-2xx remote responses are system errors.
+//   - Text mode prints a single-line `atb push: ...` failure.
+//   - JSON mode returns the pushResult error payload with the mapped exit code.
+
+// pushConfig holds parsed CLI arguments plus optional defaults loaded from
+// ./.atb/config.json.
 type pushConfig struct {
 	// Target is the destination URI, e.g. s3://bucket/prefix.
 	Target string
@@ -35,6 +64,14 @@ type pushConfig struct {
 	DryRun bool
 	// Format is "text" or "json".
 	Format string
+	// EndpointURL overrides the S3 API base URL for S3-compatible targets.
+	EndpointURL string
+	// Region overrides the AWS region used for SigV4 signing.
+	Region string
+	// LockMode is the object-lock mode to request when LockUntil is set.
+	LockMode string
+	// CredentialsSource documents which existing resolver path to use.
+	CredentialsSource string
 }
 
 // pushResult is the JSON output shape for atb push.
@@ -51,15 +88,6 @@ type pushResult struct {
 	Message    string `json:"message,omitempty"`
 	Error      string `json:"error,omitempty"`
 	ExitCode   int    `json:"exit_code,omitempty"`
-}
-
-// bundlePushedData is the event payload for atb.bundle.pushed records.
-type bundlePushedData struct {
-	RemoteURI  string `json:"remote_uri"`
-	ObjectKey  string `json:"object_key"`
-	BundleHash string `json:"bundle_hash"`
-	PushedAt   string `json:"pushed_at"` // RFC 3339 UTC
-	ETag       string `json:"etag,omitempty"`
 }
 
 func cmdPush() {
@@ -79,6 +107,26 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 			fmt.Fprintln(stdout, pushUsageLine)
 			return exitSuccess
 		}
+		if cfg.Format == verifyFormatJSON {
+			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
+			return exitUserError
+		}
+		fmt.Fprintf(stderr, "atb push: %v\n", err)
+		fmt.Fprintln(stderr, pushUsageLine)
+		return exitUserError
+	}
+
+	cfg, err = mergePushConfigWithDefaults(cfg, defaultConfigPath())
+	if err != nil {
+		if cfg.Format == verifyFormatJSON {
+			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
+			return exitUserError
+		}
+		fmt.Fprintf(stderr, "atb push: %v\n", err)
+		return exitUserError
+	}
+	if strings.TrimSpace(cfg.Target) == "" {
+		err = fmt.Errorf("target URI required (e.g. s3://bucket/prefix)")
 		if cfg.Format == verifyFormatJSON {
 			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 			return exitUserError
@@ -155,7 +203,11 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 
 	// Resolve the S3 client (real or injected fake for tests).
 	if uploader == nil {
-		uploader, err = push.NewHTTPClient()
+		uploader, err = push.NewHTTPClientWithConfig(push.ClientConfig{
+			EndpointURL:       cfg.EndpointURL,
+			Region:            cfg.Region,
+			CredentialsSource: cfg.CredentialsSource,
+		})
 		if err != nil {
 			msg := "credential error: " + err.Error()
 			if cfg.Format == verifyFormatJSON {
@@ -170,7 +222,10 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	// Upload.
 	lockMode := ""
 	if cfg.LockUntil != "" {
-		lockMode = "COMPLIANCE"
+		lockMode = cfg.LockMode
+		if lockMode == "" {
+			lockMode = "COMPLIANCE"
+		}
 	}
 	out, err := uploader.PutObject(context.Background(), push.PutObjectInput{
 		Bucket:    bucket,
@@ -189,24 +244,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		fmt.Fprintf(stderr, "atb push: %s\n", msg)
 		return code
 	}
-
-	// Record the push event in the local bundle so the bundle reflects the export.
 	remoteURI := "s3://" + bucket + "/" + key
-	pushedAt := time.Now().UTC().Format(time.RFC3339)
-	pushEventData := bundlePushedData{
-		RemoteURI:  remoteURI,
-		ObjectKey:  key,
-		BundleHash: headHash,
-		PushedAt:   pushedAt,
-		ETag:       out.ETag,
-	}
-	if eventJSON, merr := json.Marshal(pushEventData); merr != nil {
-		fmt.Fprintf(stderr, "atb push: warning: marshal push event: %v\n", merr)
-	} else if aerr := b.Append(event.TypeBundlePushed, string(eventJSON)); aerr != nil {
-		fmt.Fprintf(stderr, "atb push: warning: append push event: %v\n", aerr)
-	} else if serr := b.Save(cfg.BundlePath); serr != nil {
-		fmt.Fprintf(stderr, "atb push: warning: save bundle after push event: %v\n", serr)
-	}
 
 	// Success output.
 	if cfg.Format == verifyFormatJSON {
@@ -219,7 +257,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 			BundleHash: headHash,
 			ObjectKey:  key,
 			LockUntil:  cfg.LockUntil,
-			Message:    "bundle pushed",
+			Message:    successMessage(remoteURI, key, out.ETag),
 			ExitCode:   exitSuccess,
 		}
 		if err := json.NewEncoder(stdout).Encode(res); err != nil {
@@ -279,6 +317,39 @@ func parseLockUntil(s string) (string, error) {
 		return "", fmt.Errorf("--lock-until %q must be in YYYY-MM-DD format", s)
 	}
 	return s + "T00:00:00Z", nil
+}
+
+func mergePushConfigWithDefaults(cfg pushConfig, configPath string) (pushConfig, error) {
+	settings, err := loadPushSettings(configPath)
+	if err != nil {
+		return cfg, fmt.Errorf("load push config: %w", err)
+	}
+	if settings == nil {
+		return cfg, nil
+	}
+
+	if strings.TrimSpace(cfg.Target) == "" {
+		cfg.Target = strings.TrimSpace(settings.Target)
+	}
+	if strings.TrimSpace(cfg.EndpointURL) == "" {
+		cfg.EndpointURL = strings.TrimSpace(settings.EndpointURL)
+	}
+	if strings.TrimSpace(cfg.Region) == "" {
+		cfg.Region = strings.TrimSpace(settings.Region)
+	}
+	if strings.TrimSpace(cfg.LockMode) == "" {
+		cfg.LockMode = strings.ToUpper(strings.TrimSpace(settings.LockMode))
+	}
+	if strings.TrimSpace(cfg.LockUntil) == "" {
+		cfg.LockUntil = strings.TrimSpace(settings.LockUntil)
+	}
+	if strings.TrimSpace(cfg.CredentialsSource) == "" {
+		cfg.CredentialsSource = strings.TrimSpace(settings.CredentialsSource)
+	}
+	if cfg.LockMode != "" && cfg.LockMode != "COMPLIANCE" && cfg.LockMode != "GOVERNANCE" {
+		return cfg, fmt.Errorf("invalid lock mode %q in push config", cfg.LockMode)
+	}
+	return cfg, nil
 }
 
 // classifyPushError maps an S3 error to a user-facing message.
@@ -350,13 +421,18 @@ func parsePushArgs(args []string) (pushConfig, error) {
 		}
 	}
 
-	if !targetSet || cfg.Target == "" {
-		return cfg, fmt.Errorf("target URI required (e.g. s3://bucket/prefix)")
-	}
 	if cfg.Format != verifyFormatText && cfg.Format != verifyFormatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.Format)
 	}
 	return cfg, nil
+}
+
+func successMessage(remoteURI, objectKey, etag string) string {
+	msg := fmt.Sprintf("bundle pushed to %s (%s)", remoteURI, objectKey)
+	if strings.TrimSpace(etag) != "" {
+		msg += " etag=" + strings.TrimSpace(etag)
+	}
+	return msg
 }
 
 func writePushError(stdout, stderr io.Writer, cfg pushConfig, msg string, code int) {

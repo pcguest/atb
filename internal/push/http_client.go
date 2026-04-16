@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,9 +22,10 @@ import (
 // HTTPS3Client is the real S3 implementation using net/http + AWS Signature V4.
 // Create with NewHTTPClient; tests inject a fake via the S3Uploader interface.
 type HTTPS3Client struct {
-	region string
-	creds  AWSCredentials
-	hc     *http.Client
+	region      string
+	creds       AWSCredentials
+	hc          *http.Client
+	endpointURL string
 }
 
 // AWSCredentials holds the key material needed for SigV4 signing.
@@ -33,18 +35,45 @@ type AWSCredentials struct {
 	SessionToken    string // empty when not using temporary credentials
 }
 
+// ClientConfig controls how the HTTP S3 client is resolved.
+type ClientConfig struct {
+	EndpointURL       string
+	Region            string
+	CredentialsSource string
+	HTTPClient        *http.Client
+}
+
 // NewHTTPClient creates an HTTPS3Client using the standard AWS credential chain.
 // It resolves credentials and region from environment variables and
 // ~/.aws/credentials but does not contact any network endpoint.
 func NewHTTPClient() (*HTTPS3Client, error) {
+	return NewHTTPClientWithConfig(ClientConfig{})
+}
+
+// NewHTTPClientWithConfig creates an HTTPS3Client with optional endpoint and
+// region overrides for S3-compatible targets. Credential resolution remains
+// limited to the existing environment and shared credentials sources.
+func NewHTTPClientWithConfig(cfg ClientConfig) (*HTTPS3Client, error) {
+	if err := validateCredentialsSource(cfg.CredentialsSource); err != nil {
+		return nil, err
+	}
 	creds, err := ResolveCredentials()
 	if err != nil {
 		return nil, err
 	}
+	endpointURL, err := normalizeEndpointURL(cfg.EndpointURL)
+	if err != nil {
+		return nil, err
+	}
+	hc := cfg.HTTPClient
+	if hc == nil {
+		hc = &http.Client{Timeout: 120 * time.Second}
+	}
 	return &HTTPS3Client{
-		region: ResolveRegion(),
-		creds:  creds,
-		hc:     &http.Client{Timeout: 120 * time.Second},
+		region:      resolveRegion(cfg.Region),
+		creds:       creds,
+		hc:          hc,
+		endpointURL: endpointURL,
 	}, nil
 }
 
@@ -53,10 +82,25 @@ func (c *HTTPS3Client) virtualHostedEndpoint(bucket string) string {
 	return "https://" + bucket + ".s3." + c.region + ".amazonaws.com"
 }
 
+func (c *HTTPS3Client) objectURL(bucket, key string) (string, error) {
+	if c.endpointURL == "" {
+		return c.virtualHostedEndpoint(bucket) + "/" + strings.TrimPrefix(key, "/"), nil
+	}
+
+	base, err := url.Parse(c.endpointURL)
+	if err != nil {
+		return "", fmt.Errorf("s3 endpoint: parse URL: %w", err)
+	}
+	base.Path = strings.TrimRight(base.Path, "/") + "/" + bucket + "/" + strings.TrimPrefix(key, "/")
+	return base.String(), nil
+}
+
 // PutObject uploads body to s3://bucket/key with optional Object Lock headers.
 func (c *HTTPS3Client) PutObject(ctx context.Context, in PutObjectInput) (PutObjectOutput, error) {
-	key := "/" + strings.TrimPrefix(in.Key, "/")
-	rawURL := c.virtualHostedEndpoint(in.Bucket) + key
+	rawURL, err := c.objectURL(in.Bucket, in.Key)
+	if err != nil {
+		return PutObjectOutput{}, err
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, rawURL, bytes.NewReader(in.Body))
 	if err != nil {
@@ -88,8 +132,10 @@ func (c *HTTPS3Client) PutObject(ctx context.Context, in PutObjectInput) (PutObj
 // GetObject retrieves s3://bucket/key and returns the response body stream.
 // Callers must close GetObjectOutput.Body.
 func (c *HTTPS3Client) GetObject(ctx context.Context, in GetObjectInput) (GetObjectOutput, error) {
-	key := "/" + strings.TrimPrefix(in.Key, "/")
-	rawURL := c.virtualHostedEndpoint(in.Bucket) + key
+	rawURL, err := c.objectURL(in.Bucket, in.Key)
+	if err != nil {
+		return GetObjectOutput{}, err
+	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -131,7 +177,7 @@ func signRequest(req *http.Request, body []byte, creds AWSCredentials, region st
 
 	// Build the header map that will be signed.  Keys are lowercase.
 	hmap := map[string]string{
-		"host":                  req.URL.Host,
+		"host":                 req.URL.Host,
 		"x-amz-date":           datetime,
 		"x-amz-content-sha256": payloadHash,
 	}
@@ -240,12 +286,47 @@ func ResolveCredentials() (AWSCredentials, error) {
 
 // ResolveRegion returns the AWS region from standard env vars, defaulting to "us-east-1".
 func ResolveRegion() string {
+	return resolveRegion("")
+}
+
+func resolveRegion(explicit string) string {
+	if r := strings.TrimSpace(explicit); r != "" {
+		return r
+	}
 	for _, env := range []string{"AWS_DEFAULT_REGION", "AWS_REGION"} {
 		if r := os.Getenv(env); r != "" {
 			return r
 		}
 	}
 	return "us-east-1"
+}
+
+func validateCredentialsSource(source string) error {
+	switch strings.TrimSpace(source) {
+	case "", "aws_env_shared":
+		return nil
+	default:
+		return fmt.Errorf("unsupported credentials source %q", source)
+	}
+}
+
+func normalizeEndpointURL(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", nil
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil {
+		return "", fmt.Errorf("invalid endpoint URL %q: %w", raw, err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("invalid endpoint URL %q: expected http or https", raw)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("invalid endpoint URL %q: missing host", raw)
+	}
+	return strings.TrimRight(parsed.String(), "/"), nil
 }
 
 // readSharedCredentials parses ~/.aws/credentials for the active profile.
