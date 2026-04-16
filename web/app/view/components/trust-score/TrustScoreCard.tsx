@@ -53,7 +53,10 @@ export function TrustScoreCard({ loading, breakdown }: TrustScoreCardProps) {
 
   if (loading || !breakdown) {
     return (
-      <Card data-testid="trust-score-card">
+      <Card
+        data-testid="trust-score-card"
+        style={{ backgroundColor: "hsl(220 40% 12%)" }}
+      >
         <CardHeader>
           <CardTitle>Trust Score</CardTitle>
           <CardDescription>Verifying controls and freshness.</CardDescription>
@@ -82,7 +85,10 @@ export function TrustScoreCard({ loading, breakdown }: TrustScoreCardProps) {
       animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
     >
-      <Card data-testid="trust-score-card">
+      <Card
+        data-testid="trust-score-card"
+        style={{ backgroundColor: "hsl(220 40% 12%)" }}
+      >
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
             <CardTitle className="text-lg">Trust Score</CardTitle>
