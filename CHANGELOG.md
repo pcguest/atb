@@ -9,6 +9,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (no changes yet)
 
+## [v1.7.0] - 2026-04-16
+
+### Added
+- Profile DSL v1: user-defined profile format defined in YAML. Custom profiles are
+  evaluated identically to built-in profiles; `atb verify --profile <path>` and
+  `atb trust-report --profile <path>` both accept a YAML file.
+- CAS support for custom profiles via `genericSchemaSubScores`; any DSL profile with
+  `supports_cas: true` now produces a full CAS object including sub-scores.
+- `atb push` supports S3-compatible storage endpoints via `--endpoint-url`; push
+  defaults (`target`, `endpoint-url`, `region`, `lock-mode`, `lock-until`,
+  `credentials-source`) can be stored in `.atb/config.json` under a `push` key.
+- `atb view --profile <id-or-path>`: evaluates the bundle against a named built-in
+  profile or a DSL YAML file at startup and serves the result at
+  `GET /api/v1/bundle/profile` (204 when no report; 200 + `ProfileReportSummary` when
+  computed). `POST /api/v1/bundle/verify` recomputes and caches a fresh report.
+- Legacy viewer now displays a redirect notice pointing users to `--ui-experimental`.
+
+### Fixed
+- Bundle save is now atomic: written to a temp file then renamed, preventing partial
+  writes on crash or disk-full.
+- `loadSchemaIfAvailable` replaced panic-recover with a proper error return.
+- `classifyAnchorRoots` global eliminated; root certificates are now passed through
+  the call chain, removing a global mutable state hazard.
+- Misaligned `else` brace and struct field alignment in `verify.go` corrected.
+- Read-only directory test skipped on Windows where the permission model differs.
+- Go toolchain pinned to 1.24.2 across `go.mod`, Makefile, CI, and Dockerfile;
+  all affected stdlib CVEs cleared.
+
+### Changed
+- Anchor verification consolidated: `internal/anchorverify` package removed; logic
+  merged into `internal/trust`. No change to the public `atb verify` behaviour.
+
+### CI
+- Security scans now run on every push and PR, not only on schedule.
+- `-race` flag added to the Go test step; TypeScript SDK tests added to CI.
+- `check-versions.sh` runs in CI via a dedicated version-gate workflow.
+
+### Tests
+- Added RAG GC fixed-score, empty-bundle verify, and MCP RAG tool round-trip tests.
+- Integration CAS assertions updated to expect non-nil for all named profiles.
+
+### Docs
+- `docs/integrations/worm-s3.md`: S3-compatible endpoint support documented; push
+  event language removed to match implementation (local bundle is not modified on export).
+- `docs/spec-dashboard.md`: `--profile` CLI interface, new API routes, and
+  Profile/CAS summary panel spec added.
+- `docs/compliance/eu-ai-act.md`: identity attribution boundary section clarifies
+  ATB proves non-alteration but not truthfulness of claimed actor identities.
+- `docs/security.md`: identity attribution caveat strengthened; recommended controls
+  updated to require an independent identity layer or signing scheme.
+- Quickstart Python example corrected to use canonical `rag_answer` event types.
+- PageIndex event type mismatch with `rag_answer` profile and fixed GC sub-score
+  documented.
+
 ## [v1.6.0] - 2026-04-15
 
 ### Pre-launch surface polish
@@ -144,61 +198,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Versioning reset to v0.9.0-beta to accurately reflect pre-production status
 - TSA verification: certificate chain validation is implemented and used for CAS scoring
 - Bundle-level Ed25519 signing: fully implemented via `atb sign` and `atb verify`
-
-## [v1.8.1] - 2026-04-02
-
-### Changed
-- `atb trust-report --format text --profile <id>` now surfaces profile
-  obligation failures (`missing_event`, `temporal_violation`) directly in text
-  output instead of hiding them behind a category summary.
-
-### Added
-- Unit and integration test coverage for `required_when` temporal DSL
-  evaluation and schema-driven `profileSupportsCAS` / `computeSC`.
-
-### Notes
-- `atb trust-report` without `--profile` remains profile-agnostic by design.
-- `atb keygen` must be run before `--sign-policy` can be used; `atb init`
-  does not generate a keypair.
-
-## [v1.8.0] - 2026-04-01
-
-### Added
-- Profile DSL v1: `required_when` temporal conditions on optional event rules.
-  When a condition event is present, the target event is required; if `at_or_after`
-  is set, target must have a timestamp at or after the condition event's timestamp.
-  Hard violations produce `CriticalFailures`; missing or unparseable timestamps
-  produce `RequiredWarnings`.
-- `ProfileSchema.SupportsCAS` and `ProfileSchema.SCMode` replace the concrete-type
-  switch in `profileSupportsCAS` and the hard-coded profile ID list in `computeSC`.
-  CAS support and SC mode are now declared in each profile's YAML template.
-- Ed25519 source signatures on `ai.policy.decision` events via `--sign-policy`
-  flag. `atb verify` and `atb trust-report` surface a verified/absent/failed note
-  per policy decision record.
-- `internal/profiles.HasSchema` exported helper for schema presence checks.
-
-### Changed
-- `privileged_tool_action` and `data_export` YAML templates: `ai.human.approval`
-  is now a `required_when` obligation triggered by `ai.action.executed`, with
-  `at_or_after` ordering enforced.
-- `rag_answer` YAML template: `supports_cas: true`, `sc_mode: retrieval_executed`.
-- SDK version parity: `sdk/python` and `sdk/typescript` bumped to `1.8.0`.
-
-## [v1.7.0] - 2026-04-01
-
-### Added
-- Obligation-Profile DSL v1: all six built-in profiles are now defined in YAML
-  (`internal/profiles/templates/`). Each file is a `ProfileSchema` with
-  required events, optional events, relation rules, weights, and blind spots.
-- `internal/profiles` package: `ProfileSchema`, `EventRule`, `RelationRule`,
-  `ValidateSchema`, `Evaluate`, and `loadSchema` (go:embed backed).
-- Generic walker (`profiles.Evaluate`) replaces all per-profile inline
-  evaluation logic. The verifier requires no changes.
-
-### Changed
-- `internal/verify/profiles.go`: all 6 profile structs delegate `Evaluate`,
-  `DefaultWeights`, `WorkflowClass`, and `BlindSpots` to the YAML-backed schema
-  path. The `Profile` interface is unchanged.
 
 ## [v1.6.0] - 2026-04-01
 
