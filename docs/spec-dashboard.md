@@ -17,18 +17,30 @@ Auditor success bar:
 ## CLI interface
 
 ```bash
-atb view --ui-experimental [--port 8080] [--bundle path/to/file.atb]
+atb view --ui-experimental [--port 8080] [--bundle path/to/file.atb] [--profile <id-or-path>]
 ```
 
 Supported compatibility forms:
 - `atb view --ui-experimental run.atb/bundle.atb`
 - `atb view --bundle run.atb/bundle.atb --port 9090 --ui-experimental`
+- `atb view --ui-experimental --profile atb.profile.rag_answer`
+- `atb view --ui-experimental --profile ./profiles/custom.yaml`
+
+`--profile`: optional. Evaluates the bundle against the named built-in profile or a DSL YAML
+file at startup. When the chain is intact the profile/CAS summary is served immediately via
+`GET /api/v1/bundle/profile`. Without `--profile` the endpoint returns 204 until triggered
+via `POST /api/v1/bundle/verify` from the UI.
 
 Additional safety flags:
 - `--no-open`: do not auto-open browser
 - `--log-reveals`: retained for CLI compatibility; reveal auditing is always on
 
 Plain `atb view` still serves the legacy local viewer at `/`.
+
+Security note: `atb view` binds to `127.0.0.1` by default and has no
+authentication layer. It is intended for single-user local inspection.
+Binding it to a non-loopback interface without independent auth and
+network controls can expose bundle contents.
 
 ## Architecture
 
@@ -43,6 +55,8 @@ Chosen flow: **Go API server + Next.js dashboard**.
    - `GET /api/v1/bundle/events?offset=&limit=`
    - `GET /api/v1/bundle/graph`
    - `POST /api/v1/privacy/reveal`
+   - `GET /api/v1/bundle/profile` (204 if no report; 200 + ProfileReportSummary if computed)
+   - `POST /api/v1/bundle/verify` (runs verify with stored profile path; returns fresh ProfileReportSummary)
 4. Next.js dashboard (`/view`) consumes local API JSON when `--ui-experimental` is enabled.
 
 Rationale:
@@ -74,6 +88,12 @@ Rationale:
 - `BundleEventsResponse`: paginated event list with sanitized data
 - `BundleGraphResponse`: nodes and edges for trace/span graph rendering
 - `PrivacyRevealRequest` / `PrivacyRevealResponse`: single field reveal flow
+- `ProfileReportSummary`: profile_id, pass, chain_valid, anchor_status, cas_score, cas_grade,
+  sub_scores, critical_failures (array of `{kind, detail}`), warnings
+  - `GET /api/v1/bundle/profile` returns 204 No Content when no report has been computed yet.
+  - `POST /api/v1/bundle/verify` runs (or re-runs) verify and returns a fresh summary.
+  - `POST /api/v1/bundle/verify` returns 422 if the stored profile path cannot be loaded.
+  - Both endpoints return 403 when the bundle fails hash-chain verification (tamper mode).
 
 ## UI components
 
@@ -95,6 +115,15 @@ Rationale:
 - selected event detail
 - masked fields by default
 - `Click to Reveal` triggers reveal endpoint
+
+### Profile/CAS summary panel (when `--profile` supplied or after "Verify" button)
+- Profile ID
+- Pass/fail badge
+- Completeness (CAS) score and grade: labeled "completeness (CAS)", not "compliance"
+- Chain/anchor status (one line)
+- List of critical obligation failures with `kind` and `detail`
+- Collapsible warnings section
+- "Run verify" button triggers `POST /api/v1/bundle/verify` when no startup report was computed
 
 ### Stats overview
 - total events

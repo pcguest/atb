@@ -1,15 +1,17 @@
 # Bundle push — specification
 
-> **Status: In Progress — v1.6. Core implementation complete; integration tests and CI secrets registration pending before release cut.**
+> **Status: In Progress — v1.6. Minimal S3 PUT support is implemented; release hardening and CI rollout remain pending.**
 > See `cmd/atb/push.go` and `internal/push/`.
+>
+> **WORM boundary:** ATB requests object-lock headers when `--lock-until` is used, but it does not enforce WORM at the storage layer. Enforcement depends entirely on S3 Object Lock and bucket retention configuration outside ATB's control. If the bucket is not configured correctly, the upload is not immutable. For regulated deployments, pair ATB with filesystem integrity monitoring and a correctly configured WORM-capable store.
 
 ## Problem statement
 
 ATB bundles are sealed local artefacts with a SHA-256 hash chain. Local tamper-evidence is strong: if any record is modified after the bundle is written, `atb verify` detects it. Local storage alone cannot defend against scenarios where the local filesystem itself is under adversarial control — a compromised host, a shared volume, or a post-incident environment where the operator who needs to provide evidence could also be the subject of the investigation.
 
-WORM (Write Once Read Many) object storage addresses the local-control gap. Once a bundle is committed to a bucket with object lock enabled, the object cannot be overwritten or deleted for the lock duration. The ATB integrity guarantee (hash chain) and the WORM storage guarantee (immutable object) together cover the full trust surface.
+WORM (Write Once Read Many) object storage addresses the local-control gap. Once a bundle is committed to a bucket with object lock enabled, the object cannot be overwritten or deleted for the lock duration. The ATB integrity guarantee (hash chain) and the storage layer's WORM guarantee together cover the full trust surface.
 
-`atb push` exports a sealed bundle to a configurable external target, recording the push as an event so the local bundle reflects when and where it was exported.
+`atb push` exports a sealed bundle to a configurable external target without modifying the local bundle. The local hash chain remains the primary integrity primitive for the file on disk.
 
 ## CLI interface
 
@@ -67,6 +69,8 @@ x-amz-object-lock-retain-until-date: <YYYY-MM-DD>T00:00:00Z
 
 ATB does not enforce WORM. S3 Object Lock COMPLIANCE mode and the bucket policy enforce WORM. ATB requests the lock; whether it is applied and honoured depends entirely on bucket-level configuration outside ATB's control.
 
+Do not treat `--lock-until` as proof that WORM is active. If Object Lock or retention policy configuration is missing or incorrect, the storage layer may still permit overwrite or deletion.
+
 GOVERNANCE mode is not an acceptable substitute for regulated audit evidence where the operator is also the subject: privileged users can remove GOVERNANCE locks. Use COMPLIANCE mode.
 
 ## Trust model
@@ -75,10 +79,9 @@ After a successful push:
 
 - The uploaded object is tamper-evident for the lock duration, enforced by S3.
 - The local hash chain remains the primary integrity primitive; the push does not alter or replace it.
-- The push event is recorded in the local bundle so the bundle itself reflects when and where the export occurred.
 - ATB cannot verify that the push reached the target without error unless S3 returns HTTP 200 with an ETag. Network failures between write and confirmation are reported as errors, not silent successes.
 
-ATB does not claim that using S3 WORM with ATB satisfies any specific regulation. S3 WORM supports the "tamper-resistant storage" pattern called for by frameworks such as EU AI Act Article 12, SOC 2, and ISO 42001; whether a specific deployment satisfies those frameworks depends on the broader system design.
+ATB does not claim that using S3 WORM with ATB satisfies any specific regulation. S3 WORM supports the "tamper-resistant storage" pattern called for by frameworks such as EU AI Act Article 12, SOC 2, and ISO 42001; whether a specific deployment satisfies those frameworks depends on the broader system design and correct bucket-side enforcement.
 
 ## JSON output schema (`pushResult`)
 
@@ -135,7 +138,7 @@ aws s3 cp /tmp/sha256-${HASH}.atb \
 rm /tmp/sha256-${HASH}.atb
 ```
 
-The `atb snapshot pre_worm_export` call marks the bundle state before export. The push event will not appear in the bundle because the workaround bypasses `atb push`.
+The `atb snapshot pre_worm_export` call marks the bundle state before export.
 
 ## Other WORM-capable targets (post-v1.6 consideration)
 

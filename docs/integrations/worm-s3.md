@@ -1,17 +1,20 @@
 # WORM/S3 export
 
-> **Status: Planned — v1.6. The `atb push` command described here is not yet implemented.**
-> CLI stub exists; full spec is in [`docs/spec/bundle-push.md`](../spec/bundle-push.md).
+> **Status: In Progress — v1.6. `atb push` can upload a bundle to an S3 or S3-compatible endpoint.**
+> Full behaviour and limits are specified in [`docs/spec/bundle-push.md`](../spec/bundle-push.md).
+>
+> **WORM boundary:** ATB requests lock headers for S3 Object Lock, but it does not enforce WORM itself. Enforcement depends entirely on the bucket's Object Lock and retention configuration. If the bucket is not configured correctly, the uploaded bundle is not immutable. For regulated deployments, pair ATB with filesystem integrity monitoring and a correctly configured WORM-capable store.
 
 ## How this actually behaves
 
 Local capture → local bundle → optional push to S3 Object Lock. Three stages:
 
 1. **Local bundle**: events are appended to a local `.atb` file and hash-chained. `atb verify` detects any tampering at any point.
-2. **Push** (`atb push s3://bucket/prefix`): the sealed bundle is uploaded as a single content-addressed object (`sha256-<head-hash>.atb`). The push event is recorded in the local bundle.
+2. **Push** (`atb push s3://bucket/prefix`): the sealed bundle is uploaded as a single content-addressed object (`sha256-<head-hash>.atb`). The local bundle is not modified by the export.
 3. **WORM enforcement**: S3 Object Lock COMPLIANCE mode and the bucket retention policy prevent the uploaded object from being overwritten or deleted. ATB requests the lock header (`x-amz-object-lock-mode: COMPLIANCE`); the bucket configuration enforces it.
 
 ATB does not enforce WORM. All WORM guarantees live in the storage layer.
+Do not rely on `--lock-until` alone. If Object Lock is absent, misconfigured, or set to a weaker mode than required, the storage layer remains mutable.
 
 ## Why WORM storage
 
@@ -48,18 +51,16 @@ Use `COMPLIANCE` mode for regulated retention requirements. `GOVERNANCE` mode al
 
 For the retain-until date, use your jurisdiction's audit retention period. `docs/compliance/retention.md` documents ATB's local retention configuration; the WORM retain-until date should match or exceed that period.
 
-## Planned CLI interface
-
-> **Status: Planned — v1.6. This interface is not yet implemented.**
+## CLI interface
 
 ```bash
-atb push --target s3://bucket/prefix [--lock-until YYYY-MM-DD] [--bundle path/to/bundle.atb]
+atb push s3://bucket/prefix [--lock-until YYYY-MM-DD] [--bundle path/to/bundle.atb]
 ```
 
 The bundle will be written as a single object with a content-addressed key:
 
 ```
-s3://bucket/prefix/sha256:<bundle-head-hash>.atb
+s3://bucket/prefix/sha256-<bundle-head-hash>.atb
 ```
 
 When `--lock-until` is supplied and the bucket has Object Lock enabled in COMPLIANCE mode, ATB will set:
@@ -67,12 +68,12 @@ When `--lock-until` is supplied and the bucket has Object Lock enabled in COMPLI
 - `x-amz-object-lock-mode: COMPLIANCE`
 - `x-amz-object-lock-retain-until-date: <lock-until>T00:00:00Z`
 
-ATB does not enforce WORM — the bucket policy enforces WORM. ATB requests the lock; whether it is applied depends on bucket-level configuration.
+ATB does not enforce WORM — the bucket policy enforces WORM. ATB requests the lock; whether it is applied depends on bucket-level configuration. ATB does not override or validate the bucket's retention policy.
 
 Remote verification after push:
 
 ```bash
-atb verify --remote s3://bucket/prefix/sha256:<hash>.atb
+atb verify --remote s3://bucket/prefix/sha256-<hash>.atb
 ```
 
 ## Current workaround
@@ -84,14 +85,14 @@ HASH=$(atb status --hash)
 atb export --format bundle --output /tmp/${HASH}.atb
 
 aws s3 cp /tmp/${HASH}.atb \
-  s3://your-atb-audit-bucket/sha256:${HASH}.atb \
+  s3://your-atb-audit-bucket/sha256-${HASH}.atb \
   --object-lock-mode COMPLIANCE \
   --object-lock-retain-until-date "2028-01-01T00:00:00Z"
 
 rm /tmp/${HASH}.atb
 ```
 
-This achieves content-addressed WORM upload. The push event will not be recorded in the bundle because the workaround bypasses `atb push`. Record a snapshot before export to mark the bundle state:
+This achieves content-addressed WORM upload. Record a snapshot before export to mark the bundle state:
 
 ```bash
 atb snapshot pre_worm_export

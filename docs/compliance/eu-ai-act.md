@@ -22,3 +22,15 @@ ATB contributes tamper-evident integrity for whatever events are written into a 
 ## What ATB does not satisfy alone
 
 ATB does not provide: (a) a certified WORM storage path for the retention period Article 12 implies (operators must arrange durable immutable storage independently); (b) proof of capture completeness (CAS is a bounded proxy over recorded evidence, not a universal guarantee); (c) legal advice on whether a given system is high-risk under the Act or how Article 12 applies to a specific deployment.
+
+## Identity attribution boundary
+
+Fields such as `actor_id`, `org_id`, and `workspace_id` are asserted by
+the recording environment. ATB proves these values were not altered
+after recording, but it does not independently verify that they are
+true.
+
+Deployments that need verified identity attribution for regulatory or
+employment controls must integrate external identity systems, signing
+mechanisms, or equivalent controls. ATB preserves asserted identity
+evidence; it does not certify it.
