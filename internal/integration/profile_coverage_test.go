@@ -146,16 +146,19 @@ func TestIntegrationProfiles_PolicyDecision(t *testing.T) {
 	if !containsString(result.Profiles[0].RequiredWarnings, "ai.action.precommit recommended to bind policy to a pending action") {
 		t.Fatalf("expected precommit recommendation warning, got %v", result.Profiles[0].RequiredWarnings)
 	}
-	if result.CAS != nil {
-		t.Fatalf("expected CAS to be nil for %q, got %+v", profileIDPolicyDecision, result.CAS)
+	if result.CAS == nil {
+		t.Fatalf("expected CAS for %q", profileIDPolicyDecision)
+	}
+	if requireSubScore(t, result.CAS.SubScores, "SC") <= 0 {
+		t.Fatalf("expected positive SC sub-score, got %.3f", result.CAS.SubScores["SC"])
 	}
 
 	report := trust.BuildReport("", bundlePath, profileIDPolicyDecision)
 	if report.Status == trust.StatusFail {
 		t.Fatalf("expected non-failing trust report status, got %q", report.Status)
 	}
-	if report.CAS != nil {
-		t.Fatalf("expected trust-report CAS to be nil for %q, got %+v", profileIDPolicyDecision, report.CAS)
+	if report.CAS == nil {
+		t.Fatalf("expected trust-report CAS for %q", profileIDPolicyDecision)
 	}
 
 	t.Run("mismatched_precommit_relation", func(t *testing.T) {
@@ -195,6 +198,12 @@ func TestIntegrationProfiles_PolicyDecision(t *testing.T) {
 		}
 		if !hasTrustCheckDetail(report, "obligation_profile", "relation_violation: policy_binds_action: ai.policy.decision action_id does not match ai.action.precommit") {
 			t.Fatalf("expected trust report relation failure, got %+v", report.Categories)
+		}
+		if report.CAS == nil {
+			t.Fatalf("expected trust-report CAS for %q on violation path", profileIDPolicyDecision)
+		}
+		if result.CAS == nil {
+			t.Fatalf("expected verify CAS for %q on violation path", profileIDPolicyDecision)
 		}
 	})
 }
@@ -239,16 +248,19 @@ func TestIntegrationProfiles_HumanOverride(t *testing.T) {
 	if !result.Profiles[0].Pass {
 		t.Fatalf("expected profile pass, got failures %+v", result.Profiles[0].CriticalFailures)
 	}
-	if result.CAS != nil {
-		t.Fatalf("expected CAS to be nil for %q, got %+v", profileIDHumanOverride, result.CAS)
+	if result.CAS == nil {
+		t.Fatalf("expected CAS for %q", profileIDHumanOverride)
+	}
+	if requireSubScore(t, result.CAS.SubScores, "SC") <= 0 {
+		t.Fatalf("expected positive SC sub-score, got %.3f", result.CAS.SubScores["SC"])
 	}
 
 	report := trust.BuildReport("", bundlePath, profileIDHumanOverride)
 	if report.Status == trust.StatusFail {
 		t.Fatalf("expected non-failing trust report status, got %q", report.Status)
 	}
-	if report.CAS != nil {
-		t.Fatalf("expected trust-report CAS to be nil for %q, got %+v", profileIDHumanOverride, report.CAS)
+	if report.CAS == nil {
+		t.Fatalf("expected trust-report CAS for %q", profileIDHumanOverride)
 	}
 
 	t.Run("executed_without_approval", func(t *testing.T) {
@@ -288,6 +300,12 @@ func TestIntegrationProfiles_HumanOverride(t *testing.T) {
 		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval missing required fields") {
 			t.Fatalf("expected trust report missing approval failure, got %+v", report.Categories)
 		}
+		if report.CAS == nil {
+			t.Fatalf("expected trust-report CAS for %q on violation path", profileIDHumanOverride)
+		}
+		if result.CAS == nil {
+			t.Fatalf("expected verify CAS for %q on violation path", profileIDHumanOverride)
+		}
 	})
 }
 
@@ -324,16 +342,19 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 	if !result.Profiles[0].Pass {
 		t.Fatalf("expected profile pass, got failures %+v", result.Profiles[0].CriticalFailures)
 	}
-	if result.CAS != nil {
-		t.Fatalf("expected CAS to be nil for %q, got %+v", profileIDBackgroundAutomation, result.CAS)
+	if result.CAS == nil {
+		t.Fatalf("expected CAS for %q", profileIDBackgroundAutomation)
+	}
+	if requireSubScore(t, result.CAS.SubScores, "SC") <= 0 {
+		t.Fatalf("expected positive SC sub-score, got %.3f", result.CAS.SubScores["SC"])
 	}
 
 	report := trust.BuildReport("", bundlePath, profileIDBackgroundAutomation)
 	if report.Status == trust.StatusFail {
 		t.Fatalf("expected non-failing trust report status, got %q", report.Status)
 	}
-	if report.CAS != nil {
-		t.Fatalf("expected trust-report CAS to be nil for %q, got %+v", profileIDBackgroundAutomation, report.CAS)
+	if report.CAS == nil {
+		t.Fatalf("expected trust-report CAS for %q", profileIDBackgroundAutomation)
 	}
 
 	t.Run("missing_completion", func(t *testing.T) {
@@ -372,6 +393,12 @@ func TestIntegrationProfiles_BackgroundAutomation(t *testing.T) {
 		}
 		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.job.completed missing required fields") {
 			t.Fatalf("expected trust report missing completion failure, got %+v", report.Categories)
+		}
+		if report.CAS == nil {
+			t.Fatalf("expected trust-report CAS for %q on violation path", profileIDBackgroundAutomation)
+		}
+		if result.CAS == nil {
+			t.Fatalf("expected verify CAS for %q on violation path", profileIDBackgroundAutomation)
 		}
 	})
 }

@@ -381,16 +381,19 @@ func TestGoldenPath_DataExport(t *testing.T) {
 	if profileResult.RequiredWarnings[0] != "ai.policy.decision: policy_signature absent" {
 		t.Fatalf("unexpected required warning: got %q", profileResult.RequiredWarnings[0])
 	}
-	if result.CAS != nil {
-		t.Fatalf("expected verify CAS to be nil for %q, got %+v", profileIDDataExport, result.CAS)
+	if result.CAS == nil {
+		t.Fatalf("expected verify CAS for %q", profileIDDataExport)
+	}
+	if requireSubScore(t, result.CAS.SubScores, "SC") <= 0 {
+		t.Fatalf("expected positive SC sub-score, got %.3f", result.CAS.SubScores["SC"])
 	}
 
 	report := trust.BuildReport("", bundlePath, profileIDDataExport)
 	if report.BundlePath != bundlePath {
 		t.Fatalf("unexpected trust bundle path: got %q want %q", report.BundlePath, bundlePath)
 	}
-	if report.CAS != nil {
-		t.Fatalf("expected trust-report CAS to be nil for %q, got %+v", profileIDDataExport, report.CAS)
+	if report.CAS == nil {
+		t.Fatalf("expected trust-report CAS for %q", profileIDDataExport)
 	}
 	if report.ChainLength != 7 {
 		t.Fatalf("unexpected chain length: got %d want %d", report.ChainLength, 7)
@@ -448,22 +451,22 @@ func TestGoldenPath_DataExport(t *testing.T) {
 		if !hasCriticalFailure(result.Profiles[0].CriticalFailures, "missing_event", "ai.human.approval required when data exports execute") {
 			t.Fatalf("expected missing approval critical failure, got %+v", result.Profiles[0].CriticalFailures)
 		}
-		if result.CAS != nil {
-			t.Fatalf("expected verify CAS to remain nil for %q, got %+v", profileIDDataExport, result.CAS)
+		if result.CAS == nil {
+			t.Fatalf("expected verify CAS for %q on violation path", profileIDDataExport)
 		}
 
-		report := trust.BuildReport("", bundlePath, profileIDDataExport)
-		if report.Status != trust.StatusFail {
-			t.Fatalf("expected failing trust report status, got %q", report.Status)
+		violationReport := trust.BuildReport("", bundlePath, profileIDDataExport)
+		if violationReport.Status != trust.StatusFail {
+			t.Fatalf("expected failing trust report status, got %q", violationReport.Status)
 		}
-		if report.Gate.Status != trust.StatusFail {
-			t.Fatalf("expected failing trust gate status, got %q", report.Gate.Status)
+		if violationReport.Gate.Status != trust.StatusFail {
+			t.Fatalf("expected failing trust gate status, got %q", violationReport.Gate.Status)
 		}
-		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval required when data exports execute") {
-			t.Fatalf("expected trust report missing approval failure, got %+v", report.Categories)
+		if !hasTrustCheckDetail(violationReport, "obligation_profile", "missing_event: ai.human.approval required when data exports execute") {
+			t.Fatalf("expected trust report missing approval failure, got %+v", violationReport.Categories)
 		}
-		if report.CAS != nil {
-			t.Fatalf("expected trust-report CAS to remain nil for %q, got %+v", profileIDDataExport, report.CAS)
+		if violationReport.CAS == nil {
+			t.Fatalf("expected trust-report CAS for %q on violation path", profileIDDataExport)
 		}
 	})
 }
