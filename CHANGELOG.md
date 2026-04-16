@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (no changes yet)
 
-## [v1.7.0] - 2026-04-16
+## [v1.7.1] - 2026-04-16
 
 ### Added
 - Profile DSL v1: user-defined profile format defined in YAML. Custom profiles are

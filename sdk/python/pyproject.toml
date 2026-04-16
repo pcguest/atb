@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "atb-sdk"
-version = "1.7.0"
+version = "1.7.1"
 description = "Python SDK for ATB (Agent Trace Bundle) — local-first AI audit trail"
 readme = "README.md"
 license = "MIT"
