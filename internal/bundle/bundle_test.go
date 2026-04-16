@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -202,6 +203,9 @@ func TestSaveAtomic(t *testing.T) {
 	t.Run("original file not truncated when save fails", func(t *testing.T) {
 		if os.Getuid() == 0 {
 			t.Skip("root ignores file permission checks")
+		}
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows chmod does not restrict directory writes")
 		}
 		dir := t.TempDir()
 		path := filepath.Join(dir, "bundle.atb")
