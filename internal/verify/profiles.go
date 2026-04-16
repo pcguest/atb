@@ -352,17 +352,54 @@ func (p *RAGAnswerProfile) Evaluate(records []bundle.Record) ProfileResult {
 	return evaluateSchemaProfile(loadSchema(p.ID()), records)
 }
 
+// profileWithSchema is implemented by externalSchemaProfile (profile_loader.go).
+// It exposes the underlying ProfileSchema so that CAS support and generic
+// sub-score computation work for user-defined profiles without a separate code path.
+type profileWithSchema interface {
+	profileSchema() profiledsl.ProfileSchema
+}
+
 func subScoresForProfile(profile Profile, records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	if profile == nil {
 		return zeroSubScores()
 	}
 
 	builder, ok := profileSubScoreBuilders[profile.ID()]
-	if !ok {
-		return zeroSubScores()
+	if ok {
+		return builder(records, anchorResult)
 	}
 
-	return builder(records, anchorResult)
+	// Generic fallback for schema-backed custom profiles (DSL and schema-format files).
+	if sp, ok := profile.(profileWithSchema); ok {
+		return genericSchemaSubScores(sp.profileSchema(), records, anchorResult)
+	}
+
+	return zeroSubScores()
+}
+
+// genericSchemaSubScores computes CAS sub-scores for a custom ProfileSchema.
+// EC and FC are derived from the schema's required event rules. RC, TC, SC, and
+// GC cannot be computed generically and are 0.0. XC and AC are always derived
+// from the anchor classification result, as they are bundle-level properties.
+func genericSchemaSubScores(schema profiledsl.ProfileSchema, records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
+	reqs := make([]eventRequirement, 0, len(schema.Required))
+	for _, rule := range schema.Required {
+		reqs = append(reqs, eventRequirement{
+			eventType:      rule.Type,
+			requiredFields: rule.Fields,
+		})
+	}
+	recordsByType := indexRecordsByType(records)
+	return map[string]float64{
+		"EC": eventCoverage(recordsByType, reqs),
+		"FC": fieldCompleteness(recordsByType, reqs),
+		"RC": 0.0,
+		"TC": 0.0,
+		"SC": 0.0,
+		"XC": xcScore(anchorResult),
+		"AC": acScore(anchorResult),
+		"GC": 0.0,
+	}
 }
 
 func policyDecisionSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {

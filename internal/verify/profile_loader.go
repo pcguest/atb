@@ -55,6 +55,7 @@ const (
 	profileFileFormatUnknown profileFileFormat = iota
 	profileFileFormatSchema
 	profileFileFormatLegacy
+	profileFileFormatDSL
 )
 
 // ResolveProfile resolves either a built-in profile ID or a profile file path.
@@ -98,6 +99,10 @@ func loadProfileFromFile(path string) (Profile, error) {
 		return nil, fmt.Errorf("parse profile %q: %w", path, err)
 	}
 
+	if format == profileFileFormatDSL {
+		return loadDSLProfileFromFile(path, content)
+	}
+
 	if format == profileFileFormatSchema {
 		return loadSchemaProfileFromFile(path, content)
 	}
@@ -120,6 +125,14 @@ func loadProfileFromFile(path string) (Profile, error) {
 	return &externalProfile{config: cfg}, nil
 }
 
+func loadDSLProfileFromFile(path string, content []byte) (Profile, error) {
+	schema, err := profiledsl.ParseDSLProfile(content)
+	if err != nil {
+		return nil, fmt.Errorf("parse profile %q: %w", path, err)
+	}
+	return &externalSchemaProfile{schema: schema}, nil
+}
+
 func detectProfileFileFormat(content []byte) (profileFileFormat, error) {
 	var raw map[string]any
 	if err := yaml.Unmarshal(content, &raw); err != nil {
@@ -127,6 +140,8 @@ func detectProfileFileFormat(content []byte) (profileFileFormat, error) {
 	}
 
 	switch {
+	case hasAnyKeys(raw, "required_events", "warning_events", "cas_weights"):
+		return profileFileFormatDSL, nil
 	case hasAnyKeys(raw, "version", "workflow_class", "required", "optional"):
 		return profileFileFormatSchema, nil
 	case hasAnyKeys(raw, "display_name", "detect", "obligations"):
@@ -290,6 +305,12 @@ func (p *externalSchemaProfile) BlindSpots() []string {
 
 func (p *externalSchemaProfile) DefaultWeights() map[string]float64 {
 	return copyFloatMap(p.schema.Weights)
+}
+
+// profileSchema exposes the underlying ProfileSchema for CAS-aware callers.
+// It satisfies the profileWithSchema interface defined in the verify package.
+func (p *externalSchemaProfile) profileSchema() profiledsl.ProfileSchema {
+	return p.schema
 }
 
 func obligationMessage(eventType, message string) string {
