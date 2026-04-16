@@ -10,7 +10,7 @@ RUN npm ci
 COPY web/ ./
 RUN npm run build
 
-FROM golang:1.25.0-alpine AS go-builder
+FROM golang:1.24.2-alpine AS go-builder
 WORKDIR /src
 
 COPY go.mod go.sum ./
