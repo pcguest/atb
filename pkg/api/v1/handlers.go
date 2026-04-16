@@ -18,6 +18,7 @@ import (
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/hash"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 const (
@@ -44,6 +45,8 @@ type APIConfig struct {
 	RevealAuthToken  string
 	RevealRateLimit  int
 	RevealRateWindow time.Duration
+	ProfileReport    *ProfileReportSummary // optional; pre-computed at startup via --profile
+	ProfilePath      string                // optional; re-used by POST /api/v1/bundle/verify
 }
 
 // APIServer serves dashboard data from a verified (or failed-verification) bundle snapshot.
@@ -55,6 +58,8 @@ type APIServer struct {
 	revealRateLimit    int
 	revealRateWindow   time.Duration
 	revealRateCounters map[string]revealRateCounter
+	profileReport      *ProfileReportSummary
+	profilePath        string
 	mu                 sync.Mutex
 	rateMu             sync.Mutex
 }
@@ -84,6 +89,8 @@ func NewAPIServer(cfg APIConfig) *APIServer {
 		revealRateLimit:    revealRateLimit,
 		revealRateWindow:   revealRateWindow,
 		revealRateCounters: make(map[string]revealRateCounter),
+		profileReport:      cfg.ProfileReport,
+		profilePath:        cfg.ProfilePath,
 	}
 }
 
@@ -93,6 +100,8 @@ func (s *APIServer) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/bundle/meta", s.handleBundleMeta)
 	mux.HandleFunc("/api/v1/bundle/events", s.handleBundleEvents)
 	mux.HandleFunc("/api/v1/bundle/graph", s.handleBundleGraph)
+	mux.HandleFunc("/api/v1/bundle/profile", s.handleBundleProfile)
+	mux.HandleFunc("/api/v1/bundle/verify", s.handleBundleVerify)
 	mux.HandleFunc("/api/v1/privacy/reveal", s.handlePrivacyReveal)
 }
 
@@ -352,6 +361,113 @@ func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, BundleGraphResponse{Nodes: nodes, Edges: edges})
+}
+
+// @OpenAPI
+// @Summary      Get profile and CAS summary
+// @Description  Returns the stored profile evaluation and CAS outcome, or 204 if not yet computed.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  ProfileReportSummary
+// @Success      204  "No profile report available; run POST /api/v1/bundle/verify first"
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/bundle/profile [get]
+func (s *APIServer) handleBundleProfile(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireVerified(w) {
+		return
+	}
+
+	s.mu.Lock()
+	report := s.profileReport
+	s.mu.Unlock()
+
+	if report == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
+}
+
+// @OpenAPI
+// @Summary      Run (or re-run) profile verification
+// @Description  Evaluates the bundle against the configured profile and stores the result.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  ProfileReportSummary
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Failure      422  {object}  APIError
+// @Router       /api/v1/bundle/verify [post]
+func (s *APIServer) handleBundleVerify(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireVerified(w) {
+		return
+	}
+
+	// Snapshot the bundle pointer under the lock so we don't race with reveal appends.
+	s.mu.Lock()
+	bSnap := s.b
+	s.mu.Unlock()
+
+	var verifyReport verifypkg.Report
+	if s.profilePath != "" {
+		profile, err := verifypkg.ResolveProfile(s.profilePath)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, APIError{Error: fmt.Sprintf("load profile: %v", err)})
+			return
+		}
+		verifyReport = verifypkg.VerifyWithProfile(bSnap, s.bundlePath, profile)
+	} else {
+		verifyReport = verifypkg.Verify(bSnap, s.bundlePath, "")
+	}
+
+	summary := verifyReportToSummary(verifyReport)
+	s.mu.Lock()
+	s.profileReport = &summary
+	s.mu.Unlock()
+
+	writeJSON(w, http.StatusOK, summary)
+}
+
+// verifyReportToSummary converts an internal verify.Report to the API summary shape.
+func verifyReportToSummary(r verifypkg.Report) ProfileReportSummary {
+	summary := ProfileReportSummary{
+		ChainValid:       r.Integrity.ChainValid,
+		AnchorStatus:     r.Anchoring.Status,
+		CriticalFailures: []FailureDTO{},
+		Warnings:         []string{},
+	}
+
+	if r.CAS != nil {
+		summary.CASScore = r.CAS.Overall
+		summary.CASGrade = r.CAS.Grade
+		if len(r.CAS.SubScores) > 0 {
+			summary.SubScores = make(map[string]float64, len(r.CAS.SubScores))
+			for k, v := range r.CAS.SubScores {
+				summary.SubScores[k] = v
+			}
+		}
+	}
+
+	if len(r.Profiles) > 0 {
+		p := r.Profiles[0]
+		summary.ProfileID = p.ProfileID
+		summary.Pass = r.Integrity.ChainValid && p.Pass
+		for _, f := range p.CriticalFailures {
+			summary.CriticalFailures = append(summary.CriticalFailures, FailureDTO{Kind: f.Kind, Detail: f.Detail})
+		}
+		summary.Warnings = append([]string{}, p.RequiredWarnings...)
+	}
+
+	return summary
 }
 
 // @OpenAPI

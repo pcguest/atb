@@ -83,3 +83,24 @@ type APIError struct {
 	Error      string `json:"error"`
 	RetryAfter int    `json:"retry_after,omitempty"`
 }
+
+// FailureDTO is a sanitized obligation-failure entry for API responses.
+type FailureDTO struct {
+	Kind   string `json:"kind"`
+	Detail string `json:"detail"`
+}
+
+// ProfileReportSummary contains the profile evaluation and CAS outcome for the viewer.
+// GET /api/v1/bundle/profile returns 204 No Content when no verify report has been computed.
+// POST /api/v1/bundle/verify runs (or re-runs) verify and returns a fresh summary.
+type ProfileReportSummary struct {
+	ProfileID        string             `json:"profile_id"`
+	Pass             bool               `json:"pass"`
+	ChainValid       bool               `json:"chain_valid"`
+	AnchorStatus     string             `json:"anchor_status"`
+	CASScore         float64            `json:"cas_score,omitempty"`
+	CASGrade         string             `json:"cas_grade,omitempty"`
+	SubScores        map[string]float64 `json:"sub_scores,omitempty"`
+	CriticalFailures []FailureDTO       `json:"critical_failures"`
+	Warnings         []string           `json:"warnings"`
+}

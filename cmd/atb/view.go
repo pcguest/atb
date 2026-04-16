@@ -21,6 +21,7 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 	apiv1 "github.com/pcguest/atb/pkg/api/v1"
 )
 
@@ -34,6 +35,7 @@ type viewConfig struct {
 	NoOpen         bool
 	LogReveals     bool
 	UIExperimental bool
+	ProfilePath    string // optional; path to profile file or built-in profile ID
 }
 
 const defaultViewHost = "127.0.0.1"
@@ -56,7 +58,7 @@ func cmdView() {
 		os.Exit(exitSystemError)
 	}
 
-	handler, page, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.UIExperimental)
+	handler, page, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.UIExperimental, cfg.ProfilePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		os.Exit(classifyBundleLoadError(err))
@@ -107,7 +109,7 @@ func cmdView() {
 	fmt.Println("atb view: stopped")
 }
 
-func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (http.Handler, legacyPageData, bool, string, error) {
+func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool, profilePath string) (http.Handler, legacyPageData, bool, string, error) {
 	_ = logReveals // Privacy reveal auditing is always on; flag retained for CLI compatibility.
 
 	b, err := bundle.Load(bundlePath)
@@ -120,6 +122,12 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 		return nil, legacyPageData{}, false, "/", fmt.Errorf("generate privacy reveal auth token: %w", err)
 	}
 
+	// Compute an initial profile report when --profile is given and chain is intact.
+	var profileReport *apiv1.ProfileReportSummary
+	if profilePath != "" && verifyErr == nil {
+		profileReport = buildStartupProfileReport(b, bundlePath, profilePath)
+	}
+
 	page := buildLegacyPageData(b, bundlePath)
 	mux := http.NewServeMux()
 	api := apiv1.NewAPIServer(apiv1.APIConfig{
@@ -127,6 +135,8 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 		Bundle:          b,
 		VerifyErr:       verifyErr,
 		RevealAuthToken: revealAuthToken,
+		ProfileReport:   profileReport,
+		ProfilePath:     profilePath,
 	})
 	api.Register(mux)
 	if verifyErr != nil {
@@ -155,7 +165,7 @@ func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool) (h
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental] [--profile <id-or-path>]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -220,6 +230,14 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			cfg.LogReveals = true
 		case arg == "--ui-experimental":
 			cfg.UIExperimental = true
+		case arg == "--profile":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --profile")
+			}
+			i++
+			cfg.ProfilePath = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--profile="):
+			cfg.ProfilePath = strings.TrimSpace(strings.TrimPrefix(arg, "--profile="))
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -328,6 +346,58 @@ func isAddrInUseError(err error) bool {
 	msg := strings.ToLower(err.Error())
 	return strings.Contains(msg, "address already in use") ||
 		strings.Contains(msg, "only one usage of each socket address")
+}
+
+// buildStartupProfileReport runs verify against the given profile and returns a summary for the API.
+// Errors loading the profile are silently swallowed; callers should treat a nil return as
+// "no report yet" rather than a hard failure — the user can re-trigger via POST /api/v1/bundle/verify.
+func buildStartupProfileReport(b *bundle.Bundle, bundlePath, profilePath string) *apiv1.ProfileReportSummary {
+	var report verifypkg.Report
+	if isVerifyProfilePath(profilePath) {
+		profile, err := verifypkg.ResolveProfile(profilePath)
+		if err != nil {
+			return nil
+		}
+		report = verifypkg.VerifyWithProfile(b, bundlePath, profile)
+	} else {
+		profile := verifypkg.ProfileByID(profilePath)
+		if profile == nil {
+			return nil
+		}
+		report = verifypkg.VerifyWithProfile(b, bundlePath, profile)
+	}
+	summary := viewVerifyReportToSummary(report)
+	return &summary
+}
+
+// viewVerifyReportToSummary converts a verify.Report to the API summary shape.
+func viewVerifyReportToSummary(r verifypkg.Report) apiv1.ProfileReportSummary {
+	summary := apiv1.ProfileReportSummary{
+		ChainValid:       r.Integrity.ChainValid,
+		AnchorStatus:     r.Anchoring.Status,
+		CriticalFailures: []apiv1.FailureDTO{},
+		Warnings:         []string{},
+	}
+	if r.CAS != nil {
+		summary.CASScore = r.CAS.Overall
+		summary.CASGrade = r.CAS.Grade
+		if len(r.CAS.SubScores) > 0 {
+			summary.SubScores = make(map[string]float64, len(r.CAS.SubScores))
+			for k, v := range r.CAS.SubScores {
+				summary.SubScores[k] = v
+			}
+		}
+	}
+	if len(r.Profiles) > 0 {
+		p := r.Profiles[0]
+		summary.ProfileID = p.ProfileID
+		summary.Pass = r.Integrity.ChainValid && p.Pass
+		for _, f := range p.CriticalFailures {
+			summary.CriticalFailures = append(summary.CriticalFailures, apiv1.FailureDTO{Kind: f.Kind, Detail: f.Detail})
+		}
+		summary.Warnings = append([]string{}, p.RequiredWarnings...)
+	}
+	return summary
 }
 
 func embeddedDashboardFS() (http.FileSystem, bool) {

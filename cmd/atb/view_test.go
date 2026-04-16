@@ -107,7 +107,7 @@ func TestBuildViewHandlerServesTimeline(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false)
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false, "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false)
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false, "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -211,7 +211,7 @@ func TestBuildViewServerTamperModeDisablesExperimentalDashboard(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true)
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true, "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -361,7 +361,7 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, false)
+	handler, _, _, _, err := buildViewServer(bundlePath, true, false, "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -427,7 +427,7 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, false)
+	handler, _, _, _, err := buildViewServer(bundlePath, true, false, "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -452,7 +452,7 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, false, true)
+	handler, _, _, _, err := buildViewServer(bundlePath, false, true, "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -482,7 +482,7 @@ func TestBuildViewServerUIExperimentalServesViewRoute(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true)
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true, "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
