@@ -55,7 +55,7 @@ export function TrustScoreCard({ loading, breakdown }: TrustScoreCardProps) {
     return (
       <Card
         data-testid="trust-score-card"
-        style={{ backgroundColor: "hsl(220 40% 12%)" }}
+        style={{ backgroundColor: "hsl(220, 40%, 12%)" }}
       >
         <CardHeader>
           <CardTitle>Trust Score</CardTitle>
@@ -84,10 +84,12 @@ export function TrustScoreCard({ loading, breakdown }: TrustScoreCardProps) {
       initial={shouldReduceMotion ? false : { opacity: 0, y: 8 }}
       animate={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
+      style={{ backgroundColor: "hsl(220, 40%, 12%)" }}
+      className="rounded-xl"
     >
       <Card
         data-testid="trust-score-card"
-        style={{ backgroundColor: "hsl(220 40% 12%)" }}
+        style={{ backgroundColor: "hsl(220, 40%, 12%)" }}
       >
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
