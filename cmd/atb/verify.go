@@ -79,16 +79,16 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 				printVerifyUsage(stderr)
 				return exitUserError
 			}
-			} else {
-				profile = verifypkg.ProfileByID(cfg.ProfileID)
-				if profile == nil && !strings.HasPrefix(cfg.ProfileID, "atb.profile.") {
-					profile = verifypkg.ProfileByID("atb.profile." + cfg.ProfileID)
-				}
-				if profile == nil {
-					fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
-					return exitIntegrityFailure
-				}
+		} else {
+			profile = verifypkg.ProfileByID(cfg.ProfileID)
+			if profile == nil && !strings.HasPrefix(cfg.ProfileID, "atb.profile.") {
+				profile = verifypkg.ProfileByID("atb.profile." + cfg.ProfileID)
 			}
+			if profile == nil {
+				fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
+				return exitIntegrityFailure
+			}
+		}
 		resolvedProfileID = profile.ID()
 	}
 
@@ -421,9 +421,9 @@ func renderVerifyText(w io.Writer, report verifypkg.Report) {
 
 // remoteVerifyReport wraps the normal VerifierReport with S3-specific fields for --remote.
 type remoteVerifyReport struct {
-	RemoteURI    string `json:"remote_uri"`
-	KeyHashOK    bool   `json:"key_hash_ok"`
-	KeyHashWarn  string `json:"key_hash_warn,omitempty"`
+	RemoteURI   string `json:"remote_uri"`
+	KeyHashOK   bool   `json:"key_hash_ok"`
+	KeyHashWarn string `json:"key_hash_warn,omitempty"`
 	verifypkg.VerifierReport
 }
 
