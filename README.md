@@ -1,3 +1,23 @@
+<!--
+README above-the-fold design notes:
+
+- Today it emphasises: local-first tamper-evident bundles, SHA-256/RFC 8785/RFC 3161 primitives,
+  six obligation profiles with CAS, and multi-surface SDK support.
+- Sections/phrases strong enough to keep: the one-sentence description, the integrity primitive
+  note, the obligation profiles table, the trust model caveat, the Why ATB contrast with
+  observability tools, and the Quickstart.
+- Sections/phrases to replace or move down: the bare "Surfaces:" line (replace with a bullet in
+  Why ATB that names all surfaces including atb view and atb push); the Why ATB prose paragraph
+  (convert to bullets to match the rest of the README style). Also add a "What ATB does not do"
+  block and a Demo hooks stub near the top.
+- For launch it should emphasise:
+  - Local-first, tamper-evident bundles; no backend required by default.
+  - Conservative cryptography: SHA-256, RFC 8785, RFC 3161; explicit trust model.
+  - Six schema-locked profiles and CAS as a local completeness signal, not compliance.
+  - Multi-surface support: CLI, Python/TypeScript SDKs, MCP bridge, LangChain, PageIndex,
+    atb view (with profile/CAS summary panel), atb push (S3/WORM export).
+-->
+
 # ATB
 
 Records workflow events as tamper-evident, SHA-256 hash-chained bundles on local disk. No backend required.
@@ -9,6 +29,39 @@ Current release: [`v1.6.0`](CHANGELOG.md)
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
 anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it
 does not prove recording completeness, model correctness, or that risk controls were applied.
+
+## Why ATB
+
+- **Local-first, no hosted service.** Bundles are portable `.atb` files on disk. The core
+  `init → append → snapshot → verify` workflow requires no network access and routes no payload
+  data to third-party infrastructure.
+- **Conservative, explicit cryptographic primitives.** SHA-256 over RFC 8785 canonical JSON for
+  hash chaining; optional RFC 3161 TSA anchoring for third-party timestamp commitments.
+- **Six schema-locked obligation profiles with CAS.** Profiles define required event sets for
+  concrete workflows (RAG answers, privileged tools, policy decisions, human overrides, data
+  exports, background jobs). CAS is a profile-scoped completeness signal for recorded evidence,
+  not a compliance determination.
+- **Multi-surface instrumentation.** Go CLI · Python SDK · TypeScript SDK · MCP stdio bridge ·
+  LangChain callbacks · PageIndex retriever · `atb view` local dashboard · `atb push` WORM export.
+- **Opt-in WORM export.** `atb push` uploads bundles to S3-compatible stores with optional Object
+  Lock headers. This is a complement to the local guarantee, not a replacement.
+
+### What ATB does not do
+
+- Does not stream events to a hosted backend or observability pipeline.
+- Does not evaluate model correctness, risk controls, or causal completeness beyond what is
+  recorded in the bundle.
+- Does not produce an external audit opinion; CAS is a local score over recorded evidence only.
+- Does not replace filesystem integrity monitoring or WORM storage for regulated deployments where
+  bundle-replacement attacks are in scope.
+
+## Demo
+
+See `docs/launch/assets/atb-verify-demo.gif` for a short terminal walkthrough (bundle init,
+events appended, `atb verify` success, manual tamper + failing verify, and `atb view` surfacing
+the profile/CAS summary panel). See `docs/launch/assets/atb-verify-report.png` for an example
+verify report summary showing profile ID, pass/fail, CAS score/grade, chain/anchor status, and
+critical obligation failures.
 
 ## Obligation profiles
 
@@ -23,16 +76,7 @@ Six schema-locked profiles define the required event sets for concrete workflows
 | `atb.profile.background_automation` | An unattended automated task running without human-in-the-loop |
 | `atb.profile.data_export` | A data export with recipient, data set, and recorded legal basis |
 
-Surfaces: Go CLI · Python SDK · TypeScript SDK · MCP stdio bridge · PageIndex retriever integration.
-
-## Why ATB
-
-Observability tools stream events to a hosted backend for debugging running systems. ATB does the
-opposite: it writes a portable `.atb` bundle file to local disk under your control, verifiable
-cryptographically on any machine without a network connection. There is no telemetry by default,
-no third-party routing of payload data, and no hosted service to trust. The six schema-locked
-profiles enforce required event sets — an auditor reading the bundle can confirm exactly which
-fields were present. For compliance control mappings, see [`docs/compliance/`](docs/compliance/).
+For compliance control mappings see [`docs/compliance/`](docs/compliance/).
 
 ## Quickstart
 
@@ -80,8 +124,10 @@ go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
 > Note: `go install` from the module proxy builds without the embedded web UI. For `atb view` and `atb view --ui-experimental`, build from source: `go build ./cmd/atb`
+>
+> Security note: `atb view` binds to `127.0.0.1` by default and has no authentication layer. It is intended for single-user local inspection only.
 
-Requires Go 1.24.0+. Python and TypeScript SDKs are available for
+Requires Go 1.25.0+. Python and TypeScript SDKs are available for
 in-process instrumentation. See the [Python SDK](sdk/python/README.md)
 and [TypeScript SDK](sdk/typescript/README.md).
 

@@ -1,6 +1,6 @@
 module github.com/pcguest/atb
 
-go 1.24.13
+go 1.25.9
 
 require (
 	golang.org/x/crypto v0.48.0

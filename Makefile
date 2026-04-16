@@ -1,6 +1,6 @@
 .PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz
 
-GOTOOLCHAIN ?= go1.24.13
+GOTOOLCHAIN ?= go1.25.9
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
