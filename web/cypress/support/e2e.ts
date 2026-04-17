@@ -112,6 +112,8 @@ Cypress.Commands.add("waitForDashboard", () => {
   }
   cy.get('[data-testid="trust-score-card"]', { timeout: 10000 }).should("be.visible");
   cy.get('[data-testid="bundle-meta-panel"]', { timeout: 10000 }).should("be.visible");
+  cy.get('[data-testid="trust-score-value"]', { timeout: 10000 })
+    .should("not.contain.text", "TEST-MODE");
 });
 
 type A11yContext = Parameters<typeof cy.checkA11y>[0];
@@ -131,12 +133,11 @@ Cypress.Commands.add("checkA11yStrict", (context?: A11yContext) => {
     },
     (violations) => {
       violations.forEach((violation) => {
-        Cypress.log({
-          name: "axe",
-          message: `${violation.id}: ${violation.help} :: ${violation.nodes
-            .map((node) => node.target.join(", "))
-            .join(" | ")}`,
-        });
+        const msg = `${violation.id}: ${violation.help} :: ${violation.nodes
+          .map((node) => node.target.join(", "))
+          .join(" | ")}`;
+        Cypress.log({ name: "axe", message: msg });
+        console.error("[axe]", msg);
       });
     },
   );
