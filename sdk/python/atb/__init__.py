@@ -79,7 +79,7 @@ except ModuleNotFoundError as exc:
             "Install sdk/python dependencies to use decrypt_bundle()."
         ) from _encrypt_import_error
 
-__version__ = "1.7.2"
+__version__ = "1.7.3"
 __all__ = [
     "Bundle",
     "event_types",
