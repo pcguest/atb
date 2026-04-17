@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - (no changes yet)
 
+## [v1.7.3] - 2026-04-17
+
+### Fixed
+- Trust Score dashboard card: background colour corrected to comma-separated
+  `hsl(H, S%, L%)` syntax on the `motion.div` wrapper and inner `Card` (loaded
+  state) and on the loading-state `Card`; resolves axe `color-contrast`
+  violations caused by space-separated HSL being rejected by some browsers.
+- Accessibility test (`cypress/support/e2e.ts`): `waitForDashboard` now waits
+  for the trust-score value element to leave the loading state before running
+  axe, ensuring the audit targets rendered content rather than skeletons;
+  violation details are now written to stderr via `console.error` so they
+  surface in headless CI logs.
+
 ## [v1.7.2] - 2026-04-16
 
 ### Added
