@@ -2,7 +2,7 @@
 
 ## Stable baseline
 
-v1.6.0 is the current stable release. The following are non-negotiable
+v1.7.3 is the current stable release. The following are non-negotiable
 invariants that all forward work must preserve:
 
 - **Six schema-locked obligation profiles** — `atb.profile.rag_answer`,
@@ -21,7 +21,7 @@ invariants that all forward work must preserve:
 
 ### v1.7 — LangChain native callback integration
 
-**Status: Planned**
+**Status: Shipped in v1.7.x**
 
 - `ATBCallbackHandler` for LangChain (Python) attaches to any LLM,
   Chain, or Agent and emits `ai.llm.call`, `ai.tool.exec`, and
@@ -29,7 +29,7 @@ invariants that all forward work must preserve:
 - Zero-config mode: `ATBCallbackHandler()` with no arguments uses the
   active bundle in the current working directory.
 - See [`docs/integrations/langchain.md`](./integrations/langchain.md)
-  for the current integration guide.
+  for the integration guide.
 
 ### v1.8 — Enterprise hardening
 

@@ -10,7 +10,7 @@ In ATB, signing provides tamper evidence. It proves that a bundle, or a
 specific policy event, was produced by a holder of a private key and was
 not modified afterwards. It is not an access-control mechanism.
 
-ATB v1.5.0 supports:
+ATB supports:
 
 - Ed25519 bundle signing for whole-bundle state attestation.
 - Policy event signing for `ai.policy.decision` events.

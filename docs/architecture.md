@@ -25,4 +25,4 @@ Integrity is verified at the file boundary on read: `atb verify` runs the hash c
 
 Export and push operations seal the bundle before writing. A bundle that fails verification cannot be exported or pushed; the operator must address the integrity issue first.
 
-The `Push` path (`atb push s3://bucket/prefix`) is implemented as of v1.5.1. It is opt-in and explicit; bundles are not pushed automatically. See [`docs/integrations/worm-s3.md`](./integrations/worm-s3.md) for usage.
+The `Push` path (`atb push s3://bucket/prefix`) is implemented. It is opt-in and explicit; bundles are not pushed automatically. See [`docs/integrations/worm-s3.md`](./integrations/worm-s3.md) for usage.

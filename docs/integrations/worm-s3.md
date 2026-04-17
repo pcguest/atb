@@ -1,6 +1,6 @@
 # WORM/S3 export
 
-> **Status: In Progress — v1.6. `atb push` can upload a bundle to an S3 or S3-compatible endpoint.**
+> `atb push` uploads a bundle to an S3 or S3-compatible endpoint.
 > Full behaviour and limits are specified in [`docs/spec/bundle-push.md`](../spec/bundle-push.md).
 >
 > **WORM boundary:** ATB requests lock headers for S3 Object Lock, but it does not enforce WORM itself. Enforcement depends entirely on the bucket's Object Lock and retention configuration. If the bucket is not configured correctly, the uploaded bundle is not immutable. For regulated deployments, pair ATB with filesystem integrity monitoring and a correctly configured WORM-capable store.
@@ -76,32 +76,9 @@ Remote verification after push:
 atb verify --remote s3://bucket/prefix/sha256-<hash>.atb
 ```
 
-## Current workaround
-
-Until `atb push` is implemented, use the AWS CLI directly:
-
-```bash
-HASH=$(atb status --hash)
-atb export --format bundle --output /tmp/${HASH}.atb
-
-aws s3 cp /tmp/${HASH}.atb \
-  s3://your-atb-audit-bucket/sha256-${HASH}.atb \
-  --object-lock-mode COMPLIANCE \
-  --object-lock-retain-until-date "2028-01-01T00:00:00Z"
-
-rm /tmp/${HASH}.atb
-```
-
-This achieves content-addressed WORM upload. Record a snapshot before export to mark the bundle state:
-
-```bash
-atb snapshot pre_worm_export
-atb export --format bundle --output /tmp/${HASH}.atb
-```
-
 ## Other WORM-capable targets
 
-The v1.6 plan will evaluate Azure Blob Storage immutable storage and Google Cloud Storage object lock as equivalent targets. Only the S3 target is committed for v1.6. Azure and GCS support depend on demand and implementation capacity.
+Azure Blob Storage immutable storage and Google Cloud Storage object lock are under consideration as equivalent targets. Azure and GCS support depend on demand and implementation capacity.
 
 | Target | Object lock mechanism | Lock mode equivalent |
 | --- | --- | --- |

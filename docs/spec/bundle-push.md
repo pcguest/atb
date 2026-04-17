@@ -1,6 +1,5 @@
 # Bundle push — specification
 
-> **Status: In Progress — v1.6. Minimal S3 PUT support is implemented; release hardening and CI rollout remain pending.**
 > See `cmd/atb/push.go` and `internal/push/`.
 >
 > **WORM boundary:** ATB requests object-lock headers when `--lock-until` is used, but it does not enforce WORM at the storage layer. Enforcement depends entirely on S3 Object Lock and bucket retention configuration outside ATB's control. If the bucket is not configured correctly, the upload is not immutable. For regulated deployments, pair ATB with filesystem integrity monitoring and a correctly configured WORM-capable store.
@@ -23,7 +22,7 @@ atb push <s3://bucket/prefix> [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry
 
 | Argument | Description |
 | --- | --- |
-| `s3://bucket/prefix` | Destination URI. Only the `s3://` scheme is committed for v1.6. Azure (`az://`) and GCS (`gcs://`) are under consideration for later milestones. |
+| `s3://bucket/prefix` | Destination URI. Only the `s3://` scheme is currently supported. Azure (`az://`) and GCS (`gcs://`) are under consideration for later milestones. |
 
 ### Flags
 
@@ -111,7 +110,7 @@ After push, a stored bundle can be verified without downloading it in full:
 atb verify --remote s3://bucket/prefix/sha256-<hash>.atb
 ```
 
-The hash embedded in the object key is checked against the on-the-fly computed head hash during the streaming verify pass. `--remote` is planned as part of the `atb push` implementation milestone.
+The hash embedded in the object key is checked against the on-the-fly computed head hash during the streaming verify pass.
 
 ## AWS credentials
 
@@ -121,26 +120,7 @@ For CI/CD, use the secrets `ATB_WORM_S3_ACCESS_KEY_ID` and `ATB_WORM_S3_SECRET_A
 
 Minimum IAM permissions: `s3:PutObject`, `s3:PutObjectRetention`.
 
-## Current workaround
-
-Until `atb push` is implemented, the equivalent operation using the AWS CLI is:
-
-```bash
-HASH=$(atb status --hash)
-atb snapshot pre_worm_export
-atb export --format bundle --output /tmp/sha256-${HASH}.atb
-
-aws s3 cp /tmp/sha256-${HASH}.atb \
-  s3://your-audit-bucket/atb/sha256-${HASH}.atb \
-  --object-lock-mode COMPLIANCE \
-  --object-lock-retain-until-date "2028-01-01T00:00:00Z"
-
-rm /tmp/sha256-${HASH}.atb
-```
-
-The `atb snapshot pre_worm_export` call marks the bundle state before export.
-
-## Other WORM-capable targets (post-v1.6 consideration)
+## Other WORM-capable targets
 
 | Target | Object lock mechanism | Mode |
 | --- | --- | --- |
@@ -148,4 +128,4 @@ The `atb snapshot pre_worm_export` call marks the bundle state before export.
 | Azure Blob | Immutable storage | Legal Hold or Time-Based Retention |
 | Google Cloud Storage | Object retention locks | Retention policy or object hold |
 
-Only the S3 target is committed for v1.6. Azure (`az://`) and GCS (`gcs://`) support depends on demand and implementation capacity.
+Only the S3 target is currently supported. Azure (`az://`) and GCS (`gcs://`) support depends on demand and implementation capacity.

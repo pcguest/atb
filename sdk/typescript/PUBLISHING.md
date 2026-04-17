@@ -12,7 +12,7 @@ npm pack --dry-run
 ## Publish
 
 ```bash
-npm publish --access public --tag beta
+npm publish --access public
 ```
 
 The package metadata points back to the main repository at <https://github.com/pcguest/atb>.

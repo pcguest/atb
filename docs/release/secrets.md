@@ -15,13 +15,13 @@ file, or in commit history.
   package on npm. Required for `sdk/typescript` publish step in the
   release workflow.
 
-- `PYPI_TOKEN` — Publish access token for the `atb` Python package on
-  PyPI. Required for `sdk/python` publish step in the release workflow.
+PyPI publishing uses GitHub OIDC trusted publishing. No `PYPI_TOKEN`
+repository secret is required.
 
-## Planned secrets (v1.6 WORM export)
+## WORM/S3 export secrets
 
-These will be needed when `atb push` S3 support ships. They must be
-registered in CI before the v1.6 release workflow is enabled.
+These are required when using `atb push` to upload bundles to an
+S3-compatible WORM store from CI.
 
 - `ATB_WORM_S3_ACCESS_KEY_ID` — AWS access key ID for the IAM user or
   role that writes sealed bundles to the WORM-configured S3 bucket.

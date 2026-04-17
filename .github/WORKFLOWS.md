@@ -8,6 +8,7 @@
 | docker-publish.yml | tag push, manual | Build and publish Docker image |
 | gold-release.yml | tag push | Gold release validation gate |
 | ops.yml | schedule/push/PR/issues | Docs deploy, registry health, feedback digest, labeling (conditional) |
+| version-gate.yml | push/PR on version files | Cross-file version parity check via `check-versions.sh` |
 
 ## Adding a New Job
 
