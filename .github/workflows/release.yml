@@ -214,11 +214,49 @@ jobs:
           npm install artifacts/npm/*.tgz
           node -e "require('@pcguest/atb-sdk'); console.log('npm package load ok')"
 
+  # Layer C: Gold release gate — must pass before any publication step.
+  gate-gold:
+    name: Gold Release Gate (Layer C)
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.9"
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          cd web && npm ci
+          cd ../sdk/typescript && npm ci
+
+      - name: Build web assets
+        run: cd web && npm run build
+
+      - name: Run gold release gate
+        run: make gate-gold-release
+
+      - name: Upload gate artefacts
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: gate-gold-artefacts
+          path: |
+            coverage.out
+            web/lhci-reports/
+            web/cypress/videos/
+
   # Layer E: distribute non-Docker release artifacts only after validation, build, and verification have passed.
   publish:
     name: Publish Verified Artifacts (Layer E)
     runs-on: ubuntu-latest
-    needs: verify
+    needs: [verify, gate-gold]
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
