@@ -26,12 +26,16 @@ check() {
 PY_PYPROJECT="$(grep -E '^version\s*=' "$ROOT_DIR/sdk/python/pyproject.toml" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 PY_INIT="$(grep -E '__version__\s*=' "$ROOT_DIR/sdk/python/atb/__init__.py" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 TS_VERSION="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package.json'))['version'])")"
+TS_LOCK_ROOT="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package-lock.json'))['version'])")"
+TS_LOCK_PKG="$(python3 -c "import json; d=json.load(open('$ROOT_DIR/sdk/typescript/package-lock.json')); print(d['packages']['']['version'])")"
 WEB_VERSION="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/web/package.json'))['version'])")"
 
-check "sdk/python/pyproject.toml"   "$PY_PYPROJECT"
-check "sdk/python/atb/__init__.py"  "$PY_INIT"
-check "sdk/typescript/package.json" "$TS_VERSION"
-check "web/package.json"            "$WEB_VERSION"
+check "sdk/python/pyproject.toml"                          "$PY_PYPROJECT"
+check "sdk/python/atb/__init__.py"                         "$PY_INIT"
+check "sdk/typescript/package.json"                        "$TS_VERSION"
+check "sdk/typescript/package-lock.json (root)"            "$TS_LOCK_ROOT"
+check "sdk/typescript/package-lock.json (packages[\"\"])" "$TS_LOCK_PKG"
+check "web/package.json"                                   "$WEB_VERSION"
 
 # Skip the tag equality check when ATB_SKIP_TAG_CHECK=1 (e.g. feature branches
 # that have not yet been tagged). Cross-file version agreement is always checked.
