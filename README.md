@@ -127,7 +127,7 @@ go install github.com/pcguest/atb/cmd/atb@latest
 >
 > Security note: `atb view` binds to `127.0.0.1` by default and has no authentication layer. It is intended for single-user local inspection only.
 
-Requires Go 1.25.0+. Python and TypeScript SDKs are available for
+Requires Go 1.25.9+. Python and TypeScript SDKs are available for
 in-process instrumentation. See the [Python SDK](sdk/python/README.md)
 and [TypeScript SDK](sdk/typescript/README.md).
 
