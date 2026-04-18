@@ -207,13 +207,17 @@ func runArchive(now time.Time, cfg archiveConfig, out io.Writer) (archiveSummary
 		if err != nil {
 			summary.SkippedErrors++
 			fmt.Fprintf(out, "- skip %s (ledger link failed: %v)\n", sourceDisplay, err)
-			_ = moveFile(destPath, sourcePath)
+			if rerr := moveFile(destPath, sourcePath); rerr != nil {
+				fmt.Fprintf(os.Stderr, "archive: rollback failed for %s: %v\n", sourceDisplay, rerr)
+			}
 			continue
 		}
 		if err := archiveledger.Append(ledgerPath, entry); err != nil {
 			summary.SkippedErrors++
 			fmt.Fprintf(out, "- skip %s (ledger append failed: %v)\n", sourceDisplay, err)
-			_ = moveFile(destPath, sourcePath)
+			if rerr := moveFile(destPath, sourcePath); rerr != nil {
+				fmt.Fprintf(os.Stderr, "archive: rollback failed for %s: %v\n", sourceDisplay, rerr)
+			}
 			continue
 		}
 		ledgerEntries = append(ledgerEntries, entry)

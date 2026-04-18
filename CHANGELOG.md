@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   introduced when `waitForDashboard` began checking that `trust-score-value`
   leaves the loading (TEST-MODE) state.
 
+### Notes
+- `cmd/atb/main.go` carries ~700 lines of init and append command logic
+  that would more naturally live in dedicated files (e.g. `init.go`,
+  `append.go`). This is structural debt, not a bug; no behaviour change
+  until a deliberate refactor is scoped.
+
 ## [v1.7.3] - 2026-04-17
 
 ### Fixed

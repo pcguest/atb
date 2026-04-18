@@ -84,7 +84,7 @@
     "type": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
       "description": "Dot-namespaced event type identifier. Reserved system types include atb.bundle.manifest and atb.bundle.anchor."
     },
     "hash_algo": {
