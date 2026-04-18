@@ -31,7 +31,7 @@ dependencies = [
 atb = "atb_cli_stub:main"
 
 [project.optional-dependencies]
-langchain = ["langchain>=0.1.0", "langchain-core>=0.2.0"]
+langchain = ["langchain>=0.3.28", "langchain-core>=0.2.0"]
 llamaindex = ["llama-index>=0.10.0"]
 dev = ["pytest>=8.4.2", "black", "mypy", "ruff"]
 
