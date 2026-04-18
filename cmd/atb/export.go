@@ -1000,7 +1000,7 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 	return base, nil
 }
 
-func finalizeExport(now time.Time, cfg exportConfig, base exportBaseEvidence, extraReports []exportFileEntry) (exportBuildResult, error) {
+func finalizeExport(_ time.Time, cfg exportConfig, base exportBaseEvidence, extraReports []exportFileEntry) (exportBuildResult, error) {
 	result := exportBuildResult{OutputPath: cfg.Output}
 	manifest := base.Manifest
 	files := append([]exportFileEntry{}, base.Files...)
@@ -1046,7 +1046,6 @@ func finalizeExport(now time.Time, cfg exportConfig, base exportBaseEvidence, ex
 	result.BundleFiles = base.BundleFiles
 	result.ChecksumLines = strings.Split(strings.TrimSuffix(checksums, "\n"), "\n")
 	result.OutputPath = cfg.Output
-	_ = now
 	return result, nil
 }
 
@@ -1507,14 +1506,12 @@ func collectROPADataCategories(value interface{}, salt string, set map[string]st
 				} else {
 					set["identity"] = struct{}{}
 				}
-				_ = hashGDPRValue(v, salt)
 			case "sensitive":
 				set["sensitive_attributes"] = struct{}{}
 			case "metadata":
 				set["usage_metrics"] = struct{}{}
 			case "third_party":
 				set["usage_metrics"] = struct{}{}
-				_ = hashGDPRValue(v, salt)
 			default:
 				set["usage_metrics"] = struct{}{}
 			}
