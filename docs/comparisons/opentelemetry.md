@@ -2,7 +2,7 @@
 
 ## What they share
 
-Both ATB and OpenTelemetry capture structured event data from application workflows. Both support trace context propagation via W3C Trace Context headers. ATB's `trace_id` and `span_id` fields correlate directly with OTel spans, so the two systems can reference the same workflow execution without duplication.
+Both ATB and OpenTelemetry capture structured event data from application workflows. ATB records W3C Trace Context identifiers (`trace_id`, `span_id`, `parent_span_id`) in bundle events for cross-system correlation; it does not propagate W3C headers itself. ATB's `trace_id` and `span_id` fields correlate directly with OTel spans, so the two systems can reference the same workflow execution without duplication.
 
 ## Where they differ
 
