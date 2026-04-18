@@ -114,3 +114,6 @@ sdk/typescript/dist/
 sdk/typescript/node_modules/
 CLAUDE.md
 .claude/
+
+# Agent tool binaries
+.atb-agent/
