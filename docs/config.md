@@ -15,6 +15,7 @@ ATB core CLI is local-first and does not require environment variables for day-t
 | `atb append` | `<type> <json>` or `--data <json>`, `--actor-id`, `--org-id`, `--workspace-id`, `--sign-policy`, `--dry-run`, `--format text or json` |
 | `atb snapshot` | `<name>`, `--bundle <path>`, `--quiet`, `--dry-run`, `--format text or json` |
 | `atb verify` | optional `bundle_path`, `--bundle <path>`, `--remote s3://bucket/key`, `--profile <id or path>`, `--json`, `--format text or json`, `--dry-run`, `--quiet`, `--trace`, `--with-anchor`, `--with-snapshot-check`, `--roots <pem-file>` |
+| `atb inspect` | optional `bundle_path`, `--bundle <path>`, `--json`, `--seq <n>` |
 | `atb events` | `--json`, `--profile <id>` |
 | `atb trust-report` | optional `bundle_path`, `--format markdown, json, or text`, `--profile <id>` |
 | `atb view` | optional `bundle_path`, `--bundle <path>`, `--host <host>`, `--port <port>`, `--no-open`, `--log-reveals`, `--ui-experimental` |

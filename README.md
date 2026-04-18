@@ -1,23 +1,3 @@
-<!--
-README above-the-fold design notes:
-
-- Today it emphasises: local-first tamper-evident bundles, SHA-256/RFC 8785/RFC 3161 primitives,
-  six obligation profiles with CAS, and multi-surface SDK support.
-- Sections/phrases strong enough to keep: the one-sentence description, the integrity primitive
-  note, the obligation profiles table, the trust model caveat, the Why ATB contrast with
-  observability tools, and the Quickstart.
-- Sections/phrases to replace or move down: the bare "Surfaces:" line (replace with a bullet in
-  Why ATB that names all surfaces including atb view and atb push); the Why ATB prose paragraph
-  (convert to bullets to match the rest of the README style). Also add a "What ATB does not do"
-  block and a Demo hooks stub near the top.
-- For launch it should emphasise:
-  - Local-first, tamper-evident bundles; no backend required by default.
-  - Conservative cryptography: SHA-256, RFC 8785, RFC 3161; explicit trust model.
-  - Six schema-locked profiles and CAS as a local completeness signal, not compliance.
-  - Multi-surface support: CLI, Python/TypeScript SDKs, MCP bridge, LangChain, PageIndex,
-    atb view (with profile/CAS summary panel), atb push (S3/WORM export).
--->
-
 # ATB
 
 Records workflow events as tamper-evident, SHA-256 hash-chained bundles on local disk. No backend required.
@@ -54,14 +34,6 @@ does not prove recording completeness, model correctness, or that risk controls 
 - Does not produce an external audit opinion; CAS is a local score over recorded evidence only.
 - Does not replace filesystem integrity monitoring or WORM storage for regulated deployments where
   bundle-replacement attacks are in scope.
-
-## Demo
-
-See `docs/launch/assets/atb-verify-demo.gif` for a short terminal walkthrough (bundle init,
-events appended, `atb verify` success, manual tamper + failing verify, and `atb view` surfacing
-the profile/CAS summary panel). See `docs/launch/assets/atb-verify-report.png` for an example
-verify report summary showing profile ID, pass/fail, CAS score/grade, chain/anchor status, and
-critical obligation failures.
 
 ## Obligation profiles
 
@@ -273,6 +245,7 @@ alongside the rest of the workflow.
 - [Compliance Export](docs/compliance/export.md)
 - [EU AI Act Mapping](docs/compliance/eu-ai-act.md)
 - [SIEM and GRC Integration](docs/integrations/siem-grc.md)
+- [CLI Flag Reference](docs/config.md)
 - [Changelog](CHANGELOG.md)
 
 ## Attribution
