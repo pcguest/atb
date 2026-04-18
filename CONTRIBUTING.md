@@ -72,15 +72,35 @@ fields do not require this notice.
 
 ## Release process
 
-1. Run `./scripts/release-check.sh`
-2. Confirm version parity across `cmd/atb/main.go`,
-   `sdk/python/pyproject.toml`, `sdk/python/atb/__init__.py`,
-   `sdk/typescript/package.json`, `sdk/typescript/package-lock.json`,
-   `web/package.json`, `web/package-lock.json`, `README.md`, and any
-   release metadata that carries the current version string
-3. Tag and push with
+Two scripts are involved:
+
+- `scripts/release-check.sh` — full preflight suite: Go tests,
+  TypeScript build and tests, Python tests and package build, web
+  dashboard build, installed binary smoke gate, and Docker smoke build.
+  Run this before tagging.
+- `scripts/check-versions.sh` — targeted version-string agreement check
+  across the seven canonical locations (see below). Run with
+  `ATB_SKIP_TAG_CHECK=1` on a feature branch before the tag exists; run
+  without the flag after tagging to confirm the tag matches. This check
+  also runs in CI via the `version-gate.yml` workflow on every push and
+  pull request.
+
+Steps:
+
+1. Bump the version constant in `cmd/atb/main.go` (source of truth).
+2. Update the remaining six locations to match:
+   - `sdk/python/pyproject.toml`
+   - `sdk/python/atb/__init__.py`
+   - `sdk/typescript/package.json`
+   - `sdk/typescript/package-lock.json` (both the root `version` field
+     and the `packages[""].version` field)
+   - `web/package.json`
+3. Run `ATB_SKIP_TAG_CHECK=1 bash scripts/check-versions.sh` — must
+   print `ok: all version strings agree`.
+4. Run `./scripts/release-check.sh` — all seven steps must pass.
+5. Tag and push:
    `git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`
-4. Monitor the `Release` workflow in GitHub Actions
+6. Monitor the `Release` workflow in GitHub Actions.
 
 ## Commit history
 
