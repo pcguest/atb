@@ -5,21 +5,20 @@ All notable changes to ATB will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.7.3] - 2026-04-18
+
+### Added
+- Added a GitHub CodeQL static analysis workflow for Go on pushes and pull requests to `main`, plus a weekly scheduled scan.
+
+### Changed
+- Bumped `golang.org/x/crypto` to `v0.50.0`.
+- Bumped `actions/setup-python` from `v5.6.0` to `v6.2.0`.
+- Updated the `/web` dependency group: `next` to `16.2.3`, `axios` to `1.15.0`, `basic-ftp` to `5.3.0`, `follow-redirects` to `1.16.0`, `lodash` to `4.18.1`, and `vite` to `7.3.2`.
+- Updated `llama-index` in `sdk/python` to `>=0.14.16`.
+- Added `.atb-agent/` to `.gitignore` to prevent local agent tool binaries from being committed accidentally.
 
 ### Fixed
-- Static Cypress runner now passes `--env MOCK_API=true` so the dashboard
-  reaches loaded state before assertions run; fixes gold-gate E2E failure
-  introduced when `waitForDashboard` began checking that `trust-score-value`
-  leaves the loading (TEST-MODE) state.
-
-### Notes
-- `cmd/atb/main.go` carries ~700 lines of init and append command logic
-  that would more naturally live in dedicated files (e.g. `init.go`,
-  `append.go`). This is structural debt, not a bug; no behaviour change
-  until a deliberate refactor is scoped.
-
-## [v1.7.3] - 2026-04-17
+- Static Cypress runner now passes `--env MOCK_API=true` so the dashboard reaches loaded state before assertions run; fixes the gold release gate E2E failure introduced when `waitForDashboard` began checking that `trust-score-value` leaves the loading (`TEST-MODE`) state.
 
 ### Fixed
 - Trust Score dashboard card: background colour corrected to comma-separated
