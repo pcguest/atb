@@ -6,9 +6,11 @@ ATB provides tamper-evident records of the events that were appended during the 
 
 ## Control criteria
 
-- **CC6.1:** Logical Access Controls
-- **CC7.2:** System Operations
+- **CC6.1:** Logical Access Security
+- **CC6.6:** System Boundaries
+- **CC7.2:** System Monitoring
 - **CC8.1:** Change Management
+- **CC9.1:** Risk Mitigation
 
 ## Evidence requirements
 

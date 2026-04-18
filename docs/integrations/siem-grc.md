@@ -24,10 +24,10 @@ atb export --format gdpr --type dsr --subject-id user_99 --output dsr-user99.zip
 Every export ZIP is structured under an `evidence/` directory to ensure consistent ingestion.
 
 ### Common base files
-*   `evidence/manifest.json`: Metadata about the export, including generated date and verification status.
-*   `evidence/checksums.sha256`: SHA-256 hashes for all files in the archive.
-*   `evidence/checksums.chain`: Metadata linking file hashes to the cryptographic head hashes of the source bundles.
-*   `evidence/docs/`: Core ATB security and compliance documentation.
+- `evidence/manifest.json`: Metadata about the export, including generated date and verification status.
+- `evidence/checksums.sha256`: SHA-256 hashes for all files in the archive.
+- `evidence/checksums.chain`: Metadata linking file hashes to the cryptographic head hashes of the source bundles.
+- `evidence/docs/`: Core ATB security and compliance documentation.
 
 ### Format-specific artefacts
 
@@ -62,8 +62,8 @@ For GRC platforms (e.g., Vanta, Drata, or custom evidence lockers), the goal is 
 
 ## Data ownership and privacy
 
-ATB follows a local-first model. Traces remain on your infrastructure until you explicitly choose to export them. 
+ATB follows a local-first model. Traces remain on your infrastructure until you explicitly choose to export them.
 
-*   **Local Traces**: Raw `.atb` files are stored locally and are not automatically synced to any external service.
-*   **Artifact-Based Export**: Exports are discrete artefacts. You control when they are generated and where they are sent.
-*   **Privacy-Aware**: The `gdpr` export format automatically applies redacting or hashing to PII fields, ensuring that exported evidence complies with data minimization principles.
+- **Local Traces**: Raw `.atb` files are stored locally and are not automatically synced to any external service.
+- **Artifact-Based Export**: Exports are discrete artefacts. You control when they are generated and where they are sent.
+- **Privacy-Aware**: The `gdpr` export format automatically applies redacting or hashing to PII fields, ensuring that exported evidence complies with data minimization principles.

@@ -10,6 +10,7 @@ flowchart LR
     TypeScriptSDK["TypeScript SDK"] --> Core
     Core --> BundleStore["Bundle Store<br/>(.atb file)"]
     BundleStore --> Verify["Verify<br/>(hash chain + profiles)"]
+    BundleStore --> View["Dashboard<br/>(atb view)"]
     BundleStore --> Export["Export<br/>(compliance / soc2 / gdpr)"]
     BundleStore --> Push["Push<br/>(S3 / WORM, opt-in, explicit)"]
     Verify --> Report["Trust Report"]
