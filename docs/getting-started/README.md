@@ -7,8 +7,8 @@ Start here if you are new to ATB.
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb append agent.run --data='{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
-atb append policy.alert --data='{"check":"pii_redaction","outcome":"fail","ticket_id":"case-1042"}'
+atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"hash-agent-a","purpose_tag":"support-triage"}'
+atb append ai.policy.decision --data='{"policy_id":"pol-pii-redaction","policy_version":"1.0","decision":"deny","decision_reason_codes":["pii_detected"],"subject_id_hash":"hash-agent-a","action_id":"act-1042"}'
 atb snapshot incident_review_failed
 atb verify
 ```
