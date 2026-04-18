@@ -32,4 +32,4 @@ until curl -fsI "${BASE_URL%/}/view/" >/dev/null 2>&1; do
   sleep 1
 done
 
-cypress run --spec "$SPEC" --browser firefox
+cypress run --spec "$SPEC" --browser firefox --env MOCK_API=true

@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- (no changes yet)
+### Fixed
+- Static Cypress runner now passes `--env MOCK_API=true` so the dashboard
+  reaches loaded state before assertions run; fixes gold-gate E2E failure
+  introduced when `waitForDashboard` began checking that `trust-score-value`
+  leaves the loading (TEST-MODE) state.
 
 ## [v1.7.3] - 2026-04-17
 
