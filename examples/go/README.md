@@ -17,10 +17,10 @@ cd /tmp/atb-e2e-demo
 atb bundle new
 
 # 2) Append workflow events.
-atb append ai.request.received --data='{"request_id":"req-1001","channel":"support","actor":"agent-a"}'
-atb append ai.model.invoked --data='{"provider":"openai","model":"gpt-5","purpose":"triage"}'
-atb append ai.model.output --data='{"outcome":"allow","confidence":0.92}'
-atb append ai.action.executed --data='{"action":"send_reply","ticket_id":"T-1042"}'
+atb append ai.request.received --data='{"request_id":"req-1001","actor_id_hash":"hash-agent-a","purpose_tag":"support-triage"}'
+atb append ai.model.invoked --data='{"model_provider":"openai","model_id":"gpt-5","model_parameters_digest":"sha256-params-abc","prompt_digest":"sha256-prompt-def"}'
+atb append ai.model.output --data='{"output_digest":"sha256-output-ghi","output_format":"text"}'
+atb append ai.action.executed --data='{"action_id":"act-1042","execution_outcome":"success","tool_receipt_digest":"sha256-receipt-jkl"}'
 
 # 3) Add a named checkpoint.
 atb snapshot e2e_demo_complete
