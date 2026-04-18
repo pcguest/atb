@@ -6,7 +6,7 @@ ATB uses Semantic Versioning (`MAJOR.MINOR.PATCH`) for the CLI, SDKs, and releas
 
 A MAJOR bump is required for any breaking change:
 
-- CLI behavior incompatible with previous stable usage
+- CLI behaviour incompatible with previous stable usage
 - Event schema or canonicalization incompatibility
 - Breaking change to SOC2/GDPR export contract fields
 - Breaking public API changes in Python/TypeScript SDKs
@@ -31,8 +31,8 @@ A PATCH bump is used for backward-compatible fixes:
 ## Deprecation policy
 
 - Deprecations are announced in changelog and release notes
-- Deprecated behavior remains available for at least one subsequent MINOR release
-- Deprecated behavior is only removed in a later MAJOR release
+- Deprecated behaviour remains available for at least one subsequent MINOR release
+- Deprecated behaviour is only removed in a later MAJOR release
 
 ## Tagging rules
 

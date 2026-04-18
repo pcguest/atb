@@ -41,4 +41,4 @@ Trivy vulnerability scanning runs on a weekly schedule via GitHub Actions.
 
 ## Safe harbour
 
-Good-faith research is authorized when you avoid privacy violations, data loss, service disruption, and social engineering.
+Good-faith research is authorised when you avoid privacy violations, data loss, service disruption, and social engineering.
