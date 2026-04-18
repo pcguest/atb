@@ -23,7 +23,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "cryptography>=42.0.0",
+    "cryptography>=46.0.7",
     "pageindex>=0.2.8",
 ]
 
