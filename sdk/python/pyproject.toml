@@ -33,7 +33,7 @@ atb = "atb_cli_stub:main"
 [project.optional-dependencies]
 langchain = ["langchain>=0.1.0", "langchain-core>=0.2.0"]
 llamaindex = ["llama-index>=0.10.0"]
-dev = ["pytest>=7.0", "black", "mypy", "ruff"]
+dev = ["pytest>=8.4.2", "black", "mypy", "ruff"]
 
 [project.urls]
 Homepage = "https://github.com/pcguest/atb"
