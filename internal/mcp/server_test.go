@@ -439,8 +439,26 @@ func testVerifyHandler(_ context.Context, input VerifyInput, stdout, stderr io.W
 		return 3
 	}
 
-	report := verify.Verify(b, path, input.Profile)
-	verifierReport := verify.ReportFromVerify(report)
+	selection := verify.EvaluateConfig{
+		BundlePath:    path,
+		Records:       b.Records,
+		AllApplicable: strings.TrimSpace(input.Profile) == "",
+	}
+	if strings.TrimSpace(input.Profile) != "" {
+		profile, err := verify.ResolveProfile(input.Profile)
+		if err != nil {
+			fmt.Fprintf(stderr, "resolve profile: %v\n", err)
+			return 3
+		}
+		selection.Profiles = []verify.Profile{profile}
+	}
+
+	report, err := verify.EvaluateBundle(selection)
+	if err != nil {
+		fmt.Fprintf(stderr, "EvaluateBundle: %v\n", err)
+		return 3
+	}
+	verifierReport := verify.ReportFromVerify(*report)
 
 	data, err := json.MarshalIndent(verifierReport, "", "  ")
 	if err != nil {

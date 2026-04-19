@@ -417,19 +417,26 @@ func (s *APIServer) handleBundleVerify(w http.ResponseWriter, r *http.Request) {
 	bSnap := s.b
 	s.mu.Unlock()
 
-	var verifyReport verifypkg.Report
+	cfg := verifypkg.EvaluateConfig{
+		BundlePath:    s.bundlePath,
+		Records:       bSnap.Records,
+		AllApplicable: s.profilePath == "",
+	}
 	if s.profilePath != "" {
 		profile, err := verifypkg.ResolveProfile(s.profilePath)
 		if err != nil {
 			writeJSON(w, http.StatusUnprocessableEntity, APIError{Error: fmt.Sprintf("load profile: %v", err)})
 			return
 		}
-		verifyReport = verifypkg.VerifyWithProfile(bSnap, s.bundlePath, profile)
-	} else {
-		verifyReport = verifypkg.Verify(bSnap, s.bundlePath, "")
+		cfg.Profiles = []verifypkg.Profile{profile}
+	}
+	report, err := verifypkg.EvaluateBundle(cfg)
+	if err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, APIError{Error: err.Error()})
+		return
 	}
 
-	summary := verifyReportToSummary(verifyReport)
+	summary := verifyReportToSummary(*report)
 	s.mu.Lock()
 	s.profileReport = &summary
 	s.mu.Unlock()

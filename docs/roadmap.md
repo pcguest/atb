@@ -1,118 +1,138 @@
 # ATB roadmap
 
-## Stable baseline
+This document summarises planned work that follows the current v1.7.x
+baseline. It distinguishes shipped capabilities from forward-looking
+items and should be read as sequencing guidance rather than a delivery
+commitment.
 
-v1.7.3 is the current stable release. The following are non-negotiable
-invariants that all forward work must preserve:
+## Current baseline
 
-- **Six schema-locked obligation profiles** — `atb.profile.rag_answer`,
-  `atb.profile.data_export`, `atb.profile.privileged_tool_action`,
-  `atb.profile.policy_decision`, `atb.profile.human_override`,
-  `atb.profile.background_automation`. Profile IDs, required event
-  sets, and CAS sub-score semantics are frozen at v1.0 and will not
-  change without a major version bump.
-- **Local-first, hash-chained bundle guarantee** — SHA-256 hash
-  chaining over RFC 8785 canonical JSON is the integrity primitive.
-  No core verification path requires a network connection. Remote
-  exports are always opt-in and complement, not replace, the local
-  guarantee.
+The current line provides:
 
-## Near-term (v1.7 – v1.9)
+- Local-first SHA-256 hash chaining over RFC 8785 canonical JSON.
+- Six schema-locked obligation profiles with CAS support.
+- Profile DSL v1 for additional profile definitions.
+- RFC 3161 anchoring, bundle signing, WORM export, local viewer, and
+  MCP stdio support.
 
-### v1.7 — LangChain native callback integration
+ATB proves the integrity of what was recorded. It does not prove
+recording completeness, actor identity, workflow correctness, or a
+compliance verdict.
 
-**Status: Shipped in v1.7.x**
+## Short term
 
-- `ATBCallbackHandler` for LangChain (Python) attaches to any LLM,
-  Chain, or Agent and emits `ai.llm.call`, `ai.tool.exec`, and
-  `ai.chain.run` events automatically.
-- Zero-config mode: `ATBCallbackHandler()` with no arguments uses the
-  active bundle in the current working directory.
-- See [`docs/integrations/langchain.md`](./integrations/langchain.md)
-  for the integration guide.
+### Profile DSL v1 hardening
 
-### v1.8 — Enterprise hardening
+Status: In progress across v1.7.x and v1.8.x
 
-**Status: Planned**
+Description: tighten validation, loading, and reporting around built-in
+and file-defined profiles so misconfiguration is caught early and every
+surface consumes the same profile metadata.
 
-- Multi-bundle correlation: tooling to join bundles from parallel
-  workflow branches into a reviewable audit graph.
-- Key management workflow docs: expanded guidance on Ed25519 key
-  rotation, revocation, and handoff for bundle signing in regulated
-  environments. See [`docs/key-management.md`](../docs/key-management.md).
-- Performance tuning: verified baseline and tuning guide for very large
-  bundles (>100k events).
+Intended benefit: fewer silent profile errors, more predictable
+verification output, and simpler maintenance of custom workflow
+definitions.
 
-### v1.9 — Opt-in telemetry
+Sequencing: current work through early v1.8.x.
 
-**Status: Planned**
+### Verifier and report v1 consolidation
 
-- Disabled by default; no data is collected unless explicitly enabled
-  by a flag or environment variable (`ATB_TELEMETRY=1`).
-- Scope limited to anonymised, aggregated usage metrics (command
-  invocations, profile IDs used, bundle sizes). No event payload data
-  is ever included.
-- The telemetry design doc and data dictionary will ship before any
-  collection is enabled.
+Status: Largely complete
 
-## Medium-term
+Description: keep bundle evaluation, CAS normalisation, and report
+shaping on one internal path shared by the CLI, viewer, dashboard, MCP
+bridge, and tests.
 
-### SIEM and GRC integration guides
+Intended benefit: one source of truth for integrity checks, obligation
+results, residual risk, and profile stamping.
 
-- Structured export guides for Splunk, Elastic, and Datadog: how to
-  forward `atb verify --format json` output into a SIEM pipeline.
-- GRC mapping docs: how ATB findings map to specific control families
-  (EU AI Act, NIST AI RMF, ISO 42001, SOC 2 CC6/CC7).
-- See [`docs/integrations/siem-grc.md`](./integrations/siem-grc.md)
-  for the current starting point.
+Sequencing: current work through early v1.8.x.
 
-## Historical context
+## Medium term
 
-For the complete version history and what shipped in each release, see
+### CAS v1 refinements
+
+Status: Planned
+
+Description: refine sub-score guidance, strengthen normalisation rules,
+and make profile-specific weighting clearer where recorded evidence is
+stronger or weaker than the current defaults suggest.
+
+Intended benefit: more consistent completeness scoring across different
+workflow classes without weakening the existing integrity-first model.
+
+Sequencing: after v1.8.x.
+
+### Source signatures for policy gates
+
+Status: Planned
+
+Description: extend source-signature handling around policy gates and
+authorisation points so recorded decisions can be corroborated by signed
+inputs from the controlling system.
+
+Intended benefit: stronger evidence that a recorded allow or deny event
+originated from the expected gate, not only that it was recorded
+unchanged afterwards.
+
+Sequencing: after v1.8.x, alongside CAS refinements.
+
+## Longer term
+
+### Corroboration adapters
+
+Status: Planned
+
+Description: add adapters that can pull or compare corroborating
+evidence from external systems such as gateways, ticketing layers, or
+execution receipts.
+
+Intended benefit: better support for workflows where the strongest
+evidence spans more than one system boundary.
+
+Sequencing: after the v1.8.x line.
+
+### Queue, gateway, and storage integration
+
+Status: Planned
+
+Description: add focused integration points for queue consumers,
+workflow gateways, and storage systems so key hand-off events can be
+captured or checked more directly.
+
+Intended benefit: stronger evidence for queued or asynchronous systems
+where the local bundle should be paired with queue dequeue, gateway, or
+storage-side facts.
+
+Sequencing: after corroboration adapters begin to land.
+
+### Reconciliation against underlying systems
+
+Status: Planned
+
+Description: provide workflows that compare a recorded bundle with the
+state of the underlying system of record and report mismatches.
+
+Intended benefit: clearer detection of gaps between what ATB recorded
+and what the downstream system says actually happened.
+
+Sequencing: after queue, gateway, and storage integration.
+
+### Exportable assurance packs
+
+Status: Planned
+
+Description: package verification output, supporting artefacts, and
+selected corroboration evidence into portable review bundles for handoff
+to customers, auditors, or incident reviewers.
+
+Intended benefit: simpler external review without overstating what ATB
+guarantees on its own.
+
+Sequencing: after reconciliation and corroboration foundations are in
+place.
+
+## Tracking
+
+For shipped changes and release-by-release detail, see
 [CHANGELOG.md](../CHANGELOG.md).
-
-### The versioning reset: v1.x to v0.9.0-beta
-
-You may notice in the [Changelog](../CHANGELOG.md) that ATB previously
-carried versions up to `v1.8.1` before resetting to `v0.9.0-beta`.
-
-This reset was an intentional decision to honestly reflect the
-pre-production status of the project at that point. While the core
-hash-chaining logic was robust, the higher-level specifications
-(obligation profiles, CAS scoring, and bundle export formats) were
-still being refined through internal pilots and community feedback.
-
-By moving to `v0.9.0-beta`, the intention was to signal that:
-
-1. **Breaking spec changes are possible:** The canonical event taxonomy
-   or profile schemas might still shift.
-2. **Pilot readiness:** The version was suitable for pilots, internal
-   experiments, and portfolio-quality integration, but not yet for
-   production systems where API stability is a hard requirement.
-
-### v0.9.x to v1.6.0 completed work
-
-All of the following shipped by v1.6.0:
-
-- [x] Six-profile verifier with YAML-backed profile templates and CAS
-      evaluation where supported.
-- [x] `VerifierReport` and `TrustReport` JSON output shapes for
-      `atb verify` and `atb trust-report`.
-- [x] `ComplianceManifest` export for
-      `atb export --format compliance --json`.
-- [x] MCP integration guide in `docs/integrations/mcp.md`.
-- [x] Python and TypeScript SDK event type constants.
-- [x] Performance baseline and benchmark suite.
-- [x] Ed25519 bundle signing integration test.
-- [x] Native MCP server mode (`atb mcp serve`).
-- [x] CAS support extended to all six profiles.
-- [x] `spec-v1.0.md` and the profile DSL frozen.
-- [x] Encrypted bundle support hardened with versioned PBKDF2-SHA256
-      parameters.
-- [x] CLI command structure and JSON output formats frozen.
-- [x] Governance guidance for CISO and auditor acceptance in
-      `docs/compliance/` and `docs/security.md`.
-- [x] `atb push` exports a sealed bundle to S3-compatible storage or a
-      local WORM path.
-- [x] Profile DSL v1: YAML-defined custom profiles.
-- [x] `atb view` UI polish with profile/CAS summary.

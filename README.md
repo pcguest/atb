@@ -6,6 +6,8 @@ Records workflow events as tamper-evident, SHA-256 hash-chained bundles on local
 
 Current release: [`v1.7.3`](CHANGELOG.md)
 
+Planned work: [`docs/roadmap.md`](docs/roadmap.md)
+
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
 anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it
 does not prove recording completeness, model correctness, or that risk controls were applied.

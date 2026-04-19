@@ -352,21 +352,22 @@ func isAddrInUseError(err error) bool {
 // Errors loading the profile are silently swallowed; callers should treat a nil return as
 // "no report yet" rather than a hard failure — the user can re-trigger via POST /api/v1/bundle/verify.
 func buildStartupProfileReport(b *bundle.Bundle, bundlePath, profilePath string) *apiv1.ProfileReportSummary {
-	var report verifypkg.Report
-	if isVerifyProfilePath(profilePath) {
-		profile, err := verifypkg.ResolveProfile(profilePath)
-		if err != nil {
-			return nil
-		}
-		report = verifypkg.VerifyWithProfile(b, bundlePath, profile)
-	} else {
-		profile := verifypkg.ProfileByID(profilePath)
-		if profile == nil {
-			return nil
-		}
-		report = verifypkg.VerifyWithProfile(b, bundlePath, profile)
+	selection, _, err := resolveVerifySelection(profilePath)
+	if err != nil {
+		return nil
 	}
-	summary := viewVerifyReportToSummary(report)
+
+	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
+		BundlePath:    bundlePath,
+		Records:       b.Records,
+		Profiles:      selection.profiles,
+		AllApplicable: selection.allApplicable,
+	})
+	if err != nil {
+		return nil
+	}
+
+	summary := viewVerifyReportToSummary(*report)
 	return &summary
 }
 

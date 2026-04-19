@@ -31,6 +31,12 @@ type verifyCLIConfig struct {
 	RootsPath         string
 }
 
+type verifySelection struct {
+	profiles          []verifypkg.Profile
+	allApplicable     bool
+	resolvedProfileID string
+}
+
 func cmdVerify() {
 	os.Exit(runVerify(os.Args[2:], os.Stdout, os.Stderr))
 }
@@ -68,34 +74,21 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 		stderr = io.Discard
 	}
 
-	var profile verifypkg.Profile
-	var err error
-	resolvedProfileID := ""
-	if cfg.ProfileID != "" {
-		if isVerifyProfilePath(cfg.ProfileID) {
-			profile, err = verifypkg.ResolveProfile(cfg.ProfileID)
-			if err != nil {
-				fmt.Fprintf(stderr, "atb verify: %v\n", err)
-				printVerifyUsage(stderr)
-				return exitUserError
-			}
+	selection, exitCode, err := resolveVerifySelection(cfg.ProfileID)
+	if err != nil {
+		if exitCode == exitUserError {
+			fmt.Fprintf(stderr, "atb verify: %v\n", err)
+			printVerifyUsage(stderr)
 		} else {
-			profile = verifypkg.ProfileByID(cfg.ProfileID)
-			if profile == nil && !strings.HasPrefix(cfg.ProfileID, "atb.profile.") {
-				profile = verifypkg.ProfileByID("atb.profile." + cfg.ProfileID)
-			}
-			if profile == nil {
-				fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
-				return exitIntegrityFailure
-			}
+			fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
 		}
-		resolvedProfileID = profile.ID()
+		return exitCode
 	}
 
 	if dryRun {
 		report := verifypkg.VerifierReport{
 			BundlePath:   cfg.BundlePath,
-			ProfileID:    resolvedProfileID,
+			ProfileID:    selection.resolvedProfileID,
 			Pass:         false,
 			Failures:     []verifypkg.ReportFailure{},
 			Warnings:     []string{},
@@ -124,20 +117,27 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 		_ = verifyWithTrace(b, stderr)
 	}
 
-	report := verifypkg.Verify(b, cfg.BundlePath, cfg.ProfileID)
-	if profile != nil {
-		report = verifypkg.VerifyWithProfile(b, cfg.BundlePath, profile)
+	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
+		BundlePath:    cfg.BundlePath,
+		Records:       b.Records,
+		Profiles:      selection.profiles,
+		AllApplicable: selection.allApplicable,
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "atb verify: %v\n", err)
+		return exitSystemError
 	}
+	verifyReport := *report
 	snapshotCheckFailed := false
 	if cfg.WithSnapshotCheck {
 		snapshotFailures := verifypkg.VerifySnapshotHashes(b.Records)
 		if len(snapshotFailures) > 0 {
-			report.InformationalNotes = append(report.InformationalNotes, snapshotFailures...)
+			verifyReport.InformationalNotes = append(verifyReport.InformationalNotes, snapshotFailures...)
 			snapshotCheckFailed = true
-			report.ResidualRisk.Level = "Critical"
+			verifyReport.ResidualRisk.Level = "Critical"
 		}
 	}
-	if cfg.WithAnchor && report.Integrity.ChainValid {
+	if cfg.WithAnchor && verifyReport.Integrity.ChainValid {
 		roots, err := loadVerifyRoots(cfg.RootsPath)
 		if err != nil {
 			if isLegacyJSONMode(cfg) {
@@ -168,7 +168,7 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 	}
 
 	if verifyWantsStructuredJSON(cfg) {
-		verifierReport := verifypkg.ReportFromVerify(report)
+		verifierReport := verifypkg.ReportFromVerify(verifyReport)
 		if err := writeVerifierReportJSON(stdout, verifierReport); err != nil {
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
@@ -176,18 +176,18 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 		if snapshotCheckFailed {
 			return exitIntegrityFailure
 		}
-		return verificationExitCode(report)
+		return verificationExitCode(verifyReport)
 	}
 
 	if cfg.JSON {
-		if err := json.NewEncoder(stdout).Encode(report); err != nil {
+		if err := json.NewEncoder(stdout).Encode(verifyReport); err != nil {
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
 		}
 		if snapshotCheckFailed {
 			return exitIntegrityFailure
 		}
-		return verificationExitCode(report)
+		return verificationExitCode(verifyReport)
 	}
 
 	if isLegacyJSONMode(cfg) {
@@ -195,7 +195,7 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 		if len(b.Records) == 0 {
 			status = "empty"
 		}
-		if !report.Integrity.ChainValid {
+		if !verifyReport.Integrity.ChainValid {
 			status = "invalid"
 		}
 
@@ -204,21 +204,21 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 			result.Message = "bundle is empty - nothing to verify"
 		}
 		var verifyErr error
-		if report.Integrity.Error != "" {
-			verifyErr = errors.New(report.Integrity.Error)
+		if verifyReport.Integrity.Error != "" {
+			verifyErr = errors.New(verifyReport.Integrity.Error)
 		}
 		_ = writeLegacyVerifyJSON(stdout, result, verifyErr)
-		if !report.Integrity.ChainValid {
+		if !verifyReport.Integrity.ChainValid {
 			return exitIntegrityFailure
 		}
 		return exitSuccess
 	}
 
-	renderVerifyText(stdout, report)
+	renderVerifyText(stdout, verifyReport)
 	if snapshotCheckFailed {
 		return exitIntegrityFailure
 	}
-	return verificationExitCode(report)
+	return verificationExitCode(verifyReport)
 }
 
 func parseVerifyArgsWithDryRun(args []string) (verifyCLIConfig, bool, error) {
@@ -398,6 +398,39 @@ func isVerifyProfilePath(spec string) bool {
 	}
 }
 
+func resolveVerifySelection(profileSpec string) (verifySelection, int, error) {
+	profileSpec = strings.TrimSpace(profileSpec)
+	if profileSpec == "" {
+		return verifySelection{allApplicable: true}, exitSuccess, nil
+	}
+
+	if isVerifyProfilePath(profileSpec) {
+		profile, err := verifypkg.ResolveProfile(profileSpec)
+		if err != nil {
+			return verifySelection{}, exitUserError, err
+		}
+		if profile == nil {
+			return verifySelection{}, exitUserError, fmt.Errorf("unrecognised profile %q", profileSpec)
+		}
+		return verifySelection{
+			profiles:          []verifypkg.Profile{profile},
+			resolvedProfileID: profile.ID(),
+		}, exitSuccess, nil
+	}
+
+	profile := verifypkg.ProfileByID(profileSpec)
+	if profile == nil && !strings.HasPrefix(profileSpec, "atb.profile.") {
+		profile = verifypkg.ProfileByID("atb.profile." + profileSpec)
+	}
+	if profile == nil {
+		return verifySelection{}, exitIntegrityFailure, fmt.Errorf("unknown profile")
+	}
+	return verifySelection{
+		profiles:          []verifypkg.Profile{profile},
+		resolvedProfileID: profile.ID(),
+	}, exitSuccess, nil
+}
+
 func loadVerifyRoots(path string) (*x509.CertPool, error) {
 	if strings.TrimSpace(path) == "" {
 		return nil, nil
@@ -473,24 +506,27 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 	}
 
 	// Run the normal verification pipeline (profile, chain integrity, etc.).
-	report := verifypkg.Verify(b, cfg.RemoteURI, cfg.ProfileID)
-	if cfg.ProfileID != "" {
-		if isVerifyProfilePath(cfg.ProfileID) {
-			profile, perr := verifypkg.ResolveProfile(cfg.ProfileID)
-			if perr != nil {
-				fmt.Fprintf(stderr, "atb verify: %v\n", perr)
-				return exitUserError
-			}
-			report = verifypkg.VerifyWithProfile(b, cfg.RemoteURI, profile)
+	selection, exitCode, err := resolveVerifySelection(cfg.ProfileID)
+	if err != nil {
+		if exitCode == exitUserError {
+			fmt.Fprintf(stderr, "atb verify: %v\n", err)
 		} else {
-			profile := verifypkg.ProfileByID(cfg.ProfileID)
-			if profile == nil {
-				fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
-				return exitIntegrityFailure
-			}
-			report = verifypkg.VerifyWithProfile(b, cfg.RemoteURI, profile)
+			fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
 		}
+		return exitCode
 	}
+
+	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
+		BundlePath:    cfg.RemoteURI,
+		Records:       b.Records,
+		Profiles:      selection.profiles,
+		AllApplicable: selection.allApplicable,
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "atb verify: %v\n", err)
+		return exitSystemError
+	}
+	verifyReport := *report
 
 	// Content-addressing check: computed head hash must match the hash in the key name.
 	keyHashOK := true
@@ -508,7 +544,7 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 	}
 
 	// Emit output.
-	verifierReport := verifypkg.ReportFromVerify(report)
+	verifierReport := verifypkg.ReportFromVerify(verifyReport)
 
 	if verifyWantsStructuredJSON(cfg) || cfg.JSON {
 		wrapped := remoteVerifyReport{
@@ -529,7 +565,7 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 		}
 	} else {
 		// Text output: print normal report then the remote-specific lines.
-		renderVerifyText(stdout, report)
+		renderVerifyText(stdout, verifyReport)
 		fmt.Fprintln(stdout)
 		fmt.Fprintf(stdout, "Remote:    %s\n", cfg.RemoteURI)
 		if keyHashOK && hasHash {
@@ -542,7 +578,7 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 	if !keyHashOK {
 		return exitIntegrityFailure
 	}
-	return verificationExitCode(report)
+	return verificationExitCode(verifyReport)
 }
 
 // parseRemoteVerifyURI splits a full S3 object URI into (bucket, key).

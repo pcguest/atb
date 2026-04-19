@@ -145,6 +145,13 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "profiles",
+				Usage:       "atb profiles validate [--file <path>] [--dir <path>] [--format text|json]",
+				Description: "Validate built-in and supplied profile definitions.",
+				Flags:       []string{"--file", "--dir", "--format"},
+				Mutating:    false,
+			},
+			{
 				Name:        "inspect",
 				Usage:       "atb inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]",
 				Description: "Inspect bundle records in table or JSON form.",
@@ -292,6 +299,8 @@ func main() {
 		cmdSign()
 	case "verify":
 		cmdVerify()
+	case "profiles":
+		cmdProfiles()
 	case "inspect":
 		cmdInspect()
 	case "events":
@@ -353,6 +362,7 @@ Commands:
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
   sign --bundle <path> --key <path> [--out <path>]  Append an Ed25519 bundle signature record
   verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]  Verify integrity of a bundle and evaluate obligation profiles
+  profiles validate [--file <path>] [--dir <path>] [--format text|json]  Validate built-in and supplied profile definitions
   inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]  Inspect bundle records in table or JSON form
   events [--json] [--profile <id>]  List canonical ATB event types
   encrypt [bundle_path] [--output <path>] [--password <password>]  Encrypt bundle file to <bundle_path>.enc or a chosen path
@@ -404,6 +414,8 @@ Examples:
   atb verify --with-anchor
   atb verify --with-snapshot-check
   atb verify --with-anchor --roots ./tsa-roots.pem
+  atb profiles validate
+  atb profiles validate --dir ./profiles --format json
   atb inspect --bundle run.atb/bundle.atb
   atb inspect --bundle run.atb/bundle.atb --seq 0
   atb inspect --bundle run.atb/bundle.atb --json

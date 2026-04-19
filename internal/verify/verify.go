@@ -111,70 +111,21 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string, anchorRoots .
 	if len(anchorRoots) > 0 {
 		roots = anchorRoots[0]
 	}
-	report, ok := prepareVerificationReport(b, bundlePath, roots)
-	if !ok {
-		return report
+	if b == nil {
+		return evaluateLoadedBundle(nil, bundlePath, nil, profileID == "", roots, false)
 	}
-	report.BundleSignature = inspectBundleSignature(b, bundlePath)
-
-	profiles := matchingProfiles(b.Records, profileID)
-	if len(profiles) == 0 {
-		// Root cause: Report.CAS is a pointer tagged with omitempty, so when
-		// auto-detect matched no profile this early return left report.CAS nil
-		// and JSON dropped the entire block. The profile sub-score maps already
-		// use concrete map literals, so there is no nil-map write to fix here.
-		if profileID == "" && report.CAS == nil {
-			report.CAS = &CASResult{
-				SubScores: map[string]float64{
-					"SC": computeSC(b, profileIDPrivilegedToolAction),
-				},
-			}
-			if sc := report.CAS.SubScores["SC"]; sc > 0 && report.Integrity.ChainValid {
-				// Partial CAS: only SC is available when no profile matched.
-				// PA and IC remain 0.0; overall reflects source-commitment only.
-				report.CAS.Overall = sc
-				report.CAS.Grade = gradeFromScore(sc)
-			}
-		}
-		if !report.Integrity.ChainValid {
-			report.ResidualRisk = integrityFailureResidualRisk()
-		} else {
-			report.ResidualRisk = residualRiskNoMatchingProfile()
-		}
-		return report
+	if strings.TrimSpace(profileID) == "" {
+		return evaluateLoadedBundle(b, bundlePath, nil, true, roots, false)
 	}
 
-	anchorResult := ClassifyAnchor(b, bundlePath, roots)
-	signatureWarnings, signatureNotes, signatureFailures := inspectPolicyDecisionSignatures(b.Records)
-	for i, profile := range profiles {
-		result := profile.Evaluate(b.Records)
-		applyPolicyDecisionSignatureChecks(&result, signatureWarnings, signatureNotes, signatureFailures)
-		report.Profiles = append(report.Profiles, result)
-		report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
-		if i != 0 {
-			continue
-		}
-
-		if !profileSupportsCAS(profile) {
-			if !report.Integrity.ChainValid {
-				report.ResidualRisk = integrityFailureResidualRisk()
-			} else {
-				report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
-			}
-			continue
-		}
-
-		subScores := subScoresForBundleWithAnchorResult(b, profile.ID(), anchorResult)
-		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
-		report.CAS = &cas
-		if !report.Integrity.ChainValid {
-			report.ResidualRisk = integrityFailureResidualRisk()
-		} else {
-			report.ResidualRisk = deriveResidualRisk(cas, result)
-		}
+	profile := ProfileByID(profileID)
+	if profile == nil && !strings.HasPrefix(profileID, "atb.profile.") {
+		profile = ProfileByID("atb.profile." + profileID)
 	}
-
-	return report
+	if profile == nil {
+		return evaluateLoadedBundle(b, bundlePath, nil, false, roots, false)
+	}
+	return evaluateLoadedBundle(b, bundlePath, []Profile{profile}, false, roots, false)
 }
 
 // VerifyWithProfile evaluates a bundle against a specific explicit profile. The
@@ -185,47 +136,10 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile, anc
 	if len(anchorRoots) > 0 {
 		roots = anchorRoots[0]
 	}
-	report, ok := prepareVerificationReport(b, bundlePath, roots)
-	if !ok {
-		return report
-	}
-	report.BundleSignature = inspectBundleSignature(b, bundlePath)
 	if profile == nil {
-		if !report.Integrity.ChainValid {
-			report.ResidualRisk = integrityFailureResidualRisk()
-		} else {
-			report.ResidualRisk = residualRiskNoMatchingProfile()
-		}
-		return report
+		return evaluateLoadedBundle(b, bundlePath, nil, false, roots, false)
 	}
-
-	result := profile.Evaluate(b.Records)
-	signatureWarnings, signatureNotes, signatureFailures := inspectPolicyDecisionSignatures(b.Records)
-	applyPolicyDecisionSignatureChecks(&result, signatureWarnings, signatureNotes, signatureFailures)
-	report.Profiles = append(report.Profiles, result)
-	report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
-
-	if profileSupportsCAS(profile) {
-		anchorResult := ClassifyAnchor(b, bundlePath, roots)
-		// Use the profile object directly so that user-defined profiles get their
-		// own sub-score computation instead of a zero vector.
-		subScores := subScoresForProfile(profile, b.Records, anchorResult)
-		cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
-		report.CAS = &cas
-		if !report.Integrity.ChainValid {
-			report.ResidualRisk = integrityFailureResidualRisk()
-		} else {
-			report.ResidualRisk = deriveResidualRisk(cas, result)
-		}
-		return report
-	}
-
-	if !report.Integrity.ChainValid {
-		report.ResidualRisk = integrityFailureResidualRisk()
-	} else {
-		report.ResidualRisk = deriveResidualRiskWithoutCAS(result)
-	}
-	return report
+	return evaluateLoadedBundle(b, bundlePath, []Profile{profile}, false, roots, false)
 }
 
 func inspectPolicyDecisionSignatures(records []bundle.Record) ([]string, []string, []CriticalFailure) {

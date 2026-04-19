@@ -12,6 +12,7 @@
     "strict": true,
     "types": ["node"],
     "esModuleInterop": true,
+    "ignoreDeprecations": "6.0",
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
