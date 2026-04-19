@@ -5,6 +5,23 @@ All notable changes to ATB will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Added a verifier evaluation shim in `internal/verify/evaluate.go`: `EvaluateBundle` and `EvaluateConfig` centralise bundle loading, hash-chain integrity, RFC 3161 anchor verification, CAS normalisation, profile stamping, residual risk, and post-profile transformations in one place. The CLI, viewer, and API surfaces now derive reports from this function.
+- Added `atb profiles validate`: validates all built-in profiles and any additional profiles supplied via `--file` or `--dir`; checks required fields, duplicate IDs, and CAS weight-vector sums; exits 0 or 1 and supports text or stable JSON output via `--format json`.
+- Added `docs/roadmap.md`: in-repo roadmap covering short-term hardening for the profile DSL and verifier report path, medium-term CAS v1 and source signatures, and longer-term corroboration adapters, queue and storage gateways, reconciliation, and assurance-pack exports. Linked from `README.md`.
+
+### Fixed
+- TypeScript SDK parity suite now passes after completing the TypeScript 6.0.3 migration; `sdk/typescript/tsconfig.json` now carries the TS 6 declaration-build compatibility setting required by the updated toolchain.
+
+### Tests
+- Added `internal/verify/evaluate_test.go`: shim tests covering healthy bundles, broken hash-chains, and missing-event obligation failures.
+- Added `cmd/atb/profiles_test.go`: coverage for built-in profile validation, malformed DSL files with bad weight sums and missing required fields, duplicate profile IDs, and JSON output format.
+
+### Docs
+- Added `docs/roadmap.md` and linked it from `README.md` under Planned work.
+
 ## [v1.7.3] - 2026-04-18
 
 ### Added
