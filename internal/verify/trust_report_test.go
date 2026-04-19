@@ -174,13 +174,13 @@ func TestTrustReportPolicyDocSignatureValid_TrueWhenVerified(t *testing.T) {
 	docHash := hex.EncodeToString(sum[:])
 
 	fields := map[string]any{
-		"policy_id":                          "pol-1",
-		"policy_version":                     "2026-04",
-		"decision":                           "allow",
-		"decision_reason_codes":              []any{"ticket_present"},
-		"subject_id_hash":                    "subject-hash",
-		"action_id":                          "act-1",
-		event.FieldPolicyDocHash:             docHash,
+		"policy_id":              "pol-1",
+		"policy_version":         "2026-04",
+		"decision":               "allow",
+		"decision_reason_codes":  []any{"ticket_present"},
+		"subject_id_hash":        "subject-hash",
+		"action_id":              "act-1",
+		event.FieldPolicyDocHash: docHash,
 	}
 	sig, err := signpkg.SignPolicyDoc(fields, docHash, privateKey)
 	if err != nil {
@@ -206,12 +206,12 @@ func TestTrustReportPolicyDocSignatureValid_TrueWhenVerified(t *testing.T) {
 func TestTrustReportPolicyDocSignatureValid_FalseWhenDocHashPresentButSignatureAbsent(t *testing.T) {
 	sum := sha256.Sum256([]byte("doc"))
 	fields := map[string]any{
-		"policy_id":            "pol-1",
-		"policy_version":       "2026-04",
-		"decision":             "allow",
-		"decision_reason_codes": []any{"ticket_present"},
-		"subject_id_hash":      "subject-hash",
-		"action_id":            "act-1",
+		"policy_id":              "pol-1",
+		"policy_version":         "2026-04",
+		"decision":               "allow",
+		"decision_reason_codes":  []any{"ticket_present"},
+		"subject_id_hash":        "subject-hash",
+		"action_id":              "act-1",
 		event.FieldPolicyDocHash: hex.EncodeToString(sum[:]),
 	}
 

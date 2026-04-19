@@ -15,20 +15,20 @@ const missingTrustFieldValue = "[missing]"
 // pipeline consumers; TrustReport is for auditors and compliance
 // reviewers.
 type TrustReport struct {
-	BundlePath    string             `json:"bundle_path"`
-	ProfileID     string             `json:"profile_id"`
-	WorkflowClass string             `json:"workflow_class"`
-	Pass          bool               `json:"pass"`
-	CAS           *CASResult         `json:"cas,omitempty"`
-	CASScore      float64            `json:"cas_score,omitempty"`
-	CASGrade      string             `json:"cas_grade,omitempty"`
-	ResidualRisk  string             `json:"residual_risk"`
-	Chain         TrustChainSection  `json:"chain"`
-	Anchoring     TrustAnchorSection `json:"anchoring"`
-	Sections               []TrustSection     `json:"sections"`
-	Warnings               []string           `json:"warnings,omitempty"`
-	BlindSpots             []string           `json:"blind_spots,omitempty"`
-	PolicyDocSignatureValid *bool             `json:"policy_doc_signature_valid,omitempty"`
+	BundlePath              string             `json:"bundle_path"`
+	ProfileID               string             `json:"profile_id"`
+	WorkflowClass           string             `json:"workflow_class"`
+	Pass                    bool               `json:"pass"`
+	CAS                     *CASResult         `json:"cas,omitempty"`
+	CASScore                float64            `json:"cas_score,omitempty"`
+	CASGrade                string             `json:"cas_grade,omitempty"`
+	ResidualRisk            string             `json:"residual_risk"`
+	Chain                   TrustChainSection  `json:"chain"`
+	Anchoring               TrustAnchorSection `json:"anchoring"`
+	Sections                []TrustSection     `json:"sections"`
+	Warnings                []string           `json:"warnings,omitempty"`
+	BlindSpots              []string           `json:"blind_spots,omitempty"`
+	PolicyDocSignatureValid *bool              `json:"policy_doc_signature_valid,omitempty"`
 }
 
 // TrustChainSection summarises hash-chain integrity.

@@ -66,12 +66,12 @@ func TestSignVerifyPolicyDoc_RoundTrip(t *testing.T) {
 	docHash := hex.EncodeToString(sum[:])
 
 	fields := map[string]any{
-		"policy_id":             "policy-1",
-		"policy_version":        "2026-04",
-		"decision":              "allow",
-		"decision_reason_codes": []string{"ticket_present"},
-		"subject_id_hash":       "subject-1",
-		"action_id":             "act-1",
+		"policy_id":              "policy-1",
+		"policy_version":         "2026-04",
+		"decision":               "allow",
+		"decision_reason_codes":  []string{"ticket_present"},
+		"subject_id_hash":        "subject-1",
+		"action_id":              "act-1",
 		event.FieldPolicyDocHash: docHash,
 	}
 
@@ -90,7 +90,7 @@ func TestSignVerifyPolicyDoc_RoundTrip(t *testing.T) {
 func TestVerifyPolicyDocSignature_AbsentSignature(t *testing.T) {
 	sum := sha256.Sum256([]byte("doc"))
 	fields := map[string]any{
-		event.FieldPolicyDocHash:    hex.EncodeToString(sum[:]),
+		event.FieldPolicyDocHash:      hex.EncodeToString(sum[:]),
 		event.FieldPolicySignerPubKey: "somepubkey",
 	}
 	err := VerifyPolicyDocSignature(fields)
@@ -113,8 +113,8 @@ func TestVerifyPolicyDocSignature_TamperedDoc(t *testing.T) {
 	docHash := hex.EncodeToString(sum[:])
 
 	fields := map[string]any{
-		"policy_id":            "policy-1",
-		"decision":             "allow",
+		"policy_id":              "policy-1",
+		"decision":               "allow",
 		event.FieldPolicyDocHash: docHash,
 	}
 	sig, err := SignPolicyDoc(fields, docHash, privateKey)
@@ -144,8 +144,8 @@ func TestVerifyPolicyDocSignature_TamperedEvent(t *testing.T) {
 	docHash := hex.EncodeToString(sum[:])
 
 	fields := map[string]any{
-		"policy_id":            "policy-1",
-		"decision":             "allow",
+		"policy_id":              "policy-1",
+		"decision":               "allow",
 		event.FieldPolicyDocHash: docHash,
 	}
 	sig, err := SignPolicyDoc(fields, docHash, privateKey)
