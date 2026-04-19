@@ -259,6 +259,128 @@ func TestRunAppendSignPolicyIgnoredForNonPolicyDecision(t *testing.T) {
 	}
 }
 
+func TestRunAppendPolicyDocEmbedsPolicyDocHash(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	docPath := filepath.Join(tmp, "policy.txt")
+	if err := os.WriteFile(docPath, []byte("Policy v1: allow if ticket present."), 0600); err != nil {
+		t.Fatalf("write policy doc: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	exitCode := runAppend([]string{
+		event.TypeAIPolicyDecision,
+		"--data",
+		`{"policy_id":"pol-1","policy_version":"2026-04","decision":"allow","decision_reason_codes":["ticket_present"],"subject_id_hash":"subject-hash","action_id":"act-1"}`,
+		"--policy-doc", docPath,
+	}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("exit code %d, stderr=%q", exitCode, stderr.String())
+	}
+
+	b, err := bundle.Load(bundle.DefaultPath())
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	fields, ok := b.Records[len(b.Records)-1].Event.Data.(map[string]any)
+	if !ok {
+		t.Fatal("expected map data")
+	}
+	docHash, ok := fields[event.FieldPolicyDocHash].(string)
+	if !ok || docHash == "" {
+		t.Fatalf("expected non-empty %s", event.FieldPolicyDocHash)
+	}
+	if _, ok := fields[event.FieldPolicyDocSignature]; ok {
+		t.Fatal("policy_doc_signature should be absent when --sign-policy not set")
+	}
+}
+
+func TestRunAppendPolicyDocWithSignPolicyAddsCompoundSignature(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	keyPath := writeSignTestPrivateKey(t, t.TempDir())
+	docPath := filepath.Join(tmp, "policy.txt")
+	if err := os.WriteFile(docPath, []byte("Policy v1: allow if ticket present."), 0600); err != nil {
+		t.Fatalf("write policy doc: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	exitCode := runAppend([]string{
+		event.TypeAIPolicyDecision,
+		"--data",
+		`{"policy_id":"pol-1","policy_version":"2026-04","decision":"allow","decision_reason_codes":["ticket_present"],"subject_id_hash":"subject-hash","action_id":"act-1"}`,
+		"--policy-doc", docPath,
+		"--sign-policy", keyPath,
+	}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("exit code %d, stderr=%q", exitCode, stderr.String())
+	}
+
+	b, err := bundle.Load(bundle.DefaultPath())
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	fields, ok := b.Records[len(b.Records)-1].Event.Data.(map[string]any)
+	if !ok {
+		t.Fatal("expected map data")
+	}
+	if fields[event.FieldPolicyDocHash] == "" {
+		t.Fatalf("expected non-empty %s", event.FieldPolicyDocHash)
+	}
+	if fields[event.FieldPolicyDocSignature] == "" {
+		t.Fatalf("expected non-empty %s", event.FieldPolicyDocSignature)
+	}
+	if err := signpkg.VerifyPolicyDocSignature(fields); err != nil {
+		t.Fatalf("VerifyPolicyDocSignature: %v", err)
+	}
+}
+
+func TestRunAppendPolicyDocIgnoredForNonPolicyDecision(t *testing.T) {
+	tmp := t.TempDir()
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("chdir tmp: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+
+	docPath := filepath.Join(tmp, "policy.txt")
+	if err := os.WriteFile(docPath, []byte("irrelevant"), 0600); err != nil {
+		t.Fatalf("write doc: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	exitCode := runAppend([]string{
+		"dev.session",
+		`{"ok":true}`,
+		"--policy-doc", docPath,
+	}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("exit code %d, stderr=%q", exitCode, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "--policy-doc ignored") {
+		t.Fatalf("expected ignored warning, got %q", stderr.String())
+	}
+}
+
 func TestNormalizeBundlePath(t *testing.T) {
 	tmp := t.TempDir()
 	if got := normalizeBundlePath(tmp); got != filepath.Join(tmp, bundle.BundleFile) {

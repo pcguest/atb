@@ -24,9 +24,11 @@ const (
 
 // Policy decision events.
 const (
-	TypeAIPolicyDecision    = "ai.policy.decision"
-	FieldPolicySignature    = "policy_signature"
-	FieldPolicySignerPubKey = "policy_signer_pubkey"
+	TypeAIPolicyDecision        = "ai.policy.decision"
+	FieldPolicySignature        = "policy_signature"
+	FieldPolicySignerPubKey     = "policy_signer_pubkey"
+	FieldPolicyDocHash          = "policy_doc_hash"
+	FieldPolicyDocSignature     = "policy_doc_signature"
 )
 
 // RAG events.

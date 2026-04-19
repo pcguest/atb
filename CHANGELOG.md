@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `effective_score` fields (grade derives from `effective_score`). `atb verify`
   applies the default policy when `--with-anchor` is present; operators can supply a
   custom JSON policy file via `--corroboration-policy <path>`.
+- `--policy-doc <path>` flag for `atb append` (only for `ai.policy.decision`): reads
+  the specified file, computes its SHA-256 digest, and embeds it as `policy_doc_hash`
+  in the event payload. When `--sign-policy` is also set, a compound Ed25519 signature
+  over `SHA-256(canonical payload) || SHA-256(doc bytes)` is stored as
+  `policy_doc_signature`. `VerifyPolicyDocSignature` in `internal/sign` verifies the
+  compound signature; `policy_doc_signature_valid` is surfaced in `TrustReport`
+  (nil when no `policy_doc_hash` is present, true/false otherwise).
 
 ## [v1.8.0] - 2026-04-19
 

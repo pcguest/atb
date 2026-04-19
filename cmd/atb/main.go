@@ -4,7 +4,9 @@ package main
 
 import (
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -691,6 +693,23 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
+	if err := maybePolicyDocEmbed(eventType, data, appendInput.PolicyDocPath, appendInput.SignPolicyKeyPath, stderr); err != nil {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:    "error",
+				Action:    "append",
+				DryRun:    dryRun,
+				Path:      bundle.DefaultPath(),
+				EventType: eventType,
+				Error:     err.Error(),
+				ExitCode:  exitUserError,
+			}, "append")
+			return exitUserError
+		}
+		fmt.Fprintf(stderr, "atb append: %v\n", err)
+		return exitUserError
+	}
+
 	if err := maybeSignPolicyDecisionEvent(eventType, data, appendInput.SignPolicyKeyPath, stderr); err != nil {
 		exitCode := classifyAppendPolicySignError(err)
 		if outputFormat == verifyFormatJSON {
@@ -770,6 +789,7 @@ type appendCommandInput struct {
 	RawJSON           string
 	Options           bundle.AppendOptions
 	SignPolicyKeyPath string
+	PolicyDocPath     string
 }
 
 func parseAppendCommandArgs(args []string) (appendCommandInput, error) {
@@ -858,6 +878,20 @@ func parseAppendCommandArgs(args []string) (appendCommandInput, error) {
 			if result.SignPolicyKeyPath == "." {
 				return result, fmt.Errorf("--sign-policy cannot be empty")
 			}
+		case arg == "--policy-doc":
+			if i+1 >= len(args) {
+				return result, fmt.Errorf("missing value for --policy-doc")
+			}
+			result.PolicyDocPath = filepath.Clean(strings.TrimSpace(args[i+1]))
+			if result.PolicyDocPath == "." {
+				return result, fmt.Errorf("--policy-doc cannot be empty")
+			}
+			i++
+		case strings.HasPrefix(arg, "--policy-doc="):
+			result.PolicyDocPath = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--policy-doc=")))
+			if result.PolicyDocPath == "." {
+				return result, fmt.Errorf("--policy-doc cannot be empty")
+			}
 		case strings.HasPrefix(arg, "--"):
 			return result, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -915,6 +949,48 @@ func classifyAppendPolicySignError(err error) int {
 		return exitUserError
 	}
 	return classifySignError(err)
+}
+
+// maybePolicyDocEmbed embeds policy_doc_hash into the event payload and, when
+// a signing key is also present, adds policy_doc_signature (compound Ed25519
+// signature over SHA-256(eventHashSeed) || SHA-256(docContents)).
+// It is a no-op for non-policy-decision event types or when docPath is empty.
+func maybePolicyDocEmbed(eventType string, data interface{}, docPath, keyPath string, stderr io.Writer) error {
+	if strings.TrimSpace(docPath) == "" {
+		return nil
+	}
+	if eventType != event.TypeAIPolicyDecision {
+		fmt.Fprintf(stderr, "atb append: warning: --policy-doc ignored for %s\n", eventType)
+		return nil
+	}
+	fields, ok := data.(map[string]any)
+	if !ok {
+		return fmt.Errorf("ai.policy.decision payload must be a JSON object when --policy-doc is set")
+	}
+	contents, err := os.ReadFile(docPath) // #nosec G703 -- filepath.Clean-sanitised at parse time
+	if err != nil {
+		return fmt.Errorf("policy-doc: read %s: %w", docPath, err)
+	}
+	sum := sha256.Sum256(contents)
+	docHash := hex.EncodeToString(sum[:])
+	fields[event.FieldPolicyDocHash] = docHash
+
+	if strings.TrimSpace(keyPath) == "" {
+		return nil
+	}
+	privateKey, err := loadEd25519PrivateKey(keyPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("no signing key found; run 'atb keygen' before using --sign-policy")
+		}
+		return err
+	}
+	sig, err := signpkg.SignPolicyDoc(fields, docHash, privateKey)
+	if err != nil {
+		return fmt.Errorf("policy-doc: sign: %w", err)
+	}
+	fields[event.FieldPolicyDocSignature] = sig
+	return nil
 }
 
 type mutationLoadError struct {

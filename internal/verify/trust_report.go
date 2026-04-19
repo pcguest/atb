@@ -5,6 +5,7 @@ import (
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
 const missingTrustFieldValue = "[missing]"
@@ -24,9 +25,10 @@ type TrustReport struct {
 	ResidualRisk  string             `json:"residual_risk"`
 	Chain         TrustChainSection  `json:"chain"`
 	Anchoring     TrustAnchorSection `json:"anchoring"`
-	Sections      []TrustSection     `json:"sections"`
-	Warnings      []string           `json:"warnings,omitempty"`
-	BlindSpots    []string           `json:"blind_spots,omitempty"`
+	Sections               []TrustSection     `json:"sections"`
+	Warnings               []string           `json:"warnings,omitempty"`
+	BlindSpots             []string           `json:"blind_spots,omitempty"`
+	PolicyDocSignatureValid *bool             `json:"policy_doc_signature_valid,omitempty"`
 }
 
 // TrustChainSection summarises hash-chain integrity.
@@ -97,6 +99,10 @@ func TrustReportFromVerify(r Report, b *bundle.Bundle) TrustReport {
 		report.CASScore = r.CAS.Overall
 		report.CASGrade = r.CAS.Grade
 	}
+	if policyDocValid := computePolicyDocSignatureValid(b); policyDocValid != nil {
+		report.PolicyDocSignatureValid = policyDocValid
+	}
+
 	if len(r.Profiles) == 0 {
 		return report
 	}
@@ -110,6 +116,40 @@ func TrustReportFromVerify(r Report, b *bundle.Bundle) TrustReport {
 	}
 
 	return report
+}
+
+// computePolicyDocSignatureValid returns nil when no policy-decision records
+// carry a policy_doc_hash, true when all compound doc signatures verify, and
+// false when any fail or the signature is absent despite a doc hash being
+// present.
+func computePolicyDocSignatureValid(b *bundle.Bundle) *bool {
+	if b == nil {
+		return nil
+	}
+	found := false
+	allValid := true
+	for _, record := range b.Records {
+		if record.Event.Type != event.TypeAIPolicyDecision {
+			continue
+		}
+		fields, ok := record.Event.Data.(map[string]any)
+		if !ok {
+			continue
+		}
+		docHash, hasDocHash := fields[event.FieldPolicyDocHash].(string)
+		if !hasDocHash || strings.TrimSpace(docHash) == "" {
+			continue
+		}
+		found = true
+		if err := signpkg.VerifyPolicyDocSignature(fields); err != nil {
+			allValid = false
+		}
+	}
+	if !found {
+		return nil
+	}
+	result := allValid
+	return &result
 }
 
 func buildTrustSections(r Report, b *bundle.Bundle) []TrustSection {

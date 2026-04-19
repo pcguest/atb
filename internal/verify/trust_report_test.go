@@ -1,10 +1,16 @@
 package verify
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	signpkg "github.com/pcguest/atb/internal/sign"
 )
 
 func TestTrustReportFromVerify_RAGAnswer(t *testing.T) {
@@ -144,6 +150,82 @@ func TestFirstEventField(t *testing.T) {
 	}
 	if got := firstEventField(b, event.TypeAIPolicyDecision, "policy_id"); got != "" {
 		t.Fatalf("expected missing field to return empty string, got %q", got)
+	}
+}
+
+func TestTrustReportPolicyDocSignatureValid_NilWhenNoPolicyDocHash(t *testing.T) {
+	b := newPrivilegedToolActionBundle(t)
+	report := Verify(b, "bundle.atb", profileIDPrivilegedToolAction)
+	trustReport := TrustReportFromVerify(report, b)
+
+	if trustReport.PolicyDocSignatureValid != nil {
+		t.Errorf("expected nil PolicyDocSignatureValid when no policy_doc_hash present, got %v", *trustReport.PolicyDocSignatureValid)
+	}
+}
+
+func TestTrustReportPolicyDocSignatureValid_TrueWhenVerified(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	docContents := []byte("policy document v1")
+	sum := sha256.Sum256(docContents)
+	docHash := hex.EncodeToString(sum[:])
+
+	fields := map[string]any{
+		"policy_id":                          "pol-1",
+		"policy_version":                     "2026-04",
+		"decision":                           "allow",
+		"decision_reason_codes":              []any{"ticket_present"},
+		"subject_id_hash":                    "subject-hash",
+		"action_id":                          "act-1",
+		event.FieldPolicyDocHash:             docHash,
+	}
+	sig, err := signpkg.SignPolicyDoc(fields, docHash, privateKey)
+	if err != nil {
+		t.Fatalf("SignPolicyDoc: %v", err)
+	}
+	fields[event.FieldPolicyDocSignature] = sig
+	fields[event.FieldPolicySignerPubKey] = base64.StdEncoding.EncodeToString(publicKey)
+
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIPolicyDecision, fields, "2026-03-27T12:00:00Z")
+
+	report := Verify(b, "bundle.atb", "")
+	trustReport := TrustReportFromVerify(report, b)
+
+	if trustReport.PolicyDocSignatureValid == nil {
+		t.Fatal("expected non-nil PolicyDocSignatureValid")
+	}
+	if !*trustReport.PolicyDocSignatureValid {
+		t.Error("expected PolicyDocSignatureValid=true")
+	}
+}
+
+func TestTrustReportPolicyDocSignatureValid_FalseWhenDocHashPresentButSignatureAbsent(t *testing.T) {
+	sum := sha256.Sum256([]byte("doc"))
+	fields := map[string]any{
+		"policy_id":            "pol-1",
+		"policy_version":       "2026-04",
+		"decision":             "allow",
+		"decision_reason_codes": []any{"ticket_present"},
+		"subject_id_hash":      "subject-hash",
+		"action_id":            "act-1",
+		event.FieldPolicyDocHash: hex.EncodeToString(sum[:]),
+	}
+
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIPolicyDecision, fields, "2026-03-27T12:00:00Z")
+
+	report := Verify(b, "bundle.atb", "")
+	trustReport := TrustReportFromVerify(report, b)
+
+	if trustReport.PolicyDocSignatureValid == nil {
+		t.Fatal("expected non-nil PolicyDocSignatureValid")
+	}
+	if *trustReport.PolicyDocSignatureValid {
+		t.Error("expected PolicyDocSignatureValid=false when signature absent")
 	}
 }
 

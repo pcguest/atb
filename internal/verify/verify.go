@@ -175,6 +175,21 @@ func inspectPolicyDecisionSignatures(records []bundle.Record) ([]string, []strin
 				Detail: "ai.policy.decision: signature verification failed: " + err.Error(),
 			})
 		}
+
+		if docHash, ok := fields[event.FieldPolicyDocHash].(string); ok && strings.TrimSpace(docHash) != "" {
+			if docErr := signpkg.VerifyPolicyDocSignature(fields); docErr != nil {
+				if errors.Is(docErr, signpkg.ErrSignatureAbsent) {
+					warnings = append(warnings, "ai.policy.decision: policy_doc_signature absent")
+				} else {
+					failures = append(failures, CriticalFailure{
+						Kind:   "policy_doc_signature_verification",
+						Detail: "ai.policy.decision: policy_doc_signature verification failed: " + docErr.Error(),
+					})
+				}
+			} else {
+				notes = append(notes, "ai.policy.decision: policy_doc_signature verified")
+			}
+		}
 	}
 
 	return warnings, notes, failures
