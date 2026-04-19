@@ -2,6 +2,7 @@ package verify
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"path/filepath"
 	"testing"
@@ -119,6 +120,63 @@ func TestEvaluateBundleRequiresProfileSelection(t *testing.T) {
 	}
 	if err.Error() != "verify: no profiles supplied" {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestEvaluateBundleErrBundleNotFound(t *testing.T) {
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+
+	_, err := EvaluateBundle(EvaluateConfig{
+		BundlePath: filepath.Join(t.TempDir(), "nonexistent.atb"),
+		Profiles:   []Profile{profile},
+	})
+	if err == nil {
+		t.Fatal("expected error for nonexistent bundle path")
+	}
+	if !errors.Is(err, ErrBundleNotFound) {
+		t.Fatalf("expected ErrBundleNotFound, got: %v", err)
+	}
+}
+
+func TestEvaluateBundleErrChainInvalid(t *testing.T) {
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+
+	b := newPrivilegedToolActionBundle(t)
+	b.Records[1].Event.Type = "ai.action.precommit.tampered"
+	bundlePath := writeEvaluateBundleFixture(t, b)
+
+	_, err := EvaluateBundle(EvaluateConfig{
+		BundlePath:        bundlePath,
+		Profiles:          []Profile{profile},
+		RequireValidChain: true,
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid chain with RequireValidChain=true")
+	}
+	if !errors.Is(err, ErrChainInvalid) {
+		t.Fatalf("expected ErrChainInvalid, got: %v", err)
+	}
+}
+
+func TestEvaluateBundleErrProfileUnknown(t *testing.T) {
+	b := newPrivilegedToolActionBundle(t)
+
+	_, err := EvaluateBundle(EvaluateConfig{
+		BundlePath: "bundle.atb",
+		Records:    b.Records,
+		Profiles:   []Profile{nil},
+	})
+	if err == nil {
+		t.Fatal("expected error when all supplied profiles are nil")
+	}
+	if !errors.Is(err, ErrProfileUnknown) {
+		t.Fatalf("expected ErrProfileUnknown, got: %v", err)
 	}
 }
 

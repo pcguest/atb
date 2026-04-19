@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/roadmap.md`: added Q3 2026 target for CAS v1 refinements and source
   signatures; Q4 2026 for corroboration adapters and queue/gateway integration;
   Q1 2027 for reconciliation engine and exportable assurance packs.
+- `EvaluateBundle` typed error sentinels: `ErrBundleNotFound` (path does not exist),
+  `ErrChainInvalid` (returned when `RequireValidChain` is set and the hash chain
+  fails), and `ErrProfileUnknown` (all supplied profiles were nil). Callers can use
+  `errors.Is` to distinguish these conditions.
 
 ## [v1.8.0] - 2026-04-19
 

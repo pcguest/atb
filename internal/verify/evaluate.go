@@ -3,19 +3,31 @@ package verify
 import (
 	"crypto/x509"
 	"errors"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
 
+var (
+	// ErrBundleNotFound is returned when the bundle path does not exist.
+	ErrBundleNotFound = errors.New("bundle not found")
+	// ErrChainInvalid is returned when hash-chain verification fails.
+	ErrChainInvalid = errors.New("hash chain invalid")
+	// ErrProfileUnknown is returned when the requested profile ID is not registered.
+	ErrProfileUnknown = errors.New("unknown profile")
+)
+
 // EvaluateConfig describes one bundle evaluation request.
 type EvaluateConfig struct {
-	BundlePath     string
-	Records        []bundle.Record
-	Profiles       []Profile
-	AllApplicable  bool
-	AnchorRoots    *x509.CertPool
-	AnchorRequired bool
+	BundlePath       string
+	Records          []bundle.Record
+	Profiles         []Profile
+	AllApplicable    bool
+	AnchorRoots      *x509.CertPool
+	AnchorRequired   bool
+	RequireValidChain bool
 }
 
 // EvaluateBundle loads the requested bundle source and evaluates it with the
@@ -28,6 +40,11 @@ func EvaluateBundle(cfg EvaluateConfig) (*Report, error) {
 		return nil, errors.New("verify: bundle path or records required")
 	}
 
+	selected := normaliseProfiles(cfg.Profiles)
+	if len(cfg.Profiles) > 0 && len(selected) == 0 && !cfg.AllApplicable {
+		return nil, fmt.Errorf("verify: all supplied profiles were nil: %w", ErrProfileUnknown)
+	}
+
 	var b *bundle.Bundle
 	if len(cfg.Records) > 0 {
 		b = &bundle.Bundle{
@@ -36,6 +53,9 @@ func EvaluateBundle(cfg EvaluateConfig) (*Report, error) {
 	} else {
 		loaded, err := bundle.Load(cfg.BundlePath)
 		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("verify: %s: %w", cfg.BundlePath, ErrBundleNotFound)
+			}
 			return nil, err
 		}
 		b = loaded
@@ -44,11 +64,16 @@ func EvaluateBundle(cfg EvaluateConfig) (*Report, error) {
 	report := evaluateLoadedBundle(
 		b,
 		cfg.BundlePath,
-		cfg.Profiles,
+		selected,
 		cfg.AllApplicable,
 		cfg.AnchorRoots,
 		cfg.AnchorRequired,
 	)
+
+	if cfg.RequireValidChain && !report.Integrity.ChainValid {
+		return nil, fmt.Errorf("verify: %s: %w", cfg.BundlePath, ErrChainInvalid)
+	}
+
 	return &report, nil
 }
 
