@@ -193,6 +193,50 @@ relations: []
 	})
 }
 
+func TestRunProfilesValidateBuiltInsJSON(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runProfiles([]string{"validate", "--format", "json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %q", stderr.String())
+	}
+
+	var report map[string]struct {
+		ID     string   `json:"id"`
+		Valid  bool     `json:"valid"`
+		Errors []string `json:"errors"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal JSON output: %v\noutput=%s", err, stdout.String())
+	}
+
+	profiles := verifypkg.AllProfiles()
+	if len(report) == 0 {
+		t.Fatal("expected non-empty JSON report for built-in profiles")
+	}
+
+	for _, profile := range profiles {
+		entry, ok := report[profile.ID()]
+		if !ok {
+			t.Errorf("missing report entry for built-in profile %q", profile.ID())
+			continue
+		}
+		if !entry.Valid {
+			t.Errorf("expected profile %q to be valid, errors: %v", profile.ID(), entry.Errors)
+		}
+		if entry.ID != profile.ID() {
+			t.Errorf("profile %q: id field mismatch: got %q", profile.ID(), entry.ID)
+		}
+		if len(entry.Errors) != 0 {
+			t.Errorf("profile %q: unexpected errors: %v", profile.ID(), entry.Errors)
+		}
+	}
+}
+
 func writeProfilesTestFile(t testing.TB, dir, name, content string) {
 	t.Helper()
 

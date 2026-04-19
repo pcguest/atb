@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Added
+- `atb profiles validate --format json` snapshot test: asserts exit 0, all built-in
+  profiles present, every entry reports `valid: true` with no errors.
 
 ## [v1.8.0] - 2026-04-19
 
