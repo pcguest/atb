@@ -154,10 +154,12 @@ func ComputeCAS(
 	copiedWeights := copyFloatMap(weights)
 	if !integrityValid {
 		return CASResult{
-			Overall:      0,
-			Grade:        "Insufficient",
-			SubScores:    copiedScores,
-			WeightVector: copiedWeights,
+			Overall:            0,
+			Grade:              "Insufficient",
+			CorroborationBonus: 0,
+			EffectiveScore:     0,
+			SubScores:          copiedScores,
+			WeightVector:       copiedWeights,
 		}
 	}
 
@@ -166,10 +168,12 @@ func ComputeCAS(
 		total += weight * copiedScores[key]
 	}
 	return CASResult{
-		Overall:      total,
-		Grade:        gradeFromScore(total),
-		SubScores:    copiedScores,
-		WeightVector: copiedWeights,
+		Overall:            total,
+		Grade:              gradeFromScore(total),
+		CorroborationBonus: 0,
+		EffectiveScore:     total,
+		SubScores:          copiedScores,
+		WeightVector:       copiedWeights,
 	}
 }
 

@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and exits 0. Version and algorithm values are read from existing CLI constants.
 - TypeScript SDK `version()` function: returns `{ version: SDK_VERSION, algorithm: "SHA-256+RFC8785" }`.
   `SDK_VERSION` is exported as a named constant.
+- CAS v1 corroboration bonus: `CorroborationPolicy` struct with `AnchorBonus`,
+  `SignatureBonus`, `SnapshotBonus`, and `MaxBonus` fields. `DefaultCorroborationPolicy()`
+  returns the built-in values (0.05/0.03/0.02, cap 0.10). `EvaluateBundle` accepts a
+  new `WithCorroborationPolicy` option; when set, the CAS result gains `corroboration_bonus`
+  and `effective_score` fields (grade derives from `effective_score`). `atb verify`
+  applies the default policy when `--with-anchor` is present; operators can supply a
+  custom JSON policy file via `--corroboration-policy <path>`.
 
 ## [v1.8.0] - 2026-04-19
 

@@ -65,10 +65,12 @@ type ProfileResult struct {
 // It does not override obligation outcome: a profile can FAIL while Overall is
 // non-zero; treat CAS as diagnostic completeness evidence only in that case.
 type CASResult struct {
-	Overall      float64            `json:"overall"`
-	Grade        string             `json:"grade"` // "High" >=0.85 | "Medium" >=0.60 | "Low" >=0.30 | "Insufficient" <0.30
-	SubScores    map[string]float64 `json:"sub_scores"`
-	WeightVector map[string]float64 `json:"weight_vector"`
+	Overall            float64            `json:"overall"`
+	Grade              string             `json:"grade"` // "High" >=0.85 | "Medium" >=0.60 | "Low" >=0.30 | "Insufficient" <0.30
+	CorroborationBonus float64            `json:"corroboration_bonus"`
+	EffectiveScore     float64            `json:"effective_score"`
+	SubScores          map[string]float64 `json:"sub_scores"`
+	WeightVector       map[string]float64 `json:"weight_vector"`
 }
 
 // ResidualRisk summarises the main outstanding concerns.

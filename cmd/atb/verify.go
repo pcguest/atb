@@ -19,16 +19,17 @@ import (
 var errVerifyHelp = errors.New("verify help requested")
 
 type verifyCLIConfig struct {
-	BundlePath        string
-	RemoteURI         string // --remote s3://bucket/key; mutually exclusive with BundlePath
-	ProfileID         string
-	JSON              bool
-	LegacyFormat      string
-	Quiet             bool
-	Trace             bool
-	WithAnchor        bool
-	WithSnapshotCheck bool
-	RootsPath         string
+	BundlePath              string
+	RemoteURI               string // --remote s3://bucket/key; mutually exclusive with BundlePath
+	ProfileID               string
+	JSON                    bool
+	LegacyFormat            string
+	Quiet                   bool
+	Trace                   bool
+	WithAnchor              bool
+	WithSnapshotCheck       bool
+	RootsPath               string
+	CorroborationPolicyPath string
 }
 
 type verifySelection struct {
@@ -117,12 +118,21 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 		_ = verifyWithTrace(b, stderr)
 	}
 
+	corrOpt, err := buildCorroborationOption(cfg)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb verify: %v\n", err)
+		return exitUserError
+	}
+	evalOpts := make([]verifypkg.EvaluateOption, 0, 1)
+	if corrOpt != nil {
+		evalOpts = append(evalOpts, corrOpt)
+	}
 	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
 		BundlePath:    cfg.BundlePath,
 		Records:       b.Records,
 		Profiles:      selection.profiles,
 		AllApplicable: selection.allApplicable,
-	})
+	}, evalOpts...)
 	if err != nil {
 		fmt.Fprintf(stderr, "atb verify: %v\n", err)
 		return exitSystemError
@@ -306,6 +316,14 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.RootsPath = filepath.Clean(strings.TrimSpace(args[i]))
 		case strings.HasPrefix(arg, "--roots="):
 			cfg.RootsPath = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--roots=")))
+		case arg == "--corroboration-policy":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --corroboration-policy")
+			}
+			i++
+			cfg.CorroborationPolicyPath = filepath.Clean(strings.TrimSpace(args[i]))
+		case strings.HasPrefix(arg, "--corroboration-policy="):
+			cfg.CorroborationPolicyPath = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--corroboration-policy=")))
 		case arg == "--remote":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --remote (expected s3://bucket/key)")
@@ -343,6 +361,7 @@ func printVerifyUsage(w io.Writer) {
 	fmt.Fprintln(w, "  --with-anchor  verify RFC 3161 timestamp token: digest, cert chain, and signature")
 	fmt.Fprintln(w, "  --with-snapshot-check  verify each atb.snapshot bundle_hash against the recorded bundle prefix")
 	fmt.Fprintln(w, "  --roots <pem-file>   PEM file containing trusted root certificates for TSA chain verification (default: system roots)")
+	fmt.Fprintln(w, "  --corroboration-policy <json-file>   JSON file with CorroborationPolicy overrides (requires --with-anchor; default: built-in policy)")
 }
 
 func verificationExitCode(report verifypkg.Report) int {
@@ -431,6 +450,27 @@ func resolveVerifySelection(profileSpec string) (verifySelection, int, error) {
 	}, exitSuccess, nil
 }
 
+func buildCorroborationOption(cfg verifyCLIConfig) (verifypkg.EvaluateOption, error) {
+	if !cfg.WithAnchor {
+		return nil, nil
+	}
+	if strings.TrimSpace(cfg.CorroborationPolicyPath) == "" {
+		return verifypkg.WithCorroborationPolicy(verifypkg.DefaultCorroborationPolicy()), nil
+	}
+	data, err := os.ReadFile(cfg.CorroborationPolicyPath) // #nosec G703 -- filepath.Clean-sanitised at parse time
+	if err != nil {
+		return nil, fmt.Errorf("corroboration-policy: read %s: %w", cfg.CorroborationPolicyPath, err)
+	}
+	var policy verifypkg.CorroborationPolicy
+	if err := json.Unmarshal(data, &policy); err != nil {
+		return nil, fmt.Errorf("corroboration-policy: parse %s: %w", cfg.CorroborationPolicyPath, err)
+	}
+	if err := policy.Validate(); err != nil {
+		return nil, fmt.Errorf("corroboration-policy: %w", err)
+	}
+	return verifypkg.WithCorroborationPolicy(&policy), nil
+}
+
 func loadVerifyRoots(path string) (*x509.CertPool, error) {
 	if strings.TrimSpace(path) == "" {
 		return nil, nil
@@ -516,12 +556,21 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 		return exitCode
 	}
 
+	corrOpt, err := buildCorroborationOption(cfg)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb verify: %v\n", err)
+		return exitUserError
+	}
+	remoteEvalOpts := make([]verifypkg.EvaluateOption, 0, 1)
+	if corrOpt != nil {
+		remoteEvalOpts = append(remoteEvalOpts, corrOpt)
+	}
 	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
 		BundlePath:    cfg.RemoteURI,
 		Records:       b.Records,
 		Profiles:      selection.profiles,
 		AllApplicable: selection.allApplicable,
-	})
+	}, remoteEvalOpts...)
 	if err != nil {
 		fmt.Fprintf(stderr, "atb verify: %v\n", err)
 		return exitSystemError

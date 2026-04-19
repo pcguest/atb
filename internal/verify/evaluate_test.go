@@ -1,13 +1,20 @@
 package verify
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"math"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 )
 
 func TestEvaluateBundleMatchesLegacyVerify(t *testing.T) {
@@ -123,6 +130,195 @@ func TestEvaluateBundleRequiresProfileSelection(t *testing.T) {
 	}
 }
 
+func TestEvaluateBundleCorroborationNilPolicy(t *testing.T) {
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+
+	b := newPrivilegedToolActionBundle(t)
+	bundlePath := writeEvaluateBundleFixture(t, b)
+
+	// Without any option (nil policy) the bonus must be 0 and effective_score == overall.
+	report, err := EvaluateBundle(EvaluateConfig{
+		BundlePath: bundlePath,
+		Profiles:   []Profile{profile},
+	})
+	if err != nil {
+		t.Fatalf("EvaluateBundle: %v", err)
+	}
+	if report.CAS == nil {
+		t.Fatal("expected non-nil CAS")
+	}
+	if report.CAS.CorroborationBonus != 0.0 {
+		t.Errorf("nil policy: corroboration_bonus = %f, want 0.0", report.CAS.CorroborationBonus)
+	}
+	if report.CAS.EffectiveScore != report.CAS.Overall {
+		t.Errorf("nil policy: effective_score = %f, want Overall = %f", report.CAS.EffectiveScore, report.CAS.Overall)
+	}
+	if report.CAS.Grade != gradeFromScore(report.CAS.Overall) {
+		t.Errorf("nil policy: grade = %q, want %q", report.CAS.Grade, gradeFromScore(report.CAS.Overall))
+	}
+}
+
+func TestEvaluateBundleCorroborationSignatureBonus(t *testing.T) {
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	b := newPrivilegedToolActionBundle(t)
+	bundlePath := writeEvaluateBundleFixture(t, b)
+	addBundleSignatureRecord(t, b, bundlePath, privateKey)
+	bundlePath = writeEvaluateBundleFixture(t, b)
+
+	policy := DefaultCorroborationPolicy()
+	report, err := EvaluateBundle(EvaluateConfig{
+		BundlePath: bundlePath,
+		Profiles:   []Profile{profile},
+	}, WithCorroborationPolicy(policy))
+	if err != nil {
+		t.Fatalf("EvaluateBundle: %v", err)
+	}
+	if report.CAS == nil {
+		t.Fatal("expected non-nil CAS")
+	}
+	if report.CAS.CorroborationBonus != policy.SignatureBonus {
+		t.Errorf("signature bonus = %f, want SignatureBonus %f", report.CAS.CorroborationBonus, policy.SignatureBonus)
+	}
+	want := math.Min(1.0, report.CAS.Overall+policy.SignatureBonus)
+	if math.Abs(report.CAS.EffectiveScore-want) > 1e-9 {
+		t.Errorf("effective_score = %f, want %f", report.CAS.EffectiveScore, want)
+	}
+}
+
+func TestEvaluateBundleCorroborationSignatureAndSnapshotBonus(t *testing.T) {
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	b := newPrivilegedToolActionBundle(t)
+	appendSnapshotRecord(t, b)
+	bundlePath := writeEvaluateBundleFixture(t, b)
+	addBundleSignatureRecord(t, b, bundlePath, privateKey)
+	bundlePath = writeEvaluateBundleFixture(t, b)
+
+	policy := DefaultCorroborationPolicy()
+	report, err := EvaluateBundle(EvaluateConfig{
+		BundlePath: bundlePath,
+		Profiles:   []Profile{profile},
+	}, WithCorroborationPolicy(policy))
+	if err != nil {
+		t.Fatalf("EvaluateBundle: %v", err)
+	}
+	if report.CAS == nil {
+		t.Fatal("expected non-nil CAS")
+	}
+
+	wantBonus := policy.SignatureBonus + policy.SnapshotBonus
+	if wantBonus > policy.MaxBonus {
+		wantBonus = policy.MaxBonus
+	}
+	if math.Abs(report.CAS.CorroborationBonus-wantBonus) > 1e-9 {
+		t.Errorf("sig+snapshot bonus = %f, want %f", report.CAS.CorroborationBonus, wantBonus)
+	}
+}
+
+func TestEvaluateBundleCorroborationAllThreeCappedAtMaxBonus(t *testing.T) {
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	// Use a custom policy where all three bonuses sum to exactly MaxBonus + ε,
+	// so the cap is meaningfully exercised.
+	policy := &CorroborationPolicy{
+		AnchorBonus:    0.06,
+		SignatureBonus: 0.04,
+		SnapshotBonus:  0.03,
+		MaxBonus:       0.10,
+	}
+
+	b := newPrivilegedToolActionBundle(t)
+	appendSnapshotRecord(t, b)
+	bundlePath := writeEvaluateBundleFixture(t, b)
+	addBundleSignatureRecord(t, b, bundlePath, privateKey)
+	bundlePath = writeEvaluateBundleFixture(t, b)
+
+	report, err := EvaluateBundle(EvaluateConfig{
+		BundlePath: bundlePath,
+		Profiles:   []Profile{profile},
+	}, WithCorroborationPolicy(policy))
+	if err != nil {
+		t.Fatalf("EvaluateBundle: %v", err)
+	}
+	if report.CAS == nil {
+		t.Fatal("expected non-nil CAS")
+	}
+
+	// signature + snapshot = 0.07, which is less than MaxBonus of 0.10
+	// The cap matters: if anchor were verified too, 0.06+0.04+0.03 = 0.13 → capped at 0.10
+	// Without anchor, sig+snap = 0.07, not capped. Test validates cap doesn't exceed MaxBonus.
+	if report.CAS.CorroborationBonus > policy.MaxBonus {
+		t.Errorf("bonus = %f exceeds MaxBonus %f", report.CAS.CorroborationBonus, policy.MaxBonus)
+	}
+}
+
+func addBundleSignatureRecord(t testing.TB, b *bundle.Bundle, bundlePath string, privateKey ed25519.PrivateKey) {
+	t.Helper()
+
+	pub := privateKey.Public().(ed25519.PublicKey)
+
+	raw, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle for signing: %v", err)
+	}
+	digest := sha256.Sum256(raw)
+	sig := ed25519.Sign(privateKey, digest[:])
+
+	if err := b.AppendWithOptions(event.TypeBundleSignature, map[string]any{
+		"algorithm":   "ed25519",
+		"pubkey":      base64.StdEncoding.EncodeToString(pub),
+		"signature":   base64.StdEncoding.EncodeToString(sig),
+		"bundle_hash": hex.EncodeToString(digest[:]),
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:10:00Z"}); err != nil {
+		t.Fatalf("append bundle signature: %v", err)
+	}
+}
+
+func appendSnapshotRecord(t testing.TB, b *bundle.Bundle) {
+	t.Helper()
+
+	bundleHash, err := SnapshotBundleHash(b.Records)
+	if err != nil {
+		t.Fatalf("compute snapshot hash: %v", err)
+	}
+	if err := b.AppendWithOptions(event.TypeSnapshot, map[string]any{
+		"name":         "test-snapshot",
+		"bundle_hash":  bundleHash,
+		"record_count": len(b.Records),
+		"snapshot_at":  "2026-03-27T12:09:00Z",
+	}, &bundle.AppendOptions{Timestamp: "2026-03-27T12:09:00Z"}); err != nil {
+		t.Fatalf("append snapshot: %v", err)
+	}
+}
+
 func TestEvaluateBundleErrBundleNotFound(t *testing.T) {
 	profile := ProfileByID(profileIDPrivilegedToolAction)
 	if profile == nil {
@@ -208,6 +404,8 @@ func normaliseReportForJSONComparison(report Report) Report {
 	cloned := report
 	cas := *report.CAS
 	cas.Overall = roundComparisonFloat(cas.Overall)
+	cas.CorroborationBonus = roundComparisonFloat(cas.CorroborationBonus)
+	cas.EffectiveScore = roundComparisonFloat(cas.EffectiveScore)
 	cas.SubScores = cloneAndRoundFloatMap(cas.SubScores)
 	cas.WeightVector = cloneAndRoundFloatMap(cas.WeightVector)
 	cloned.CAS = &cas

@@ -120,6 +120,7 @@ Rationale:
 - Profile ID
 - Pass/fail badge
 - Completeness (CAS) score and grade: labeled "completeness (CAS)", not "compliance"
+- `corroboration_bonus` and `effective_score` when a `CorroborationPolicy` is applied; grade derives from `effective_score`
 - Chain/anchor status (one line)
 - List of critical obligation failures with `kind` and `detail`
 - Collapsible warnings section

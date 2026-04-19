@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 
@@ -19,20 +20,38 @@ var (
 	ErrProfileUnknown = errors.New("unknown profile")
 )
 
+type evaluateOpts struct {
+	corroboration *CorroborationPolicy
+}
+
+// EvaluateOption configures optional behaviour for EvaluateBundle.
+type EvaluateOption func(*evaluateOpts)
+
+// WithCorroborationPolicy applies a CorroborationPolicy when computing the
+// effective CAS score. A nil policy is a no-op (backward-compatible).
+func WithCorroborationPolicy(p *CorroborationPolicy) EvaluateOption {
+	return func(c *evaluateOpts) { c.corroboration = p }
+}
+
 // EvaluateConfig describes one bundle evaluation request.
 type EvaluateConfig struct {
-	BundlePath       string
-	Records          []bundle.Record
-	Profiles         []Profile
-	AllApplicable    bool
-	AnchorRoots      *x509.CertPool
-	AnchorRequired   bool
+	BundlePath        string
+	Records           []bundle.Record
+	Profiles          []Profile
+	AllApplicable     bool
+	AnchorRoots       *x509.CertPool
+	AnchorRequired    bool
 	RequireValidChain bool
 }
 
 // EvaluateBundle loads the requested bundle source and evaluates it with the
-// selected profiles.
-func EvaluateBundle(cfg EvaluateConfig) (*Report, error) {
+// selected profiles. Use WithCorroborationPolicy to apply a verified-evidence
+// bonus to the base CAS score.
+func EvaluateBundle(cfg EvaluateConfig, opts ...EvaluateOption) (*Report, error) {
+	eopts := &evaluateOpts{}
+	for _, o := range opts {
+		o(eopts)
+	}
 	if len(cfg.Profiles) == 0 && !cfg.AllApplicable {
 		return nil, errors.New("verify: no profiles supplied")
 	}
@@ -74,6 +93,17 @@ func EvaluateBundle(cfg EvaluateConfig) (*Report, error) {
 		return nil, fmt.Errorf("verify: %s: %w", cfg.BundlePath, ErrChainInvalid)
 	}
 
+	if eopts.corroboration != nil && report.CAS != nil {
+		anchorVerified := report.Anchoring.TSAVerified
+		signatureVerified := report.BundleSignature != nil && report.BundleSignature.Verified
+		snapshotVerified := hasVerifiedSnapshot(b.Records)
+		bonus := computeCorroborationBonus(eopts.corroboration, anchorVerified, signatureVerified, snapshotVerified)
+		effective := math.Min(1.0, report.CAS.Overall+bonus)
+		report.CAS.CorroborationBonus = bonus
+		report.CAS.EffectiveScore = effective
+		report.CAS.Grade = gradeFromScore(effective)
+	}
+
 	return &report, nil
 }
 
@@ -100,13 +130,15 @@ func evaluateLoadedBundle(
 
 	if len(selectedProfiles) == 0 {
 		if allApplicable && report.CAS == nil {
+			sc := computeSC(b, profileIDPrivilegedToolAction)
 			report.CAS = &CASResult{
 				SubScores: map[string]float64{
-					"SC": computeSC(b, profileIDPrivilegedToolAction),
+					"SC": sc,
 				},
 			}
-			if sc := report.CAS.SubScores["SC"]; sc > 0 && report.Integrity.ChainValid {
+			if sc > 0 && report.Integrity.ChainValid {
 				report.CAS.Overall = sc
+				report.CAS.EffectiveScore = sc
 				report.CAS.Grade = gradeFromScore(sc)
 			}
 		}
