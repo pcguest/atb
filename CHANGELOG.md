@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.8.0] - 2026-04-19
+
 ### Added
 - Added a verifier evaluation shim in `internal/verify/evaluate.go`: `EvaluateBundle` and `EvaluateConfig` centralise bundle loading, hash-chain integrity, RFC 3161 anchor verification, CAS normalisation, profile stamping, residual risk, and post-profile transformations in one place. The CLI, viewer, and API surfaces now derive reports from this function.
 - Added `atb profiles validate`: validates all built-in profiles and any additional profiles supplied via `--file` or `--dir`; checks required fields, duplicate IDs, and CAS weight-vector sums; exits 0 or 1 and supports text or stable JSON output via `--format json`.
