@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ErrChainInvalid` (returned when `RequireValidChain` is set and the hash chain
   fails), and `ErrProfileUnknown` (all supplied profiles were nil). Callers can use
   `errors.Is` to distinguish these conditions.
+- `atb version --json` flag: outputs `{"version":"…","algorithm":"…","anchor":"RFC3161-optional"}`
+  and exits 0. Version and algorithm values are read from existing CLI constants.
 
 ## [v1.8.0] - 2026-04-19
 

@@ -328,7 +328,7 @@ func main() {
 	case "doc":
 		cmdDoc()
 	case "version", "--version", "-v":
-		fmt.Printf("atb %s\n", version)
+		os.Exit(runVersion(os.Args[2:], os.Stdout, os.Stderr))
 	case "help", "--help", "-h":
 		format, err := parseHelpArgs(os.Args[2:])
 		if err != nil {
@@ -439,6 +439,39 @@ Examples:
   atb mcp serve
   atb doc gen-openapi
 `)
+}
+
+type versionOutput struct {
+	Version   string `json:"version"`
+	Algorithm string `json:"algorithm"`
+	Anchor    string `json:"anchor"`
+}
+
+func runVersion(args []string, stdout, stderr io.Writer) int {
+	jsonFlag := false
+	for _, arg := range args {
+		switch arg {
+		case "--json":
+			jsonFlag = true
+		default:
+			fmt.Fprintf(stderr, "atb version: unknown flag %q\n", arg)
+			return exitUserError
+		}
+	}
+	if jsonFlag {
+		out := versionOutput{
+			Version:   version,
+			Algorithm: verifyAlgorithm,
+			Anchor:    "RFC3161-optional",
+		}
+		if err := json.NewEncoder(stdout).Encode(out); err != nil {
+			fmt.Fprintf(stderr, "atb version: encode json output: %v\n", err)
+			return exitSystemError
+		}
+		return exitSuccess
+	}
+	fmt.Fprintf(stdout, "atb %s\n", version)
+	return exitSuccess
 }
 
 // cmdInit initialises a new bundle directory and empty bundle file.

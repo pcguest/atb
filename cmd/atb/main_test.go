@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -797,5 +798,36 @@ func TestUsageJSONIncludesVerifyFlagsAndExitCodes(t *testing.T) {
 		if !found {
 			t.Fatalf("%s command missing from usage JSON", name)
 		}
+	}
+}
+
+func TestRunVersionJSON(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	exitCode := runVersion([]string{"--json"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+	if stderr.Len() != 0 {
+		t.Fatalf("unexpected stderr: %q", stderr.String())
+	}
+
+	var out struct {
+		Version   string `json:"version"`
+		Algorithm string `json:"algorithm"`
+		Anchor    string `json:"anchor"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
+		t.Fatalf("unmarshal version JSON: %v\noutput=%s", err, stdout.String())
+	}
+	if out.Version != version {
+		t.Errorf("version field: got %q, want %q", out.Version, version)
+	}
+	if out.Algorithm == "" {
+		t.Error("algorithm field must not be empty")
+	}
+	if out.Anchor == "" {
+		t.Error("anchor field must not be empty")
 	}
 }
