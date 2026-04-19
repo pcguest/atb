@@ -32,6 +32,12 @@
  * ```
  */
 
+export const SDK_VERSION = "1.8.0";
+
+export function version(): { version: string; algorithm: string } {
+  return { version: SDK_VERSION, algorithm: "SHA-256+RFC8785" };
+}
+
 export { Bundle, ATBVerificationError } from "./bundle.js";
 export * from "./eventTypes.js";
 export { ActionGate, ActionGateDeniedError } from "./action-gate.js";

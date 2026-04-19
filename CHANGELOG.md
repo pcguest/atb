@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `errors.Is` to distinguish these conditions.
 - `atb version --json` flag: outputs `{"version":"…","algorithm":"…","anchor":"RFC3161-optional"}`
   and exits 0. Version and algorithm values are read from existing CLI constants.
+- TypeScript SDK `version()` function: returns `{ version: SDK_VERSION, algorithm: "SHA-256+RFC8785" }`.
+  `SDK_VERSION` is exported as a named constant.
 
 ## [v1.8.0] - 2026-04-19
 
