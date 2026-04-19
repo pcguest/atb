@@ -54,6 +54,8 @@ Sequencing: current work through early v1.8.x.
 
 Status: Planned
 
+Target: Q3 2026
+
 Description: refine sub-score guidance, strengthen normalisation rules,
 and make profile-specific weighting clearer where recorded evidence is
 stronger or weaker than the current defaults suggest.
@@ -66,6 +68,8 @@ Sequencing: after v1.8.x.
 ### Source signatures for policy gates
 
 Status: Planned
+
+Target: Q3 2026
 
 Description: extend source-signature handling around policy gates and
 authorisation points so recorded decisions can be corroborated by signed
@@ -83,6 +87,8 @@ Sequencing: after v1.8.x, alongside CAS refinements.
 
 Status: Planned
 
+Target: Q4 2026
+
 Description: add adapters that can pull or compare corroborating
 evidence from external systems such as gateways, ticketing layers, or
 execution receipts.
@@ -95,6 +101,8 @@ Sequencing: after the v1.8.x line.
 ### Queue, gateway, and storage integration
 
 Status: Planned
+
+Target: Q4 2026
 
 Description: add focused integration points for queue consumers,
 workflow gateways, and storage systems so key hand-off events can be
@@ -110,6 +118,8 @@ Sequencing: after corroboration adapters begin to land.
 
 Status: Planned
 
+Target: Q1 2027
+
 Description: provide workflows that compare a recorded bundle with the
 state of the underlying system of record and report mismatches.
 
@@ -121,6 +131,8 @@ Sequencing: after queue, gateway, and storage integration.
 ### Exportable assurance packs
 
 Status: Planned
+
+Target: Q1 2027
 
 Description: package verification output, supporting artefacts, and
 selected corroboration evidence into portable review bundles for handoff

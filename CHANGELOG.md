@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `atb profiles validate --format json` snapshot test: asserts exit 0, all built-in
   profiles present, every entry reports `valid: true` with no errors.
+- `docs/roadmap.md`: added Q3 2026 target for CAS v1 refinements and source
+  signatures; Q4 2026 for corroboration adapters and queue/gateway integration;
+  Q1 2027 for reconciliation engine and exportable assurance packs.
 
 ## [v1.8.0] - 2026-04-19
 
