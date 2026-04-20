@@ -1,6 +1,6 @@
 # ATB
 
-Records workflow events as tamper-evident, SHA-256 hash-chained bundles on local disk. No backend required.
+AI and agent systems increasingly take high-impact actions — escalating tickets, running tools, exporting data, making policy decisions — and the standard audit trail is log lines that can be edited after the fact, with nothing that proves what happened in sequence. ATB records those decisions as an append-only, hash-chained bundle on local disk. Each event seals the one before it; altering or reordering any event breaks the chain. The bundle can be verified later, without a backend, and without routing payload data to external infrastructure.
 
 [![Release](https://img.shields.io/badge/release-v1.9.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
@@ -14,19 +14,22 @@ does not prove recording completeness, model correctness, or that risk controls 
 
 ## Why ATB
 
-- **Local-first, no hosted service.** Bundles are portable `.atb` files on disk. The core
+- **No hosted service required.** Bundles are portable `.atb` files on disk — the core
   `init → append → snapshot → verify` workflow requires no network access and routes no payload
   data to third-party infrastructure.
-- **Conservative, explicit cryptographic primitives.** SHA-256 over RFC 8785 canonical JSON for
-  hash chaining; optional RFC 3161 TSA anchoring for third-party timestamp commitments.
-- **Six schema-locked obligation profiles with CAS.** Profiles define required event sets for
-  concrete workflows (RAG answers, privileged tools, policy decisions, human overrides, data
-  exports, background jobs). CAS is a profile-scoped completeness signal for recorded evidence,
-  not a compliance determination.
-- **Multi-surface instrumentation.** Go CLI · Python SDK · TypeScript SDK · MCP stdio bridge ·
-  LangChain callbacks · PageIndex retriever · `atb view` local dashboard · `atb push` WORM export.
-- **Opt-in WORM export.** `atb push` uploads bundles to S3-compatible stores with optional Object
-  Lock headers. This is a complement to the local guarantee, not a replacement.
+- **Audit evidence needs to verify years after the fact.** ATB uses SHA-256 over RFC 8785
+  canonical JSON for hash chaining; optional RFC 3161 TSA anchoring adds a third-party timestamp
+  commitment.
+- **Different workflows require different evidence sets.** Six schema-locked obligation profiles
+  define the required event types for RAG answers, privileged tools, policy decisions, human
+  overrides, data exports, and background jobs. CAS is a profile-scoped completeness signal for
+  recorded evidence, not a compliance determination.
+- **Instrumentation needs to work wherever the workflow runs.** ATB ships a Go CLI, Python SDK,
+  TypeScript SDK, MCP stdio bridge, LangChain callbacks, PageIndex retriever, `atb view` local
+  dashboard, and `atb push` WORM export.
+- **Local bundles alone are vulnerable to filesystem-level replacement.** `atb push` uploads
+  bundles to S3-compatible stores with optional Object Lock headers as a complement to the local
+  guarantee, not a replacement.
 
 ### What ATB does not do
 
@@ -54,6 +57,8 @@ For compliance control mappings see [`docs/compliance/`](docs/compliance/).
 
 ## Quickstart
 
+Recording a support-triage escalation decision:
+
 ```bash
 atb bundle new
 atb append ai.request.received \
@@ -64,10 +69,10 @@ atb snapshot incident_review
 atb verify
 ```
 
-`atb verify` checks the SHA-256 hash chain and any recorded bundle
-signature material. Add `--with-anchor` to verify RFC 3161 timestamp
-token material when an anchor is present. Mutation, reordering, or
-deletion breaks the chain.
+The `.atb` file on disk holds the full event sequence with each event hash-sealed to the one
+before it. `atb verify` checks that the chain is unbroken and that no event has been altered or
+reordered since recording. A passing result means the recorded sequence is intact; it does not
+mean recording was complete.
 
 `atb bundle new` is the explicit alias for `atb init`.
 
@@ -249,6 +254,14 @@ alongside the rest of the workflow.
 - [SIEM and GRC Integration](docs/integrations/siem-grc.md)
 - [CLI Flag Reference](docs/config.md)
 - [Changelog](CHANGELOG.md)
+
+Corroboration adapters (#47) will let ATB cross-check its own bundle records against external
+evidence from queues, gateways, or execution receipts to surface gaps between what was recorded
+locally and what surrounding systems observed. Queue and storage gateway integration (#48) extends
+recording coverage to asynchronous and queued workflows where the triggering event happens outside
+the local bundle. Assurance packs (#49) will package the verified bundle, verification report,
+and compliance mapping into a portable ZIP for handoff to auditors, customers, or incident
+reviewers.
 
 ## Attribution
 
