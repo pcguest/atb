@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Added
+- `atb.corroboration.external` event type in the new `atb.corroboration.*` namespace.
+  Required fields: `source`, `reference_id`, `digest`, `retrieved_at`. Optional fields:
+  `adapter`, `raw_evidence` (base64, capped at 4 KB), `truncated`. Schema locked at v1.
+- HTTP gateway receipt adapter in `internal/corroboration/`. Fetches a JSON receipt from a
+  configured URL, computes the SHA-256 digest of the response body, and returns a record
+  ready to append as an `atb.corroboration.external` event. Raw evidence is stored up to
+  4 KB; payloads larger than 4 KB set `Truncated=true` and omit the raw body.
+- `atb corroborate` subcommand: fetches a receipt from an external adapter and appends an
+  `atb.corroboration.external` event to the active bundle. Flags: `--source` (required),
+  `--url` (required for `http-gateway`), `--ref` (required), `--bundle` (optional),
+  `--dry-run`, `--format text|json`.
+- Verifier awards XC sub-score credit for well-formed `atb.corroboration.external` events.
+  One valid corroboration event earns XC=1.0. Bundles without corroboration events return
+  their anchor-based XC score unchanged — identical to v1.9.0 behaviour.
+
+### Docs
+- `docs/spec-ai-traces.md`: `atb.corroboration.*` namespace and required field schema
+  documented, corroboration event added to the complete event type registry table.
+- `docs/architecture.md`: corroboration model section added, covering the problem addressed,
+  what the event records, XC scoring, the trust limitation, and adapter extension points.
+- All six built-in profile templates: blind-spot text updated to note XC credit conditions.
 
 ## [v1.9.0] - 2026-04-20
 
