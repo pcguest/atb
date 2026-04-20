@@ -76,6 +76,11 @@ const (
 	TypeSnapshotBuild = "snapshot.build"
 )
 
+// Corroboration events record evidence retrieved from external systems.
+const (
+	TypeCorroborationExternal = "atb.corroboration.external"
+)
+
 // EventInfo describes a registered event type with its metadata.
 type EventInfo struct {
 	Type        string `json:"type"`
@@ -117,6 +122,7 @@ var Registry = []EventInfo{
 	{TypeDataExportExecuted, "Data export executed to sink", "atb.profile.data_export", "critical"},
 	{TypeDevSession, "Developer session marker (tooling use)", "", "informational"},
 	{TypeSnapshotBuild, "Build snapshot (tooling use)", "", "informational"},
+	{TypeCorroborationExternal, "External corroboration record (adapter-retrieved evidence)", "", "informational"},
 	{TypeRAGIndex, "PageIndex document tree build record (index_hash, node_count)", "atb.profile.rag_answer", "required"},
 	{TypeRAGRetrieval, "PageIndex reasoning-based retrieval result (node_id, page_start/end)", "atb.profile.rag_answer", "required"},
 }
