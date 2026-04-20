@@ -266,6 +266,44 @@ Ordering guarantees:
 }
 ```
 
+## Corroboration events
+
+The `atb.corroboration.*` namespace holds events that record evidence retrieved from external
+systems. These events do not change the hash-chain structure and are subject to the same
+append-only integrity guarantees as any other event type.
+
+### `atb.corroboration.external`
+
+Records evidence retrieved by a corroboration adapter from an external source — a queue
+dequeue receipt, a gateway execution log, a storage confirmation, or any JSON-returning
+endpoint that can corroborate a locally recorded event.
+
+A bundle that contains one or more valid `atb.corroboration.external` events earns XC
+sub-score credit in CAS evaluation. XC is a diagnostic signal: it records that corroboration
+was attempted, not that the external system's record is authoritative or complete.
+
+**Required fields (schema-locked at v1):**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `source` | string | Identifies the external system. Examples: `"sqs"`, `"s3"`, `"http-gateway"`, `"manual"`. |
+| `reference_id` | string | The hash of the bundle record being corroborated (the record's hash string from `atb append` output). |
+| `digest` | string | SHA-256 hex of the external evidence payload retrieved by the adapter. |
+| `retrieved_at` | string | RFC 3339 timestamp of when the external evidence was retrieved. |
+
+**Optional fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `adapter` | string | The adapter type that produced this record (e.g. `"http-gateway"`). |
+| `raw_evidence` | string | Base64-encoded raw payload from the external source. Capped at 4 KB; if the payload exceeds 4 KB the field is omitted and `truncated` is set to `true`. |
+| `truncated` | bool | `true` when `raw_evidence` was omitted because the payload exceeded 4 KB. |
+
+**Trust note:** `atb.corroboration.external` events are as trustworthy as the adapter and
+the external system that produced them. A compromised gateway can produce valid-looking
+corroboration records. ATB records that the adapter retrieved something with the recorded
+digest; it does not verify the external system's own integrity.
+
 ## Complete event type registry
 
 The table below lists every canonical ATB event type. The three integration events (`ai.llm.call`, `ai.tool.exec`, `ai.chain.run`) are documented in detail above. The remaining types are used directly via the CLI or SDKs without a framework callback mapping.
@@ -302,3 +340,4 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `data.export.executed` | Data export | critical | `data_export` |
 | `dev.session` | Developer tooling | informational | — |
 | `snapshot.build` | Developer tooling | informational | — |
+| `atb.corroboration.external` | Corroboration | informational | All (contributes to XC) |
