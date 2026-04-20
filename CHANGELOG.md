@@ -7,34 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.9.0] - 2026-04-20
+
 ### Added
+- **CAS v1 corroboration bonus**: `CorroborationPolicy` struct (`AnchorBonus` 0.05,
+  `SignatureBonus` 0.03, `SnapshotBonus` 0.02, `MaxBonus` 0.10) with `Validate()` and
+  `DefaultCorroborationPolicy()`. `EvaluateBundle` accepts a new `WithCorroborationPolicy`
+  option; when set, `CASResult` gains `corroboration_bonus` and `effective_score` fields
+  (grade derives from `effective_score`; nil policy produces output identical to v1.8.0).
+  `atb verify` automatically applies the default policy when `--with-anchor` is present.
+- **`--corroboration-policy <path>`** flag on `atb verify`: accepts a JSON file matching
+  `CorroborationPolicy` to override the default bonus values.
+- **Typed error sentinels** in `internal/verify/evaluate.go`: `ErrBundleNotFound`,
+  `ErrChainInvalid` (returned when `RequireValidChain` is set and the chain fails), and
+  `ErrProfileUnknown` (all supplied profiles were nil). Callers can use `errors.Is`.
+- **`--policy-doc <path>`** flag on `atb append` (`ai.policy.decision` events only):
+  reads the file, computes `SHA-256(contents)` hex, and embeds it as `policy_doc_hash`.
+  When `--sign-policy` is also set, stores a compound Ed25519 `policy_doc_signature`
+  over `SHA-256(canonical payload) || SHA-256(doc bytes)`.
+- **`VerifyPolicyDocSignature`** in `internal/sign`: verifies the compound policy-doc
+  signature. `policy_doc_signature_valid` boolean surfaced in `TrustReport` (nil when
+  no `policy_doc_hash` present, true/false otherwise).
+- **`atb version --json`**: outputs `{"version":"1.9.0","algorithm":"SHA-256+RFC8785","anchor":"RFC3161-optional"}` and exits 0.
+- **TypeScript SDK `version()` and `SDK_VERSION`**: `version()` returns
+  `{ version: SDK_VERSION, algorithm: "SHA-256+RFC8785" }`; `SDK_VERSION` exported as
+  a named constant.
+
+### Fixed / CI
+- CodeQL workflow upgraded from floating `@v3` to SHA-pinned `@v4` refs; UI embed seed
+  step added before Autobuild to resolve the `uiembed.go` pattern error.
+- `version-gate.yml` floating `@v4` tag replaced with pinned SHA (`actions/checkout`).
+
+### Tests
 - `atb profiles validate --format json` snapshot test: asserts exit 0, all built-in
   profiles present, every entry reports `valid: true` with no errors.
-- `docs/roadmap.md`: added Q3 2026 target for CAS v1 refinements and source
-  signatures; Q4 2026 for corroboration adapters and queue/gateway integration;
-  Q1 2027 for reconciliation engine and exportable assurance packs.
-- `EvaluateBundle` typed error sentinels: `ErrBundleNotFound` (path does not exist),
-  `ErrChainInvalid` (returned when `RequireValidChain` is set and the hash chain
-  fails), and `ErrProfileUnknown` (all supplied profiles were nil). Callers can use
-  `errors.Is` to distinguish these conditions.
-- `atb version --json` flag: outputs `{"version":"…","algorithm":"…","anchor":"RFC3161-optional"}`
-  and exits 0. Version and algorithm values are read from existing CLI constants.
-- TypeScript SDK `version()` function: returns `{ version: SDK_VERSION, algorithm: "SHA-256+RFC8785" }`.
-  `SDK_VERSION` is exported as a named constant.
-- CAS v1 corroboration bonus: `CorroborationPolicy` struct with `AnchorBonus`,
-  `SignatureBonus`, `SnapshotBonus`, and `MaxBonus` fields. `DefaultCorroborationPolicy()`
-  returns the built-in values (0.05/0.03/0.02, cap 0.10). `EvaluateBundle` accepts a
-  new `WithCorroborationPolicy` option; when set, the CAS result gains `corroboration_bonus`
-  and `effective_score` fields (grade derives from `effective_score`). `atb verify`
-  applies the default policy when `--with-anchor` is present; operators can supply a
-  custom JSON policy file via `--corroboration-policy <path>`.
-- `--policy-doc <path>` flag for `atb append` (only for `ai.policy.decision`): reads
-  the specified file, computes its SHA-256 digest, and embeds it as `policy_doc_hash`
-  in the event payload. When `--sign-policy` is also set, a compound Ed25519 signature
-  over `SHA-256(canonical payload) || SHA-256(doc bytes)` is stored as
-  `policy_doc_signature`. `VerifyPolicyDocSignature` in `internal/sign` verifies the
-  compound signature; `policy_doc_signature_valid` is surfaced in `TrustReport`
-  (nil when no `policy_doc_hash` is present, true/false otherwise).
+- Corroboration bonus: nil-policy, signature-only, signature+snapshot, all-three-capped
+  test cases in `internal/verify/evaluate_test.go`.
+- Policy-doc signature: round-trip, absent-signature, tampered-doc, tampered-event
+  cases in `internal/sign/policy_test.go` and CLI integration tests in
+  `cmd/atb/main_test.go`.
+- `TrustReport.PolicyDocSignatureValid`: nil-when-absent, true-when-verified,
+  false-when-absent-signature test cases in `internal/verify/trust_report_test.go`.
+
+### Docs
+- `docs/roadmap.md` updated to reflect CAS v1 corroboration bonus and policy-doc compound
+  signature shipped in v1.9.0; long-term objective section added.
 
 ## [v1.8.0] - 2026-04-19
 

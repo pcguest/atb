@@ -1,6 +1,6 @@
 # ATB roadmap
 
-This document summarises planned work that follows the current v1.7.x
+This document summarises shipped and planned work from the v1.8.x/v1.9.x
 baseline. It distinguishes shipped capabilities from forward-looking
 items and should be read as sequencing guidance rather than a delivery
 commitment.
@@ -19,67 +19,54 @@ ATB proves the integrity of what was recorded. It does not prove
 recording completeness, actor identity, workflow correctness, or a
 compliance verdict.
 
-## Short term
+## Shipped
 
 ### Profile DSL v1 hardening
 
-Status: In progress across v1.7.x and v1.8.x
+Shipped: v1.8.0
 
-Description: tighten validation, loading, and reporting around built-in
-and file-defined profiles so misconfiguration is caught early and every
-surface consumes the same profile metadata.
-
-Intended benefit: fewer silent profile errors, more predictable
-verification output, and simpler maintenance of custom workflow
-definitions.
-
-Sequencing: current work through early v1.8.x.
+Tightened validation, loading, and reporting around built-in and
+file-defined profiles. Misconfiguration is caught early; every surface
+consumes the same profile metadata. `atb profiles validate` validates
+all built-in profiles and any additional profiles supplied via `--file`
+or `--dir`, checking required fields, duplicate IDs, and CAS
+weight-vector sums.
 
 ### Verifier and report v1 consolidation
 
-Status: Largely complete
+Shipped: v1.8.0
 
-Description: keep bundle evaluation, CAS normalisation, and report
-shaping on one internal path shared by the CLI, viewer, dashboard, MCP
-bridge, and tests.
+`EvaluateBundle` in `internal/verify/evaluate.go` centralises bundle
+loading, hash-chain integrity, RFC 3161 anchor verification, CAS
+normalisation, profile stamping, residual risk, and post-profile
+transformations. The CLI, viewer, dashboard, MCP bridge, and tests all
+derive reports from this function.
 
-Intended benefit: one source of truth for integrity checks, obligation
-results, residual risk, and profile stamping.
+### CAS v1 corroboration bonus
 
-Sequencing: current work through early v1.8.x.
+Shipped: v1.9.0
 
-## Medium term
-
-### CAS v1 refinements
-
-Status: Planned
-
-Target: Q3 2026
-
-Description: refine sub-score guidance, strengthen normalisation rules,
-and make profile-specific weighting clearer where recorded evidence is
-stronger or weaker than the current defaults suggest.
-
-Intended benefit: more consistent completeness scoring across different
-workflow classes without weakening the existing integrity-first model.
-
-Sequencing: after v1.8.x.
+`CorroborationPolicy` struct (`AnchorBonus` 0.05, `SignatureBonus` 0.03,
+`SnapshotBonus` 0.02, `MaxBonus` 0.10) with `Validate()` and
+`DefaultCorroborationPolicy()`. `EvaluateBundle` accepts
+`WithCorroborationPolicy`; when set, `CASResult` gains
+`corroboration_bonus` and `effective_score` fields and grade derives from
+`effective_score`. Nil policy produces output identical to v1.8.0.
+`atb verify` applies the default policy automatically when `--with-anchor`
+is present; `--corroboration-policy <path>` overrides the defaults.
 
 ### Source signatures for policy gates
 
-Status: Planned
+Shipped: v1.9.0
 
-Target: Q3 2026
-
-Description: extend source-signature handling around policy gates and
-authorisation points so recorded decisions can be corroborated by signed
-inputs from the controlling system.
-
-Intended benefit: stronger evidence that a recorded allow or deny event
-originated from the expected gate, not only that it was recorded
-unchanged afterwards.
-
-Sequencing: after v1.8.x, alongside CAS refinements.
+`--policy-doc <path>` flag on `atb append` (`ai.policy.decision` events
+only): reads the file, computes `SHA-256(contents)` hex, and embeds it as
+`policy_doc_hash`. When `--sign-policy` is also set, stores a compound
+Ed25519 `policy_doc_signature` over `SHA-256(canonical payload) ||
+SHA-256(doc bytes)`. `VerifyPolicyDocSignature` in `internal/sign`
+verifies the signature. `policy_doc_signature_valid` is surfaced in
+`TrustReport`: nil when no `policy_doc_hash` is present, true or false
+otherwise.
 
 ## Longer term
 
@@ -96,7 +83,7 @@ execution receipts.
 Intended benefit: better support for workflows where the strongest
 evidence spans more than one system boundary.
 
-Sequencing: after the v1.8.x line.
+Sequencing: after the v1.9.x line.
 
 ### Queue, gateway, and storage integration
 
@@ -143,6 +130,29 @@ guarantees on its own.
 
 Sequencing: after reconciliation and corroboration foundations are in
 place.
+
+## Long-term objective
+
+The end goal for ATB is a published specification — a sufficiently precise
+and self-contained description of tamper-evident AI audit trail construction
+that can be implemented independently, reference-audited, and cited by
+compliance teams without relying on this repository as the sole authority.
+
+The current implementation is the reference implementation of that
+specification. The `docs/compliance/` folder is the evolving body of work
+that maps the specification to regulatory frameworks: EU AI Act Article 12,
+NIST AI RMF, GDPR Article 22, and SOC2. None of those mappings claim
+ATB satisfies a framework on its own — they record what ATB contributes and
+what operators must still provide.
+
+Getting to a publishable specification means the format and verification
+semantics need to be stable enough that a second implementation, written
+without access to this codebase, would produce bundles that verify
+correctly against this one. The hash-chaining scheme and canonical JSON
+encoding (`SHA-256(prev_hash || RFC8785(event_json))`) are already at
+that level. CAS normalisation and obligation profiles are not yet stable
+enough to specify independently. That is the gap the v1.9.x and later
+work is closing.
 
 ## Tracking
 
