@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-versions.sh — verify all five version string locations agree.
+# check-versions.sh — verify all version string locations agree.
 # Exits non-zero and prints FAIL lines to stderr if any disagree.
 # Source of truth: the version constant in cmd/atb/main.go.
 set -euo pipefail
@@ -29,6 +29,8 @@ TS_VERSION="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/types
 TS_LOCK_ROOT="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package-lock.json'))['version'])")"
 TS_LOCK_PKG="$(python3 -c "import json; d=json.load(open('$ROOT_DIR/sdk/typescript/package-lock.json')); print(d['packages']['']['version'])")"
 WEB_VERSION="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/web/package.json'))['version'])")"
+WEB_LOCK_ROOT="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/web/package-lock.json'))['version'])")"
+WEB_LOCK_PKG="$(python3 -c "import json; d=json.load(open('$ROOT_DIR/web/package-lock.json')); print(d['packages']['']['version'])")"
 
 check "sdk/python/pyproject.toml"                          "$PY_PYPROJECT"
 check "sdk/python/atb/__init__.py"                         "$PY_INIT"
@@ -36,6 +38,8 @@ check "sdk/typescript/package.json"                        "$TS_VERSION"
 check "sdk/typescript/package-lock.json (root)"            "$TS_LOCK_ROOT"
 check "sdk/typescript/package-lock.json (packages[\"\"])" "$TS_LOCK_PKG"
 check "web/package.json"                                   "$WEB_VERSION"
+check "web/package-lock.json (root)"                       "$WEB_LOCK_ROOT"
+check "web/package-lock.json (packages[\"\"])"             "$WEB_LOCK_PKG"
 
 # Skip the tag equality check when ATB_SKIP_TAG_CHECK=1 (e.g. feature branches
 # that have not yet been tagged). Cross-file version agreement is always checked.
