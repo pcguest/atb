@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -13,13 +14,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
-
-const pushRepoRoot = "/Users/paddyguest/atb"
 
 type queueEnvelope struct {
 	BundleID      string `json:"bundle_id"`
@@ -189,8 +190,14 @@ func newPushTestBundle(t *testing.T) (string, queueEnvelope, []byte) {
 func runATB(t *testing.T, args ...string) (string, string, int) {
 	t.Helper()
 
-	cmd := exec.Command("go", append([]string{"run", "./cmd/atb"}, args...)...)
-	cmd.Dir = pushRepoRoot
+	repoRoot := repoRootForPushIntegration(t)
+	binaryPath := buildPushBinary(t, repoRoot)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, binaryPath, args...)
+	cmd.Dir = t.TempDir()
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -209,4 +216,39 @@ func runATB(t *testing.T, args ...string) (string, string, int) {
 
 	t.Fatalf("run atb: %v (stdout=%q stderr=%q)", err, stdout.String(), stderr.String())
 	return "", "", 0
+}
+
+func repoRootForPushIntegration(t *testing.T) string {
+	t.Helper()
+
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("resolve caller path")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
+}
+
+func buildPushBinary(t *testing.T, repoRoot string) string {
+	t.Helper()
+
+	binaryPath := filepath.Join(t.TempDir(), "atb")
+	if runtime.GOOS == "windows" {
+		binaryPath += ".exe"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", binaryPath, "./cmd/atb")
+	cmd.Dir = repoRoot
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("build installed binary: %v\nstdout:\n%s\nstderr:\n%s", err, stdout.String(), stderr.String())
+	}
+
+	return binaryPath
 }
