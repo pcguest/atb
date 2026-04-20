@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/corroboration"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
 	signpkg "github.com/pcguest/atb/internal/sign"
@@ -230,6 +232,13 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "corroborate",
+				Usage:       "atb corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]",
+				Description: "Fetch a receipt from an external source and append an atb.corroboration.external event to the active bundle.",
+				Flags:       []string{"--source", "--url", "--ref", "--bundle", "--dry-run", "--format"},
+				Mutating:    true,
+			},
+			{
 				Name:        "doc",
 				Usage:       "atb doc gen-openapi [--output docs/api/openapi.yaml]",
 				Description: "Generate API documentation artifacts.",
@@ -327,6 +336,8 @@ func main() {
 		cmdMCP()
 	case "serve":
 		cmdServe()
+	case "corroborate":
+		cmdCorroborate()
 	case "doc":
 		cmdDoc()
 	case "version", "--version", "-v":
@@ -376,6 +387,7 @@ Commands:
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
   view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]  Open the local viewer (dashboard preview behind --ui-experimental)
   mcp serve         Start the MCP stdio server
+  corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]  Fetch external corroboration receipt and append atb.corroboration.external event
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
   version           Print the ATB version
 
@@ -775,6 +787,180 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "✓ Appended event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
 	return exitSuccess
+}
+
+func cmdCorroborate() {
+	os.Exit(runCorroborate(os.Args[2:], os.Stdout, os.Stderr))
+}
+
+func runCorroborate(args []string, stdout, stderr io.Writer) int {
+	rawArgs := append([]string(nil), args...)
+	args, outputFormat, dryRun, err := parseMutationFlags(args)
+	if err != nil {
+		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "corroborate",
+				DryRun:   dryRun,
+				Path:     bundle.DefaultPath(),
+				Error:    err.Error(),
+				ExitCode: exitUserError,
+			}, "corroborate")
+			return exitUserError
+		}
+		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
+		return exitUserError
+	}
+
+	var source, url, ref, bundlePath string
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--source":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "atb corroborate: missing value for --source")
+				return exitUserError
+			}
+			source = args[i+1]
+			i++
+		case args[i] == "--url":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "atb corroborate: missing value for --url")
+				return exitUserError
+			}
+			url = args[i+1]
+			i++
+		case args[i] == "--ref":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "atb corroborate: missing value for --ref")
+				return exitUserError
+			}
+			ref = args[i+1]
+			i++
+		case args[i] == "--bundle":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "atb corroborate: missing value for --bundle")
+				return exitUserError
+			}
+			bundlePath = args[i+1]
+			i++
+		default:
+			fmt.Fprintf(stderr, "atb corroborate: unknown argument %q\n", args[i])
+			return exitUserError
+		}
+	}
+
+	if source == "" || ref == "" {
+		fmt.Fprintln(stderr, "Usage: atb corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]")
+		return exitUserError
+	}
+
+	resolvedPath := normalizeBundlePath(bundlePath)
+
+	var adapter corroboration.Adapter
+	switch source {
+	case "http-gateway":
+		if url == "" {
+			fmt.Fprintln(stderr, "atb corroborate: --url is required when --source is http-gateway")
+			return exitUserError
+		}
+		adapter = &corroboration.HTTPGatewayAdapter{URL: url}
+	default:
+		fmt.Fprintf(stderr, "atb corroborate: unknown source %q (supported: http-gateway)\n", source)
+		return exitUserError
+	}
+
+	rec, err := adapter.Fetch(context.Background(), ref)
+	if err != nil {
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:   "error",
+				Action:   "corroborate",
+				DryRun:   dryRun,
+				Path:     resolvedPath,
+				Error:    err.Error(),
+				ExitCode: exitSystemError,
+			}, "corroborate")
+			return exitSystemError
+		}
+		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
+		return exitSystemError
+	}
+
+	data := rec.EventData()
+	last, err := appendToBundlePath(event.TypeCorroborationExternal, data, resolvedPath, dryRun)
+	if err != nil {
+		exitCode := exitSystemError
+		var loadErr mutationLoadError
+		if errors.As(err, &loadErr) {
+			exitCode = classifyBundleLoadError(err)
+		}
+		if outputFormat == verifyFormatJSON {
+			printMutationJSON(mutationResult{
+				Status:    "error",
+				Action:    "corroborate",
+				DryRun:    dryRun,
+				Path:      resolvedPath,
+				EventType: event.TypeCorroborationExternal,
+				Error:     err.Error(),
+				ExitCode:  exitCode,
+			}, "corroborate")
+			return exitCode
+		}
+		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
+		return exitCode
+	}
+
+	if outputFormat == verifyFormatJSON {
+		action := "corroborate"
+		message := "corroboration event appended"
+		if dryRun {
+			action = "preview_corroborate"
+			message = "corroboration event would be appended"
+		}
+		printMutationJSON(mutationResult{
+			Status:    "ok",
+			Action:    action,
+			DryRun:    dryRun,
+			Path:      resolvedPath,
+			Sequence:  last.Event.Sequence,
+			EventType: last.Event.Type,
+			Hash:      last.Hash,
+			Message:   message,
+		}, "corroborate")
+		return exitSuccess
+	}
+	if dryRun {
+		fmt.Fprintf(stdout, "~ Dry run: would append event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
+		return exitSuccess
+	}
+	fmt.Fprintf(stdout, "✓ Appended event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
+	return exitSuccess
+}
+
+func appendToBundlePath(eventType string, data interface{}, path string, dryRun bool) (bundle.Record, error) {
+	b, err := bundle.Load(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			b, err = bundle.New()
+			if err != nil {
+				return bundle.Record{}, err
+			}
+		} else {
+			return bundle.Record{}, mutationLoadError{err: err}
+		}
+	}
+	opts := &bundle.AppendOptions{Timestamp: time.Now().UTC().Format(time.RFC3339)}
+	if err := b.AppendWithOptions(eventType, data, opts); err != nil {
+		return bundle.Record{}, err
+	}
+	last := b.Records[len(b.Records)-1]
+	if dryRun {
+		return last, nil
+	}
+	if err := b.Save(path); err != nil {
+		return bundle.Record{}, fmt.Errorf("save: %w", err)
+	}
+	return last, nil
 }
 
 func parseAppendPayload(args []string) (string, error) {
