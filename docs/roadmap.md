@@ -5,6 +5,19 @@ baseline. It distinguishes shipped capabilities from forward-looking
 items and should be read as sequencing guidance rather than a delivery
 commitment.
 
+## Summary
+
+ATB today gives you a record of an AI workflow that you can verify later — you know whether
+the sequence of events was altered after the fact, without needing a server or a third-party
+service. The next two quarters are focused on corroboration adapters and queue and storage
+gateway integrations, which extend the verifiable record to cover evidence held in external
+systems alongside the local bundle. Together those two pieces close the main evidence gap in
+asynchronous workflows where the triggering event and the recorded event happen in different
+systems. The longer-term objective is a published, independently-implementable specification:
+a precise enough description of how ATB constructs and verifies a bundle that a second
+implementation, written without access to this codebase, would produce bundles that verify
+correctly against it.
+
 ## Current baseline
 
 The current line provides:
