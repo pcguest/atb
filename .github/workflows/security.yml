@@ -30,6 +30,15 @@ jobs:
       - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
 
+      - name: Remove node_modules (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dirs = @('node_modules','web/node_modules','sdk/typescript/node_modules')
+          foreach ($d in $dirs) {
+            if (Test-Path $d) { Remove-Item -Recurse -Force $d }
+          }
+
       - name: Build UI Export
         working-directory: web
         run: |
@@ -70,6 +79,15 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "22"
+
+      - name: Remove node_modules (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dirs = @('node_modules','web/node_modules','sdk/typescript/node_modules')
+          foreach ($d in $dirs) {
+            if (Test-Path $d) { Remove-Item -Recurse -Force $d }
+          }
 
       - name: Install TypeScript SDK dependencies
         working-directory: sdk/typescript

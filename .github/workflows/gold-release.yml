@@ -17,6 +17,15 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Remove node_modules (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dirs = @('node_modules','web/node_modules','sdk/typescript/node_modules')
+          foreach ($d in $dirs) {
+            if (Test-Path $d) { Remove-Item -Recurse -Force $d }
+          }
+
       - name: Install Dependencies
         run: |
           go mod download
