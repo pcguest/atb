@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,20 +15,24 @@ import (
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/push"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
-const pushUsageLine = "Usage: atb push <s3://bucket/prefix> [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry-run] [--format text|json]"
+const pushUsageLine = "Usage: atb push [<s3://bucket/prefix>] [--queue <endpoint-url> --hmac-key <hex-key>] [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry-run] [--format text|json]"
 
 var errPushHelp = errors.New("push help requested")
 
 // atb push contract
 //
 // CLI surface:
-//   - Explicit operator action only. No background uploads.
+//   - Explicit operator action only. No background pushes.
 //   - Primary form is `atb push <s3://bucket/prefix>`.
+//   - Queue-only form is `atb push --queue <endpoint-url> --hmac-key <hex-key>`.
 //   - `--bundle` selects the local bundle path. Default is run.atb/bundle.atb.
 //   - `--lock-until` requests S3 Object Lock headers for the upload.
-//   - `--dry-run` resolves the target object key without contacting the remote.
+//   - `--queue` publishes a signed JSON envelope after any S3 upload completes.
+//   - `--hmac-key` is required when `--queue` is set.
+//   - `--dry-run` resolves the target object key and queue envelope without contacting remotes.
 //   - `--format text|json` controls output shape only.
 //
 // Configuration and credential source:
@@ -37,9 +43,10 @@ var errPushHelp = errors.New("push help requested")
 //     credential resolution logic or make implicit network calls.
 //
 // Success criteria:
-//   - The local bundle is loaded from disk and uploaded unchanged.
-//   - The object key is content addressed as `sha256-<bundle-head-hash>.atb`.
-//   - Success means the remote returned a 2xx response to the PUT request.
+//   - The local bundle is loaded from disk and pushed unchanged.
+//   - The S3 object key is content addressed as `sha256-<bundle-head-hash>.atb`.
+//   - Success means the remote returned a 2xx response to the S3 PUT request.
+//   - Success means the remote returned a 2xx response to the queue POST request.
 //   - When lock headers are requested, ATB only sends the headers. It does not
 //     inspect or validate bucket-side WORM policy.
 //
@@ -72,10 +79,13 @@ type pushConfig struct {
 	LockMode string
 	// CredentialsSource documents which existing resolver path to use.
 	CredentialsSource string
+	// QueueEndpoint is the optional HTTP endpoint that receives a signed queue envelope.
+	QueueEndpoint string
+	// HMACKeyHex is the caller-supplied hex key used to sign queue envelopes.
+	HMACKeyHex string
 }
 
 // pushResult is the JSON output shape for atb push.
-// Defined here to lock in the JSON contract (docs/spec/bundle-push.md § JSON output schema).
 type pushResult struct {
 	Status     string `json:"status"`
 	Action     string `json:"action"`
@@ -85,6 +95,8 @@ type pushResult struct {
 	BundleHash string `json:"bundle_hash,omitempty"`
 	ObjectKey  string `json:"object_key,omitempty"`
 	LockUntil  string `json:"lock_until,omitempty"`
+	QueueURL   string `json:"queue_url,omitempty"`
+	Envelope   any    `json:"envelope,omitempty"`
 	Message    string `json:"message,omitempty"`
 	Error      string `json:"error,omitempty"`
 	ExitCode   int    `json:"exit_code,omitempty"`
@@ -125,8 +137,32 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		fmt.Fprintf(stderr, "atb push: %v\n", err)
 		return exitUserError
 	}
-	if strings.TrimSpace(cfg.Target) == "" {
-		err = fmt.Errorf("target URI required (e.g. s3://bucket/prefix)")
+
+	queueRequested := strings.TrimSpace(cfg.QueueEndpoint) != ""
+	var hmacKey []byte
+	if queueRequested {
+		if strings.TrimSpace(cfg.HMACKeyHex) == "" {
+			err = fmt.Errorf("--hmac-key is required when --queue is set")
+			if cfg.Format == verifyFormatJSON {
+				writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
+				return exitUserError
+			}
+			fmt.Fprintf(stderr, "atb push: %v\n", err)
+			return exitUserError
+		}
+		hmacKey, err = parseHMACKey(cfg.HMACKeyHex)
+		if err != nil {
+			if cfg.Format == verifyFormatJSON {
+				writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
+				return exitUserError
+			}
+			fmt.Fprintf(stderr, "atb push: %v\n", err)
+			return exitUserError
+		}
+	}
+
+	if strings.TrimSpace(cfg.Target) == "" && !queueRequested {
+		err = fmt.Errorf("target URI required (e.g. s3://bucket/prefix); use --queue <endpoint-url> for queue-only push")
 		if cfg.Format == verifyFormatJSON {
 			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 			return exitUserError
@@ -136,18 +172,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		return exitUserError
 	}
 
-	// Parse and validate the S3 target URI.
-	bucket, prefix, err := push.ParseS3URI(cfg.Target)
-	if err != nil {
-		if cfg.Format == verifyFormatJSON {
-			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
-			return exitUserError
-		}
-		fmt.Fprintf(stderr, "atb push: %v\n", err)
-		return exitUserError
-	}
-
-	// Validate and normalise --lock-until → RFC 3339 datetime.
+	// Validate and normalise --lock-until -> RFC 3339 datetime.
 	lockUntil := ""
 	if cfg.LockUntil != "" {
 		lockUntil, err = parseLockUntil(cfg.LockUntil)
@@ -183,14 +208,24 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	}
 
 	headHash := b.Records[len(b.Records)-1].Hash
-	key := push.ObjectKey(prefix, headHash)
 
-	// Dry-run: print resolved key and headers; do not upload.
-	if cfg.DryRun {
-		return runPushDryRun(cfg, bucket, key, headHash, lockUntil, stdout, stderr)
+	var bucket string
+	var key string
+	if strings.TrimSpace(cfg.Target) != "" {
+		parsedBucket, prefix, parseErr := push.ParseS3URI(cfg.Target)
+		if parseErr != nil {
+			if cfg.Format == verifyFormatJSON {
+				writePushError(stdout, stderr, cfg, parseErr.Error(), exitUserError)
+				return exitUserError
+			}
+			fmt.Fprintf(stderr, "atb push: %v\n", parseErr)
+			return exitUserError
+		}
+		bucket = parsedBucket
+		key = push.ObjectKey(prefix, headHash)
 	}
 
-	// Read bundle bytes for upload.
+	// Read bundle bytes for push and queue metadata.
 	bundleBytes, err := os.ReadFile(filepath.Clean(cfg.BundlePath)) // #nosec G304 -- path validated by bundle.Load
 	if err != nil {
 		if cfg.Format == verifyFormatJSON {
@@ -201,52 +236,95 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		return exitSystemError
 	}
 
-	// Resolve the S3 client (real or injected fake for tests).
-	if uploader == nil {
-		uploader, err = push.NewHTTPClientWithConfig(push.ClientConfig{
-			EndpointURL:       cfg.EndpointURL,
-			Region:            cfg.Region,
-			CredentialsSource: cfg.CredentialsSource,
-		})
-		if err != nil {
-			msg := "credential error: " + err.Error()
+	meta := buildPushMeta(b, bundleBytes, cfg.BundlePath)
+
+	var envelopeJSON json.RawMessage
+	if queueRequested {
+		queuePusher := push.QueuePusher{
+			EndpointURL: cfg.QueueEndpoint,
+			HMACKey:     hmacKey,
+			ATBVersion:  version,
+		}
+		body, marshalErr := queuePusher.MarshalEnvelope(meta)
+		if marshalErr != nil {
 			if cfg.Format == verifyFormatJSON {
-				writePushError(stdout, stderr, cfg, msg, exitSystemError)
+				writePushError(stdout, stderr, cfg, marshalErr.Error(), exitUserError)
+				return exitUserError
+			}
+			fmt.Fprintf(stderr, "atb push: %v\n", marshalErr)
+			return exitUserError
+		}
+		envelopeJSON = json.RawMessage(body)
+	}
+
+	if cfg.DryRun {
+		return runPushDryRun(cfg, bucket, key, headHash, lockUntil, envelopeJSON, stdout, stderr)
+	}
+
+	var remoteURI string
+	if strings.TrimSpace(cfg.Target) != "" {
+		if uploader == nil {
+			uploader, err = push.NewHTTPClientWithConfig(push.ClientConfig{
+				EndpointURL:       cfg.EndpointURL,
+				Region:            cfg.Region,
+				CredentialsSource: cfg.CredentialsSource,
+			})
+			if err != nil {
+				msg := "credential error: " + err.Error()
+				if cfg.Format == verifyFormatJSON {
+					writePushError(stdout, stderr, cfg, msg, exitSystemError)
+					return exitSystemError
+				}
+				fmt.Fprintf(stderr, "atb push: %s\n", msg)
 				return exitSystemError
 			}
+		}
+
+		lockMode := ""
+		if cfg.LockUntil != "" {
+			lockMode = cfg.LockMode
+			if lockMode == "" {
+				lockMode = "COMPLIANCE"
+			}
+		}
+
+		s3Pusher := push.S3Pusher{
+			Uploader:  uploader,
+			Bucket:    bucket,
+			Key:       key,
+			LockMode:  lockMode,
+			LockUntil: lockUntil,
+		}
+		if err := s3Pusher.Push(context.Background(), bundleBytes, meta); err != nil {
+			code := exitSystemError
+			msg := classifyPushError(err)
+			if cfg.Format == verifyFormatJSON {
+				writePushError(stdout, stderr, cfg, msg, code)
+				return code
+			}
 			fmt.Fprintf(stderr, "atb push: %s\n", msg)
+			return code
+		}
+
+		remoteURI = "s3://" + bucket + "/" + key
+	}
+
+	if queueRequested {
+		queuePusher := push.QueuePusher{
+			EndpointURL: cfg.QueueEndpoint,
+			HMACKey:     hmacKey,
+			ATBVersion:  version,
+		}
+		if err := queuePusher.Push(context.Background(), bundleBytes, meta); err != nil {
+			if cfg.Format == verifyFormatJSON {
+				writePushError(stdout, stderr, cfg, err.Error(), exitSystemError)
+				return exitSystemError
+			}
+			fmt.Fprintf(stderr, "atb push: %v\n", err)
 			return exitSystemError
 		}
 	}
 
-	// Upload.
-	lockMode := ""
-	if cfg.LockUntil != "" {
-		lockMode = cfg.LockMode
-		if lockMode == "" {
-			lockMode = "COMPLIANCE"
-		}
-	}
-	out, err := uploader.PutObject(context.Background(), push.PutObjectInput{
-		Bucket:    bucket,
-		Key:       key,
-		Body:      bundleBytes,
-		LockMode:  lockMode,
-		LockUntil: lockUntil,
-	})
-	if err != nil {
-		code := exitSystemError
-		msg := classifyPushError(err)
-		if cfg.Format == verifyFormatJSON {
-			writePushError(stdout, stderr, cfg, msg, code)
-			return code
-		}
-		fmt.Fprintf(stderr, "atb push: %s\n", msg)
-		return code
-	}
-	remoteURI := "s3://" + bucket + "/" + key
-
-	// Success output.
 	if cfg.Format == verifyFormatJSON {
 		res := pushResult{
 			Status:     "ok",
@@ -257,7 +335,8 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 			BundleHash: headHash,
 			ObjectKey:  key,
 			LockUntil:  cfg.LockUntil,
-			Message:    successMessage(remoteURI, key, out.ETag),
+			QueueURL:   cfg.QueueEndpoint,
+			Message:    successMessage(remoteURI, key, cfg.QueueEndpoint),
 			ExitCode:   exitSuccess,
 		}
 		if err := json.NewEncoder(stdout).Encode(res); err != nil {
@@ -266,18 +345,26 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		return exitSuccess
 	}
 
-	fmt.Fprintf(stdout, "pushed  %s\n", remoteURI)
-	fmt.Fprintf(stdout, "key     %s\n", key)
+	if remoteURI != "" {
+		fmt.Fprintf(stdout, "pushed  %s\n", remoteURI)
+		fmt.Fprintf(stdout, "key     %s\n", key)
+	}
 	fmt.Fprintf(stdout, "hash    %s\n", headHash)
-	if cfg.LockUntil != "" {
+	if remoteURI != "" && cfg.LockUntil != "" {
 		fmt.Fprintf(stdout, "locked  COMPLIANCE until %s\n", cfg.LockUntil)
+	}
+	if queueRequested {
+		fmt.Fprintf(stdout, "queue   %s\n", cfg.QueueEndpoint)
 	}
 	return exitSuccess
 }
 
-// runPushDryRun handles --dry-run: prints what would be uploaded without contacting S3.
-func runPushDryRun(cfg pushConfig, bucket, key, headHash, lockUntil string, stdout, stderr io.Writer) int {
-	remoteURI := "s3://" + bucket + "/" + key
+// runPushDryRun handles --dry-run: prints what would be pushed without contacting remotes.
+func runPushDryRun(cfg pushConfig, bucket, key, headHash, lockUntil string, envelopeJSON json.RawMessage, stdout, stderr io.Writer) int {
+	remoteURI := ""
+	if bucket != "" && key != "" {
+		remoteURI = "s3://" + bucket + "/" + key
+	}
 
 	if cfg.Format == verifyFormatJSON {
 		res := pushResult{
@@ -289,7 +376,9 @@ func runPushDryRun(cfg pushConfig, bucket, key, headHash, lockUntil string, stdo
 			BundleHash: headHash,
 			ObjectKey:  key,
 			LockUntil:  cfg.LockUntil,
-			Message:    "dry-run: no upload performed",
+			QueueURL:   cfg.QueueEndpoint,
+			Envelope:   envelopeJSON,
+			Message:    "dry-run: no push performed",
 			ExitCode:   exitSuccess,
 		}
 		if err := json.NewEncoder(stdout).Encode(res); err != nil {
@@ -298,13 +387,19 @@ func runPushDryRun(cfg pushConfig, bucket, key, headHash, lockUntil string, stdo
 		return exitSuccess
 	}
 
-	fmt.Fprintf(stdout, "dry-run  no upload performed\n")
-	fmt.Fprintf(stdout, "target   %s\n", remoteURI)
-	fmt.Fprintf(stdout, "key      %s\n", key)
+	fmt.Fprintf(stdout, "dry-run  no push performed\n")
+	if remoteURI != "" {
+		fmt.Fprintf(stdout, "target   %s\n", remoteURI)
+		fmt.Fprintf(stdout, "key      %s\n", key)
+	}
 	fmt.Fprintf(stdout, "hash     %s\n", headHash)
 	if lockUntil != "" {
 		fmt.Fprintf(stdout, "header   x-amz-object-lock-mode: COMPLIANCE\n")
 		fmt.Fprintf(stdout, "header   x-amz-object-lock-retain-until-date: %s\n", lockUntil)
+	}
+	if cfg.QueueEndpoint != "" {
+		fmt.Fprintf(stdout, "queue    %s\n", cfg.QueueEndpoint)
+		fmt.Fprintf(stdout, "envelope %s\n", string(envelopeJSON))
 	}
 	return exitSuccess
 }
@@ -400,6 +495,22 @@ func parsePushArgs(args []string) (pushConfig, error) {
 			cfg.LockUntil = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--lock-until="):
 			cfg.LockUntil = strings.TrimSpace(strings.TrimPrefix(arg, "--lock-until="))
+		case arg == "--queue":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --queue")
+			}
+			i++
+			cfg.QueueEndpoint = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--queue="):
+			cfg.QueueEndpoint = strings.TrimSpace(strings.TrimPrefix(arg, "--queue="))
+		case arg == "--hmac-key":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --hmac-key")
+			}
+			i++
+			cfg.HMACKeyHex = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--hmac-key="):
+			cfg.HMACKeyHex = strings.TrimSpace(strings.TrimPrefix(arg, "--hmac-key="))
 		case arg == "--dry-run":
 			cfg.DryRun = true
 		case arg == "--format":
@@ -427,10 +538,13 @@ func parsePushArgs(args []string) (pushConfig, error) {
 	return cfg, nil
 }
 
-func successMessage(remoteURI, objectKey, etag string) string {
+func successMessage(remoteURI, objectKey, queueEndpoint string) string {
+	if remoteURI == "" {
+		return fmt.Sprintf("queue envelope posted to %s", queueEndpoint)
+	}
 	msg := fmt.Sprintf("bundle pushed to %s (%s)", remoteURI, objectKey)
-	if strings.TrimSpace(etag) != "" {
-		msg += " etag=" + strings.TrimSpace(etag)
+	if strings.TrimSpace(queueEndpoint) != "" {
+		msg += "; queue envelope posted to " + strings.TrimSpace(queueEndpoint)
 	}
 	return msg
 }
@@ -443,10 +557,70 @@ func writePushError(stdout, stderr io.Writer, cfg pushConfig, msg string, code i
 		Target:     cfg.Target,
 		BundlePath: cfg.BundlePath,
 		LockUntil:  cfg.LockUntil,
+		QueueURL:   cfg.QueueEndpoint,
 		Error:      msg,
 		ExitCode:   code,
 	}
 	if err := json.NewEncoder(stdout).Encode(res); err != nil {
 		fmt.Fprintf(stderr, "atb push: encode json output: %v\n", err)
 	}
+}
+
+func parseHMACKey(value string) ([]byte, error) {
+	key, err := hex.DecodeString(strings.TrimSpace(value))
+	if err != nil {
+		return nil, fmt.Errorf("--hmac-key must be valid hex")
+	}
+	if len(key) == 0 {
+		return nil, fmt.Errorf("--hmac-key must not be empty")
+	}
+	return key, nil
+}
+
+func buildPushMeta(b *bundle.Bundle, bundleBytes []byte, bundlePath string) push.PushMeta {
+	digest := sha256.Sum256(bundleBytes)
+	meta := push.PushMeta{
+		Digest:        hex.EncodeToString(digest[:]),
+		SealTimestamp: inferSealTimestamp(b, bundlePath),
+		ProfileID:     inferPushProfileID(b, bundlePath),
+	}
+	if manifest := b.Manifest(); manifest != nil {
+		meta.BundleID = manifest.BundleID
+	}
+	return meta
+}
+
+func inferSealTimestamp(b *bundle.Bundle, bundlePath string) time.Time {
+	for i := len(b.Records) - 1; i >= 0; i-- {
+		ts := strings.TrimSpace(b.Records[i].Event.Timestamp)
+		if ts == "" {
+			continue
+		}
+		parsed, err := time.Parse(time.RFC3339, ts)
+		if err == nil {
+			return parsed.UTC()
+		}
+	}
+
+	if manifest := b.Manifest(); manifest != nil {
+		parsed, err := time.Parse(time.RFC3339, manifest.CreatedAt)
+		if err == nil {
+			return parsed.UTC()
+		}
+	}
+
+	info, err := os.Stat(filepath.Clean(bundlePath))
+	if err == nil {
+		return info.ModTime().UTC()
+	}
+
+	return time.Now().UTC()
+}
+
+func inferPushProfileID(b *bundle.Bundle, bundlePath string) string {
+	report := verifypkg.Verify(b, bundlePath, "")
+	if len(report.Profiles) == 0 {
+		return ""
+	}
+	return report.Profiles[0].ProfileID
 }

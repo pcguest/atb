@@ -22,6 +22,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Verifier awards XC sub-score credit for well-formed `atb.corroboration.external` events.
   One valid corroboration event earns XC=1.0. Bundles without corroboration events return
   their anchor-based XC score unchanged — identical to v1.9.0 behaviour.
+- `internal/push/`: `Push` interface, `S3Pusher`, and `QueuePusher` for signed queue
+  gateway envelopes.
+- `atb push`: `--queue <endpoint-url>` and `--hmac-key <hex-key>` flags. Queue pushes
+  POST a signed JSON envelope after any S3 upload completes.
+- `atb push --dry-run`: previews the queue endpoint and envelope JSON as well as the
+  existing S3 target resolution path.
+- S3 push coverage now checks that Object Lock PUT requests carry
+  `x-amz-object-lock-mode: COMPLIANCE` and
+  `x-amz-object-lock-retain-until-date`.
 
 ### Docs
 - `docs/spec-ai-traces.md`: `atb.corroboration.*` namespace and required field schema
@@ -29,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/architecture.md`: corroboration model section added, covering the problem addressed,
   what the event records, XC scoring, the trust limitation, and adapter extension points.
 - All six built-in profile templates: blind-spot text updated to note XC credit conditions.
+- `docs/integrations/push-transports.md`: S3 WORM headers, queue gateway envelope and
+  HMAC signing, and the transport security boundary.
 
 ## [v1.9.0] - 2026-04-20
 
