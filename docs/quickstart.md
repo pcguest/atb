@@ -1,6 +1,9 @@
 # ATB quickstart
 
-ATB provides tamper-evident, verifiable audit trails for AI workflows.
+This guide is for a developer who wants to record and verify an AI workflow decision for the
+first time. It takes about five minutes and requires no backend or network access. At the end
+you will have a verified `.atb` bundle on disk and a working understanding of the
+record-and-verify cycle.
 
 ## 1. Quick start (incident review)
 
