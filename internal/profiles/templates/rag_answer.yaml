@@ -4,6 +4,7 @@ workflow_class: rag_answer
 blind_spots:
   - Does not prove retrieval completeness beyond recorded corpus/version.
   - Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.
+  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
 weights:
   EC: 0.25
   FC: 0.15

@@ -4,6 +4,7 @@ workflow_class: policy_decision
 blind_spots:
   - Does not verify the correctness or completeness of the policy engine's rule set; only that a decision event was recorded with required fields.
   - Policy engine internal state and rule evaluation logic are not attested.
+  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
 weights:
   EC: 0.15
   FC: 0.10

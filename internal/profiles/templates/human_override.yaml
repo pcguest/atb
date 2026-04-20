@@ -4,6 +4,7 @@ workflow_class: human_override
 blind_spots:
   - Cannot verify that the recorded approver identity matches the individual who physically performed the approval action.
   - Justification digest binds the recorded justification text only; content quality is not assessed.
+  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
 weights:
   EC: 0.15
   FC: 0.10

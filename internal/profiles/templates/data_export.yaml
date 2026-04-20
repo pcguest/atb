@@ -4,6 +4,7 @@ workflow_class: data_export
 blind_spots:
   - Does not verify downstream data handling or recipient controls after export is committed.
   - Classification labels on exported records are presence-checked only; correctness of labelling is not attested.
+  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
 weights:
   EC: 0.15
   FC: 0.10

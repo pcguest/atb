@@ -400,7 +400,7 @@ func genericSchemaSubScores(schema profiledsl.ProfileSchema, records []bundle.Re
 		"RC": 0.0,
 		"TC": 0.0,
 		"SC": 0.0,
-		"XC": xcScore(anchorResult),
+		"XC": xcScoreWithCorroboration(anchorResult, records),
 		"AC": acScore(anchorResult),
 		"GC": 0.0,
 	}
@@ -435,7 +435,7 @@ func policyDecisionSubScores(records []bundle.Record, anchorResult AnchorVerifyR
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDPolicyDecision),
-		"XC": xcScore(anchorResult),
+		"XC": xcScoreWithCorroboration(anchorResult, records),
 		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
@@ -473,7 +473,7 @@ func humanOverrideSubScores(records []bundle.Record, anchorResult AnchorVerifyRe
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDHumanOverride),
-		"XC": xcScore(anchorResult),
+		"XC": xcScoreWithCorroboration(anchorResult, records),
 		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
@@ -502,7 +502,7 @@ func backgroundAutomationSubScores(records []bundle.Record, anchorResult AnchorV
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDBackgroundAutomation),
-		"XC": xcScore(anchorResult),
+		"XC": xcScoreWithCorroboration(anchorResult, records),
 		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
@@ -548,7 +548,7 @@ func dataExportSubScores(records []bundle.Record, anchorResult AnchorVerifyResul
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDDataExport),
-		"XC": xcScore(anchorResult),
+		"XC": xcScoreWithCorroboration(anchorResult, records),
 		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
@@ -594,7 +594,7 @@ func privilegedToolActionSubScores(records []bundle.Record, anchorResult AnchorV
 		"RC": rc,
 		"TC": tc,
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDPrivilegedToolAction),
-		"XC": xcScore(anchorResult),
+		"XC": xcScoreWithCorroboration(anchorResult, records),
 		"AC": acScore(anchorResult),
 		"GC": gc,
 	}
@@ -623,7 +623,7 @@ func ragAnswerSubScores(records []bundle.Record, anchorResult AnchorVerifyResult
 		"RC": requestToResponse,
 		"TC": averageScores(temporalScores...),
 		"SC": computeSC(&bundle.Bundle{Records: records}, profileIDRAGAnswer),
-		"XC": xcScore(anchorResult),
+		"XC": xcScoreWithCorroboration(anchorResult, records),
 		"AC": acScore(anchorResult),
 		"GC": 0.3,
 	}

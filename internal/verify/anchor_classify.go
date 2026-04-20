@@ -4,8 +4,10 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"math"
 	"os"
 	"strings"
+	"time"
 
 	anchorpkg "github.com/pcguest/atb/internal/anchor"
 	"github.com/pcguest/atb/internal/bundle"
@@ -120,6 +122,62 @@ func xcScore(r AnchorVerifyResult) float64 {
 	default:
 		return 0.0
 	}
+}
+
+// xcScoreWithCorroboration returns the XC sub-score combining anchor result
+// with atb.corroboration.external events in the bundle. Bundles with zero
+// corroboration events return xcScore(anchorResult) unchanged, preserving
+// v1.9.0 behaviour exactly.
+func xcScoreWithCorroboration(r AnchorVerifyResult, records []bundle.Record) float64 {
+	valid := countValidCorroborationEvents(records)
+	if valid == 0 {
+		return xcScore(r)
+	}
+	// expected = 1: one valid corroboration event is sufficient for full XC credit.
+	corrobXC := math.Min(1.0, float64(valid))
+	base := xcScore(r)
+	if corrobXC > base {
+		return corrobXC
+	}
+	return base
+}
+
+// countValidCorroborationEvents counts atb.corroboration.external records
+// that have all required fields and a parseable retrieved_at timestamp.
+func countValidCorroborationEvents(records []bundle.Record) int {
+	count := 0
+	for _, r := range records {
+		if r.Event.Type != event.TypeCorroborationExternal {
+			continue
+		}
+		dm, ok := r.Event.Data.(map[string]any)
+		if !ok {
+			continue
+		}
+		if !hasNonEmptyString(dm, "source") ||
+			!hasNonEmptyString(dm, "reference_id") ||
+			!hasNonEmptyString(dm, "digest") {
+			continue
+		}
+		ts, ok := dm["retrieved_at"].(string)
+		if !ok || ts == "" {
+			continue
+		}
+		if _, err := time.Parse(time.RFC3339, ts); err != nil {
+			continue
+		}
+		count++
+	}
+	return count
+}
+
+func hasNonEmptyString(m map[string]any, key string) bool {
+	v, ok := m[key]
+	if !ok {
+		return false
+	}
+	s, ok := v.(string)
+	return ok && s != ""
 }
 
 func acScore(r AnchorVerifyResult) float64 {

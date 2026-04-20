@@ -4,6 +4,7 @@ workflow_class: privileged_tool_action
 blind_spots:
   - If an operator bypasses the gate, this profile cannot detect that bypass without external reconciliation.
   - Tool provider internal processing is not attested unless tool receipts are cryptographically verifiable.
+  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
 weights:
   EC: 0.20
   FC: 0.15

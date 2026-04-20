@@ -5,6 +5,7 @@ blind_spots:
   - Scheduling system integrity is not attested; a compromised scheduler could trigger executions without a corresponding schedule record.
   - Does not verify that the automated job's real-world effect matches the recorded completion outcome or result digest.
   - Policy authorisation is not required by this profile; append ai.policy.decision separately if the workflow requires it.
+  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
 weights:
   EC: 0.15
   FC: 0.10
