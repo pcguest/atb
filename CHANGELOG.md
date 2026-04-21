@@ -41,6 +41,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/integrations/push-transports.md`: S3 WORM headers, queue gateway envelope and
   HMAC signing, and the transport security boundary.
 
+## [v1.10.0] - 2026-04-21
+
+### Fixed
+- Viewer events endpoint returning incorrect data
+- Version string consistency across all packages (cmd/atb/main.go, SDKs, web)
+- Integration test golden value updated to v1.10.0
+- check-versions.sh now derives expected version from latest git tag
+
 ## [v1.9.0] - 2026-04-20
 
 ### Added
