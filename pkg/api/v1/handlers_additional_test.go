@@ -127,14 +127,14 @@ func TestBundleMetaEventsAndGraphEndpoints(t *testing.T) {
 		t.Fatalf("unexpected timestamps: first=%q last=%q", meta.FirstTimestamp, meta.LastTimestamp)
 	}
 
-	eventsReq := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/events?offset=1&limit=1", nil)
+	eventsReq := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/events?offset=0&limit=1", nil)
 	eventsRR := httptest.NewRecorder()
 	handler.ServeHTTP(eventsRR, eventsReq)
 	if eventsRR.Code != http.StatusOK {
 		t.Fatalf("events status: got %d want %d body=%s", eventsRR.Code, http.StatusOK, eventsRR.Body.String())
 	}
 	events := decodeResponseJSON[BundleEventsResponse](t, eventsRR)
-	if events.Total != 3 || len(events.Events) != 1 {
+	if events.Total != 2 || len(events.Events) != 1 {
 		t.Fatalf("unexpected events paging: total=%d len=%d", events.Total, len(events.Events))
 	}
 	if events.Events[0].Timestamp != "2026-03-12T00:00:00Z" {

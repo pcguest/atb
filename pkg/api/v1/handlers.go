@@ -256,7 +256,16 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	total := len(s.b.Records)
+	// Exclude the manifest record: it is bundle metadata (seq=0), not a pageable workflow event.
+	// handleBundleMeta applies the same filter for consistency.
+	workflowRecords := make([]bundle.Record, 0, len(s.b.Records))
+	for _, r := range s.b.Records {
+		if r.Event.Type != bundle.ManifestEventType {
+			workflowRecords = append(workflowRecords, r)
+		}
+	}
+
+	total := len(workflowRecords)
 	if offset > total {
 		offset = total
 	}
@@ -266,7 +275,7 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 
 	events := make([]EventRecordDTO, 0, end-offset)
-	for _, record := range s.b.Records[offset:end] {
+	for _, record := range workflowRecords[offset:end] {
 		events = append(events, EventRecordDTO{
 			Sequence:     record.Event.Sequence,
 			Type:         record.Event.Type,
@@ -456,6 +465,10 @@ func verifyReportToSummary(r verifypkg.Report) ProfileReportSummary {
 	if r.CAS != nil {
 		summary.CASScore = r.CAS.Overall
 		summary.CASGrade = r.CAS.Grade
+		if r.CAS.CorroborationBonus != 0 {
+			summary.CorroborationBonus = r.CAS.CorroborationBonus
+			summary.EffectiveScore = r.CAS.EffectiveScore
+		}
 		if len(r.CAS.SubScores) > 0 {
 			summary.SubScores = make(map[string]float64, len(r.CAS.SubScores))
 			for k, v := range r.CAS.SubScores {
