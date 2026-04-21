@@ -1,10 +1,10 @@
 # ATB
 
-AI and agent systems increasingly take high-impact actions — escalating tickets, running tools, exporting data, making policy decisions — and the standard audit trail is log lines that can be edited after the fact, with nothing that proves what happened in sequence. ATB records those decisions as an append-only, hash-chained bundle on local disk. Each event seals the one before it; altering or reordering any event breaks the chain. The bundle can be verified later, without a backend, and without routing payload data to external infrastructure.
-
 [![Release](https://img.shields.io/badge/release-v1.9.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-Current release: [`v1.9.0`](CHANGELOG.md)
+AI and agent systems increasingly take high-impact actions — escalating tickets, running tools, exporting data, making policy decisions — and the standard audit trail is log lines that can be edited after the fact, with nothing that proves what happened in sequence. ATB records those decisions as an append-only, hash-chained bundle on local disk. Each event seals the one before it; altering or reordering any event breaks the chain. The bundle can be verified later, without a backend, and without routing payload data to external infrastructure.
+
+Current release: [`v1.10.0`](CHANGELOG.md)
 
 Planned work: [`docs/roadmap.md`](docs/roadmap.md)
 
