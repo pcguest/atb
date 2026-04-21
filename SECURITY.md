@@ -6,13 +6,8 @@ Security fixes are shipped on the current release tag only.
 
 | Version | Supported |
 | --- | --- |
-| `v1.7.3` | Yes |
+| `v1.10.0` | Yes |
 | Older releases | No |
-
-## Reporting a vulnerability
-
-Please report vulnerabilities privately to
-[patrickcguest@proton.me](mailto:patrickcguest@proton.me).
 
 Include:
 
