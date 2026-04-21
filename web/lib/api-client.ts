@@ -16,6 +16,7 @@ import {
   bundleMetaResponseSchema,
   privacyRevealRequestSchema,
   privacyRevealResponseSchema,
+  profileReportSummarySchema,
   verificationResponseSchema,
 } from "@/lib/schemas";
 import type {
@@ -25,6 +26,7 @@ import type {
   EventRecord,
   PrivacyRevealRequest,
   PrivacyRevealResponse,
+  ProfileReportSummary,
   VerificationResponse,
 } from "@/lib/types";
 
@@ -37,6 +39,7 @@ export const queryKeys = {
   bundleMeta: ["atb", "bundle", "meta"] as const,
   bundleGraph: ["atb", "bundle", "graph"] as const,
   bundleEvents: ["atb", "bundle", "events"] as const,
+  bundleProfile: ["atb", "bundle", "profile"] as const,
 };
 
 function parseWithSchema<T>(schema: ZodSchema<T>, payload: unknown, path: string): T {
@@ -93,6 +96,52 @@ export function getBundleEvents(
 
 export function getBundleGraph(): Promise<BundleGraphResponse> {
   return requestJSON("/api/v1/bundle/graph", bundleGraphResponseSchema);
+}
+
+export async function getBundleProfile(): Promise<ProfileReportSummary | null> {
+  const response = await fetch("/api/v1/bundle/profile", { cache: "no-store" });
+  if (response.status === 204) {
+    return null;
+  }
+  if (response.status === 403) {
+    const err = new Error("FORBIDDEN") as Error & { status: number };
+    err.status = 403;
+    throw err;
+  }
+  if (!response.ok) {
+    const raw = await response.json().catch((): unknown => ({}));
+    const parsed = apiErrorSchema.safeParse(raw);
+    throw new Error(parsed.success ? parsed.data.error : `Request failed (${response.status})`);
+  }
+  const raw = await response.json();
+  return parseWithSchema(profileReportSummarySchema, raw, "/api/v1/bundle/profile");
+}
+
+export function runBundleVerify(): Promise<ProfileReportSummary> {
+  return requestJSON("/api/v1/bundle/verify", profileReportSummarySchema, { method: "POST" });
+}
+
+export function useBundleProfileQuery(
+  enabled: boolean,
+): UseQueryResult<ProfileReportSummary | null, Error> {
+  return useQuery({
+    queryKey: queryKeys.bundleProfile,
+    queryFn: getBundleProfile,
+    enabled,
+    retry: (failureCount, error) =>
+      (error as Error & { status?: number }).status !== 403 && failureCount < 1,
+    staleTime: 15000,
+  });
+}
+
+export function useRunBundleVerifyMutation(): UseMutationResult<ProfileReportSummary, Error, void> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => runBundleVerify(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.bundleProfile });
+    },
+  });
 }
 
 export function revealField(payload: PrivacyRevealRequest): Promise<PrivacyRevealResponse> {

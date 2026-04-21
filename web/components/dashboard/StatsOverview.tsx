@@ -1,34 +1,58 @@
 "use client";
 
-import type { BundleMetaResponse } from "@/lib/types";
+import type { DashboardRole } from "@/lib/roles";
+import { dashboardRoleLabel } from "@/lib/roles";
+import type { TrustScoreBreakdown } from "@/lib/trust-score";
+import type { BundleMetaResponse, VerificationResponse } from "@/lib/types";
 
 type StatsOverviewProps = {
+  verification: VerificationResponse | null;
   meta: BundleMetaResponse | null;
+  trustScore: TrustScoreBreakdown;
+  role: DashboardRole;
+  pollingActive?: boolean;
 };
 
-export function StatsOverview({ meta }: StatsOverviewProps) {
-  if (!meta) {
-    return null;
-  }
-
-  const eventTypes = Object.keys(meta.type_counts ?? {}).length;
-
+function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-        <div className="text-xs uppercase tracking-wide text-slate-400">Events</div>
-        <div className="mt-1 text-xl font-semibold text-slate-100">{meta.event_count}</div>
-      </div>
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-        <div className="text-xs uppercase tracking-wide text-slate-400">Event Types</div>
-        <div className="mt-1 text-xl font-semibold text-slate-100">{eventTypes}</div>
-      </div>
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-3">
-        <div className="text-xs uppercase tracking-wide text-slate-400">Verification</div>
-        <div className="mt-1 text-xl font-semibold text-slate-100">
-          {meta.verified ? "Verified" : "Invalid"}
+    <div className="flex flex-col gap-0.5 px-4 py-2">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
+      <span className="font-mono text-sm font-semibold text-foreground">{value}</span>
+    </div>
+  );
+}
+
+export function StatsOverview({
+  verification,
+  meta,
+  trustScore,
+  role,
+  pollingActive,
+}: StatsOverviewProps) {
+  return (
+    <div className="flex flex-wrap items-center divide-x divide-border">
+      <Stat label="events" value={meta?.event_count ?? "—"} />
+      <Stat label="chain" value={verification?.chain_length ?? "—"} />
+      <Stat label="trust" value={`${trustScore.total}/100`} />
+      <Stat label="role" value={dashboardRoleLabel[role]} />
+      {pollingActive !== undefined && (
+        <div className="flex flex-col gap-0.5 px-4 py-2">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            polling
+          </span>
+          <span
+            aria-live="polite"
+            aria-label={pollingActive ? "Live polling active" : "Live polling paused"}
+            className={`font-mono text-sm font-semibold ${
+              pollingActive ? "text-red-400" : "text-muted-foreground"
+            }`}
+          >
+            {pollingActive ? "● live" : "paused"}
+          </span>
         </div>
-      </div>
+      )}
     </div>
   );
 }

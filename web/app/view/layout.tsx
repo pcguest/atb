@@ -1,8 +1,19 @@
+"use client";
+
 import type { ReactNode } from "react";
 
-import { RoleSelector } from "@/app/view/components/role-selector/RoleSelector";
-import { DashboardShell } from "@/app/view/components/shell/DashboardShell";
+import { VerificationBannerConnected } from "@/components/dashboard/VerificationBanner";
 
 export default function ViewLayout({ children }: { children: ReactNode }) {
-  return <DashboardShell roleControl={<RoleSelector />}>{children}</DashboardShell>;
+  return (
+    <>
+      <VerificationBannerConnected />
+      <div
+        style={{ paddingTop: "var(--banner-h)" }}
+        className="flex h-screen overflow-hidden bg-background"
+      >
+        {children}
+      </div>
+    </>
+  );
 }

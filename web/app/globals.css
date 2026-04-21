@@ -25,29 +25,53 @@
     --border: 216 28% 84%;
     --input: 216 28% 84%;
     --ring: 198 100% 42%;
-    --radius: 0.75rem;
+    --radius: 0.375rem;
+
+    /* Fixed status-bar height consumed by layout for top offset */
+    --banner-h: 2.25rem;
+
+    /* Event family colour tokens — light surface */
+    --ev-llm:     210 100% 56%;
+    --ev-tool:    142  69% 45%;
+    --ev-chain:   262  80% 62%;
+    --ev-policy:   38  95% 52%;
+    --ev-human:   354  82% 60%;
+    --ev-export:  186  85% 43%;
+    --ev-default: 215  16% 47%;
   }
 
   .dark {
-    --background: 218 45% 8%;
-    --foreground: 210 40% 96%;
-    --card: 220 40% 12%;
-    --card-foreground: 210 40% 96%;
-    --popover: 220 40% 12%;
-    --popover-foreground: 210 40% 96%;
+    --background: 222 17% 7%;
+    --foreground: 210 16% 88%;
+    --card: 222 14% 11%;
+    --card-foreground: 210 16% 88%;
+    --popover: 222 14% 11%;
+    --popover-foreground: 210 16% 88%;
     --primary: 193 99% 45%;
     --primary-foreground: 222 47% 11%;
-    --secondary: 221 31% 17%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 220 28% 18%;
-    --muted-foreground: 210 18% 84%;
+    --secondary: 220 12% 17%;
+    --secondary-foreground: 210 16% 88%;
+    --muted: 220 10% 18%;
+    --muted-foreground: 210 12% 50%;
     --accent: 32 95% 57%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 79% 52%;
-    --destructive-foreground: 210 40% 96%;
-    --border: 220 25% 24%;
-    --input: 220 25% 24%;
+    --destructive-foreground: 210 16% 88%;
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
     --ring: 193 99% 45%;
+
+    /* Fixed status-bar height consumed by layout for top offset */
+    --banner-h: 2.25rem;
+
+    /* Event family colour tokens — dark surface */
+    --ev-llm:     210 100% 65%;
+    --ev-tool:    142  60% 55%;
+    --ev-chain:   262  70% 70%;
+    --ev-policy:   38  90% 60%;
+    --ev-human:   354  75% 65%;
+    --ev-export:  186  75% 52%;
+    --ev-default: 215  14% 55%;
   }
 
   * {
@@ -61,10 +85,6 @@
 
   body {
     font-family: var(--font-sans), system-ui, sans-serif;
-    background-image:
-      radial-gradient(circle at 12% -8%, hsl(193 99% 45% / 0.12), transparent 48%),
-      radial-gradient(circle at 88% 0%, hsl(32 95% 57% / 0.09), transparent 42%),
-      linear-gradient(160deg, hsl(var(--background)), hsl(var(--background)));
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -77,26 +97,21 @@
 }
 
 @layer utilities {
-  .gradient-text {
-    background: linear-gradient(120deg, hsl(193 99% 45%), hsl(32 95% 57%));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
+  /* Event family utilities — set --ev-color then consume for text + border */
+  .ev-llm     { --ev-color: var(--ev-llm);     color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-tool    { --ev-color: var(--ev-tool);    color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-chain   { --ev-color: var(--ev-chain);   color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-policy  { --ev-color: var(--ev-policy);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-human   { --ev-color: var(--ev-human);   color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-export  { --ev-color: var(--ev-export);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-default { --ev-color: var(--ev-default); color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
 
+  /* Subtle dot-grid — graph/canvas backgrounds */
   .bg-grid {
     background-image:
-      linear-gradient(hsl(0 0% 100% / 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(0 0% 100% / 0.05) 1px, transparent 1px);
+      linear-gradient(hsl(0 0% 100% / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(0 0% 100% / 0.04) 1px, transparent 1px);
     background-size: 36px 36px;
-  }
-
-  .glow {
-    box-shadow: 0 0 36px hsl(193 99% 45% / 0.15);
-  }
-
-  .glow-strong {
-    box-shadow: 0 0 56px hsl(193 99% 45% / 0.22);
   }
 
   .terminal-cursor::after {
@@ -104,15 +119,14 @@
     color: hsl(var(--primary));
     animation: cursor-blink 1s step-end infinite;
   }
-
 }
 
-/* React Flow defaults assume a light canvas; the dashboard renders on a dark surface. */
+/* React Flow dark surface overrides */
 .react-flow__controls {
   border: 1px solid hsl(var(--border)) !important;
-  border-radius: calc(var(--radius) - 0.25rem) !important;
+  border-radius: var(--radius) !important;
   overflow: hidden;
-  box-shadow: 0 10px 30px hsl(220 50% 4% / 0.35);
+  box-shadow: none;
 }
 
 .react-flow__controls-button {
@@ -132,7 +146,7 @@
 .react-flow__minimap {
   background: hsl(var(--card)) !important;
   border: 1px solid hsl(var(--border)) !important;
-  border-radius: calc(var(--radius) - 0.25rem) !important;
+  border-radius: var(--radius) !important;
   overflow: hidden;
 }
 
@@ -142,7 +156,7 @@
   border: 1px solid hsl(var(--border)) !important;
   border-radius: 9999px !important;
   padding: 4px 8px !important;
-  box-shadow: 0 10px 30px hsl(220 50% 4% / 0.35);
+  box-shadow: none;
 }
 
 .react-flow__attribution a {
@@ -153,11 +167,6 @@
 
 @keyframes cursor-blink {
   0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0;
-  }
+  100% { opacity: 1; }
+  50%  { opacity: 0; }
 }

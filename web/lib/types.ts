@@ -6,10 +6,12 @@ import {
   bundleGraphResponseSchema,
   bundleMetaResponseSchema,
   eventRecordSchema,
+  failureDTOSchema,
   graphEdgeSchema,
   graphNodeSchema,
   privacyRevealRequestSchema,
   privacyRevealResponseSchema,
+  profileReportSummarySchema,
   verificationResponseSchema,
 } from "@/lib/schemas";
 
@@ -23,3 +25,5 @@ export type GraphEdge = z.infer<typeof graphEdgeSchema>;
 export type BundleGraphResponse = z.infer<typeof bundleGraphResponseSchema>;
 export type PrivacyRevealRequest = z.infer<typeof privacyRevealRequestSchema>;
 export type PrivacyRevealResponse = z.infer<typeof privacyRevealResponseSchema>;
+export type FailureDTO = z.infer<typeof failureDTOSchema>;
+export type ProfileReportSummary = z.infer<typeof profileReportSummarySchema>;

@@ -16,6 +16,7 @@ type TraceGraphProps = {
   graph: BundleGraphResponse | null;
   disabled?: boolean;
   onSelectSeq?: (seq: number) => void;
+  layout?: "dagre-top-down";
 };
 
 function nodeColor(type: string): string {
@@ -31,28 +32,32 @@ function nodeColor(type: string): string {
   }
 }
 
-export function TraceGraph({ graph, disabled = false, onSelectSeq }: TraceGraphProps) {
+export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: TraceGraphProps) {
   const nodes = useMemo<Node[]>(() => {
     if (!graph) {
       return [];
     }
 
-    return graph.nodes.map((node, idx) => ({
-      id: node.id,
-      data: { label: node.label, eventType: node.type },
-      position: {
-        x: (idx % 5) * 220,
-        y: Math.floor(idx / 5) * 100,
-      },
-      style: {
-        border: `1px solid ${nodeColor(node.type)}`,
-        borderRadius: 8,
-        padding: 8,
-        background: "#0f172a",
-        color: "#e2e8f0",
-      },
-    }));
-  }, [graph]);
+    return graph.nodes.map((node, idx) => {
+      const position =
+        layout === "dagre-top-down"
+          ? { x: (idx % 3) * 260, y: Math.floor(idx / 3) * 120 }
+          : { x: (idx % 5) * 220, y: Math.floor(idx / 5) * 100 };
+
+      return {
+        id: node.id,
+        data: { label: node.label, eventType: node.type },
+        position,
+        style: {
+          border: `1px solid ${nodeColor(node.type)}`,
+          borderRadius: 4,
+          padding: 8,
+          background: "#0f172a",
+          color: "#e2e8f0",
+        },
+      };
+    });
+  }, [graph, layout]);
 
   const edges = useMemo<Edge[]>(() => {
     if (!graph) {
@@ -71,14 +76,14 @@ export function TraceGraph({ graph, disabled = false, onSelectSeq }: TraceGraphP
 
   if (!graph || graph.nodes.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm text-slate-400">
+      <div className="flex h-full items-center justify-center border border-slate-800 bg-slate-900 text-sm text-slate-500">
         No graph data available.
       </div>
     );
   }
 
   return (
-    <div className="h-[320px] overflow-hidden rounded-lg border border-slate-800 bg-slate-950">
+    <div className="h-full overflow-hidden border border-slate-800 bg-slate-950">
       <ReactFlow
         nodes={nodes}
         edges={edges}

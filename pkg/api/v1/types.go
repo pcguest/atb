@@ -94,13 +94,15 @@ type FailureDTO struct {
 // GET /api/v1/bundle/profile returns 204 No Content when no verify report has been computed.
 // POST /api/v1/bundle/verify runs (or re-runs) verify and returns a fresh summary.
 type ProfileReportSummary struct {
-	ProfileID        string             `json:"profile_id"`
-	Pass             bool               `json:"pass"`
-	ChainValid       bool               `json:"chain_valid"`
-	AnchorStatus     string             `json:"anchor_status"`
-	CASScore         float64            `json:"cas_score,omitempty"`
-	CASGrade         string             `json:"cas_grade,omitempty"`
-	SubScores        map[string]float64 `json:"sub_scores,omitempty"`
-	CriticalFailures []FailureDTO       `json:"critical_failures"`
-	Warnings         []string           `json:"warnings"`
+	ProfileID          string             `json:"profile_id"`
+	Pass               bool               `json:"pass"`
+	ChainValid         bool               `json:"chain_valid"`
+	AnchorStatus       string             `json:"anchor_status"`
+	CASScore           float64            `json:"cas_score,omitempty"`
+	CASGrade           string             `json:"cas_grade,omitempty"`
+	SubScores          map[string]float64 `json:"sub_scores,omitempty"`
+	CriticalFailures   []FailureDTO       `json:"critical_failures"`
+	Warnings           []string           `json:"warnings"`
+	CorroborationBonus float64            `json:"corroboration_bonus,omitempty"`
+	EffectiveScore     float64            `json:"effective_score,omitempty"`
 }
