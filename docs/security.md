@@ -72,9 +72,11 @@ attribution must supply an independent identity layer or signing scheme.
 
 ## Local viewer API
 
-The local viewer, `atb view`, binds to `127.0.0.1` by default and has no
-authentication layer. It is intended for single-user local inspection
-only. Do not expose it on a network interface.
+The local viewer, `atb view`, binds to `127.0.0.1` by default and is
+intended for single-user local inspection only. All `/api/v1/*`
+endpoints require a per-session token generated at startup, and privacy
+reveal operations require a separate reveal token. Do not expose the
+viewer on a network interface.
 
 If `--host` is used to bind to a non-loopback address, bundle contents
 become accessible to any process that can reach that interface unless an
@@ -165,7 +167,7 @@ enumeration risk.
 Current defaults:
 
 - 10 requests per minute per token.
-- Reveal auditing appended into `bundle.atb`.
+- Reveal auditing appended into the loaded bundle before data is revealed.
 - PII masking rules loaded from `ATB_PII_FIELDS_PATH` when set, otherwise the bundled default rules shipped with ATB.
 
 #### Testing
@@ -185,4 +187,4 @@ The eleventh request should return `429`.
 #### Monitoring
 
 Rate-limit hits return `429` with `Retry-After` and are not appended to
-the audit chain. Successful privacy reveals are appended to `bundle.atb`.
+the audit chain. Successful privacy reveals are appended to the loaded bundle.

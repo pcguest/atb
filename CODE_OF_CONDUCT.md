@@ -6,14 +6,14 @@ In the interest of fostering an open and welcoming environment, contributors and
 
 ## Our Standards
 
-Examples of behavior that contributes to a positive environment:
+Examples of behaviour that contributes to a positive environment:
 
 - Using welcoming and inclusive language
 - Respecting differing viewpoints and experiences
 - Accepting constructive feedback gracefully
 - Focusing on what is best for the community and the project
 
-Examples of unacceptable behavior:
+Examples of unacceptable behaviour:
 
 - Harassment, discrimination, or demeaning language
 - Trolling, personal attacks, or insulting comments
@@ -22,7 +22,7 @@ Examples of unacceptable behavior:
 
 ## Enforcement Responsibilities
 
-The project maintainer is responsible for clarifying and enforcing standards of acceptable behavior and may remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned with this Code of Conduct.
+The project maintainer is responsible for clarifying and enforcing standards of acceptable behaviour and may remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned with this Code of Conduct.
 
 ## Scope
 
@@ -30,7 +30,7 @@ This Code of Conduct applies within all project spaces and when an individual is
 
 ## Reporting
 
-Report unacceptable behavior to [patrickcguest@proton.me](mailto:patrickcguest@proton.me).
+Report unacceptable behaviour to [patrickcguest@proton.me](mailto:patrickcguest@proton.me).
 
 All complaints will be reviewed and investigated promptly and fairly.
 

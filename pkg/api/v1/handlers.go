@@ -44,7 +44,7 @@ type APIConfig struct {
 	BundlePath       string
 	Bundle           *bundle.Bundle
 	VerifyErr        error
-	SessionToken     string        // optional; if non-empty all read endpoints require X-ATB-Session-Token
+	SessionToken     string // optional; if non-empty all read endpoints require X-ATB-Session-Token
 	RevealAuthToken  string
 	RevealRateLimit  int
 	RevealRateWindow time.Duration

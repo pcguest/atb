@@ -1,6 +1,13 @@
 # ATB documentation
 
-This index lists the surviving docs files and populated subdirectories.
+This index lists the current documentation set and the authoritative home for each kind of guidance.
+
+## Maintainers
+
+- [../AGENTS.md](../AGENTS.md) - Canonical maintainer and coding-agent harness.
+- [../CONTRIBUTING.md](../CONTRIBUTING.md) - Contributor workflow and local validation.
+- [../SECURITY.md](../SECURITY.md) - Vulnerability reporting and supported-version policy.
+- [../VERSIONING.md](../VERSIONING.md) - Release versioning rules.
 
 ## Core specs
 
@@ -74,6 +81,7 @@ This index lists the surviving docs files and populated subdirectories.
 
 - [contributing.md](./contributing.md) - Contributor workflow and repository hygiene checks.
 - [roadmap.md](./roadmap.md) - Planned work and current status notes.
+- [release.md](./release.md) - Maintainer release runbook.
 - [launch/](./launch/) - Public release communication templates.
 - [launch/README.md](./launch/README.md) - Release communication template index.
 - [launch/release-announcement-template.md](./launch/release-announcement-template.md) - Public release announcement template.

@@ -1,5 +1,8 @@
 # Security Policy
 
+This file covers vulnerability reporting and supported release policy. For the product threat
+model and control boundaries, see [docs/security.md](docs/security.md).
+
 ## Supported versions
 
 Security fixes are shipped on the current release tag only.
@@ -37,6 +40,8 @@ This policy applies to:
 - CI/CD and release workflows (`.github/workflows/`)
 
 Trivy vulnerability scanning runs on a weekly schedule via GitHub Actions.
+
+For incident handling after report intake, see [docs/incident-response.md](docs/incident-response.md).
 
 ## Local viewer threat model
 

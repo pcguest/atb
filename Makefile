@@ -28,7 +28,7 @@ test-embed: hygiene-full
 	@echo "🔗 Testing embed flow..."
 	cd web && npm run build
 	$(GOENV) go build -o /tmp/atb-rc ./cmd/atb
-	@/tmp/atb-rc view --ui-experimental --no-open --port 18888 > /tmp/atb-test-embed.log 2>&1 & echo $$! > /tmp/atb-test.pid
+	@/tmp/atb-rc view --no-open --port 18888 > /tmp/atb-test-embed.log 2>&1 & echo $$! > /tmp/atb-test.pid
 	@sleep 3
 	@curl -f -I http://localhost:18888/view/ | grep -qi "content-security-policy" || (echo "❌ CSP missing"; kill $$(cat /tmp/atb-test.pid) 2>/dev/null || true; exit 1)
 	@curl -f -s -X POST http://localhost:18888/api/v1/privacy/reveal -H "Content-Type: application/json" -d '{"seq":1}' -w "\nStatus: %{http_code}\n" | grep -q "401" || (echo "❌ Auth bypass"; kill $$(cat /tmp/atb-test.pid) 2>/dev/null || true; exit 1)
@@ -41,7 +41,7 @@ test-e2e:
 	cd web && npm install
 	cd web && npm run build
 	$(GOENV) go build -o /tmp/atb-e2e ./cmd/atb
-	@/tmp/atb-e2e view --ui-experimental --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
+	@/tmp/atb-e2e view --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
 	@sleep 3
 	@cd web && CYPRESS_BASE_URL=http://127.0.0.1:18888 npm run test:e2e || (echo "❌ E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
 	@kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true

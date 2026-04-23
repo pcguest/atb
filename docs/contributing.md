@@ -2,105 +2,13 @@
 
 Thanks for helping improve ATB.
 
-## Development setup
+This page is a docs-space pointer. The authoritative contributor workflow is
+[../CONTRIBUTING.md](../CONTRIBUTING.md), and the canonical maintainer and coding-agent harness is
+[../AGENTS.md](../AGENTS.md).
 
-```bash
-git clone https://github.com/pcguest/atb.git
-cd atb
-```
+## Use this page for navigation
 
-For a quick CLI smoke-check that matches README install guidance:
-
-```bash
-go install github.com/pcguest/atb/cmd/atb@latest
-atb init
-atb view --no-open
-```
-
-When building the CLI from a source checkout, build the web export before testing `atb view`:
-
-```bash
-cd web
-npm ci
-npm run build
-cd ..
-go build -o atb ./cmd/atb
-```
-
-## Local validation
-
-Match the CI setup order in a clean checkout before opening a PR:
-
-```bash
-cd web
-npm ci
-npm run build
-
-cd ../sdk/python
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .[dev]
-
-cd ../typescript
-npm ci
-npm run build
-
-cd ../..
-go test ./...
-
-cd sdk/python
-source venv/bin/activate
-pytest -v
-
-cd ../typescript
-npm run typecheck
-npm run test
-npm run build
-```
-
-## Commit and PR Standards
-
-- Use conventional commit messages (`feat:`, `fix:`, `docs:`, `chore:`, `test:`)
-- Keep changes scoped and reviewable
-- Include test evidence in PR description
-- Update docs for behaviour or contract changes
-
-## Release preflight
-
-Before creating a release tag, run:
-
-```bash
-./scripts/release-check.sh
-```
-
-This validates lockfiles, tests, package builds, and release prerequisites.
-
-## Branch protection
-
-`main` should be protected with the following settings applied via
-**Settings → Branches → Branch protection rules → Add rule** for pattern `main`:
-
-- Require a pull request before merging (no direct pushes)
-- Require status checks to pass: `test`, `golden-test`, `acp-gate`
-  (these are the job IDs in `.github/workflows/ci.yml` that run on every pull request)
-- Require branches to be up to date before merging
-- Do not allow bypassing the above settings (apply to administrators)
-
-These settings cannot be applied from code. The rule must be configured once manually after the
-repository is initialised or transferred.
-
-## Security
-
-- Never commit secrets
-- Report vulnerabilities through the process in [SECURITY.md](../SECURITY.md)
-
-Run Trivy checks for security-sensitive changes:
-
-```bash
-# Filesystem scan (HIGH/CRITICAL)
-trivy fs --scanners vuln --severity HIGH,CRITICAL .
-
-# Image scan when Docker/runtime layers change
-docker build -t atb:security-scan .
-trivy image --scanners vuln --severity HIGH,CRITICAL atb:security-scan
-```
+- For contributor setup, validation, commit style, and PR expectations, use [../CONTRIBUTING.md](../CONTRIBUTING.md).
+- For release expectations, branch protection, and docs/schema/OpenAPI coordination, use [../AGENTS.md](../AGENTS.md).
+- For the step-by-step release sequence, use [release.md](./release.md).
+- For vulnerability reporting, use [../SECURITY.md](../SECURITY.md).

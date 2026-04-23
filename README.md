@@ -2,34 +2,23 @@
 
 [![Release](https://img.shields.io/badge/release-v1.10.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-AI and agent systems increasingly take high-impact actions — escalating tickets, running tools, exporting data, making policy decisions — and the standard audit trail is log lines that can be edited after the fact, with nothing that proves what happened in sequence. ATB records those decisions as an append-only, hash-chained bundle on local disk. Each event seals the one before it; altering or reordering any event breaks the chain. The bundle can be verified later, without a backend, and without routing payload data to external infrastructure.
+ATB is a local-first tamper-evident audit trail for AI and agent workflows. It records events into an append-only, hash-chained bundle on local disk so teams can verify later whether the recorded sequence was altered, without a hosted backend and without routing payload data to external infrastructure.
 
 Current release: [`v1.10.0`](CHANGELOG.md)
 
-Planned work: [`docs/roadmap.md`](docs/roadmap.md)
+Planned work: [`docs/roadmap.md`](docs/roadmap.md)  
+Roadmap entries are tracked work, not release commitments.
 
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
 anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it
 does not prove recording completeness, model correctness, or that risk controls were applied.
 
-## Why ATB
+## What ATB is for
 
-- **No hosted service required.** Bundles are portable `.atb` files on disk — the core
-  `init → append → snapshot → verify` workflow requires no network access and routes no payload
-  data to third-party infrastructure.
-- **Audit evidence needs to verify years after the fact.** ATB uses SHA-256 over RFC 8785
-  canonical JSON for hash chaining; optional RFC 3161 TSA anchoring adds a third-party timestamp
-  commitment.
-- **Different workflows require different evidence sets.** Six schema-locked obligation profiles
-  define the required event types for RAG answers, privileged tools, policy decisions, human
-  overrides, data exports, and background jobs. CAS is a profile-scoped completeness signal for
-  recorded evidence, not a compliance determination.
-- **Instrumentation needs to work wherever the workflow runs.** ATB ships a Go CLI, Python SDK,
-  TypeScript SDK, MCP stdio bridge, LangChain callbacks, PageIndex retriever, `atb view` local
-  dashboard, and `atb push` WORM export.
-- **Local bundles alone are vulnerable to filesystem-level replacement.** `atb push` uploads
-  bundles to S3-compatible stores with optional Object Lock headers as a complement to the local
-  guarantee, not a replacement.
+- Verifiable local evidence for AI and agent workflows where ordinary logs are too easy to edit after the fact.
+- Incident review, customer handoff, privacy review, and internal audit where raw traces should remain under local control.
+- Workflow-specific evidence checks through six schema-locked obligation profiles.
+- Local review through the Go CLI, Python SDK, TypeScript SDK, MCP stdio bridge, local viewer, and explicit WORM export.
 
 ### What ATB does not do
 
@@ -57,9 +46,10 @@ For compliance control mappings see [`docs/compliance/`](docs/compliance/).
 
 ## Quickstart
 
-Recording a support-triage escalation decision:
+Record and verify a support-triage escalation decision:
 
 ```bash
+go install github.com/pcguest/atb/cmd/atb@latest
 atb bundle new
 atb append ai.request.received \
   --data '{"workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
@@ -76,7 +66,9 @@ mean recording was complete.
 
 `atb bundle new` is the explicit alias for `atb init`.
 
-## How it works
+For a fuller first-run path see [`docs/quickstart.md`](docs/quickstart.md).
+
+## How ATB works
 
 ```text
 event_hash = SHA-256(prev_hash || RFC8785(event_json))
@@ -141,9 +133,7 @@ declared profile and trust boundary, not an external attestation or a
 universal completeness score.
 
 Example `atb verify --profile atb.profile.rag_answer --format json`
-output for a bundle with a broken hash chain. `pass: false` combined
-with `residual_risk: "Critical"` indicates chain integrity failure;
-`critical_failures` lists obligation gaps the profile found as a result.
+output for a bundle with a broken hash chain:
 
 ```json
 {
@@ -173,6 +163,10 @@ with `residual_risk: "Critical"` indicates chain integrity failure;
   "residual_risk": "Critical"
 }
 ```
+
+`pass: false` combined with `residual_risk: "Critical"` indicates chain
+integrity failure; `critical_failures` lists obligation gaps the profile
+found as a result.
 
 ## Integrations
 
@@ -242,10 +236,12 @@ alongside the rest of the workflow.
 
 - [Architecture](docs/architecture.md)
 - [Quickstart](docs/quickstart.md)
+- [Why ATB](docs/why-atb.md)
 - [ATB Specification v1.0](docs/spec-v1.0.md)
 - [AI Trace Event Specification](docs/spec-ai-traces.md)
 - [Verification Profiles](docs/profiles.md)
 - [Security Model](docs/security.md)
+- [Maintainer / agent harness](AGENTS.md)
 - [MCP Integration](docs/integrations/mcp.md)
 - [WORM/S3 Export](docs/integrations/worm-s3.md)
 - [Python SDK](sdk/python/README.md)
@@ -258,14 +254,6 @@ alongside the rest of the workflow.
 - [SIEM and GRC Integration](docs/integrations/siem-grc.md)
 - [CLI Flag Reference](docs/config.md)
 - [Changelog](CHANGELOG.md)
-
-Corroboration adapters (#47) will let ATB cross-check its own bundle records against external
-evidence from queues, gateways, or execution receipts to surface gaps between what was recorded
-locally and what surrounding systems observed. Queue and storage gateway integration (#48) extends
-recording coverage to asynchronous and queued workflows where the triggering event happens outside
-the local bundle. Assurance packs (#49) will package the verified bundle, verification report,
-and compliance mapping into a portable ZIP for handoff to auditors, customers, or incident
-reviewers.
 
 ## Attribution
 

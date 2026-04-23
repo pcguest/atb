@@ -3,7 +3,8 @@
 This document summarises shipped and planned work from the v1.8.x/v1.9.x
 baseline. It distinguishes shipped capabilities from forward-looking
 items and should be read as sequencing guidance rather than a delivery
-commitment.
+commitment. A roadmap entry means the work is tracked; it does not mean
+it is committed to a specific release.
 
 ## Summary
 
@@ -17,6 +18,9 @@ systems. The longer-term objective is a published, independently-implementable s
 a precise enough description of how ATB constructs and verifies a bundle that a second
 implementation, written without access to this codebase, would produce bundles that verify
 correctly against it.
+
+ATB remains a narrow-scope product. Planned work should strengthen the integrity and evidence
+model around that scope rather than broaden ATB into a general AI operations platform.
 
 ## Current baseline
 
@@ -96,7 +100,7 @@ execution receipts.
 Intended benefit: better support for workflows where the strongest
 evidence spans more than one system boundary.
 
-Sequencing: after the v1.9.x line.
+Sequencing: after the v1.9.x line. This is a planning target, not a promise.
 
 ### Queue, gateway, and storage integration
 
@@ -112,7 +116,7 @@ Intended benefit: stronger evidence for queued or asynchronous systems
 where the local bundle should be paired with queue dequeue, gateway, or
 storage-side facts.
 
-Sequencing: after corroboration adapters begin to land.
+Sequencing: after corroboration adapters begin to land. This is a planning target, not a promise.
 
 ### Reconciliation against underlying systems
 
@@ -126,7 +130,7 @@ state of the underlying system of record and report mismatches.
 Intended benefit: clearer detection of gaps between what ATB recorded
 and what the downstream system says actually happened.
 
-Sequencing: after queue, gateway, and storage integration.
+Sequencing: after queue, gateway, and storage integration. This is a planning target, not a promise.
 
 ### Exportable assurance packs
 
@@ -143,6 +147,13 @@ guarantees on its own.
 
 Sequencing: after reconciliation and corroboration foundations are in
 place.
+
+## Issue handling
+
+- Use issues to track concrete work, gaps, or questions.
+- Keep issue language specific about what is missing today.
+- Avoid phrasing an issue as an implied promise of delivery unless a release decision has already been made.
+- When work ships, move the user-facing statement to `CHANGELOG.md` and keep this roadmap focused on direction.
 
 ## Long-term objective
 

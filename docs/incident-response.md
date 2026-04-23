@@ -50,6 +50,7 @@ Immediate actions:
 - Preserve relevant CI logs, commit references, and release metadata.
 - Record timeline, impact, and remediation in a postmortem document.
 - Convert follow-up gaps into actionable issues with owners and due dates.
+- Keep issue wording factual about the gap that remains; do not phrase follow-up work as a release promise unless that decision has already been made.
 
 ## Contacts
 

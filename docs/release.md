@@ -3,6 +3,9 @@
 Steps to cut a new ATB release. Replace `<NEW>` with the target version
 (e.g. `1.10.0`) and `<OLD>` with the version being superseded.
 
+For the standing maintainer expectations around scope, docs coordination, versioning, and branch
+protection, see [../AGENTS.md](../AGENTS.md).
+
 ## 1. Consolidate CHANGELOG
 
 Move the `[Unreleased]` content into a new `## [v<NEW>] - <date>` block.
@@ -14,9 +17,9 @@ $EDITOR CHANGELOG.md
 
 ## 2. Bump version strings
 
-Each location must be updated manually. `scripts/check-versions.sh` treats
-`cmd/atb/main.go` as the source of truth and checks every other location
-against it.
+Each location must be updated manually. `scripts/check-versions.sh` uses
+the latest git tag as the release source of truth and checks the tracked
+version locations against it.
 
 ### Go CLI
 
@@ -92,7 +95,7 @@ git push origin main
 ## 6. Tag and wait for CI
 
 ```bash
-git tag v<NEW>
+git tag -a v<NEW> -m "v<NEW>"
 git push origin v<NEW>
 ```
 

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs
+- Added `AGENTS.md` as the canonical maintainer and coding-agent harness and aligned the core Markdown estate around it.
+- Tightened README scope and quickstart flow so current capability, non-goals, and planned work are more clearly separated.
+- Aligned contributing, release, roadmap, security, and versioning docs with the current local-first viewer and release model.
+
 ### Added
 - `atb.corroboration.external` event type in the new `atb.corroboration.*` namespace.
   Required fields: `source`, `reference_id`, `digest`, `retrieved_at`. Optional fields:
@@ -31,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - S3 push coverage now checks that Object Lock PUT requests carry
   `x-amz-object-lock-mode: COMPLIANCE` and
   `x-amz-object-lock-retain-until-date`.
+
+### Fixed
+- Stale documentation and maintenance references to the removed legacy viewer flag.
 
 ### Docs
 - `docs/spec-ai-traces.md`: `atb.corroboration.*` namespace and required field schema
@@ -153,7 +161,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile or a DSL YAML file at startup and serves the result at
   `GET /api/v1/bundle/profile` (204 when no report; 200 + `ProfileReportSummary` when
   computed). `POST /api/v1/bundle/verify` recomputes and caches a fresh report.
-- Legacy viewer now displays a redirect notice pointing users to `--ui-experimental`.
+- Legacy viewer redirect guidance added during the transition to the current single-view dashboard.
 
 ### Fixed
 - Bundle save is now atomic: written to a temp file then renamed, preventing partial

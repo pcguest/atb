@@ -2,6 +2,9 @@
 
 ATB uses Semantic Versioning (`MAJOR.MINOR.PATCH`) for the CLI, SDKs, and release artifacts.
 
+The release tag is the release source of truth. Checked-in version strings across the CLI, SDKs,
+and web package must match the tag.
+
 ## What triggers a major version
 
 A MAJOR bump is required for any breaking change:
@@ -38,7 +41,12 @@ A PATCH bump is used for backward-compatible fixes:
 
 - Release tags are annotated and formatted as `vMAJOR.MINOR.PATCH`
 - CI publish workflows trigger only on tags matching `v*.*.*`
-- Tag version must match package versions validated in release workflow
+- Tag version must match the checked version locations validated by `scripts/check-versions.sh`
+
+## Documentation and release coordination
+
+- If a release changes user-visible behaviour, update `CHANGELOG.md`, release-facing README text, and any affected operational docs in the same release preparation pass.
+- Roadmap targets and issue milestones are planning aids only. They do not override Semantic Versioning or imply a promised release.
 
 ## Pre-release versioning
 
