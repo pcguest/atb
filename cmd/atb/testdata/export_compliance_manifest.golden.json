@@ -15,6 +15,10 @@
       "name": "evidence/checksums.sha256"
     },
     {
+      "description": "Documentation reference: README.md.",
+      "name": "evidence/docs/compliance/README.md"
+    },
+    {
       "description": "Documentation reference: eu-ai-act.md.",
       "name": "evidence/docs/compliance/eu-ai-act.md"
     },

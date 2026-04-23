@@ -70,6 +70,7 @@ This index lists the current documentation set and the authoritative home for ea
 
 - [ciso-acceptance-guide.md](./ciso-acceptance-guide.md) - Security review questions, claims, and limits.
 - [compliance/](./compliance/) - Export references, mappings, and static support files.
+- [compliance/README.md](./compliance/README.md) - Plain-language guide to using ATB mappings in a real review.
 - [compliance/export.md](./compliance/export.md) - Compliance export formats and contents.
 - [compliance/eu-ai-act.md](./compliance/eu-ai-act.md) - Article 12 mapping and evidence limits.
 - [compliance/nist-ai-rmf.md](./compliance/nist-ai-rmf.md) - NIST AI RMF mapping notes.
