@@ -75,7 +75,7 @@ Example valid event:
 `atb verify --format json` returns:
 
 - `bundle_path`: bundle file path used for evaluation
-- `profile_id`: canonical profile id in the form `atb.profile.<name>` when a profile matched or was selected
+- `profile_id`: canonical profile id in the form `atb.profile.<name>` when a profile matched or was selected; empty when no profile result is present
 - `pass`: whether the evaluated profile passed
 - `cas_score` (optional): completeness assurance score when the profile supports CAS
 - `cas_grade` (optional): `High|Medium|Low|Insufficient`
@@ -125,7 +125,10 @@ Section object:
 - `fields` (optional): string fields surfaced for review
 - `notes` (optional): section notes
 
-The command exits `0` when `pass` is `true`, and `1` otherwise.
+For `atb verify`, the command exits `0` when `pass` is `true`, `2` on
+integrity failure, and `3` on profile verification failure or
+system/runtime error. Automation should gate on the exit code first and
+then inspect the JSON report.
 
 ## CI assertion examples
 

@@ -3,8 +3,8 @@
 Steps to cut a new ATB release. Replace `<NEW>` with the target version
 (e.g. `1.10.0`) and `<OLD>` with the version being superseded.
 
-For the standing maintainer expectations around scope, docs coordination, versioning, and branch
-protection, see [../AGENTS.md](../AGENTS.md).
+For the standing maintainer workflow and versioning rules, see
+[`../CONTRIBUTING.md`](../CONTRIBUTING.md) and [`../VERSIONING.md`](../VERSIONING.md).
 
 ## 1. Consolidate CHANGELOG
 
@@ -75,9 +75,11 @@ cd sdk/typescript && npm run typecheck && npm test && cd ../..
 cd sdk/python && python -m pytest && cd ../..
 ```
 
-## 5. Commit and push
+## 5. Commit and open a release PR
 
 ```bash
+git switch -c release/v<NEW>
+
 git add CHANGELOG.md
 git commit -m "chore(changelog): write v<NEW> block"
 
@@ -89,12 +91,20 @@ git commit -m "chore(release): bump version strings to <NEW>"
 git add README.md
 git commit -m "docs(readme): bump badge and current release to v<NEW>"
 
-git push origin main
+git push -u origin release/v<NEW>
+
+gh pr create \
+  --title "chore(release): prepare v<NEW>" \
+  --body "Prepare v<NEW> for merge to main and tagging."
 ```
 
-## 6. Tag and wait for CI
+Merge the release PR to `main` after CI passes.
+
+## 6. Tag from `main` and wait for CI
 
 ```bash
+git switch main
+git pull origin main
 git tag -a v<NEW> -m "v<NEW>"
 git push origin v<NEW>
 ```

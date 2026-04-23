@@ -1,16 +1,17 @@
-# MCP bridge
+# MCP bridge (beta)
 
 ## Overview
 
 Model Context Protocol, or MCP, gives agent hosts a stable tool-calling
-interface. ATB ships a local stdio MCP bridge via `atb mcp serve` so an
+interface. ATB ships a local stdio MCP bridge (beta) via `atb mcp serve` so an
 MCP host can initialise bundles, query bundle state, verify recorded
 evidence, and record PageIndex RAG events.
 
 The bridge is implemented and tested, but it is still a narrow tool
 surface. It wraps the existing CLI and bundle model; it does not
 auto-instrument third-party MCP servers or expose the full CLI command
-set.
+set. It is a useful local bridge, not a general agent automation
+platform.
 
 ## How it works
 
@@ -167,8 +168,15 @@ atb append ai.request.received --data \
 atb append ai.model.invoked --data \
   '{"model_provider":"openai","model_id":"gpt-4o","model_parameters_digest":"sha256-params-def","prompt_digest":"sha256-prompt-ghi"}'
 
-atb verify --format json
+atb append ai.model.output --data \
+  '{"output_digest":"sha256-output-jkl","output_format":"text"}'
+
+atb verify --profile atb.profile.rag_answer --format json
 ```
+
+This minimal example satisfies the required RAG answer events. It will
+still report warning-level gaps for optional evidence such as retrieval,
+policy context, and response delivery.
 
 ## SDK usage
 
@@ -224,11 +232,11 @@ bundle.append("ai.model.invoked", {
 
 ## Output and review
 
-When a reviewer runs `atb verify --format json`, the report shows the
-matched profile, whether it passed, any critical failures or warnings,
-and CAS results when the selected profile supports CAS. When they run
-`atb trust-report`, the same evidence is rendered as review-oriented
-sections.
+When a reviewer runs `atb verify --format json --profile <id>`, the
+report shows the selected profile, whether it passed, any critical
+failures or warnings, and CAS results when that profile supports CAS.
+When they run `atb trust-report --profile <id>`, the same evidence is
+rendered as review-oriented sections.
 
 ## Compliance note
 

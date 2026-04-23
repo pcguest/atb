@@ -16,6 +16,9 @@ Local capture → local bundle → optional push to S3 Object Lock. Three stages
 ATB does not enforce WORM. All WORM guarantees live in the storage layer.
 Do not rely on `--lock-until` alone. If Object Lock is absent, misconfigured, or set to a weaker mode than required, the storage layer remains mutable.
 
+`atb push` uploads the bundle object. It does not upload the compliance
+export zip, and it does not make local exports immutable by itself.
+
 ## Why WORM storage
 
 ATB provides tamper-evidence locally: if any record in a bundle is modified after it is written, `atb verify` detects the change through the hash chain. Local tamper-evidence is strong as long as the local filesystem is trustworthy.

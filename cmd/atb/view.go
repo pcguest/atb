@@ -124,7 +124,7 @@ func cmdView() {
 // buildViewServer prepares the HTTP handler for atb view.
 // It returns the handler, total event count (for the startup message), a tamper flag, the
 // suggested open path, and any error.
-// When the embedded dashboard is absent (e.g. a go install build), a minimal install-guidance
+// When the embedded review UI is absent (e.g. a go install build), a minimal install-guidance
 // page is served at / instead; it exposes no bundle data.
 func buildViewServer(bundlePath string, logReveals bool, profilePath string, sessionToken string) (http.Handler, int, bool, string, error) {
 	_ = logReveals // Privacy reveal auditing is always on; flag retained for CLI compatibility.
@@ -181,14 +181,14 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 		return withSecurityHeaders(mux, revealAuthToken), eventCount, false, "/view/", nil
 	}
 
-	// Degraded path: the embedded dashboard is not available (go install builds).
+	// Degraded path: the embedded review UI is not available (go install builds).
 	// Serve a minimal guidance page that exposes no bundle data.
 	mux.Handle("/", newInstallFallbackHandler())
 	return withSecurityHeaders(mux, revealAuthToken), eventCount, false, "/", nil
 }
 
 // newInstallFallbackHandler returns a minimal HTML page for builds that do not include
-// the embedded dashboard (e.g. go install from the module proxy). It exposes no bundle data.
+// the embedded review UI (e.g. go install from the module proxy). It exposes no bundle data.
 func newInstallFallbackHandler() http.Handler {
 	body := `<!doctype html>
 <html lang="en">
@@ -207,7 +207,7 @@ func newInstallFallbackHandler() http.Handler {
 <body>
   <main>
     <h1>ATB Viewer</h1>
-    <p>The visual dashboard is not available in this build.</p>
+    <p>The local review UI is not available in this build.</p>
     <p>The CLI interface works normally — run <code>atb verify</code> to check bundle integrity.</p>
     <p>To use the visual interface, build from source:</p>
     <p><code>cd web &amp;&amp; npm ci &amp;&amp; npm run build &amp;&amp; cd .. &amp;&amp; go build -o atb ./cmd/atb</code></p>

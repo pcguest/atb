@@ -12,8 +12,8 @@ export default function Footer() {
               <span className="font-mono font-semibold text-white">ATB</span>
             </div>
             <p className="text-[#6b7280] text-sm leading-relaxed max-w-xs">
-              Open-source local-first audit trails for privacy-sensitive AI systems. Go CLI, local
-              viewer, exports, and SDKs that share the same bundle format.
+              Open-source local-first audit trails for privacy-sensitive AI and agent workflows. Go
+              CLI, local viewer, exports, and SDKs that share the same bundle format.
             </p>
             <div className="flex items-center gap-3 mt-4">
               <a

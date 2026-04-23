@@ -1,7 +1,7 @@
 # ATB roadmap
 
-This document summarises shipped and planned work from the v1.8.x/v1.9.x
-baseline. It distinguishes shipped capabilities from forward-looking
+This document summarises shipped and planned work from the current
+v1.10.0 line. It distinguishes shipped capabilities from forward-looking
 items and should be read as sequencing guidance rather than a delivery
 commitment. A roadmap entry means the work is tracked; it does not mean
 it is committed to a specific release.

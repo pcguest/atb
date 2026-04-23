@@ -1,15 +1,19 @@
-# ATB Dashboard Specification
+# ATB viewer specification
 
 ## Status
 
 Dashboard implementation is complete:
 - local `atb view` API server with verification gate and privacy reveal flow
-- `/view` dashboard UI with verification banner, timeline, graph, inspector, and stats
+- `/view` viewer UI with verification banner, timeline, graph, inspector, and stats
 - reveal audit logging appended into `bundle.atb`
+
+This is the only supported visual UI in the current release. There is no
+hosted mode, collaborative workspace, or multi-bundle review surface.
 
 ## Purpose
 
-Build a local-first visual dashboard for `.atb` bundles that is fast to audit and safe by default.
+Build a local-first review UI for one `.atb` bundle at a time that is
+fast to audit and safe by default.
 
 Auditor success bar:
 - Integrity status, trace flow, and key event details must be understandable in under 30 seconds.
@@ -35,16 +39,17 @@ Additional flags:
 - `--no-open`: do not auto-open browser
 - `--log-reveals`: retained for CLI compatibility; reveal auditing is always on
 
-Builds produced by `go install` from the module proxy do not include the embedded dashboard.
+Builds produced by `go install` from the module proxy do not include the embedded review UI.
 Running `atb view` in that case shows a minimal install-guidance page. Build from source to
 use the visual interface.
 
 Security note: `atb view` binds to `127.0.0.1` by default. All API endpoints require a
-session token generated at startup. Do not expose the viewer on a non-loopback interface.
+session token generated at startup and delivered to the browser in the URL fragment. Do not
+expose the viewer on a non-loopback interface.
 
 ## Architecture
 
-Chosen flow: **Go API server + Next.js dashboard**.
+Chosen flow: **Go API server + Next.js viewer UI**.
 
 1. `atb view` resolves and loads bundle.
 2. Go verifies hash chain before serving event data.
@@ -57,7 +62,7 @@ Chosen flow: **Go API server + Next.js dashboard**.
    - `POST /api/v1/privacy/reveal`
    - `GET /api/v1/bundle/profile` (204 if no report; 200 + ProfileReportSummary if computed)
    - `POST /api/v1/bundle/verify` (runs verify with stored profile path; returns fresh ProfileReportSummary)
-4. Next.js dashboard (`/view`) consumes local API JSON.
+4. Next.js viewer UI (`/view`) consumes local API JSON.
 
 Rationale:
 - file access and integrity verification stay in one trusted local process
@@ -142,6 +147,7 @@ Rationale:
 ## Error handling
 
 - missing bundle path/file: clear load error
+- manifest-only or zero-event bundle: viewer loads, integrity remains valid, and profile summary stays empty until the user runs verify or selects a profile
 - parse errors: return explicit error JSON
 - port in use: surface actionable server startup error
 - verification failure: show tamper-first UX and block data endpoints

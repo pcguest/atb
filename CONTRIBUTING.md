@@ -2,7 +2,8 @@
 
 ATB is an open project. Contributions, bug reports, and focused documentation improvements are welcome.
 
-For the canonical maintainer and coding-agent rules, see [AGENTS.md](AGENTS.md). This file stays focused on contributor workflow.
+This file covers contributor workflow. Release preparation and versioning details live in
+[`docs/release.md`](docs/release.md) and [`VERSIONING.md`](VERSIONING.md).
 
 ## Local setup
 
@@ -13,7 +14,7 @@ go build ./...
 go test ./...
 ```
 
-For `atb view` or the embedded dashboard, build the web layer first:
+For `atb view` or the embedded review UI, build the web layer first:
 
 ```bash
 cd web
@@ -25,7 +26,8 @@ go build -o atb ./cmd/atb
 
 ## Development workflow
 
-- Work lands on `main`.
+- Use a short-lived branch or fork and submit against `main`.
+- Do not push directly to `main` routinely.
 - Run `make hygiene-quick` before every push. It runs `go fmt`,
   `go vet`, short Go tests, and the web lint and typecheck steps.
 - Install the pre-commit hook with `make install-hooks`.

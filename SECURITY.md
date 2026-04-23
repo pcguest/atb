@@ -36,7 +36,7 @@ This policy applies to:
 
 - Go CLI (`cmd/`, `internal/`)
 - SDKs (`sdk/python`, `sdk/typescript`)
-- Local viewer dashboard (`web/`, `pkg/api/v1/`)
+- Local viewer UI (`web/`, `pkg/api/v1/`)
 - CI/CD and release workflows (`.github/workflows/`)
 
 Trivy vulnerability scanning runs on a weekly schedule via GitHub Actions.
@@ -67,7 +67,7 @@ bundle inspection. The threat model is narrow by design.
 - HTTP response headers include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
   `Referrer-Policy: no-referrer`, a strict `Content-Security-Policy`, and
   `Cross-Origin-Resource-Policy: same-origin`. Inline scripts and styles are required by the
-  embedded Next.js dashboard and are constrained with `'unsafe-inline'` within an otherwise
+  embedded Next.js viewer UI and are constrained with `'unsafe-inline'` within an otherwise
   restrictive policy.
 
 **What is not protected:**
@@ -80,7 +80,7 @@ bundle inspection. The threat model is narrow by design.
   with read access to the terminal session or browser history can see it. This is acceptable for
   the intended single-operator local inspection use case.
 - Bundle data is only served via the session-gated JSON API (`/api/v1/*`). The embedded
-  Next.js dashboard at `/view/` reads data exclusively through those API calls. There is no
+  Next.js viewer UI at `/view/` reads data exclusively through those API calls. There is no
   server-rendered HTML path that exposes event data outside the session-token model.
 - No TLS. The viewer uses plain HTTP because TLS would require certificate management on
   loopback, which adds friction without meaningful security benefit for a local-only service.
@@ -93,8 +93,8 @@ bundle inspection. The threat model is narrow by design.
   automated testing).
 - Delivery: appended as a URL fragment (`#session=<token>`) to the startup URL printed to stdout
   and used to open the browser. The fragment is never sent in HTTP requests by the browser. When
-  the embedded dashboard is available the URL is `http://127.0.0.1:<port>/view/#session=<token>`;
-  for builds without the embedded dashboard it is `http://127.0.0.1:<port>/#session=<token>`.
+  the embedded review UI is available the URL is `http://127.0.0.1:<port>/view/#session=<token>`;
+  for builds without the embedded review UI it is `http://127.0.0.1:<port>/#session=<token>`.
 - Enforcement: all `/api/v1/` endpoints return HTTP 401 if the token is missing or incorrect.
   Comparison uses `crypto/subtle.ConstantTimeCompare` to prevent timing attacks.
 - Scope: protects the current viewer session on the local machine. Does not persist across

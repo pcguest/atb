@@ -52,6 +52,11 @@ If bundle or ledger verification fails, export exits with a non-zero status.
 - `soc2` produces a zip with SOC2-specific evidence files and control-oriented structure.
 - `gdpr` produces a zip with GDPR-specific structure for either DSR (`--type dsr`) or RoPA (`--type ropa`) output.
 
+These exports are local archives. They are convenient evidence packs, not
+immutable storage on their own. If you need retained evidence outside the
+local trust boundary, store the exported zip or the pushed bundle in
+an organisation-controlled WORM-capable system.
+
 ## Evidence package layout
 
 The `compliance` export zip is structured under `evidence/` and includes:

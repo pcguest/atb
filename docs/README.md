@@ -2,9 +2,16 @@
 
 This index lists the current documentation set and the authoritative home for each kind of guidance.
 
+## Start here
+
+- [../README.md](../README.md) - Product overview, fit, and the shortest first-run path.
+- [quickstart.md](./quickstart.md) - The main user workflow: bundle, verify, review, and export.
+- [api/verify-schema.md](./api/verify-schema.md) - Compact verifier report contract and field meanings.
+- [spec-dashboard.md](./spec-dashboard.md) - Local viewer behaviour, states, and API expectations.
+- [roadmap.md](./roadmap.md) - Clearly future work only; current capability lives elsewhere in the docs.
+
 ## Maintainers
 
-- [../AGENTS.md](../AGENTS.md) - Canonical maintainer and coding-agent harness.
 - [../CONTRIBUTING.md](../CONTRIBUTING.md) - Contributor workflow and local validation.
 - [../SECURITY.md](../SECURITY.md) - Vulnerability reporting and supported-version policy.
 - [../VERSIONING.md](../VERSIONING.md) - Release versioning rules.
@@ -18,7 +25,7 @@ This index lists the current documentation set and the authoritative home for ea
 - [performance.md](./performance.md) - Current performance baseline and measurement notes.
 - [spec-v1.0.md](./spec-v1.0.md) - Frozen v1.0 bundle format specification.
 - [spec-ai-traces.md](./spec-ai-traces.md) - AI trace event format and field rules.
-- [spec-dashboard.md](./spec-dashboard.md) - Local dashboard behaviour, routes, and safety rules.
+- [spec-dashboard.md](./spec-dashboard.md) - Local viewer behaviour, routes, and safety rules.
 - [api/](./api/) - Local viewer API reference files.
 - [api/README.md](./api/README.md) - API doc regeneration steps.
 - [api/openapi.yaml](./api/openapi.yaml) - OpenAPI description for the local viewer API.

@@ -27,7 +27,10 @@ to label workflow state. `atb verify` checks the hash chain and any
 recorded bundle signature or anchor evidence. `atb bundle new` is the
 explicit alias for `atb init`; both are supported. The example uses
 `atb.profile.policy_decision` because the recorded evidence shows a
-request, a pending action, and the policy outcome that blocked it. For
+request, a pending action, and the policy outcome that blocked it. Use an
+explicit `--profile` for first-run verification so the result is stable
+even when a bundle contains events that could match more than one built-in
+profile. For
 the full local review and export path, continue with the [Incident review
 workflow](./guides/incident-review-workflow.md).
 
@@ -52,6 +55,13 @@ Abbreviated `atb verify --profile atb.profile.policy_decision --format json` out
 
 If you want the full integrity fields, run `atb verify --profile atb.profile.policy_decision --json`
 and check `integrity.chain_valid: true`.
+
+### Common first-run outcomes
+
+- `pass: true` with a populated `profile_id` means the selected profile passed and the bundle chain is intact.
+- `profile_id: ""` means the bundle verified for integrity, but no workflow profile was selected or matched. This is common for manifest-only or zero-event bundles.
+- `pass: false` with non-empty `critical_failures` means the selected profile is missing required evidence.
+- `residual_risk: "Critical"` means do not treat the bundle as trustworthy evidence until you inspect the failure. Use `atb verify --json` when you need the full integrity report.
 
 ### Verify against a specific profile
 
@@ -145,7 +155,7 @@ startup and makes the profile and CAS summary available immediately in the UI. W
 The summary shows profile ID, pass or fail, completeness (CAS) score and grade, chain and anchor
 status, and any critical obligation failures.
 
-`atb view` requires building from source to include the embedded dashboard:
+`atb view` requires building from source to include the embedded review UI:
 `cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb`
 
 If you install with `go install`, `atb view` serves a minimal install-guidance page with no

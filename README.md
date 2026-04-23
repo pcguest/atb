@@ -93,7 +93,8 @@ atb verify --profile atb.profile.policy_decision --format json
 The `.atb` file on disk holds the full event sequence with each event hash-sealed to the one
 before it. `atb verify` checks that the chain is unbroken and that no event has been altered or
 reordered since recording. A passing result means the recorded sequence is intact and the selected
-profile's required evidence was found; it does not mean recording was complete.
+profile's required evidence was found; it does not mean recording was complete. The example passes
+`--profile` explicitly so the first verifier result is predictable.
 
 ### What a passing result looks like
 
@@ -118,6 +119,15 @@ Abbreviated `atb verify --profile atb.profile.policy_decision --format json` out
 
 For a fuller first-run path see [`docs/quickstart.md`](docs/quickstart.md).
 
+## Typical workflow
+
+1. Install the Go CLI with `go install github.com/pcguest/atb/cmd/atb@latest`.
+2. Create a local bundle with `atb bundle new`.
+3. Append workflow events and add a named snapshot when the workflow reaches a review point.
+4. Run `atb verify --profile <profile> --format json` so the result is tied to the workflow you actually expect.
+5. If `pass` is `true`, use `cas_score`, `cas_grade`, and `residual_risk` to decide what evidence to strengthen next. If `pass` is `false`, inspect `critical_failures` first.
+6. Review the bundle locally with `atb view`, then export or push it when you need handoff or storage outside the local trust boundary.
+
 ## How ATB works
 
 ```text
@@ -135,7 +145,7 @@ without a server.
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-> Note: `go install` from the module proxy builds without the embedded dashboard. Running
+> Note: `go install` from the module proxy builds without the embedded review UI. Running
 > `atb view` in that case serves a minimal install-guidance page with no bundle data. To use
 > the visual interface, build from source: `cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb`.
 >
@@ -293,6 +303,7 @@ alongside the rest of the workflow.
 - [CAS Guide](docs/cas-guide.md)
 - [Verification Profiles](docs/profiles.md)
 - [Security Model](docs/security.md)
+- [Roadmap](docs/roadmap.md)
 - [MCP Integration](docs/integrations/mcp.md)
 - [WORM/S3 Export](docs/integrations/worm-s3.md)
 - [Python SDK](sdk/python/README.md)

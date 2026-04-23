@@ -37,18 +37,18 @@ workflow](../guides/customer-handoff-workflow.md).
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb bundle new
-atb append ai.request.received --data='{"request_id":"req-204","workflow":"claims-triage","customer":"acme"}'
-atb append ai.action.precommit --data='{"action_id":"act-204","action_type":"route_to_manual_review","target_resource_id":"claims-queue","intended_effect":"manual_review"}'
+atb append ai.request.received --data='{"request_id":"req-204","actor_id_hash":"sha256-customer-acme","purpose_tag":"claims-triage"}'
+atb append ai.action.precommit --data='{"action_id":"act-204","action_type":"route_to_manual_review","action_parameters_digest":"sha256-manual-review-route","target_resource_id":"claims-queue","intended_effect":"manual_review"}'
 atb append ai.policy.decision --data='{"policy_id":"pol-claims-review","policy_version":"2026-04","decision":"allow","decision_reason_codes":["confidence_below_threshold"],"subject_id_hash":"sha256-customer-acme","action_id":"act-204"}'
 atb append ai.action.executed --data='{"action_id":"act-204","execution_outcome":"success","tool_receipt_digest":"sha256-tool-receipt-204"}'
 atb append ai.action.committed --data='{"action_id":"act-204","commit_outcome":"committed","sink_receipt_digest":"sha256-sink-receipt-204"}'
 atb snapshot customer_handoff_ready
-atb verify --format json
+atb verify --profile atb.profile.privileged_tool_action --format json
 ATB_PASSWORD='shared-review-secret' atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
 atb export --format compliance --output handoff/acme-review-evidence.zip
 
 ATB_PASSWORD='shared-review-secret' atb decrypt incoming/acme-review.atb.enc --output review/acme-review.atb
-atb verify review/acme-review.atb --format json
+atb verify review/acme-review.atb --profile atb.profile.privileged_tool_action --format json
 ```
 
 ## Why teams use this

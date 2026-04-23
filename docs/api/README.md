@@ -8,4 +8,4 @@
 3. Update schema docs manually if needed
 4. Run `make hygiene-full` to validate
 
-`openapi.yaml` — OpenAPI 3.x specification for the `atb view` dashboard HTTP API (`GET /api/v1/bundle/profile`, `POST /api/v1/bundle/verify`, and related endpoints).
+`openapi.yaml` — OpenAPI 3.x specification for the `atb view` local viewer HTTP API (`GET /api/v1/bundle/profile`, `POST /api/v1/bundle/verify`, and related endpoints).
