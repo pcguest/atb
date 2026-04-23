@@ -241,7 +241,6 @@ alongside the rest of the workflow.
 - [AI Trace Event Specification](docs/spec-ai-traces.md)
 - [Verification Profiles](docs/profiles.md)
 - [Security Model](docs/security.md)
-- [Maintainer / agent harness](AGENTS.md)
 - [MCP Integration](docs/integrations/mcp.md)
 - [WORM/S3 Export](docs/integrations/worm-s3.md)
 - [Python SDK](sdk/python/README.md)
