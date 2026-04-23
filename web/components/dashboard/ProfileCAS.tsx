@@ -9,11 +9,10 @@ import type { FailureDTO, ProfileReportSummary } from "@/lib/types";
 // ─── Grade chip colours ───────────────────────────────────────────────────────
 
 const GRADE_STYLE: Record<string, string> = {
-  A: "bg-green-900/60 text-green-300 border-green-700/40",
-  B: "bg-teal-900/60 text-teal-300 border-teal-700/40",
-  C: "bg-yellow-900/60 text-yellow-300 border-yellow-700/40",
-  D: "bg-orange-900/60 text-orange-300 border-orange-700/40",
-  F: "bg-red-900/60 text-red-300 border-red-700/40",
+  High: "bg-green-900/60 text-green-300 border-green-700/40",
+  Medium: "bg-teal-900/60 text-teal-300 border-teal-700/40",
+  Low: "bg-yellow-900/60 text-yellow-300 border-yellow-700/40",
+  Insufficient: "bg-red-900/60 text-red-300 border-red-700/40",
 };
 
 // ─── Sub-score bar ────────────────────────────────────────────────────────────
@@ -141,7 +140,12 @@ function ReportBody({ report }: { report: ProfileReportSummary }) {
           {warningsOpen && (
             <ul className="mt-1.5 space-y-1">
               {report.warnings.map((w, i) => (
-                <FailureCard key={i} failure={w} variant="warning" />
+                <li
+                  key={i}
+                  className="rounded border border-amber-800/30 bg-amber-950/30 px-3 py-1.5"
+                >
+                  <span className="text-xs text-muted-foreground">{w}</span>
+                </li>
               ))}
             </ul>
           )}
@@ -188,12 +192,12 @@ export function ProfileCAS({ className }: ProfileCASProps) {
               </span>
               <span
                 className={`rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold ${
-                  report.passed
+                  report.pass
                     ? "border-green-700/40 bg-green-900/60 text-green-300"
                     : "border-red-700/40 bg-red-900/60 text-red-300"
                 }`}
               >
-                {report.passed ? "PASS" : "FAIL"}
+                {report.pass ? "PASS" : "FAIL"}
               </span>
               <span
                 className={`rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold ${

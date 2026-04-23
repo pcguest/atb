@@ -34,6 +34,23 @@ const defaultEventsPageSize = 200;
 const dashboardRefetchIntervalMs = 10000;
 const liveEventsRefetchIntervalMs = 5000;
 
+// Session token is delivered in the URL fragment (#session=<token>) by the Go server
+// so it is never sent automatically by the browser as part of HTTP requests.
+// We read it once on first use and attach it as X-ATB-Session-Token on every API call.
+let _sessionToken: string | null = null;
+
+function getSessionToken(): string {
+  if (_sessionToken === null) {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      _sessionToken = params.get("session") ?? "";
+    } else {
+      _sessionToken = "";
+    }
+  }
+  return _sessionToken;
+}
+
 export const queryKeys = {
   verification: ["atb", "verification"] as const,
   bundleMeta: ["atb", "bundle", "meta"] as const,
@@ -51,10 +68,15 @@ function parseWithSchema<T>(schema: ZodSchema<T>, payload: unknown, path: string
 }
 
 async function requestJSON<T>(path: string, schema: ZodSchema<T>, init?: RequestInit): Promise<T> {
+  const sessionToken = getSessionToken();
+  const sessionHeader: Record<string, string> = sessionToken
+    ? { "X-ATB-Session-Token": sessionToken }
+    : {};
   const response = await fetch(path, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...sessionHeader,
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
@@ -99,7 +121,14 @@ export function getBundleGraph(): Promise<BundleGraphResponse> {
 }
 
 export async function getBundleProfile(): Promise<ProfileReportSummary | null> {
-  const response = await fetch("/api/v1/bundle/profile", { cache: "no-store" });
+  const sessionToken = getSessionToken();
+  const sessionHeader: Record<string, string> = sessionToken
+    ? { "X-ATB-Session-Token": sessionToken }
+    : {};
+  const response = await fetch("/api/v1/bundle/profile", {
+    cache: "no-store",
+    headers: sessionHeader,
+  });
   if (response.status === 204) {
     return null;
   }

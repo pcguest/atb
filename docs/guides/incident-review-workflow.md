@@ -27,7 +27,7 @@ atb snapshot incident_review_failed
 
 atb verify --format json
 atb trust-report --profile atb.profile.privileged_tool_action --format markdown
-atb view --ui-experimental
+atb view
 atb export --format compliance --output incident-review-evidence.zip
 ```
 
@@ -48,7 +48,7 @@ atb export --format compliance --output incident-review-evidence.zip
 5. `atb trust-report --profile atb.profile.privileged_tool_action --format markdown`
    Produces a review-friendly summary of bundle integrity, profile checks, and shipped trust evidence.
 
-6. `atb view --ui-experimental`
+6. `atb view`
    Opens the local review UI with masked fields by default.
 
 7. `atb export --format compliance --output incident-review-evidence.zip`

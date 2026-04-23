@@ -27,6 +27,8 @@ const (
 	revealAuthCookie   = "atb_reveal_token"
 	revealAuthHeader   = "X-ATB-Viewer-Token"
 	revealLegacyHeader = "X-ATB-Reveal-Token"
+	sessionAuthHeader  = "X-ATB-Session-Token"
+	sessionAuthParam   = "session_token"
 )
 
 const (
@@ -42,6 +44,7 @@ type APIConfig struct {
 	BundlePath       string
 	Bundle           *bundle.Bundle
 	VerifyErr        error
+	SessionToken     string        // optional; if non-empty all read endpoints require X-ATB-Session-Token
 	RevealAuthToken  string
 	RevealRateLimit  int
 	RevealRateWindow time.Duration
@@ -54,6 +57,7 @@ type APIServer struct {
 	bundlePath         string
 	b                  *bundle.Bundle
 	verifyErr          error
+	sessionToken       string
 	revealAuthToken    string
 	revealRateLimit    int
 	revealRateWindow   time.Duration
@@ -85,6 +89,7 @@ func NewAPIServer(cfg APIConfig) *APIServer {
 		bundlePath:         cfg.BundlePath,
 		b:                  cfg.Bundle,
 		verifyErr:          cfg.VerifyErr,
+		sessionToken:       strings.TrimSpace(cfg.SessionToken),
 		revealAuthToken:    strings.TrimSpace(cfg.RevealAuthToken),
 		revealRateLimit:    revealRateLimit,
 		revealRateWindow:   revealRateWindow,
@@ -152,6 +157,9 @@ func (s *APIServer) handleVerification(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
 
 	out := VerificationResponse{
 		Status:      "valid",
@@ -181,6 +189,9 @@ func (s *APIServer) handleVerification(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) handleBundleMeta(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireSessionAuth(w, r) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -246,6 +257,9 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
 	if !s.requireVerified(w) {
 		return
 	}
@@ -309,6 +323,9 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireSessionAuth(w, r) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -387,6 +404,9 @@ func (s *APIServer) handleBundleProfile(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
 	if !s.requireVerified(w) {
 		return
 	}
@@ -415,6 +435,9 @@ func (s *APIServer) handleBundleProfile(w http.ResponseWriter, r *http.Request) 
 func (s *APIServer) handleBundleVerify(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireSessionAuth(w, r) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -513,6 +536,9 @@ func (s *APIServer) handlePrivacyReveal(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
 	if !s.allowPrivacyReveal(r) {
 		w.Header().Set("Retry-After", fmt.Sprintf("%d", revealRetryAfterSeconds))
 		writeJSON(w, http.StatusTooManyRequests, APIError{
@@ -566,6 +592,24 @@ func (s *APIServer) handlePrivacyReveal(w http.ResponseWriter, r *http.Request) 
 		FieldPath: req.FieldPath,
 		Value:     value,
 	})
+}
+
+// requireSessionAuth enforces the session token for all read endpoints.
+// When sessionToken is empty the check is skipped (no-auth mode, e.g. unit tests or embedded use).
+// Accepts the token via X-ATB-Session-Token header or ?session_token= query parameter.
+func (s *APIServer) requireSessionAuth(w http.ResponseWriter, r *http.Request) bool {
+	if s.sessionToken == "" {
+		return true
+	}
+	token := strings.TrimSpace(r.Header.Get(sessionAuthHeader))
+	if token == "" {
+		token = strings.TrimSpace(r.URL.Query().Get(sessionAuthParam))
+	}
+	if subtle.ConstantTimeCompare([]byte(token), []byte(s.sessionToken)) == 1 {
+		return true
+	}
+	writeJSON(w, http.StatusUnauthorized, APIError{Error: "missing or invalid session token"})
+	return false
 }
 
 func (s *APIServer) requireVerified(w http.ResponseWriter) bool {

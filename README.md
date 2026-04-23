@@ -102,9 +102,13 @@ a WORM-capable store before relying on bundles as primary evidence.
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-> Note: `go install` from the module proxy builds without the embedded web UI. For `atb view` and `atb view --ui-experimental`, build from source: `go build ./cmd/atb`
+> Note: `go install` from the module proxy builds without the embedded dashboard. Running
+> `atb view` in that case serves a minimal install-guidance page with no bundle data. To use
+> the visual interface, build from source: `cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb`.
 >
-> Security note: `atb view` binds to `127.0.0.1` by default and has no authentication layer. It is intended for single-user local inspection only.
+> Security: `atb view` binds to `127.0.0.1` by default. All API endpoints require a session
+> token generated at startup and delivered in the browser URL fragment. Do not expose the
+> viewer on a non-loopback interface. See [SECURITY.md](SECURITY.md) for the full threat model.
 
 Requires Go 1.25.9+. Python and TypeScript SDKs are available for
 in-process instrumentation. See the [Python SDK](sdk/python/README.md)

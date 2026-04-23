@@ -102,29 +102,27 @@ bundle.verify()
 
 ```bash
 # Default bundle path
-atb view --ui-experimental
+atb view
 
 # Custom bundle path
-atb view my-trace.atb --port 8080 --ui-experimental
+atb view my-trace.atb --port 8080
 
 # Evaluate against a profile at startup (shows profile/CAS summary in the viewer)
-atb view --ui-experimental --profile atb.profile.rag_answer
-atb view --ui-experimental --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
+atb view --profile atb.profile.rag_answer
+atb view --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
 ```
 
 `--profile` runs verify at startup and makes the profile/CAS summary available immediately in
 the dashboard. Without `--profile`, use the "Run verify" button in the UI to trigger
 `POST /api/v1/bundle/verify`. The summary shows: profile ID, pass/fail, completeness (CAS)
-score and grade, chain/anchor status, and any critical obligation failures. See
-`docs/launch/assets/atb-verify-report.png` for an example verify report summary.
+score and grade, chain/anchor status, and any critical obligation failures.
 
-Plain `atb view` still serves the legacy local viewer at `/`. The
-role-based dashboard UI is available behind `--ui-experimental`.
+`atb view` requires building from source to include the embedded dashboard:
+`cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb`
 
-Security note: `atb view` binds to `127.0.0.1` by default and has no
-authentication layer. It is for single-user local inspection only. Do
-not expose it on a network interface without independent auth and
-network controls.
+Security note: `atb view` binds to `127.0.0.1` by default. All API endpoints require a
+session token generated at startup and delivered in the browser URL fragment. Do not expose
+the viewer on a non-loopback interface.
 
 Dashboard details:
 

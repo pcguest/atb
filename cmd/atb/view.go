@@ -28,14 +28,14 @@ import (
 var errViewHelp = errors.New("view help requested")
 
 type viewConfig struct {
-	BundlePath     string
-	Host           string
-	Port           int
-	PortSet        bool
-	NoOpen         bool
-	LogReveals     bool
-	UIExperimental bool
-	ProfilePath    string // optional; path to profile file or built-in profile ID
+	BundlePath   string
+	Host         string
+	Port         int
+	PortSet      bool
+	NoOpen       bool
+	LogReveals   bool
+	ProfilePath  string
+	SessionToken string
 }
 
 const defaultViewHost = "127.0.0.1"
@@ -58,7 +58,16 @@ func cmdView() {
 		os.Exit(exitSystemError)
 	}
 
-	handler, page, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.UIExperimental, cfg.ProfilePath)
+	sessionToken := cfg.SessionToken
+	if sessionToken == "" {
+		sessionToken, err = generateRevealAuthToken()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "atb view: generate session token: %v\n", err)
+			os.Exit(exitSystemError)
+		}
+	}
+
+	handler, eventCount, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.ProfilePath, sessionToken)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		os.Exit(classifyBundleLoadError(err))
@@ -73,6 +82,9 @@ func cmdView() {
 
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(port))
 	url := "http://" + addr + openPath
+	if sessionToken != "" {
+		url += "#session=" + sessionToken
+	}
 	if port != cfg.Port {
 		fmt.Fprintf(os.Stderr, "atb view: port %d unavailable; using %d\n", cfg.Port, port)
 	}
@@ -93,7 +105,7 @@ func cmdView() {
 	if tamperDetected {
 		fmt.Printf("atb view: verification failed for %s; serving tamper warning at %s\n", bundlePath, url)
 	} else {
-		fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, len(page.Events), url)
+		fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, eventCount, url)
 	}
 	if !cfg.NoOpen {
 		if err := openBrowser(url); err != nil {
@@ -109,63 +121,108 @@ func cmdView() {
 	fmt.Println("atb view: stopped")
 }
 
-func buildViewServer(bundlePath string, logReveals bool, uiExperimental bool, profilePath string) (http.Handler, legacyPageData, bool, string, error) {
+// buildViewServer prepares the HTTP handler for atb view.
+// It returns the handler, total event count (for the startup message), a tamper flag, the
+// suggested open path, and any error.
+// When the embedded dashboard is absent (e.g. a go install build), a minimal install-guidance
+// page is served at / instead; it exposes no bundle data.
+func buildViewServer(bundlePath string, logReveals bool, profilePath string, sessionToken string) (http.Handler, int, bool, string, error) {
 	_ = logReveals // Privacy reveal auditing is always on; flag retained for CLI compatibility.
 
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
-		return nil, legacyPageData{}, false, "/", fmt.Errorf("load bundle %s: %w", bundlePath, err)
+		return nil, 0, false, "/", fmt.Errorf("load bundle %s: %w", bundlePath, err)
 	}
 	verifyErr := b.Verify()
 	revealAuthToken, err := generateRevealAuthToken()
 	if err != nil {
-		return nil, legacyPageData{}, false, "/", fmt.Errorf("generate privacy reveal auth token: %w", err)
+		return nil, 0, false, "/", fmt.Errorf("generate privacy reveal auth token: %w", err)
+	}
+	if revealAuthToken == "" {
+		fmt.Fprintln(os.Stderr, "atb view: warning: privacy reveal auth is not configured; reveal operations are disabled until configured")
 	}
 
-	// Compute an initial profile report when --profile is given and chain is intact.
 	var profileReport *apiv1.ProfileReportSummary
 	if profilePath != "" && verifyErr == nil {
 		profileReport = buildStartupProfileReport(b, bundlePath, profilePath)
 	}
 
-	page := buildLegacyPageData(b, bundlePath)
+	eventCount := len(b.Records)
 	mux := http.NewServeMux()
 	api := apiv1.NewAPIServer(apiv1.APIConfig{
 		BundlePath:      bundlePath,
 		Bundle:          b,
 		VerifyErr:       verifyErr,
+		SessionToken:    sessionToken,
 		RevealAuthToken: revealAuthToken,
 		ProfileReport:   profileReport,
 		ProfilePath:     profilePath,
 	})
 	api.Register(mux)
+
 	if verifyErr != nil {
 		mux.Handle("/", apiv1.NewTamperHandler(bundlePath, verifyErr))
-		return withSecurityHeaders(mux, revealAuthToken), page, true, "/", nil
+		return withSecurityHeaders(mux, revealAuthToken), eventCount, true, "/", nil
 	}
 
-	openPath := "/"
-	if uiExperimental {
-		// The experimental dashboard and JSON API share one listener.
-		// Keep this listener loopback-only or same-origin. There is no
-		// separate cross-origin browser policy for exposing it remotely.
-		if dashboardFS, ok := embeddedDashboardFS(); ok {
-			openPath = "/view/"
-			static := http.FileServer(dashboardFS)
-			mux.Handle("/_next/", static)
-			mux.Handle("/view/", static)
-			mux.HandleFunc("/view", func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
-			})
-		}
+	if dashboardFS, ok := embeddedDashboardFS(); ok {
+		// Serve the embedded Next.js dashboard at /view/ and redirect / to it.
+		// The session token is in the URL fragment so it reaches the browser JS
+		// without being forwarded in HTTP requests.
+		static := http.FileServer(dashboardFS)
+		mux.Handle("/_next/", static)
+		mux.Handle("/view/", static)
+		mux.HandleFunc("/view", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
+		})
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
+		})
+		return withSecurityHeaders(mux, revealAuthToken), eventCount, false, "/view/", nil
 	}
 
-	mux.Handle("/", newLegacyViewHandler(page))
-	return withSecurityHeaders(mux, revealAuthToken), page, false, openPath, nil
+	// Degraded path: the embedded dashboard is not available (go install builds).
+	// Serve a minimal guidance page that exposes no bundle data.
+	mux.Handle("/", newInstallFallbackHandler())
+	return withSecurityHeaders(mux, revealAuthToken), eventCount, false, "/", nil
+}
+
+// newInstallFallbackHandler returns a minimal HTML page for builds that do not include
+// the embedded dashboard (e.g. go install from the module proxy). It exposes no bundle data.
+func newInstallFallbackHandler() http.Handler {
+	body := `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ATB Viewer</title>
+  <style>
+    body { margin: 0; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0a0a0f; color: #e2e8f0; }
+    main { max-width: 680px; margin: 80px auto; padding: 24px; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 12px; }
+    p { color: #94a3b8; line-height: 1.6; margin: 0 0 8px; }
+    code { background: #1e293b; color: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-family: ui-monospace, monospace; font-size: 0.875em; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>ATB Viewer</h1>
+    <p>The visual dashboard is not available in this build.</p>
+    <p>The CLI interface works normally — run <code>atb verify</code> to check bundle integrity.</p>
+    <p>To use the visual interface, build from source:</p>
+    <p><code>cd web &amp;&amp; npm ci &amp;&amp; npm run build &amp;&amp; cd .. &amp;&amp; go build -o atb ./cmd/atb</code></p>
+  </main>
+</body>
+</html>`
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(body))
+	})
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental] [--profile <id-or-path>]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -228,8 +285,6 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			cfg.NoOpen = true
 		case arg == "--log-reveals":
 			cfg.LogReveals = true
-		case arg == "--ui-experimental":
-			cfg.UIExperimental = true
 		case arg == "--profile":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --profile")
@@ -238,6 +293,14 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			cfg.ProfilePath = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--profile="):
 			cfg.ProfilePath = strings.TrimSpace(strings.TrimPrefix(arg, "--profile="))
+		case arg == "--session-token":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --session-token")
+			}
+			i++
+			cfg.SessionToken = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--session-token="):
+			cfg.SessionToken = strings.TrimSpace(strings.TrimPrefix(arg, "--session-token="))
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -382,6 +445,10 @@ func viewVerifyReportToSummary(r verifypkg.Report) apiv1.ProfileReportSummary {
 	if r.CAS != nil {
 		summary.CASScore = r.CAS.Overall
 		summary.CASGrade = r.CAS.Grade
+		if r.CAS.CorroborationBonus != 0 {
+			summary.CorroborationBonus = r.CAS.CorroborationBonus
+			summary.EffectiveScore = r.CAS.EffectiveScore
+		}
 		if len(r.CAS.SubScores) > 0 {
 			summary.SubScores = make(map[string]float64, len(r.CAS.SubScores))
 			for k, v := range r.CAS.SubScores {

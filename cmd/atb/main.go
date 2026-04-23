@@ -220,9 +220,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "view",
-				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]",
-				Description: "Open the local viewer. Add --ui-experimental for the dashboard preview.",
-				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--ui-experimental"},
+				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>]",
+				Description: "Open the local visual dashboard. Requires building from source to include the embedded UI.",
+				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--profile", "--session-token"},
 				Mutating:    false,
 			},
 			{
@@ -385,7 +385,7 @@ Commands:
   export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]  Export auditor-friendly local evidence bundle
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
-  view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--ui-experimental]  Open the local viewer (dashboard preview behind --ui-experimental)
+  view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>]  Open the local visual dashboard
   mcp serve         Start the MCP stdio server
   corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]  Fetch external corroboration receipt and append atb.corroboration.external event
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
@@ -448,8 +448,8 @@ Examples:
   atb trust-report --format json
   atb trust-report --format json --profile atb.profile.privileged_tool_action
   atb view
-  atb view --ui-experimental
   atb view --bundle run.atb/bundle.atb --host 127.0.0.1 --port 8080 --no-open
+  atb view --profile atb.profile.rag_answer
   atb mcp serve
   atb doc gen-openapi
 `)

@@ -4,7 +4,7 @@
 
 Dashboard implementation is complete:
 - local `atb view` API server with verification gate and privacy reveal flow
-- `/view` dashboard UI with verification banner, timeline, graph, inspector, and stats when started with `--ui-experimental`
+- `/view` dashboard UI with verification banner, timeline, graph, inspector, and stats
 - reveal audit logging appended into `bundle.atb`
 
 ## Purpose
@@ -17,30 +17,30 @@ Auditor success bar:
 ## CLI interface
 
 ```bash
-atb view --ui-experimental [--port 8080] [--bundle path/to/file.atb] [--profile <id-or-path>]
+atb view [--port 8080] [--bundle path/to/file.atb] [--profile <id-or-path>]
 ```
 
-Supported compatibility forms:
-- `atb view --ui-experimental run.atb/bundle.atb`
-- `atb view --bundle run.atb/bundle.atb --port 9090 --ui-experimental`
-- `atb view --ui-experimental --profile atb.profile.rag_answer`
-- `atb view --ui-experimental --profile ./profiles/custom.yaml`
+Supported forms:
+- `atb view run.atb/bundle.atb`
+- `atb view --bundle run.atb/bundle.atb --port 9090`
+- `atb view --profile atb.profile.rag_answer`
+- `atb view --profile ./profiles/custom.yaml`
 
 `--profile`: optional. Evaluates the bundle against the named built-in profile or a DSL YAML
 file at startup. When the chain is intact the profile/CAS summary is served immediately via
 `GET /api/v1/bundle/profile`. Without `--profile` the endpoint returns 204 until triggered
 via `POST /api/v1/bundle/verify` from the UI.
 
-Additional safety flags:
+Additional flags:
 - `--no-open`: do not auto-open browser
 - `--log-reveals`: retained for CLI compatibility; reveal auditing is always on
 
-Plain `atb view` still serves the legacy local viewer at `/`.
+Builds produced by `go install` from the module proxy do not include the embedded dashboard.
+Running `atb view` in that case shows a minimal install-guidance page. Build from source to
+use the visual interface.
 
-Security note: `atb view` binds to `127.0.0.1` by default and has no
-authentication layer. It is intended for single-user local inspection.
-Binding it to a non-loopback interface without independent auth and
-network controls can expose bundle contents.
+Security note: `atb view` binds to `127.0.0.1` by default. All API endpoints require a
+session token generated at startup. Do not expose the viewer on a non-loopback interface.
 
 ## Architecture
 
@@ -57,7 +57,7 @@ Chosen flow: **Go API server + Next.js dashboard**.
    - `POST /api/v1/privacy/reveal`
    - `GET /api/v1/bundle/profile` (204 if no report; 200 + ProfileReportSummary if computed)
    - `POST /api/v1/bundle/verify` (runs verify with stored profile path; returns fresh ProfileReportSummary)
-4. Next.js dashboard (`/view`) consumes local API JSON when `--ui-experimental` is enabled.
+4. Next.js dashboard (`/view`) consumes local API JSON.
 
 Rationale:
 - file access and integrity verification stay in one trusted local process

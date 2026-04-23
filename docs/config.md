@@ -18,7 +18,7 @@ ATB core CLI is local-first and does not require environment variables for day-t
 | `atb inspect` | optional `bundle_path`, `--bundle <path>`, `--json`, `--seq <n>` |
 | `atb events` | `--json`, `--profile <id>` |
 | `atb trust-report` | optional `bundle_path`, `--format markdown, json, or text`, `--profile <id>` |
-| `atb view` | optional `bundle_path`, `--bundle <path>`, `--host <host>`, `--port <port>`, `--no-open`, `--log-reveals`, `--ui-experimental` |
+| `atb view` | optional `bundle_path`, `--bundle <path>`, `--host <host>`, `--port <port>`, `--no-open`, `--log-reveals` |
 
 ## Push defaults (`.atb/config.json`)
 

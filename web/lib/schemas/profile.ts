@@ -5,27 +5,18 @@ export const failureDTOSchema = z.object({
   detail: z.string(),
 });
 
-const subScoresSchema = z.object({
-  ac: z.number(),
-  ec: z.number(),
-  fc: z.number(),
-  gc: z.number(),
-  rc: z.number(),
-  sc: z.number(),
-  tc: z.number(),
-  xc: z.number(),
-});
-
 export const profileReportSummarySchema = z.object({
   profile_id: z.string(),
-  passed: z.boolean(),
-  cas_score: z.number(),
-  cas_grade: z.enum(["A", "B", "C", "D", "F"]),
+  pass: z.boolean(),
+  chain_valid: z.boolean().optional(),
+  anchor_status: z.string().optional(),
+  cas_score: z.number().default(0),
+  cas_grade: z.string().optional().default(""),
   effective_score: z.number().optional(),
   corroboration_bonus: z.number().optional(),
-  sub_scores: subScoresSchema,
+  sub_scores: z.record(z.string(), z.number()).optional().default({}),
   critical_failures: z.array(failureDTOSchema),
-  warnings: z.array(failureDTOSchema),
+  warnings: z.array(z.string()),
 });
 
 export type FailureDTO = z.infer<typeof failureDTOSchema>;

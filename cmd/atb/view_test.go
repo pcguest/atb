@@ -51,15 +51,6 @@ func TestParseViewArgs(t *testing.T) {
 			},
 		},
 		{
-			name: "ui experimental",
-			args: []string{"--ui-experimental"},
-			want: viewConfig{
-				Host:           defaultViewHost,
-				Port:           8080,
-				UIExperimental: true,
-			},
-		},
-		{
 			name: "port first",
 			args: []string{"--port=7070", "run.atb"},
 			want: viewConfig{BundlePath: "run.atb", Host: defaultViewHost, Port: 7070, PortSet: true},
@@ -67,6 +58,12 @@ func TestParseViewArgs(t *testing.T) {
 		{
 			name:    "invalid port",
 			args:    []string{"--port", "abc"},
+			wantErr: true,
+		},
+		{
+			// The removed --ui-experimental flag must now be rejected as unknown.
+			name:    "unknown flag rejected",
+			args:    []string{"--ui-experimental"},
 			wantErr: true,
 		},
 	}
@@ -90,24 +87,23 @@ func TestParseViewArgs(t *testing.T) {
 	}
 }
 
-func TestBuildViewHandlerServesTimeline(t *testing.T) {
+// TestBuildViewServerFallbackExposesNoData verifies that when the embedded dashboard
+// is absent (the typical case in test builds), GET / returns a minimal guidance page
+// that does not expose any bundle event data.
+func TestBuildViewServerFallbackExposesNoData(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
 	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{
-		"timestamp": "2026-03-03T04:00:00Z",
-		"actor":     "assistant",
-		"prompt":    "Outline launch tasks",
-	})
-	appendTestBundleEvent(t, b, "snapshot.build", map[string]interface{}{
-		"gate": "pass",
+		"email":  "secret@example.com",
+		"prompt": "do something sensitive",
 	})
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false, "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -118,24 +114,17 @@ func TestBuildViewHandlerServesTimeline(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("unexpected status: got %d want %d", rr.Code, http.StatusOK)
+
+	// The page must not expose raw event data regardless of the response type.
+	body := rr.Body.String()
+	if strings.Contains(body, "secret@example.com") {
+		t.Fatalf("response must not expose event data (found email in body)")
+	}
+	if strings.Contains(body, "do something sensitive") {
+		t.Fatalf("response must not expose event data (found prompt text in body)")
 	}
 
-	html := rr.Body.String()
-	checks := []string{
-		"ATB Trace Viewer",
-		"snapshot.build",
-		"Gate: PASS",
-		"Hash chain verified",
-		"View JSON + hash details",
-	}
-	for _, want := range checks {
-		if !strings.Contains(html, want) {
-			t.Fatalf("expected HTML to contain %q", want)
-		}
-	}
-
+	// The verification API endpoint must still be served independently.
 	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
 	verifyRR := httptest.NewRecorder()
 	handler.ServeHTTP(verifyRR, verifyReq)
@@ -161,7 +150,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, false, "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -197,7 +186,9 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 	}
 }
 
-func TestBuildViewServerTamperModeDisablesExperimentalDashboard(t *testing.T) {
+// TestBuildViewServerTamperModeCatchesAllRoutes verifies that a tampered bundle
+// serves the tamper warning for any path, not just /.
+func TestBuildViewServerTamperModeCatchesAllRoutes(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
@@ -211,7 +202,7 @@ func TestBuildViewServerTamperModeDisablesExperimentalDashboard(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true, "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -219,17 +210,16 @@ func TestBuildViewServerTamperModeDisablesExperimentalDashboard(t *testing.T) {
 		t.Fatalf("expected tamper mode for invalid bundle")
 	}
 	if openPath != "/" {
-		t.Fatalf("expected tampered experimental viewer to open at /, got %q", openPath)
+		t.Fatalf("expected tampered bundle to open at /, got %q", openPath)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/view/", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("unexpected /view/ status for tampered bundle: got %d want %d", rr.Code, http.StatusOK)
-	}
-	if !strings.Contains(rr.Body.String(), "TAMPER DETECTED") {
-		t.Fatalf("expected tamper warning page for /view/, got %s", rr.Body.String())
+	for _, path := range []string{"/", "/view/"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if !strings.Contains(rr.Body.String(), "TAMPER DETECTED") {
+			t.Fatalf("expected tamper warning page at %s, got %s", path, rr.Body.String())
+		}
 	}
 }
 
@@ -361,11 +351,12 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, false, "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
 
+	// Trigger a response on / to receive the reveal auth cookie from withSecurityHeaders.
 	seedReq := httptest.NewRequest(http.MethodGet, "/", nil)
 	seedRR := httptest.NewRecorder()
 	handler.ServeHTTP(seedRR, seedReq)
@@ -427,7 +418,7 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, false, "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -452,12 +443,12 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, false, true, "")
+	handler, _, _, _, err := buildViewServer(bundlePath, false, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/view/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -472,7 +463,9 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 	}
 }
 
-func TestBuildViewServerUIExperimentalServesViewRoute(t *testing.T) {
+// TestBuildViewServerServesViewRoute verifies the routing behaviour based on whether
+// the embedded dashboard is present.
+func TestBuildViewServerServesViewRoute(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
@@ -482,21 +475,35 @@ func TestBuildViewServerUIExperimentalServesViewRoute(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, true, "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
 	if tamperDetected {
 		t.Fatalf("did not expect tamper mode for valid bundle")
 	}
-	if openPath != "/view/" {
-		t.Fatalf("expected experimental open path /view/, got %q", openPath)
-	}
 
-	req := httptest.NewRequest(http.MethodGet, "/view/", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("unexpected /view/ status: got %d want %d", rr.Code, http.StatusOK)
+	if _, available := embeddedDashboardFS(); available {
+		// With the embedded dashboard the server opens at /view/.
+		if openPath != "/view/" {
+			t.Fatalf("expected open path /view/ with embedded dashboard, got %q", openPath)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/view/", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("unexpected /view/ status: got %d want %d", rr.Code, http.StatusOK)
+		}
+	} else {
+		// Without the embedded dashboard the server opens at / with install guidance.
+		if openPath != "/" {
+			t.Fatalf("expected open path / without embedded dashboard, got %q", openPath)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("unexpected / status without embedded dashboard: got %d", rr.Code)
+		}
 	}
 }

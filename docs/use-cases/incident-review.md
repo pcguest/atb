@@ -27,7 +27,7 @@ needed.
 2. Mark the review state with a failing snapshot when the workflow outcome is bad.
 3. Verify integrity with `atb verify`.
 4. Generate a trust report so engineering and reviewers can separate workflow failure from evidence validity.
-5. Review the bundle locally with `atb view` or `atb view --ui-experimental`.
+5. Review the bundle locally with `atb view` or `atb view`.
 6. Use masked payloads and explicit privacy reveals during review.
 7. Export the deterministic evidence pack if the incident needs formal follow-up.
 
@@ -42,7 +42,7 @@ atb append ai.policy.decision --data='{"policy_id":"pol-pii-redaction","policy_v
 atb snapshot incident_review_failed
 atb verify
 atb trust-report --profile atb.profile.privileged_tool_action --format markdown
-atb view --ui-experimental
+atb view
 atb export --format compliance --output incident-review-evidence.zip
 ```
 

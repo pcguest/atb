@@ -14,7 +14,7 @@ For a quick CLI smoke-check that matches README install guidance:
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb init
-atb view --ui-experimental --no-open
+atb view --no-open
 ```
 
 When building the CLI from a source checkout, build the web export before testing `atb view`:
@@ -74,6 +74,20 @@ Before creating a release tag, run:
 ```
 
 This validates lockfiles, tests, package builds, and release prerequisites.
+
+## Branch protection
+
+`main` should be protected with the following settings applied via
+**Settings → Branches → Branch protection rules → Add rule** for pattern `main`:
+
+- Require a pull request before merging (no direct pushes)
+- Require status checks to pass: `test`, `golden-test`, `acp-gate`
+  (these are the job IDs in `.github/workflows/ci.yml` that run on every pull request)
+- Require branches to be up to date before merging
+- Do not allow bypassing the above settings (apply to administrators)
+
+These settings cannot be applied from code. The rule must be configured once manually after the
+repository is initialised or transferred.
 
 ## Security
 

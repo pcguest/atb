@@ -87,20 +87,28 @@ Two scripts are involved:
 
 Steps:
 
-1. Bump the version constant in `cmd/atb/main.go` (source of truth).
-2. Update the remaining six locations to match:
-   - `sdk/python/pyproject.toml`
-   - `sdk/python/atb/__init__.py`
-   - `sdk/typescript/package.json`
-   - `sdk/typescript/package-lock.json` (both the root `version` field
-     and the `packages[""].version` field)
-   - `web/package.json`
-3. Run `ATB_SKIP_TAG_CHECK=1 bash scripts/check-versions.sh` — must
-   print `ok: all version strings agree`.
-4. Run `./scripts/release-check.sh` — all seven steps must pass.
-5. Tag and push:
-   `git tag -a vX.Y.Z -m "Release vX.Y.Z" && git push origin vX.Y.Z`
+1. Bump the version string in all eight canonical locations to the new version:
+   - `cmd/atb/main.go` — `version = "X.Y.Z"`
+   - `sdk/python/pyproject.toml` — `version = "X.Y.Z"`
+   - `sdk/python/atb/__init__.py` — `__version__ = "X.Y.Z"`
+   - `sdk/typescript/package.json` — `"version": "X.Y.Z"`
+   - `sdk/typescript/package-lock.json` (root `version` field and
+     `packages[""].version` — regenerate with `npm install --package-lock-only`)
+   - `web/package.json` — `"version": "X.Y.Z"`
+   - `web/package-lock.json` (root and `packages[""]` — same regeneration step)
+2. Run `ATB_SKIP_TAG_CHECK=1 bash scripts/check-versions.sh` — must
+   print `ok: all version strings agree` (the tag does not exist yet, so the
+   skip flag is required at this stage).
+3. Run `./scripts/release-check.sh` — all steps must pass.
+4. Tag and push:
+   `git tag -a vX.Y.Z -m "vX.Y.Z — <brief description>" && git push origin vX.Y.Z`
+5. Run `bash scripts/check-versions.sh` without the skip flag to confirm
+   the new tag matches all version strings.
 6. Monitor the `Release` workflow in GitHub Actions.
+
+`check-versions.sh` derives the expected version from the latest git tag (leading `v`
+stripped). It validates all eight locations agree. The git tag is the release source of truth;
+the version strings in source files must match it.
 
 ## Commit history
 

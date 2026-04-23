@@ -622,3 +622,180 @@ func TestWriteJSONSetsContentType(t *testing.T) {
 		t.Fatalf("response body missing JSON payload: %s", rr.Body.String())
 	}
 }
+
+func TestSessionTokenEnforcesReadEndpoints(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+	const token = "test-session-token"
+	_, handler := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		SessionToken:    token,
+		RevealAuthToken: "reveal-token",
+		RevealRateLimit: 100,
+	})
+
+	readEndpoints := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/v1/verification"},
+		{http.MethodGet, "/api/v1/bundle/meta"},
+		{http.MethodGet, "/api/v1/bundle/events"},
+		{http.MethodGet, "/api/v1/bundle/graph"},
+		{http.MethodGet, "/api/v1/bundle/profile"},
+	}
+
+	for _, ep := range readEndpoints {
+		t.Run("no_token_"+ep.path, func(t *testing.T) {
+			req := httptest.NewRequest(ep.method, ep.path, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			if rr.Code != http.StatusUnauthorized {
+				t.Fatalf("%s %s without session token: got %d want %d body=%s",
+					ep.method, ep.path, rr.Code, http.StatusUnauthorized, rr.Body.String())
+			}
+		})
+
+		t.Run("wrong_token_"+ep.path, func(t *testing.T) {
+			req := httptest.NewRequest(ep.method, ep.path, nil)
+			req.Header.Set(sessionAuthHeader, "wrong-token")
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			if rr.Code != http.StatusUnauthorized {
+				t.Fatalf("%s %s with wrong session token: got %d want %d body=%s",
+					ep.method, ep.path, rr.Code, http.StatusUnauthorized, rr.Body.String())
+			}
+		})
+
+		t.Run("valid_header_"+ep.path, func(t *testing.T) {
+			req := httptest.NewRequest(ep.method, ep.path, nil)
+			req.Header.Set(sessionAuthHeader, token)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			if rr.Code == http.StatusUnauthorized {
+				t.Fatalf("%s %s with valid session header: got 401, want non-401 body=%s",
+					ep.method, ep.path, rr.Body.String())
+			}
+		})
+
+		t.Run("valid_param_"+ep.path, func(t *testing.T) {
+			req := httptest.NewRequest(ep.method, ep.path+"?session_token="+token, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			if rr.Code == http.StatusUnauthorized {
+				t.Fatalf("%s %s with valid session param: got 401, want non-401 body=%s",
+					ep.method, ep.path, rr.Body.String())
+			}
+		})
+	}
+}
+
+func TestSessionTokenSkippedWhenEmpty(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+	_, handler := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		RevealAuthToken: "reveal-token",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected session check to be skipped when token is empty: got %d want %d", rr.Code, http.StatusOK)
+	}
+}
+
+// TestProfileAndVerifyEndpointContracts verifies the full contract for
+// GET /api/v1/bundle/profile and POST /api/v1/bundle/verify:
+// 204 when no report, 200+body when report present, method guards, and tamper block.
+func TestProfileAndVerifyEndpointContracts(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+
+	// No startup report → profile returns 204.
+	_, handler := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		RevealAuthToken: "test-token",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/profile", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("profile with no report: got %d want %d body=%s", rr.Code, http.StatusNoContent, rr.Body.String())
+	}
+
+	// POST /api/v1/bundle/verify method guard: GET must return 405.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/bundle/verify", nil)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("verify method guard: got %d want %d", rr.Code, http.StatusMethodNotAllowed)
+	}
+
+	// GET /api/v1/bundle/profile method guard: POST must return 405.
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/bundle/profile", nil)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("profile method guard: got %d want %d", rr.Code, http.StatusMethodNotAllowed)
+	}
+
+	// Pre-populated startup report → profile returns 200 with correct shape.
+	preReport := &ProfileReportSummary{
+		ProfileID:        "atb.profile.rag_answer",
+		Pass:             true,
+		ChainValid:       true,
+		AnchorStatus:     "not_anchored",
+		CriticalFailures: []FailureDTO{},
+		Warnings:         []string{},
+	}
+	_, handlerWithReport := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		RevealAuthToken: "test-token",
+		ProfileReport:   preReport,
+	})
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/bundle/profile", nil)
+	rr = httptest.NewRecorder()
+	handlerWithReport.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("profile with report: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	got := decodeResponseJSON[ProfileReportSummary](t, rr)
+	if got.ProfileID != preReport.ProfileID {
+		t.Fatalf("profile_id mismatch: got %q want %q", got.ProfileID, preReport.ProfileID)
+	}
+	if !got.Pass {
+		t.Fatalf("expected pass=true in profile response")
+	}
+	if got.CriticalFailures == nil {
+		t.Fatalf("critical_failures must be a non-nil array, got nil")
+	}
+	if got.Warnings == nil {
+		t.Fatalf("warnings must be a non-nil array, got nil")
+	}
+
+	// Tamper mode: profile and verify both return 403.
+	_, tamperHandler := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		VerifyErr:       errors.New("tamper"),
+		RevealAuthToken: "test-token",
+	})
+	for _, tc := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/v1/bundle/profile"},
+		{http.MethodPost, "/api/v1/bundle/verify"},
+	} {
+		req := httptest.NewRequest(tc.method, tc.path, nil)
+		rr := httptest.NewRecorder()
+		tamperHandler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("tamper block %s %s: got %d want %d body=%s",
+				tc.method, tc.path, rr.Code, http.StatusForbidden, rr.Body.String())
+		}
+	}
+}

@@ -284,7 +284,7 @@ type runningViewServer struct {
 func startInstalledViewServer(t *testing.T, binaryPath string, workDir string, port int) runningViewServer {
 	t.Helper()
 
-	cmd := exec.Command(binaryPath, "view", "--ui-experimental", "--no-open", "--port", fmt.Sprintf("%d", port))
+	cmd := exec.Command(binaryPath, "view", "--no-open", "--port", fmt.Sprintf("%d", port))
 	cmd.Dir = workDir
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
@@ -316,11 +316,27 @@ func (s runningViewServer) stop() {
 	}
 }
 
+// extractSessionTokenFromStdout parses the session token printed by the view server
+// in the startup URL line: "✓ Serving ... at http://.../#session=<token>"
+func extractSessionTokenFromStdout(stdout string) string {
+	const marker = "#session="
+	idx := strings.Index(stdout, marker)
+	if idx < 0 {
+		return ""
+	}
+	rest := stdout[idx+len(marker):]
+	end := strings.IndexAny(rest, " \t\r\n")
+	if end >= 0 {
+		rest = rest[:end]
+	}
+	return strings.TrimSpace(rest)
+}
+
 func waitForViewVerification(t *testing.T, server runningViewServer, port int) apiv1.VerificationResponse {
 	t.Helper()
 
 	client := &http.Client{Timeout: 500 * time.Millisecond}
-	url := fmt.Sprintf("http://127.0.0.1:%d/api/v1/verification", port)
+	apiURL := fmt.Sprintf("http://127.0.0.1:%d/api/v1/verification", port)
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		select {
@@ -334,7 +350,16 @@ func waitForViewVerification(t *testing.T, server runningViewServer, port int) a
 		default:
 		}
 
-		resp, err := client.Get(url)
+		sessionToken := extractSessionTokenFromStdout(server.stdout.String())
+		req, err := http.NewRequest(http.MethodGet, apiURL, nil)
+		if err != nil {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		if sessionToken != "" {
+			req.Header.Set("X-ATB-Session-Token", sessionToken)
+		}
+		resp, err := client.Do(req)
 		if err == nil {
 			body, readErr := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()

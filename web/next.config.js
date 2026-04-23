@@ -20,7 +20,7 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  // Headers apply in atb view --ui-experimental server mode only; not used in static export builds
+  // Headers apply when Next.js runs as a dev server; not used in static export builds served by atb view
   async headers() {
     return [
       {

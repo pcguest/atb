@@ -87,4 +87,4 @@ Ed25519 bundle signing is optional, but it is strongly recommended for regulator
 - ATB records what the instrumented code emits; it cannot detect uninstrumented actions.
 - CAS scoring reflects evidence completeness, not correctness of the AI decision.
 - TSA anchoring depends on the availability and trustworthiness of the chosen TSA; DigiCert and Sectigo are tested.
-- The dashboard preview (`atb view --ui-experimental`) is not yet a formally specified API surface; auditors should use the CLI or JSON outputs.
+- The local visual dashboard (`atb view`) consumes the same session-gated API as the CLI. For audit evidence, use CLI outputs or `atb export` rather than dashboard screenshots.

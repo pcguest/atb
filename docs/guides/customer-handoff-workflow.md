@@ -41,7 +41,7 @@ Recipient:
 ATB_PASSWORD='shared-review-secret' atb decrypt incoming/acme-review.atb.enc --output review/acme-review.atb
 atb verify review/acme-review.atb --format json
 atb trust-report review/acme-review.atb --profile atb.profile.privileged_tool_action --format markdown
-atb view review/acme-review.atb --ui-experimental
+atb view review/acme-review.atb
 ```
 
 ## What each step proves

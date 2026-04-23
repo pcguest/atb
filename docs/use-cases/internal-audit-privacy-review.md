@@ -37,7 +37,7 @@ atb append ai.request.received --data='{"request_id":"req-123","workflow":"claim
 atb append ai.policy.decision --data='{"policy_id":"pol-sensitive-case","policy_version":"2026-04","decision":"allow","decision_reason_codes":["manual_review_required"],"subject_id_hash":"sha256-usr-123","action_id":"act-123"}'
 atb append ai.action.precommit --data='{"action_id":"act-123","action_type":"manual_review","target_resource_id":"privacy-queue","intended_effect":"review_sensitive_case"}'
 atb verify
-atb view --ui-experimental
+atb view
 atb export --format soc2 --bundle run.atb/bundle.atb --output internal-audit-evidence.zip
 atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output privacy-review.zip
 ```
