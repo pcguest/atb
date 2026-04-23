@@ -27,7 +27,7 @@ needed.
 2. Mark the review state with a failing snapshot when the workflow outcome is bad.
 3. Verify integrity with `atb verify`.
 4. Generate a trust report so engineering and reviewers can separate workflow failure from evidence validity.
-5. Review the bundle locally with `atb view` or `atb view`.
+5. Review the bundle locally with `atb view`.
 6. Use masked payloads and explicit privacy reveals during review.
 7. Export the deterministic evidence pack if the incident needs formal follow-up.
 
@@ -36,12 +36,12 @@ needed.
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb bundle new
-atb append ai.request.received --data='{"request_id":"req-1042","workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
-atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
-atb append ai.policy.decision --data='{"policy_id":"pol-pii-redaction","policy_version":"2026-04","decision":"deny","decision_reason_codes":["customer_email_visible"],"subject_id_hash":"sha256-user-1042","action_id":"act-1042"}'
+atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
+atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
+atb append ai.policy.decision --data='{"policy_id":"pol-severity-routing","policy_version":"2026-04","decision":"deny","decision_reason_codes":["sev2_requires_manual_review"],"subject_id_hash":"sha256-user-1042","action_id":"act-1042"}'
 atb snapshot incident_review_failed
-atb verify
-atb trust-report --profile atb.profile.privileged_tool_action --format markdown
+atb verify --profile atb.profile.policy_decision --format json
+atb trust-report --profile atb.profile.policy_decision --format markdown
 atb view
 atb export --format compliance --output incident-review-evidence.zip
 ```
@@ -49,8 +49,8 @@ atb export --format compliance --output incident-review-evidence.zip
 Important distinction:
 
 - `snapshot incident_review_failed` records that the workflow needs attention by name.
-- `atb verify` should still pass if the bundle itself is intact.
-- `atb trust-report` may report `warn` rather than `pass` when optional evidence such as policy signatures is absent.
+- `atb verify --profile atb.profile.policy_decision --format json` should still pass if the bundle is intact and the required policy-decision evidence is present.
+- `atb trust-report` can still show warnings when optional evidence such as policy signatures is absent.
 
 That is the core ATB value in incident review: the workflow can fail
 without weakening the evidence.

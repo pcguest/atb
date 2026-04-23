@@ -1,21 +1,21 @@
 # ATB quickstart
 
 This guide is for a developer who wants to record and verify an AI workflow decision for the
-first time. It takes about five minutes and requires no backend or network access. At the end
-you will have a verified `.atb` bundle on disk and a working understanding of the
-record-and-verify cycle.
+first time. It gets you to your first bundle in 5 minutes and requires no backend or network
+access. At the end you will have a verified `.atb` bundle on disk and a working understanding of
+the record-and-verify cycle.
 
-## 1. Quick start (incident review)
+## 1. Your first bundle in 5 minutes
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 atb bundle new
-atb append ai.request.received --data='{"request_id":"req-1042","workflow":"support-triage","case_id":"case-1042","severity":"sev2"}'
-atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
-atb append ai.policy.decision --data='{"policy_id":"pol-pii-redaction","policy_version":"2026-04","decision":"deny","decision_reason_codes":["customer_email_visible"],"subject_id_hash":"sha256-user-1042","action_id":"act-1042"}'
+atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
+atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
+atb append ai.policy.decision --data='{"policy_id":"pol-severity-routing","policy_version":"2026-04","decision":"deny","decision_reason_codes":["sev2_requires_manual_review"],"subject_id_hash":"sha256-user-1042","action_id":"act-1042"}'
 atb snapshot incident_review_failed
-atb verify
-atb trust-report --profile atb.profile.privileged_tool_action --format markdown
+atb verify --profile atb.profile.policy_decision --format json
+atb trust-report --profile atb.profile.policy_decision --format markdown
 ```
 
 The Go CLI is the primary install path. The Python and TypeScript
@@ -25,9 +25,33 @@ This is the canonical ATB workflow: the AI workflow itself can fail
 while the audit evidence still verifies cleanly. Use the snapshot name
 to label workflow state. `atb verify` checks the hash chain and any
 recorded bundle signature or anchor evidence. `atb bundle new` is the
-explicit alias for `atb init`; both are supported. For the full local
-review and export path, continue with the [Incident review
+explicit alias for `atb init`; both are supported. The example uses
+`atb.profile.policy_decision` because the recorded evidence shows a
+request, a pending action, and the policy outcome that blocked it. For
+the full local review and export path, continue with the [Incident review
 workflow](./guides/incident-review-workflow.md).
+
+### What the output means
+
+Abbreviated `atb verify --profile atb.profile.policy_decision --format json` output:
+
+```json
+{
+  "profile_id": "atb.profile.policy_decision",
+  "pass": true,
+  "cas_score": 0.70,
+  "cas_grade": "Medium",
+  "critical_failures": [],
+  "residual_risk": "Medium"
+}
+```
+
+- `pass: true` means the bundle chain is intact and the selected profile passed its required checks.
+- `cas_score` and `cas_grade` describe how much of the expected evidence ATB can see for that workflow.
+- `residual_risk` summarises what is still weak or missing in the recorded evidence, not whether the underlying decision was correct.
+
+If you want the full integrity fields, run `atb verify --profile atb.profile.policy_decision --json`
+and check `integrity.chain_valid: true`.
 
 ### Verify against a specific profile
 
@@ -39,11 +63,14 @@ profile. Local YAML definitions are also supported via
 ```bash
 atb events --profile atb.profile.rag_answer
 atb verify --bundle run.atb/bundle.atb --profile atb.profile.privileged_tool_action
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
 atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --json
-# The JSON output includes a "cas" object with "grade" and profile sub-scores
-# such as AC, EC, FC, GC, RC, SC, TC, and XC.
 atb verify --bundle run.atb/bundle.atb --profile ./profiles/release-review.yaml
 ```
+
+Use `--format json` for the compact verifier report (`pass`, `cas_score`, `cas_grade`,
+`critical_failures`, `residual_risk`). Use `--json` for the full report, including
+`integrity.chain_valid` and the full CAS breakdown.
 
 ## 2. Installation options
 
@@ -69,7 +96,7 @@ The Python and TypeScript packages are SDKs only. Their installed `atb`
 command is a compatibility stub that prints Go CLI install guidance and
 will be removed in a future major release.
 
-## 3. Record your first trace (Python SDK)
+## 3. Record your first bundle (Python SDK)
 
 ```python
 from atb import Bundle
@@ -98,7 +125,7 @@ bundle.save("my-trace.atb")
 bundle.verify()
 ```
 
-## 4. Open the visual dashboard
+## 4. Open the local review UI
 
 ```bash
 # Default bundle path
@@ -112,13 +139,17 @@ atb view --profile atb.profile.rag_answer
 atb view --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
 ```
 
-`--profile` runs verify at startup and makes the profile/CAS summary available immediately in
-the dashboard. Without `--profile`, use the "Run verify" button in the UI to trigger
-`POST /api/v1/bundle/verify`. The summary shows: profile ID, pass/fail, completeness (CAS)
-score and grade, chain/anchor status, and any critical obligation failures.
+`atb view` opens one local review surface for one bundle at a time. `--profile` runs verify at
+startup and makes the profile and CAS summary available immediately in the UI. Without
+`--profile`, use the "Run verify" button in the UI to trigger `POST /api/v1/bundle/verify`.
+The summary shows profile ID, pass or fail, completeness (CAS) score and grade, chain and anchor
+status, and any critical obligation failures.
 
 `atb view` requires building from source to include the embedded dashboard:
 `cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb`
+
+If you install with `go install`, `atb view` serves a minimal install-guidance page with no
+bundle data. Build from source when you need the embedded review UI.
 
 Security note: `atb view` binds to `127.0.0.1` by default. All API endpoints require a
 session token generated at startup and delivered in the browser URL fragment. Do not expose
@@ -173,6 +204,9 @@ Integration docs:
 
 ## 8. Next steps
 
+- [Go example](../examples/go/README.md)
+- [Python SDK](../sdk/python/README.md)
+- [TypeScript SDK](../sdk/typescript/README.md)
 - [Docs home](./README.md)
 - [Customer handoff workflow](./guides/customer-handoff-workflow.md)
 - [ATB specification v1.0](./spec-v1.0.md)

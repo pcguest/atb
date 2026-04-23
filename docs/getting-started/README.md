@@ -6,11 +6,12 @@ Start here if you are new to ATB.
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
-atb init
+atb bundle new
 atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"hash-agent-a","purpose_tag":"support-triage"}'
-atb append ai.policy.decision --data='{"policy_id":"pol-pii-redaction","policy_version":"1.0","decision":"deny","decision_reason_codes":["pii_detected"],"subject_id_hash":"hash-agent-a","action_id":"act-1042"}'
+atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
+atb append ai.policy.decision --data='{"policy_id":"pol-severity-routing","policy_version":"2026-04","decision":"deny","decision_reason_codes":["sev2_requires_manual_review"],"subject_id_hash":"hash-agent-a","action_id":"act-1042"}'
 atb snapshot incident_review_failed
-atb verify
+atb verify --profile atb.profile.policy_decision --format json
 ```
 
 ## Recommended path
