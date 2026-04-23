@@ -22,6 +22,23 @@ correctly against it.
 ATB remains a narrow-scope product. Planned work should strengthen the integrity and evidence
 model around that scope rather than broaden ATB into a general AI operations platform.
 
+## Prioritisation notes
+
+Current roadmap sequencing is driven by the local-first evidence model.
+The immediate focus is hardening the local bundle, verifier, and export
+path before adding broader external integrations.
+
+Corroboration adapters (`#47`) and queue, gateway, and storage
+integration (`#48`) are next because they address the main evidence gap
+in asynchronous workflows: the hand-off between the local bundle and the
+external systems where work is actually dequeued, routed, or persisted.
+Exportable assurance packs (`#49`) follow because they reduce friction
+when handing bundles to auditors, customers, or incident reviewers.
+
+Roadmap items are tracked work, not committed delivery in a specific
+release. This document is updated with each minor release so evaluators
+can see current sequencing rather than stale intent.
+
 ## Current baseline
 
 The current line provides:
