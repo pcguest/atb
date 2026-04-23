@@ -28,6 +28,7 @@ This index lists the current documentation set and the authoritative home for ea
 
 ## Profiles
 
+- [cas-guide.md](./cas-guide.md) - Plain-language guide to first-run CAS output and next actions.
 - [profiles.md](./profiles.md) - Canonical obligation profiles and CAS scoring notes.
 
 ## Integrations

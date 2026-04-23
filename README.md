@@ -290,6 +290,7 @@ alongside the rest of the workflow.
 - [Why ATB](docs/why-atb.md)
 - [ATB Specification v1.0](docs/spec-v1.0.md)
 - [AI Trace Event Specification](docs/spec-ai-traces.md)
+- [CAS Guide](docs/cas-guide.md)
 - [Verification Profiles](docs/profiles.md)
 - [Security Model](docs/security.md)
 - [MCP Integration](docs/integrations/mcp.md)
