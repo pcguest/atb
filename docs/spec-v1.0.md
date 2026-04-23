@@ -206,7 +206,7 @@ ATB supports optional client-side bundle encryption via `atb encrypt` / `atb dec
 
 `atb decrypt` accepts both wire-format versions. `atb encrypt` writes version `0x02`.
 
-Push transport behaviour is documented separately in [docs/spec/bundle-push.md](./spec/bundle-push.md). That document is outside the frozen v1.0 local storage contract.
+Push transport behaviour is documented separately in [docs/spec/bundle-push.md](./spec/bundle-push.md) (forthcoming). That document is outside the frozen v1.0 local storage contract.
 
 ---
 
