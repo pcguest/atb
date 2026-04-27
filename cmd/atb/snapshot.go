@@ -80,7 +80,7 @@ func runSnapshot(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stdout, snapshotUsageLine)
 			return exitSuccess
 		}
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			if err := writeSnapshotJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "snapshot",
@@ -109,7 +109,7 @@ func runSnapshot(args []string, stdout, stderr io.Writer) int {
 		if isBundleLocked(err) {
 			displayError = bundleLockedMessage(err)
 		}
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			if err := writeSnapshotJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "snapshot",
@@ -128,7 +128,7 @@ func runSnapshot(args []string, stdout, stderr io.Writer) int {
 		return exitCode
 	}
 
-	if cfg.Format == verifyFormatJSON {
+	if cfg.Format == formatJSON {
 		action := "snapshot"
 		message := "snapshot appended"
 		if cfg.DryRun {
@@ -175,7 +175,7 @@ func snapshotExitCode(err error) int {
 func parseSnapshotArgs(args []string) (snapshotConfig, error) {
 	cfg := snapshotConfig{
 		BundlePath: bundle.DefaultPath(),
-		Format:     verifyFormatText,
+		Format:     formatText,
 	}
 	nameSet := false
 	bundlePathSet := false
@@ -270,7 +270,7 @@ func parseSnapshotArgs(args []string) (snapshotConfig, error) {
 	if !nameSet || cfg.Name == "" {
 		return cfg, fmt.Errorf("snapshot name cannot be empty")
 	}
-	if cfg.Format != verifyFormatText && cfg.Format != verifyFormatJSON {
+	if cfg.Format != formatText && cfg.Format != formatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.Format)
 	}
 	if !lockWaitSet {

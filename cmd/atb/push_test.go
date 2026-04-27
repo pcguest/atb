@@ -96,7 +96,7 @@ func TestParsePushArgs(t *testing.T) {
 			want: pushConfig{
 				Target:     "s3://my-bucket/atb",
 				BundlePath: bundle.DefaultPath(),
-				Format:     verifyFormatText,
+				Format:     formatText,
 			},
 		},
 		{
@@ -106,7 +106,7 @@ func TestParsePushArgs(t *testing.T) {
 				Target:     "s3://my-bucket/atb",
 				BundlePath: bundle.DefaultPath(),
 				LockUntil:  "2028-01-01",
-				Format:     verifyFormatText,
+				Format:     formatText,
 			},
 		},
 		{
@@ -116,7 +116,7 @@ func TestParsePushArgs(t *testing.T) {
 				Target:     "s3://my-bucket/atb",
 				BundlePath: bundle.DefaultPath(),
 				LockUntil:  "2029-06-30",
-				Format:     verifyFormatText,
+				Format:     formatText,
 			},
 		},
 		{
@@ -126,7 +126,7 @@ func TestParsePushArgs(t *testing.T) {
 				Target:     "s3://my-bucket/atb",
 				BundlePath: bundle.DefaultPath(),
 				DryRun:     true,
-				Format:     verifyFormatJSON,
+				Format:     formatJSON,
 			},
 		},
 		{
@@ -135,7 +135,7 @@ func TestParsePushArgs(t *testing.T) {
 			want: pushConfig{
 				Target:     "s3://my-bucket/atb",
 				BundlePath: bundle.DefaultPath(),
-				Format:     verifyFormatJSON,
+				Format:     formatJSON,
 			},
 		},
 		{
@@ -143,7 +143,7 @@ func TestParsePushArgs(t *testing.T) {
 			args: nil,
 			want: pushConfig{
 				BundlePath: bundle.DefaultPath(),
-				Format:     verifyFormatText,
+				Format:     formatText,
 			},
 		},
 		{

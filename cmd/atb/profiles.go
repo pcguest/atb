@@ -87,7 +87,7 @@ func runProfilesValidate(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
-	if cfg.Format == verifyFormatJSON {
+	if cfg.Format == formatJSON {
 		enc := json.NewEncoder(stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(report); err != nil {
@@ -105,7 +105,7 @@ func runProfilesValidate(args []string, stdout, stderr io.Writer) int {
 }
 
 func parseProfilesValidateArgs(args []string) (profilesValidateConfig, error) {
-	cfg := profilesValidateConfig{Format: verifyFormatText}
+	cfg := profilesValidateConfig{Format: formatText}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -143,7 +143,7 @@ func parseProfilesValidateArgs(args []string) (profilesValidateConfig, error) {
 		}
 	}
 
-	if cfg.Format != verifyFormatText && cfg.Format != verifyFormatJSON {
+	if cfg.Format != formatText && cfg.Format != formatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.Format)
 	}
 	return cfg, nil

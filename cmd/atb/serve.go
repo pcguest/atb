@@ -105,7 +105,7 @@ func mcpVerifyHandler(_ context.Context, input mcp.VerifyInput, stdout, stderr i
 	cfg := verifyCLIConfig{
 		BundlePath:   bundle.DefaultPath(),
 		ProfileID:    input.Profile,
-		LegacyFormat: verifyFormatJSON,
+		LegacyFormat: formatJSON,
 		Quiet:        input.Quiet,
 		Trace:        input.Trace,
 		WithAnchor:   input.WithAnchor,
@@ -118,7 +118,7 @@ func mcpVerifyHandler(_ context.Context, input mcp.VerifyInput, stdout, stderr i
 
 func mcpInitHandler(_ context.Context, stdout, stderr io.Writer) int {
 	return runInitWithOptions(initRunOptions{
-		OutputFormat: verifyFormatJSON,
+		OutputFormat: formatJSON,
 	}, stdout, stderr)
 }
 

@@ -251,7 +251,7 @@ func parseVerifyArgsWithDryRun(args []string) (verifyCLIConfig, bool, error) {
 func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 	cfg := verifyCLIConfig{
 		BundlePath:   bundle.DefaultPath(),
-		LegacyFormat: verifyFormatText,
+		LegacyFormat: formatText,
 	}
 	bundlePathSet := false
 
@@ -345,7 +345,7 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 		}
 	}
 
-	if cfg.LegacyFormat != verifyFormatText && cfg.LegacyFormat != verifyFormatJSON {
+	if cfg.LegacyFormat != formatText && cfg.LegacyFormat != formatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.LegacyFormat)
 	}
 	if cfg.ProfileID != "" && strings.TrimSpace(cfg.ProfileID) == "" {
@@ -427,11 +427,11 @@ func validateVerifyBundle(b *bundle.Bundle) error {
 }
 
 func isLegacyJSONMode(cfg verifyCLIConfig) bool {
-	return !cfg.JSON && cfg.LegacyFormat == verifyFormatJSON
+	return !cfg.JSON && cfg.LegacyFormat == formatJSON
 }
 
 func verifyWantsStructuredJSON(cfg verifyCLIConfig) bool {
-	return !cfg.JSON && cfg.LegacyFormat == verifyFormatJSON
+	return !cfg.JSON && cfg.LegacyFormat == formatJSON
 }
 
 func writeVerifierReportJSON(w io.Writer, report verifypkg.VerifierReport) error {

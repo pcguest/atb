@@ -146,7 +146,7 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 	return runVerifyWithConfig(verifyCLIConfig{
 		BundlePath:   resolvedBundlePath,
 		ProfileID:    cfg.ProfileID,
-		LegacyFormat: verifyFormatJSON,
+		LegacyFormat: formatJSON,
 	}, false, stdout, stderr)
 }
 

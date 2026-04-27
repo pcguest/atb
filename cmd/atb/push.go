@@ -120,7 +120,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 			fmt.Fprintln(stdout, pushUsageLine)
 			return exitSuccess
 		}
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 			return exitUserError
 		}
@@ -131,7 +131,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 
 	cfg, err = mergePushConfigWithDefaults(cfg, defaultConfigPath())
 	if err != nil {
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 			return exitUserError
 		}
@@ -144,7 +144,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	if queueRequested {
 		if strings.TrimSpace(cfg.HMACKeyHex) == "" {
 			err = fmt.Errorf("--hmac-key is required when --queue is set")
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 				return exitUserError
 			}
@@ -153,7 +153,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		}
 		hmacKey, err = parseHMACKey(cfg.HMACKeyHex)
 		if err != nil {
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 				return exitUserError
 			}
@@ -164,7 +164,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 
 	if strings.TrimSpace(cfg.Target) == "" && !queueRequested {
 		err = fmt.Errorf("target URI required (e.g. s3://bucket/prefix); use --queue <endpoint-url> for queue-only push")
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 			return exitUserError
 		}
@@ -178,7 +178,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	if cfg.LockUntil != "" {
 		lockUntil, err = parseLockUntil(cfg.LockUntil)
 		if err != nil {
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				writePushError(stdout, stderr, cfg, err.Error(), exitUserError)
 				return exitUserError
 			}
@@ -191,7 +191,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	b, err := bundle.Load(cfg.BundlePath)
 	if err != nil {
 		code := classifyBundleLoadError(err)
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			writePushError(stdout, stderr, cfg, err.Error(), code)
 			return code
 		}
@@ -200,7 +200,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	}
 	if len(b.Records) == 0 {
 		const msg = "bundle has no records; cannot push an empty bundle"
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			writePushError(stdout, stderr, cfg, msg, exitUserError)
 			return exitUserError
 		}
@@ -215,7 +215,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	if strings.TrimSpace(cfg.Target) != "" {
 		parsedBucket, prefix, parseErr := push.ParseS3URI(cfg.Target)
 		if parseErr != nil {
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				writePushError(stdout, stderr, cfg, parseErr.Error(), exitUserError)
 				return exitUserError
 			}
@@ -229,7 +229,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	// Read bundle bytes for push and queue metadata.
 	bundleBytes, err := os.ReadFile(filepath.Clean(cfg.BundlePath)) // #nosec G304 -- path validated by bundle.Load
 	if err != nil {
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			writePushError(stdout, stderr, cfg, err.Error(), exitSystemError)
 			return exitSystemError
 		}
@@ -248,7 +248,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		}
 		body, marshalErr := queuePusher.MarshalEnvelope(meta)
 		if marshalErr != nil {
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				writePushError(stdout, stderr, cfg, marshalErr.Error(), exitUserError)
 				return exitUserError
 			}
@@ -272,7 +272,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 			})
 			if err != nil {
 				msg := "credential error: " + err.Error()
-				if cfg.Format == verifyFormatJSON {
+				if cfg.Format == formatJSON {
 					writePushError(stdout, stderr, cfg, msg, exitSystemError)
 					return exitSystemError
 				}
@@ -299,7 +299,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		if err := s3Pusher.Push(context.Background(), bundleBytes, meta); err != nil {
 			code := exitSystemError
 			msg := classifyPushError(err)
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				writePushError(stdout, stderr, cfg, msg, code)
 				return code
 			}
@@ -317,7 +317,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 			ATBVersion:  version,
 		}
 		if err := queuePusher.Push(context.Background(), bundleBytes, meta); err != nil {
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				writePushError(stdout, stderr, cfg, err.Error(), exitSystemError)
 				return exitSystemError
 			}
@@ -326,7 +326,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		}
 	}
 
-	if cfg.Format == verifyFormatJSON {
+	if cfg.Format == formatJSON {
 		res := pushResult{
 			Status:     "ok",
 			Action:     "push",
@@ -367,7 +367,7 @@ func runPushDryRun(cfg pushConfig, bucket, key, headHash, lockUntil string, enve
 		remoteURI = "s3://" + bucket + "/" + key
 	}
 
-	if cfg.Format == verifyFormatJSON {
+	if cfg.Format == formatJSON {
 		res := pushResult{
 			Status:     "ok",
 			Action:     "preview_push",
@@ -462,7 +462,7 @@ func classifyPushError(err error) string {
 func parsePushArgs(args []string) (pushConfig, error) {
 	cfg := pushConfig{
 		BundlePath: bundle.DefaultPath(),
-		Format:     verifyFormatText,
+		Format:     formatText,
 	}
 	targetSet := false
 	bundlePathSet := false
@@ -533,7 +533,7 @@ func parsePushArgs(args []string) (pushConfig, error) {
 		}
 	}
 
-	if cfg.Format != verifyFormatText && cfg.Format != verifyFormatJSON {
+	if cfg.Format != formatText && cfg.Format != formatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.Format)
 	}
 	return cfg, nil

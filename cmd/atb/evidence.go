@@ -63,7 +63,7 @@ func runEvidence(args []string, stdout, stderr io.Writer) int {
 }
 
 func parseEvidenceArgs(args []string) (evidenceConfig, error) {
-	cfg := evidenceConfig{Format: verifyFormatText}
+	cfg := evidenceConfig{Format: formatText}
 	bundlePathSet := false
 
 	for i := 0; i < len(args); i++ {
@@ -105,7 +105,7 @@ func parseEvidenceArgs(args []string) (evidenceConfig, error) {
 	if !bundlePathSet || strings.TrimSpace(cfg.BundlePath) == "" {
 		return cfg, fmt.Errorf("--bundle is required")
 	}
-	if cfg.Format != verifyFormatText && cfg.Format != verifyFormatJSON {
+	if cfg.Format != formatText && cfg.Format != formatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.Format)
 	}
 	return cfg, nil
@@ -116,7 +116,7 @@ func printEvidenceUsage(w io.Writer) {
 }
 
 func writeEvidence(w io.Writer, format string, ev evidencepkg.BundleEvidence) error {
-	if format == verifyFormatJSON {
+	if format == formatJSON {
 		data, err := json.Marshal(ev)
 		if err != nil {
 			return err

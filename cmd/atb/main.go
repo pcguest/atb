@@ -26,10 +26,8 @@ import (
 )
 
 const (
-	version          = "1.10.0"
-	verifyFormatText = "text"
-	verifyFormatJSON = "json"
-	verifyAlgorithm  = "SHA-256||RFC8785"
+	version         = "1.10.0"
+	verifyAlgorithm = "SHA-256||RFC8785"
 )
 
 type verifyResult struct {
@@ -559,7 +557,7 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 	if len(args) > 0 {
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:   "error",
 				Action:   "init",
@@ -624,7 +622,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 	path := bundle.DefaultPath()
 	if _, err := os.Stat(path); err == nil {
 		if opts.DryRun {
-			if opts.OutputFormat == verifyFormatJSON {
+			if opts.OutputFormat == formatJSON {
 				return writeMutationJSON(stdout, mutationResult{
 					Status:  "ok",
 					Action:  "noop",
@@ -636,7 +634,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stdout, "~ Dry run: bundle already exists at %s (no changes).\n", path)
 			return exitSuccess
 		}
-		if opts.OutputFormat == verifyFormatJSON {
+		if opts.OutputFormat == formatJSON {
 			return writeMutationJSON(stdout, mutationResult{
 				Status:  "ok",
 				Action:  "noop",
@@ -648,7 +646,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "atb init: bundle already exists at %s (no changes).\n", path)
 		return exitSuccess
 	} else if !errors.Is(err, os.ErrNotExist) {
-		if opts.OutputFormat == verifyFormatJSON {
+		if opts.OutputFormat == formatJSON {
 			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
@@ -662,7 +660,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 		return exitSystemError
 	}
 	if opts.DryRun {
-		if opts.OutputFormat == verifyFormatJSON {
+		if opts.OutputFormat == formatJSON {
 			return writeMutationJSON(stdout, mutationResult{
 				Status:  "ok",
 				Action:  "init",
@@ -679,7 +677,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 	}
 	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: opts.ManifestVersion})
 	if err != nil {
-		if opts.OutputFormat == verifyFormatJSON {
+		if opts.OutputFormat == formatJSON {
 			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
@@ -693,7 +691,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 		return exitSystemError
 	}
 	if err := b.Save(path); err != nil {
-		if opts.OutputFormat == verifyFormatJSON {
+		if opts.OutputFormat == formatJSON {
 			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
@@ -706,7 +704,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "atb init: %v\n", err)
 		return exitSystemError
 	}
-	if opts.OutputFormat == verifyFormatJSON {
+	if opts.OutputFormat == formatJSON {
 		return writeMutationJSON(stdout, mutationResult{
 			Status:  "ok",
 			Action:  "init",
@@ -743,7 +741,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 	if len(args) < 2 {
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:   "error",
 				Action:   "append",
@@ -760,7 +758,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	eventType := args[0]
 	appendInput, err := parseAppendCommandArgs(args[1:])
 	if err != nil {
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:    "error",
 				Action:    "append",
@@ -779,7 +777,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 
 	var data interface{}
 	if err := json.Unmarshal([]byte(rawJSON), &data); err != nil {
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:    "error",
 				Action:    "append",
@@ -796,7 +794,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if err := maybePolicyDocEmbed(eventType, data, appendInput.PolicyDocPath, appendInput.SignPolicyKeyPath, stderr); err != nil {
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:    "error",
 				Action:    "append",
@@ -814,7 +812,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 
 	if err := maybeSignPolicyDecisionEvent(eventType, data, appendInput.SignPolicyKeyPath, stderr); err != nil {
 		exitCode := classifyAppendPolicySignError(err)
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:    "error",
 				Action:    "append",
@@ -839,7 +837,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 		} else if errors.As(err, &loadErr) {
 			exitCode = classifyBundleLoadError(err)
 		}
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:    "error",
 				Action:    "append",
@@ -854,7 +852,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitCode
 	}
-	if outputFormat == verifyFormatJSON {
+	if outputFormat == formatJSON {
 		action := "append"
 		message := "event appended"
 		if dryRun {
@@ -963,7 +961,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 
 	rec, err := adapter.Fetch(context.Background(), ref)
 	if err != nil {
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:   "error",
 				Action:   "corroborate",
@@ -988,7 +986,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 		} else if errors.As(err, &loadErr) {
 			exitCode = classifyBundleLoadError(err)
 		}
-		if outputFormat == verifyFormatJSON {
+		if outputFormat == formatJSON {
 			printMutationJSON(mutationResult{
 				Status:    "error",
 				Action:    "corroborate",
@@ -1004,7 +1002,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 		return exitCode
 	}
 
-	if outputFormat == verifyFormatJSON {
+	if outputFormat == formatJSON {
 		action := "corroborate"
 		message := "corroboration event appended"
 		if dryRun {
@@ -1306,7 +1304,7 @@ func parseMutationFlags(args []string) ([]string, string, bool, error) {
 
 func parseMutationFlagsWithLockWait(args []string) ([]string, string, bool, time.Duration, error) {
 	filtered := make([]string, 0, len(args))
-	outputFormat := verifyFormatText
+	outputFormat := formatText
 	dryRun := false
 	lockWait := time.Duration(0)
 	lockWaitSet := false
@@ -1345,7 +1343,7 @@ func parseMutationFlagsWithLockWait(args []string) ([]string, string, bool, time
 			filtered = append(filtered, arg)
 		}
 	}
-	if outputFormat != verifyFormatText && outputFormat != verifyFormatJSON {
+	if outputFormat != formatText && outputFormat != formatJSON {
 		return nil, "", false, 0, fmt.Errorf("invalid format %q (expected text|json)", outputFormat)
 	}
 	if !lockWaitSet {
@@ -1427,7 +1425,7 @@ func normalizeBundlePath(raw string) string {
 
 func parseVerifyArgs(args []string) (string, string, bool, bool, bool, string, error) {
 	path := ""
-	format := verifyFormatText
+	format := formatText
 	trace := false
 	withAnchor := false
 	withSnapshotCheck := false
@@ -1469,7 +1467,7 @@ func parseVerifyArgs(args []string) (string, string, bool, bool, bool, string, e
 	if path == "" {
 		path = bundle.DefaultPath()
 	}
-	if format != verifyFormatText && format != verifyFormatJSON {
+	if format != formatText && format != formatJSON {
 		return "", "", false, false, false, "", fmt.Errorf("invalid format %q (expected text|json)", format)
 	}
 	return path, format, trace, withAnchor, withSnapshotCheck, rootsPath, nil
