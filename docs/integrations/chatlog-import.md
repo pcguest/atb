@@ -93,6 +93,10 @@ Create or reuse a local bundle and import the chatlog:
 atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl
 ```
 
+Imports are capped at 256 MiB by default. Files larger than this limit are
+rejected before any records are written. Use `--max-input-size <bytes>` to
+override the cap, or split the input file first.
+
 Import and label the end state with a snapshot:
 
 ```bash

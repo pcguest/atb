@@ -39,7 +39,3 @@ migration that this codebase is not yet ready to absorb.
 **Finding:** staticcheck SA1019: `elliptic.Marshal` has been deprecated since Go 1.21.
 **Reason suppressed:** GCP Cloud KMS `GetPublicKey` returns PEM-encoded P-256 keys; we re-encode to SEC1 uncompressed for the on-disk signature record. Same constraint as the AWS KMS and Vault entries above.
 
-## internal/capture/chatlog.go:43
-
-**Finding:** staticcheck U1000: `var errUnsupportedChatlogFormat is unused`.
-**Reason suppressed:** intentionally retained as a backward-compatibility alias for `ErrUnsupportedProvider`; in-package callers that previously wrapped this sentinel still resolve correctly via `errors.Is`. New code should match against `ErrUnsupportedProvider` directly.

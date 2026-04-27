@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -107,7 +108,12 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			childExitCode = exitErr.ExitCode()
+			if ws, ok := exitErr.ProcessState.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
+				fmt.Fprintf(stderr, "atb capture run: child killed by signal %s\n", ws.Signal())
+				childExitCode = 128 + int(ws.Signal())
+			} else {
+				childExitCode = exitErr.ExitCode()
+			}
 		} else {
 			fmt.Fprintf(stderr, "atb capture run: start child command: %v\n", err)
 			return exitSystemError
@@ -183,8 +189,14 @@ func parseCaptureRunArgs(args []string) (captureRunConfig, error) {
 			}
 			i++
 			cfg.SnapshotName = strings.TrimSpace(args[i])
+			if err := validateSnapshotName(cfg.SnapshotName); err != nil {
+				return cfg, err
+			}
 		case strings.HasPrefix(arg, "--snapshot="):
 			cfg.SnapshotName = strings.TrimSpace(strings.TrimPrefix(arg, "--snapshot="))
+			if err := validateSnapshotName(cfg.SnapshotName); err != nil {
+				return cfg, err
+			}
 		case arg == "--env-prefix":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --env-prefix")

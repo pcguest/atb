@@ -20,9 +20,7 @@ import (
 )
 
 const (
-	FormatGenericJSONL  = "generic-jsonl"
-	FormatClaudeDesktop = "claude-desktop"
-	FormatOpenAIJSONL   = "openai-jsonl"
+	FormatGenericJSONL = "generic-jsonl"
 
 	defaultPurposeTag   = "chatlog_import"
 	defaultOutputFormat = "text/plain"
@@ -42,13 +40,6 @@ var ErrMalformedChatlog = errors.New("capture: malformed chatlog")
 // event type. Callers may wrap with index context and decide whether to
 // abort or skip; the importer skips these turns and logs to stderr.
 var ErrUnknownTurn = errors.New("capture: unrecognised turn role")
-
-// errUnsupportedChatlogFormat is the legacy alias retained for callers within
-// the package that used to wrap with this sentinel; new code should match
-// against ErrUnsupportedProvider.
-//
-//lint:ignore U1000 retained alias for backward compatibility with pre-Prompt-19 callers
-var errUnsupportedChatlogFormat = ErrUnsupportedProvider
 
 // ChatMessage is the normalised representation of one imported chatlog line.
 type ChatMessage struct {
@@ -127,8 +118,6 @@ func ParseChatlog(format string, r io.Reader) ([]ChatMessage, error) {
 			return nil, fmt.Errorf("%w: %v", ErrMalformedChatlog, err)
 		}
 		return messages, nil
-	case FormatClaudeDesktop, FormatOpenAIJSONL:
-		return nil, fmt.Errorf("%w %q: Capture v1 only implements %s", ErrUnsupportedProvider, format, FormatGenericJSONL)
 	default:
 		return nil, fmt.Errorf("%w %q", ErrUnsupportedProvider, format)
 	}
@@ -378,6 +367,9 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 				"source_line_num": message.Line,
 			}
 			addChatContext(responseData, message)
+			// TODO: reconsider whether ai.response.sent should be emitted on plain
+			// assistant turns that already produce ai.model.output — currently three
+			// events are emitted per turn.
 			result.Events = append(result.Events, EventSpec{Type: event.TypeAIResponseSent, Data: responseData, Timestamp: message.Timestamp})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		default:

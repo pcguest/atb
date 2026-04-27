@@ -97,8 +97,6 @@ func printImportCommandUsage(w io.Writer) {
 	fmt.Fprintf(w, "  --max-input-size <bytes> reject inputs larger than this (default %d)\n", defaultMaxImportBytes)
 	fmt.Fprintln(w, "Supported provider types:")
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatGenericJSONL)
-	fmt.Fprintf(w, "  %s (stub)\n", capturepkg.FormatClaudeDesktop)
-	fmt.Fprintf(w, "  %s (stub)\n", capturepkg.FormatOpenAIJSONL)
 }
 
 func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -115,7 +113,7 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 
 	fail := func(exitCode int, msg string) int {
 		fmt.Fprintf(stderr, "atb import chatlog: %s\n", msg)
-		if cfg.Format == verifyFormatJSON {
+		if cfg.Format == formatJSON {
 			_ = json.NewEncoder(stdout).Encode(importChatlogError{Error: msg, EventsWritten: 0})
 		}
 		return exitCode
@@ -132,13 +130,13 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		if openErr != nil {
 			if errors.Is(openErr, fs.ErrNotExist) {
 				fmt.Fprintf(stderr, "atb: input file not found: %s\n", cfg.InputPath)
-				if cfg.Format == verifyFormatJSON {
+				if cfg.Format == formatJSON {
 					_ = json.NewEncoder(stdout).Encode(importChatlogError{Error: fmt.Sprintf("input file not found: %s", cfg.InputPath)})
 				}
 				return exitUserError
 			}
 			fmt.Fprintf(stderr, "atb: cannot open input file: %v\n", openErr)
-			if cfg.Format == verifyFormatJSON {
+			if cfg.Format == formatJSON {
 				_ = json.NewEncoder(stdout).Encode(importChatlogError{Error: fmt.Sprintf("cannot open input file: %v", openErr)})
 			}
 			return exitSystemError
@@ -147,9 +145,9 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		rawReader = file
 	}
 
-	// Note: internal/capture enforces a per-line cap (bundle.MaxLineSizeBytes,
-	// 16 MiB). cappedReader adds a total-input cap so a stream of small lines
-	// cannot exhaust memory or disk.
+	// Size cap is enforced by the capture package parser before any bundle IO;
+	// cappedReader adds a total-input cap so a stream of small lines cannot
+	// exhaust memory or disk.
 	reader := &cappedReader{r: rawReader, max: cfg.MaxInputBytes}
 
 	messages, err := capturepkg.ParseChatlog(cfg.From, reader)
@@ -230,7 +228,7 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		return fail(exitSystemError, fmt.Sprintf("save: %v", err))
 	}
 
-	if cfg.Format == verifyFormatJSON {
+	if cfg.Format == formatJSON {
 		result := importChatlogResult{
 			EventsWritten:    written,
 			SkippedRecords:   mapped.SkippedRecords,
@@ -266,7 +264,7 @@ func validateSnapshotName(name string) error {
 func parseImportChatlogArgs(args []string) (importChatlogConfig, error) {
 	cfg := importChatlogConfig{
 		BundlePath:    bundle.DefaultPath(),
-		Format:        verifyFormatText,
+		Format:        formatText,
 		MaxInputBytes: defaultMaxImportBytes,
 	}
 	fromSet := false
@@ -358,7 +356,7 @@ func parseImportChatlogArgs(args []string) (importChatlogConfig, error) {
 	if !inputSet || cfg.InputPath == "" {
 		return cfg, fmt.Errorf("--input is required")
 	}
-	if cfg.Format != verifyFormatText && cfg.Format != verifyFormatJSON {
+	if cfg.Format != formatText && cfg.Format != formatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.Format)
 	}
 	return cfg, nil

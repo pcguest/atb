@@ -50,8 +50,8 @@ layer itself hits a fatal error (lock contention surfaces as exit code 9).
 `atb import chatlog` reads a saved chatlog file (or stdin) on the local
 machine and writes canonical ATB events into a local `.atb` bundle. The
 parser, mapper, and bounded-default fill logic live in the
-`internal/capture/` package. `--from generic-jsonl` is the fully-implemented
-provider; `claude-desktop` and `openai-jsonl` are recognised stubs. Mapping
+`internal/capture/` package. `--from generic-jsonl` is the only supported
+provider in Capture v1. Mapping
 rules are documented in [`integrations/chatlog-import.md`](./integrations/chatlog-import.md):
 user turns become `ai.request.received`, assistant turns with a `model`
 field become `ai.model.invoked` plus `ai.model.output` plus
