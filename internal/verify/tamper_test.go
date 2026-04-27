@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package verify_test
 
 import (

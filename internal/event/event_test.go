@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package event_test
 
 import (

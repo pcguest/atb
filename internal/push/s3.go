@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package push implements the S3 upload layer for atb push and atb verify --remote.
 //
 // The public interface is S3Uploader. The real implementation (HTTPS3Client) uses

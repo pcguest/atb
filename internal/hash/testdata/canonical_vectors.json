@@ -1,0 +1,113 @@
+[
+  {
+    "description": "minimal event: type, seq, timestamp, hash_algo, prev_hash, data=null",
+    "event": {
+      "seq": 1,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "test.minimal",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "data": null
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_canonical_bytes": "eyJkYXRhIjpudWxsLCJoYXNoX2FsZ28iOiJzaGEyNTYiLCJwcmV2X2hhc2giOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwic2VxIjoxLCJ0aW1lc3RhbXAiOiIyMDI2LTAxLTAyVDAzOjA0OjA1WiIsInR5cGUiOiJ0ZXN0Lm1pbmltYWwifQ==",
+    "expected_hash": "2fdca570bf91213e26a8815f3a5eaa4751c9095fe914be45b13559cf2a42f8d9"
+  },
+  {
+    "description": "all top-level fields set with a small data object",
+    "event": {
+      "seq": 7,
+      "prev_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+      "type": "test.all_fields",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "trace_id": "0123456789abcdef0123456789abcdef",
+      "span_id": "0123456789abcdef",
+      "parent_span_id": "fedcba9876543210",
+      "actor_id": "alice",
+      "org_id": "acme",
+      "workspace_id": "ws-1",
+      "data": {
+        "key": "value",
+        "n": 42
+      }
+    },
+    "prev_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "expected_canonical_bytes": "eyJhY3Rvcl9pZCI6ImFsaWNlIiwiZGF0YSI6eyJrZXkiOiJ2YWx1ZSIsIm4iOjQyfSwiaGFzaF9hbGdvIjoic2hhMjU2Iiwib3JnX2lkIjoiYWNtZSIsInBhcmVudF9zcGFuX2lkIjoiZmVkY2JhOTg3NjU0MzIxMCIsInByZXZfaGFzaCI6IjExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEiLCJzZXEiOjcsInNwYW5faWQiOiIwMTIzNDU2Nzg5YWJjZGVmIiwidGltZXN0YW1wIjoiMjAyNi0wMS0wMlQwMzowNDowNVoiLCJ0cmFjZV9pZCI6IjAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmIiwidHlwZSI6InRlc3QuYWxsX2ZpZWxkcyIsIndvcmtzcGFjZV9pZCI6IndzLTEifQ==",
+    "expected_hash": "53d6af32b00fadf19dd123538cd82b948148dba8d0ec82f078812ed277ed30a0"
+  },
+  {
+    "description": "data is null",
+    "event": {
+      "seq": 2,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "test.data_null",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "data": null
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_canonical_bytes": "eyJkYXRhIjpudWxsLCJoYXNoX2FsZ28iOiJzaGEyNTYiLCJwcmV2X2hhc2giOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwic2VxIjoyLCJ0aW1lc3RhbXAiOiIyMDI2LTAxLTAyVDAzOjA0OjA1WiIsInR5cGUiOiJ0ZXN0LmRhdGFfbnVsbCJ9",
+    "expected_hash": "56ade71f2ea8dd4ccde5d1a593e7b0fa98e8f846ca88efdda4db5b3bc56e1b87"
+  },
+  {
+    "description": "data is the float 1.0 (number-as-data float serialisation)",
+    "event": {
+      "seq": 3,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "test.data_float_one",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "data": 1.0
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_canonical_bytes": "eyJkYXRhIjoxLCJoYXNoX2FsZ28iOiJzaGEyNTYiLCJwcmV2X2hhc2giOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwic2VxIjozLCJ0aW1lc3RhbXAiOiIyMDI2LTAxLTAyVDAzOjA0OjA1WiIsInR5cGUiOiJ0ZXN0LmRhdGFfZmxvYXRfb25lIn0=",
+    "expected_hash": "c09136cdcab0a8c0febe3eca08895bff42f52fbe7b4a7d9eb9b0dcfcd7682dae"
+  },
+  {
+    "description": "data is the integer 2^53 (boundary of JS-safe integers)",
+    "event": {
+      "seq": 4,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "test.data_pow2_53",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "data": 9007199254740992
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_canonical_bytes": "eyJkYXRhIjo5MDA3MTk5MjU0NzQwOTkyLCJoYXNoX2FsZ28iOiJzaGEyNTYiLCJwcmV2X2hhc2giOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwic2VxIjo0LCJ0aW1lc3RhbXAiOiIyMDI2LTAxLTAyVDAzOjA0OjA1WiIsInR5cGUiOiJ0ZXN0LmRhdGFfcG93Ml81MyJ9",
+    "expected_hash": "4ba94a23f49ca6809ecce6f8151a80856f247b04ab6f4eb31af19a21b353ddf8"
+  },
+  {
+    "description": "atb.bundle.manifest with data as JSON-encoded string (double-encoded, manifest v1 wire form)",
+    "event": {
+      "seq": 0,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "atb.bundle.manifest",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "data": "{\"version\":1,\"created_at\":\"2026-01-02T03:04:05Z\",\"bundle_id\":\"01HV0000000000000000000000\"}"
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_canonical_bytes": "eyJkYXRhIjoie1widmVyc2lvblwiOjEsXCJjcmVhdGVkX2F0XCI6XCIyMDI2LTAxLTAyVDAzOjA0OjA1WlwiLFwiYnVuZGxlX2lkXCI6XCIwMUhWMDAwMDAwMDAwMDAwMDAwMDAwMDAwMFwifSIsImhhc2hfYWxnbyI6InNoYTI1NiIsInByZXZfaGFzaCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJzZXEiOjAsInRpbWVzdGFtcCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDVaIiwidHlwZSI6ImF0Yi5idW5kbGUubWFuaWZlc3QifQ==",
+    "expected_hash": "42be76419190963785e7fa09d117484aa444cb20ac737cafc25ba9e1cd2345b6"
+  },
+  {
+    "description": "atb.bundle.manifest v2 with structured-object data (no double-encoding)",
+    "event": {
+      "seq": 0,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "atb.bundle.manifest",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "data": {
+        "version": 2,
+        "created_at": "2026-01-02T03:04:05Z",
+        "bundle_id": "00112233445566778899aabbccddeeff"
+      }
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_canonical_bytes": "eyJkYXRhIjp7ImJ1bmRsZV9pZCI6IjAwMTEyMjMzNDQ1NTY2Nzc4ODk5YWFiYmNjZGRlZWZmIiwiY3JlYXRlZF9hdCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDVaIiwidmVyc2lvbiI6Mn0sImhhc2hfYWxnbyI6InNoYTI1NiIsInByZXZfaGFzaCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJzZXEiOjAsInRpbWVzdGFtcCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDVaIiwidHlwZSI6ImF0Yi5idW5kbGUubWFuaWZlc3QifQ==",
+    "expected_hash": "9537a098882aa06a026864af8582d3f7c33693a34294081a334c48f6fc5903f2"
+  }
+]

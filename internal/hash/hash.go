@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package hash implements the ATB SHA-256 hash-chaining algorithm.
 // Each event's hash is computed over the canonical JSON of the event
 // prepended with the previous event's hash, forming a tamper-evident chain.

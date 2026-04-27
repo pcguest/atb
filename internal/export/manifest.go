@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package export
 
 import "github.com/pcguest/atb/internal/verify"

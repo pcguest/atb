@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package archive provides a tamper-evident archive ledger for archived ATB bundles.
 package archive
 

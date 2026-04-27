@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package profiles — DSL v1 profile loader.
 //
 // DSL v1 scope (what a user-defined profile file can express):

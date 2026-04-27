@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package canonicalize implements RFC 8785 JSON Canonicalization Scheme (JCS).
 // It produces a deterministic, canonical byte representation of a JSON value
 // suitable for cryptographic hashing.

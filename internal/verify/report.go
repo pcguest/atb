@@ -1,17 +1,19 @@
+// SPDX-License-Identifier: MIT
 package verify
 
 type VerifierReport struct {
-	BundlePath   string             `json:"bundle_path"`
-	ProfileID    string             `json:"profile_id"`
-	Pass         bool               `json:"pass"`
-	CASScore     float64            `json:"cas_score,omitempty"`
-	CASGrade     string             `json:"cas_grade,omitempty"`
-	SubScores    map[string]float64 `json:"sub_scores,omitempty"`
-	Failures     []ReportFailure    `json:"critical_failures"`
-	Warnings     []string           `json:"required_warnings"`
-	Notes        []string           `json:"informational_notes"`
-	Exclusions   []string           `json:"exclusions,omitempty"`
-	ResidualRisk string             `json:"residual_risk"`
+	BundlePath   string                `json:"bundle_path"`
+	ProfileID    string                `json:"profile_id"`
+	Pass         bool                  `json:"pass"`
+	CASScore     float64               `json:"cas_score,omitempty"`
+	CASGrade     string                `json:"cas_grade,omitempty"`
+	SubScores    map[string]float64    `json:"sub_scores,omitempty"`
+	Failures     []ReportFailure       `json:"critical_failures"`
+	Warnings     []string              `json:"required_warnings"`
+	Notes        []string              `json:"informational_notes"`
+	Exclusions   []string              `json:"exclusions,omitempty"`
+	Signatures   []SignatureProvenance `json:"signatures,omitempty"`
+	ResidualRisk string                `json:"residual_risk"`
 }
 
 type ReportFailure struct {
@@ -30,6 +32,10 @@ func ReportFromVerify(r Report) VerifierReport {
 
 	if len(r.Exclusions) > 0 {
 		report.Exclusions = append([]string(nil), r.Exclusions...)
+	}
+
+	if len(r.Signatures) > 0 {
+		report.Signatures = append([]SignatureProvenance(nil), r.Signatures...)
 	}
 
 	if r.CAS != nil {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package event defines the canonical ATB event model shared by hashing and bundles.
 package event
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package encrypt provides authenticated encryption for ATB bundles.
 //
 // Wire format:

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package event defines the canonical ATB event taxonomy.
 // Event type strings follow the reverse-DNS dotted-namespace convention.
 // These constants are the authoritative source of truth across the Go
@@ -9,8 +10,10 @@ const (
 	TypeBundleManifest  = "atb.bundle.manifest"
 	TypeBundleAnchor    = "atb.bundle.anchor"
 	TypeBundleSignature = "atb.bundle.signature"
-	TypeSnapshot        = "atb.snapshot"
-	TypeBundlePushed    = "atb.bundle.pushed"
+	// TypeSnapshot data may include optional Article 14 human oversight fields:
+	// actor_id, actor_role, and oversight_note.
+	TypeSnapshot     = "atb.snapshot"
+	TypeBundlePushed = "atb.bundle.pushed"
 )
 
 // AI request and response events.

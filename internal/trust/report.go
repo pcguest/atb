@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package trust builds high-level trust reports for ATB bundles and shipped evidence.
 package trust
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package corroboration provides adapters that retrieve external evidence and
 // return records ready to append as atb.corroboration.external events.
 package corroboration

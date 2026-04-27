@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package verify
 
 import (
@@ -122,6 +123,7 @@ func evaluateLoadedBundle(
 	}
 
 	report.BundleSignature = inspectBundleSignature(b, bundlePath)
+	report.Signatures = inspectAllBundleSignatures(b, bundlePath)
 
 	selectedProfiles := normaliseProfiles(profiles)
 	if allApplicable {

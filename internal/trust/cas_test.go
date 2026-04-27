@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package trust
 
 import "testing"

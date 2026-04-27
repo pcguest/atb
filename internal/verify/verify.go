@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // Package verify evaluates ATB bundles against obligation profiles and
 // produces structured verification reports.
 package verify
@@ -86,6 +87,7 @@ type Report struct {
 	Integrity          IntegrityResult        `json:"integrity"`
 	Anchoring          AnchoringResult        `json:"anchoring"`
 	BundleSignature    *BundleSignatureResult `json:"bundle_signature,omitempty"`
+	Signatures         []SignatureProvenance  `json:"signatures,omitempty"`
 	Profiles           []ProfileResult        `json:"profiles"`
 	CAS                *CASResult             `json:"cas,omitempty"` // nil if integrity fails or no profile matched
 	InformationalNotes []string               `json:"informational_notes,omitempty"`
