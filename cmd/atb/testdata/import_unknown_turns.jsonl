@@ -1,0 +1,3 @@
+{"role":"user","content":"Look up the remote-work reimbursement policy.","timestamp":"2026-04-24T09:00:10Z","session_id":"sess-import-unknown","request_id":"req-import-unknown","actor_id_hash":"sha256:employee-001","purpose_tag":"policy_lookup"}
+{"role":"tool","content":"{\"eligible_items\":[\"keyboard\",\"monitor\"],\"limit\":\"250 AUD\"}","timestamp":"2026-04-24T09:00:11Z","session_id":"sess-import-unknown","tool_name":"hr.policy.lookup","tool_call_id":"call-policy-001","tool_args":{"query":"remote work equipment reimbursement","region":"AU"}}
+{"role":"unknown_role","content":"Internal reviewer note that should not become an ATB event.","timestamp":"2026-04-24T09:00:12Z","session_id":"sess-import-unknown"}

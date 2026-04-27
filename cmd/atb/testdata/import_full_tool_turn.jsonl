@@ -1,0 +1,2 @@
+{"role":"user","content":"Check whether contractor onboarding requires a signed NDA.","timestamp":"2026-04-24T10:00:00Z","session_id":"sess-full-tool","request_id":"req-full-tool","actor_id_hash":"sha256:manager-001","purpose_tag":"vendor_onboarding"}
+{"role":"tool","content":"NDA required before access provisioning.","timestamp":"2026-04-24T10:00:01Z","session_id":"sess-full-tool","tool_name":"legal.policy.lookup","tool_call_id":"call-nda-001","tool_args":{"query":"contractor NDA onboarding","jurisdiction":"AU","include_archived":false}}

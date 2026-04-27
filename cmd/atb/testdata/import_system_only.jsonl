@@ -1,0 +1,2 @@
+{"role":"system","content":"Use the HR policy handbook as retrieval context only.","timestamp":"2026-04-24T09:00:00Z","session_id":"sess-system-only"}
+{"role":"system","content":"Prefer short answers with policy citations.","timestamp":"2026-04-24T09:00:01Z","session_id":"sess-system-only"}
