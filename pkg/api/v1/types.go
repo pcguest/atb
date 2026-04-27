@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package apiv1
 
 // VerificationResponse reports top-level integrity status for a bundle view session.

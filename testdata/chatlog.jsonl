@@ -1,0 +1,5 @@
+{"role":"system","content":"Use the HR handbook and answer plainly.","timestamp":"2026-04-24T09:00:00Z","session_id":"sess-hr-001"}
+{"role":"user","content":"Can I carry annual leave into next year?","timestamp":"2026-04-24T09:00:10Z","session_id":"sess-hr-001","request_id":"req-hr-001","actor_id_hash":"sha256:user-hr-001","purpose_tag":"rag_answer"}
+{"role":"assistant","content":"I will check the handbook.","timestamp":"2026-04-24T09:00:11Z","session_id":"sess-hr-001","model":"gpt-4o-mini"}
+{"role":"tool","content":"{\"policy\":\"Up to five days may be carried over with manager approval.\"}","timestamp":"2026-04-24T09:00:12Z","session_id":"sess-hr-001","tool_name":"hr.policy.lookup","tool_args":{"query":"annual leave carry over"}}
+{"role":"assistant","content":"Yes. Up to five days may be carried over with manager approval.","timestamp":"2026-04-24T09:00:13Z","session_id":"sess-hr-001","model":"gpt-4o-mini"}
