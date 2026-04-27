@@ -1,11 +1,15 @@
+// SPDX-License-Identifier: MIT
 package bundle_test
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -103,6 +107,63 @@ func TestNewBundleHasManifest(t *testing.T) {
 		t.Fatalf("manifest bundle_id should be lowercase hex, got %q", manifest.BundleID)
 	}
 	t.Logf("manifest=%+v", *manifest)
+}
+
+func TestManifestCaptureRunIDRoundTrips(t *testing.T) {
+	b, err := bundle.NewWithOptions(bundle.NewOptions{CaptureRunID: "cap-test-123"})
+	if err != nil {
+		t.Fatalf("NewWithOptions() error = %v", err)
+	}
+	manifest := b.Manifest()
+	if manifest == nil {
+		t.Fatalf("expected manifest")
+	}
+	if manifest.CaptureRunID != "cap-test-123" {
+		t.Fatalf("CaptureRunID = %q, want %q", manifest.CaptureRunID, "cap-test-123")
+	}
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	loadedManifest := loaded.Manifest()
+	if loadedManifest == nil {
+		t.Fatalf("expected loaded manifest")
+	}
+	if loadedManifest.CaptureRunID != "cap-test-123" {
+		t.Fatalf("loaded CaptureRunID = %q, want %q", loadedManifest.CaptureRunID, "cap-test-123")
+	}
+}
+
+func TestManifestOmitsEmptyCaptureRunIDAndLoads(t *testing.T) {
+	b := newTestBundle(t)
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read bundle: %v", err)
+	}
+	if strings.Contains(string(raw), "capture_run_id") {
+		t.Fatalf("manifest unexpectedly contains capture_run_id: %s", raw)
+	}
+
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load bundle without capture_run_id: %v", err)
+	}
+	manifest := loaded.Manifest()
+	if manifest == nil {
+		t.Fatalf("expected loaded manifest")
+	}
+	if manifest.CaptureRunID != "" {
+		t.Fatalf("CaptureRunID = %q, want empty", manifest.CaptureRunID)
+	}
 }
 
 func TestLoadLegacyBundleNoManifest(t *testing.T) {
@@ -252,6 +313,73 @@ func TestSaveAtomic(t *testing.T) {
 	})
 }
 
+func TestSaveConcurrentWritersSerialiseOrReturnLocked(t *testing.T) {
+	t.Parallel()
+
+	const goroutines = 5
+	const rounds = 5
+
+	for round := 0; round < rounds; round++ {
+		round := round
+		t.Run(fmt.Sprintf("round_%d", round), func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), "bundle.atb")
+			start := make(chan struct{})
+			results := make([]error, goroutines)
+			var wg sync.WaitGroup
+
+			for i := 0; i < goroutines; i++ {
+				i := i
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					<-start
+
+					b, err := bundle.New()
+					if err != nil {
+						results[i] = err
+						return
+					}
+					if err := b.Append("ai.tool.exec", map[string]any{
+						"round":  round,
+						"writer": i,
+					}); err != nil {
+						results[i] = err
+						return
+					}
+					results[i] = b.Save(path)
+				}()
+			}
+
+			close(start)
+			wg.Wait()
+
+			successes := 0
+			for _, err := range results {
+				switch {
+				case err == nil:
+					successes++
+				case errors.Is(err, bundle.ErrBundleLocked):
+				default:
+					t.Fatalf("unexpected Save error: %v", err)
+				}
+			}
+			if successes == 0 {
+				t.Fatal("expected at least one Save to succeed")
+			}
+
+			loaded, err := bundle.Load(path)
+			if err != nil {
+				t.Fatalf("load final bundle: %v", err)
+			}
+			if err := loaded.Verify(); err != nil {
+				t.Fatalf("verify final bundle: %v", err)
+			}
+		})
+	}
+}
+
 func TestVerifyDetectsHashTampering(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bundle.atb")
 	b := newTestBundle(t)
@@ -276,5 +404,202 @@ func TestVerifyDetectsHashTampering(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "tamper detected") {
 		t.Fatalf("expected tamper detected error, got %v", err)
+	}
+}
+
+func TestManifestV1OpensAndVerifies(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v1.atb")
+	b, err := bundle.New() // default v1
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	if err := b.Append("ai.tool.exec", map[string]any{"k": "v"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load v1: %v", err)
+	}
+	if err := loaded.Verify(); err != nil {
+		t.Fatalf("verify v1: %v", err)
+	}
+	if m := loaded.Manifest(); m == nil || m.Version != bundle.ManifestVersion {
+		t.Fatalf("v1 manifest = %+v, want version %s", m, bundle.ManifestVersion)
+	}
+}
+
+func TestManifestV2OpensAndVerifies(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v2.atb")
+	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV2})
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	if err := b.Append("ai.tool.exec", map[string]any{"k": "v"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load v2: %v", err)
+	}
+	if err := loaded.Verify(); err != nil {
+		t.Fatalf("verify v2: %v", err)
+	}
+	if m := loaded.Manifest(); m == nil || m.Version != "2" {
+		t.Fatalf("v2 manifest = %+v, want version 2", m)
+	}
+	if loaded.Records[0].Event.Data == nil {
+		t.Fatal("v2 manifest data unexpectedly nil")
+	}
+	if _, ok := loaded.Records[0].Event.Data.(string); ok {
+		t.Fatal("v2 manifest must not be a JSON-encoded string")
+	}
+}
+
+func TestManifestV2RoundTrip(t *testing.T) {
+	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV2})
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	original := b.Manifest()
+	if original == nil {
+		t.Fatal("expected manifest")
+	}
+
+	path := filepath.Join(t.TempDir(), "rt.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	loaded, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	got := loaded.Manifest()
+	if got == nil {
+		t.Fatal("loaded manifest nil")
+	}
+	if got.Version != original.Version || got.CreatedAt != original.CreatedAt || got.BundleID != original.BundleID {
+		t.Fatalf("v2 round-trip drift: original=%+v loaded=%+v", *original, *got)
+	}
+}
+
+func TestManifestUnknownVersionWrapsErrMalformed(t *testing.T) {
+	// Hand-craft a bundle file whose manifest declares an unsupported version 99.
+	createdAt := time.Now().UTC().Format(time.RFC3339)
+	manifestData := map[string]any{
+		"version":    99,
+		"created_at": createdAt,
+		"bundle_id":  "00112233445566778899aabbccddeeff",
+	}
+	manifestEvent := map[string]any{
+		"seq":       0,
+		"prev_hash": hash.GenesisHash,
+		"type":      bundle.ManifestEventType,
+		"hash_algo": "sha256",
+		"timestamp": createdAt,
+		"data":      manifestData,
+	}
+	record := map[string]any{
+		"event": manifestEvent,
+		"hash":  strings.Repeat("0", 64),
+	}
+	line, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "v99.atb")
+	if err := os.WriteFile(path, append(line, '\n'), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	_, err = bundle.Load(path)
+	if err == nil {
+		t.Fatal("expected error loading bundle with manifest version 99")
+	}
+	if !errors.Is(err, bundle.ErrMalformed) {
+		t.Fatalf("expected error wrapping ErrMalformed, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "unsupported manifest version") {
+		t.Fatalf("expected 'unsupported manifest version' in error, got %v", err)
+	}
+}
+
+func TestManifestEValidBundle(t *testing.T) {
+	b := newTestBundle(t)
+
+	m, err := b.ManifestE()
+	if err != nil {
+		t.Fatalf("ManifestE on new bundle: unexpected error %v", err)
+	}
+	if m == nil {
+		t.Fatal("ManifestE returned nil ManifestData")
+	}
+	if m.Version != bundle.ManifestVersion {
+		t.Fatalf("manifest version: got %q want %q", m.Version, bundle.ManifestVersion)
+	}
+}
+
+func TestManifestEEmptyBundle(t *testing.T) {
+	b := &bundle.Bundle{}
+
+	m, err := b.ManifestE()
+	if m != nil {
+		t.Fatalf("expected nil manifest, got %+v", m)
+	}
+	if !errors.Is(err, bundle.ErrNoManifest) {
+		t.Fatalf("expected ErrNoManifest, got %v", err)
+	}
+}
+
+func TestManifestEFirstRecordNotManifest(t *testing.T) {
+	b := &bundle.Bundle{
+		Records: []bundle.Record{
+			{
+				Event: hash.Event{
+					Sequence: 1,
+					PrevHash: hash.GenesisHash,
+					Type:     "ai.tool.exec",
+					HashAlgo: "sha256",
+					Data:     map[string]any{"step": 1},
+				},
+			},
+		},
+	}
+
+	m, err := b.ManifestE()
+	if m != nil {
+		t.Fatalf("expected nil manifest, got %+v", m)
+	}
+	if !errors.Is(err, bundle.ErrNoManifest) {
+		t.Fatalf("expected ErrNoManifest, got %v", err)
+	}
+}
+
+func TestManifestEManifestRecordWithInvalidJSON(t *testing.T) {
+	b := &bundle.Bundle{
+		Records: []bundle.Record{
+			{
+				Event: hash.Event{
+					Sequence: 0,
+					PrevHash: hash.GenesisHash,
+					Type:     bundle.ManifestEventType,
+					HashAlgo: "sha256",
+					Data:     "{not valid json",
+				},
+			},
+		},
+	}
+
+	m, err := b.ManifestE()
+	if m != nil {
+		t.Fatalf("expected nil manifest, got %+v", m)
+	}
+	if !errors.Is(err, bundle.ErrMalformed) {
+		t.Fatalf("expected error wrapping ErrMalformed, got %v", err)
 	}
 }
