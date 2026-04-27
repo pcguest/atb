@@ -4,6 +4,7 @@ Practical guides for integrating and operating ATB in production workflows.
 
 ## AI integrations
 
+- [Capture quickstart](./capture-quickstart.md)
 - [LangChain Integration (Python)](../integrations/langchain.md)
 - [Vercel AI SDK Integration (TypeScript)](../integrations/vercel-ai.md)
 - [AI Integration Overview](../ai-integration.md)

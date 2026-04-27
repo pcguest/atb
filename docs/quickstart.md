@@ -82,6 +82,14 @@ Use `--format json` for the compact verifier report (`pass`, `cas_score`, `cas_g
 `critical_failures`, `residual_risk`). Use `--json` for the full report, including
 `integrity.chain_valid` and the full CAS breakdown.
 
+### CI lock contention
+
+Bundle writes fail fast when another process holds the advisory lock. In CI fan-out, opt into bounded retries with `ATB_LOCK_WAIT` or `--lock-wait`:
+
+```bash
+ATB_LOCK_WAIT=10s atb snapshot ci_checkpoint
+```
+
 ## 2. Installation options
 
 ### Go CLI
@@ -209,12 +217,15 @@ handler = ATBCallbackHandler(privacy_mode="hash")
 
 Integration docs:
 
+- [Capture quickstart](./guides/capture-quickstart.md)
+- [Chatlog import](./integrations/chatlog-import.md)
 - [LangChain integration](./integrations/langchain.md)
 - [Vercel AI SDK integration](./integrations/vercel-ai.md)
 
 ## 8. Next steps
 
 - [Go example](../examples/go/README.md)
+- [Capture quickstart](./guides/capture-quickstart.md)
 - [Python SDK](../sdk/python/README.md)
 - [TypeScript SDK](../sdk/typescript/README.md)
 - [Docs home](./README.md)

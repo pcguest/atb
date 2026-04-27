@@ -17,6 +17,12 @@ This writes `./.atb/config.json` with:
 - `retention.scope` (default: `run.atb/*.atb`)
 - `retention.cutoff_basis` (current supported value: `file_mtime`)
 
+## Statutory minimum
+
+EU AI Act Article 19 requires covered records to be retained for at least 6 months.
+ATB enforces a conservative 183-day floor for `atb config retention --days <n>`.
+Operators can pass `--allow-below-eu-minimum` to set a shorter period, but must record the separate legal basis for that override outside ATB config.
+
 ## Run archive
 
 Archive using configured retention days:

@@ -55,6 +55,32 @@ Each line in a bundle file is a JSON object with the following schema:
 | `event.parent_span_id` | string (optional) | W3C trace context parent span identifier |
 | `hash` | string | Hex-encoded SHA-256 hash of this event |
 
+> **NOTE — Manifest data encoding (v1 and v2)**
+>
+> The `atb.bundle.manifest` record has **two supported data shapes** selected by the `version` field. The default writer emits **v1** for maximum compatibility with existing readers; **v2** is a first-class supported format that opts into a cleaner structured layout.
+>
+> | Field           | v1 (default)                                                                | v2 (opt-in via `--manifest-version 2`)               |
+> |-----------------|-----------------------------------------------------------------------------|------------------------------------------------------|
+> | `event.data`    | JSON-encoded **string** containing manifest fields                           | Structured **object** containing manifest fields     |
+> | `version`       | `"1"` (string)                                                               | `2` (integer)                                        |
+> | `created_at`    | RFC 3339 UTC timestamp                                                       | RFC 3339 UTC timestamp                               |
+> | `bundle_id`     | 32-char lowercase hex                                                        | 32-char lowercase hex                                |
+> | Read pattern    | `json.Unmarshal(event.data.(string))` to recover fields                      | `event.data.(map)` directly                          |
+>
+> v1's double-encoding is **historical, not deliberate design** — early ATB writers stored manifest fields as a JSON string and the format is preserved verbatim so existing bundles re-verify byte-for-byte. Independent implementers MUST reproduce the v1 double-encoding exactly when writing v1; for v2 the manifest is a regular structured event payload.
+>
+> The manifest version is independent of the bundle schema version. v1 data is a JSON-encoded string; v2 data is a structured JSON object. Both are hashed by the same RFC 8785 canonicaliser as any other event — the difference is only what `data` contains.
+>
+> Readers MUST handle both shapes. A reader that encounters a manifest with `version` greater than the highest version it understands (`ManifestVersionMax`, currently 2) MUST refuse to open the bundle and return an error wrapping `ErrMalformed`. The default `--manifest-version` flag remains `1`.
+
+---
+
+## 2.3 Format constraints
+
+- Each NDJSON record must fit on a single line of at most **16,777,216 bytes** (16 MiB, `MaxLineSizeBytes`). A reader MAY reject lines exceeding this limit.
+- Blank lines between records are permitted and ignored.
+- The file MUST be UTF-8 encoded with LF (`\n`) line endings.
+
 ---
 
 ## 3. Hash Algorithm
@@ -93,6 +119,49 @@ This ensures that the same event produces the same hash in every language and ru
 
 Unset optional fields are omitted from canonicalisation output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, or `parent_span_id` are not set, they are excluded from the canonical JSON bytes before hashing.
 
+### 3.4 Canonical hash input
+
+The canonical input to SHA-256 for each record is:
+
+```text
+UTF8( hex(prev_hash) + RFC8785( event ) )
+```
+
+where `event` is the JSON object containing the fields below — **and no others** — serialised via RFC 8785 canonical JSON. This table is the authoritative pinned field set for v1; it matches the JSON tags and `omitempty` annotations on the `Event` struct in `internal/event/event.go`.
+
+| Go field       | JSON key          | Type          | Always emitted? | Omitted when                            |
+|----------------|-------------------|---------------|-----------------|-----------------------------------------|
+| `Sequence`     | `seq`             | integer       | yes             | never                                   |
+| `PrevHash`     | `prev_hash`       | string (hex)  | yes             | never                                   |
+| `Type`         | `type`            | string        | yes             | never                                   |
+| `HashAlgo`     | `hash_algo`       | string        | conditional     | empty string (runtime currently always sets `"sha256"`) |
+| `Data`         | `data`            | any JSON      | yes             | never (may be `null`)                   |
+| `ActorID`      | `actor_id`        | string        | conditional     | nil pointer (field absent)              |
+| `OrgID`        | `org_id`          | string        | conditional     | nil pointer (field absent)              |
+| `WorkspaceID`  | `workspace_id`    | string        | conditional     | nil pointer (field absent)              |
+| `Timestamp`    | `timestamp`       | string (RFC 3339) | conditional | empty string                            |
+| `TraceID`      | `trace_id`        | string (32 hex) | conditional   | empty string                            |
+| `SpanID`       | `span_id`         | string (16 hex) | conditional   | empty string                            |
+| `ParentSpanID` | `parent_span_id`  | string (16 hex) | conditional   | empty string                            |
+
+**Stability note:** If you add a new field to the `Event` struct, it MUST appear in this table before the struct change lands, and the manifest version MUST be bumped (see §9 *Schema versioning*). Failure to do this silently breaks all existing bundle verification. The cross-language canonical-hash golden corpus at `internal/hash/testdata/golden.json` exists to detect such drift; any change that causes `TestCanonicalHashGolden` to fail is a breaking schema change.
+
+### 3.5 Canonical hash golden tests
+
+The file `internal/hash/testdata/golden.json` pins the exact byte output of ATB's RFC 8785 + SHA-256 canonicalisation pipeline across a corpus of representative events (minimal, all-optional-fields-set, structured/null/float/unicode payloads, genesis sentinel, and a chained pair). Any change that causes
+
+```text
+go test ./internal/hash/... -run TestCanonicalHashGolden
+```
+
+to fail is a **breaking schema change** and requires a manifest version bump (§9), a `CHANGELOG.md` entry, and regeneration of the golden file with the new expected values. The same corpus must be mirrored byte-for-byte in the Python and TypeScript SDKs. Do not regenerate the Go golden file without updating those.
+
+To regenerate after a vetted format change:
+
+```text
+go test ./internal/hash/... -run TestCanonicalHashGolden -update
+```
+
 ---
 
 ## 4. Event Types
@@ -106,7 +175,7 @@ Event types use dot-namespaced identifiers. The following types are defined by t
 | `atb.bundle.manifest` | Bundle manifest record. First record in a new bundle (`seq = 0`). |
 | `atb.bundle.anchor` | RFC 3161 TSA anchor record appended after anchoring. |
 | `atb.bundle.signature` | Ed25519 bundle signature record. |
-| `atb.snapshot` | Named bundle checkpoint appended by `atb snapshot`; `bundle_hash` commits to the serialised bundle prefix that existed immediately before the snapshot record was appended. |
+| `atb.snapshot` | Named bundle checkpoint appended by `atb snapshot`; `bundle_hash` commits to the serialised bundle prefix that existed immediately before the snapshot record was appended. See §4.1 for the `data` payload schema. |
 
 The `bundle_hash` field is the SHA-256 (hex) of the serialised bundle
 prefix that existed immediately before the snapshot record was appended,
@@ -120,6 +189,58 @@ recorded `bundle_hash`. On mismatch the verifier reports
 Without `--with-snapshot-check`, `bundle_hash` is not verified: ordinary
 integrity checks still validate the hash chain, but they do not prove the
 snapshot metadata matches the historical prefix.
+
+### 4.1 `atb.snapshot` data payload
+
+The `data` field of an `atb.snapshot` record is a JSON object with the following fields. All fields are required.
+
+| Go field     | JSON key       | Type    | Required | Description                                                              |
+|--------------|----------------|---------|----------|--------------------------------------------------------------------------|
+| `Name`       | `name`         | string  | yes      | Human-readable snapshot label provided by the operator                   |
+| `BundleHash` | `bundle_hash`  | string  | yes      | Hex SHA-256 of the bundle NDJSON prefix that existed before this record  |
+| `RecordCount`| `record_count` | integer | yes      | Number of records in that prefix (i.e., before this snapshot record)     |
+| `SnapshotAt` | `snapshot_at`  | string  | yes      | RFC 3339 UTC timestamp of when the snapshot was taken                    |
+
+The Go source of truth is `snapshotEventData` in `cmd/atb/snapshot.go`.
+
+### 4.2 `atb.bundle.signature` data payload
+
+Required fields:
+
+| JSON key      | Type           | Description                                                              |
+|---------------|----------------|--------------------------------------------------------------------------|
+| `bundle_hash` | string (hex)   | SHA-256 of the pre-signature bundle NDJSON bytes                         |
+| `signature`   | string (base64)| Ed25519 signature over the raw 32-byte `bundle_hash`                     |
+| `pubkey`      | string (base64)| Raw 32-byte Ed25519 public key                                            |
+
+A back-compatibility alias `public_key` is accepted by the verifier for bundles signed before the CLI standardised on `pubkey`. New writers MUST emit `pubkey`.
+
+#### Pre-image (KMS signing contract)
+
+The signed pre-image is **`SHA-256(pre-signature bundle NDJSON bytes)`** — i.e. the 32-byte digest of every NDJSON byte written to disk *before* the signature record itself is appended. This is the byte sequence passed to every signer (local Ed25519, AWS KMS, GCP KMS, Vault Transit) as the message to sign. Backends that hash internally (KMS) MUST be configured to receive the digest, not the bundle bytes; backends that sign the message verbatim (local Ed25519) sign the 32-byte digest directly. The verifier MUST recompute the same digest from the bundle prefix and feed it to the algorithm's `Verify` primitive.
+
+Optional fields (current, additive):
+
+The following optional fields may appear in the `atb.bundle.signature` data payload. Implementations MUST ignore unknown fields and MUST NOT reject signatures that omit them.
+
+| JSON key       | Type    | Description                                                                                     |
+|----------------|---------|-------------------------------------------------------------------------------------------------|
+| `key_id`       | string  | Opaque key identifier scoped to the backend (empty/absent for `local`)                          |
+| `backend`      | string  | Signing backend: `local`, `https-http`, `aws-kms`, `gcp-kms`, `vault`, or `local:fallback:<backend>` |
+| `algorithm`    | string  | Signing algorithm: `ed25519` or `ecdsa-p256`. **Absent or empty MUST be treated as `ed25519`** for backward compatibility with bundles written before this field existed. |
+| `signed_at`    | string  | RFC 3339 timestamp of the signing operation (writers SHOULD use RFC 3339 nano-precision)        |
+
+Newly-signed bundles emitted by the local signer carry `algorithm="ed25519"`, `backend="local"`, and a `signed_at` timestamp explicitly. Bundles signed before these fields were emitted continue to verify: the verifier defaults `algorithm` to `ed25519` and treats absent `backend`/`signed_at` as legacy/implicit local.
+
+#### Planned extensions (non-breaking, additive)
+
+The following optional fields are tracked for a future minor release:
+
+| JSON key       | Type    | Description                                                                                     |
+|----------------|---------|-------------------------------------------------------------------------------------------------|
+| `signed_over`  | string  | Hex SHA-256 of the pre-signature bundle bytes (already the implicit pre-image; made explicit)   |
+
+The signing policy for the bundle (which backends are permitted, minimum signatures required) will be declared in a `signing_policy` field added to the manifest in schema version 2.
 
 ### Legacy event types (v1.0, superseded)
 
@@ -208,9 +329,64 @@ ATB supports optional client-side bundle encryption via `atb encrypt` / `atb dec
 
 Push transport behaviour is documented separately in `docs/spec/bundle-push.md (forthcoming)`. See [the draft spec](./spec/bundle-push.md). That document is outside the frozen v1.0 local storage contract.
 
+### 6.3 CLI exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success. |
+| `1` | User/input error, including bad flags or missing local files. |
+| `2` | Bundle integrity verification failure. |
+| `3` | Profile verification failure or system/runtime error. |
+| `9` | Bundle lock contention; downstream automation should retry after a short delay. |
+
+Contention-sensitive commands that write a bundle (`atb sign`, `atb snapshot`, `atb capture run`, and `atb append`) accept `--lock-wait <duration>`. The default is `0`, which preserves the fail-fast behaviour: a held bundle lock exits with code `9` immediately. When the duration is greater than zero, the command retries advisory lock acquisition until the duration elapses.
+
+The same setting may be supplied through `ATB_LOCK_WAIT`, for example:
+
+```text
+ATB_LOCK_WAIT=10s atb snapshot ci_checkpoint
+```
+
+If a process crashes while holding the lock, the `.lock` sidecar file may remain. Manual removal of `<bundle>.lock` clears that stale sidecar file; remove it only after confirming no ATB writer is still running.
+
+### 6.4 Capture run environment contract
+
+`atb capture run` wraps a child process and exposes the capture context to it through environment variables. Three variables are exported under the default `ATB` prefix:
+
+- `ATB_BUNDLE_PATH` — absolute path to the bundle the child should append to.
+- `ATB_CAPTURE_RUN_ID` — opaque, per-invocation identifier; a fresh value is generated for every `capture run`.
+- `ATB_CAPTURE_MODE` — current capture mode marker (typically the string `run`).
+
+When `--env-prefix <NAME>` is supplied, the same three variables are *additionally* exported under the supplied prefix (for example, `MYAPP_BUNDLE_PATH`); the default `ATB_*` exports are always present alongside.
+
+The wrapper exits with the child's exit status. If the child terminates due to a signal, `atb capture run` exits `128 + signal`, the standard POSIX convention, without remapping. A non-zero child exit suppresses any `--snapshot` event that would otherwise have been appended on success.
+
 ---
 
-## 7. Schema Evolution (v1.0+)
+## 7. KMS and remote signing
+
+The default signing backend is local Ed25519. `https-http` delegates signing to
+a remote HTTP signer that returns the signature and public verification key.
+
+Tagged CLI builds can include concrete KMS clients:
+
+- `aws-kms`, built with `-tags awskms`
+- `gcp-kms`, built with `-tags gcpkms`
+- `vault`, built with `-tags vault`
+
+The Vault backend reads the Transit key type from `/v1/transit/keys/<name>` and selects `algorithm="ed25519"` or `algorithm="ecdsa-p256"` accordingly; other key types are rejected. If the Vault response omits the `type` field (older API versions), the signer falls back to `ecdsa-p256` and emits a stderr warning so signing still succeeds with documented provenance.
+
+These backends sign the 32-byte SHA-256 pre-signature bundle digest and embed
+the returned public verification key in the bundle signature record, so
+verification should not require a live KMS call. Current KMS scaffolding records
+`algorithm="ecdsa-p256"` because native Ed25519 is not uniformly available
+across the target KMS services. ECDSA-P256 verification is tracked follow-up
+work; bundles produced by these tagged signers are expected to fail signature
+verification until that verifier extension is implemented.
+
+---
+
+## 8. Schema Evolution (v1.0+)
 
 ATB v1.0+ supports optional fields on events:
 
@@ -252,6 +428,27 @@ const eventWithActor: Event = {
 };
 ```
 
-## 8. Versioning
+## 9. Schema versioning
+
+The manifest `version` field governs bundle compatibility. The current stable
+version is **1**. Experimental manifest version **2** stores manifest `data` as
+a structured object instead of a JSON-encoded string and is only emitted when
+explicitly requested. The product CLI/SDK SemVer policy is separate and lives
+in `VERSIONING.md`; this section governs the on-disk bundle format only.
+
+**Breaking change (requires manifest version bump):**
+
+- Adding, removing, or renaming a field on `Event` that is included in the canonical hash input (see §3.4)
+- Changing the hash algorithm or canonicalisation rule
+- Changing the pre-image for bundle signatures
+- Changing how the manifest `data` field is encoded
+
+**Non-breaking (no manifest version bump required):**
+
+- Adding optional fields to any event's `data` payload (readers MUST ignore unknown fields)
+- Adding new event types to the registry
+- Adding new obligation profiles
+
+**Float serialisation note:** A canonicalisation change was made in v1.1.2 that altered the serialisation of floating-point values where `|f| >= 1e21` or `0 < |f| < 1e-6` (these now use exponential form). Bundles written before v1.1.2 that contain such values will not re-verify under the current implementation. These are considered distinct format revisions; the manifest version was not bumped at the time. A future v2 manifest will formally separate these.
 
 This document describes ATB specification version **1.0**. Future versions will be backwards-compatible unless a major version increment is made.

@@ -1,6 +1,7 @@
 # Integrations
 
 - [LangChain](./langchain.md)
+- [Chatlog import](./chatlog-import.md)
 - [Vercel AI SDK](./vercel-ai.md)
 - [SIEM and GRC](./siem-grc.md)
 - [MCP bridge (beta)](./mcp.md)
