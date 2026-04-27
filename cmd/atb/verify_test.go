@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -13,6 +14,7 @@ import (
 	"math/big"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +40,85 @@ func TestRunVerify_JSONOutput(t *testing.T) {
 	}
 	if !report.Integrity.ChainValid {
 		t.Fatalf("expected integrity pass, got %+v", report.Integrity)
+	}
+}
+
+func TestRunVerify_ExitCodeContract(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupPath func(t *testing.T) string
+		wantCode  int
+	}{
+		{
+			name: "success",
+			setupPath: func(t *testing.T) string {
+				b, err := bundle.New()
+				if err != nil {
+					t.Fatalf("bundle.New() error = %v", err)
+				}
+				return writeVerifyTestBundle(t, b)
+			},
+			wantCode: exitSuccess,
+		},
+		{
+			name: "missing file is user error",
+			setupPath: func(t *testing.T) string {
+				return filepath.Join(t.TempDir(), "missing.atb")
+			},
+			wantCode: exitUserError,
+		},
+		{
+			name: "bad json is user error",
+			setupPath: func(t *testing.T) string {
+				return writeRawVerifyFile(t, "{not json}\n")
+			},
+			wantCode: exitUserError,
+		},
+		{
+			name: "valid json missing manifest is user error",
+			setupPath: func(t *testing.T) string {
+				return writeRawVerifyFile(t, "{}\n")
+			},
+			wantCode: exitUserError,
+		},
+		{
+			name: "broken chain is tamper error",
+			setupPath: func(t *testing.T) string {
+				b := newTestBundle(t)
+				appendTestBundleEvent(t, b, event.TypeDevSession, map[string]any{"event_id": "evt-1"})
+				b.Records[1].Event.Type = "dev.session.tampered"
+				return writeVerifyTestBundle(t, b)
+			},
+			wantCode: exitIntegrityFailure,
+		},
+		{
+			name: "read failure is system error",
+			setupPath: func(t *testing.T) string {
+				if runtime.GOOS == "windows" {
+					t.Skip("permission-bit read failure is not portable on Windows")
+				}
+				path := writeRawVerifyFile(t, "")
+				if err := os.Chmod(path, 0000); err != nil {
+					t.Fatalf("chmod unreadable bundle: %v", err)
+				}
+				t.Cleanup(func() { _ = os.Chmod(path, 0600) })
+				return path
+			},
+			wantCode: exitSystemError,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			path := tc.setupPath(t)
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := runVerify([]string{"--bundle", path}, &stdout, &stderr)
+			if exitCode != tc.wantCode {
+				t.Fatalf("runVerify() exit code = %d, want %d (stdout=%q stderr=%q)", exitCode, tc.wantCode, stdout.String(), stderr.String())
+			}
+		})
 	}
 }
 
@@ -68,6 +149,24 @@ func TestRunVerify_JSONOutput_AllBuiltInProfilesEmitCAS(t *testing.T) {
 				t.Fatalf("expected CAS output for %q", tc.profileID)
 			}
 		})
+	}
+}
+
+func TestRunVerify_ProfileNotFoundExitsUserError(t *testing.T) {
+	path := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", path, "--profile=nonexistent"}, &stdout, &stderr)
+	if exitCode != exitUserError {
+		t.Fatalf("runVerify() exit code = %d, want %d (stderr=%q)", exitCode, exitUserError, stderr.String())
+	}
+	if stdout.Len() != 0 {
+		t.Fatalf("stdout = %q, want empty", stdout.String())
+	}
+	want := "verify: profile \"nonexistent\" not found in config\n"
+	if stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }
 
@@ -113,6 +212,37 @@ func TestRunVerify_DryRunOutputsVerifierReport(t *testing.T) {
 	}
 	if len(report.Notes) != 1 || report.Notes[0] != "dry-run: no evaluation performed" {
 		t.Fatalf("unexpected dry-run notes: %+v", report.Notes)
+	}
+}
+
+func TestVerifyCaptureRunRoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle.atb")
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("bundle.New() error = %v", err)
+	}
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("bundle.Save() error = %v", err)
+	}
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	captureExit := runCaptureRun([]string{
+		"--bundle", bundlePath,
+		"--snapshot", "after_capture",
+		"--",
+		"sh", "-c", "true",
+	}, bytes.NewBuffer(nil), &stdout, &stderr)
+	if captureExit != exitSuccess {
+		t.Fatalf("runCaptureRun() exit code = %d, want %d (stdout=%q stderr=%q)", captureExit, exitSuccess, stdout.String(), stderr.String())
+	}
+
+	stdout.Reset()
+	stderr.Reset()
+	verifyExit := runVerify([]string{"--bundle", bundlePath}, &stdout, &stderr)
+	if verifyExit != exitSuccess {
+		t.Fatalf("runVerify() exit code = %d, want %d (stdout=%q stderr=%q)", verifyExit, exitSuccess, stdout.String(), stderr.String())
 	}
 }
 
@@ -746,6 +876,16 @@ func writeVerifyTestBundle(t testing.TB, b *bundle.Bundle) string {
 	path := filepath.Join(t.TempDir(), "bundle.atb")
 	if err := b.Save(path); err != nil {
 		t.Fatalf("save bundle: %v", err)
+	}
+	return path
+}
+
+func writeRawVerifyFile(t testing.TB, content string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+		t.Fatalf("write raw verify file: %v", err)
 	}
 	return path
 }

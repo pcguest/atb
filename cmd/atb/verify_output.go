@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -48,6 +49,9 @@ type verifyRelationSpec struct {
 	to   string
 }
 
+// renderVerifyTerminalReport renders the human-readable verify report only.
+// Exit-code decisions stay in verify.go so CI-facing trust-boundary behaviour
+// is audited separately from presentation text.
 func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 	renderer := verifyTextRenderer{colour: useVerifyANSI(w)}
 
@@ -101,6 +105,11 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 		}
 		if report.BundleSignature.Error != "" {
 			fmt.Fprintf(w, "Signature error: %s\n", report.BundleSignature.Error)
+		}
+	}
+	if len(report.Signatures) > 0 {
+		for _, sig := range report.Signatures {
+			fmt.Fprintln(w, renderSignatureProvenanceLine(sig))
 		}
 	}
 	fmt.Fprintln(w)
@@ -519,4 +528,28 @@ func yesNo(value bool) string {
 		return "yes"
 	}
 	return "no"
+}
+
+// renderSignatureProvenanceLine produces the canonical one-liner used in
+// `atb verify` text output for each atb.bundle.signature record:
+//
+//	signature: backend=<b> key_id=<k> signed_at=<t> pubkey=<p> valid=<bool>
+//
+// Empty fields are rendered as "-" so the line stays uniform across local
+// and remote-signed bundles.
+func renderSignatureProvenanceLine(sig verifypkg.SignatureProvenance) string {
+	dash := func(s string) string {
+		if s == "" {
+			return "-"
+		}
+		return s
+	}
+	return fmt.Sprintf(
+		"signature: backend=%s key_id=%s signed_at=%s pubkey=%s valid=%t",
+		dash(sig.Backend),
+		dash(sig.KeyID),
+		dash(sig.SignedAt),
+		dash(sig.PubKey),
+		sig.Valid,
+	)
 }

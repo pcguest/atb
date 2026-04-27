@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -77,12 +78,7 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 
 	selection, exitCode, err := resolveVerifySelection(cfg.ProfileID)
 	if err != nil {
-		if exitCode == exitUserError {
-			fmt.Fprintf(stderr, "atb verify: %v\n", err)
-			printVerifyUsage(stderr)
-		} else {
-			fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
-		}
+		writeVerifySelectionError(stderr, cfg.ProfileID, err)
 		return exitCode
 	}
 
@@ -105,13 +101,19 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 
 	b, err := bundle.Load(cfg.BundlePath)
 	if err != nil {
-		exitCode := exitUserError
+		exitCode := classifyVerifyBundleLoadError(err)
 		if isLegacyJSONMode(cfg) {
-			exitCode = classifyBundleLoadError(err)
 			_ = writeLegacyVerifyJSON(stdout, newVerifyResult(cfg.BundlePath, nil, "error"), err)
 		}
 		fmt.Fprintf(stderr, "atb verify: %v\n", err)
 		return exitCode
+	}
+	if err := validateVerifyBundle(b); err != nil {
+		if isLegacyJSONMode(cfg) {
+			_ = writeLegacyVerifyJSON(stdout, newVerifyResult(cfg.BundlePath, b, "error"), err)
+		}
+		fmt.Fprintf(stderr, "atb verify: %v\n", err)
+		return exitUserError
 	}
 
 	if cfg.Trace {
@@ -155,7 +157,7 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 				_ = writeLegacyVerifyJSON(stdout, result, err)
 			}
 			fmt.Fprintf(stderr, "atb verify: %v\n", err)
-			return exitIntegrityFailure
+			return classifyVerifyRootsError(err)
 		}
 		prevRoots := verifyBundleAnchorRoots
 		verifyBundleAnchorRoots = roots
@@ -379,6 +381,51 @@ func verificationExitCode(report verifypkg.Report) int {
 	return exitSuccess
 }
 
+func classifyVerifyBundleLoadError(err error) int {
+	switch {
+	case isBundleLocked(err):
+		return exitLockContention
+	case errors.Is(err, os.ErrNotExist):
+		return exitUserError
+	case errors.Is(err, os.ErrPermission):
+		return exitSystemError
+	case errors.Is(err, bundle.ErrMalformed):
+		return exitUserError
+	}
+
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "unmarshal"),
+		strings.Contains(msg, "parse manifest"),
+		strings.Contains(msg, "unsupported manifest version"):
+		return exitUserError
+	case strings.Contains(msg, "scan"):
+		return exitSystemError
+	default:
+		return exitSystemError
+	}
+}
+
+func classifyVerifyRootsError(err error) int {
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, os.ErrPermission) {
+		return exitSystemError
+	}
+	return exitUserError
+}
+
+func validateVerifyBundle(b *bundle.Bundle) error {
+	if b == nil || len(b.Records) == 0 {
+		return fmt.Errorf("bundle: missing manifest record")
+	}
+	if b.Records[0].Event.Type != bundle.ManifestEventType {
+		return fmt.Errorf("bundle: missing manifest record")
+	}
+	if _, err := b.ManifestE(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func isLegacyJSONMode(cfg verifyCLIConfig) bool {
 	return !cfg.JSON && cfg.LegacyFormat == verifyFormatJSON
 }
@@ -442,12 +489,21 @@ func resolveVerifySelection(profileSpec string) (verifySelection, int, error) {
 		profile = verifypkg.ProfileByID("atb.profile." + profileSpec)
 	}
 	if profile == nil {
-		return verifySelection{}, exitIntegrityFailure, fmt.Errorf("unknown profile")
+		return verifySelection{}, exitUserError, fmt.Errorf("profile %q not found in config: %w", profileSpec, verifypkg.ErrProfileUnknown)
 	}
 	return verifySelection{
 		profiles:          []verifypkg.Profile{profile},
 		resolvedProfileID: profile.ID(),
 	}, exitSuccess, nil
+}
+
+func writeVerifySelectionError(stderr io.Writer, profileSpec string, err error) {
+	if errors.Is(err, verifypkg.ErrProfileUnknown) {
+		fmt.Fprintf(stderr, "verify: profile %q not found in config\n", profileSpec)
+		return
+	}
+	fmt.Fprintf(stderr, "atb verify: %v\n", err)
+	printVerifyUsage(stderr)
 }
 
 func buildCorroborationOption(cfg verifyCLIConfig) (verifypkg.EvaluateOption, error) {
@@ -542,17 +598,17 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 	b, err := bundle.LoadReader(out.Body)
 	if err != nil {
 		fmt.Fprintf(stderr, "atb verify: load remote bundle: %v\n", err)
-		return exitSystemError
+		return classifyVerifyBundleLoadError(err)
+	}
+	if err := validateVerifyBundle(b); err != nil {
+		fmt.Fprintf(stderr, "atb verify: load remote bundle: %v\n", err)
+		return exitUserError
 	}
 
 	// Run the normal verification pipeline (profile, chain integrity, etc.).
 	selection, exitCode, err := resolveVerifySelection(cfg.ProfileID)
 	if err != nil {
-		if exitCode == exitUserError {
-			fmt.Fprintf(stderr, "atb verify: %v\n", err)
-		} else {
-			fmt.Fprintf(stderr, "unknown profile: %s\n", cfg.ProfileID)
-		}
+		writeVerifySelectionError(stderr, cfg.ProfileID, err)
 		return exitCode
 	}
 
