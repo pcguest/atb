@@ -48,6 +48,7 @@ a WORM-capable store before relying on bundles as primary evidence.
 - Incident review, customer handoff, privacy review, and internal audit where raw traces should remain under local control.
 - Workflow-specific evidence checks through six schema-locked obligation profiles.
 - Local review through the Go CLI, Python SDK, TypeScript SDK, MCP stdio bridge, local viewer, and explicit WORM export.
+- Capture v1 entry points: `atb capture run` wraps a child process with a prepared bundle path and capture environment variables, and `atb import chatlog` imports saved chatlogs into canonical events without provider scraping.
 
 ### What ATB does not do
 
@@ -121,6 +122,26 @@ Abbreviated `atb verify --profile atb.profile.policy_decision --format json` out
 `atb bundle new` is the explicit alias for `atb init`.
 
 For a fuller first-run path see [`docs/quickstart.md`](docs/quickstart.md).
+
+### Capture v1 entry points
+
+Import a saved chatlog into a local bundle and verify it:
+
+```bash
+atb import chatlog --from generic-jsonl --input ./chatlog.jsonl --snapshot imported_chatlog
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
+```
+
+Wrap a child command so it can locate the bundle through capture environment
+variables, then snapshot and verify the result:
+
+```bash
+atb capture run --snapshot agent_run --profile atb.profile.rag_answer -- ./agent-runner
+```
+
+See [`docs/guides/capture-quickstart.md`](docs/guides/capture-quickstart.md)
+and [`docs/integrations/chatlog-import.md`](docs/integrations/chatlog-import.md)
+for the full Capture v1 path.
 
 ## Typical workflow
 
@@ -309,6 +330,8 @@ alongside the rest of the workflow.
 - [Roadmap](docs/roadmap.md)
 - [MCP Integration](docs/integrations/mcp.md)
 - [WORM/S3 Export](docs/integrations/worm-s3.md)
+- [Capture Quickstart](docs/guides/capture-quickstart.md)
+- [Chatlog Import](docs/integrations/chatlog-import.md)
 - [Python SDK](sdk/python/README.md)
 - [TypeScript SDK](sdk/typescript/README.md)
 - [Incident Review Workflow](docs/guides/incident-review-workflow.md)

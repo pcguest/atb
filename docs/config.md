@@ -19,6 +19,35 @@ ATB core CLI is local-first and does not require environment variables for day-t
 | `atb events` | `--json`, `--profile <id>` |
 | `atb trust-report` | optional `bundle_path`, `--format markdown, json, or text`, `--profile <id>` |
 | `atb view` | optional `bundle_path`, `--bundle <path>`, `--host <host>`, `--port <port>`, `--no-open`, `--log-reveals` |
+| `atb capture run` | `--bundle <path>`, `--snapshot <name>`, `--env-prefix <NAME>`, `--profile <id>`, `--lock-wait <duration>`, `-- <command> [args...]` |
+| `atb import chatlog` | `--from <provider-type>`, `--input <path or ->`, `--bundle <path>`, `--snapshot <name>`, `--format text or json`, `--max-input-size <bytes>` |
+
+## Capture environment variables
+
+`atb capture run` injects environment variables into the child process so the
+child can locate the bundle and tag events with the active capture run. The
+canonical `ATB_`-prefixed variables are always set:
+
+| Variable | Value |
+| --- | --- |
+| `ATB_BUNDLE_PATH` | Absolute path to the bundle the wrapper prepared. |
+| `ATB_CAPTURE_RUN_ID` | Run identifier of the form `cap-<16-hex>`, generated per invocation. |
+| `ATB_CAPTURE_MODE` | Always `run` for `atb capture run`. |
+
+When `--env-prefix <NAME>` is supplied, the child additionally sees the same
+three variables under the requested prefix. The prefix is upper-cased and
+must match `^[A-Za-z][A-Za-z0-9_]*$`; an invalid prefix is rejected at flag
+parse. `--env-prefix=ATB` duplicates the canonical prefix and emits a warning
+on stderr.
+
+| Variable (when `--env-prefix MYAPP` is set) | Value |
+| --- | --- |
+| `MYAPP_BUNDLE_PATH` | Same value as `ATB_BUNDLE_PATH`. |
+| `MYAPP_CAPTURE_RUN_ID` | Same value as `ATB_CAPTURE_RUN_ID`. |
+| `MYAPP_CAPTURE_MODE` | Always `run`. |
+
+The `ATB_LOCK_WAIT` environment variable supplies a default for `--lock-wait`
+when the flag is not passed; CLI flags always take precedence.
 
 ## Push defaults (`.atb/config.json`)
 

@@ -8,6 +8,8 @@ flowchart LR
     MCP["MCP Server<br/>(atb mcp serve)"] --> Core
     PythonSDK["Python SDK"] --> Core
     TypeScriptSDK["TypeScript SDK"] --> Core
+    Capture["Capture wrapper<br/>(atb capture run)"] --> Core
+    Import["Chatlog import<br/>(atb import chatlog)"] --> Core
     Core --> BundleStore["Bundle Store<br/>(.atb file)"]
     BundleStore --> Verify["Verify<br/>(hash chain + profiles)"]
     BundleStore --> View["Dashboard<br/>(atb view)"]
@@ -27,6 +29,42 @@ Integrity is verified at the file boundary on read: `atb verify` runs the hash c
 Export and push operations seal the bundle before writing. A bundle that fails verification cannot be exported or pushed; the operator must address the integrity issue first.
 
 The `Push` path (`atb push s3://bucket/prefix`) is implemented. It is opt-in and explicit; bundles are not pushed automatically. See [`docs/integrations/worm-s3.md`](./integrations/worm-s3.md) for usage.
+
+## Capture and import layer
+
+Capture v1 adds two narrow CLI entry points that sit above the Core Engine and
+preserve the existing trust boundary. Both write into the bundle through the
+same Core Engine append path used by `atb append` and the SDKs; neither reads
+or writes bundle records directly.
+
+`atb capture run` is a wrapper that prepares a local bundle path and runs a
+child command with capture-related environment variables injected into its
+process environment. It does not proxy provider traffic, intercept network
+calls, or auto-instrument arbitrary runtimes. When `--snapshot <name>` is
+supplied, a snapshot record is appended after the child exits. When
+`--profile <id>` is supplied and the child exits successfully, the wrapper
+runs `atb verify` against the resulting bundle. A non-zero child exit code
+always wins: the wrapper returns the child's exit code unless the capture
+layer itself hits a fatal error (lock contention surfaces as exit code 9).
+
+`atb import chatlog` reads a saved chatlog file (or stdin) on the local
+machine and writes canonical ATB events into a local `.atb` bundle. The
+parser, mapper, and bounded-default fill logic live in the
+`internal/capture/` package. `--from generic-jsonl` is the fully-implemented
+provider; `claude-desktop` and `openai-jsonl` are recognised stubs. Mapping
+rules are documented in [`integrations/chatlog-import.md`](./integrations/chatlog-import.md):
+user turns become `ai.request.received`, assistant turns with a `model`
+field become `ai.model.invoked` plus `ai.model.output` plus
+`ai.response.sent`, tool records become `ai.tool.exec`, and system records
+contribute to prompt-window digests rather than standalone events.
+
+Trust boundary: both entry points preserve the file boundary unchanged. The
+hash chain is appended through the Core Engine, every imported record goes
+through the same canonicalisation as any other event, and the resulting
+bundle re-verifies under `atb verify` with no special-case import path.
+Capture v1 reduces manual event entry; it does not guarantee that every
+relevant event was captured, and CAS continues to score recorded evidence
+within the declared profile boundary.
 
 ## Corroboration model
 

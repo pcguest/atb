@@ -48,6 +48,7 @@ This index lists the current documentation set and the authoritative home for ea
 - [integrations/mcp.md](./integrations/mcp.md) - MCP bridge notes and current scope.
 - [integrations/siem-grc.md](./integrations/siem-grc.md) - Export patterns for SIEM and GRC review flows.
 - [integrations/worm-s3.md](./integrations/worm-s3.md) - Explicit WORM/S3 export behaviour and limits.
+- [integrations/chatlog-import.md](./integrations/chatlog-import.md) - Capture v1 chatlog import schema, mapping, and usage for `atb import chatlog`.
 
 ## Guides
 
@@ -60,6 +61,7 @@ This index lists the current documentation set and the authoritative home for ea
 - [guides/README.md](./guides/README.md) - Index of practical workflow and operations guides.
 - [guides/incident-review-workflow.md](./guides/incident-review-workflow.md) - Local incident review workflow and expected outputs.
 - [guides/customer-handoff-workflow.md](./guides/customer-handoff-workflow.md) - Customer handoff workflow for encrypted or exported bundles.
+- [guides/capture-quickstart.md](./guides/capture-quickstart.md) - Capture v1 quickstart for `atb capture run` and `atb import chatlog`.
 - [comparisons/](./comparisons/) - Comparisons against hosted tooling and ad hoc evidence.
 - [comparisons/README.md](./comparisons/README.md) - Index of comparison documents.
 - [comparisons/hosted-observability.md](./comparisons/hosted-observability.md) - ATB boundary against hosted AI observability products.
