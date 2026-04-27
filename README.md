@@ -96,6 +96,9 @@ reordered since recording. A passing result means the recorded sequence is intac
 profile's required evidence was found; it does not mean recording was complete. The example passes
 `--profile` explicitly so the first verifier result is predictable.
 
+For concurrent CI writers, set `ATB_LOCK_WAIT=10s` or pass `--lock-wait 10s` to `append`,
+`snapshot`, `capture run`, or `sign` so lock contention retries before exiting with code 9.
+
 ### What a passing result looks like
 
 Abbreviated `atb verify --profile atb.profile.policy_decision --format json` output:

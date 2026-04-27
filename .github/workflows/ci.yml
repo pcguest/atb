@@ -60,6 +60,11 @@ jobs:
       - name: Build Go CLI
         run: go build -v ./...
 
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          ./scripts/govulncheck.sh
+
       - name: Check internal Markdown links
         shell: bash
         run: |

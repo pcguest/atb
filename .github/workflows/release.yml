@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Layers A/B/D: release-entry validation for integrity, profile-bearing artifacts, and security-sensitive dependency checks.
+  # Layers A/B/D: release-entry validation for integrity, profile-bearing
+  # artifacts, and security-sensitive dependency checks.
   validate:
     name: Validate Release Inputs (Layers A/B/D)
     runs-on: ubuntu-latest
@@ -26,6 +27,19 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: "1.25.9"
+
+      - name: Build atb binary for CI capture
+        run: go build -o /tmp/atb ./cmd/atb
+
+      - name: Add atb to PATH
+        run: echo "/tmp" >> "$GITHUB_PATH"
+
+      - name: Initialise ATB release bundle
+        env:
+          ATB_CI_BUNDLE_PATH: ${{ runner.temp }}/atb-release-${{ github.run_id }}.atb
+        run: |
+          atb capture run --bundle "$ATB_CI_BUNDLE_PATH" -- echo "bundle initialised"
+          echo "ATB_CI_BUNDLE_PATH=$ATB_CI_BUNDLE_PATH" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -73,7 +87,7 @@ jobs:
           npm run build
 
       - name: Run Go tests
-        run: go test ./...
+        run: scripts/ci-atb-capture.sh "tests-pass" -- go test ./... -count=1
 
       - name: Run Python tests
         working-directory: sdk/python
@@ -95,7 +109,11 @@ jobs:
           set -euo pipefail
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           CLI_VERSION="$(go run ./cmd/atb version | awk '{print $2}')"
-          PY_VERSION="$(python -c "import pathlib, tomllib; print(tomllib.loads(pathlib.Path('sdk/python/pyproject.toml').read_text())['project']['version'])")"
+          PY_PYPROJECT="sdk/python/pyproject.toml"
+          PY_SCRIPT='import pathlib, tomllib, sys'
+          PY_SCRIPT="$PY_SCRIPT;"' p = pathlib.Path(sys.argv[1])'
+          PY_SCRIPT="$PY_SCRIPT;"' print(tomllib.loads(p.read_text())["project"]["version"])'
+          PY_VERSION="$(python -c "$PY_SCRIPT" "$PY_PYPROJECT")"
           TS_VERSION="$(node -p "require('./sdk/typescript/package.json').version")"
 
           if [ "$TAG_VERSION" != "$CLI_VERSION" ]; then
@@ -113,6 +131,12 @@ jobs:
             exit 1
           fi
 
+      - name: Upload ATB release bundle checkpoint
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: atb-release-bundle-validate-${{ github.run_id }}
+          path: ${{ env.ATB_CI_BUNDLE_PATH }}
+
   # Layers A/B/D: build verified release artifacts for the non-Docker release path.
   build:
     name: Build Release Artifacts (Layers A/B/D)
@@ -126,6 +150,23 @@ jobs:
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: "1.25.9"
+
+      - name: Build atb binary for CI capture
+        run: go build -o /tmp/atb ./cmd/atb
+
+      - name: Add atb to PATH
+        run: echo "/tmp" >> "$GITHUB_PATH"
+
+      - name: Download ATB release bundle checkpoint
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: atb-release-bundle-validate-${{ github.run_id }}
+          path: ${{ runner.temp }}/atb-release-capture
+
+      - name: Set ATB release bundle path
+        run: |
+          BUNDLE_PATH="${{ runner.temp }}/atb-release-capture/atb-release-${{ github.run_id }}.atb"
+          echo "ATB_CI_BUNDLE_PATH=$BUNDLE_PATH" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
@@ -152,14 +193,16 @@ jobs:
 
       - name: Build CLI binaries
         run: |
-          set -euo pipefail
-          mkdir -p dist/release
-          GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-linux-amd64 ./cmd/atb
-          GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-linux-arm64 ./cmd/atb
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-amd64 ./cmd/atb
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-arm64 ./cmd/atb
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-windows-amd64.exe ./cmd/atb
-          (cd dist/release && sha256sum atb-* > checksums.txt)
+          scripts/ci-atb-capture.sh "binary-built" -- bash -c '
+            set -euo pipefail
+            mkdir -p dist/release
+            GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-linux-amd64 ./cmd/atb
+            GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-linux-arm64 ./cmd/atb
+            GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-amd64 ./cmd/atb
+            GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-arm64 ./cmd/atb
+            GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-windows-amd64.exe ./cmd/atb
+            (cd dist/release && sha256sum atb-* > checksums.txt)
+          '
 
       - name: Build Python artifacts
         working-directory: sdk/python
@@ -202,6 +245,12 @@ jobs:
         with:
           name: npm-package
           path: sdk/typescript/*.tgz
+
+      - name: Upload ATB release bundle checkpoint
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: atb-release-bundle-build-${{ github.run_id }}
+          path: ${{ env.ATB_CI_BUNDLE_PATH }}
 
   # Layers A/B/D: re-verify shipped artifacts before any publication step.
   verify:
@@ -309,6 +358,27 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25.9"
+
+      - name: Build atb binary for CI capture
+        run: go build -o /tmp/atb ./cmd/atb
+
+      - name: Add atb to PATH
+        run: echo "/tmp" >> "$GITHUB_PATH"
+
+      - name: Download ATB release bundle checkpoint
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: atb-release-bundle-build-${{ github.run_id }}
+          path: ${{ runner.temp }}/atb-release-capture
+
+      - name: Set ATB release bundle path
+        run: |
+          BUNDLE_PATH="${{ runner.temp }}/atb-release-capture/atb-release-${{ github.run_id }}.atb"
+          echo "ATB_CI_BUNDLE_PATH=$BUNDLE_PATH" >> "$GITHUB_ENV"
+
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: cli-binaries
@@ -352,5 +422,30 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          npm whoami
-          npm publish artifacts/npm/*.tgz --access public
+          scripts/ci-atb-capture.sh "npm-published" -- bash -c '
+            set -euo pipefail
+            npm whoami
+            npm publish artifacts/npm/*.tgz --access public
+          '
+
+      - name: Snapshot release state
+        run: atb snapshot "release-${{ github.ref_name }}" --bundle "$ATB_CI_BUNDLE_PATH"
+
+      - name: Sign release bundle
+        run: |
+          # MAINTAINER: Add ATB_SIGNING_KEY_PEM to repo secrets.
+          # Key material injected from GitHub secret; never stored in the repo.
+          echo "${{ secrets.ATB_SIGNING_KEY_PEM }}" > /tmp/atb-ci-signing.pem
+          chmod 600 /tmp/atb-ci-signing.pem
+          atb sign --bundle "$ATB_CI_BUNDLE_PATH" --key /tmp/atb-ci-signing.pem
+          rm -f /tmp/atb-ci-signing.pem
+
+      - name: Verify signed release bundle
+        run: atb verify --bundle "$ATB_CI_BUNDLE_PATH"
+
+      - name: Upload ATB release bundle as artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: atb-release-bundle-${{ github.run_id }}
+          path: ${{ env.ATB_CI_BUNDLE_PATH }}
+          retention-days: 365

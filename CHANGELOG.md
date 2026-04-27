@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Aligned contributing, release, roadmap, security, and versioning docs with the current local-first viewer and release model.
 
 ### Added
+- `internal/evidence` package and `atb evidence --bundle <path> [--format text|json]`
+  for structured local bundle evidence summaries, including manifest, snapshot, and
+  per-signature provenance.
+- `exitLockContention = 9` for advisory bundle lock contention so automation can
+  distinguish retryable contention from general system failures.
+- Python SDK local signing provenance fields (`backend`, `key_id`, `signed_at`) and
+  a `verify()` signatures array matching the Go JSON shape.
 - `atb.corroboration.external` event type in the new `atb.corroboration.*` namespace.
   Required fields: `source`, `reference_id`, `digest`, `retrieved_at`. Optional fields:
   `adapter`, `raw_evidence` (base64, capped at 4 KB), `truncated`. Schema locked at v1.
@@ -38,9 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `x-amz-object-lock-retain-until-date`.
 
 ### Fixed
+- Bundle signature append now uses `writeAtomic` (temp file, fsync, rename) instead
+  of truncate-in-place writes, preserving the original bundle if the final write fails.
 - Stale documentation and maintenance references to the removed legacy viewer flag.
 
 ### Docs
+- `docs/spec-v1.0.md` and `schemas/event.v1.json`: signature provenance fields
+  documented as current optional `atb.bundle.signature` payload fields.
 - `docs/spec-ai-traces.md`: `atb.corroboration.*` namespace and required field schema
   documented, corroboration event added to the complete event type registry table.
 - `docs/architecture.md`: corroboration model section added, covering the problem addressed,

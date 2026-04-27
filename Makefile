@@ -1,4 +1,11 @@
-.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz
+.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden
+
+test-golden:
+	@echo "🔒 Running cross-language canonical-hash golden vectors..."
+	$(GOENV) go test ./internal/hash/... -run TestGoldenVectors -count=1
+	.venv/bin/python -m pytest sdk/python/tests/test_canonical_hash.py -x -q
+	cd sdk/typescript && npm test -- --run canonical_hash
+	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
 GOTOOLCHAIN ?= go1.25.9
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
@@ -6,11 +13,13 @@ GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
 GO_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list ./... | grep -v '/web/node_modules/')
 GO_COVER_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/web/node_modules/')
+STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)")
 
 hygiene-quick:
 	@echo "🧹 Running quick hygiene gate..."
 	$(GOENV) go fmt ./... && $(GOENV) go vet ./...
-	$(GOENV) go test $(GO_PACKAGES) -short
+	$(GOENV) $(STATICCHECK) ./...
+	$(GOENV) go test ./... -count=1
 	cd web && npm run lint && npm run typecheck
 
 hygiene-full: hygiene-quick

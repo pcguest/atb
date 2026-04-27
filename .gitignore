@@ -36,6 +36,9 @@ run.atb/
 run.atb/*.atb
 *.atb
 *.atb.enc
+# ATB CI release bundles (generated artefacts — not source)
+*.atb.lock
+*.lock
 .atb/
 viewer-audit.log
 
@@ -56,6 +59,10 @@ htmlcov/
 # Secrets
 .env.local
 .env.*.local
+
+# Private key material — NEVER commit these; run `atb keygen` to regenerate.
+# The rules below are deliberately broad. If you add a new key format, extend
+# this block rather than narrowing it.
 atb-key.pem
 atb-key.pub.pem
 *.pem
@@ -118,4 +125,7 @@ CLAUDE.md
 # Agent tool binaries
 .atb-agent/
 AGENTS.md
-AGENTS.md
+agents.md
+
+# govulncheck baseline — regenerated on demand, not source of truth
+govulncheck-baseline.json
