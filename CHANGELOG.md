@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Aligned contributing, release, roadmap, security, and versioning docs with the current local-first viewer and release model.
 
 ### Added
+- `atb capture run` — wrap any child command with ATB capture environment
+  variables; stamps the resulting bundle with a capture run ID for provenance.
+- `atb import chatlog` — import saved AI chat logs (Claude, OpenAI, generic
+  JSONL) into a local ATB bundle, mapping turns onto the canonical event taxonomy.
+- Capture v1 event mapping: user turns become `ai.request.received`, assistant
+  turns become `ai.model.invoked` + `ai.model.output` + `ai.response.sent`,
+  tool turns become `ai.tool.exec`, and system context turns are recorded as
+  prompt-window context.
 - `internal/evidence` package and `atb evidence --bundle <path> [--format text|json]`
   for structured local bundle evidence summaries, including manifest, snapshot, and
   per-signature provenance.
