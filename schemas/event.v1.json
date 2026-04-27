@@ -143,6 +143,128 @@
           "description": "Optional EU AI Act Article 14 human oversight attribution: human rationale or review note captured with the snapshot."
         }
       }
+    },
+    "atb.bundle.pushed": {
+      "description": "Marker appended by atb push after a bundle is replicated to a remote WORM target. Informational; not used for verification."
+    }
+  },
+  "documented_event_types": {
+    "$comment": "Non-normative catalogue of event types emitted by the ATB Go runtime, CLI, and SDKs. The canonical type field remains an open dot-namespaced string (see properties.type); this block documents the shape readers and downstream tooling can expect for each known type. Property lists are illustrative, not exhaustive: writers may include additional fields (digests, source_role, source_line_num, request_id) that aid traceability without changing the canonical hash contract.",
+    "ai.request.received": {
+      "description": "AI request received at the application boundary. Emitted by the runtime and by atb import chatlog when mapping a user turn.",
+      "properties": {
+        "request_id": { "type": "string", "description": "Stable identifier for the request, used to correlate downstream model and tool events." },
+        "actor_id_hash": { "type": "string", "description": "Hashed actor identifier for privacy-preserving attribution." },
+        "purpose_tag": { "type": "string", "description": "Purpose tag describing why the request was made." },
+        "input_digest": { "type": "string", "description": "SHA-256 digest of the request input, in hex." },
+        "input_format": { "type": "string", "description": "Format identifier for the request input, such as text or json." }
+      },
+      "required": ["request_id", "input_digest"]
+    },
+    "ai.response.sent": {
+      "description": "AI response sent from the application boundary. Emitted alongside model output when a response is returned to the caller.",
+      "properties": {
+        "request_id": { "type": "string" },
+        "output_digest": { "type": "string", "description": "SHA-256 digest of the response output, in hex." },
+        "output_format": { "type": "string" }
+      },
+      "required": ["request_id", "output_digest"]
+    },
+    "ai.llm.call": {
+      "description": "Canonical LLM lifecycle event used by integrations that prefer a single call-shaped record over the model_invoked and model_output pair."
+    },
+    "ai.tool.exec": {
+      "description": "Tool execution lifecycle event. Emitted by the runtime, by gate integrations, and by atb import chatlog when mapping a tool turn.",
+      "properties": {
+        "request_id": { "type": "string" },
+        "tool_name": { "type": "string", "description": "Name of the tool that was called." },
+        "tool_call_id": { "type": "string", "description": "Optional provider-issued tool call identifier." },
+        "tool_args": {
+          "description": "Decoded tool arguments as a JSON value when available.",
+          "type": ["object", "array", "string", "number", "integer", "boolean", "null"]
+        },
+        "tool_args_digest": { "type": "string", "description": "SHA-256 digest of the canonical tool arguments." },
+        "tool_output": { "type": "string", "description": "Tool output content captured as text. Optional; readers should fall back to tool_output_digest when absent." },
+        "tool_output_digest": { "type": "string", "description": "SHA-256 digest of the tool output." }
+      },
+      "required": ["request_id", "tool_name"]
+    },
+    "ai.chain.run": {
+      "description": "Chain or step lifecycle event used by orchestration integrations such as LangChain."
+    },
+    "ai.policy.decision": {
+      "description": "Policy engine decision (allow or deny) over a candidate action or response. May carry policy_signature, policy_signer_pubkey, policy_doc_hash, and policy_doc_signature fields when the decision is signed."
+    },
+    "ai.retrieval.executed": {
+      "description": "Retrieval step executed during a RAG pipeline."
+    },
+    "ai.model.invoked": {
+      "description": "LLM invocation sent. Emitted by the runtime and by atb import chatlog when mapping an assistant turn that names a model.",
+      "properties": {
+        "request_id": { "type": "string" },
+        "model_id": { "type": "string", "description": "Model identifier as reported by the provider." },
+        "model_provider": { "type": "string", "description": "Provider that served the model invocation, such as anthropic, openai, or google." },
+        "model_parameters_digest": { "type": "string", "description": "SHA-256 digest of the canonicalised invocation parameters." },
+        "prompt_digest": { "type": "string", "description": "SHA-256 digest of the canonicalised prompt." }
+      },
+      "required": ["request_id", "model_id"]
+    },
+    "ai.model.output": {
+      "description": "LLM output received. Companion to ai.model.invoked.",
+      "properties": {
+        "request_id": { "type": "string" },
+        "output_digest": { "type": "string" },
+        "output_format": { "type": "string" }
+      },
+      "required": ["request_id", "output_digest"]
+    },
+    "ai.action.precommit": {
+      "description": "Pre-commit record for a gated privileged action. Written before the action is executed."
+    },
+    "ai.action.executed": {
+      "description": "Privileged action executed through the action gate."
+    },
+    "ai.action.committed": {
+      "description": "Privileged action committed to its downstream sink."
+    },
+    "ai.human.approval": {
+      "description": "Human approval of an action or override."
+    },
+    "ai.override.requested": {
+      "description": "Human override requested over a prior automated decision."
+    },
+    "ai.job.scheduled": {
+      "description": "Background job scheduled for asynchronous execution."
+    },
+    "ai.job.started": {
+      "description": "Background job started by a worker."
+    },
+    "ai.job.step": {
+      "description": "Individual step recorded within a background job run."
+    },
+    "ai.job.completed": {
+      "description": "Background job completed, successfully or otherwise."
+    },
+    "data.export.precommit": {
+      "description": "Pre-commit record for a data export. Written before the export is executed."
+    },
+    "data.export.executed": {
+      "description": "Data export executed to its downstream sink."
+    },
+    "atb.corroboration.external": {
+      "description": "External corroboration record retrieved by an adapter from a third-party system."
+    },
+    "atb.event.rag_index": {
+      "description": "PageIndex document tree build record. Carries an index_hash and node_count summarising the indexed corpus."
+    },
+    "atb.event.rag_retrieval": {
+      "description": "PageIndex reasoning-based retrieval result. Carries node_id and page_start/page_end identifying the retrieved span."
+    },
+    "dev.session": {
+      "description": "Developer session marker used by tooling and tests."
+    },
+    "snapshot.build": {
+      "description": "Build snapshot marker used by tooling and tests."
     }
   },
   "type": "object",
