@@ -2,7 +2,17 @@
 
 
 class ATBError(Exception):
-    """Base exception for all ATB SDK errors."""
+    """Base exception for all ATB SDK errors.
+
+    Args:
+        *args: Positional error message arguments passed to ``Exception``.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
 
 
 class ATBVerificationError(ATBError):
@@ -12,6 +22,18 @@ class ATBVerificationError(ATBError):
         event_index: The 0-based index of the first tampered event.
         expected_hash: The hash stored in the bundle.
         computed_hash: The hash computed from the event data.
+
+    Args:
+        message: Human-readable verification failure message.
+        event_index: Optional zero-based record index.
+        expected_hash: Optional stored hash value.
+        computed_hash: Optional recomputed hash value.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
     """
 
     def __init__(

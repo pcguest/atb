@@ -1,3 +1,16 @@
+"""Action-gating helpers that record precommit, policy, and execution events.
+
+The module exposes ``ActionGate`` for wrapping local operations,
+``ActionGateInput`` and ``ActionGateDecision`` for policy callbacks, and
+``ActionGateDeniedError`` for enforce-mode denials.
+
+Quick start::
+
+    from atb import ActionGate, ActionGateInput
+    gate = ActionGate()
+    gate.run(ActionGateInput("tool", "resource", "read", {}), lambda: "ok")
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -16,11 +29,39 @@ T = TypeVar("T")
 
 
 class ActionGateDeniedError(ATBError):
-    pass
+    """Raised when an action is denied in enforce mode.
+
+    Args:
+        *args: Positional error message arguments passed to ``Exception``.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
 
 
 @dataclass(frozen=True)
 class ActionGateInput:
+    """Input metadata describing an action before it executes.
+
+    Args:
+        action_type: Stable action or tool type.
+        target_resource_id: Resource the action intends to affect.
+        intended_effect: Human-readable effect statement.
+        action_parameters: JSON-like parameters supplied to the action.
+        subject_id: Optional subject identifier to hash into policy payloads.
+        action_id: Optional caller-provided action identifier.
+        policy_context: Optional policy-specific context.
+
+    Returns:
+        A frozen dataclass instance.
+
+    Raises:
+        None.
+    """
+
     action_type: str
     target_resource_id: str
     intended_effect: str
@@ -32,6 +73,21 @@ class ActionGateInput:
 
 @dataclass(frozen=True)
 class ActionGateDecision:
+    """Policy decision returned by an action gate callback.
+
+    Args:
+        decision: Either ``"allow"`` or ``"deny"``.
+        reason_codes: Optional machine-readable decision reason codes.
+        policy_id: Policy identifier recorded with the decision.
+        policy_version: Policy version recorded with the decision.
+
+    Returns:
+        A frozen dataclass instance.
+
+    Raises:
+        None.
+    """
+
     decision: Literal["allow", "deny"]
     reason_codes: tuple[str, ...] = field(default_factory=tuple)
     policy_id: str = "local.action_gate"
@@ -43,6 +99,27 @@ def _default_policy(_: ActionGateInput) -> ActionGateDecision:
 
 
 class ActionGate:
+    """Wrap local actions and append ATB action-gate events.
+
+    Args:
+        bundle: Optional bundle to append to. A new bundle is created when
+            omitted.
+        mode: ``"log_only"`` records denials but runs the action; ``"enforce"``
+            raises on denials.
+        policy: Optional callable that returns an ``ActionGateDecision``.
+        auto_save: Save the bundle after each emitted event when true.
+        save_path: Optional path used when ``auto_save`` is true.
+        actor_id: Optional actor identity metadata.
+        org_id: Optional organisation identity metadata.
+        workspace_id: Optional workspace identity metadata.
+
+    Returns:
+        An ``ActionGate`` instance.
+
+    Raises:
+        ValueError: If ``mode`` is not recognised.
+    """
+
     def __init__(
         self,
         bundle: Bundle | None = None,
@@ -67,6 +144,19 @@ class ActionGate:
         self.workspace_id = workspace_id
 
     def run(self, action: ActionGateInput, fn: Callable[[], T]) -> T:
+        """Run a synchronous action under gate policy.
+
+        Args:
+            action: Action metadata recorded before evaluation.
+            fn: Zero-argument callable to execute after policy evaluation.
+
+        Returns:
+            The value returned by ``fn``.
+
+        Raises:
+            ActionGateDeniedError: If policy denies and mode is ``"enforce"``.
+            Exception: Re-raises any exception produced by ``fn``.
+        """
         action_id = self._action_id(action)
         self._emit(
             "ai.action.precommit",
@@ -95,6 +185,19 @@ class ActionGate:
         return result
 
     async def arun(self, action: ActionGateInput, fn: Callable[[], Awaitable[T]]) -> T:
+        """Run an asynchronous action under gate policy.
+
+        Args:
+            action: Action metadata recorded before evaluation.
+            fn: Zero-argument async callable to execute after policy evaluation.
+
+        Returns:
+            The awaited value returned by ``fn``.
+
+        Raises:
+            ActionGateDeniedError: If policy denies and mode is ``"enforce"``.
+            Exception: Re-raises any exception produced by ``fn``.
+        """
         action_id = self._action_id(action)
         self._emit(
             "ai.action.precommit",

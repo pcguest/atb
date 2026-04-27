@@ -1,3 +1,12 @@
+"""PageIndex integration that records retrieval events into ATB.
+
+Quick start::
+
+    from atb.pageindex import ATBPageIndexRetriever
+    retriever = ATBPageIndexRetriever()
+    tree, index_id = retriever.build_index("policy.pdf")
+"""
+
 from __future__ import annotations
 
 # PageIndex integration for ATB Python SDK.
@@ -38,11 +47,31 @@ from typing import Any, Iterator
 
 
 class ATBAppendError(RuntimeError):
-    """Raised when `atb append` exits non-zero."""
+    """Raised when ``atb append`` exits non-zero.
+
+    Args:
+        *args: Positional error message arguments passed to ``RuntimeError``.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
 
 
 class PageIndexRetrievalError(RuntimeError):
-    """Raised when PageIndex returns no matching node for the query."""
+    """Raised when PageIndex returns no matching node for the query.
+
+    Args:
+        *args: Positional error message arguments passed to ``RuntimeError``.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
 
 
 class ATBPageIndexRetriever:
@@ -61,6 +90,18 @@ class ATBPageIndexRetriever:
     before using this class.
 
     PageIndex used under MIT License (Copyright 2025 Vectify AI).
+
+    Args:
+        model: Model name passed to PageIndex.
+        atb_cli: ATB CLI executable used for append operations.
+        actor_id: Optional actor identity metadata.
+        workspace_id: Optional workspace identity metadata.
+
+    Returns:
+        An ``ATBPageIndexRetriever`` instance.
+
+    Raises:
+        None.
     """
 
     def __init__(
@@ -90,8 +131,16 @@ class ATBPageIndexRetriever:
         Appends atb.event.rag_index to the current bundle before
         returning.
 
+        Args:
+            source_path: Document path to index.
+            index_id: Optional caller-provided index identifier.
+
+        Returns:
+            ``(tree, index_id)`` for the generated PageIndex tree.
+
         Raises:
             ATBAppendError: if `atb append` exits non-zero.
+            ImportError: if PageIndex is not installed.
         """
 
         resolved_index_id = index_id or str(uuid.uuid4())
@@ -122,6 +171,16 @@ class ATBPageIndexRetriever:
 
         Returns the matched PageIndex node dict. Appends
         atb.event.rag_retrieval to the current bundle before returning.
+
+        Args:
+            query: User query to match against the PageIndex tree.
+            index: PageIndex tree previously returned by ``build_index``.
+            index_id: Index identifier recorded in the retrieval event.
+            source_uri: Source URI recorded in the retrieval event.
+            retrieval_id: Optional caller-provided retrieval identifier.
+
+        Returns:
+            The matched PageIndex node dictionary.
 
         Raises:
             PageIndexRetrievalError: if PageIndex returns no result.

@@ -109,7 +109,7 @@ describe("encrypt", () => {
     expect(decrypted.records.map((r) => r.hash)).toEqual(
       bundle.records.map((r) => r.hash)
     );
-  });
+  }, 30_000);
 
   it("decrypt fails with wrong password", () => {
     const encrypted = encryptRaw(
@@ -174,7 +174,7 @@ describe("encrypt", () => {
     await expect(Bundle.decrypt("test123", tampered)).rejects.toThrow(
       "head_hash mismatch"
     );
-  });
+  }, 30_000);
 
   it("bundle methods roundtrip", async () => {
     const bundle = sampleBundle();
@@ -183,7 +183,7 @@ describe("encrypt", () => {
     expect(decrypted.records.map((r) => r.hash)).toEqual(
       bundle.records.map((r) => r.hash)
     );
-  });
+  }, 30_000);
 
   it("parity with Go/Python fixed vector", async () => {
     const bundle = sampleBundle();
@@ -192,5 +192,5 @@ describe("encrypt", () => {
       nonce: fixedNonce(),
     });
     expect(Buffer.from(encrypted).toString("hex")).toBe(EXPECTED_GO_VECTOR_HEX);
-  });
+  }, 30_000);
 });

@@ -16,6 +16,17 @@ console-script stub will be removed in a future major release.
 
 
 def main() -> int:
+    """Print the SDK CLI deprecation message.
+
+    Args:
+        None.
+
+    Returns:
+        Process exit code ``1``.
+
+    Raises:
+        None.
+    """
     print(DEPRECATION_MESSAGE, file=sys.stderr)
     return 1
 

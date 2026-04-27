@@ -1,4 +1,11 @@
-"""LangChain callback middleware for ATB AI trace events."""
+"""LangChain callback middleware for ATB AI trace events.
+
+Quick start::
+
+    from atb.langchain_callback import ATBCallbackHandler
+    handler = ATBCallbackHandler()
+    handler.on_llm_start({"name": "model"}, ["hello"])
+"""
 
 from __future__ import annotations
 
@@ -37,6 +44,24 @@ class ATBCallbackHandler(BaseCallbackHandler):
     """LangChain callback handler that emits AI-spec ATB events.
 
     This handler is opt-in and no-op when ``enabled=False``.
+
+    Args:
+        bundle: Optional bundle to append callback events to.
+        enabled: Disable all event emission when false.
+        auto_save: Save the bundle after each emitted event when true.
+        save_path: Optional save path used when ``auto_save`` is true.
+        privacy_mode: ``"off"``, ``"hash"``, or ``"redact"`` text handling.
+        actor_id: Optional actor identity metadata.
+        org_id: Optional organisation identity metadata.
+        workspace_id: Optional workspace identity metadata.
+        framework: Framework label recorded in emitted payloads.
+        framework_version: Framework version recorded in emitted payloads.
+
+    Returns:
+        An ``ATBCallbackHandler`` instance.
+
+    Raises:
+        ValueError: If ``privacy_mode`` is not recognised.
     """
 
     def __init__(
@@ -81,6 +106,21 @@ class ATBCallbackHandler(BaseCallbackHandler):
         parent_run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record the start of a LangChain chain run.
+
+        Args:
+            serialized: LangChain serialised chain metadata.
+            inputs: Chain input mapping.
+            run_id: Optional LangChain run identifier.
+            parent_run_id: Optional parent run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._start_span(
@@ -110,6 +150,19 @@ class ATBCallbackHandler(BaseCallbackHandler):
         run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record the end of a LangChain chain run.
+
+        Args:
+            outputs: Chain output mapping.
+            run_id: Optional LangChain run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._get_or_create_span(run_id=run_id, event_type="ai.chain.run")
@@ -135,6 +188,19 @@ class ATBCallbackHandler(BaseCallbackHandler):
         run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record a LangChain chain error.
+
+        Args:
+            error: Exception or error raised by the chain.
+            run_id: Optional LangChain run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._get_or_create_span(run_id=run_id, event_type="ai.chain.run")
@@ -158,6 +224,21 @@ class ATBCallbackHandler(BaseCallbackHandler):
         parent_run_id: Any | None = None,
         **kwargs: Any,
     ) -> None:
+        """Record the start of an LLM call.
+
+        Args:
+            serialized: LangChain serialised LLM metadata.
+            prompts: Prompt strings supplied to the LLM.
+            run_id: Optional LangChain run identifier.
+            parent_run_id: Optional parent run identifier.
+            **kwargs: Additional LangChain invocation metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._start_span(
@@ -190,6 +271,19 @@ class ATBCallbackHandler(BaseCallbackHandler):
         run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record a streamed LLM token.
+
+        Args:
+            token: Generated token text.
+            run_id: Optional LangChain run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._get_or_create_span(run_id=run_id, event_type="ai.llm.call")
@@ -219,6 +313,19 @@ class ATBCallbackHandler(BaseCallbackHandler):
         run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record the end of an LLM call.
+
+        Args:
+            response: LangChain LLM response object.
+            run_id: Optional LangChain run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._get_or_create_span(run_id=run_id, event_type="ai.llm.call")
@@ -250,6 +357,19 @@ class ATBCallbackHandler(BaseCallbackHandler):
         run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record an LLM error.
+
+        Args:
+            error: Exception or error raised by the LLM.
+            run_id: Optional LangChain run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._get_or_create_span(run_id=run_id, event_type="ai.llm.call")
@@ -273,6 +393,21 @@ class ATBCallbackHandler(BaseCallbackHandler):
         parent_run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record the start of a tool call.
+
+        Args:
+            serialized: LangChain serialised tool metadata.
+            input_str: Tool input text.
+            run_id: Optional LangChain run identifier.
+            parent_run_id: Optional parent run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._start_span(
@@ -302,6 +437,19 @@ class ATBCallbackHandler(BaseCallbackHandler):
         run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record the end of a tool call.
+
+        Args:
+            output: Tool output value.
+            run_id: Optional LangChain run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._get_or_create_span(run_id=run_id, event_type="ai.tool.exec")
@@ -328,6 +476,19 @@ class ATBCallbackHandler(BaseCallbackHandler):
         run_id: Any | None = None,
         **_: Any,
     ) -> None:
+        """Record a tool error.
+
+        Args:
+            error: Exception or error raised by the tool.
+            run_id: Optional LangChain run identifier.
+            **_: Ignored LangChain callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         if not self.enabled:
             return
         state = self._get_or_create_span(run_id=run_id, event_type="ai.tool.exec")
@@ -347,33 +508,156 @@ class ATBCallbackHandler(BaseCallbackHandler):
     # ------------------------------------------------------------------
 
     async def aon_chain_start(self, serialized: dict[str, Any], inputs: dict[str, Any], **kwargs: Any) -> None:
+        """Async wrapper for ``on_chain_start``.
+
+        Args:
+            serialized: LangChain serialised chain metadata.
+            inputs: Chain input mapping.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_chain_start(serialized, inputs, **kwargs)
 
     async def aon_chain_end(self, outputs: dict[str, Any], **kwargs: Any) -> None:
+        """Async wrapper for ``on_chain_end``.
+
+        Args:
+            outputs: Chain output mapping.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_chain_end(outputs, **kwargs)
 
     async def aon_chain_error(self, error: BaseException, **kwargs: Any) -> None:
+        """Async wrapper for ``on_chain_error``.
+
+        Args:
+            error: Exception or error raised by the chain.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_chain_error(error, **kwargs)
 
     async def aon_llm_start(self, serialized: dict[str, Any], prompts: list[str], **kwargs: Any) -> None:
+        """Async wrapper for ``on_llm_start``.
+
+        Args:
+            serialized: LangChain serialised LLM metadata.
+            prompts: Prompt strings supplied to the LLM.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_llm_start(serialized, prompts, **kwargs)
 
     async def aon_llm_new_token(self, token: str, **kwargs: Any) -> None:
+        """Async wrapper for ``on_llm_new_token``.
+
+        Args:
+            token: Generated token text.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_llm_new_token(token, **kwargs)
 
     async def aon_llm_end(self, response: Any, **kwargs: Any) -> None:
+        """Async wrapper for ``on_llm_end``.
+
+        Args:
+            response: LangChain LLM response object.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_llm_end(response, **kwargs)
 
     async def aon_llm_error(self, error: BaseException, **kwargs: Any) -> None:
+        """Async wrapper for ``on_llm_error``.
+
+        Args:
+            error: Exception or error raised by the LLM.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_llm_error(error, **kwargs)
 
     async def aon_tool_start(self, serialized: dict[str, Any], input_str: str, **kwargs: Any) -> None:
+        """Async wrapper for ``on_tool_start``.
+
+        Args:
+            serialized: LangChain serialised tool metadata.
+            input_str: Tool input text.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_tool_start(serialized, input_str, **kwargs)
 
     async def aon_tool_end(self, output: Any, **kwargs: Any) -> None:
+        """Async wrapper for ``on_tool_end``.
+
+        Args:
+            output: Tool output value.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_tool_end(output, **kwargs)
 
     async def aon_tool_error(self, error: BaseException, **kwargs: Any) -> None:
+        """Async wrapper for ``on_tool_error``.
+
+        Args:
+            error: Exception or error raised by the tool.
+            **kwargs: Additional callback metadata.
+
+        Returns:
+            None.
+
+        Raises:
+            None.
+        """
         self.on_tool_error(error, **kwargs)
 
     # ------------------------------------------------------------------

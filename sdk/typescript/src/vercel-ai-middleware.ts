@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { Bundle } from "./bundle.js";
 
+/** Privacy handling applied to prompt, completion, and tool text. */
 export type PrivacyMode = "off" | "hash" | "redact";
 
 type Phase = "start" | "delta" | "end" | "error";
@@ -27,6 +28,7 @@ interface PrivacyText {
   sha256: string;
 }
 
+/** Options for constructing Vercel AI middleware. */
 export interface ATBMiddlewareOptions {
   bundle?: Bundle;
   enabled?: boolean;
@@ -40,6 +42,7 @@ export interface ATBMiddlewareOptions {
   frameworkVersion?: string;
 }
 
+/** Metadata supplied when a chain starts. */
 export interface ChainStartInput {
   runId?: string;
   parentRunId?: string;
@@ -47,11 +50,13 @@ export interface ChainStartInput {
   inputs?: Record<string, unknown>;
 }
 
+/** Metadata supplied when a chain ends. */
 export interface ChainEndInput {
   runId?: string;
   outputs?: Record<string, unknown>;
 }
 
+/** Metadata supplied when an LLM call starts. */
 export interface LLMStartInput {
   runId?: string;
   parentRunId?: string;
@@ -60,6 +65,7 @@ export interface LLMStartInput {
   prompt: string;
 }
 
+/** Metadata supplied when an LLM step finishes. */
 export interface StepFinishInput {
   runId?: string;
   text?: string;
@@ -76,6 +82,7 @@ export interface StepFinishInput {
   }>;
 }
 
+/** Metadata supplied when a tool call starts. */
 export interface ToolStartInput {
   runId?: string;
   parentRunId?: string;
@@ -83,11 +90,13 @@ export interface ToolStartInput {
   input: unknown;
 }
 
+/** Metadata supplied when a tool call ends. */
 export interface ToolEndInput {
   runId?: string;
   output: unknown;
 }
 
+/** Middleware callbacks that emit ATB events for Vercel AI flows. */
 export interface ATBMiddleware {
   readonly bundle: Bundle;
   onChainStart(input: ChainStartInput): void;
@@ -105,6 +114,11 @@ export interface ATBMiddleware {
 
 const DEFAULT_SAVE_PATH = "run.atb/bundle.atb";
 
+/**
+ * @param options Middleware configuration.
+ * @returns Middleware instance that records ATB events.
+ * @throws Error when `privacyMode` is not recognised.
+ */
 export function atbMiddleware(options: ATBMiddlewareOptions = {}): ATBMiddleware {
   return new ATBMiddlewareImpl(options);
 }

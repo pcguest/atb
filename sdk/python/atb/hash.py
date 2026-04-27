@@ -6,6 +6,12 @@ Each event hash is computed as:
 
 where prev_hash_bytes is the UTF-8 encoding of the previous event's hex hash,
 and canonical_json_bytes is the RFC 8785 canonical JSON of the event object.
+
+Quick start::
+
+    from atb.hash import chain_events
+    hashes = chain_events([{"type": "ai.request.received", "data": {}}])
+    print(hashes[-1])
 """
 
 from __future__ import annotations
@@ -31,6 +37,10 @@ def compute_hash(event: dict[str, Any], prev_hash: str) -> str:
 
     Returns:
         The hex-encoded SHA-256 hash string (64 characters).
+
+    Raises:
+        TypeError: If the event cannot be canonicalised.
+        ValueError: If the event contains a non-finite number.
     """
     canonical_bytes = canonicalize(event)
     digest = hashlib.sha256(prev_hash.encode("utf-8") + canonical_bytes).hexdigest()
@@ -47,6 +57,10 @@ def chain_events(events: list[dict[str, Any]]) -> list[str]:
 
     Returns:
         List of hex-encoded SHA-256 hashes, one per event.
+
+    Raises:
+        TypeError: If any event cannot be canonicalised.
+        ValueError: If any event contains a non-finite number.
     """
     hashes: list[str] = []
     prev = GENESIS_HASH

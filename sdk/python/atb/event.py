@@ -1,13 +1,42 @@
-"""ATB event model with the current Go runtime fields."""
+"""ATB event model with the current Go runtime fields.
+
+Quick start::
+
+    from atb.event import Event
+    event = Event(seq=0, prev_hash="0" * 64, type="atb.bundle.manifest", data={})
+    event.to_dict()
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
 
+
 @dataclass
 class Event:
-    """Canonical ATB event model used for hashing."""
+    """Canonical ATB event model used for hashing.
+
+    Args:
+        seq: Event sequence number.
+        prev_hash: Hex-encoded previous record hash.
+        type: Event type identifier.
+        data: JSON-like event payload.
+        hash_algo: Optional hash algorithm marker.
+        actor_id: Optional actor identity.
+        org_id: Optional organisation identity.
+        workspace_id: Optional workspace identity.
+        timestamp: Optional RFC3339 timestamp.
+        trace_id: Optional W3C trace identifier.
+        span_id: Optional W3C span identifier.
+        parent_span_id: Optional parent span identifier.
+
+    Returns:
+        A dataclass instance.
+
+    Raises:
+        None.
+    """
 
     seq: int
     prev_hash: str
@@ -23,7 +52,17 @@ class Event:
     parent_span_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize event to dict, omitting unset optional fields."""
+        """Serialise event to a dictionary.
+
+        Args:
+            None.
+
+        Returns:
+            Event dictionary with unset optional fields omitted.
+
+        Raises:
+            None.
+        """
         out: dict[str, Any] = {
             "seq": self.seq,
             "prev_hash": self.prev_hash,

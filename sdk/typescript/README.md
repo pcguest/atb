@@ -1,6 +1,8 @@
 # @pcguest/atb-sdk
 
-The ATB TypeScript SDK writes tamper-evident audit bundles in the same format as the Go CLI; bundles written by the SDK are verifiable with `atb verify`.
+The ATB TypeScript SDK reads ATB bundles, verifies local hash chains, and lets Node.js callers iterate canonical bundle events.
+
+This SDK is the open read layer. The full capture and enterprise pipeline is available separately.
 
 ## Installation
 
@@ -8,33 +10,19 @@ The ATB TypeScript SDK writes tamper-evident audit bundles in the same format as
 npm install @pcguest/atb-sdk
 ```
 
-## Quick example
+## Quickstart
 
 ```ts
-import {
-  AI_MODEL_INVOKED_EVENT_TYPE,
-  AI_REQUEST_RECEIVED_EVENT_TYPE,
-  Bundle,
-} from "@pcguest/atb-sdk";
+import { Bundle } from "@pcguest/atb-sdk";
 
-const bundle = new Bundle();
-const bundlePath = "run.atb/bundle.atb";
+const bundle = Bundle.load("run.atb/bundle.atb");
+const result = bundle.verify();
 
-bundle.append(AI_REQUEST_RECEIVED_EVENT_TYPE, {
-  request_id: "req-001",
-  actor_id_hash: "hash-user-01",
-  purpose_tag: "quickstart_demo",
-});
+for (const record of bundle.records) {
+  console.log(record.event.type);
+}
 
-bundle.append(AI_MODEL_INVOKED_EVENT_TYPE, {
-  model_provider: "openai",
-  model_id: "gpt-4o-mini",
-  model_parameters_digest: "sha256-params-abc",
-  prompt_digest: "sha256-prompt-def",
-});
-
-bundle.save(bundlePath);
-console.log(bundlePath);
+console.log(result.signatures);
 ```
 
 ## Supported event types

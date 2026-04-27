@@ -8,6 +8,12 @@ Wire format:
     [12 bytes nonce]
     [16 bytes auth tag]
     [N bytes ciphertext]
+
+Quick start::
+
+    from atb import Bundle, encrypt_bundle
+    encrypted = encrypt_bundle(Bundle.load("run.atb/bundle.atb"), "password")
+    assert encrypted.startswith(b"ATBE")
 """
 
 from __future__ import annotations
@@ -42,11 +48,31 @@ HEADER_SIZE = len(MAGIC) + 1 + SALT_SIZE + NONCE_SIZE + TAG_SIZE
 
 
 class ATBEncryptionError(ATBError):
-    """Raised when encryption fails."""
+    """Raised when encryption fails.
+
+    Args:
+        *args: Positional error message arguments passed to ``Exception``.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
 
 
 class ATBDecryptionError(ATBError):
-    """Raised when decryption fails."""
+    """Raised when decryption fails.
+
+    Args:
+        *args: Positional error message arguments passed to ``Exception``.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
 
 
 def _derive_key(
@@ -118,6 +144,19 @@ def encrypt_raw(
     """Encrypt plaintext bytes with AES-256-GCM.
 
     Optional salt/nonce are intended for deterministic tests and golden vectors.
+
+    Args:
+        plaintext: Plain bytes to encrypt.
+        password: Password used for PBKDF2 key derivation.
+        salt: Optional deterministic salt for tests.
+        nonce: Optional deterministic nonce for tests.
+
+    Returns:
+        ATBE wire bytes.
+
+    Raises:
+        ATBEncryptionError: If the password, salt, nonce, or AES-GCM output is
+            invalid.
     """
     return _encrypt_raw_with_version(
         plaintext,
@@ -129,7 +168,18 @@ def encrypt_raw(
 
 
 def decrypt_raw(data: bytes, password: str) -> bytes:
-    """Decrypt encrypted bytes in ATBE wire format."""
+    """Decrypt encrypted bytes in ATBE wire format.
+
+    Args:
+        data: ATBE wire bytes.
+        password: Password used for PBKDF2 key derivation.
+
+    Returns:
+        Decrypted plaintext bytes.
+
+    Raises:
+        ATBDecryptionError: If the format is invalid or authentication fails.
+    """
     if len(data) < HEADER_SIZE:
         raise ATBDecryptionError("invalid format")
     if data[: len(MAGIC)] != MAGIC:
@@ -174,7 +224,21 @@ def encrypt_bundle(
     salt: bytes | None = None,
     nonce: bytes | None = None,
 ) -> bytes:
-    """Encrypt a Bundle to bytes."""
+    """Encrypt a bundle to ATBE bytes.
+
+    Args:
+        bundle: Bundle to verify and encrypt.
+        password: Password used for PBKDF2 key derivation.
+        salt: Optional deterministic salt for tests.
+        nonce: Optional deterministic nonce for tests.
+
+    Returns:
+        ATBE wire bytes.
+
+    Raises:
+        ATBVerificationError: If the bundle fails hash-chain verification.
+        ATBEncryptionError: If encryption fails.
+    """
     bundle.verify()
     payload = _bundle_payload(bundle)
     canonical = canonicalize(payload)
@@ -182,7 +246,18 @@ def encrypt_bundle(
 
 
 def decrypt_bundle(password: str, data: bytes) -> Bundle:
-    """Decrypt bytes into a verified Bundle."""
+    """Decrypt bytes into a verified bundle.
+
+    Args:
+        password: Password used for PBKDF2 key derivation.
+        data: ATBE wire bytes.
+
+    Returns:
+        A verified ``Bundle``.
+
+    Raises:
+        ATBDecryptionError: If decoding, authentication, or verification fails.
+    """
     plaintext = decrypt_raw(data, password)
     try:
         payload = json.loads(plaintext.decode("utf-8"))

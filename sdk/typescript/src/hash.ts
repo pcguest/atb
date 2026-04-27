@@ -15,6 +15,11 @@ export const GENESIS_HASH = "0".repeat(64);
 
 /**
  * Compute the SHA-256 hash for an event given the previous hash.
+ *
+ * @param event Event to canonicalise and hash.
+ * @param prevHash Hex-encoded previous record hash.
+ * @returns Hex-encoded SHA-256 hash.
+ * @throws TypeError when the event cannot be canonicalised.
  */
 export function computeHash(event: Event, prevHash: string): string {
   const canonical = canonicalize(prepareForCanonical(event));
@@ -28,7 +33,9 @@ export function computeHash(event: Event, prevHash: string): string {
  * Compute and assign hashes for a sequence of events.
  * Mutates each event's `seq` and `prev_hash` fields in-place.
  *
+ * @param events Events to chain in-place.
  * @returns Array of hex-encoded SHA-256 hashes, one per event.
+ * @throws TypeError when any event cannot be canonicalised.
  */
 export function chainEvents(events: Event[]): string[] {
   const hashes: string[] = [];

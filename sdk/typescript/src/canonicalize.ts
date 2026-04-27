@@ -5,6 +5,12 @@
  * suitable for use in cryptographic hash computation.
  */
 
+/**
+ * @param value JSON-compatible value to canonicalise.
+ * @returns RFC 8785 canonical JSON string.
+ * @throws TypeError when `value` contains an unsupported type.
+ * @throws RangeError when `value` contains a non-finite number.
+ */
 export function canonicalize(value: unknown): string {
   if (value === null) return "null";
   if (typeof value === "boolean") return value ? "true" : "false";

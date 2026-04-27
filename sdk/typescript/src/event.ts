@@ -2,6 +2,7 @@
  * Canonical ATB event model aligned with the Go runtime.
  */
 
+/** Canonical ATB event shape used for hashing and bundle records. */
 export interface Event {
   seq: number;
   prev_hash: string;
@@ -17,6 +18,7 @@ export interface Event {
   parent_span_id?: string;
 }
 
+/** Optional identity and trace metadata accepted when appending events. */
 export interface AppendIdentityOptions {
   actorId?: string;
   orgId?: string;
@@ -27,6 +29,10 @@ export interface AppendIdentityOptions {
   parentSpanId?: string;
 }
 
+/**
+ * @param value Optional identity string.
+ * @returns Trimmed string, or `undefined` when unset or blank.
+ */
 export function normalizeOptionalIdentity(
   value: string | undefined
 ): string | undefined {
@@ -40,6 +46,10 @@ export function normalizeOptionalIdentity(
   return trimmed;
 }
 
+/**
+ * @param event Event to convert into canonical hash input.
+ * @returns Plain object with unset optional fields omitted.
+ */
 export function prepareForCanonical(event: Event): Record<string, unknown> {
   const out: Record<string, unknown> = {
     seq: event.seq,
@@ -74,6 +84,11 @@ export function prepareForCanonical(event: Event): Record<string, unknown> {
   return out;
 }
 
+/**
+ * @param value Unknown value from parsed JSON.
+ * @returns Validated event object.
+ * @throws TypeError when required fields or optional field types are invalid.
+ */
 export function parseEvent(value: unknown): Event {
   if (!value || typeof value !== "object") {
     throw new TypeError("event must be an object");

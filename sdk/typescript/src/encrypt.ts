@@ -22,13 +22,19 @@ export const PBKDF2_ITERATIONS = 600_000;
 export const HEADER_SIZE =
   MAGIC.length + 1 + SALT_SIZE + NONCE_SIZE + TAG_SIZE;
 
+/** Error raised by encryption and decryption helpers. */
 export class EncryptError extends Error {
+  /**
+   * @param message Human-readable encryption failure message.
+   * @returns A new encryption error.
+   */
   constructor(message: string) {
     super(message);
     this.name = "EncryptError";
   }
 }
 
+/** Optional deterministic encryption inputs for tests and golden vectors. */
 export interface EncryptOptions {
   salt?: Uint8Array;
   nonce?: Uint8Array;
@@ -39,6 +45,7 @@ interface WirePayload {
   records: ATBRecord[];
 }
 
+/** Decrypted and verified bundle payload. */
 export interface DecryptedBundlePayload {
   headHash: string;
   records: ATBRecord[];
@@ -78,6 +85,13 @@ function computeEventHash(event: Event, prevHash: string): string {
     .digest("hex");
 }
 
+/**
+ * @param plaintext Plain bytes to encrypt.
+ * @param password Password used for PBKDF2 key derivation.
+ * @param options Optional deterministic salt and nonce.
+ * @returns ATBE wire bytes.
+ * @throws EncryptError when password, salt, nonce, or AES-GCM output is invalid.
+ */
 export function encryptRaw(
   plaintext: Uint8Array,
   password: string,
@@ -121,6 +135,12 @@ function encryptRawWithVersion(
   ]);
 }
 
+/**
+ * @param data ATBE wire bytes.
+ * @param password Password used for PBKDF2 key derivation.
+ * @returns Decrypted plaintext bytes.
+ * @throws EncryptError when format validation or authentication fails.
+ */
 export function decryptRaw(data: Uint8Array, password: string): Uint8Array {
   const bytes = Buffer.from(data);
   if (bytes.length < HEADER_SIZE) {
@@ -227,6 +247,13 @@ function fromWirePayload(payload: unknown): DecryptedBundlePayload {
   };
 }
 
+/**
+ * @param records Bundle records to verify and encrypt.
+ * @param password Password used for PBKDF2 key derivation.
+ * @param options Optional deterministic salt and nonce.
+ * @returns Promise resolving to ATBE wire bytes.
+ * @throws EncryptError when payload verification or encryption fails.
+ */
 export async function encryptBundle(
   records: readonly ATBRecord[],
   password: string,
@@ -237,6 +264,12 @@ export async function encryptBundle(
   return encryptRaw(Buffer.from(canonical, "utf8"), password, options);
 }
 
+/**
+ * @param password Password used for PBKDF2 key derivation.
+ * @param data ATBE wire bytes.
+ * @returns Promise resolving to a verified decrypted payload.
+ * @throws EncryptError when decryption, JSON decoding, or verification fails.
+ */
 export async function decryptBundle(
   password: string,
   data: Uint8Array

@@ -5,8 +5,10 @@ import { normalizeOptionalIdentity } from "./event.js";
 
 const DEFAULT_SAVE_PATH = "run.atb/bundle.atb";
 
+/** Action gate operating mode. */
 export type ActionGateMode = "log_only" | "enforce";
 
+/** Input metadata recorded before a gated action executes. */
 export interface ActionGateInput {
   actionType: string;
   targetResourceId: string;
@@ -17,6 +19,7 @@ export interface ActionGateInput {
   policyContext?: Record<string, unknown>;
 }
 
+/** Policy decision returned by an action gate policy callback. */
 export interface ActionGateDecision {
   decision: "allow" | "deny";
   reasonCodes?: string[];
@@ -24,6 +27,7 @@ export interface ActionGateDecision {
   policyVersion?: string;
 }
 
+/** Constructor options for {@link ActionGate}. */
 export interface ActionGateOptions {
   bundle?: Bundle;
   mode?: ActionGateMode;
@@ -37,13 +41,19 @@ export interface ActionGateOptions {
   workspaceId?: string;
 }
 
+/** Error thrown when a gated action is denied in enforce mode. */
 export class ActionGateDeniedError extends Error {
+  /**
+   * @param message Human-readable denial message.
+   * @returns A new denial error.
+   */
   constructor(message: string) {
     super(message);
     this.name = "ActionGateDeniedError";
   }
 }
 
+/** Records precommit, policy, and execution events around local actions. */
 export class ActionGate {
   readonly bundle: Bundle;
 
@@ -57,6 +67,11 @@ export class ActionGate {
   private readonly orgId?: string;
   private readonly workspaceId?: string;
 
+  /**
+   * @param options Gate configuration.
+   * @returns A new action gate.
+   * @throws Error when `options.mode` is not recognised.
+   */
   constructor(options: ActionGateOptions = {}) {
     this.bundle = options.bundle ?? new Bundle();
     this.mode = options.mode ?? "log_only";
@@ -79,6 +94,13 @@ export class ActionGate {
     }
   }
 
+  /**
+   * @param action Action metadata to record and evaluate.
+   * @param fn Operation to execute when allowed.
+   * @returns The value returned by `fn`.
+   * @throws ActionGateDeniedError when policy denies in enforce mode.
+   * @throws Re-throws any error produced by `fn`.
+   */
   async run<T>(
     action: ActionGateInput,
     fn: () => T | Promise<T>

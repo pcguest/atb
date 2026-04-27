@@ -1,3 +1,12 @@
+"""LangChain tool wrapper that records ATB action-gate events.
+
+Quick start::
+
+    from atb.langchain_gate import gate_langchain_tool
+    wrapped = gate_langchain_tool(tool, gate)
+    wrapped.invoke({"query": "policy"})
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -32,6 +41,19 @@ class _GatedLangChainTool:
 
 
 def gate_langchain_tool(tool: BaseTool, gate: ActionGate) -> BaseTool:
+    """Wrap a LangChain tool with an ``ActionGate``.
+
+    Args:
+        tool: LangChain tool instance to wrap.
+        gate: Action gate used to record and optionally enforce policy.
+
+    Returns:
+        A tool-compatible wrapper that delegates to ``tool``.
+
+    Raises:
+        ActionGateDeniedError: If ``gate`` denies execution in enforce mode.
+        Exception: Re-raises exceptions produced by the wrapped tool.
+    """
     return _GatedLangChainTool(tool, gate)  # type: ignore[return-value]
 
 

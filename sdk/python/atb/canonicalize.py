@@ -13,7 +13,18 @@ from typing import Any
 
 
 def canonicalize(value: Any) -> bytes:
-    """Return the RFC 8785 canonical JSON encoding of *value* as UTF-8 bytes."""
+    """Return the RFC 8785 canonical JSON encoding.
+
+    Args:
+        value: JSON-compatible Python value to serialise.
+
+    Returns:
+        Canonical UTF-8 JSON bytes.
+
+    Raises:
+        TypeError: If ``value`` contains an unsupported type.
+        ValueError: If ``value`` contains a non-finite number.
+    """
     return _serialize(value).encode("utf-8")
 
 

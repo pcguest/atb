@@ -32,13 +32,18 @@
  * ```
  */
 
-export const SDK_VERSION = "1.8.0";
+/** Current SDK package version. */
+export const SDK_VERSION = "1.10.0";
 
+/**
+ * @returns SDK version and hash-chain algorithm metadata.
+ */
 export function version(): { version: string; algorithm: string } {
   return { version: SDK_VERSION, algorithm: "SHA-256+RFC8785" };
 }
 
 export { Bundle, ATBVerificationError } from "./bundle.js";
+export type { SignatureEvidence, VerifyResult } from "./bundle.js";
 export * from "./eventTypes.js";
 export { ActionGate, ActionGateDeniedError } from "./action-gate.js";
 export { EncryptError, decryptBundle, decryptRaw, encryptBundle, encryptRaw } from "./encrypt.js";
@@ -66,4 +71,4 @@ export type {
   ToolStartInput,
 } from "./vercel-ai-middleware.js";
 export type { VercelAITool } from "./vercel-gate.js";
-export type { ATBEvent, ATBRecord, BundleOptions } from "./types.js";
+export type { ATBEvent, ATBRecord, BundleOptions, BundleSignature } from "./types.js";
