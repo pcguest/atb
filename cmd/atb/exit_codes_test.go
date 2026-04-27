@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -5,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/pcguest/atb/internal/bundle"
 )
 
 func TestClassifyBundleLoadError(t *testing.T) {
@@ -13,6 +16,11 @@ func TestClassifyBundleLoadError(t *testing.T) {
 		err  error
 		want int
 	}{
+		{
+			name: "bundle lock maps to lock contention",
+			err:  fmt.Errorf("bundle: save: %w", bundle.ErrBundleLocked),
+			want: exitLockContention,
+		},
 		{
 			name: "not found maps to user error",
 			err:  fmt.Errorf("bundle: load: open: %w", os.ErrNotExist),

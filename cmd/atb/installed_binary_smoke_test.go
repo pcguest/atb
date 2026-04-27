@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -15,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -274,10 +276,30 @@ func runCLIWithEnvExpectExitCode(t *testing.T, wantExitCode int, binaryPath stri
 	return bytes.TrimSpace(stdout.Bytes())
 }
 
+// syncBuffer is a bytes.Buffer wrapped with a mutex for concurrent Write/Read.
+// os/exec spawns a copier goroutine that writes to cmd.Stdout while the test
+// goroutine reads it; the std bytes.Buffer is not safe for that pattern.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
 type runningViewServer struct {
 	cmd    *exec.Cmd
-	stdout *bytes.Buffer
-	stderr *bytes.Buffer
+	stdout *syncBuffer
+	stderr *syncBuffer
 	done   chan error
 }
 
@@ -286,8 +308,8 @@ func startInstalledViewServer(t *testing.T, binaryPath string, workDir string, p
 
 	cmd := exec.Command(binaryPath, "view", "--no-open", "--port", fmt.Sprintf("%d", port))
 	cmd.Dir = workDir
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
+	stdout := &syncBuffer{}
+	stderr := &syncBuffer{}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {

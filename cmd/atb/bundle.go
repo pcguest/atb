@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -31,5 +32,5 @@ func runBundle(args []string, stdout, stderr io.Writer) int {
 }
 
 func printBundleCommandUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb bundle new [--dry-run] [--format text|json]")
+	fmt.Fprintln(w, "Usage: atb bundle new [--dry-run] [--format text|json] [--manifest-version 1|2]")
 }

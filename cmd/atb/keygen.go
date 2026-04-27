@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -33,6 +34,10 @@ func runKeygen(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "atb keygen: %v\n", err)
 		printKeygenCommandUsage(stderr)
 		return exitUserError
+	}
+
+	if isRepoRoot(cfg.OutDir) {
+		fmt.Fprintln(stderr, "atb keygen: warning: writing key to the repository root; ensure .gitignore covers atb-key.pem and atb-key.pub.pem before committing")
 	}
 
 	result, err := generateKeypair(cfg)
@@ -133,7 +138,20 @@ func generateKeypair(cfg keygenConfig) (keygenResult, error) {
 		return result, fmt.Errorf("write public key: %w", err)
 	}
 
+	// Belt-and-braces: confirm the umask did not widen the private key mode.
+	if info, err := os.Stat(privateKeyPath); err == nil && info.Mode().Perm() != 0600 {
+		return result, fmt.Errorf("keygen: private key was written with mode %o; expected 0600", info.Mode().Perm())
+	}
+
 	return result, nil
+}
+
+// isRepoRoot reports whether dir contains a go.mod file, i.e. is the working
+// tree root of a Go module. Used to warn when keygen would write keys into a
+// repository checkout.
+func isRepoRoot(dir string) bool {
+	_, err := os.Stat(filepath.Join(dir, "go.mod"))
+	return err == nil
 }
 
 func marshalEd25519PrivateKeyPEM(privateKey ed25519.PrivateKey) ([]byte, error) {

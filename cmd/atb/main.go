@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // ATB CLI — Agent Trace Bundle command-line interface.
 // Provides commands to initialise, append events to, and verify ATB bundles.
 package main
@@ -58,8 +59,9 @@ type mutationResult struct {
 }
 
 type initRunOptions struct {
-	DryRun       bool
-	OutputFormat string
+	DryRun          bool
+	OutputFormat    string
+	ManifestVersion int
 }
 
 type helpCommand struct {
@@ -90,34 +92,49 @@ func usageJSON() helpOutput {
 			"1": "user/input error",
 			"2": "integrity verification failure",
 			"3": "profile verification failure or system/runtime error",
+			"9": "bundle lock contention; retry after a short delay",
 		},
 		Commands: []helpCommand{
 			{
 				Name:        "init",
-				Usage:       "atb init [--dry-run] [--format text|json]",
+				Usage:       "atb init [--dry-run] [--format text|json] [--manifest-version 1|2]",
 				Description: "Initialise a new ATB bundle (idempotent).",
-				Flags:       []string{"--dry-run", "--format"},
+				Flags:       []string{"--dry-run", "--format", "--manifest-version"},
 				Mutating:    true,
 			},
 			{
 				Name:        "bundle",
-				Usage:       "atb bundle new [--dry-run] [--format text|json]",
+				Usage:       "atb bundle new [--dry-run] [--format text|json] [--manifest-version 1|2]",
 				Description: "Initialise a new ATB bundle (alias for init).",
-				Flags:       []string{"--dry-run", "--format"},
+				Flags:       []string{"--dry-run", "--format", "--manifest-version"},
+				Mutating:    true,
+			},
+			{
+				Name:        "import",
+				Usage:       "atb import chatlog --from <provider-type> --input <path> [--bundle <path>] [--snapshot <name>]",
+				Description: "Import a saved chatlog into a local ATB bundle.",
+				Flags:       []string{"--from", "--input", "--bundle", "--snapshot", "--format", "--max-input-size"},
+				Mutating:    true,
+			},
+			{
+				Name:        "capture",
+				Usage:       "atb capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]",
+				Description: "Run a child command with ATB capture environment variables.",
+				Flags:       []string{"--bundle", "--snapshot", "--env-prefix", "--profile", "--lock-wait"},
 				Mutating:    true,
 			},
 			{
 				Name:        "append",
-				Usage:       "atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]",
+				Usage:       "atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]",
 				Description: "Append an event to the current bundle.",
 				Flags:       []string{"--data", "--actor-id", "--org-id", "--workspace-id", "--sign-policy", "--dry-run", "--format"},
 				Mutating:    true,
 			},
 			{
 				Name:        "snapshot",
-				Usage:       "atb snapshot <name> [--dry-run] [--format text|json]",
+				Usage:       "atb snapshot <name> [--dry-run] [--format text|json] [--lock-wait <duration>]",
 				Description: "Append a snapshot event to the current bundle.",
-				Flags:       []string{"--dry-run", "--format"},
+				Flags:       []string{"--bundle", "--quiet", "--dry-run", "--format", "--actor-id", "--actor-role", "--oversight-note", "--lock-wait"},
 				Mutating:    true,
 			},
 			{
@@ -136,9 +153,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "sign",
-				Usage:       "atb sign --bundle <path> --key <path> [--out <path>]",
+				Usage:       "atb sign --bundle <path> [--key <path>] [--out <path>] [--lock-wait <duration>]",
 				Description: "Append an Ed25519 bundle signature record.",
-				Flags:       []string{"--bundle", "--key", "--out"},
+				Flags:       []string{"--bundle", "--key", "--out", "--backend", "--key-id", "--sign-endpoint", "--sign-api-key", "--fallback-local", "--lock-wait"},
 				Mutating:    true,
 			},
 			{
@@ -146,6 +163,13 @@ func usageJSON() helpOutput {
 				Usage:       "atb verify [bundle_path] [--bundle <path>] [--remote s3://bucket/key] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]",
 				Description: "Verify bundle integrity and evaluate obligation profiles. Use --remote to stream-verify a bundle stored on S3.",
 				Flags:       []string{"--bundle", "--remote", "--profile", "--json", "--format", "--dry-run", "--quiet", "--trace", "--with-anchor", "--with-snapshot-check", "--roots"},
+				Mutating:    false,
+			},
+			{
+				Name:        "evidence",
+				Usage:       "atb evidence --bundle <path> [--format text|json]",
+				Description: "Emit a structured local bundle evidence summary.",
+				Flags:       []string{"--bundle", "--format"},
 				Mutating:    false,
 			},
 			{
@@ -298,6 +322,10 @@ func main() {
 		cmdInit()
 	case "bundle":
 		cmdBundle()
+	case "import":
+		cmdImport()
+	case "capture":
+		cmdCapture()
 	case "append":
 		cmdAppend()
 	case "snapshot":
@@ -310,6 +338,8 @@ func main() {
 		cmdSign()
 	case "verify":
 		cmdVerify()
+	case "evidence":
+		cmdEvidence()
 	case "profiles":
 		cmdProfiles()
 	case "inspect":
@@ -367,14 +397,17 @@ Usage:
   atb <command> [flags]
 
 Commands:
-  init [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
-  bundle new [--dry-run] [--format text|json]  Initialise a new ATB bundle in ./run.atb/ (alias for init)
-  append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]  Append an event to the current bundle
-  snapshot <name> [--dry-run] [--format text|json]  Append a snapshot event
+  init [--dry-run] [--format text|json] [--manifest-version 1|2]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
+  bundle new [--dry-run] [--format text|json] [--manifest-version 1|2]  Initialise a new ATB bundle in ./run.atb/ (alias for init)
+  import chatlog --from <provider-type> --input <path> [--bundle <path>] [--snapshot <name>]  Import a saved chatlog into a local ATB bundle
+  capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]  Run a child command with ATB capture environment variables
+  append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]  Append an event to the current bundle
+  snapshot <name> [--dry-run] [--format text|json] [--lock-wait <duration>]  Append a snapshot event
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
-  sign --bundle <path> --key <path> [--out <path>]  Append an Ed25519 bundle signature record
+  sign --bundle <path> [--key <path>] [--out <path>] [--backend local|https-http|aws-kms|gcp-kms|vault] [--lock-wait <duration>]  Append a bundle signature record
   verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]  Verify integrity of a bundle and evaluate obligation profiles
+  evidence --bundle <path> [--format text|json]  Emit a structured local bundle evidence summary
   profiles validate [--file <path>] [--dir <path>] [--format text|json]  Validate built-in and supplied profile definitions
   inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]  Inspect bundle records in table or JSON form
   events [--json] [--profile <id>]  List canonical ATB event types
@@ -396,6 +429,7 @@ Exit codes:
   1  user/input error
   2  integrity verification failure
   3  profile verification failure or system/runtime error
+  9  bundle lock contention; retry after a short delay
 
 Examples:
   atb init
@@ -404,6 +438,10 @@ Examples:
   atb bundle new
   atb bundle new --dry-run
   atb bundle new --format json
+  atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl
+  atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl --snapshot imported_chatlog
+  atb capture run --profile atb.profile.rag_answer -- python ./scripts/run_agent.py
+  atb capture run --env-prefix MYAPP -- ./agent-runner --config ./agent.yaml
   atb append dev.session '{"features_built":["hash chaining"]}'
   atb append feature --data '{"name":"atb view"}'
   atb append dev.session --data '{"x":1}' --actor-id paddy --org-id pcguest --workspace-id local
@@ -428,6 +466,8 @@ Examples:
   atb verify --with-anchor
   atb verify --with-snapshot-check
   atb verify --with-anchor --roots ./tsa-roots.pem
+  atb evidence --bundle run.atb/bundle.atb
+  atb evidence --bundle run.atb/bundle.atb --format json
   atb profiles validate
   atb profiles validate --dir ./profiles --format json
   atb inspect --bundle run.atb/bundle.atb
@@ -495,6 +535,12 @@ func cmdInit() {
 
 func runInit(args []string, stdout, stderr io.Writer) int {
 	rawArgs := append([]string(nil), args...)
+	var manifestVersion int
+	args, manifestVersion, err := parseInitManifestVersionFlag(args)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb init: %v\n", err)
+		return exitUserError
+	}
 	args, outputFormat, dryRun, err := parseMutationFlags(args)
 	if err != nil {
 		joinedArgs := strings.Join(rawArgs, " ")
@@ -524,13 +570,54 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 			}, "init")
 			return exitUserError
 		}
-		fmt.Fprintln(stderr, "Usage: atb init [--dry-run] [--format text|json]")
+		fmt.Fprintln(stderr, "Usage: atb init [--dry-run] [--format text|json] [--manifest-version 1|2]")
 		return exitUserError
 	}
 	return runInitWithOptions(initRunOptions{
-		DryRun:       dryRun,
-		OutputFormat: outputFormat,
+		DryRun:          dryRun,
+		OutputFormat:    outputFormat,
+		ManifestVersion: manifestVersion,
 	}, stdout, stderr)
+}
+
+func parseInitManifestVersionFlag(args []string) ([]string, int, error) {
+	filtered := make([]string, 0, len(args))
+	manifestVersion := 1
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--manifest-version":
+			if i+1 >= len(args) {
+				return nil, 0, fmt.Errorf("missing value for --manifest-version")
+			}
+			version, err := parseManifestVersionFlagValue(args[i+1])
+			if err != nil {
+				return nil, 0, err
+			}
+			manifestVersion = version
+			i++
+		case strings.HasPrefix(arg, "--manifest-version="):
+			version, err := parseManifestVersionFlagValue(strings.TrimPrefix(arg, "--manifest-version="))
+			if err != nil {
+				return nil, 0, err
+			}
+			manifestVersion = version
+		default:
+			filtered = append(filtered, arg)
+		}
+	}
+	return filtered, manifestVersion, nil
+}
+
+func parseManifestVersionFlagValue(value string) (int, error) {
+	switch strings.TrimSpace(value) {
+	case "1":
+		return 1, nil
+	case "2":
+		return bundle.ManifestVersionV2, nil
+	default:
+		return 0, fmt.Errorf("invalid --manifest-version %q (expected 1|2)", value)
+	}
 }
 
 func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
@@ -587,7 +674,10 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "~ Dry run: would initialise ATB bundle at %s.\n", path)
 		return exitSuccess
 	}
-	b, err := bundle.New()
+	if opts.ManifestVersion == bundle.ManifestVersionV2 {
+		fmt.Fprintln(stderr, "atb: manifest version 2 is experimental; bundles cannot be read by ATB versions prior to this build")
+	}
+	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: opts.ManifestVersion})
 	if err != nil {
 		if opts.OutputFormat == verifyFormatJSON {
 			return writeMutationJSON(stdout, mutationResult{
@@ -636,7 +726,7 @@ func cmdAppend() {
 // runAppend appends a new event to the existing bundle.
 func runAppend(args []string, stdout, stderr io.Writer) int {
 	rawArgs := append([]string(nil), args...)
-	args, outputFormat, dryRun, err := parseMutationFlags(args)
+	args, outputFormat, dryRun, lockWait, err := parseMutationFlagsWithLockWait(args)
 	if err != nil {
 		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
 			printMutationJSON(mutationResult{
@@ -659,12 +749,12 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				Action:   "append",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
-				Error:    "usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]",
+				Error:    "usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]",
 				ExitCode: exitUserError,
 			}, "append")
 			return exitUserError
 		}
-		fmt.Fprintln(stderr, "Usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json]")
+		fmt.Fprintln(stderr, "Usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]")
 		return exitUserError
 	}
 	eventType := args[0]
@@ -740,11 +830,13 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 		return exitCode
 	}
 
-	last, err := appendToDefaultBundle(eventType, data, dryRun, appendInput.Options)
+	last, err := appendToDefaultBundleWithLockWait(eventType, data, dryRun, lockWait, appendInput.Options)
 	if err != nil {
 		exitCode := exitSystemError
 		var loadErr mutationLoadError
-		if errors.As(err, &loadErr) {
+		if errors.Is(err, bundle.ErrBundleLocked) {
+			exitCode = exitLockContention
+		} else if errors.As(err, &loadErr) {
 			exitCode = classifyBundleLoadError(err)
 		}
 		if outputFormat == verifyFormatJSON {
@@ -891,7 +983,9 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		exitCode := exitSystemError
 		var loadErr mutationLoadError
-		if errors.As(err, &loadErr) {
+		if errors.Is(err, bundle.ErrBundleLocked) {
+			exitCode = exitLockContention
+		} else if errors.As(err, &loadErr) {
 			exitCode = classifyBundleLoadError(err)
 		}
 		if outputFormat == verifyFormatJSON {
@@ -1206,9 +1300,16 @@ func writeMutationJSON(stdout io.Writer, result mutationResult, stderr io.Writer
 }
 
 func parseMutationFlags(args []string) ([]string, string, bool, error) {
+	filtered, outputFormat, dryRun, _, err := parseMutationFlagsWithLockWait(args)
+	return filtered, outputFormat, dryRun, err
+}
+
+func parseMutationFlagsWithLockWait(args []string) ([]string, string, bool, time.Duration, error) {
 	filtered := make([]string, 0, len(args))
 	outputFormat := verifyFormatText
 	dryRun := false
+	lockWait := time.Duration(0)
+	lockWaitSet := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
@@ -1216,23 +1317,58 @@ func parseMutationFlags(args []string) ([]string, string, bool, error) {
 			dryRun = true
 		case arg == "--format":
 			if i+1 >= len(args) {
-				return nil, "", false, fmt.Errorf("missing value for --format (expected text|json)")
+				return nil, "", false, 0, fmt.Errorf("missing value for --format (expected text|json)")
 			}
 			outputFormat = strings.ToLower(strings.TrimSpace(args[i+1]))
 			i++
 		case strings.HasPrefix(arg, "--format="):
 			outputFormat = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
+		case arg == "--lock-wait":
+			if i+1 >= len(args) {
+				return nil, "", false, 0, fmt.Errorf("missing value for --lock-wait")
+			}
+			wait, err := parseLockWaitDuration(args[i+1])
+			if err != nil {
+				return nil, "", false, 0, fmt.Errorf("invalid --lock-wait: %w", err)
+			}
+			lockWait = wait
+			lockWaitSet = true
+			i++
+		case strings.HasPrefix(arg, "--lock-wait="):
+			wait, err := parseLockWaitDuration(strings.TrimPrefix(arg, "--lock-wait="))
+			if err != nil {
+				return nil, "", false, 0, fmt.Errorf("invalid --lock-wait: %w", err)
+			}
+			lockWait = wait
+			lockWaitSet = true
 		default:
 			filtered = append(filtered, arg)
 		}
 	}
 	if outputFormat != verifyFormatText && outputFormat != verifyFormatJSON {
-		return nil, "", false, fmt.Errorf("invalid format %q (expected text|json)", outputFormat)
+		return nil, "", false, 0, fmt.Errorf("invalid format %q (expected text|json)", outputFormat)
 	}
-	return filtered, outputFormat, dryRun, nil
+	if !lockWaitSet {
+		wait, err := lockWaitFromEnv()
+		if err != nil {
+			return nil, "", false, 0, err
+		}
+		lockWait = wait
+	}
+	return filtered, outputFormat, dryRun, lockWait, nil
 }
 
 func appendToDefaultBundle(eventType string, data interface{}, dryRun bool, opts ...bundle.AppendOptions) (bundle.Record, error) {
+	return appendToDefaultBundleWithLockWait(eventType, data, dryRun, 0, opts...)
+}
+
+func appendToDefaultBundleWithLockWait(
+	eventType string,
+	data interface{},
+	dryRun bool,
+	lockWait time.Duration,
+	opts ...bundle.AppendOptions,
+) (bundle.Record, error) {
 	path := bundle.DefaultPath()
 	b, err := bundle.Load(path)
 	if err != nil {
@@ -1265,7 +1401,10 @@ func appendToDefaultBundle(eventType string, data interface{}, dryRun bool, opts
 	if dryRun {
 		return last, nil
 	}
-	if err := b.Save(path); err != nil {
+	if err := b.SaveWithRetry(context.Background(), path, lockWait, bundle.DefaultLockRetryInterval); err != nil {
+		if lockWait > 0 && errors.Is(err, bundle.ErrBundleLocked) {
+			return bundle.Record{}, lockWaitError(lockWait)
+		}
 		return bundle.Record{}, fmt.Errorf("save: %w", err)
 	}
 	return last, nil

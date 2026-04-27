@@ -31,6 +31,10 @@
       "name": "evidence/docs/compliance/gdpr.md"
     },
     {
+      "description": "Documentation reference: human-oversight.md.",
+      "name": "evidence/docs/compliance/human-oversight.md"
+    },
+    {
       "description": "Documentation reference: nist-ai-rmf.md.",
       "name": "evidence/docs/compliance/nist-ai-rmf.md"
     },

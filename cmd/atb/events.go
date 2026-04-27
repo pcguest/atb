@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 // events.go implements the "atb events" sub-command, which prints the
 // canonical ATB event catalogue.
 package main

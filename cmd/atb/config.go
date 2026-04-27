@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,6 +19,9 @@ const (
 	configFileName          = "config.json"
 	retentionDefaultArchive = "archive.atb"
 	retentionDefaultCutoff  = "file_mtime"
+
+	// EUAIActRetentionMinDays is 6 months, conservative (non-leap), for EU AI Act Article 19 retention checks.
+	EUAIActRetentionMinDays = 183
 )
 
 type atbConfig struct {
@@ -43,29 +48,42 @@ type pushSettings struct {
 }
 
 type configCommandArgs struct {
-	Subcommand string
-	Days       int
+	Subcommand                 string
+	Days                       int
+	AllowBelowStatutoryMinimum bool
 }
 
 func cmdConfig() {
-	cfg, err := parseConfigArgs(os.Args[2:])
+	os.Exit(runConfig(os.Args[2:], os.Stdout, os.Stderr))
+}
+
+func runConfig(args []string, stdout, stderr io.Writer) int {
+	cfg, err := parseConfigArgs(args)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "atb config: %v\n", err)
-		printConfigUsage()
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb config: %v\n", err)
+		printConfigUsage(stdout)
+		return exitUserError
 	}
 
 	if cfg.Subcommand != "retention" {
-		fmt.Fprintf(os.Stderr, "atb config: unsupported subcommand %q\n", cfg.Subcommand)
-		printConfigUsage()
-		os.Exit(exitUserError)
+		fmt.Fprintf(stderr, "atb config: unsupported subcommand %q\n", cfg.Subcommand)
+		printConfigUsage(stdout)
+		return exitUserError
+	}
+
+	if cfg.Days < EUAIActRetentionMinDays {
+		if !cfg.AllowBelowStatutoryMinimum {
+			fmt.Fprintf(stderr, "atb config: retention period %d days is below the EU AI Act Article 19 minimum of %d days (approximately 6 months). To suppress this error and accept compliance responsibility, pass --allow-below-eu-minimum.\n", cfg.Days, EUAIActRetentionMinDays)
+			return exitUserError
+		}
+		fmt.Fprintf(stderr, "WARNING: retention period %d days is below the EU AI Act Article 19 minimum of %d days. Operator has accepted compliance responsibility.\n", cfg.Days, EUAIActRetentionMinDays)
 	}
 
 	configPath := defaultConfigPath()
 	existing, err := loadATBConfig(configPath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		fmt.Fprintf(os.Stderr, "atb config: load config: %v\n", err)
-		os.Exit(exitSystemError)
+		fmt.Fprintf(stderr, "atb config: load config: %v\n", err)
+		return exitSystemError
 	}
 	if errors.Is(err, os.ErrNotExist) {
 		existing = atbConfig{Version: configVersion}
@@ -76,11 +94,12 @@ func cmdConfig() {
 	existing.Retention = defaultRetentionPolicy(cfg.Days, time.Now().UTC())
 
 	if err := saveATBConfig(configPath, existing); err != nil {
-		fmt.Fprintf(os.Stderr, "atb config: save config: %v\n", err)
-		os.Exit(exitSystemError)
+		fmt.Fprintf(stderr, "atb config: save config: %v\n", err)
+		return exitSystemError
 	}
 
-	fmt.Printf("✓ Retention set: %d day(s) in %s\n", cfg.Days, configPath)
+	fmt.Fprintf(stdout, "✓ Retention set: %d day(s) in %s\n", cfg.Days, configPath)
+	return exitSuccess
 }
 
 func parseConfigArgs(args []string) (configCommandArgs, error) {
@@ -112,6 +131,8 @@ func parseConfigArgs(args []string) (configCommandArgs, error) {
 				return cfg, err
 			}
 			cfg.Days = days
+		case arg == "--allow-below-eu-minimum":
+			cfg.AllowBelowStatutoryMinimum = true
 		case strings.HasPrefix(arg, "--"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -212,6 +233,6 @@ func saveATBConfig(path string, cfg atbConfig) error {
 	return nil
 }
 
-func printConfigUsage() {
-	fmt.Println("Usage: atb config retention --days <n>")
+func printConfigUsage(stdout io.Writer) {
+	fmt.Fprintln(stdout, "Usage: atb config retention --days <n> [--allow-below-eu-minimum]")
 }

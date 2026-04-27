@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -112,5 +113,29 @@ func TestRunKeygen(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, tc.run)
+	}
+}
+
+func TestRunKeygenWarnsAtRepoRoot(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module example\n"), 0600); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	exit := runKeygen([]string{"--out-dir", dir}, &stdout, &stderr)
+	if exit != exitSuccess {
+		t.Fatalf("exit = %d, want %d (stderr=%q)", exit, exitSuccess, stderr.String())
+	}
+	if !bytes.Contains(stderr.Bytes(), []byte("repository root")) {
+		t.Fatalf("stderr did not contain repo-root warning: %q", stderr.String())
+	}
+
+	info, err := os.Stat(filepath.Join(dir, "atb-key.pem"))
+	if err != nil {
+		t.Fatalf("stat private key: %v", err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("private key mode = %o, want 0600", info.Mode().Perm())
 	}
 }

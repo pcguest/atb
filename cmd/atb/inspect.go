@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
@@ -154,6 +155,11 @@ func renderInspectTable(w io.Writer, b *bundle.Bundle) error {
 	}
 	if _, err := fmt.Fprintln(w, divider); err != nil {
 		return err
+	}
+	if manifest := b.Manifest(); manifest != nil && manifest.CaptureRunID != "" {
+		if _, err := fmt.Fprintf(w, "Capture run: %s\n", manifest.CaptureRunID); err != nil {
+			return err
+		}
 	}
 
 	for _, record := range b.Records {

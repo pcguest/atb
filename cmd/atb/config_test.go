@@ -1,20 +1,24 @@
+// SPDX-License-Identifier: MIT
 package main
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
 
 func TestConfigParseArgs(t *testing.T) {
 	tests := []struct {
-		name    string
-		args    []string
-		wantSub string
-		wantDay int
-		wantErr bool
+		name      string
+		args      []string
+		wantSub   string
+		wantDay   int
+		wantAllow bool
+		wantErr   bool
 	}{
 		{
 			name:    "retention with split flag",
@@ -27,6 +31,13 @@ func TestConfigParseArgs(t *testing.T) {
 			args:    []string{"retention", "--days=30"},
 			wantSub: "retention",
 			wantDay: 30,
+		},
+		{
+			name:      "retention with statutory minimum override",
+			args:      []string{"retention", "--days", "90", "--allow-below-eu-minimum"},
+			wantSub:   "retention",
+			wantDay:   90,
+			wantAllow: true,
 		},
 		{
 			name:    "missing subcommand",
@@ -77,6 +88,93 @@ func TestConfigParseArgs(t *testing.T) {
 			}
 			if got.Days != tc.wantDay {
 				t.Fatalf("unexpected days: got %d want %d", got.Days, tc.wantDay)
+			}
+			if got.AllowBelowStatutoryMinimum != tc.wantAllow {
+				t.Fatalf("unexpected statutory minimum override: got %t want %t", got.AllowBelowStatutoryMinimum, tc.wantAllow)
+			}
+		})
+	}
+}
+
+func TestConfigRetentionMinimum(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           []string
+		wantCode       int
+		wantDays       int
+		wantStderrPart string
+		wantNoWarning  bool
+	}{
+		{
+			name:          "minimum or greater succeeds without warning",
+			args:          []string{"retention", "--days", "183"},
+			wantCode:      exitSuccess,
+			wantDays:      183,
+			wantNoWarning: true,
+		},
+		{
+			name:           "below minimum without override fails",
+			args:           []string{"retention", "--days", "90"},
+			wantCode:       exitUserError,
+			wantStderrPart: "183",
+		},
+		{
+			name:           "below minimum with override succeeds with warning",
+			args:           []string{"retention", "--days", "90", "--allow-below-eu-minimum"},
+			wantCode:       exitSuccess,
+			wantDays:       90,
+			wantStderrPart: "WARNING",
+		},
+		{
+			name:           "zero days fails",
+			args:           []string{"retention", "--days", "0"},
+			wantCode:       exitUserError,
+			wantStderrPart: "--days must be > 0",
+		},
+		{
+			name:           "negative days fails",
+			args:           []string{"retention", "--days", "-1"},
+			wantCode:       exitUserError,
+			wantStderrPart: "--days must be > 0",
+		},
+		{
+			name:          "override at minimum succeeds without warning",
+			args:          []string{"retention", "--days", "183", "--allow-below-eu-minimum"},
+			wantCode:      exitSuccess,
+			wantDays:      183,
+			wantNoWarning: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Chdir(t.TempDir())
+
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			gotCode := runConfig(tc.args, &stdout, &stderr)
+			if gotCode != tc.wantCode {
+				t.Fatalf("unexpected exit code: got %d want %d; stderr=%q", gotCode, tc.wantCode, stderr.String())
+			}
+			if tc.wantStderrPart != "" && !strings.Contains(stderr.String(), tc.wantStderrPart) {
+				t.Fatalf("stderr missing %q: %q", tc.wantStderrPart, stderr.String())
+			}
+			if tc.wantNoWarning && strings.Contains(stderr.String(), "WARNING") {
+				t.Fatalf("unexpected warning: %q", stderr.String())
+			}
+			if tc.wantCode != exitSuccess {
+				return
+			}
+
+			loaded, err := loadATBConfig(filepath.Join(".atb", "config.json"))
+			if err != nil {
+				t.Fatalf("load saved config: %v", err)
+			}
+			if loaded.Retention == nil {
+				t.Fatalf("expected retention policy")
+			}
+			if loaded.Retention.Days != tc.wantDays {
+				t.Fatalf("unexpected saved days: got %d want %d", loaded.Retention.Days, tc.wantDays)
 			}
 		})
 	}
