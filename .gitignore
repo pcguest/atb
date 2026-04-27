@@ -124,8 +124,6 @@ CLAUDE.md
 
 # Agent tool binaries
 .atb-agent/
-AGENTS.md
-agents.md
 
 # govulncheck baseline — regenerated on demand, not source of truth
 govulncheck-baseline.json
