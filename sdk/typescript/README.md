@@ -2,7 +2,7 @@
 
 The ATB TypeScript SDK reads ATB bundles, verifies local hash chains, and lets Node.js callers iterate canonical bundle events.
 
-This SDK is the open read layer. The full capture and enterprise pipeline is available separately.
+It also creates in-memory bundles, appends events, and saves NDJSON bundle files.
 
 ## Installation
 
