@@ -542,17 +542,17 @@
     "actor_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Optional actor identifier for multi-tenant attribution."
+      "description": "Optional caller-asserted actor attribution context. Preserved by the hash chain after recording."
     },
     "org_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Optional organization identifier for multi-tenant attribution."
+      "description": "Optional caller-asserted organisation attribution context. Preserved by the hash chain after recording."
     },
     "workspace_id": {
       "type": "string",
       "minLength": 1,
-      "description": "Optional workspace identifier for multi-tenant attribution."
+      "description": "Optional caller-asserted workspace attribution context. Preserved by the hash chain after recording."
     },
     "timestamp": {
       "type": "string",

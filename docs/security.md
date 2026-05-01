@@ -64,11 +64,11 @@ relying on bundles as primary evidence.
 ### Identity attribution
 
 The `actor_id`, `org_id`, and `workspace_id` fields in bundle events are
-asserted by the recording process and are not independently verified by
+caller-asserted attribution context and are not independently verified by
 ATB. ATB proves these fields were not altered after recording, but does
 not prove the values are truthful or that the recorder was authorised to
-assert them. Multi-tenant deployments that require verified identity
-attribution must supply an independent identity layer or signing scheme.
+assert them. Deployments that require verified identity attribution must
+supply an independent identity layer or signing scheme.
 
 ## Local viewer API
 

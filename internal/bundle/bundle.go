@@ -36,7 +36,7 @@ const (
 	AnchorEventType = "atb.bundle.anchor"
 	// ManifestVersion is the default manifest format version emitted by writers.
 	ManifestVersion = "1"
-	// ManifestVersionV2 is the structured-object manifest format.
+	// ManifestVersionV2 is the current structured-object manifest format.
 	ManifestVersionV2 = 2
 	// ManifestVersionMax is the highest manifest version this build of atb
 	// can read. A bundle whose manifest declares a higher version is
@@ -64,8 +64,8 @@ type Bundle struct {
 
 // NewOptions configures bundle construction.
 type NewOptions struct {
-	// ManifestVersion 0 or 1 uses the stable v1 manifest. 2 uses the
-	// experimental structured manifest data object.
+	// ManifestVersion 0 or 1 uses the legacy v1 compatibility manifest.
+	// 2 uses the current structured manifest data object.
 	ManifestVersion int
 	// CaptureRunID records the capture run that created the bundle. It is
 	// omitted when empty and is only intended for bundle-creation provenance.

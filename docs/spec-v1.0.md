@@ -46,9 +46,9 @@ Each line in a bundle file is a JSON object with the following schema:
 | `event.type` | string | Dot-namespaced event type identifier |
 | `event.hash_algo` | string (optional) | Hash algorithm identifier. Current runtimes emit `sha256`. |
 | `event.data` | any JSON value | Arbitrary JSON-serialisable payload |
-| `event.actor_id` | string (optional) | Actor identifier for multi-tenant attribution |
-| `event.org_id` | string (optional) | Organization identifier for multi-tenant attribution |
-| `event.workspace_id` | string (optional) | Workspace identifier for multi-tenant attribution |
+| `event.actor_id` | string (optional) | Caller-asserted actor attribution context, preserved by the hash chain after recording |
+| `event.org_id` | string (optional) | Caller-asserted organisation attribution context, preserved by the hash chain after recording |
+| `event.workspace_id` | string (optional) | Caller-asserted workspace attribution context, preserved by the hash chain after recording |
 | `event.timestamp` | string (optional) | RFC 3339 UTC event creation time |
 | `event.trace_id` | string (optional) | W3C trace context trace identifier |
 | `event.span_id` | string (optional) | W3C trace context span identifier |
@@ -57,9 +57,9 @@ Each line in a bundle file is a JSON object with the following schema:
 
 > **NOTE — Manifest data encoding (v1 and v2)**
 >
-> The `atb.bundle.manifest` record has **two supported data shapes** selected by the `version` field. The default writer emits **v1** for maximum compatibility with existing readers; **v2** is a first-class supported format that opts into a cleaner structured layout.
+> The `atb.bundle.manifest` record has **two supported data shapes** selected by the `version` field. The current writer format is **v2** for structured manifest data; **v1** is the legacy compatibility format.
 >
-> | Field           | v1 (default)                                                                | v2 (opt-in via `--manifest-version 2`)               |
+> | Field           | v1 (legacy compatibility)                                                   | v2 (current structured format)                       |
 > |-----------------|-----------------------------------------------------------------------------|------------------------------------------------------|
 > | `event.data`    | JSON-encoded **string** containing manifest fields                           | Structured **object** containing manifest fields     |
 > | `version`       | `"1"` (string)                                                               | `2` (integer)                                        |
@@ -67,11 +67,11 @@ Each line in a bundle file is a JSON object with the following schema:
 > | `bundle_id`     | 32-char lowercase hex                                                        | 32-char lowercase hex                                |
 > | Read pattern    | `json.Unmarshal(event.data.(string))` to recover fields                      | `event.data.(map)` directly                          |
 >
-> v1's double-encoding is **historical, not deliberate design** — early ATB writers stored manifest fields as a JSON string and the format is preserved verbatim so existing bundles re-verify byte-for-byte. Independent implementers MUST reproduce the v1 double-encoding exactly when writing v1; for v2 the manifest is a regular structured event payload.
+> v1's double-encoding is **historical, not deliberate design** — early ATB writers stored manifest fields as a JSON string and the format is preserved verbatim so existing bundles re-verify byte-for-byte. Independent implementers MUST reproduce the v1 double-encoding exactly when writing v1 for compatibility; v2 stores the manifest as a regular structured event payload.
 >
 > The manifest version is independent of the bundle schema version. v1 data is a JSON-encoded string; v2 data is a structured JSON object. Both are hashed by the same RFC 8785 canonicaliser as any other event — the difference is only what `data` contains.
 >
-> Readers MUST handle both shapes. A reader that encounters a manifest with `version` greater than the highest version it understands (`ManifestVersionMax`, currently 2) MUST refuse to open the bundle and return an error wrapping `ErrMalformed`. The default `--manifest-version` flag remains `1`.
+> Readers MUST handle both shapes. A reader that encounters a manifest with `version` greater than the highest version it understands (`ManifestVersionMax`, currently 2) MUST refuse to open the bundle and return an error wrapping `ErrMalformed`.
 
 ---
 
@@ -474,10 +474,10 @@ const eventWithActor: Event = {
 
 ## 9. Schema versioning
 
-The manifest `version` field governs bundle compatibility. The current stable
-version is **1**. Experimental manifest version **2** stores manifest `data` as
-a structured object instead of a JSON-encoded string and is only emitted when
-explicitly requested. The product CLI/SDK SemVer policy is separate and lives
+The manifest `version` field governs bundle compatibility. The current writer
+format is **2**. Legacy version **1** stores manifest `data` as a JSON-encoded
+string and is retained for compatibility with existing bundles. The product
+CLI/SDK SemVer policy is separate and lives
 in `VERSIONING.md`; this section governs the on-disk bundle format only.
 
 **Breaking change (requires manifest version bump):**

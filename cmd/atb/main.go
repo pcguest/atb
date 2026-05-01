@@ -675,7 +675,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 		return exitSuccess
 	}
 	if opts.ManifestVersion == bundle.ManifestVersionV2 {
-		fmt.Fprintln(stderr, "atb: manifest version 2 is experimental; bundles cannot be read by ATB versions prior to this build")
+		fmt.Fprintln(stderr, "atb: manifest version 2 is the current structured format; bundles cannot be read by ATB versions prior to this build")
 	}
 	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: opts.ManifestVersion})
 	if err != nil {

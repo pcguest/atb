@@ -17,11 +17,11 @@ type Event struct {
 	HashAlgo string `json:"hash_algo,omitempty"`
 	// Data is the arbitrary payload associated with this event.
 	Data interface{} `json:"data"`
-	// ActorID identifies who performed the action in multi-tenant scenarios.
+	// ActorID is caller-asserted actor attribution context.
 	ActorID *string `json:"actor_id,omitempty"`
-	// OrgID identifies the organization context.
+	// OrgID is caller-asserted organisation attribution context.
 	OrgID *string `json:"org_id,omitempty"`
-	// WorkspaceID identifies the workspace context within an org.
+	// WorkspaceID is caller-asserted workspace attribution context.
 	WorkspaceID *string `json:"workspace_id,omitempty"`
 	// Timestamp is the RFC 3339 UTC time at which the event was created.
 	// When present, it is included in the canonical hash.
