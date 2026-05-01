@@ -289,7 +289,7 @@ The built-in profile templates currently evaluate the following required event s
 
 - `atb.profile.privileged_tool_action` requires `atb.bundle.manifest`, `ai.request.received`, `ai.action.precommit`, `ai.policy.decision`, `ai.action.executed`, and `ai.action.committed`. `ai.human.approval` is warning-level evidence and is evaluated when actions execute.
 - `atb.profile.rag_answer` requires `atb.bundle.manifest`, `ai.request.received`, `ai.model.invoked`, and `ai.model.output`. `ai.retrieval.executed`, `ai.policy.decision`, and `ai.response.sent` are warning-level evidence only.
-- `atb.profile.data_export` requires `atb.bundle.manifest`, `ai.request.received`, `ai.policy.decision`, `ai.action.precommit`, `ai.action.executed`, and `ai.action.committed`. `ai.human.approval` is warning-level evidence and is evaluated when exports execute. `data.export.*` event types remain the target taxonomy for export-specific lifecycle records, but the current built-in template still evaluates the `ai.action.*` control-plane flow. Migration to `data.export.*` is planned for a future release.
+- `atb.profile.data_export` requires `atb.bundle.manifest`, `ai.request.received`, `ai.policy.decision`, `ai.action.precommit`, `ai.action.executed`, and `ai.action.committed`. `ai.human.approval` is warning-level evidence and is evaluated when exports execute. `data.export.*` event types remain the taxonomy for export-specific lifecycle records, and the current built-in template evaluates the `ai.action.*` control-plane flow.
 - `atb.profile.policy_decision` requires `atb.bundle.manifest`, `ai.request.received`, and `ai.policy.decision`. `ai.action.precommit` is warning-level evidence only.
 - `atb.profile.human_override` requires `atb.bundle.manifest`, `ai.request.received`, `ai.human.approval`, `ai.action.precommit`, and `ai.action.executed`. `ai.action.committed` is warning-level evidence only.
 - `atb.profile.background_automation` requires `atb.bundle.manifest`, `ai.job.scheduled`, `ai.job.started`, and `ai.job.completed`. `ai.job.step` is warning-level evidence only. It does not require `ai.request.received`, and profile auto-detection should rely on recorded `ai.job.*` events rather than `purpose_tag` on request events.
@@ -359,7 +359,7 @@ ATB supports optional client-side bundle encryption via `atb encrypt` / `atb dec
 
 `atb decrypt` accepts both wire-format versions. `atb encrypt` writes version `0x02`.
 
-Push transport behaviour is documented separately in `docs/spec/bundle-push.md (forthcoming)`. See [the draft spec](./spec/bundle-push.md). That document is outside the frozen v1.0 local storage contract.
+Push transport behaviour is documented separately in `docs/spec/bundle-push.md`. See [the push spec](./spec/bundle-push.md). That document is outside the frozen v1.0 local storage contract.
 
 ### 6.3 CLI exit codes
 

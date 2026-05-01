@@ -121,7 +121,7 @@ jobs:
           grep -Fq "atb bundle new" docs/quickstart.md
           grep -Fq -- "--profile atb.profile.privileged_tool_action" docs/quickstart.md
           grep -Fq "atb view" docs/quickstart.md
-          grep -Fq "bundle-push.md (forthcoming)" docs/spec-v1.0.md
+          ! grep -Eq "forthcoming|planned extension" docs/spec-v1.0.md
 
       - name: Notify Discord
         if: ${{ always() && env.DISCORD_WEBHOOK_URL != '' }}

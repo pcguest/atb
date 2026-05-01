@@ -36,7 +36,7 @@ const (
 	exportGDPRTypeDSR  = "dsr"
 	exportGDPRTypeROPA = "ropa"
 
-	unsignedSignatureStatus = "unsigned (encrypted handoff spec forthcoming)"
+	unsignedSignatureStatus = "unsigned (encrypted handoff export artefact)"
 )
 
 type exportConfig struct {

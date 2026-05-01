@@ -24,6 +24,6 @@
   "provenance": {
     "source_bundle_hash": "sha256:3724eca24bdb3deb7ee25e4dddc39b5fc75ddfacaf6f983783bca01b6b9d538e",
     "extraction_signature": null,
-    "signature_status": "unsigned (encrypted handoff spec forthcoming)"
+    "signature_status": "unsigned (encrypted handoff export artefact)"
   }
 }
