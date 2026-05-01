@@ -56,24 +56,39 @@ def test_langchain_callback_emits_chain_and_llm_events() -> None:
     assert [record.event["type"] for record in records] == [
         "ai.chain.run",
         "ai.llm.call",
+        "ai.request.received",
+        "ai.model.invoked",
         "ai.llm.call",
         "ai.llm.call",
         "ai.llm.call",
+        "ai.model.output",
         "ai.chain.run",
     ]
 
     chain_start = records[0].event
     llm_start = records[1].event
-    llm_end = records[4].event["data"]
+    request = records[2].event["data"]
+    invoked = records[3].event["data"]
+    llm_end = records[6].event["data"]
+    output = records[7].event["data"]
 
     assert chain_start["data"]["phase"] == "start"
     assert llm_start["data"]["phase"] == "start"
     assert llm_start["trace_id"] == chain_start["trace_id"]
     assert llm_start["parent_span_id"] == chain_start["span_id"]
+    assert request["request_id"] == "llm-1"
+    assert request["input_digest"].startswith("sha256:")
+    assert invoked["request_id"] == "llm-1"
+    assert invoked["model_provider"] == "openai"
+    assert invoked["model_id"] == "gpt-4o-mini"
+    assert invoked["model_parameters_digest"].startswith("sha256:")
 
     assert llm_end["phase"] == "end"
     assert llm_end["context"]["completion"]["text"] == "AB"
     assert llm_end["context"]["token_usage"]["total_tokens"] == 5
+    assert output["request_id"] == "llm-1"
+    assert output["output_digest"].startswith("sha256:")
+    assert output["output_format"] == "text"
 
 
 def test_langchain_callback_privacy_hash_mode() -> None:

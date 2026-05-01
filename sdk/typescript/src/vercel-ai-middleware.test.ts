@@ -41,20 +41,32 @@ describe("atbMiddleware", () => {
     expect(types).toEqual([
       "ai.chain.run",
       "ai.llm.call",
+      "ai.request.received",
+      "ai.model.invoked",
       "ai.llm.call",
       "ai.llm.call",
       "ai.tool.exec",
       "ai.tool.exec",
       "ai.llm.call",
+      "ai.model.output",
       "ai.chain.run",
     ]);
 
     const chainStart = records[0].event;
     const llmStart = records[1].event;
-    const llmEnd = records[6].event.data as Record<string, unknown>;
+    const request = records[2].event.data as Record<string, unknown>;
+    const invoked = records[3].event.data as Record<string, unknown>;
+    const llmEnd = records[8].event.data as Record<string, unknown>;
+    const output = records[9].event.data as Record<string, unknown>;
 
     expect(llmStart.trace_id).toBe(chainStart.trace_id);
     expect(llmStart.parent_span_id).toBe(chainStart.span_id);
+    expect(request.request_id).toBe("llm-1");
+    expect(String(request.input_digest).startsWith("sha256:")).toBe(true);
+    expect(invoked.request_id).toBe("llm-1");
+    expect(invoked.model_provider).toBe("openai");
+    expect(invoked.model_id).toBe("gpt-4o-mini");
+    expect(String(invoked.model_parameters_digest).startsWith("sha256:")).toBe(true);
 
     const endContext = llmEnd.context as Record<string, unknown>;
     const completion = endContext.completion as Record<string, unknown>;
@@ -62,6 +74,9 @@ describe("atbMiddleware", () => {
 
     const usage = endContext.token_usage as Record<string, unknown>;
     expect(usage.total_tokens).toBe(5);
+    expect(output.request_id).toBe("llm-1");
+    expect(String(output.output_digest).startsWith("sha256:")).toBe(true);
+    expect(output.output_format).toBe("text");
   });
 
   it("applies hash privacy mode and hashes emitted text", () => {

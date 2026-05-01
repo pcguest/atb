@@ -17,6 +17,11 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 from atb.bundle import Bundle
+from atb.event_types import (
+    AI_MODEL_INVOKED_EVENT_TYPE,
+    AI_MODEL_OUTPUT_EVENT_TYPE,
+    AI_REQUEST_RECEIVED_EVENT_TYPE,
+)
 
 try:
     from langchain_core.callbacks.base import BaseCallbackHandler
@@ -263,6 +268,7 @@ class ATBCallbackHandler(BaseCallbackHandler):
             status_error=None,
             ended_at=None,
         )
+        self._emit_profile_start(state, provider, model, prompt_text, kwargs)
 
     def on_llm_new_token(
         self,
@@ -348,6 +354,7 @@ class ATBCallbackHandler(BaseCallbackHandler):
             status_error=None,
             ended_at=self._now(),
         )
+        self._emit_profile_output(state, completion_text)
         self._finish_span(state.run_id)
 
     def on_llm_error(
@@ -722,6 +729,78 @@ class ATBCallbackHandler(BaseCallbackHandler):
         if self.auto_save:
             self.bundle.save(self.save_path)
 
+    def _emit_profile_start(
+        self,
+        state: _SpanState,
+        provider: str,
+        model: str,
+        prompt_text: str,
+        kwargs: dict[str, Any],
+    ) -> None:
+        prompt_digest = self._digest(prompt_text)
+        now = self._now()
+        params = kwargs.get("invocation_params")
+        if not isinstance(params, dict):
+            params = {}
+
+        self._append_profile_event(
+            AI_REQUEST_RECEIVED_EVENT_TYPE,
+            {
+                "request_id": state.run_id,
+                "actor_id_hash": self._digest(self.actor_id or "unknown"),
+                "purpose_tag": "rag_answer",
+                "input_digest": prompt_digest,
+            },
+            state,
+            now,
+        )
+        self._append_profile_event(
+            AI_MODEL_INVOKED_EVENT_TYPE,
+            {
+                "request_id": state.run_id,
+                "model_provider": provider,
+                "model_id": model,
+                "model_parameters_digest": self._digest_json(params),
+                "prompt_digest": prompt_digest,
+            },
+            state,
+            now,
+        )
+
+    def _emit_profile_output(self, state: _SpanState, completion_text: str) -> None:
+        now = self._now()
+        self._append_profile_event(
+            AI_MODEL_OUTPUT_EVENT_TYPE,
+            {
+                "request_id": state.run_id,
+                "output_digest": self._digest(completion_text),
+                "output_format": "text",
+            },
+            state,
+            now,
+        )
+
+    def _append_profile_event(
+        self,
+        event_type: str,
+        payload: dict[str, Any],
+        state: _SpanState,
+        now: datetime,
+    ) -> None:
+        self.bundle.append(
+            event_type,
+            payload,
+            actor_id=self.actor_id,
+            org_id=self.org_id,
+            workspace_id=self.workspace_id,
+            timestamp=self._iso(now),
+            trace_id=state.trace_id,
+            span_id=state.span_id,
+            parent_span_id=state.parent_span_id,
+        )
+        if self.auto_save:
+            self.bundle.save(self.save_path)
+
     def _start_span(self, *, run_id: Any | None, parent_run_id: Any | None, event_type: str) -> _SpanState:
         run_key = self._run_key(run_id)
         parent_key = self._run_key(parent_run_id) if parent_run_id is not None else None
@@ -859,6 +938,21 @@ class ATBCallbackHandler(BaseCallbackHandler):
             return json.dumps(value, sort_keys=True, ensure_ascii=True)
         except TypeError:
             return str(value)
+
+    def _digest_json(self, value: Any) -> str:
+        try:
+            text = json.dumps(
+                value,
+                sort_keys=True,
+                ensure_ascii=True,
+                separators=(",", ":"),
+            )
+        except TypeError:
+            text = str(value)
+        return self._digest(text)
+
+    def _digest(self, value: str) -> str:
+        return "sha256:" + hashlib.sha256(value.encode("utf-8")).hexdigest()
 
     def _run_key(self, run_id: Any | None) -> str:
         if run_id is None:

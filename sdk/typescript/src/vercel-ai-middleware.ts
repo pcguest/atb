@@ -1,5 +1,10 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { Bundle } from "./bundle.js";
+import {
+  AI_MODEL_INVOKED_EVENT_TYPE,
+  AI_MODEL_OUTPUT_EVENT_TYPE,
+  AI_REQUEST_RECEIVED_EVENT_TYPE,
+} from "./eventTypes.js";
 
 /** Privacy handling applied to prompt, completion, and tool text. */
 export type PrivacyMode = "off" | "hash" | "redact";
@@ -194,6 +199,7 @@ class ATBMiddlewareImpl implements ATBMiddleware {
     };
 
     this.emit("ai.llm.call", "start", state, state.context, true, null, undefined);
+    this.emitProfileStart(state, input.prompt, state.context.provider, state.context.model);
   }
 
   onTokenGenerated(token: string, runId?: string): void {
@@ -245,6 +251,7 @@ class ATBMiddlewareImpl implements ATBMiddleware {
     };
 
     this.emit("ai.llm.call", "end", state, context, true, null, new Date());
+    this.emitProfileOutput(state, completion);
     this.finishSpan(state.runId);
   }
 
@@ -326,6 +333,75 @@ class ATBMiddlewareImpl implements ATBMiddleware {
       orgId: this.orgId,
       workspaceId: this.workspaceId,
       timestamp: toIso(emittedAt),
+      traceId: state.traceId,
+      spanId: state.spanId,
+      parentSpanId: state.parentSpanId,
+    });
+
+    if (this.autoSave) {
+      this.bundle.save(this.savePath);
+    }
+  }
+
+  private emitProfileStart(
+    state: SpanState,
+    prompt: string,
+    provider: unknown,
+    model: unknown
+  ): void {
+    const now = new Date();
+    const promptDigest = `sha256:${sha256(prompt)}`;
+    this.appendProfileEvent(
+      AI_REQUEST_RECEIVED_EVENT_TYPE,
+      {
+        request_id: state.runId,
+        actor_id_hash: `sha256:${sha256(this.actorId ?? "unknown")}`,
+        purpose_tag: "rag_answer",
+        input_digest: promptDigest,
+      },
+      state,
+      now
+    );
+    this.appendProfileEvent(
+      AI_MODEL_INVOKED_EVENT_TYPE,
+      {
+        request_id: state.runId,
+        model_provider: typeof provider === "string" ? provider : "unknown",
+        model_id: typeof model === "string" ? model : "unknown",
+        model_parameters_digest: `sha256:${sha256(
+          toStableString({ provider: provider ?? "unknown", model: model ?? "unknown" })
+        )}`,
+        prompt_digest: promptDigest,
+      },
+      state,
+      now
+    );
+  }
+
+  private emitProfileOutput(state: SpanState, completion: string): void {
+    this.appendProfileEvent(
+      AI_MODEL_OUTPUT_EVENT_TYPE,
+      {
+        request_id: state.runId,
+        output_digest: `sha256:${sha256(completion)}`,
+        output_format: "text",
+      },
+      state,
+      new Date()
+    );
+  }
+
+  private appendProfileEvent(
+    eventType: string,
+    payload: Record<string, unknown>,
+    state: SpanState,
+    now: Date
+  ): void {
+    this.bundle.append(eventType, payload, {
+      actorId: this.actorId,
+      orgId: this.orgId,
+      workspaceId: this.workspaceId,
+      timestamp: toIso(now),
       traceId: state.traceId,
       spanId: state.spanId,
       parentSpanId: state.parentSpanId,
