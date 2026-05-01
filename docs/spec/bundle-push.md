@@ -22,7 +22,7 @@ atb push <s3://bucket/prefix> [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry
 
 | Argument | Description |
 | --- | --- |
-| `s3://bucket/prefix` | Destination URI. Only the `s3://` scheme is currently supported. Azure (`az://`) and GCS (`gcs://`) are under consideration for later milestones. |
+| `s3://bucket/prefix` | Destination URI. Only the `s3://` scheme is currently supported. |
 
 ### Flags
 
@@ -120,12 +120,3 @@ For CI/CD, use the secrets `ATB_WORM_S3_ACCESS_KEY_ID` and `ATB_WORM_S3_SECRET_A
 
 Minimum IAM permissions: `s3:PutObject`, `s3:PutObjectRetention`.
 
-## Other WORM-capable targets
-
-| Target | Object lock mechanism | Mode |
-| --- | --- | --- |
-| AWS S3 | Object Lock | COMPLIANCE or GOVERNANCE |
-| Azure Blob | Immutable storage | Legal Hold or Time-Based Retention |
-| Google Cloud Storage | Object retention locks | Retention policy or object hold |
-
-Only the S3 target is currently supported. Azure (`az://`) and GCS (`gcs://`) support depends on demand and implementation capacity.

@@ -8,9 +8,6 @@ ATB is not an observability or monitoring tool. It does not stream events, evalu
 
 Current release: [`v1.10.0`](CHANGELOG.md)
 
-Planned work: [`docs/roadmap.md`](docs/roadmap.md)  
-Roadmap entries are tracked work, not release commitments.
-
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
 anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it
 does not prove recording completeness, model correctness, or that risk controls were applied.
@@ -397,6 +394,8 @@ alongside the rest of the workflow.
 - [EU AI Act Mapping](docs/compliance/eu-ai-act.md)
 - [SIEM and GRC Integration](docs/integrations/siem-grc.md)
 - [CLI Flag Reference](docs/config.md)
+- Planned work: [`docs/roadmap.md`](docs/roadmap.md)  
+  Roadmap entries are tracked work, not release commitments.
 - [Changelog](CHANGELOG.md)
 
 ## Attribution

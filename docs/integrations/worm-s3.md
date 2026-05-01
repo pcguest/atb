@@ -79,12 +79,3 @@ Remote verification after push:
 atb verify --remote s3://bucket/prefix/sha256-<hash>.atb
 ```
 
-## Other WORM-capable targets
-
-Azure Blob Storage immutable storage and Google Cloud Storage object lock are under consideration as equivalent targets. Azure and GCS support depend on demand and implementation capacity.
-
-| Target | Object lock mechanism | Lock mode equivalent |
-| --- | --- | --- |
-| AWS S3 | Object Lock | COMPLIANCE or GOVERNANCE |
-| Azure Blob | Immutable storage (container or blob level) | Legal Hold or Time-Based Retention |
-| Google Cloud Storage | Object retention locks | Retention policy or object hold |

@@ -8,7 +8,6 @@ This index lists the current documentation set and the authoritative home for ea
 - [quickstart.md](./quickstart.md) - The main user workflow: bundle, verify, review, and export.
 - [api/verify-schema.md](./api/verify-schema.md) - Compact verifier report contract and field meanings.
 - [spec-dashboard.md](./spec-dashboard.md) - Local viewer behaviour, states, and API expectations.
-- [roadmap.md](./roadmap.md) - Clearly future work only; current capability lives elsewhere in the docs.
 
 ## Maintainers
 
@@ -100,3 +99,4 @@ This index lists the current documentation set and the authoritative home for ea
 - [release/](./release/) - Maintainer release operation references.
 - [release/README.md](./release/README.md) - Release operations index.
 - [release/secrets.md](./release/secrets.md) - Names-only inventory of release secrets.
+- [roadmap.md](./roadmap.md) - Planned work and current status notes.
