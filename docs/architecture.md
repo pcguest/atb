@@ -30,6 +30,29 @@ Export and push operations seal the bundle before writing. A bundle that fails v
 
 The `Push` path (`atb push s3://bucket/prefix`) is implemented. It is opt-in and explicit; bundles are not pushed automatically. See [`docs/integrations/worm-s3.md`](./integrations/worm-s3.md) for usage.
 
+## Bundle safety semantics
+
+Bundle mutations are serialised at the file boundary. `Save` and `SignTo`
+take the bundle advisory lock before writing, serialise to a temporary file,
+fsync that file, atomically rename it into place, and fsync the parent
+directory. A second writer either waits when configured with `--lock-wait` or
+receives lock contention without corrupting the existing bundle.
+
+Read paths intentionally separate parsing from validation. `Load` is the
+non-validating parser used by inspection tools and compatibility paths.
+`LoadVerified` is the integrity-sensitive gate: it requires a manifest record,
+rejects non-bundle NDJSON, and verifies the hash chain before returning bundle
+data to callers that need evidence-grade reads.
+
+Snapshot appends validate the snapshot name before any bundle I/O. Names must
+be non-empty after trimming, at most 128 runes, and free of ASCII control
+characters, `/`, `\`, and NUL.
+
+The long-running CLI paths that load or append bundle state (`snapshot`,
+`capture run`, `import chatlog`, and `verify`) wrap their file operations in a
+default five-minute context timeout so a hung filesystem operation does not
+block the command indefinitely.
+
 ## Capture and import layer
 
 Capture v1 adds two narrow CLI entry points that sit above the Core Engine and

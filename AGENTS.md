@@ -190,8 +190,9 @@ declare the required events and gates, write a fixture under
 ## 9. CLI surface conventions
 
 - Exit codes are constants in `cmd/atb/exit_codes.go`. The current set
-  includes `exitSuccess` (0), `exitUserError` (2), `exitSystemError` (1),
-  `exitTamperError` (3), and `exitLockContention` (9). New exit codes require
+  includes `exitSuccess` (0), `exitUserError` (1),
+  `exitIntegrityFailure` (2), `exitVerifyFailure` (3),
+  `exitSystemError` (3), and `exitLockContention` (9). New exit codes require
   a `docs/spec-v1.0.md` update.
 - Every command that emits structured output supports `--format text|json`.
   Default is `text`.
@@ -324,3 +325,54 @@ Out of scope: network transport security (rely on TLS), key rotation policy
   Verify transport status in `internal/push/` before extending it.
 - `web/` viewer is feature-complete for v1.10.0; do not modify without
   reviewing `docs/spec-dashboard.md` first.
+
+## 19. Phase 0 (K1-K14) operational notes
+
+### Summary
+
+- `Save` and `SignTo` now write through crash-safe temp-file, fsync, atomic
+  rename, and parent-directory fsync.
+- Advisory bundle locking is wired for writers; contention surfaces as
+  `ErrBundleLocked` and CLI code `exitLockContention` (9).
+- Signing is TOCTOU-hardened: digest, parsed bundle, and source mode come from
+  one locked read before the atomic write.
+- `Load` is intentionally non-validating; use `LoadVerified` when structure,
+  manifest presence, and hash-chain integrity must be enforced.
+- Snapshot names are validated by `appendSnapshot` / `validateSnapshotName`
+  before bundle I/O.
+- `snapshotExitCode` is the shared snapshot error-to-exit-code mapper used by
+  snapshot, capture, and import snapshot paths.
+- Context propagation is available on bundle load/save/sign paths, with
+  five-minute operation timeouts on the long-running CLI paths that load,
+  snapshot, import, capture, or verify bundles.
+
+### When writing new code
+
+- Use `LoadVerified` for integrity-sensitive paths.
+- Use context-aware `Load`, `Save`, `Sign`, and `SignTo` from `cmd/atb`
+  call sites.
+- Respect snapshot naming rules by routing snapshot writes through
+  `appendSnapshot` / `validateSnapshotName`.
+- Use `writeAtomic` for any new bundle-file-write path.
+- Use `snapshotExitCode` for snapshot-related error to exit-code mapping.
+
+### Future cleanups
+
+- Consolidate legacy call forms with context-first APIs once all internal and
+  CLI callers have migrated.
+- `exitSystemError` and `exitVerifyFailure` both map to code 3 for
+  compatibility; treat a numeric split as a future breaking or major refactor,
+  not a patch-release change.
+
+## 2026-05-02 Session Summary
+
+- Added helper bridge records so helper-only bundles satisfy `atb.profile.rag_answer`;
+  verified Python and TypeScript helper bundles with `atb verify`.
+- Aligned request-event documented required fields with the README quickstart
+  and policy profile.
+- Corrected TypeScript SDK README scope wording.
+- Added the GitHub Releases binary install path before the Go install option.
+- Added the README inspect step before the local review UI command.
+- Final checks run: `go build ./...`, `go test -race ./...`,
+  `bash scripts/check-versions.sh`, and
+  `gh run list --repo pcguest/atb --workflow ci.yml --limit 1`.

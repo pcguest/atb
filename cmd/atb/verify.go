@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/push"
@@ -67,10 +68,23 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 		return runVerifyRemote(cfg, stdout, stderr)
 	}
 
-	return runVerifyWithConfig(cfg, dryRun, stdout, stderr)
+	const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+	ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+	defer cancel()
+	return runVerifyWithConfigContext(ctx, cfg, dryRun, stdout, stderr)
 }
 
 func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Writer) int {
+	const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+	ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+	defer cancel()
+	return runVerifyWithConfigContext(ctx, cfg, dryRun, stdout, stderr)
+}
+
+func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Writer) int {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if cfg.Quiet && !dryRun && !verifyWantsStructuredJSON(cfg) && !cfg.JSON {
 		stdout = io.Discard
 		stderr = io.Discard
@@ -99,7 +113,7 @@ func runVerifyWithConfig(cfg verifyCLIConfig, dryRun bool, stdout, stderr io.Wri
 		return exitSuccess
 	}
 
-	b, err := bundle.Load(cfg.BundlePath)
+	b, err := bundle.Load(ctx, cfg.BundlePath)
 	if err != nil {
 		exitCode := classifyVerifyBundleLoadError(err)
 		if isLegacyJSONMode(cfg) {

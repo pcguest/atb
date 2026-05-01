@@ -4,6 +4,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -102,6 +104,38 @@ func TestSnapshotParseArgs(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("unexpected config: got %+v want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidateSnapshotName(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{name: "valid simple name", input: "release-cut"},
+		{name: "valid unicode name", input: "café run"},
+		{name: "empty string", input: "", wantErr: true},
+		{name: "whitespace only", input: " \t\n ", wantErr: true},
+		{name: "exceeds 128 runes", input: strings.Repeat("a", 129), wantErr: true},
+		{name: "name with newline", input: "release\ncut", wantErr: true},
+		{name: "name with null byte", input: "release\x00cut", wantErr: true},
+		{name: "name with forward slash", input: "release/cut", wantErr: true},
+		{name: "name with backslash", input: `release\cut`, wantErr: true},
+		{name: "128 rune name exact boundary", input: strings.Repeat("a", 128)},
+		{name: "129 rune name over boundary", input: strings.Repeat("a", 129), wantErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateSnapshotName(tc.input)
+			if tc.wantErr && err == nil {
+				t.Fatal("expected error")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
 			}
 		})
 	}
@@ -252,6 +286,30 @@ func TestSnapshotOversightNoteInvalidExitsUserError(t *testing.T) {
 			}
 			if !strings.Contains(stderr.String(), "oversight note") {
 				t.Fatalf("stderr missing oversight note detail: %q", stderr.String())
+			}
+		})
+	}
+}
+
+func TestSnapshotExitCode(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "nil error", err: nil, want: exitSuccess},
+		{name: "bundle locked", err: fmt.Errorf("save: %w", bundle.ErrBundleLocked), want: exitLockContention},
+		{name: "bundle missing", err: fmt.Errorf("load: %w", errBundleMissing), want: exitUserError},
+		{name: "invalid oversight note", err: fmt.Errorf("validate: %w", errInvalidOversightNote), want: exitUserError},
+		{name: "mutation load malformed", err: mutationLoadError{err: errors.New("bundle: load: unmarshal: invalid json")}, want: exitIntegrityFailure},
+		{name: "mutation load missing", err: mutationLoadError{err: os.ErrNotExist}, want: exitUserError},
+		{name: "unrecognised error", err: errors.New("plain failure"), want: exitSystemError},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := snapshotExitCode(tc.err); got != tc.want {
+				t.Fatalf("snapshotExitCode(%v) = %d, want %d", tc.err, got, tc.want)
 			}
 		})
 	}

@@ -2,6 +2,7 @@
 package bundle
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -9,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -21,8 +23,12 @@ import (
 var atomicWrite = writeAtomic
 
 // Sign appends an Ed25519 signature record to the bundle in place.
-func Sign(bundlePath string, privateKey ed25519.PrivateKey) error {
-	_, err := SignTo(bundlePath, bundlePath, privateKey)
+func Sign(args ...any) error {
+	ctx, bundlePath, privateKey, err := signArgs(args)
+	if err != nil {
+		return err
+	}
+	_, err = SignTo(ctx, bundlePath, bundlePath, privateKey)
 	return err
 }
 
@@ -30,8 +36,12 @@ func Sign(bundlePath string, privateKey ed25519.PrivateKey) error {
 // key and writes the result to outputPath. Preserved for backward
 // compatibility with existing callers; new code should prefer
 // SignToWithSigner.
-func SignTo(bundlePath string, outputPath string, privateKey ed25519.PrivateKey) (string, error) {
-	return SignToWithSigner(context.Background(), bundlePath, outputPath, signer.NewLocalSigner(privateKey))
+func SignTo(args ...any) (string, error) {
+	ctx, bundlePath, outputPath, privateKey, err := signToArgs(args)
+	if err != nil {
+		return "", err
+	}
+	return SignToWithSigner(ctx, bundlePath, outputPath, signer.NewLocalSigner(privateKey))
 }
 
 // SignToWithSigner appends an Ed25519 (or future-algorithm) signature
@@ -58,6 +68,9 @@ func SignToWithSignerRetry(
 	}
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
 	}
 
 	if lockWait <= 0 {
@@ -91,12 +104,35 @@ func SignToWithSignerRetry(
 }
 
 func signToWithSignerUnlocked(ctx context.Context, bundlePath string, outputPath string, s signer.Signer) (string, error) {
-	rawBundle, err := os.ReadFile(bundlePath) // #nosec G304 -- caller supplies the bundle path explicitly
+	// Open the bundle once and derive everything from that single read so the
+	// digest, the parsed bundle, and the file mode all describe the same on-
+	// disk bytes. A previous implementation called os.ReadFile and then
+	// Load(bundlePath), opening the file twice; concurrent appenders could
+	// slip a write between the two opens (TOCTOU). Holding the advisory
+	// bundle lock around this function additionally prevents concurrent
+	// atb writers in cooperating processes.
+	f, err := os.Open(filepath.Clean(bundlePath)) // #nosec G304 -- caller supplies the bundle path explicitly
 	if err != nil {
 		return "", fmt.Errorf("read bundle: %w", err)
 	}
+	rawBundle, err := io.ReadAll(f)
+	if err != nil {
+		_ = f.Close()
+		return "", fmt.Errorf("read bundle: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		_ = f.Close()
+		return "", err
+	}
+	sourceMode := bundleFileMode
+	if info, statErr := f.Stat(); statErr == nil {
+		sourceMode = info.Mode().Perm()
+	}
+	if cerr := f.Close(); cerr != nil {
+		return "", fmt.Errorf("read bundle: close: %w", cerr)
+	}
 
-	b, err := Load(bundlePath)
+	b, err := LoadReader(bytes.NewReader(rawBundle))
 	if err != nil {
 		return "", err
 	}
@@ -136,24 +172,97 @@ func signToWithSignerUnlocked(ctx context.Context, bundlePath string, outputPath
 	}
 
 	signedRecord := b.Records[len(b.Records)-1]
-	if err := appendSignedRecord(outputPath, bundlePath, rawBundle, signedRecord); err != nil {
+	outputMode := bundleFileMode
+	if filepath.Clean(bundlePath) == filepath.Clean(outputPath) {
+		outputMode = sourceMode
+	}
+	if err := appendSignedRecord(outputPath, rawBundle, signedRecord, outputMode); err != nil {
 		return "", err
 	}
 
 	return hex.EncodeToString(digest[:]), nil
 }
 
-func appendSignedRecord(outputPath string, sourcePath string, rawBundle []byte, record Record) error {
+func signArgs(args []any) (context.Context, string, ed25519.PrivateKey, error) {
+	switch len(args) {
+	case 2:
+		bundlePath, ok := args[0].(string)
+		if !ok {
+			return nil, "", nil, fmt.Errorf("sign bundle: expected bundle path string")
+		}
+		privateKey, ok := args[1].(ed25519.PrivateKey)
+		if !ok {
+			return nil, "", nil, fmt.Errorf("sign bundle: expected Ed25519 private key")
+		}
+		return context.Background(), bundlePath, privateKey, nil
+	case 3:
+		ctx, ok := args[0].(context.Context)
+		if !ok {
+			return nil, "", nil, fmt.Errorf("sign bundle: expected context.Context")
+		}
+		bundlePath, ok := args[1].(string)
+		if !ok {
+			return nil, "", nil, fmt.Errorf("sign bundle: expected bundle path string")
+		}
+		privateKey, ok := args[2].(ed25519.PrivateKey)
+		if !ok {
+			return nil, "", nil, fmt.Errorf("sign bundle: expected Ed25519 private key")
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		return ctx, bundlePath, privateKey, nil
+	default:
+		return nil, "", nil, fmt.Errorf("sign bundle: expected path and key or context, path, and key")
+	}
+}
+
+func signToArgs(args []any) (context.Context, string, string, ed25519.PrivateKey, error) {
+	switch len(args) {
+	case 3:
+		bundlePath, ok := args[0].(string)
+		if !ok {
+			return nil, "", "", nil, fmt.Errorf("sign bundle: expected bundle path string")
+		}
+		outputPath, ok := args[1].(string)
+		if !ok {
+			return nil, "", "", nil, fmt.Errorf("sign bundle: expected output path string")
+		}
+		privateKey, ok := args[2].(ed25519.PrivateKey)
+		if !ok {
+			return nil, "", "", nil, fmt.Errorf("sign bundle: expected Ed25519 private key")
+		}
+		return context.Background(), bundlePath, outputPath, privateKey, nil
+	case 4:
+		ctx, ok := args[0].(context.Context)
+		if !ok {
+			return nil, "", "", nil, fmt.Errorf("sign bundle: expected context.Context")
+		}
+		bundlePath, ok := args[1].(string)
+		if !ok {
+			return nil, "", "", nil, fmt.Errorf("sign bundle: expected bundle path string")
+		}
+		outputPath, ok := args[2].(string)
+		if !ok {
+			return nil, "", "", nil, fmt.Errorf("sign bundle: expected output path string")
+		}
+		privateKey, ok := args[3].(ed25519.PrivateKey)
+		if !ok {
+			return nil, "", "", nil, fmt.Errorf("sign bundle: expected Ed25519 private key")
+		}
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		return ctx, bundlePath, outputPath, privateKey, nil
+	default:
+		return nil, "", "", nil, fmt.Errorf("sign bundle: expected paths and key or context, paths, and key")
+	}
+}
+
+func appendSignedRecord(outputPath string, rawBundle []byte, record Record, outputMode os.FileMode) error {
 	encodedRecord, err := json.Marshal(record)
 	if err != nil {
 		return fmt.Errorf("encode signature record: %w", err)
-	}
-
-	sourceMode := os.FileMode(0o600)
-	if filepath.Clean(sourcePath) == filepath.Clean(outputPath) {
-		if info, err := os.Stat(sourcePath); err == nil {
-			sourceMode = info.Mode().Perm()
-		}
 	}
 
 	payload := make([]byte, 0, len(rawBundle)+len(encodedRecord)+2)
@@ -167,7 +276,7 @@ func appendSignedRecord(outputPath string, sourcePath string, rawBundle []byte, 
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0750); err != nil { // #nosec G301 -- tightened directory permissions for bundle writes
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	if err := atomicWrite(outputPath, payload, sourceMode); err != nil {
+	if err := atomicWrite(outputPath, payload, outputMode); err != nil {
 		return fmt.Errorf("write signed bundle: %w", err)
 	}
 	return nil

@@ -96,42 +96,42 @@ func usageJSON() helpOutput {
 			{
 				Name:        "init",
 				Usage:       "atb init [--dry-run] [--format text|json] [--manifest-version 1|2]",
-				Description: "Initialise a new ATB bundle (idempotent).",
+				Description: "Initialise a new ATB bundle with crash-safe, atomic, locked file writes (idempotent).",
 				Flags:       []string{"--dry-run", "--format", "--manifest-version"},
 				Mutating:    true,
 			},
 			{
 				Name:        "bundle",
 				Usage:       "atb bundle new [--dry-run] [--format text|json] [--manifest-version 1|2]",
-				Description: "Initialise a new ATB bundle (alias for init).",
+				Description: "Initialise a new ATB bundle with crash-safe, atomic, locked file writes (alias for init).",
 				Flags:       []string{"--dry-run", "--format", "--manifest-version"},
 				Mutating:    true,
 			},
 			{
 				Name:        "import",
 				Usage:       "atb import chatlog --from <provider-type> --input <path> [--bundle <path>] [--snapshot <name>]",
-				Description: "Import a saved chatlog into a local ATB bundle.",
+				Description: "Import a saved chatlog into a local ATB bundle with crash-safe atomic writes, snapshot name validation, and the default five-minute operation timeout.",
 				Flags:       []string{"--from", "--input", "--bundle", "--snapshot", "--format", "--max-input-size"},
 				Mutating:    true,
 			},
 			{
 				Name:        "capture",
 				Usage:       "atb capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]",
-				Description: "Run a child command with ATB capture environment variables.",
+				Description: "Run a child command with ATB capture environment variables; snapshot names are validated and bundle writes are crash-safe, atomic, locked, and bounded by the default five-minute operation timeout.",
 				Flags:       []string{"--bundle", "--snapshot", "--env-prefix", "--profile", "--lock-wait"},
 				Mutating:    true,
 			},
 			{
 				Name:        "append",
 				Usage:       "atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]",
-				Description: "Append an event to the current bundle.",
+				Description: "Append an event to the current bundle using crash-safe, atomic, locked file writes.",
 				Flags:       []string{"--data", "--actor-id", "--org-id", "--workspace-id", "--sign-policy", "--dry-run", "--format"},
 				Mutating:    true,
 			},
 			{
 				Name:        "snapshot",
 				Usage:       "atb snapshot <name> [--dry-run] [--format text|json] [--lock-wait <duration>]",
-				Description: "Append a snapshot event to the current bundle.",
+				Description: "Append a snapshot event with crash-safe atomic locking, the default five-minute operation timeout, and validated names (non-empty, <=128 chars, no control chars or slashes).",
 				Flags:       []string{"--bundle", "--quiet", "--dry-run", "--format", "--actor-id", "--actor-role", "--oversight-note", "--lock-wait"},
 				Mutating:    true,
 			},
@@ -152,14 +152,14 @@ func usageJSON() helpOutput {
 			{
 				Name:        "sign",
 				Usage:       "atb sign --bundle <path> [--key <path>] [--out <path>] [--lock-wait <duration>]",
-				Description: "Append an Ed25519 bundle signature record.",
+				Description: "Append an Ed25519 bundle signature record with crash-safe, atomic, advisory-locked, TOCTOU-hardened writes.",
 				Flags:       []string{"--bundle", "--key", "--out", "--backend", "--key-id", "--sign-endpoint", "--sign-api-key", "--fallback-local", "--lock-wait"},
 				Mutating:    true,
 			},
 			{
 				Name:        "verify",
 				Usage:       "atb verify [bundle_path] [--bundle <path>] [--remote s3://bucket/key] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]",
-				Description: "Verify bundle integrity and evaluate obligation profiles. Use --remote to stream-verify a bundle stored on S3.",
+				Description: "Verify bundle integrity and evaluate obligation profiles with cancellation support and the default five-minute operation timeout. Use --remote to stream-verify a bundle stored on S3.",
 				Flags:       []string{"--bundle", "--remote", "--profile", "--json", "--format", "--dry-run", "--quiet", "--trace", "--with-anchor", "--with-snapshot-check", "--roots"},
 				Mutating:    false,
 			},
@@ -395,16 +395,16 @@ Usage:
   atb <command> [flags]
 
 Commands:
-  init [--dry-run] [--format text|json] [--manifest-version 1|2]  Initialise a new ATB bundle in ./run.atb/ (idempotent)
-  bundle new [--dry-run] [--format text|json] [--manifest-version 1|2]  Initialise a new ATB bundle in ./run.atb/ (alias for init)
-  import chatlog --from <provider-type> --input <path> [--bundle <path>] [--snapshot <name>]  Import a saved chatlog into a local ATB bundle
-  capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]  Run a child command with ATB capture environment variables
-  append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]  Append an event to the current bundle
-  snapshot <name> [--dry-run] [--format text|json] [--lock-wait <duration>]  Append a snapshot event
+  init [--dry-run] [--format text|json] [--manifest-version 1|2]  Initialise a new ATB bundle in ./run.atb/ with crash-safe, atomic, locked writes (idempotent)
+  bundle new [--dry-run] [--format text|json] [--manifest-version 1|2]  Initialise a new ATB bundle in ./run.atb/ with crash-safe, atomic, locked writes (alias for init)
+  import chatlog --from <provider-type> --input <path> [--bundle <path>] [--snapshot <name>]  Import a saved chatlog with crash-safe atomic writes; snapshot names are validated and operation time is bounded by the default five-minute timeout
+  capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]  Run a child command; snapshot names are validated and bundle writes are crash-safe, atomic, locked, and bounded by the default five-minute timeout
+  append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]  Append an event using crash-safe, atomic, locked bundle writes
+  snapshot <name> [--dry-run] [--format text|json] [--lock-wait <duration>]  Append a snapshot event with crash-safe atomic writes and the default five-minute timeout; names must be non-empty, <=128 chars, and free of control characters or slashes
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
   keygen [--out-dir <dir>]  Generate an Ed25519 signing keypair
-  sign --bundle <path> [--key <path>] [--out <path>] [--backend local|https-http|aws-kms|gcp-kms|vault] [--lock-wait <duration>]  Append a bundle signature record
-  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]  Verify integrity of a bundle and evaluate obligation profiles
+  sign --bundle <path> [--key <path>] [--out <path>] [--backend local|https-http|aws-kms|gcp-kms|vault] [--lock-wait <duration>]  Append a TOCTOU-hardened bundle signature record with crash-safe, atomic, locked writes
+  verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]  Verify integrity and profiles with cancellation support and the default five-minute operation timeout
   evidence --bundle <path> [--format text|json]  Emit a structured local bundle evidence summary
   profiles validate [--file <path>] [--dir <path>] [--format text|json]  Validate built-in and supplied profile definitions
   inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]  Inspect bundle records in table or JSON form
@@ -423,11 +423,13 @@ Commands:
   version           Print the ATB version
 
 Exit codes:
-  0  success
-  1  user/input error
-  2  integrity verification failure
-  3  profile verification failure or system/runtime error
-  9  bundle lock contention; retry after a short delay
+  0  exitSuccess: success
+  1  exitUserError: user/input error
+  2  exitIntegrityFailure: integrity verification failure
+  3  exitVerifyFailure or exitSystemError: profile verification failure or system/runtime error
+  9  exitLockContention: bundle lock contention; retry after a short delay
+
+Snapshot failures are classified through snapshotExitCode for snapshot, capture run, and import chatlog when snapshotting is enabled.
 
 Examples:
   atb init
@@ -690,7 +692,7 @@ func runInitWithOptions(opts initRunOptions, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "atb init: %v\n", err)
 		return exitSystemError
 	}
-	if err := b.Save(path); err != nil {
+	if err := b.Save(context.Background(), path); err != nil {
 		if opts.OutputFormat == formatJSON {
 			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
@@ -1030,7 +1032,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 }
 
 func appendToBundlePath(eventType string, data interface{}, path string, dryRun bool) (bundle.Record, error) {
-	b, err := bundle.Load(path)
+	b, err := bundle.Load(context.Background(), path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			b, err = bundle.New()
@@ -1049,7 +1051,7 @@ func appendToBundlePath(eventType string, data interface{}, path string, dryRun 
 	if dryRun {
 		return last, nil
 	}
-	if err := b.Save(path); err != nil {
+	if err := b.Save(context.Background(), path); err != nil {
 		return bundle.Record{}, fmt.Errorf("save: %w", err)
 	}
 	return last, nil
@@ -1368,7 +1370,7 @@ func appendToDefaultBundleWithLockWait(
 	opts ...bundle.AppendOptions,
 ) (bundle.Record, error) {
 	path := bundle.DefaultPath()
-	b, err := bundle.Load(path)
+	b, err := bundle.Load(context.Background(), path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			b, err = bundle.New()

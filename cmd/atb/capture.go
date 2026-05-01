@@ -63,6 +63,10 @@ func printCaptureCommandUsage(w io.Writer) {
 }
 
 func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+	ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+	defer cancel()
+
 	cfg, err := parseCaptureRunArgs(args)
 	if err != nil {
 		if errors.Is(err, errCaptureHelp) {
@@ -86,7 +90,7 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 		return exitSystemError
 	}
 
-	if err := ensureBundleExists(resolvedBundlePath, cfg.LockWait, stderr, runID); err != nil {
+	if err := ensureBundleExists(ctx, resolvedBundlePath, cfg.LockWait, stderr, runID); err != nil {
 		if isBundleLocked(err) {
 			fmt.Fprintf(stderr, "atb capture run: %s\n", bundleLockedMessage(err))
 			return exitLockContention
@@ -122,6 +126,7 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 
 	if cfg.SnapshotName != "" {
 		if _, err := appendSnapshot(snapshotConfig{
+			Context:    ctx,
 			Name:       cfg.SnapshotName,
 			BundlePath: resolvedBundlePath,
 			Quiet:      true,
@@ -129,10 +134,10 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 		}); err != nil {
 			if isBundleLocked(err) {
 				fmt.Fprintf(stderr, "atb capture run: %s\n", bundleLockedMessage(err))
-				return exitLockContention
+				return snapshotExitCode(err)
 			}
 			fmt.Fprintf(stderr, "atb capture run: append snapshot: %v\n", err)
-			return exitSystemError
+			return snapshotExitCode(err)
 		}
 	}
 
@@ -143,7 +148,7 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 		return exitSuccess
 	}
 
-	return runVerifyWithConfig(verifyCLIConfig{
+	return runVerifyWithConfigContext(ctx, verifyCLIConfig{
 		BundlePath:   resolvedBundlePath,
 		ProfileID:    cfg.ProfileID,
 		LegacyFormat: formatJSON,
@@ -257,7 +262,10 @@ func parseCaptureRunArgs(args []string) (captureRunConfig, error) {
 	return cfg, nil
 }
 
-func ensureBundleExists(path string, lockWait time.Duration, stderr io.Writer, captureRunID string) error {
+func ensureBundleExists(ctx context.Context, path string, lockWait time.Duration, stderr io.Writer, captureRunID string) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if _, err := os.Stat(path); err == nil {
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -268,7 +276,7 @@ func ensureBundleExists(path string, lockWait time.Duration, stderr io.Writer, c
 	if err != nil {
 		return err
 	}
-	if err := b.SaveWithRetry(context.Background(), path, lockWait, bundle.DefaultLockRetryInterval); err != nil {
+	if err := b.SaveWithRetry(ctx, path, lockWait, bundle.DefaultLockRetryInterval); err != nil {
 		if lockWait > 0 && isBundleLocked(err) {
 			return lockWaitError(lockWait)
 		}

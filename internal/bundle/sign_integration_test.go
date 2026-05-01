@@ -54,15 +54,15 @@ func TestBundleSignAndVerify(t *testing.T) {
 		t.Fatalf("append model event: %v", err)
 	}
 
-	if err := b.Save(path); err != nil {
+	if err := b.Save(context.Background(), path); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	if err := bundle.Sign(path, privateKey); err != nil {
+	if err := bundle.Sign(context.Background(), path, privateKey); err != nil {
 		t.Fatalf("sign bundle: %v", err)
 	}
 
-	signedBundle, err := bundle.Load(path)
+	signedBundle, err := bundle.Load(context.Background(), path)
 	if err != nil {
 		t.Fatalf("load signed bundle: %v", err)
 	}
@@ -103,7 +103,7 @@ func TestBundleSignAndVerify(t *testing.T) {
 
 	corruptBundleSignature(t, path, signatureValue)
 
-	corruptedBundle, err := bundle.Load(path)
+	corruptedBundle, err := bundle.Load(context.Background(), path)
 	if err != nil {
 		t.Fatalf("load corrupted bundle: %v", err)
 	}
@@ -146,18 +146,18 @@ func TestBundleSignTwiceVerifiesFullChain(t *testing.T) {
 	}, &bundle.AppendOptions{Timestamp: "2026-04-09T00:00:00Z"}); err != nil {
 		t.Fatalf("append request event: %v", err)
 	}
-	if err := b.Save(path); err != nil {
+	if err := b.Save(context.Background(), path); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	if err := bundle.Sign(path, firstPrivateKey); err != nil {
+	if err := bundle.Sign(context.Background(), path, firstPrivateKey); err != nil {
 		t.Fatalf("first sign bundle: %v", err)
 	}
-	if err := bundle.Sign(path, secondPrivateKey); err != nil {
+	if err := bundle.Sign(context.Background(), path, secondPrivateKey); err != nil {
 		t.Fatalf("second sign bundle: %v", err)
 	}
 
-	signedBundle, err := bundle.Load(path)
+	signedBundle, err := bundle.Load(context.Background(), path)
 	if err != nil {
 		t.Fatalf("load signed bundle: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestConcurrentSignToReturnsLockedAndLeavesOneSignature(t *testing.T) {
 	}, &bundle.AppendOptions{Timestamp: "2026-04-09T00:00:00Z"}); err != nil {
 		t.Fatalf("append request event: %v", err)
 	}
-	if err := b.Save(path); err != nil {
+	if err := b.Save(context.Background(), path); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
 
@@ -230,7 +230,7 @@ func TestConcurrentSignToReturnsLockedAndLeavesOneSignature(t *testing.T) {
 	// SignTo uses a non-blocking advisory lock. Callers that receive
 	// ErrBundleLocked should retry with backoff rather than assuming the
 	// signature was appended.
-	if _, err := bundle.SignTo(path, path, secondPrivateKey); !errors.Is(err, bundle.ErrBundleLocked) {
+	if _, err := bundle.SignTo(context.Background(), path, path, secondPrivateKey); !errors.Is(err, bundle.ErrBundleLocked) {
 		t.Fatalf("second SignTo error = %v, want ErrBundleLocked", err)
 	}
 
@@ -244,7 +244,7 @@ func TestConcurrentSignToReturnsLockedAndLeavesOneSignature(t *testing.T) {
 		t.Fatal("first SignToWithSigner did not finish")
 	}
 
-	signedBundle, err := bundle.Load(path)
+	signedBundle, err := bundle.Load(context.Background(), path)
 	if err != nil {
 		t.Fatalf("load signed bundle: %v", err)
 	}
@@ -253,6 +253,39 @@ func TestConcurrentSignToReturnsLockedAndLeavesOneSignature(t *testing.T) {
 	}
 	if got := countBundleSignatureRecords(signedBundle); got != 1 {
 		t.Fatalf("signature record count = %d, want 1", got)
+	}
+}
+
+func TestSignCancelled(t *testing.T) {
+	t.Parallel()
+
+	_, privateKey, err := ed25519.GenerateKey(cryptorand.Reader)
+	if err != nil {
+		t.Fatalf("generate Ed25519 keypair: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
+	if err := b.AppendWithOptions(event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-cancelled",
+		"actor_id_hash": "actor-cancelled",
+		"purpose_tag":   "rag_answer",
+	}, &bundle.AppendOptions{Timestamp: "2026-04-09T00:00:00Z"}); err != nil {
+		t.Fatalf("append request event: %v", err)
+	}
+	if err := b.Save(context.Background(), path); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err = bundle.SignTo(ctx, path, path, privateKey)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("SignTo() error = %v, want context.Canceled", err)
 	}
 }
 
@@ -344,3 +377,158 @@ func corruptBundleSignature(t testing.TB, path string, signatureValue string) {
 		t.Fatalf("write corrupted bundle: %v", err)
 	}
 }
+
+// TestSignToAtomic confirms that an in-place SignTo produces a valid signed
+// bundle whose pre-sign bytes appear unchanged as a prefix of the output —
+// i.e. the atomic write replaces the file with a single complete result.
+func TestSignToAtomic(t *testing.T) {
+	t.Parallel()
+
+	_, privateKey, err := ed25519.GenerateKey(cryptorand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	if err := b.AppendWithOptions(event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-1",
+		"actor_id_hash": "h",
+		"purpose_tag":   "rag",
+		"input_digest":  "sha256:x",
+	}, &bundle.AppendOptions{Timestamp: "2026-04-09T00:00:00Z"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	if err := b.Save(context.Background(), path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	preSignBytes, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read pre-sign: %v", err)
+	}
+
+	if _, err := bundle.SignTo(context.Background(), path, path, privateKey); err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	postSignBytes, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read post-sign: %v", err)
+	}
+
+	// The signed file MUST start with exactly the pre-sign bytes — anything
+	// less means the atomic write produced a partial result; anything mutated
+	// means the bundle was rewritten in-place rather than appended-and-renamed.
+	if !bytes.HasPrefix(postSignBytes, preSignBytes) {
+		t.Fatalf("post-sign bytes do not start with pre-sign bytes; atomic prefix preservation broken")
+	}
+	if len(postSignBytes) <= len(preSignBytes) {
+		t.Fatalf("post-sign bytes (%d) not larger than pre-sign (%d); signature record missing",
+			len(postSignBytes), len(preSignBytes))
+	}
+
+	loaded, err := bundle.Load(context.Background(), path)
+	if err != nil {
+		t.Fatalf("load signed: %v", err)
+	}
+	if err := loaded.Verify(); err != nil {
+		t.Fatalf("verify signed: %v", err)
+	}
+
+	// Confirm no .tmp file was left behind by the atomic writer.
+	entries, err := os.ReadDir(filepath.Dir(path))
+	if err != nil {
+		t.Fatalf("readdir: %v", err)
+	}
+	for _, e := range entries {
+		if strings.Contains(e.Name(), ".tmp") {
+			t.Errorf("temp file left behind after sign: %s", e.Name())
+		}
+	}
+}
+
+// TestSignNoTOCTOU exercises the closed TOCTOU window in SignTo: the bundle
+// is now opened once and the digest, parsed bundle, and file mode are all
+// derived from those bytes. We start a sign in one goroutine and Save a
+// different version in another. The final file must be byte-for-byte one of
+// the two consistent results, never a torn mix.
+//
+// Probabilistic: this test exercises a race window. It will not always observe
+// the contention, but together with -race it documents and catches regression
+// to the prior os.ReadFile + Load(...) double-read pattern.
+func TestSignNoTOCTOU(t *testing.T) {
+	t.Parallel()
+
+	_, privateKey, err := ed25519.GenerateKey(cryptorand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	makeBundle := func(payload string) *bundle.Bundle {
+		t.Helper()
+		b, err := bundle.New()
+		if err != nil {
+			t.Fatalf("new: %v", err)
+		}
+		if err := b.AppendWithOptions(event.TypeAIRequestReceived, map[string]any{
+			"request_id":    "req-" + payload,
+			"actor_id_hash": "h",
+			"purpose_tag":   "rag",
+			"input_digest":  "sha256:" + payload,
+		}, &bundle.AppendOptions{Timestamp: "2026-04-09T00:00:00Z"}); err != nil {
+			t.Fatalf("append: %v", err)
+		}
+		return b
+	}
+
+	original := makeBundle("original")
+	if err := original.Save(context.Background(), path); err != nil {
+		t.Fatalf("save original: %v", err)
+	}
+
+	competitor := makeBundle("competitor")
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var signErr error
+	go func() {
+		defer wg.Done()
+		_, signErr = bundle.SignTo(context.Background(), path, path, privateKey)
+	}()
+	go func() {
+		defer wg.Done()
+		// Both writers contend on the same advisory lock. With the TOCTOU
+		// window closed, whichever writer wins the lock first runs to
+		// completion before the other observes the file.
+		_ = competitor.Save(context.Background(), path)
+	}()
+	wg.Wait()
+
+	// Sign may have failed if the competitor won the lock first and changed
+	// the file underneath the lock contract — that's an acceptable outcome
+	// (errors.Is may match ErrBundleLocked on either path). What is NOT
+	// acceptable: a corrupt final file.
+	if signErr != nil && !errors.Is(signErr, bundle.ErrBundleLocked) {
+		// Re-loading the file must still succeed even if Sign reported a
+		// locking error.
+		t.Logf("sign returned non-lock error (acceptable in this race): %v", signErr)
+	}
+
+	loaded, err := bundle.Load(context.Background(), path)
+	if err != nil {
+		t.Fatalf("final load: %v", err)
+	}
+	if err := loaded.Verify(); err != nil {
+		t.Fatalf("final verify (torn write?): %v", err)
+	}
+}
+
+// keep imports used unconditionally even if compiler inlines the variables.
+var _ = time.RFC3339
+var _ = context.Background

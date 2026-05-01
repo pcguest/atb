@@ -39,7 +39,30 @@ func bundleLockedMessage(err error) string {
 	return message
 }
 
+// validateSnapshotName returns a non-nil error if name is not a valid snapshot name.
+// Rules enforced:
+//   - Non-empty after strings.TrimSpace
+//   - Length <= 128 runes (after trim)
+//   - No ASCII control characters (< 0x20 or == 0x7F)
+//   - No forward slash, backslash, or null byte
+func validateSnapshotName(name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("snapshot name must not be empty")
+	}
+	if len([]rune(name)) > 128 {
+		return errors.New("snapshot name must be 128 characters or fewer")
+	}
+	for _, r := range name {
+		if r < 0x20 || r == 0x7F || r == '/' || r == '\\' || r == 0x00 {
+			return errors.New("snapshot name contains invalid characters (no control chars, /, \\, or newlines)")
+		}
+	}
+	return nil
+}
+
 type snapshotConfig struct {
+	Context         context.Context
 	Name            string
 	BundlePath      string
 	Quiet           bool
@@ -100,6 +123,11 @@ func runSnapshot(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
+	const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+	ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+	defer cancel()
+
+	cfg.Context = ctx
 	cfg.RequireExisting = true
 	cfg.Stderr = stderr
 	result, err := appendSnapshot(cfg)
@@ -156,7 +184,13 @@ func runSnapshot(args []string, stdout, stderr io.Writer) int {
 	return exitSuccess
 }
 
+// snapshotExitCode maps an error returned by appendSnapshot to the
+// appropriate CLI exit code. It mirrors the classification in runSnapshot
+// and must be kept in sync with it.
 func snapshotExitCode(err error) int {
+	if err == nil {
+		return exitSuccess
+	}
 	var loadErr mutationLoadError
 	switch {
 	case isBundleLocked(err):
@@ -267,8 +301,11 @@ func parseSnapshotArgs(args []string) (snapshotConfig, error) {
 		}
 	}
 
-	if !nameSet || cfg.Name == "" {
+	if !nameSet {
 		return cfg, fmt.Errorf("snapshot name cannot be empty")
+	}
+	if err := validateSnapshotName(cfg.Name); err != nil {
+		return cfg, err
 	}
 	if cfg.Format != formatText && cfg.Format != formatJSON {
 		return cfg, fmt.Errorf("invalid format %q (expected text|json)", cfg.Format)
@@ -284,13 +321,21 @@ func parseSnapshotArgs(args []string) (snapshotConfig, error) {
 }
 
 func appendSnapshot(cfg snapshotConfig) (snapshotResult, error) {
+	if err := validateSnapshotName(cfg.Name); err != nil {
+		return snapshotResult{}, fmt.Errorf("validate: %w", err)
+	}
+	ctx := cfg.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	now := cfg.snapshotClock
 	if now == nil {
 		now = time.Now
 	}
 	snapshotAt := now().UTC().Format(time.RFC3339Nano)
 
-	b, created, err := loadSnapshotBundle(cfg.BundlePath, cfg.RequireExisting)
+	b, created, err := loadSnapshotBundle(ctx, cfg.BundlePath, cfg.RequireExisting)
 	if err != nil {
 		return snapshotResult{}, err
 	}
@@ -325,7 +370,7 @@ func appendSnapshot(cfg snapshotConfig) (snapshotResult, error) {
 	if cfg.DryRun {
 		return snapshotResult{Data: data, Last: last}, nil
 	}
-	if err := b.SaveWithRetry(context.Background(), cfg.BundlePath, cfg.LockWait, bundle.DefaultLockRetryInterval); err != nil {
+	if err := b.SaveWithRetry(ctx, cfg.BundlePath, cfg.LockWait, bundle.DefaultLockRetryInterval); err != nil {
 		if cfg.LockWait > 0 && isBundleLocked(err) {
 			return snapshotResult{}, lockWaitError(cfg.LockWait)
 		}
@@ -356,8 +401,11 @@ func validateOversightNote(note string) error {
 	return nil
 }
 
-func loadSnapshotBundle(path string, requireExisting bool) (*bundle.Bundle, bool, error) {
-	b, err := bundle.Load(path)
+func loadSnapshotBundle(ctx context.Context, path string, requireExisting bool) (*bundle.Bundle, bool, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	b, err := bundle.Load(ctx, path)
 	if err == nil {
 		return b, false, nil
 	}

@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -78,7 +79,10 @@ func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 	switch args[0] {
 	case "chatlog":
-		return runImportChatlog(args[1:], stdin, stdout, stderr)
+		const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+		ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+		defer cancel()
+		return runImportChatlogWithContext(ctx, args[1:], stdin, stdout, stderr)
 	case "-h", "--help", "help":
 		printImportCommandUsage(stdout)
 		return exitSuccess
@@ -100,6 +104,16 @@ func printImportCommandUsage(w io.Writer) {
 }
 
 func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+	ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+	defer cancel()
+	return runImportChatlogWithContext(ctx, args, stdin, stdout, stderr)
+}
+
+func runImportChatlogWithContext(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	cfg, err := parseImportChatlogArgs(args)
 	if err != nil {
 		if errors.Is(err, errImportHelp) {
@@ -186,7 +200,7 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		}
 	}
 
-	b, created, err := loadSnapshotBundle(cfg.BundlePath, false)
+	b, created, err := loadSnapshotBundle(ctx, cfg.BundlePath, false)
 	if err != nil {
 		var loadErr mutationLoadError
 		if errors.As(err, &loadErr) {
@@ -208,7 +222,7 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 		snapshotAt := time.Now().UTC().Format(time.RFC3339Nano)
 		bundleHash, err := verifypkg.SnapshotBundleHash(b.Records)
 		if err != nil {
-			return fail(exitSystemError, fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
+			return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
 		}
 		data := snapshotEventData{
 			Name:        cfg.SnapshotName,
@@ -217,11 +231,11 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 			SnapshotAt:  snapshotAt,
 		}
 		if err := b.AppendWithOptions(event.TypeSnapshot, data, &bundle.AppendOptions{Timestamp: snapshotAt}); err != nil {
-			return fail(exitSystemError, fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
+			return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
 		}
 	}
 
-	if err := b.Save(cfg.BundlePath); err != nil {
+	if err := b.Save(ctx, cfg.BundlePath); err != nil {
 		if isBundleLocked(err) {
 			return fail(exitLockContention, bundleLockedMessage(err))
 		}
@@ -252,13 +266,6 @@ func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) 
 	}
 	fmt.Fprintln(stdout)
 	return exitSuccess
-}
-
-func validateSnapshotName(name string) error {
-	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("snapshot name cannot be empty")
-	}
-	return nil
 }
 
 func parseImportChatlogArgs(args []string) (importChatlogConfig, error) {

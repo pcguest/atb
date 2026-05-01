@@ -1,87 +1,18 @@
 // SPDX-License-Identifier: MIT
 // Package event defines the canonical ATB event taxonomy.
 // Event type strings follow the reverse-DNS dotted-namespace convention.
-// These constants are the authoritative source of truth across the Go
-// runtime, CLI, and obligation profiles.
+// Event type constants and generated registry metadata are generated from
+// schemas/event.v1.json.
 package event
 
-// Bundle lifecycle events.
-const (
-	TypeBundleManifest  = "atb.bundle.manifest"
-	TypeBundleAnchor    = "atb.bundle.anchor"
-	TypeBundleSignature = "atb.bundle.signature"
-	// TypeSnapshot data may include optional Article 14 human oversight fields:
-	// actor_id, actor_role, and oversight_note.
-	TypeSnapshot     = "atb.snapshot"
-	TypeBundlePushed = "atb.bundle.pushed"
-)
-
-// AI request and response events.
-const (
-	TypeAIRequestReceived = "ai.request.received"
-	TypeAIResponseSent    = "ai.response.sent"
-	TypeAILLMCall         = "ai.llm.call"
-	TypeAIToolExec        = "ai.tool.exec"
-	TypeAIChainRun        = "ai.chain.run"
-)
+//go:generate go run ../../tools/eventgen/main.go -schema ../../schemas/event.v1.json
 
 // Policy decision events.
 const (
-	TypeAIPolicyDecision    = "ai.policy.decision"
 	FieldPolicySignature    = "policy_signature"
 	FieldPolicySignerPubKey = "policy_signer_pubkey"
 	FieldPolicyDocHash      = "policy_doc_hash"
 	FieldPolicyDocSignature = "policy_doc_signature"
-)
-
-// RAG events.
-const (
-	TypeAIRetrievalExecuted = "ai.retrieval.executed"
-	TypeAIModelInvoked      = "ai.model.invoked"
-	TypeAIModelOutput       = "ai.model.output"
-
-	// PageIndex-specific RAG events (Mode B in-process integration).
-	// See sdk/python/atb/pageindex.py and THIRD_PARTY_NOTICES.
-	TypeRAGIndex     = "atb.event.rag_index"
-	TypeRAGRetrieval = "atb.event.rag_retrieval"
-)
-
-// Privileged action / ACP-gating events.
-const (
-	TypeAIActionPrecommit = "ai.action.precommit"
-	TypeAIActionExecuted  = "ai.action.executed"
-	TypeAIActionCommitted = "ai.action.committed"
-)
-
-// Human oversight events.
-const (
-	TypeAIHumanApproval     = "ai.human.approval"
-	TypeAIOverrideRequested = "ai.override.requested"
-)
-
-// Background automation events.
-const (
-	TypeAIJobScheduled = "ai.job.scheduled"
-	TypeAIJobStarted   = "ai.job.started"
-	TypeAIJobStep      = "ai.job.step"
-	TypeAIJobCompleted = "ai.job.completed"
-)
-
-// Data export events.
-const (
-	TypeDataExportPrecommit = "data.export.precommit"
-	TypeDataExportExecuted  = "data.export.executed"
-)
-
-// Developer / session events used in tests and tooling.
-const (
-	TypeDevSession    = "dev.session"
-	TypeSnapshotBuild = "snapshot.build"
-)
-
-// Corroboration events record evidence retrieved from external systems.
-const (
-	TypeCorroborationExternal = "atb.corroboration.external"
 )
 
 // EventInfo describes a registered event type with its metadata.
@@ -95,8 +26,11 @@ type EventInfo struct {
 	Criticality string `json:"criticality"`
 }
 
-// Registry is the ordered list of all canonical event types.
-// It is the source of truth used by `atb events`.
+// Registry is the legacy ordered list of all canonical event types.
+//
+// Deprecated: schemas/event.v1.json event_types is the source of truth. Use
+// RegistryGenerated for generated metadata. Registry remains unchanged for one
+// minor release to preserve existing callers.
 var Registry = []EventInfo{
 	{TypeBundleManifest, "Bundle manifest (seq 0, always first in a new bundle)", "atb.profile.privileged_tool_action,atb.profile.rag_answer,atb.profile.data_export,atb.profile.policy_decision,atb.profile.human_override,atb.profile.background_automation", "critical"},
 	{TypeBundleAnchor, "RFC 3161 TSA timestamp anchor", "all", "required"},

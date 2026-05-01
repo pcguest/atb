@@ -6,6 +6,7 @@ package bundle
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -45,16 +46,8 @@ const (
 	ManifestVersionMax = 2
 )
 
-// ErrMalformed is returned when a bundle is structurally invalid in a way
-// the reader cannot recover from — including a manifest version that this
-// build of atb does not understand. Wrapped errors should retain
-// errors.Is(err, ErrMalformed) for callers that want to distinguish
-// malformed bundles from tamper detection.
-var ErrMalformed = errors.New("bundle: malformed")
-
-// ErrNoManifest is returned by ManifestE when the bundle has no records or
-// the first record is not of type ManifestEventType.
-var ErrNoManifest = errors.New("bundle: no manifest record")
+// ErrMalformed, ErrNoManifest, ErrTamper, and ErrNotABundle are declared
+// in errors.go alongside the rest of the package's typed sentinel errors.
 
 var eventTypeRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`)
 
@@ -107,7 +100,10 @@ func New() (*Bundle, error) {
 func NewWithOptions(opts NewOptions) (*Bundle, error) {
 	b := &Bundle{}
 	createdAt := time.Now().UTC().Format(time.RFC3339)
-	bundleID := newBundleID()
+	bundleID, err := newBundleID()
+	if err != nil {
+		return nil, err
+	}
 
 	switch opts.ManifestVersion {
 	case 0, 1:
@@ -239,9 +235,16 @@ func (b *Bundle) Verify() error {
 // duration of the write. Concurrent callers that find the lock held
 // receive an error matchable via errors.Is(err, ErrBundleLocked); they
 // do not block. See internal/bundle/lock_unix.go for the contract.
-func (b *Bundle) Save(path string) error {
-	err := withBundleLock(path, func() error {
-		return b.saveUnlocked(context.Background(), path)
+func (b *Bundle) Save(args ...any) error {
+	ctx, path, err := contextPathArgs("bundle: save", args)
+	if err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	err = withBundleLock(path, func() error {
+		return b.saveUnlocked(ctx, path)
 	})
 	if errors.Is(err, ErrBundleLocked) {
 		return fmt.Errorf("bundle: save: %w", err)
@@ -282,97 +285,106 @@ func (b *Bundle) saveUnlocked(ctx context.Context, path string) error {
 		return fmt.Errorf("bundle: save: mkdir: %w", err)
 	}
 
-	tmp, err := os.CreateTemp(dir, "*.atb.tmp") // #nosec G304 -- dir is derived from caller-validated path
-	if err != nil {
-		return fmt.Errorf("bundle: save: create temp: %w", err)
-	}
-	tmpPath := tmp.Name()
-	removeTemp := true
-	defer func() {
-		if removeTemp {
-			_ = os.Remove(tmpPath)
-		}
-	}()
-
-	enc := json.NewEncoder(tmp)
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
 	for _, r := range b.Records {
 		if err := enc.Encode(r); err != nil {
-			_ = tmp.Close()
 			return fmt.Errorf("bundle: save: encode: %w", err)
 		}
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("bundle: save: close temp: %w", err)
-	}
-	if err := os.Rename(tmpPath, filepath.Clean(path)); err != nil {
-		return fmt.Errorf("bundle: save: rename: %w", err)
-	}
-	removeTemp = false
-	return nil
-}
-
-// writeAtomic writes data to path using a temp-file/fsync/rename sequence so
-// that a crash mid-write cannot leave a truncated or partially-written file.
-// If mode is 0, the file is created with permission 0600.
-// On error, any temp file is cleaned up before returning.
-func writeAtomic(path string, data []byte, mode os.FileMode) error {
-	if mode == 0 {
-		mode = 0o600
-	}
-
-	cleanPath := filepath.Clean(path)
-	dir := filepath.Dir(cleanPath)
-	tmp, err := os.CreateTemp(dir, filepath.Base(cleanPath)+".*.tmp") // #nosec G304 -- path is supplied by the caller
-	if err != nil {
-		return fmt.Errorf("bundle: write atomic: create temp: %w", err)
-	}
-	tmpPath := tmp.Name()
-	removeTemp := true
-	defer func() {
-		if removeTemp {
-			_ = os.Remove(tmpPath)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
-	}()
-
-	if err := tmp.Chmod(mode.Perm()); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("bundle: write atomic: chmod temp: %w", err)
 	}
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("bundle: write atomic: write temp: %w", err)
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return fmt.Errorf("bundle: write atomic: fsync temp: %w", err)
-	}
-	if err := tmp.Close(); err != nil {
-		return fmt.Errorf("bundle: write atomic: close temp: %w", err)
-	}
-	if err := os.Rename(tmpPath, cleanPath); err != nil {
-		return fmt.Errorf("bundle: write atomic: rename: %w", err)
-	}
-	removeTemp = false
-
-	dirFile, err := os.Open(dir) // #nosec G304 -- dir is derived from caller path
-	if err != nil {
-		return fmt.Errorf("bundle: write atomic: open parent: %w", err)
-	}
-	defer func() { _ = dirFile.Close() }()
-	if err := dirFile.Sync(); err != nil {
-		return fmt.Errorf("bundle: write atomic: fsync parent: %w", err)
+	if err := writeAtomic(path, buf.Bytes(), bundleFileMode); err != nil {
+		return fmt.Errorf("bundle: save: %w", err)
 	}
 	return nil
 }
 
-// Load reads a bundle from the given file path.
-func Load(path string) (*Bundle, error) {
+// Load parses path as NDJSON into a Bundle without verifying the hash chain.
+// Use LoadVerified for safe loading. This function is intentionally non-validating
+// for tooling that needs to inspect malformed or partial bundles.
+func Load(args ...any) (*Bundle, error) {
+	ctx, path, err := contextPathArgs("bundle: load", args)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	f, err := os.Open(filepath.Clean(path)) // #nosec G304 -- path is user-specified for CLI; caller validates
 	if err != nil {
 		return nil, fmt.Errorf("bundle: load: open: %w", err)
 	}
 	defer f.Close()
-	return LoadReader(f)
+	b, err := LoadReader(f)
+	if err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+// LoadVerified loads the bundle at path, confirms record 0 is the manifest,
+// and verifies the hash chain. Returns a typed error for every failure class:
+//   - ErrNotABundle  if record 0 is not the manifest type
+//   - ErrNoManifest  if the bundle has no records at all
+//   - ErrTamper      (via Verify) if the chain is broken
+//   - ErrMalformed   (via Load) if the NDJSON cannot be parsed
+//
+// For non-bundle-format errors (file not found, permission denied), the
+// underlying os error is returned unwrapped.
+func LoadVerified(path string) (*Bundle, error) {
+	b, err := Load(context.Background(), path)
+	if err != nil {
+		return nil, err
+	}
+	if len(b.Records) == 0 {
+		return nil, fmt.Errorf("empty file: %w", ErrNoManifest)
+	}
+	if b.Records[0].Event.Type != ManifestEventType {
+		return nil, fmt.Errorf("record 0 type %q: %w", b.Records[0].Event.Type, ErrNotABundle)
+	}
+	if err := b.Verify(); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func contextPathArgs(op string, args []any) (context.Context, string, error) {
+	var (
+		ctx  context.Context
+		path string
+	)
+	switch len(args) {
+	case 1:
+		ctx = context.Background()
+		var ok bool
+		path, ok = args[0].(string)
+		if !ok {
+			return nil, "", fmt.Errorf("%s: expected path string", op)
+		}
+	case 2:
+		var ok bool
+		ctx, ok = args[0].(context.Context)
+		if !ok {
+			return nil, "", fmt.Errorf("%s: expected context.Context", op)
+		}
+		path, ok = args[1].(string)
+		if !ok {
+			return nil, "", fmt.Errorf("%s: expected path string", op)
+		}
+	default:
+		return nil, "", fmt.Errorf("%s: expected path or context and path", op)
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return ctx, path, nil
 }
 
 // LoadReader reads a bundle from r in NDJSON format.
@@ -389,7 +401,7 @@ func LoadReader(r io.Reader) (*Bundle, error) {
 		}
 		var rec Record
 		if err := json.Unmarshal(line, &rec); err != nil {
-			return nil, fmt.Errorf("bundle: load: unmarshal: %w", err)
+			return nil, fmt.Errorf("bundle: load: unmarshal: %w", errors.Join(err, ErrMalformed))
 		}
 		b.Records = append(b.Records, rec)
 	}
@@ -567,10 +579,12 @@ func manifestVersionString(value any) (string, error) {
 	return "", fmt.Errorf("bundle: manifest version %v is not supported", value)
 }
 
-func newBundleID() string {
+func newBundleID() (string, error) {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("bundle: generate id: %w", err)
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func hasManifestRecord(records []Record) bool {
@@ -593,27 +607,30 @@ func verifyManifestBundle(records []Record) error {
 		}
 		if record.Event.Sequence != expectedSeq {
 			return fmt.Errorf(
-				"bundle: verify: sequence mismatch at index %d: expected seq %d, got seq %d",
+				"bundle: verify: sequence mismatch at index %d: expected seq %d, got seq %d: %w",
 				i,
 				expectedSeq,
 				record.Event.Sequence,
+				ErrTamper,
 			)
 		}
 		if storedPrevHash != prev {
 			return fmt.Errorf(
-				"bundle: verify: prev_hash mismatch at index %d: expected %s, got %s",
+				"bundle: verify: prev_hash mismatch at index %d: expected %s, got %s: %w",
 				i,
 				prev,
 				storedPrevHash,
+				ErrTamper,
 			)
 		}
 		if computed != record.Hash {
 			return fmt.Errorf(
-				"bundle: verify: tamper detected at event %d (seq %d): expected %s, got %s",
+				"bundle: verify: tamper detected at event %d (seq %d): expected %s, got %s: %w",
 				i,
 				expectedSeq,
 				record.Hash,
 				computed,
+				ErrTamper,
 			)
 		}
 		prev = computed

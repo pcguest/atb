@@ -203,6 +203,10 @@ The `data` field of an `atb.snapshot` record is a JSON object with the following
 
 The Go source of truth is `snapshotEventData` in `cmd/atb/snapshot.go`.
 
+Snapshot names are validated before any bundle I/O. A valid name is non-empty
+after trimming whitespace, is at most 128 runes, and contains no ASCII control
+characters, `/`, `\`, or NUL.
+
 ### 4.2 `atb.bundle.signature` data payload
 
 Required fields:
@@ -307,6 +311,28 @@ To verify a bundle, a verifier must:
    d. Assert that the computed hash equals the stored `hash` field.
 4. If any assertion fails, the bundle has been tampered with.
 
+### 5.1 Reader API contract
+
+The implementation exposes two read contracts:
+
+- `Load` parses bundle NDJSON without validating that the file is an ATB
+  bundle or that the hash chain is intact. It is for inspection and
+  compatibility paths that need to look at bytes that may be malformed.
+- `LoadVerified` is the integrity-sensitive gate. It requires a manifest
+  record, rejects non-bundle NDJSON, and verifies the hash chain before
+  returning bundle data.
+
+The bundle package exposes typed error sentinels for callers that need stable
+classification:
+
+| Error | Meaning |
+|-------|---------|
+| `ErrMalformed` | The bundle structure cannot be parsed or contains an unsupported manifest shape. |
+| `ErrNoManifest` | A validating operation required a manifest record but found no records. |
+| `ErrTamper` | The hash chain, sequence numbering, or previous-hash linkage failed verification. |
+| `ErrNotABundle` | The file parses as NDJSON but record 0 is not an ATB manifest. |
+| `ErrBundleLocked` | Another process currently holds the advisory writer lock for the bundle. |
+
 ---
 
 ## 6. Storage
@@ -314,6 +340,12 @@ To verify a bundle, a verifier must:
 ### 6.1 Local Storage
 
 The default storage location is `run.atb/bundle.atb` relative to the current working directory. This directory should be excluded from version control (`.gitignore`).
+
+`Save` and `SignTo` write through the same durability pattern: acquire the
+bundle advisory lock, serialise the complete result to a temporary file, fsync
+that file, atomically rename it into place, and fsync the parent directory.
+This gives crash-safe completed writes and prevents concurrent writers from
+interleaving records in the same bundle.
 
 ### 6.2 Optional Encrypted Payloads
 
@@ -331,15 +363,27 @@ Push transport behaviour is documented separately in `docs/spec/bundle-push.md (
 
 ### 6.3 CLI exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Success. |
-| `1` | User/input error, including bad flags or missing local files. |
-| `2` | Bundle integrity verification failure. |
-| `3` | Profile verification failure or system/runtime error. |
-| `9` | Bundle lock contention; downstream automation should retry after a short delay. |
+| Constant | Code | Meaning |
+|----------|------|---------|
+| `exitSuccess` | `0` | Success. |
+| `exitUserError` | `1` | User/input error, including bad flags, missing local files, or invalid operator input. |
+| `exitIntegrityFailure` | `2` | Bundle integrity verification failure. |
+| `exitVerifyFailure` | `3` | Profile verification failure. |
+| `exitSystemError` | `3` | System/runtime failure. This intentionally shares code `3` with `exitVerifyFailure` for compatibility. |
+| `exitLockContention` | `9` | Bundle lock contention; downstream automation should retry after a short delay. |
 
 Contention-sensitive commands that write a bundle (`atb sign`, `atb snapshot`, `atb capture run`, and `atb append`) accept `--lock-wait <duration>`. The default is `0`, which preserves the fail-fast behaviour: a held bundle lock exits with code `9` immediately. When the duration is greater than zero, the command retries advisory lock acquisition until the duration elapses.
+
+Snapshot-related commands classify `appendSnapshot` failures through
+`snapshotExitCode`. `atb snapshot`, `atb capture run`, and `atb import chatlog`
+therefore map snapshot validation, bundle load, integrity, system, and lock
+contention errors through the same exit-code table when snapshotting is
+enabled.
+
+The local `snapshot`, `capture run`, `import chatlog`, and `verify` paths wrap
+bundle file operations with a default five-minute context timeout. Cancellation
+or timeout is reported through the same exit-code classification as the
+underlying operation.
 
 The same setting may be supplied through `ATB_LOCK_WAIT`, for example:
 
