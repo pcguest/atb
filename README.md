@@ -42,6 +42,14 @@ wholesale by an attacker with write access before export. For regulated
 deployments, pair ATB with filesystem integrity monitoring or export to
 a WORM-capable store before relying on bundles as primary evidence.
 
+## Safety guarantees
+
+- Bundle writes use temp-file, fsync, atomic rename, and parent-directory fsync so completed writes survive ordinary process crashes.
+- Bundle mutations are protected by advisory file locking; concurrent writers fail or retry without corrupting the bundle.
+- Signing writes are atomic and derive the digest, parsed bundle, and source mode from one locked read to avoid TOCTOU drift.
+- `Load` is intentionally non-validating for inspection tools; integrity-sensitive paths use `LoadVerified` for NDJSON, manifest, and hash-chain checks, while snapshot writes validate names before appending.
+- Long-running CLI paths such as snapshot, capture, import, and verify are cancellation-aware and bounded by a default five-minute per-operation timeout.
+
 ## What ATB is for
 
 - Verifiable local evidence for AI and agent workflows where ordinary logs are too easy to edit after the fact.
@@ -189,6 +197,23 @@ genesis:    prev_hash = 0000...0000 (64 zeros)
 Events are appended sequentially. Each event seals the previous one.
 The resulting bundle is a portable artefact that can be verified later
 without a server.
+
+## Exit codes
+
+ATB exposes named CLI exit classes for automation:
+
+| Constant | Code | Meaning |
+| --- | ---: | --- |
+| `exitSuccess` | 0 | Command completed successfully. |
+| `exitUserError` | 1 | Bad flags, missing local files, invalid input, or another operator-correctable error. |
+| `exitIntegrityFailure` | 2 | Bundle integrity verification failed. |
+| `exitVerifyFailure` | 3 | Profile or verification policy failed. |
+| `exitSystemError` | 3 | Runtime or system failure; shares code `3` for compatibility. |
+| `exitLockContention` | 9 | Another writer holds the bundle lock; retry after a short delay. |
+
+Snapshot append failures are classified through `snapshotExitCode`; `snapshot`,
+`capture run`, and `import chatlog` use the same mapping when snapshotting is
+enabled.
 
 ## Install
 
