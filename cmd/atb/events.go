@@ -82,11 +82,11 @@ func printEventsUsage(w io.Writer) {
 
 func filterEventRegistry(profileID string) []event.EventInfo {
 	if strings.TrimSpace(profileID) == "" {
-		return append([]event.EventInfo(nil), event.Registry...)
+		return append([]event.EventInfo(nil), event.RegistryGenerated...)
 	}
 
-	items := make([]event.EventInfo, 0, len(event.Registry))
-	for _, item := range event.Registry {
+	items := make([]event.EventInfo, 0, len(event.RegistryGenerated))
+	for _, item := range event.RegistryGenerated {
 		if eventInfoMatchesProfile(item, profileID) {
 			items = append(items, item)
 		}

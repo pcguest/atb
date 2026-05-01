@@ -31,8 +31,8 @@ func TestRunEvents_JSONOutput(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &items); err != nil {
 		t.Fatalf("--json output is not valid JSON: %v", err)
 	}
-	if len(items) != len(event.Registry) {
-		t.Errorf("expected %d items, got %d", len(event.Registry), len(items))
+	if len(items) != len(event.RegistryGenerated) {
+		t.Errorf("expected %d items, got %d", len(event.RegistryGenerated), len(items))
 	}
 }
 
