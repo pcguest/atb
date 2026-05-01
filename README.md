@@ -165,6 +165,10 @@ without a server.
 
 ## Install
 
+Download the platform binary from [GitHub Releases](https://github.com/pcguest/atb/releases).
+
+Install with Go:
+
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
