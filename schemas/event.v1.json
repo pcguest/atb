@@ -159,7 +159,7 @@
         "input_digest": { "type": "string", "description": "SHA-256 digest of the request input, in hex." },
         "input_format": { "type": "string", "description": "Format identifier for the request input, such as text or json." }
       },
-      "required": ["request_id", "input_digest"]
+      "required": ["request_id", "actor_id_hash", "purpose_tag"]
     },
     "ai.response.sent": {
       "description": "AI response sent from the application boundary. Emitted alongside model output when a response is returned to the caller.",
