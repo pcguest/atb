@@ -119,6 +119,32 @@ Abbreviated `atb verify --profile atb.profile.policy_decision --format json` out
 - `cas_score` shows how much of the expected evidence ATB can see for that profile in this bundle.
 - `cas_grade` and `residual_risk` summarise how review-ready the recorded evidence is and where to strengthen it next.
 
+Inspect the recorded bundle:
+
+```bash
+atb inspect --bundle run.atb/bundle.atb
+```
+
+Expected output:
+
+```text
+SEQ  TYPE                     TIMESTAMP             DATA (first 80 chars)
+---  -----------------------  --------------------  --------------------------------
+  0  atb.bundle.manifest      ...                   {"version":"1",...
+  1  ai.request.received      ...                   {"actor_id_hash":"sha256-user-1042",...
+  2  ai.action.precommit      ...                   {"action_id":"act-1042",...
+  3  ai.policy.decision       ...                   {"action_id":"act-1042",...
+  4  atb.snapshot             ...                   {"bundle_hash":...
+```
+
+Open the local review UI:
+
+```bash
+atb view --bundle run.atb/bundle.atb
+```
+
+`atb view` requires a build with the embedded UI; use the full binary from [GitHub Releases](https://github.com/pcguest/atb/releases) if your `go install` binary shows install guidance.
+
 `atb bundle new` is the explicit alias for `atb init`.
 
 For a fuller first-run path see [`docs/quickstart.md`](docs/quickstart.md).
@@ -150,7 +176,8 @@ for the full Capture v1 path.
 3. Append workflow events and add a named snapshot when the workflow reaches a review point.
 4. Run `atb verify --profile <profile> --format json` so the result is tied to the workflow you actually expect.
 5. If `pass` is `true`, use `cas_score`, `cas_grade`, and `residual_risk` to decide what evidence to strengthen next. If `pass` is `false`, inspect `critical_failures` first.
-6. Review the bundle locally with `atb view`, then export or push it when you need handoff or storage outside the local trust boundary.
+6. Inspect the bundle locally with `atb inspect --bundle run.atb/bundle.atb`.
+7. Review the bundle locally with `atb view`, then export or push it when you need handoff or storage outside the local trust boundary.
 
 ## How ATB works
 
