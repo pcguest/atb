@@ -34,9 +34,9 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 
 	repoRoot := repoRootForInstalledBinarySmoke(t)
 	binaryPath := buildInstalledBinary(t, repoRoot)
-	workDir := t.TempDir()
-
-	initResult := runCLIJSON[mutationResult](t, binaryPath, workDir, "init", "--format", "json")
+	bundleDir := t.TempDir()
+	bundlePath := filepath.Join(bundleDir, "run.atb", "bundle.atb")
+	initResult := runCLIJSON[mutationResult](t, binaryPath, bundleDir, "init", "--format", "json")
 	if initResult.Status != "ok" || initResult.Action != "init" {
 		t.Fatalf("unexpected init result: %+v", initResult)
 	}
@@ -47,7 +47,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 	appendResult := runCLIJSON[mutationResult](
 		t,
 		binaryPath,
-		workDir,
+		bundleDir,
 		"append",
 		"agent.run",
 		"--data",
@@ -65,7 +65,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		t.Fatalf("expected append hash to be present")
 	}
 
-	verifyResult := runCLIJSON[verifypkg.VerifierReport](t, binaryPath, workDir, "verify", "--format", "json")
+	verifyResult := runCLIJSON[verifypkg.VerifierReport](t, binaryPath, bundleDir, "verify", "--format", "json")
 	if verifyResult.BundlePath != bundle.DefaultPath() {
 		t.Fatalf("unexpected verify bundle path: got %q want %q", verifyResult.BundlePath, bundle.DefaultPath())
 	}
@@ -79,7 +79,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		t.Fatalf("expected no critical failures for generic workflow, got %+v", verifyResult.Failures)
 	}
 
-	trustReport := runCLIJSONExpectExitCode[verifypkg.TrustReport](t, exitUserError, binaryPath, workDir, "trust-report", "--format", "json")
+	trustReport := runCLIJSONExpectExitCode[verifypkg.TrustReport](t, exitUserError, binaryPath, bundleDir, "trust-report", "--format", "json")
 	if trustReport.Pass {
 		t.Fatalf("expected no-profile trust report to remain unpassed, got %+v", trustReport)
 	}
@@ -93,7 +93,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 	runCLI(
 		t,
 		binaryPath,
-		workDir,
+		bundleDir,
 		"export",
 		"--format",
 		"compliance",
@@ -101,7 +101,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		"evidence.zip",
 	)
 
-	zr, err := zip.OpenReader(filepath.Join(workDir, "evidence.zip"))
+	zr, err := zip.OpenReader(filepath.Join(bundleDir, "evidence.zip"))
 	if err != nil {
 		t.Fatalf("open export zip: %v", err)
 	}
@@ -135,7 +135,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 
 	t.Run("view dashboard", func(t *testing.T) {
 		port := reserveLocalPort(t)
-		viewServer := startInstalledViewServer(t, binaryPath, workDir, port)
+		viewServer := startInstalledViewServer(t, binaryPath, bundleDir, bundlePath, port)
 		defer viewServer.stop()
 
 		viewVerification := waitForViewVerification(t, viewServer, port)
@@ -303,10 +303,10 @@ type runningViewServer struct {
 	done   chan error
 }
 
-func startInstalledViewServer(t *testing.T, binaryPath string, workDir string, port int) runningViewServer {
+func startInstalledViewServer(t *testing.T, binaryPath string, workDir string, bundlePath string, port int) runningViewServer {
 	t.Helper()
 
-	cmd := exec.Command(binaryPath, "view", "--no-open", "--port", fmt.Sprintf("%d", port))
+	cmd := exec.Command(binaryPath, "view", "--bundle", bundlePath, "--no-open", "--port", fmt.Sprintf("%d", port))
 	cmd.Dir = workDir
 	stdout := &syncBuffer{}
 	stderr := &syncBuffer{}
