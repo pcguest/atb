@@ -71,26 +71,48 @@ func cmdImport() {
 }
 
 func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
-	if len(args) == 0 {
-		fmt.Fprintln(stderr, "atb import: missing sub-command")
-		printImportCommandUsage(stderr)
+	_ = stdin
+	source := ""
+	format := "json"
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--source":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "import: --source is required")
+				return exitUserError
+			}
+			i++
+			source = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--source="):
+			source = strings.TrimSpace(strings.TrimPrefix(arg, "--source="))
+		case arg == "--format":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "import: --format must be json or csv")
+				return exitUserError
+			}
+			i++
+			format = strings.ToLower(strings.TrimSpace(args[i]))
+		case strings.HasPrefix(arg, "--format="):
+			format = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
+		default:
+			fmt.Fprintln(stderr, "import: --source is required")
+			return exitUserError
+		}
+	}
+
+	if source == "" {
+		fmt.Fprintln(stderr, "import: --source is required")
+		return exitUserError
+	}
+	if format != "json" && format != "csv" {
+		fmt.Fprintln(stderr, "import: --format must be json or csv")
 		return exitUserError
 	}
 
-	switch args[0] {
-	case "chatlog":
-		const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
-		ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
-		defer cancel()
-		return runImportChatlogWithContext(ctx, args[1:], stdin, stdout, stderr)
-	case "-h", "--help", "help":
-		printImportCommandUsage(stdout)
-		return exitSuccess
-	default:
-		fmt.Fprintf(stderr, "atb import: unknown sub-command %q\n", args[0])
-		printImportCommandUsage(stderr)
-		return exitUserError
-	}
+	fmt.Fprintln(stdout, "import: not yet implemented (roadmap Q3 2026)")
+	return exitSuccess
 }
 
 func printImportCommandUsage(w io.Writer) {
