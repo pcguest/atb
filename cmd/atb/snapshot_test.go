@@ -142,7 +142,7 @@ func TestValidateSnapshotName(t *testing.T) {
 }
 
 func TestSnapshotAppendsRecord(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	path := filepath.Join(t.TempDir(), "bundle.atb")
 	initial := writeSnapshotFixtureBundle(t, path)
 	expectedHash := hashSerializedBundle(t, initial)
 
@@ -194,7 +194,7 @@ func TestSnapshotAppendsRecord(t *testing.T) {
 }
 
 func TestSnapshotOversightFields(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	path := filepath.Join(t.TempDir(), "bundle.atb")
 	writeSnapshotFixtureBundle(t, path)
 
 	var stdout bytes.Buffer
@@ -275,7 +275,7 @@ func TestSnapshotOversightNoteInvalidExitsUserError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			path := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+			path := filepath.Join(t.TempDir(), "bundle.atb")
 			writeSnapshotFixtureBundle(t, path)
 
 			var stdout bytes.Buffer
@@ -316,7 +316,7 @@ func TestSnapshotExitCode(t *testing.T) {
 }
 
 func TestSnapshotActorFieldsWithEmptyNote(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	path := filepath.Join(t.TempDir(), "bundle.atb")
 	writeSnapshotFixtureBundle(t, path)
 
 	var stdout bytes.Buffer
@@ -345,7 +345,7 @@ func TestSnapshotActorFieldsWithEmptyNote(t *testing.T) {
 }
 
 func TestSnapshotQuiet(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	path := filepath.Join(t.TempDir(), "bundle.atb")
 	writeSnapshotFixtureBundle(t, path)
 
 	var stdout bytes.Buffer

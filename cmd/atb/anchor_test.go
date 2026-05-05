@@ -164,7 +164,7 @@ func TestVerifyWithAnchorWarnsWhenTokenAbsent(t *testing.T) {
 func writeAnchorTestBundle(t *testing.T) (string, []byte) {
 	t.Helper()
 
-	path := filepath.Join(t.TempDir(), "run.atb", bundle.BundleFile)
+	path := filepath.Join(t.TempDir(), "bundle.atb")
 	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"ok": true})
 	if err := b.Save(path); err != nil {

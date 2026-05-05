@@ -87,7 +87,7 @@ func TestE2EPipeline(t *testing.T) {
 	bin := buildBinary(t)
 
 	work := t.TempDir()
-	bundlePath := filepath.Join(work, "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(work, "bundle.atb")
 
 	// Generate an Ed25519 signing key via the CLI.
 	if _, _, code := runATB(t, bin, "keygen", "--out-dir", work); code != 0 {
@@ -230,7 +230,7 @@ func TestE2EPipelineConcurrentImport(t *testing.T) {
 	bin := buildBinary(t)
 
 	work := t.TempDir()
-	bundlePath := filepath.Join(work, "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(work, "bundle.atb")
 
 	// Seed: one capture run to materialise the bundle, then a single import
 	// to mirror the steady-state shape callers will hit concurrently.

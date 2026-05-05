@@ -21,7 +21,7 @@ func TestVerifyAnchors_RealAnchorRoundTrip(t *testing.T) {
 		t.Skipf("skip integration test: go toolchain unavailable: %v", err)
 	}
 
-	bundlePath := filepath.Join(t.TempDir(), "run.atb", bundle.BundleFile)
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
 	b := newTrustTestBundle(t)
 	if err := b.Append(event.TypeDevSession, map[string]any{"event_id": "anchor-round-trip"}); err != nil {
 		t.Fatalf("append dev session: %v", err)

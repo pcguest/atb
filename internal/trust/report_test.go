@@ -23,7 +23,7 @@ func TestBuildReportIncludesAllCategories(t *testing.T) {
 	mustWriteFile(t, filepath.Join(root, "cmd/atb/main_test.go"), "tests")
 	mustWriteFile(t, filepath.Join(root, "test/golden/golden_test.go"), "oracle")
 
-	bundlePath := filepath.Join(root, "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(root, "bundle.atb")
 	b := newTrustTestBundle(t)
 	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
 	if err := b.AppendWithOptions("agent.session", map[string]interface{}{"id": "report-test"}, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
@@ -79,7 +79,7 @@ func TestBuildReportGateFailsOnTamperedChain(t *testing.T) {
 	root := t.TempDir()
 
 	mustWriteFile(t, filepath.Join(root, "docs/spec-v1.0.md"), "spec")
-	bundlePath := filepath.Join(root, "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(root, "bundle.atb")
 
 	b := newTrustTestBundle(t)
 	timestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
@@ -213,7 +213,7 @@ func TestBuildReport_WithoutProfileNoCAS(t *testing.T) {
 func writePrivilegedToolActionBundle(t testing.TB) string {
 	t.Helper()
 
-	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
 	b := newTrustTestBundle(t)
 
 	appendTrustRecord(t, b, event.TypeAIRequestReceived, map[string]any{
@@ -256,7 +256,7 @@ func writePrivilegedToolActionBundle(t testing.TB) string {
 func writeDataExportBundle(t testing.TB) string {
 	t.Helper()
 
-	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
 	b := newTrustTestBundle(t)
 
 	appendTrustRecord(t, b, event.TypeAIRequestReceived, map[string]any{

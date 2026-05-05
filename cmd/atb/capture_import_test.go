@@ -47,7 +47,7 @@ func TestParseImportChatlogArgs(t *testing.T) {
 
 func TestRunImportChatlog(t *testing.T) {
 	tmp := t.TempDir()
-	bundlePath := filepath.Join(tmp, "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(tmp, "bundle.atb")
 	inputPath := filepath.Join(tmp, "chatlog.jsonl")
 	raw := strings.Join([]string{
 		`{"role":"system","content":"Use the handbook.","timestamp":"2026-04-24T09:00:00Z","session_id":"sess-1"}`,

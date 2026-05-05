@@ -345,7 +345,7 @@ func TestRunTrustReportJSON_RAGUsesTrustReportSections(t *testing.T) {
 }
 
 func TestRunTrustReportJSON_NoProfileReturnsExitOne(t *testing.T) {
-	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
 	b := newTestBundle(t)
 	appendTestBundleEventWithOptions(t, b, "agent.run", map[string]any{
 		"workflow": "incident-review",
@@ -394,7 +394,7 @@ func trustReportSectionByTitle(t testing.TB, sections []verifypkg.TrustSection, 
 func writeTrustReportRAGBundle(t testing.TB, includeRetrieval bool, includeResponse bool) string {
 	t.Helper()
 
-	bundlePath := filepath.Join(t.TempDir(), "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
 	b := newTestBundle(t)
 
 	appendTestBundleEventWithOptions(t, b, event.TypeAIRequestReceived, map[string]any{
