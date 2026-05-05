@@ -35,7 +35,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 	repoRoot := repoRootForInstalledBinarySmoke(t)
 	binaryPath := buildInstalledBinary(t, repoRoot)
 	bundleDir := t.TempDir()
-	bundlePath := filepath.Join(bundleDir, "run.atb", "bundle.atb")
+	bundlePath := filepath.Join(bundleDir, bundle.DefaultPath())
 	initResult := runCLIJSON[mutationResult](t, binaryPath, bundleDir, "init", "--format", "json")
 	if initResult.Status != "ok" || initResult.Action != "init" {
 		t.Fatalf("unexpected init result: %+v", initResult)
