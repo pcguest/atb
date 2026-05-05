@@ -57,16 +57,8 @@ func writeAtomic(path string, data []byte, perm os.FileMode) error {
 	}
 	removeTemp = false
 
-	dirFile, err := os.Open(dir) // #nosec G304 -- dir derived from caller path
-	if err != nil {
-		return fmt.Errorf("bundle: write atomic: open parent: %w", err)
-	}
-	if err := dirFile.Sync(); err != nil {
-		_ = dirFile.Close()
+	if err := syncDir(dir); err != nil {
 		return fmt.Errorf("bundle: write atomic: fsync parent: %w", err)
-	}
-	if err := dirFile.Close(); err != nil {
-		return fmt.Errorf("bundle: write atomic: close parent: %w", err)
 	}
 	return nil
 }
