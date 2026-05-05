@@ -84,6 +84,7 @@ type ResidualRisk struct {
 // Report is the top-level verification output for a bundle.
 type Report struct {
 	BundlePath         string                 `json:"bundle_path"`
+	Retrospective      bool                   `json:"retrospective,omitempty"`
 	Integrity          IntegrityResult        `json:"integrity"`
 	Anchoring          AnchoringResult        `json:"anchoring"`
 	BundleSignature    *BundleSignatureResult `json:"bundle_signature,omitempty"`

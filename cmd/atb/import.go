@@ -71,6 +71,30 @@ func cmdImport() {
 }
 
 func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "chatlog" {
+		chatlogArgs := make([]string, 0, len(args)-1)
+		chatlogArgs = append(chatlogArgs, args[1:]...)
+		fromSet := false
+		for i := 0; i < len(chatlogArgs); i++ {
+			arg := chatlogArgs[i]
+			switch {
+			case arg == "--source":
+				chatlogArgs[i] = "--input"
+			case strings.HasPrefix(arg, "--source="):
+				chatlogArgs[i] = "--input=" + strings.TrimPrefix(arg, "--source=")
+			case arg == "--from", strings.HasPrefix(arg, "--from="):
+				fromSet = true
+			}
+		}
+		if !fromSet {
+			chatlogArgs = append([]string{"--from", capturepkg.FormatGenericJSONL}, chatlogArgs...)
+		}
+		const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+		ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+		defer cancel()
+		return runImportChatlogWithContext(ctx, chatlogArgs, stdin, stdout, stderr)
+	}
+
 	_ = stdin
 	source := ""
 	format := "json"
@@ -232,6 +256,9 @@ func runImportChatlogWithContext(ctx context.Context, args []string, stdin io.Re
 	}
 	if created {
 		fmt.Fprintf(stderr, "atb: created new bundle at %s\n", cfg.BundlePath)
+		if err := stampManifestProvenance(b, "bundle_provenance", bundle.BundleProvenanceRetrospective); err != nil {
+			return fail(exitSystemError, fmt.Sprintf("manifest provenance: %v", err))
+		}
 	}
 
 	totalEvents := len(mapped.Events)
@@ -288,6 +315,49 @@ func runImportChatlogWithContext(ctx context.Context, args []string, stdin io.Re
 	}
 	fmt.Fprintln(stdout)
 	return exitSuccess
+}
+
+func stampManifestProvenance(b *bundle.Bundle, key, value string) error {
+	if b == nil || len(b.Records) == 0 {
+		return fmt.Errorf("bundle is empty")
+	}
+	if b.Records[0].Event.Type != bundle.ManifestEventType {
+		return fmt.Errorf("first record is not a manifest")
+	}
+	if strings.TrimSpace(key) == "" {
+		return fmt.Errorf("manifest metadata key is empty")
+	}
+
+	switch data := b.Records[0].Event.Data.(type) {
+	case map[string]any:
+		meta, _ := data["metadata"].(map[string]any)
+		if meta == nil {
+			meta = map[string]any{}
+		}
+		meta[key] = value
+		data["metadata"] = meta
+		b.Records[0].Event.Data = data
+		return nil
+	case string:
+		var payload map[string]any
+		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+			return fmt.Errorf("parse manifest payload: %w", err)
+		}
+		meta, _ := payload["metadata"].(map[string]any)
+		if meta == nil {
+			meta = map[string]any{}
+		}
+		meta[key] = value
+		payload["metadata"] = meta
+		raw, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf("encode manifest payload: %w", err)
+		}
+		b.Records[0].Event.Data = string(raw)
+		return nil
+	default:
+		return fmt.Errorf("manifest payload type %T is not supported", data)
+	}
 }
 
 func parseImportChatlogArgs(args []string) (importChatlogConfig, error) {

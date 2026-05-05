@@ -3,6 +3,7 @@ package verify
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -149,6 +150,7 @@ func evaluateLoadedBundle(
 		} else {
 			report.ResidualRisk = residualRiskNoMatchingProfile()
 		}
+		applyRetrospectiveProvenance(&report, b)
 		return report
 	}
 
@@ -184,6 +186,7 @@ func evaluateLoadedBundle(
 		}
 	}
 
+	applyRetrospectiveProvenance(&report, b)
 	return report
 }
 
@@ -214,5 +217,44 @@ func stampProfileResult(result *ProfileResult, profile Profile) {
 	}
 	if strings.TrimSpace(result.WorkflowClass) == "" {
 		result.WorkflowClass = profile.WorkflowClass()
+	}
+}
+
+func applyRetrospectiveProvenance(report *Report, b *bundle.Bundle) {
+	if report == nil || !isRetrospectiveImportBundle(b) {
+		return
+	}
+	report.Retrospective = true
+	report.ResidualRisk.RecommendedNextEvidence = appendUniqueStrings(
+		report.ResidualRisk.RecommendedNextEvidence,
+		"This bundle was constructed from imported logs. TSA anchoring reflects import time, not original event time.",
+	)
+}
+
+func isRetrospectiveImportBundle(b *bundle.Bundle) bool {
+	if b == nil || len(b.Records) == 0 {
+		return false
+	}
+	if b.Records[0].Event.Type != bundle.ManifestEventType {
+		return false
+	}
+
+	const provenanceKey = "bundle_provenance"
+
+	switch data := b.Records[0].Event.Data.(type) {
+	case map[string]any:
+		meta, _ := data["metadata"].(map[string]any)
+		provenance, _ := meta[provenanceKey].(string)
+		return strings.TrimSpace(provenance) == bundle.BundleProvenanceRetrospective
+	case string:
+		var payload map[string]any
+		if err := json.Unmarshal([]byte(data), &payload); err != nil {
+			return false
+		}
+		meta, _ := payload["metadata"].(map[string]any)
+		provenance, _ := meta[provenanceKey].(string)
+		return strings.TrimSpace(provenance) == bundle.BundleProvenanceRetrospective
+	default:
+		return false
 	}
 }
