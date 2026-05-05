@@ -31,7 +31,7 @@ type ProfileSchema struct {
 	Relations     []RelationRule     `yaml:"relations"`
 }
 
-type RequiredWhenRule struct {
+type requiredWhenRule struct {
 	WhenType  string `yaml:"when_type"`
 	AtOrAfter bool   `yaml:"at_or_after,omitempty"`
 	Message   string `yaml:"message,omitempty"`
@@ -42,7 +42,7 @@ type EventRule struct {
 	Fields       []string           `yaml:"fields"`
 	Message      string             `yaml:"message"`
 	Severity     string             `yaml:"severity"`
-	RequiredWhen []RequiredWhenRule `yaml:"required_when,omitempty"`
+	RequiredWhen []requiredWhenRule `yaml:"required_when,omitempty"`
 }
 
 type RelationRule struct {
@@ -53,7 +53,7 @@ type RelationRule struct {
 	Message string `yaml:"message"`
 }
 
-func ValidateSchema(s ProfileSchema) error {
+func validateSchema(s ProfileSchema) error {
 	if strings.TrimSpace(s.ID) == "" {
 		return fmt.Errorf("profile schema: id is required")
 	}

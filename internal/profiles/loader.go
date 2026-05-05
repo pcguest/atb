@@ -27,7 +27,7 @@ func ParseSchema(data []byte) (ProfileSchema, error) {
 		return ProfileSchema{}, fmt.Errorf("parse schema: %w", err)
 	}
 	schema = normaliseSchema(schema)
-	if err := ValidateSchema(schema); err != nil {
+	if err := validateSchema(schema); err != nil {
 		return ProfileSchema{}, err
 	}
 	return schema, nil
@@ -166,11 +166,11 @@ func cloneSchema(schema ProfileSchema) ProfileSchema {
 	cloned.Relations = append([]RelationRule(nil), schema.Relations...)
 	for i := range cloned.Required {
 		cloned.Required[i].Fields = append([]string(nil), schema.Required[i].Fields...)
-		cloned.Required[i].RequiredWhen = append([]RequiredWhenRule(nil), schema.Required[i].RequiredWhen...)
+		cloned.Required[i].RequiredWhen = append([]requiredWhenRule(nil), schema.Required[i].RequiredWhen...)
 	}
 	for i := range cloned.Optional {
 		cloned.Optional[i].Fields = append([]string(nil), schema.Optional[i].Fields...)
-		cloned.Optional[i].RequiredWhen = append([]RequiredWhenRule(nil), schema.Optional[i].RequiredWhen...)
+		cloned.Optional[i].RequiredWhen = append([]requiredWhenRule(nil), schema.Optional[i].RequiredWhen...)
 	}
 	return cloned
 }

@@ -2,9 +2,32 @@
 package profiles
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestLoadDSLProfile(t *testing.T) {
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "custom.yaml")
+	content := []byte(`
+id: "org.example.from_file"
+required_events:
+  - "ai.request.received"
+`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	schema, err := loadDSLProfile(path)
+	if err != nil {
+		t.Fatalf("loadDSLProfile: %v", err)
+	}
+	if schema.ID != "org.example.from_file" {
+		t.Fatalf("ID = %q, want %q", schema.ID, "org.example.from_file")
+	}
+}
 
 func TestParseDSLProfile_Valid_WithCASWeights(t *testing.T) {
 	yaml := `

@@ -117,7 +117,7 @@ func TestEvaluate_RequiredWhenSatisfied(t *testing.T) {
 			{
 				Type:     "ai.response.sent",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "ai.request.received", AtOrAfter: true},
 				},
 			},
@@ -148,7 +148,7 @@ func TestEvaluate_RequiredWhenMissingTarget(t *testing.T) {
 			{
 				Type:     "ai.response.sent",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "ai.request.received"},
 				},
 			},
@@ -178,7 +178,7 @@ func TestEvaluate_RequiredWhenConditionNotMet(t *testing.T) {
 			{
 				Type:     "ai.response.sent",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "ai.request.received"},
 				},
 			},
@@ -205,7 +205,7 @@ func TestEvaluate_RequiredWhenAtOrAfterViolation(t *testing.T) {
 			{
 				Type:     "ai.response.sent",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "ai.request.received", AtOrAfter: true},
 				},
 			},
@@ -236,7 +236,7 @@ func TestEvaluate_RequiredWhenMissingConditionTimestampWarns(t *testing.T) {
 			{
 				Type:     "ai.response.sent",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "ai.request.received", AtOrAfter: true},
 				},
 			},
@@ -270,7 +270,7 @@ func TestEvaluate_RequiredWhenAtOrAfterBadTS(t *testing.T) {
 			{
 				Type:     "ai.response.sent",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "ai.request.received", AtOrAfter: true},
 				},
 			},

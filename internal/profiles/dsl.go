@@ -39,9 +39,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DSLProfile is the YAML structure for a user-defined obligation profile.
+// dslProfile is the YAML structure for a user-defined obligation profile.
 // It is the authoritative input type for DSL v1 profile files.
-type DSLProfile struct {
+type dslProfile struct {
 	ID             string             `yaml:"id"`
 	Version        int                `yaml:"version"`
 	Description    string             `yaml:"description"`
@@ -50,10 +50,10 @@ type DSLProfile struct {
 	CASWeights     map[string]float64 `yaml:"cas_weights"`
 }
 
-// LoadDSLProfile reads a DSL v1 profile file from path and returns the
+// loadDSLProfile reads a DSL v1 profile file from path and returns the
 // compiled ProfileSchema. Returns a precise, user-readable error when the
 // file is missing, cannot be parsed, or contains invalid values.
-func LoadDSLProfile(path string) (ProfileSchema, error) {
+func loadDSLProfile(path string) (ProfileSchema, error) {
 	content, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return ProfileSchema{}, fmt.Errorf("load DSL profile %q: %w", path, err)
@@ -69,7 +69,7 @@ func LoadDSLProfile(path string) (ProfileSchema, error) {
 // compiled ProfileSchema. It enforces the DSL v1 constraints; it does NOT
 // call ValidateSchema on the result (DSL compilation guarantees validity).
 func ParseDSLProfile(data []byte) (ProfileSchema, error) {
-	var dsl DSLProfile
+	var dsl dslProfile
 	if err := yaml.Unmarshal(data, &dsl); err != nil {
 		return ProfileSchema{}, fmt.Errorf("parse: %w", err)
 	}

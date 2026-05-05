@@ -2,16 +2,7 @@
 
 ## S3 WORM
 
-`atb push` can upload a sealed bundle to an S3 or S3-compatible object store.
-When `--lock-until` is supplied, ATB sets these headers on every PUT:
-
-- `x-amz-object-lock-mode: COMPLIANCE`
-- `x-amz-object-lock-retain-until-date: <RFC3339 timestamp>`
-
-These headers ask the storage layer to apply Object Lock retention. The guarantee
-comes from the bucket configuration and the storage provider's enforcement. ATB
-does not verify server-side lock enforcement after upload, and it does not prove
-that the remote bucket was configured correctly.
+For S3 push behaviour, lock semantics, and WORM trust boundaries, see [`docs/spec/bundle-push.md`](../spec/bundle-push.md).
 
 ## Queue gateway
 

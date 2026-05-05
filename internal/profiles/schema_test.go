@@ -48,7 +48,7 @@ func TestValidateSchema_BadWeights(t *testing.T) {
 		},
 	}
 
-	if err := ValidateSchema(schema); err == nil {
+	if err := validateSchema(schema); err == nil {
 		t.Fatal("expected weight validation error")
 	}
 }
@@ -68,7 +68,7 @@ func TestValidateSchema_UnknownSev(t *testing.T) {
 		},
 	}
 
-	if err := ValidateSchema(schema); err == nil {
+	if err := validateSchema(schema); err == nil {
 		t.Fatal("expected severity validation error")
 	}
 }
@@ -83,12 +83,12 @@ func TestValidateSchema_RequiredWhenUnknownEvent(t *testing.T) {
 			{
 				Type:         "ai.response.sent",
 				Severity:     "warning",
-				RequiredWhen: []RequiredWhenRule{{WhenType: "ai.unknown"}},
+				RequiredWhen: []requiredWhenRule{{WhenType: "ai.unknown"}},
 			},
 		},
 	}
 
-	if err := ValidateSchema(schema); err == nil {
+	if err := validateSchema(schema); err == nil {
 		t.Fatal("expected error for unknown required_when when_type")
 	}
 }
@@ -103,7 +103,7 @@ func TestValidateSchema_RequiredWhenOnRequiredRuleRejected(t *testing.T) {
 			{
 				Type:         "ai.request.received",
 				Severity:     "critical",
-				RequiredWhen: []RequiredWhenRule{{WhenType: "ai.response.sent"}},
+				RequiredWhen: []requiredWhenRule{{WhenType: "ai.response.sent"}},
 			},
 		},
 		Optional: []EventRule{
@@ -111,7 +111,7 @@ func TestValidateSchema_RequiredWhenOnRequiredRuleRejected(t *testing.T) {
 		},
 	}
 
-	if err := ValidateSchema(schema); err == nil {
+	if err := validateSchema(schema); err == nil {
 		t.Fatal("expected error for required_when on required rule")
 	}
 }
@@ -126,21 +126,21 @@ func TestValidateSchema_RequiredWhenCycle(t *testing.T) {
 			{
 				Type:     "A",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "B"},
 				},
 			},
 			{
 				Type:     "B",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{WhenType: "A"},
 				},
 			},
 		},
 	}
 
-	if err := ValidateSchema(schema); err == nil {
+	if err := validateSchema(schema); err == nil {
 		t.Fatal("expected error for required_when cycle")
 	}
 }
@@ -161,7 +161,7 @@ func TestValidateSchema_ValidRequiredWhen(t *testing.T) {
 			{
 				Type:     "ai.response.sent",
 				Severity: "warning",
-				RequiredWhen: []RequiredWhenRule{
+				RequiredWhen: []requiredWhenRule{
 					{
 						WhenType:  "ai.request.received",
 						AtOrAfter: true,
@@ -172,7 +172,7 @@ func TestValidateSchema_ValidRequiredWhen(t *testing.T) {
 		},
 	}
 
-	if err := ValidateSchema(schema); err != nil {
+	if err := validateSchema(schema); err != nil {
 		t.Fatalf("expected valid required_when rule, got %v", err)
 	}
 }
