@@ -208,7 +208,7 @@ jobs:
 
   # Layer C: ACP control-plane invariant for gated actions.
   acp-gate:
-    name: ACP Control-Plane Gate (Layer C)
+    name: Profile Parity Gate (Layer C)
     runs-on: ubuntu-latest
     needs: test
     steps:
