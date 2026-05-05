@@ -134,14 +134,14 @@ func newDataExportBundle(t testing.TB) *bundle.Bundle {
 		"subject_id_hash":       "subject-hash",
 		"action_id":             "act-1",
 	}, "2026-03-27T12:01:00Z")
-	appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+	appendVerifyRecord(t, b, event.TypeDataExportPrecommit, map[string]any{
 		"action_id":                "act-1",
 		"action_type":              "export_data",
 		"action_parameters_digest": "params-digest",
 		"target_resource_id":       "dataset-1",
 		"intended_effect":          "export approved dataset",
 	}, "2026-03-27T12:02:00Z")
-	appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+	appendVerifyRecord(t, b, event.TypeDataExportExecuted, map[string]any{
 		"action_id":           "act-1",
 		"execution_outcome":   "success",
 		"tool_receipt_digest": "tool-digest",
@@ -153,11 +153,6 @@ func newDataExportBundle(t testing.TB) *bundle.Bundle {
 		"justification_digest": "just-digest",
 		"action_id":            "act-1",
 	}, "2026-03-27T12:04:00Z")
-	appendVerifyRecord(t, b, event.TypeAIActionCommitted, map[string]any{
-		"action_id":           "act-1",
-		"commit_outcome":      "success",
-		"sink_receipt_digest": "sink-digest",
-	}, "2026-03-27T12:05:00Z")
 	return b
 }
 

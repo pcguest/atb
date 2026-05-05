@@ -203,7 +203,7 @@ func snapshotProfileCases() []snapshotProfileCase {
 					},
 				},
 				{
-					eventType: event.TypeAIActionPrecommit,
+					eventType: event.TypeDataExportPrecommit,
 					data: map[string]any{
 						"action_id":                "act-1",
 						"action_type":              "export_data",
@@ -213,7 +213,7 @@ func snapshotProfileCases() []snapshotProfileCase {
 					},
 				},
 				{
-					eventType: event.TypeAIActionExecuted,
+					eventType: event.TypeDataExportExecuted,
 					data: map[string]any{
 						"action_id":           "act-1",
 						"execution_outcome":   "success",
@@ -228,14 +228,6 @@ func snapshotProfileCases() []snapshotProfileCase {
 						"approval_outcome":     "approved",
 						"justification_digest": "just-digest",
 						"action_id":            "act-1",
-					},
-				},
-				{
-					eventType: event.TypeAIActionCommitted,
-					data: map[string]any{
-						"action_id":           "act-1",
-						"commit_outcome":      "success",
-						"sink_receipt_digest": "sink-digest",
 					},
 				},
 			},

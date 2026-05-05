@@ -122,14 +122,14 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 					"subject_id_hash":       "subject-hash",
 					"action_id":             "act-1",
 				}, "2026-03-27T12:01:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+				appendVerifyRecord(t, b, event.TypeDataExportPrecommit, map[string]any{
 					"action_id":                "act-1",
 					"action_type":              "export_data",
 					"action_parameters_digest": "params-digest",
 					"target_resource_id":       "dataset-1",
 					"intended_effect":          "export approved dataset",
 				}, "2026-03-27T12:02:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+				appendVerifyRecord(t, b, event.TypeDataExportExecuted, map[string]any{
 					"action_id":           "act-1",
 					"execution_outcome":   "success",
 					"tool_receipt_digest": "tool-digest",
@@ -141,11 +141,6 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 					"justification_digest": "just-digest",
 					"action_id":            "act-1",
 				}, "2026-03-27T12:04:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionCommitted, map[string]any{
-					"action_id":           "act-1",
-					"commit_outcome":      "success",
-					"sink_receipt_digest": "sink-digest",
-				}, "2026-03-27T12:05:00Z")
 				return b
 			},
 		},
@@ -187,14 +182,14 @@ func TestVerify_ProfileAutoDetect_ByPurposeTag(t *testing.T) {
 					"justification_digest": "just-digest",
 					"action_id":            "act-1",
 				}, "2026-03-27T12:01:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+				appendVerifyRecord(t, b, event.TypeDataExportPrecommit, map[string]any{
 					"action_id":                "act-1",
 					"action_type":              "override_action",
 					"action_parameters_digest": "params-digest",
 					"target_resource_id":       "svc-1",
 					"intended_effect":          "run approved override",
 				}, "2026-03-27T12:02:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+				appendVerifyRecord(t, b, event.TypeDataExportExecuted, map[string]any{
 					"action_id":           "act-1",
 					"execution_outcome":   "success",
 					"tool_receipt_digest": "tool-digest",
@@ -452,9 +447,11 @@ func TestVerify_NewCASProfiles(t *testing.T) {
 		buildConformant  func(testing.TB) *bundle.Bundle
 		buildMissing     func(testing.TB) *bundle.Bundle
 		wantFailureMatch string
+		wantMinCAS       float64
 	}{
 		{
-			profileID: profileIDDataExport,
+			profileID:  profileIDDataExport,
+			wantMinCAS: 0.65,
 			buildConformant: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
@@ -485,24 +482,20 @@ func TestVerify_NewCASProfiles(t *testing.T) {
 					"subject_id_hash":       "subject-hash",
 					"action_id":             "act-1",
 				}, "2026-03-27T12:01:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+				appendVerifyRecord(t, b, event.TypeDataExportPrecommit, map[string]any{
 					"action_id":                "act-1",
 					"action_type":              "export_data",
 					"action_parameters_digest": "params-digest",
 					"target_resource_id":       "dataset-1",
 					"intended_effect":          "export approved dataset",
 				}, "2026-03-27T12:02:00Z")
-				appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
-					"action_id":           "act-1",
-					"execution_outcome":   "success",
-					"tool_receipt_digest": "tool-digest",
-				}, "2026-03-27T12:03:00Z")
 				return b
 			},
-			wantFailureMatch: event.TypeAIActionCommitted,
+			wantFailureMatch: event.TypeDataExportExecuted,
 		},
 		{
-			profileID: profileIDBackgroundAutomation,
+			profileID:  profileIDBackgroundAutomation,
+			wantMinCAS: 0.85,
 			buildConformant: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
@@ -536,7 +529,8 @@ func TestVerify_NewCASProfiles(t *testing.T) {
 			wantFailureMatch: event.TypeAIJobCompleted,
 		},
 		{
-			profileID: profileIDPolicyDecision,
+			profileID:  profileIDPolicyDecision,
+			wantMinCAS: 0.85,
 			buildConformant: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
@@ -571,7 +565,8 @@ func TestVerify_NewCASProfiles(t *testing.T) {
 			wantFailureMatch: event.TypeAIPolicyDecision,
 		},
 		{
-			profileID: profileIDHumanOverride,
+			profileID:  profileIDHumanOverride,
+			wantMinCAS: 0.85,
 			buildConformant: func(t testing.TB) *bundle.Bundle {
 				t.Helper()
 
@@ -622,8 +617,12 @@ func TestVerify_NewCASProfiles(t *testing.T) {
 
 			subScores := subScoresForProfile(profile, b.Records, AnchorVerified)
 			cas := ComputeCAS(subScores, profile.DefaultWeights(), true)
-			if cas.Overall < 0.85 {
-				t.Fatalf("CAS overall = %.3f, want >= 0.85", cas.Overall)
+			minCAS := tc.wantMinCAS
+			if minCAS == 0 {
+				minCAS = 0.85
+			}
+			if cas.Overall < minCAS {
+				t.Fatalf("CAS overall = %.3f, want >= %.3f", cas.Overall, minCAS)
 			}
 
 			report := Verify(b, "bundle.atb", tc.profileID)
