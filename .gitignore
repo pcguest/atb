@@ -127,3 +127,17 @@ CLAUDE.md
 
 # govulncheck baseline — regenerated on demand, not source of truth
 govulncheck-baseline.json
+# build artefacts
+/atb
+/atb.exe
+coverage.out
+trivy-report.json
+govulncheck-baseline.json
+# scratch and cache dirs
+.gocache*/
+.security-venv/
+.tmp-yamllint-venv/
+.minimax/
+test-atb-pypi/
+.tmp*/
+.cursor/

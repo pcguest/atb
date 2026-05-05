@@ -1,0 +1,2 @@
+{"role":"user","content":"Summarise leave carry-over policy.","timestamp":"2026-04-24T09:00:10Z","session_id":"sess-e2e","request_id":"req-e2e-1","actor_id_hash":"sha256:user-e2e-1","purpose_tag":"rag_answer"}
+{"role":"assistant","content":"Up to five days can be carried over.","timestamp":"2026-04-24T09:00:11Z","session_id":"sess-e2e","model":"gpt-4o-mini"}
