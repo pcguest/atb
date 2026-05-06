@@ -498,7 +498,7 @@ func trustReportSnapshotCases() []snapshotProfileCase {
 			profileID:               "atb.profile.privileged_tool_action",
 			minRecordCount:          6,
 			expectCAS:               true,
-			wantTrustReportExitCode: exitSuccess,
+			wantTrustReportExitCode: exitUserError,
 			wantVerifyExitCode:      exitSuccess,
 			trustReportArgs:         []string{"--profile", "atb.profile.privileged_tool_action"},
 			verifyArgs:              []string{"--profile", "atb.profile.privileged_tool_action"},
@@ -567,8 +567,8 @@ func trustReportSnapshotCases() []snapshotProfileCase {
 					minRecordCount: 6,
 					expectCAS:      true,
 				}, report)
-				if !report.Pass {
-					t.Errorf("Pass = false, want true")
+				if report.Pass {
+					t.Errorf("Pass = true, want false")
 				}
 				section := snapshotTrustReportSectionByTitle(report, "Policy decision")
 				if section == nil {

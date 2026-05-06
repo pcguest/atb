@@ -46,11 +46,18 @@ type EventRule struct {
 }
 
 type RelationRule struct {
-	Name    string `yaml:"name"`
-	From    string `yaml:"from"`
-	To      string `yaml:"to"`
-	Field   string `yaml:"field"`
-	Message string `yaml:"message"`
+	Name       string              `yaml:"name"`
+	From       string              `yaml:"from"`
+	To         string              `yaml:"to"`
+	Field      string              `yaml:"field"`
+	Message    string              `yaml:"message"`
+	Predicates []RelationPredicate `yaml:"predicates,omitempty"`
+}
+
+type RelationPredicate struct {
+	Side   string `yaml:"side"`
+	Field  string `yaml:"field"`
+	Equals string `yaml:"equals"`
 }
 
 func validateSchema(s ProfileSchema) error {
@@ -73,6 +80,9 @@ func validateSchema(s ProfileSchema) error {
 		return err
 	}
 	if err := validateRequiredWhenReferences(s.ID, s.Required, s.Optional); err != nil {
+		return err
+	}
+	if err := validateRelationRules(s.ID, s.Relations); err != nil {
 		return err
 	}
 	return nil
@@ -196,5 +206,24 @@ func validateRequiredWhenReferences(id string, required, optional []EventRule) e
 		}
 	}
 
+	return nil
+}
+
+func validateRelationRules(id string, rules []RelationRule) error {
+	for i, rule := range rules {
+		for j, predicate := range rule.Predicates {
+			switch strings.TrimSpace(predicate.Side) {
+			case "from", "to":
+			default:
+				return fmt.Errorf("profile schema %q: relation %d predicate %d has invalid side %q", id, i, j, predicate.Side)
+			}
+			if strings.TrimSpace(predicate.Field) == "" {
+				return fmt.Errorf("profile schema %q: relation %d predicate %d field is required", id, i, j)
+			}
+			if strings.TrimSpace(predicate.Equals) == "" {
+				return fmt.Errorf("profile schema %q: relation %d predicate %d equals is required", id, i, j)
+			}
+		}
+	}
 	return nil
 }

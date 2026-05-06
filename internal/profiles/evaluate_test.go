@@ -112,6 +112,55 @@ func TestEvaluate_RelationMissingTargetSkipped(t *testing.T) {
 	}
 }
 
+func TestEvaluate_RelationPredicatePolicyDecision(t *testing.T) {
+	const predicateID = "relation:execution_after_authorization:predicate:decision:allow"
+
+	tests := []struct {
+		name      string
+		schemaID  string
+		records   []bundle.Record
+		wantPass  bool
+		wantError bool
+	}{
+		{
+			name:      "privileged tool action deny fails",
+			schemaID:  "atb.profile.privileged_tool_action",
+			records:   privilegedToolActionRecords("deny"),
+			wantError: true,
+		},
+		{
+			name:      "data export deny fails",
+			schemaID:  "atb.profile.data_export",
+			records:   dataExportRecords("deny"),
+			wantError: true,
+		},
+		{
+			name:     "privileged tool action allow passes",
+			schemaID: "atb.profile.privileged_tool_action",
+			records:  privilegedToolActionRecords("allow"),
+			wantPass: true,
+		},
+		{
+			name:     "data export allow passes",
+			schemaID: "atb.profile.data_export",
+			records:  dataExportRecords("allow"),
+			wantPass: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := Evaluate(MustLoadSchema(tt.schemaID), tt.records)
+			if tt.wantPass && !result.Pass {
+				t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+			}
+			if tt.wantError && !hasFailureID(result.CriticalFailures, predicateID) {
+				t.Fatalf("expected predicate failure ID %q, got %+v", predicateID, result.CriticalFailures)
+			}
+		})
+	}
+}
+
 func TestEvaluate_Clean(t *testing.T) {
 	schema := testSchema()
 	records := []bundle.Record{
@@ -377,6 +426,82 @@ func testSchema() ProfileSchema {
 	}
 }
 
+func privilegedToolActionRecords(decision string) []bundle.Record {
+	return []bundle.Record{
+		record("atb.bundle.manifest", map[string]any{}),
+		record("ai.request.received", map[string]any{
+			"request_id":    "req-1",
+			"actor_id_hash": "actor-1",
+			"purpose_tag":   "privileged_tool_action",
+		}),
+		record("ai.action.precommit", map[string]any{
+			"action_id":                "act-1",
+			"action_type":              "write",
+			"action_parameters_digest": "sha256:params",
+			"target_resource_id":       "resource-1",
+			"intended_effect":          "mutate resource",
+		}),
+		policyDecisionRecord(decision),
+		record("ai.action.executed", map[string]any{
+			"action_id":           "act-1",
+			"execution_outcome":   "success",
+			"tool_receipt_digest": "sha256:tool",
+		}),
+		record("ai.action.committed", map[string]any{
+			"action_id":           "act-1",
+			"commit_outcome":      "success",
+			"sink_receipt_digest": "sha256:sink",
+		}),
+		humanApprovalRecord(),
+	}
+}
+
+func dataExportRecords(decision string) []bundle.Record {
+	return []bundle.Record{
+		record("atb.bundle.manifest", map[string]any{}),
+		record("ai.request.received", map[string]any{
+			"request_id":    "req-1",
+			"actor_id_hash": "actor-1",
+			"purpose_tag":   "data_export",
+		}),
+		policyDecisionRecord(decision),
+		record("data.export.precommit", map[string]any{
+			"action_id":                "act-1",
+			"action_type":              "export",
+			"action_parameters_digest": "sha256:params",
+			"target_resource_id":       "dataset-1",
+			"intended_effect":          "export dataset",
+		}),
+		record("data.export.executed", map[string]any{
+			"action_id":           "act-1",
+			"execution_outcome":   "success",
+			"tool_receipt_digest": "sha256:tool",
+		}),
+		humanApprovalRecord(),
+	}
+}
+
+func policyDecisionRecord(decision string) bundle.Record {
+	return record("ai.policy.decision", map[string]any{
+		"policy_id":             "policy-1",
+		"policy_version":        "v1",
+		"decision":              decision,
+		"decision_reason_codes": []string{"matched"},
+		"subject_id_hash":       "actor-1",
+		"action_id":             "act-1",
+	})
+}
+
+func humanApprovalRecord() bundle.Record {
+	return record("ai.human.approval", map[string]any{
+		"approval_id":          "approval-1",
+		"approver_id_hash":     "approver-1",
+		"approval_outcome":     "approved",
+		"justification_digest": "sha256:justification",
+		"action_id":            "act-1",
+	})
+}
+
 func record(eventType string, data map[string]any) bundle.Record {
 	return bundle.Record{
 		Event: hash.Event{
@@ -412,6 +537,15 @@ func failureID(failures []CriticalFailure, kind string, containsText string) str
 		}
 	}
 	return ""
+}
+
+func hasFailureID(failures []CriticalFailure, id string) bool {
+	for _, failure := range failures {
+		if failure.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 func contains(values []string, want string) bool {

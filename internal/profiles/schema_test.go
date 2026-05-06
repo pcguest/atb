@@ -176,3 +176,72 @@ func TestValidateSchema_ValidRequiredWhen(t *testing.T) {
 		t.Fatalf("expected valid required_when rule, got %v", err)
 	}
 }
+
+func TestValidateSchema_ValidRelationPredicate(t *testing.T) {
+	schema := schemaWithRelationPredicate(RelationPredicate{
+		Side:   "to",
+		Field:  "decision",
+		Equals: "allow",
+	})
+
+	if err := validateSchema(schema); err != nil {
+		t.Fatalf("expected valid relation predicate, got %v", err)
+	}
+}
+
+func TestValidateSchema_InvalidRelationPredicate(t *testing.T) {
+	tests := []struct {
+		name      string
+		predicate RelationPredicate
+	}{
+		{
+			name: "invalid side",
+			predicate: RelationPredicate{
+				Side:   "target",
+				Field:  "decision",
+				Equals: "allow",
+			},
+		},
+		{
+			name: "missing field",
+			predicate: RelationPredicate{
+				Side:   "to",
+				Equals: "allow",
+			},
+		},
+		{
+			name: "missing equals",
+			predicate: RelationPredicate{
+				Side:  "to",
+				Field: "decision",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema := schemaWithRelationPredicate(tt.predicate)
+			if err := validateSchema(schema); err == nil {
+				t.Fatal("expected relation predicate validation error")
+			}
+		})
+	}
+}
+
+func schemaWithRelationPredicate(predicate RelationPredicate) ProfileSchema {
+	return ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Relations: []RelationRule{
+			{
+				Name:       "execution_after_authorization",
+				From:       "ai.action.executed",
+				To:         "ai.policy.decision",
+				Field:      "action_id",
+				Predicates: []RelationPredicate{predicate},
+			},
+		},
+	}
+}

@@ -91,3 +91,7 @@ relations:
     to: ai.policy.decision
     field: action_id
     message: "execution_after_authorization: ai.policy.decision decision is not allow for executed action_id"
+    predicates:
+      - side: to
+        field: decision
+        equals: allow

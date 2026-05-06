@@ -126,7 +126,14 @@ func evaluateRelationRule(result *EvaluationResult, recordsByType map[string][]b
 	toByField := indexByField(toRecords, rule.Field)
 	for _, fromRecord := range fromRecords {
 		fieldValue := fieldString(fromRecord, rule.Field)
-		if fieldValue != "" && len(toByField[fieldValue]) > 0 {
+		linkedRecords := toByField[fieldValue]
+		if fieldValue != "" && len(linkedRecords) > 0 && len(rule.Predicates) == 0 {
+			continue
+		}
+		if fieldValue != "" && len(linkedRecords) > 0 {
+			if failure, ok := relationPredicateFailure(rule, fromRecord, linkedRecords); ok {
+				result.CriticalFailures = append(result.CriticalFailures, failure)
+			}
 			continue
 		}
 		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
@@ -135,6 +142,50 @@ func evaluateRelationRule(result *EvaluationResult, recordsByType map[string][]b
 			Detail: messageOrDefault(rule.Message, relationDefaultMessage(rule)),
 		})
 	}
+}
+
+func relationPredicateFailure(
+	rule RelationRule,
+	fromRecord bundle.Record,
+	linkedRecords []bundle.Record,
+) (CriticalFailure, bool) {
+	var firstFailure CriticalFailure
+	for _, toRecord := range linkedRecords {
+		failure, ok := firstRelationPredicateFailure(rule, fromRecord, toRecord)
+		if !ok {
+			return CriticalFailure{}, false
+		}
+		if firstFailure == (CriticalFailure{}) {
+			firstFailure = failure
+		}
+	}
+	return firstFailure, firstFailure != (CriticalFailure{})
+}
+
+func firstRelationPredicateFailure(
+	rule RelationRule,
+	fromRecord bundle.Record,
+	toRecord bundle.Record,
+) (CriticalFailure, bool) {
+	for _, predicate := range rule.Predicates {
+		target := toRecord
+		if predicate.Side == "from" {
+			target = fromRecord
+		}
+
+		actual := fieldString(target, predicate.Field)
+		expected := predicate.Equals
+		if strings.EqualFold(actual, expected) {
+			continue
+		}
+
+		return CriticalFailure{
+			ID:     relationPredicateID(rule, predicate),
+			Kind:   "relation_violation",
+			Detail: relationPredicateMessage(rule, predicate, actual),
+		}, true
+	}
+	return CriticalFailure{}, false
 }
 
 func evaluateRequiredWhenRules(
@@ -260,6 +311,21 @@ func relationID(rule RelationRule) string {
 		return "relation:" + name
 	}
 	return "relation:" + rule.From + ":" + rule.To + ":" + rule.Field
+}
+
+func relationPredicateID(rule RelationRule, predicate RelationPredicate) string {
+	return relationID(rule) + ":predicate:" + predicate.Field + ":" + predicate.Equals
+}
+
+func relationPredicateMessage(rule RelationRule, predicate RelationPredicate, actual string) string {
+	return fmt.Sprintf(
+		"%s: predicate %s.%s got %q, want %q",
+		relationDefaultMessage(rule),
+		predicate.Side,
+		predicate.Field,
+		actual,
+		predicate.Equals,
+	)
 }
 
 func requiredWhenID(targetType string, conditionType string) string {

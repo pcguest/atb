@@ -142,6 +142,11 @@ func normaliseRelationRule(rule RelationRule) RelationRule {
 	rule.To = strings.TrimSpace(rule.To)
 	rule.Field = strings.TrimSpace(rule.Field)
 	rule.Message = strings.TrimSpace(rule.Message)
+	for i := range rule.Predicates {
+		rule.Predicates[i].Side = strings.ToLower(strings.TrimSpace(rule.Predicates[i].Side))
+		rule.Predicates[i].Field = strings.TrimSpace(rule.Predicates[i].Field)
+		rule.Predicates[i].Equals = strings.TrimSpace(rule.Predicates[i].Equals)
+	}
 	return rule
 }
 
@@ -171,6 +176,9 @@ func cloneSchema(schema ProfileSchema) ProfileSchema {
 	for i := range cloned.Optional {
 		cloned.Optional[i].Fields = append([]string(nil), schema.Optional[i].Fields...)
 		cloned.Optional[i].RequiredWhen = append([]requiredWhenRule(nil), schema.Optional[i].RequiredWhen...)
+	}
+	for i := range cloned.Relations {
+		cloned.Relations[i].Predicates = append([]RelationPredicate(nil), schema.Relations[i].Predicates...)
 	}
 	return cloned
 }
