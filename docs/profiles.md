@@ -8,7 +8,7 @@ ATB uses obligation profiles to evaluate whether a bundle contains the minimum e
 |------------|---------------|-------|
 | `atb.profile.privileged_tool_action` | Yes | Local completeness score over request, policy, execution, and commit evidence. Overall CAS falls to `0` when chain integrity fails. |
 | `atb.profile.rag_answer` | Yes | Local completeness score over request, model, retrieval, and response evidence. Overall CAS falls to `0` when chain integrity fails. |
-| `atb.profile.data_export` | Yes | Local completeness score over export authorisation, execution, and commit evidence. Overall CAS falls to `0` when chain integrity fails. |
+| `atb.profile.data_export` | Yes | Local completeness score over export authorisation and execution evidence. Overall CAS falls to `0` when chain integrity fails. |
 | `atb.profile.policy_decision` | Yes | Local completeness score over request and policy decision evidence within the profile trust boundary. Overall CAS falls to `0` when chain integrity fails. |
 | `atb.profile.human_override` | Yes | Local completeness score over approval, precommit, and execution evidence for override workflows. Overall CAS falls to `0` when chain integrity fails. |
 | `atb.profile.background_automation` | Yes | Local completeness score over job scheduling, start, and completion evidence. Overall CAS falls to `0` when chain integrity fails. |
@@ -103,20 +103,18 @@ Required events:
 
 - `atb.bundle.manifest`
 - `ai.request.received` — fields: `request_id`, `actor_id_hash`, `purpose_tag`
-- `ai.policy.decision` — fields: `policy_id`, `policy_version`, `decision`, `decision_reason_codes`, `subject_id_hash`
-- `ai.action.precommit` — fields: `action_id`, `action_type`, `action_parameters_digest`, `target_resource_id`, `intended_effect`
-- `ai.action.executed` — fields: `action_id`, `execution_outcome`, `tool_receipt_digest`
-- `ai.action.committed` — fields: `action_id`, `commit_outcome`, `sink_receipt_digest`
+- `ai.policy.decision` — fields: `policy_id`, `policy_version`, `decision`, `decision_reason_codes`, `subject_id_hash`, `action_id`
+- `data.export.precommit` — fields: `action_id`, `action_type`, `action_parameters_digest`, `target_resource_id`, `intended_effect`
+- `data.export.executed` — fields: `action_id`, `execution_outcome`, `tool_receipt_digest`
 
 Optional evidence:
 
-- `ai.human.approval` — warning; becomes required when `ai.action.executed` is present. Fields: `approval_id`, `approver_id_hash`, `approval_outcome`, `justification_digest`, `action_id`
+- `ai.human.approval` — warning; becomes required when `data.export.executed` is present. Fields: `approval_id`, `approver_id_hash`, `approval_outcome`, `justification_digest`, `action_id`
 
 Relation checks:
 
-- `ai.action.committed` must bind to `ai.action.precommit` by `action_id`.
-- `ai.policy.decision` must bind to `ai.action.precommit` by `action_id`.
-- `ai.action.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
+- `ai.policy.decision` must bind to `data.export.precommit` by `action_id`.
+- `data.export.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
 
 CAS weight vector:
 

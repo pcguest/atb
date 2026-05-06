@@ -45,10 +45,9 @@ var ragCriticalRequirements = []eventRequirement{
 var dataExportCriticalRequirements = []eventRequirement{
 	{eventType: event.TypeBundleManifest},
 	{eventType: event.TypeAIRequestReceived, requiredFields: []string{"request_id", "actor_id_hash", "purpose_tag"}},
-	{eventType: event.TypeAIPolicyDecision, requiredFields: []string{"policy_id", "policy_version", "decision", "decision_reason_codes", "subject_id_hash"}},
-	{eventType: event.TypeAIActionPrecommit, requiredFields: []string{"action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"}},
-	{eventType: event.TypeAIActionExecuted, requiredFields: []string{"action_id", "execution_outcome", "tool_receipt_digest"}},
-	{eventType: event.TypeAIActionCommitted, requiredFields: []string{"action_id", "commit_outcome", "sink_receipt_digest"}},
+	{eventType: event.TypeAIPolicyDecision, requiredFields: []string{"policy_id", "policy_version", "decision", "decision_reason_codes", "subject_id_hash", "action_id"}},
+	{eventType: event.TypeDataExportPrecommit, requiredFields: []string{"action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"}},
+	{eventType: event.TypeDataExportExecuted, requiredFields: []string{"action_id", "execution_outcome", "tool_receipt_digest"}},
 }
 
 var policyDecisionCriticalRequirements = []eventRequirement{
@@ -511,21 +510,17 @@ func backgroundAutomationSubScores(records []bundle.Record, anchorResult AnchorV
 
 func dataExportSubScores(records []bundle.Record, anchorResult AnchorVerifyResult) map[string]float64 {
 	recordsByType := indexRecordsByType(records)
-	precommitByAction := indexByField(recordsByType[event.TypeAIActionPrecommit], "action_id")
+	precommitByAction := indexByField(recordsByType[event.TypeDataExportPrecommit], "action_id")
 	policyByAction := indexByField(recordsByType[event.TypeAIPolicyDecision], "action_id")
-	executedByAction := indexByField(recordsByType[event.TypeAIActionExecuted], "action_id")
-	committedByAction := indexByField(recordsByType[event.TypeAIActionCommitted], "action_id")
+	executedByAction := indexByField(recordsByType[event.TypeDataExportExecuted], "action_id")
 
 	rc := averageScores(
-		boolScore(len(recordsByType[event.TypeAIActionCommitted]) > 0 &&
-			len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", precommitByAction)),
 		boolScore(len(recordsByType[event.TypeAIPolicyDecision]) > 0 &&
-			len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
+			len(recordsByType[event.TypeDataExportPrecommit]) > 0 &&
 			allRecordsBound(recordsByType[event.TypeAIPolicyDecision], "action_id", precommitByAction)),
-		boolScore(len(recordsByType[event.TypeAIActionExecuted]) > 0 &&
+		boolScore(len(recordsByType[event.TypeDataExportExecuted]) > 0 &&
 			len(recordsByType[event.TypeAIPolicyDecision]) > 0 &&
-			allExecutedAuthorised(recordsByType[event.TypeAIActionExecuted], policyByAction)),
+			allExecutedAuthorised(recordsByType[event.TypeDataExportExecuted], policyByAction)),
 	)
 
 	tc := 1.0
@@ -534,13 +529,11 @@ func dataExportSubScores(records []bundle.Record, anchorResult AnchorVerifyResul
 	}
 
 	gc := boolScore(
-		len(recordsByType[event.TypeAIActionPrecommit]) > 0 &&
-			len(recordsByType[event.TypeAIActionExecuted]) > 0 &&
-			len(recordsByType[event.TypeAIActionCommitted]) > 0 &&
-			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", precommitByAction) &&
-			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", precommitByAction) &&
-			allRecordsBound(recordsByType[event.TypeAIActionCommitted], "action_id", executedByAction) &&
-			allRecordsBound(recordsByType[event.TypeAIActionExecuted], "action_id", committedByAction),
+		len(recordsByType[event.TypeDataExportPrecommit]) > 0 &&
+			len(recordsByType[event.TypeDataExportExecuted]) > 0 &&
+			len(recordsByType[event.TypeAIPolicyDecision]) > 0 &&
+			allRecordsBound(recordsByType[event.TypeDataExportExecuted], "action_id", precommitByAction) &&
+			allExecutedAuthorised(recordsByType[event.TypeDataExportExecuted], policyByAction),
 	)
 
 	return map[string]float64{

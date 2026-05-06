@@ -35,6 +35,7 @@ required:
       - decision
       - decision_reason_codes
       - subject_id_hash
+      - action_id
     message: ai.policy.decision missing required fields
     severity: critical
   - type: data.export.precommit

@@ -401,6 +401,7 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 
 	hasJobScheduled := false
 	hasJobStarted := false
+	hasDataExport := false
 	hasPrecommit := false
 	hasModelInvoked := false
 	for _, record := range records {
@@ -409,9 +410,11 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 			hasJobScheduled = true
 		case event.TypeAIJobStarted:
 			hasJobStarted = true
-		case "ai.action.precommit":
+		case event.TypeDataExportPrecommit, event.TypeDataExportExecuted:
+			hasDataExport = true
+		case event.TypeAIActionPrecommit:
 			hasPrecommit = true
-		case "ai.model.invoked":
+		case event.TypeAIModelInvoked:
 			hasModelInvoked = true
 		}
 	}
@@ -419,6 +422,10 @@ func matchingProfiles(records []bundle.Record, profileID string) []Profile {
 	switch {
 	case hasJobScheduled || hasJobStarted:
 		if profile := ProfileByID(profileIDBackgroundAutomation); profile != nil {
+			return []Profile{profile}
+		}
+	case hasDataExport:
+		if profile := ProfileByID(profileIDDataExport); profile != nil {
 			return []Profile{profile}
 		}
 	case hasPrecommit:

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	profiledsl "github.com/pcguest/atb/internal/profiles"
 )
 
@@ -123,6 +124,68 @@ func TestAnchorSubScoreScaling(t *testing.T) {
 				t.Fatalf("AC = %.1f, want %.1f", got["AC"], tc.wantAC)
 			}
 		})
+	}
+}
+
+func TestDataExportSubScoresUseDataExportEvents(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-data-export",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "data_export",
+	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+		"policy_id":             "pol-1",
+		"policy_version":        "2026-03",
+		"decision":              "allow",
+		"decision_reason_codes": []any{"export_allowed"},
+		"subject_id_hash":       "subject-hash",
+		"action_id":             "act-1",
+	}, "2026-03-27T12:01:00Z")
+	appendVerifyRecord(t, b, event.TypeDataExportPrecommit, map[string]any{
+		"action_id":                "act-1",
+		"action_type":              "export_data",
+		"action_parameters_digest": "params-digest",
+		"target_resource_id":       "dataset-1",
+		"intended_effect":          "export approved dataset",
+	}, "2026-03-27T12:02:00Z")
+	appendVerifyRecord(t, b, event.TypeDataExportExecuted, map[string]any{
+		"action_id":           "act-1",
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "tool-digest",
+	}, "2026-03-27T12:03:00Z")
+
+	scores := dataExportSubScores(b.Records, AnchorAbsent)
+	if scores["EC"] != 1.0 {
+		t.Fatalf("EC = %v, want 1.0 for complete data export events", scores["EC"])
+	}
+	if scores["FC"] != 1.0 {
+		t.Fatalf("FC = %v, want 1.0 for complete data export events", scores["FC"])
+	}
+}
+
+func TestDataExportSubScoresIgnorePrivilegedActionEvents(t *testing.T) {
+	records := []bundle.Record{
+		makeRecord(event.TypeAIActionPrecommit, map[string]any{
+			"action_id":                "act-1",
+			"action_type":              "export_data",
+			"action_parameters_digest": "params-digest",
+			"target_resource_id":       "dataset-1",
+			"intended_effect":          "export approved dataset",
+		}),
+		makeRecord(event.TypeAIActionExecuted, map[string]any{
+			"action_id":           "act-1",
+			"execution_outcome":   "success",
+			"tool_receipt_digest": "tool-digest",
+		}),
+	}
+
+	scores := dataExportSubScores(records, AnchorAbsent)
+	if scores["EC"] != 0 {
+		t.Fatalf("EC = %v, want 0 for privileged action events only", scores["EC"])
+	}
+	if scores["FC"] != 0 {
+		t.Fatalf("FC = %v, want 0 for privileged action events only", scores["FC"])
 	}
 }
 
