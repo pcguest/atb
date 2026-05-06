@@ -7,7 +7,7 @@ test-golden:
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
-GOTOOLCHAIN ?= go1.25.9
+GOTOOLCHAIN ?= go1.26.2
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
