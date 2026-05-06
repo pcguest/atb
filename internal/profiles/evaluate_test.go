@@ -19,6 +19,26 @@ func TestEvaluate_MissingRequired(t *testing.T) {
 	if !hasFailure(result.CriticalFailures, "missing_event", "ai.request.received required") {
 		t.Fatalf("expected missing required failure, got %+v", result.CriticalFailures)
 	}
+	gotID := failureID(result.CriticalFailures, "missing_event", "ai.request.received required")
+	if gotID != "required:ai.request.received" {
+		t.Fatalf("missing required ID = %q, want %q", gotID, "required:ai.request.received")
+	}
+}
+
+func TestEvaluate_MissingRequiredFieldID(t *testing.T) {
+	schema := testSchema()
+	records := []bundle.Record{
+		record("ai.request.received", map[string]any{}),
+	}
+
+	result := Evaluate(schema, records)
+	if result.Pass {
+		t.Fatal("expected failure")
+	}
+	gotID := failureID(result.CriticalFailures, "missing_field", "ai.request.received required")
+	if gotID != "required:ai.request.received:field:request_id" {
+		t.Fatalf("missing required field ID = %q, want %q", gotID, "required:ai.request.received:field:request_id")
+	}
 }
 
 func TestEvaluate_MissingOptional(t *testing.T) {
@@ -73,6 +93,10 @@ func TestEvaluate_RelationViolation(t *testing.T) {
 	result := Evaluate(schema, records)
 	if !hasFailure(result.CriticalFailures, "relation_violation", "request must match response") {
 		t.Fatalf("expected relation failure, got %+v", result.CriticalFailures)
+	}
+	gotID := failureID(result.CriticalFailures, "relation_violation", "request must match response")
+	if gotID != "relation:request_to_response" {
+		t.Fatalf("relation failure ID = %q, want %q", gotID, "relation:request_to_response")
 	}
 }
 
@@ -165,6 +189,10 @@ func TestEvaluate_RequiredWhenMissingTarget(t *testing.T) {
 	}
 	if !hasFailure(result.CriticalFailures, "missing_event", "ai.response.sent") {
 		t.Fatalf("expected missing_event for ai.response.sent, got %+v", result.CriticalFailures)
+	}
+	gotID := failureID(result.CriticalFailures, "missing_event", "ai.response.sent")
+	if !strings.HasPrefix(gotID, "required_when:") {
+		t.Fatalf("required_when failure ID = %q, want prefix %q", gotID, "required_when:")
 	}
 }
 
@@ -375,6 +403,15 @@ func hasFailure(failures []CriticalFailure, kind string, containsText string) bo
 		}
 	}
 	return false
+}
+
+func failureID(failures []CriticalFailure, kind string, containsText string) string {
+	for _, failure := range failures {
+		if failure.Kind == kind && strings.Contains(failure.Detail, containsText) {
+			return failure.ID
+		}
+	}
+	return ""
 }
 
 func contains(values []string, want string) bool {

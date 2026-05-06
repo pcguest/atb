@@ -12,6 +12,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -113,6 +114,97 @@ func TestEvaluateBundleMatchesLegacyVerify(t *testing.T) {
 				t.Fatalf("record report JSON changed:\n got: %s\nwant: %s", got, wantJSON)
 			}
 		})
+	}
+}
+
+func TestEvaluateBundleFailureIDs(t *testing.T) {
+	profile := ProfileByID(profileIDDataExport)
+	if profile == nil {
+		t.Fatal("expected data export profile")
+	}
+
+	t.Run("missing_required_event", func(t *testing.T) {
+		report := VerifyWithProfile(newVerifyTestBundle(t), "bundle.atb", profile)
+		assertReportFailureID(
+			t,
+			report,
+			"missing_event",
+			event.TypeAIRequestReceived,
+			"required:ai.request.received",
+		)
+	})
+
+	t.Run("missing_required_field", func(t *testing.T) {
+		b := newVerifyTestBundle(t)
+		appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+			"actor_id_hash": "actor-hash",
+			"purpose_tag":   "data_export",
+		}, "2026-03-27T12:00:00Z")
+
+		report := VerifyWithProfile(b, "bundle.atb", profile)
+		assertReportFailureID(
+			t,
+			report,
+			"missing_field",
+			event.TypeAIRequestReceived,
+			"required:ai.request.received:field:request_id",
+		)
+	})
+
+	t.Run("relation_violation", func(t *testing.T) {
+		b := newVerifyTestBundle(t)
+		appendDataExportCoreRecords(t, b, "act-1", "act-2")
+		appendVerifyRecord(t, b, event.TypeAIHumanApproval, map[string]any{
+			"approval_id":          "appr-1",
+			"approver_id_hash":     "approver-hash",
+			"approval_outcome":     "approved",
+			"justification_digest": "just-digest",
+			"action_id":            "act-2",
+		}, "2026-03-27T12:04:00Z")
+
+		report := VerifyWithProfile(b, "bundle.atb", profile)
+		assertReportFailureID(
+			t,
+			report,
+			"relation_violation",
+			"execution_after_authorization",
+			"relation:execution_after_authorization",
+		)
+	})
+
+	t.Run("required_when", func(t *testing.T) {
+		b := newVerifyTestBundle(t)
+		appendDataExportCoreRecords(t, b, "act-1", "act-1")
+
+		report := VerifyWithProfile(b, "bundle.atb", profile)
+		got := reportFailureID(report, "missing_event", "ai.human.approval required when data exports execute")
+		if !strings.HasPrefix(got, "required_when:") {
+			t.Fatalf("required_when failure ID = %q, want prefix %q", got, "required_when:")
+		}
+	})
+}
+
+func TestEvaluateReportFromVerifyCopiesFailureID(t *testing.T) {
+	report := Report{
+		Integrity: IntegrityResult{ChainValid: true},
+		Profiles: []ProfileResult{
+			{
+				ProfileID: "atb.profile.test",
+				Pass:      false,
+				CriticalFailures: []CriticalFailure{
+					{
+						ID:     "required:ai.request.received",
+						Kind:   "missing_event",
+						Detail: "ai.request.received missing",
+					},
+				},
+			},
+		},
+	}
+
+	verifierReport := ReportFromVerify(report)
+	if got := verifierReport.Failures[0].ID; got != "required:ai.request.received" {
+		t.Fatalf("ReportFromVerify failure ID = %q, want %q", got, "required:ai.request.received")
 	}
 }
 
@@ -303,6 +395,36 @@ func addBundleSignatureRecord(t testing.TB, b *bundle.Bundle, bundlePath string,
 	}
 }
 
+func appendDataExportCoreRecords(t testing.TB, b *bundle.Bundle, policyActionID string, executedActionID string) {
+	t.Helper()
+
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id":    "req-data-export",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "data_export",
+	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+		"policy_id":             "pol-1",
+		"policy_version":        "2026-03",
+		"decision":              "allow",
+		"decision_reason_codes": []any{"export_allowed"},
+		"subject_id_hash":       "subject-hash",
+		"action_id":             policyActionID,
+	}, "2026-03-27T12:01:00Z")
+	appendVerifyRecord(t, b, event.TypeDataExportPrecommit, map[string]any{
+		"action_id":                policyActionID,
+		"action_type":              "export_data",
+		"action_parameters_digest": "params-digest",
+		"target_resource_id":       "dataset-1",
+		"intended_effect":          "export approved dataset",
+	}, "2026-03-27T12:02:00Z")
+	appendVerifyRecord(t, b, event.TypeDataExportExecuted, map[string]any{
+		"action_id":           executedActionID,
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "tool-digest",
+	}, "2026-03-27T12:03:00Z")
+}
+
 func appendSnapshotRecord(t testing.TB, b *bundle.Bundle) {
 	t.Helper()
 
@@ -428,4 +550,24 @@ func cloneAndRoundFloatMap(values map[string]float64) map[string]float64 {
 func roundComparisonFloat(value float64) float64 {
 	const scale = 1e12
 	return math.Round(value*scale) / scale
+}
+
+func assertReportFailureID(t testing.TB, report Report, kind string, containsText string, want string) {
+	t.Helper()
+
+	if got := reportFailureID(report, kind, containsText); got != want {
+		t.Fatalf("failure ID = %q, want %q", got, want)
+	}
+}
+
+func reportFailureID(report Report, kind string, containsText string) string {
+	if len(report.Profiles) == 0 {
+		return ""
+	}
+	for _, failure := range report.Profiles[0].CriticalFailures {
+		if failure.Kind == kind && strings.Contains(failure.Detail, containsText) {
+			return failure.ID
+		}
+	}
+	return ""
 }

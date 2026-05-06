@@ -641,6 +641,7 @@ func evaluateSchemaProfile(schema profiledsl.ProfileSchema, records []bundle.Rec
 
 	for _, failure := range evaluation.CriticalFailures {
 		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     failure.ID,
 			Kind:   failure.Kind,
 			Detail: failure.Detail,
 		})

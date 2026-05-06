@@ -11,6 +11,7 @@ import (
 )
 
 type CriticalFailure struct {
+	ID     string
 	Kind   string
 	Detail string
 }
@@ -49,37 +50,64 @@ func Evaluate(schema ProfileSchema, records []bundle.Record) EvaluationResult {
 
 func evaluateRequiredRule(result *EvaluationResult, records []bundle.Record, rule EventRule) {
 	if len(records) == 0 {
-		appendRuleFinding(result, rule, "missing_event", messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)))
+		appendRuleFinding(
+			result,
+			rule,
+			requiredEventID(rule.Type),
+			"missing_event",
+			messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)),
+		)
 		return
 	}
 	if len(rule.Fields) == 0 {
 		return
 	}
-	if len(missingFields(dataMap(records[0].Event.Data), rule.Fields)) > 0 {
-		appendRuleFinding(result, rule, "missing_field", messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)))
+	missing := missingFields(dataMap(records[0].Event.Data), rule.Fields)
+	if len(missing) > 0 {
+		appendRuleFinding(
+			result,
+			rule,
+			requiredFieldID(rule.Type, missing[0]),
+			"missing_field",
+			messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)),
+		)
 	}
 }
 
 func evaluateOptionalRule(result *EvaluationResult, records []bundle.Record, rule EventRule) {
 	if len(records) == 0 {
-		appendRuleFinding(result, rule, "missing_event", messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)))
+		appendRuleFinding(
+			result,
+			rule,
+			optionalEventID(rule.Type),
+			"missing_event",
+			messageOrDefault(rule.Message, fmt.Sprintf("%s missing", rule.Type)),
+		)
 		return
 	}
 	if len(rule.Fields) == 0 {
 		return
 	}
-	if len(missingFields(dataMap(records[0].Event.Data), rule.Fields)) > 0 {
-		appendRuleFinding(result, rule, "missing_field", messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)))
+	missing := missingFields(dataMap(records[0].Event.Data), rule.Fields)
+	if len(missing) > 0 {
+		appendRuleFinding(
+			result,
+			rule,
+			requiredFieldID(rule.Type, missing[0]),
+			"missing_field",
+			messageOrDefault(rule.Message, fmt.Sprintf("%s missing required fields", rule.Type)),
+		)
 	}
 }
 
-func appendRuleFinding(result *EvaluationResult, rule EventRule, kind string, detail string) {
+func appendRuleFinding(result *EvaluationResult, rule EventRule, id string, kind string, detail string) {
 	if strings.EqualFold(rule.Severity, "warning") {
 		result.RequiredWarnings = append(result.RequiredWarnings, detail)
 		return
 	}
 
 	result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+		ID:     id,
 		Kind:   kind,
 		Detail: detail,
 	})
@@ -102,6 +130,7 @@ func evaluateRelationRule(result *EvaluationResult, recordsByType map[string][]b
 			continue
 		}
 		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     relationID(rule),
 			Kind:   "relation_violation",
 			Detail: messageOrDefault(rule.Message, relationDefaultMessage(rule)),
 		})
@@ -138,6 +167,7 @@ func evaluateRequiredWhenRules(
 					detail = fmt.Sprintf("required_when: %s required when %s present", targetType, conditionType)
 				}
 				result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+					ID:     requiredWhenID(targetType, conditionType),
 					Kind:   "missing_event",
 					Detail: detail,
 				})
@@ -175,6 +205,7 @@ func evaluateRequiredWhenRules(
 
 			if !anyAtOrAfter {
 				result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+					ID:     requiredWhenID(targetType, conditionType),
 					Kind:   "temporal_violation",
 					Detail: fmt.Sprintf("required_when: %s must occur at or after %s", targetType, conditionType),
 				})
@@ -210,6 +241,29 @@ func relationDefaultMessage(rule RelationRule) string {
 		return rule.Name
 	}
 	return fmt.Sprintf("%s %s must match on %s", rule.From, rule.To, rule.Field)
+}
+
+func requiredEventID(eventType string) string {
+	return "required:" + eventType
+}
+
+func optionalEventID(eventType string) string {
+	return "optional:" + eventType
+}
+
+func requiredFieldID(eventType string, field string) string {
+	return "required:" + eventType + ":field:" + field
+}
+
+func relationID(rule RelationRule) string {
+	if name := strings.TrimSpace(rule.Name); name != "" {
+		return "relation:" + name
+	}
+	return "relation:" + rule.From + ":" + rule.To + ":" + rule.Field
+}
+
+func requiredWhenID(targetType string, conditionType string) string {
+	return "required_when:" + targetType + ":when:" + conditionType
 }
 
 func dataMap(data any) map[string]any {

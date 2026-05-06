@@ -18,6 +18,7 @@ type VerifierReport struct {
 }
 
 type ReportFailure struct {
+	ID     string `json:"id,omitempty"`
 	Kind   string `json:"kind"`
 	Detail string `json:"detail"`
 }
