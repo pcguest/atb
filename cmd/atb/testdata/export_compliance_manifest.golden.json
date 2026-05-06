@@ -96,19 +96,85 @@
       "Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.",
       "XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used."
     ],
+    "gate_result": {
+      "anchor_required": false,
+      "chain_valid": true,
+      "pass": true,
+      "profile_pass": true
+    },
     "informational_notes": [
       "Does not prove retrieval completeness beyond recorded corpus/version.",
       "Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.",
       "XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used."
     ],
+    "obligations": [
+      {
+        "event_type": "atb.bundle.manifest",
+        "id": "required:atb.bundle.manifest",
+        "kind": "required_event",
+        "severity": "critical",
+        "status": "pass"
+      },
+      {
+        "event_type": "ai.request.received",
+        "id": "required:ai.request.received",
+        "kind": "required_event",
+        "severity": "critical",
+        "status": "pass"
+      },
+      {
+        "event_type": "ai.model.invoked",
+        "id": "required:ai.model.invoked",
+        "kind": "required_event",
+        "severity": "critical",
+        "status": "pass"
+      },
+      {
+        "event_type": "ai.model.output",
+        "id": "required:ai.model.output",
+        "kind": "required_event",
+        "severity": "critical",
+        "status": "pass"
+      },
+      {
+        "id": "relation:request_to_response",
+        "kind": "relation",
+        "severity": "critical",
+        "status": "pass"
+      },
+      {
+        "id": "warning:1",
+        "kind": "required_warning",
+        "message": "ai.policy.decision recommended for recorded authorisation context",
+        "severity": "warning",
+        "status": "warning"
+      },
+      {
+        "id": "warning:2",
+        "kind": "required_warning",
+        "message": "ai.response.sent recommended for response delivery evidence",
+        "severity": "warning",
+        "status": "warning"
+      },
+      {
+        "id": "warning:3",
+        "kind": "required_warning",
+        "message": "ai.retrieval.executed recommended for RAG answer provenance",
+        "severity": "warning",
+        "status": "warning"
+      }
+    ],
     "pass": true,
     "profile_id": "atb.profile.rag_answer",
+    "report_version": "verify.report.v1",
     "required_warnings": [
       "ai.policy.decision recommended for recorded authorisation context",
       "ai.response.sent recommended for response delivery evidence",
       "ai.retrieval.executed recommended for RAG answer provenance"
     ],
-    "residual_risk": "High",
+    "residual_risk": {
+      "level": "High"
+    },
     "sub_scores": {
       "AC": 0,
       "EC": 1,

@@ -193,7 +193,7 @@ func TestRunVerify_FormatJSONOutput(t *testing.T) {
 	if report.CASGrade == "" {
 		t.Fatalf("expected CAS grade, got %+v", report)
 	}
-	if report.ResidualRisk == "" {
+	if report.ResidualRisk.Level == "" {
 		t.Fatalf("expected residual risk, got %+v", report)
 	}
 }

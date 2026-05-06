@@ -98,13 +98,24 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 
 	if dryRun {
 		report := verifypkg.VerifierReport{
-			BundlePath:   cfg.BundlePath,
-			ProfileID:    selection.resolvedProfileID,
-			Pass:         false,
-			Failures:     []verifypkg.ReportFailure{},
-			Warnings:     []string{},
-			Notes:        []string{"dry-run: no evaluation performed"},
-			ResidualRisk: "Unknown",
+			ReportVersion: verifypkg.VerifyReportVersion,
+			BundlePath:    cfg.BundlePath,
+			ProfileID:     selection.resolvedProfileID,
+			Pass:          false,
+			GateResult: verifypkg.GateResult{
+				Pass:           false,
+				ChainValid:     false,
+				ProfilePass:    false,
+				AnchorRequired: false,
+			},
+			Failures: []verifypkg.ReportFailure{},
+			Warnings: []string{},
+			Notes:    []string{"dry-run: no evaluation performed"},
+			ResidualRisk: verifypkg.ResidualRiskReport{
+				Level:                   "Unknown",
+				Drivers:                 []string{},
+				RecommendedNextEvidence: []string{},
+			},
 		}
 		if err := writeVerifierReportJSON(stdout, report); err != nil {
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)

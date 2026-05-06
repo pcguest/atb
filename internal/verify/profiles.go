@@ -637,6 +637,7 @@ func evaluateSchemaProfile(schema profiledsl.ProfileSchema, records []bundle.Rec
 		CriticalFailures:   make([]CriticalFailure, 0, len(evaluation.CriticalFailures)),
 		RequiredWarnings:   append([]string(nil), evaluation.RequiredWarnings...),
 		InformationalNotes: append([]string(nil), evaluation.InformationalNotes...),
+		Obligations:        schemaObligations(schema, evaluation),
 	}
 
 	for _, failure := range evaluation.CriticalFailures {
@@ -648,6 +649,88 @@ func evaluateSchemaProfile(schema profiledsl.ProfileSchema, records []bundle.Rec
 	}
 
 	return result
+}
+
+func schemaObligations(schema profiledsl.ProfileSchema, evaluation profiledsl.EvaluationResult) []ObligationResult {
+	obligations := make([]ObligationResult, 0, len(schema.Required)+len(schema.Relations)+len(evaluation.RequiredWarnings))
+	for _, rule := range schema.Required {
+		id := requiredObligationID(rule.Type)
+		obligationID := id
+		status := "pass"
+		message := ""
+		kind := "required_event"
+		if failure, ok := matchingFailure(evaluation.CriticalFailures, id, id+":field:"); ok {
+			obligationID = failure.ID
+			status = "fail"
+			message = failure.Detail
+			kind = failure.Kind
+		}
+		obligations = append(obligations, ObligationResult{
+			ID:        obligationID,
+			Kind:      kind,
+			EventType: rule.Type,
+			Severity:  rule.Severity,
+			Status:    status,
+			Message:   message,
+		})
+	}
+
+	for _, rule := range schema.Relations {
+		id := relationObligationID(rule)
+		obligationID := id
+		status := "pass"
+		message := ""
+		kind := "relation"
+		if failure, ok := matchingFailure(evaluation.CriticalFailures, id, id+":predicate:"); ok {
+			obligationID = failure.ID
+			status = "fail"
+			message = failure.Detail
+			kind = failure.Kind
+		}
+		obligations = append(obligations, ObligationResult{
+			ID:       obligationID,
+			Kind:     kind,
+			Severity: "critical",
+			Status:   status,
+			Message:  message,
+		})
+	}
+
+	for i, warning := range evaluation.RequiredWarnings {
+		obligations = append(obligations, ObligationResult{
+			ID:       warningObligationID(i),
+			Kind:     "required_warning",
+			Severity: "warning",
+			Status:   "warning",
+			Message:  warning,
+		})
+	}
+
+	return obligations
+}
+
+func matchingFailure(failures []profiledsl.CriticalFailure, id string, prefix string) (profiledsl.CriticalFailure, bool) {
+	for _, failure := range failures {
+		if failure.ID == id || strings.HasPrefix(failure.ID, prefix) {
+			return failure, true
+		}
+	}
+	return profiledsl.CriticalFailure{}, false
+}
+
+func requiredObligationID(eventType string) string {
+	return "required:" + eventType
+}
+
+func relationObligationID(rule profiledsl.RelationRule) string {
+	if name := strings.TrimSpace(rule.Name); name != "" {
+		return "relation:" + name
+	}
+	return "relation:" + rule.From + ":" + rule.To + ":" + rule.Field
+}
+
+func warningObligationID(index int) string {
+	return fmt.Sprintf("warning:%d", index+1)
 }
 
 func boundedExecutionWindowWarnings(precommitByAction, executedByAction map[string][]bundle.Record) []string {

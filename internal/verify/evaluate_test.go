@@ -203,8 +203,17 @@ func TestEvaluateReportFromVerifyCopiesFailureID(t *testing.T) {
 	}
 
 	verifierReport := ReportFromVerify(report)
+	if verifierReport.ReportVersion != VerifyReportVersion {
+		t.Fatalf("ReportFromVerify report version = %q, want %q", verifierReport.ReportVersion, VerifyReportVersion)
+	}
+	if verifierReport.GateResult.Pass != verifierReport.Pass {
+		t.Fatalf("GateResult.Pass = %v, want Pass = %v", verifierReport.GateResult.Pass, verifierReport.Pass)
+	}
 	if got := verifierReport.Failures[0].ID; got != "required:ai.request.received" {
 		t.Fatalf("ReportFromVerify failure ID = %q, want %q", got, "required:ai.request.received")
+	}
+	if got := verifierReport.Obligations[0].ID; got != "required:ai.request.received" {
+		t.Fatalf("ReportFromVerify obligation ID = %q, want %q", got, "required:ai.request.received")
 	}
 }
 

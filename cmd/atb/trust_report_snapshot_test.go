@@ -599,7 +599,7 @@ func verifySnapshotCases() []snapshotProfileCase {
 				if report.ProfileID != "" {
 					t.Errorf("ProfileID = %q, want empty", report.ProfileID)
 				}
-				if report.ResidualRisk == "" {
+				if report.ResidualRisk.Level == "" {
 					t.Errorf("ResidualRisk is empty")
 				}
 				if len(report.Failures) != 0 {
@@ -664,8 +664,8 @@ func verifySnapshotCases() []snapshotProfileCase {
 				if len(report.SubScores) == 0 {
 					t.Errorf("SubScores is empty, want diagnostic CAS output")
 				}
-				if report.ResidualRisk != "Critical" {
-					t.Errorf("ResidualRisk = %q, want %q", report.ResidualRisk, "Critical")
+				if report.ResidualRisk.Level != "Critical" {
+					t.Errorf("ResidualRisk.Level = %q, want %q", report.ResidualRisk.Level, "Critical")
 				}
 			},
 		},

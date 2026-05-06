@@ -50,17 +50,35 @@ type CriticalFailure struct {
 	Detail string `json:"detail"`
 }
 
+type GateResult struct {
+	Pass           bool  `json:"pass"`
+	ChainValid     bool  `json:"chain_valid"`
+	ProfilePass    bool  `json:"profile_pass"`
+	AnchorRequired bool  `json:"anchor_required"`
+	AnchorPass     *bool `json:"anchor_pass,omitempty"`
+}
+
+type ObligationResult struct {
+	ID        string `json:"id"`
+	Kind      string `json:"kind"`
+	EventType string `json:"event_type,omitempty"`
+	Severity  string `json:"severity"`
+	Status    string `json:"status"` // "pass", "fail", "warning"
+	Message   string `json:"message,omitempty"`
+}
+
 // ProfileResult holds the outcome of evaluating one obligation profile.
 // A critical obligation failure forces Pass=false regardless of CAS; CAS is
 // diagnostic only in that case and must not be treated as exculpatory.
 type ProfileResult struct {
-	ProfileID          string            `json:"profile_id"`
-	Version            int               `json:"version"`
-	WorkflowClass      string            `json:"workflow_class"`
-	Pass               bool              `json:"pass"` // false if any critical obligation fails
-	CriticalFailures   []CriticalFailure `json:"critical_failures"`
-	RequiredWarnings   []string          `json:"required_warnings"`
-	InformationalNotes []string          `json:"informational_notes"`
+	ProfileID          string             `json:"profile_id"`
+	Version            int                `json:"version"`
+	WorkflowClass      string             `json:"workflow_class"`
+	Pass               bool               `json:"pass"` // false if any critical obligation fails
+	CriticalFailures   []CriticalFailure  `json:"critical_failures"`
+	RequiredWarnings   []string           `json:"required_warnings"`
+	InformationalNotes []string           `json:"informational_notes"`
+	Obligations        []ObligationResult `json:"obligations,omitempty"`
 }
 
 // CASResult holds the Completeness Assurance Score and its decomposition.

@@ -53,13 +53,19 @@ func assertDefaultVerifyReportSnapshot(t *testing.T, tc snapshotProfileCase, rep
 	if report.BundlePath == "" {
 		t.Errorf("BundlePath is empty")
 	}
+	if report.ReportVersion != verifypkg.VerifyReportVersion {
+		t.Errorf("ReportVersion = %q, want %q", report.ReportVersion, verifypkg.VerifyReportVersion)
+	}
 	if report.ProfileID != tc.profileID {
 		t.Errorf("ProfileID = %q, want %q", report.ProfileID, tc.profileID)
 	}
 	if !report.Pass {
 		t.Errorf("Pass = false, want true")
 	}
-	if report.ResidualRisk == "" {
+	if report.GateResult.Pass != report.Pass {
+		t.Errorf("GateResult.Pass = %v, want Pass = %v", report.GateResult.Pass, report.Pass)
+	}
+	if report.ResidualRisk.Level == "" {
 		t.Errorf("ResidualRisk is empty")
 	}
 	if len(report.Failures) != 0 {
