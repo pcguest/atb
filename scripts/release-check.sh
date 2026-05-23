@@ -50,7 +50,9 @@ echo "[5/7] Installed binary smoke gate"
 go test -v -run TestInstalledBinarySmokeFlow ./cmd/atb
 
 echo "[6/7] Docker smoke build"
-if command -v docker >/dev/null 2>&1; then
+if [[ "${SKIP_DOCKER:-}" == "1" ]]; then
+  echo "Skipping Docker smoke build (SKIP_DOCKER=1). The CI workflow docker-publish.yml will build and publish the image on tag push."
+elif command -v docker >/dev/null 2>&1; then
   docker build --platform linux/amd64 -t atb:release-smoke .
   docker run --rm atb:release-smoke version
 else
