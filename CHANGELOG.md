@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.11.0] - 2026-05-23
+
 ### Docs
 - Added `AGENTS.md` as the canonical maintainer and coding-agent harness and aligned the core Markdown estate around it.
 - Tightened README scope and quickstart flow so current capability, non-goals, and planned work are more clearly separated.
