@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: ATB Viewer API
-  version: 1.10.0
+  version: 1.11.0
   description: |
     Local-first read API used by `atb view`. The server binds to 127.0.0.1 only.
 

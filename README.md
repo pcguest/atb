@@ -1,12 +1,12 @@
 # ATB
 
-[![Release](https://img.shields.io/badge/release-v1.10.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.11.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
 ATB is a local-first tamper-evident audit trail for AI and agent workflows. It records events into an append-only, hash-chained bundle on local disk so teams can verify later whether the recorded sequence was altered, without a hosted backend and without routing payload data to external infrastructure.
 
 ATB is not an observability or monitoring tool. It does not stream events, evaluate model quality, or replace your existing logging pipeline. It records a tamper-evident chain of custody for AI decisions that need to survive scrutiny in an incident review, an audit, or a regulatory submission.
 
-Current release: [`v1.10.0`](CHANGELOG.md)
+Current release: [`v1.11.0`](CHANGELOG.md)
 
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON. Optional RFC 3161 TSA
 anchoring adds a third-party timestamp commitment. ATB proves integrity of what was recorded; it

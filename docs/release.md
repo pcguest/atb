@@ -75,6 +75,14 @@ cd sdk/typescript && npm run typecheck && npm test && cd ../..
 cd sdk/python && python -m pytest && cd ../..
 ```
 
+Run the release preflight before opening the release PR. Contributors without
+a running Docker daemon may skip the local Docker smoke build; the
+`docker-publish.yml` workflow builds and publishes the image on tag push.
+
+```bash
+SKIP_DOCKER=1 scripts/release-check.sh
+```
+
 ## 5. Commit and open a release PR
 
 ```bash
