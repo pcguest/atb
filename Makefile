@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden
+.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden
 
 test-golden:
 	@echo "🔒 Running cross-language canonical-hash golden vectors..."
@@ -7,7 +7,7 @@ test-golden:
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
-GOTOOLCHAIN ?= go1.26.2
+GOTOOLCHAIN ?= go1.26.3
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
@@ -59,8 +59,11 @@ test-e2e:
 
 test-performance:
 	@echo "⚡ Running performance tests..."
-	$(GOENV) go test ./test/performance -v -bench=. -benchmem
+	$(GOENV) go test ./test/performance ./cmd/atb -run=^$$ -bench=. -benchmem
 	@echo "✅ Performance tests passed"
+
+quality-evidence:
+	@/bin/bash scripts/quality-evidence.sh
 
 test-integration:
 	@echo "🔁 Running integration tests..."
@@ -155,5 +158,5 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" ./...; \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" -w /work golang:1.25.0 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \
+		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.3 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \
 	fi

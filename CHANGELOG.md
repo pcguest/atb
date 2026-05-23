@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tightened README scope and quickstart flow so current capability, non-goals, and planned work are more clearly separated.
 - Aligned contributing, release, roadmap, security, and versioning docs with the current local-first viewer and release model.
 
+### Changed
+- Main branch CI and toolchain hygiene now align with the agent-safe subset from
+  `audit/complete-atb`: Go 1.26.3, support-matrix drift checks, quality evidence,
+  and refreshed npm lockfiles for the TypeScript SDK and web viewer.
+
 ### Added
 - `atb capture run` — wrap any child command with ATB capture environment
   variables; stamps the resulting bundle with a capture run ID for provenance.

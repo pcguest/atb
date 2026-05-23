@@ -12,6 +12,8 @@ on:
       - sdk/python/pyproject.toml
       - sdk/python/atb/__init__.py
       - sdk/typescript/package.json
+      - docs/support-matrix.md
+      - scripts/check-support-matrix.sh
       - web/package.json
 
 jobs:
@@ -27,3 +29,6 @@ jobs:
           # Skip the tag equality check on branch/PR pushes; only enforce it on tag pushes.
           ATB_SKIP_TAG_CHECK: ${{ startsWith(github.ref, 'refs/tags/') && '0' || '1' }}
         run: bash scripts/check-versions.sh
+
+      - name: Check support matrix agreement
+        run: bash scripts/check-support-matrix.sh
