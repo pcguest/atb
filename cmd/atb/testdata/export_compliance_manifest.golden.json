@@ -88,13 +88,13 @@
   ],
   "verify_result": {
     "bundle_path": "NORMALISED",
-    "cas_grade": "Low",
-    "cas_score": 0.5975,
+    "cas_grade": "Medium",
+    "cas_score": 0.7475,
     "critical_failures": [],
     "exclusions": [
-      "Does not prove retrieval completeness beyond recorded corpus/version.",
-      "Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.",
-      "XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used."
+      "Limitation: retrieval completeness beyond recorded corpus/version. | Mitigation: ai.retrieval.executed with corpus metadata (L2). | Residual: corpus content not attested.",
+      "Limitation: model provider internal execution fidelity. | Mitigation: prompt_digest and output_digest (L2/L3). | Residual: provider-side execution without independent attestation.",
+      "Limitation: XC credit requires corroboration events. | Mitigation: atb corroborate (L4). | Residual: adapter not used."
     ],
     "gate_result": {
       "anchor_required": false,
@@ -103,9 +103,9 @@
       "profile_pass": true
     },
     "informational_notes": [
-      "Does not prove retrieval completeness beyond recorded corpus/version.",
-      "Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.",
-      "XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used."
+      "Limitation: XC credit requires corroboration events. | Mitigation: atb corroborate (L4). | Residual: adapter not used.",
+      "Limitation: model provider internal execution fidelity. | Mitigation: prompt_digest and output_digest (L2/L3). | Residual: provider-side execution without independent attestation.",
+      "Limitation: retrieval completeness beyond recorded corpus/version. | Mitigation: ai.retrieval.executed with corpus metadata (L2). | Residual: corpus content not attested."
     ],
     "obligations": [
       {
@@ -152,13 +152,6 @@
       {
         "id": "warning:2",
         "kind": "required_warning",
-        "message": "ai.response.sent recommended for response delivery evidence",
-        "severity": "warning",
-        "status": "warning"
-      },
-      {
-        "id": "warning:3",
-        "kind": "required_warning",
         "message": "ai.retrieval.executed recommended for RAG answer provenance",
         "severity": "warning",
         "status": "warning"
@@ -166,21 +159,46 @@
     ],
     "pass": true,
     "profile_id": "atb.profile.rag_answer",
+    "provability_gaps": [
+      {
+        "closed_when": "SC sub-score \u003e= 0.5 and no policy_signature absent warnings.",
+        "gap": "source_binding",
+        "layer": "L3",
+        "mitigation": "Add policy_signature and policy_signer_pubkey to ai.policy.decision events."
+      },
+      {
+        "closed_when": "XC sub-score \u003e= 1.0 with at least one valid corroboration event.",
+        "gap": "external_corroboration",
+        "layer": "L4",
+        "mitigation": "Append atb.corroboration.external via atb corroborate or an adapter."
+      },
+      {
+        "closed_when": "Anchor status is verified and AC sub-score receives anchor credit.",
+        "gap": "timestamp_anchor",
+        "layer": "L4",
+        "mitigation": "Run atb anchor after snapshot for RFC 3161 timestamp commitment."
+      },
+      {
+        "closed_when": "GC sub-score \u003e= 0.85 for gated workflow profiles.",
+        "gap": "gating_completeness",
+        "layer": "L5",
+        "mitigation": "Record precommit, execute, and commit events through the ACP gate path."
+      }
+    ],
     "report_version": "verify.report.v1",
     "required_warnings": [
       "ai.policy.decision recommended for recorded authorisation context",
-      "ai.response.sent recommended for response delivery evidence",
       "ai.retrieval.executed recommended for RAG answer provenance"
     ],
     "residual_risk": {
-      "level": "High"
+      "level": "Medium"
     },
     "sub_scores": {
       "AC": 0,
       "EC": 1,
       "FC": 1,
       "GC": 0.3,
-      "RC": 0,
+      "RC": 1,
       "SC": 0.45,
       "TC": 1,
       "XC": 0

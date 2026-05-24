@@ -43,6 +43,13 @@ func TestExportComplianceManifestGolden(t *testing.T) {
 				"output_format": "text/plain",
 			},
 		},
+		{
+			eventType: event.TypeAIResponseSent,
+			data: map[string]any{
+				"request_id":    "req-001",
+				"output_digest": "sha256-output",
+			},
+		},
 	})
 
 	stdout := captureComplianceManifestJSON(t, bundlePath)

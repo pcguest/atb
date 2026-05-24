@@ -79,7 +79,7 @@ func snapshotProfileCases() []snapshotProfileCase {
 		{
 			name:                    "atb.profile.rag_answer",
 			profileID:               "atb.profile.rag_answer",
-			minRecordCount:          3,
+			minRecordCount:          4,
 			expectCAS:               true,
 			wantTrustReportExitCode: exitSuccess,
 			wantVerifyExitCode:      exitSuccess,
@@ -106,6 +106,13 @@ func snapshotProfileCases() []snapshotProfileCase {
 					data: map[string]any{
 						"output_digest": "output-digest",
 						"output_format": "text/plain",
+					},
+				},
+				{
+					eventType: event.TypeAIResponseSent,
+					data: map[string]any{
+						"request_id":    "req-rag",
+						"output_digest": "output-digest",
 					},
 				},
 			},
@@ -610,7 +617,7 @@ func verifySnapshotCases() []snapshotProfileCase {
 		snapshotProfileCase{
 			name:                    "rag_answer_chain_integrity",
 			profileID:               "atb.profile.rag_answer",
-			minRecordCount:          3,
+			minRecordCount:          4,
 			expectCAS:               true,
 			wantTrustReportExitCode: exitSuccess,
 			wantVerifyExitCode:      exitIntegrityFailure,
@@ -639,6 +646,13 @@ func verifySnapshotCases() []snapshotProfileCase {
 					data: map[string]any{
 						"output_digest": "output-digest",
 						"output_format": "text/plain",
+					},
+				},
+				{
+					eventType: event.TypeAIResponseSent,
+					data: map[string]any{
+						"request_id":    "req-rag-tampered",
+						"output_digest": "output-digest",
 					},
 				},
 			},
