@@ -727,6 +727,7 @@ func cmdAppend() {
 func runAppend(args []string, stdout, stderr io.Writer) int {
 	rawArgs := append([]string(nil), args...)
 	args, outputFormat, dryRun, lockWait, err := parseMutationFlagsWithLockWait(args)
+	maybeWarnWindowsBundleLock(stderr)
 	if err != nil {
 		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
 			printMutationJSON(mutationResult{
@@ -904,7 +905,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
-	var source, url, ref, bundlePath string
+	var source, url, ref, bundlePath, receiptPath string
 	for i := 0; i < len(args); i++ {
 		switch {
 		case args[i] == "--source":
@@ -935,6 +936,13 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			}
 			bundlePath = args[i+1]
 			i++
+		case args[i] == "--path":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "atb corroborate: missing value for --path")
+				return exitUserError
+			}
+			receiptPath = args[i+1]
+			i++
 		default:
 			fmt.Fprintf(stderr, "atb corroborate: unknown argument %q\n", args[i])
 			return exitUserError
@@ -956,8 +964,14 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			return exitUserError
 		}
 		adapter = &corroboration.HTTPGatewayAdapter{URL: url}
+	case "file-receipt":
+		if strings.TrimSpace(receiptPath) == "" {
+			fmt.Fprintln(stderr, "atb corroborate: --path is required when --source is file-receipt")
+			return exitUserError
+		}
+		adapter = &corroboration.FileReceiptAdapter{Path: receiptPath}
 	default:
-		fmt.Fprintf(stderr, "atb corroborate: unknown source %q (supported: http-gateway)\n", source)
+		fmt.Fprintf(stderr, "atb corroborate: unknown source %q (supported: http-gateway, file-receipt)\n", source)
 		return exitUserError
 	}
 
