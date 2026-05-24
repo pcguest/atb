@@ -53,6 +53,9 @@ declared hashes. It does not prove capture completeness, that every
 material operation was logged, or that an integration emitted events for
 every code path.
 
+For a layered model of what becomes provable when each control is configured,
+see [Provability ladder](./provability-ladder.md).
+
 Local-first storage means trust in a bundle is bounded by trust in the
 host environment. A process with filesystem access can replace or roll
 back files before export unless you add independent controls.

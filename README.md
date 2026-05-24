@@ -372,6 +372,7 @@ alongside the rest of the workflow.
 
 ## Docs index
 
+- [Provability ladder](docs/provability-ladder.md)
 - [Architecture](docs/architecture.md)
 - [Quickstart](docs/quickstart.md)
 - [Why ATB](docs/why-atb.md)

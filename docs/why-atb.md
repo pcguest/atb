@@ -6,7 +6,7 @@ Most AI systems already produce logs. They emit request IDs, timestamps, prompts
 
 ATB is designed for that harder question. It records events into a local bundle where each event is linked to the previous one by a SHA-256 hash chain over RFC 8785 canonical JSON. If any event is changed, removed, or reordered, verification fails. The resulting bundle is portable and can be checked without depending on a third-party service.
 
-That is the distinction ATB cares about: logging tells you what a system says happened; proof tells you whether the recorded artefact still matches what was captured.
+For the distinction ATB cares about, see the [provability ladder](./provability-ladder.md).
 
 ## What integrity means and what ATB proves
 
