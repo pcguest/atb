@@ -21,6 +21,7 @@ import (
 
 const (
 	FormatGenericJSONL = "generic-jsonl"
+	FormatOpenAIJSONL  = "openai-jsonl"
 
 	defaultPurposeTag   = "chatlog_import"
 	defaultOutputFormat = "text/plain"
@@ -109,7 +110,7 @@ type rawChatMessage struct {
 // ErrMalformedChatlog.
 func ParseChatlog(format string, r io.Reader) ([]ChatMessage, error) {
 	switch strings.TrimSpace(strings.ToLower(format)) {
-	case FormatGenericJSONL:
+	case FormatGenericJSONL, FormatOpenAIJSONL:
 		messages, err := ParseGenericJSONL(r)
 		if err != nil {
 			if errors.Is(err, ErrMalformedChatlog) {

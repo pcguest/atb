@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -47,6 +48,29 @@ func callAppendInMemorySafe(b *bundle.Bundle, events []capture.EventSpec) (count
 		}
 	}()
 	return capture.AppendEventsToBundleInMemory(b, events)
+}
+
+func TestParseChatlogOpenAIJSONLContract(t *testing.T) {
+	raw := `{"role":"user","content":"hello","timestamp":"2026-04-24T09:00:00Z"}` + "\n"
+	for _, format := range []string{capture.FormatGenericJSONL, capture.FormatOpenAIJSONL} {
+		t.Run(format, func(t *testing.T) {
+			messages, err := capture.ParseChatlog(format, strings.NewReader(raw))
+			if err != nil {
+				t.Fatalf("ParseChatlog(%q) error = %v", format, err)
+			}
+			if len(messages) != 1 {
+				t.Fatalf("len(messages) = %d, want 1", len(messages))
+			}
+			if messages[0].Role != "user" {
+				t.Fatalf("role = %q, want user", messages[0].Role)
+			}
+		})
+	}
+
+	_, err := capture.ParseChatlog(capture.FormatOpenAIJSONL, strings.NewReader(`{"role":"unknown","content":"x"}`+"\n"))
+	if err != nil {
+		t.Fatalf("unexpected error for unknown role: %v", err)
+	}
 }
 
 func TestAppendEventsToBundleInMemory(t *testing.T) {

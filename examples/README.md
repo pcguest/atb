@@ -13,8 +13,9 @@ Path: [examples/quickstart/](./quickstart/)
 - [Python LangChain example](./python/langchain_bot.py)
 - [TypeScript Vercel AI example](./typescript/vercel-chat-bot.ts)
 
-## Bundle example
+## Bundle examples
 
-- [Project bootstrap bundle](./bundles/project-bootstrap.atb)
+- [Project bootstrap bundle](./bundles/project-bootstrap.atb) — valid fixture for `atb verify`
+- [Tampered bootstrap bundle](./bundles/project-bootstrap-tampered.atb) — hash-chain failure demo; see [tamper demo guide](../docs/guides/tamper-demo.md)
 
-The bundle example is a small verified ATB bundle that demonstrates the on-disk format without exposing internal project logs or operational notes.
+The bundle examples are small verified ATB bundles that demonstrate the on-disk format without exposing internal project logs or operational notes.

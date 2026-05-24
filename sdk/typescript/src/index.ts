@@ -72,3 +72,10 @@ export type {
 } from "./vercel-ai-middleware.js";
 export type { VercelAITool } from "./vercel-gate.js";
 export type { ATBEvent, ATBRecord, BundleOptions, BundleSignature } from "./types.js";
+export {
+  FORMAT_GENERIC_JSONL,
+  FORMAT_OPENAI_JSONL,
+  isCaptureEnvironment,
+  normaliseCaptureFormat,
+} from "./capture.js";
+export type { CaptureFormat } from "./capture.js";

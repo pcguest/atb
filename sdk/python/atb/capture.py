@@ -137,13 +137,15 @@ def parse_chatlog(
         Parsed chat messages in source order.
     """
     fmt = (format or "").strip().lower()
+    if fmt == FORMAT_OPENAI_JSONL:
+        fmt = FORMAT_GENERIC_JSONL
     if fmt != FORMAT_GENERIC_JSONL:
-        if fmt in (FORMAT_CLAUDE_DESKTOP, FORMAT_OPENAI_JSONL):
+        if fmt == FORMAT_CLAUDE_DESKTOP:
             raise UnsupportedProviderError(
-                f"unsupported provider {fmt!r}: Capture v1 only implements "
-                f"{FORMAT_GENERIC_JSONL!r}"
+                f"unsupported provider {format!r}: Capture v1 only implements "
+                f"{FORMAT_GENERIC_JSONL!r} and {FORMAT_OPENAI_JSONL!r}"
             )
-        raise UnsupportedProviderError(f"unsupported provider {fmt!r}")
+        raise UnsupportedProviderError(f"unsupported provider {format!r}")
 
     text = _read_all(source, max_bytes)
     return _parse_generic_jsonl(text)
