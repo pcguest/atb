@@ -75,6 +75,23 @@ validation.
   valid signatures are reported as informational notes; absent signatures
   are warnings; invalid signatures are critical failures.
 
+### Strict source signature mode
+
+Use `--strict-source-signatures` on `atb verify` when a profile requires
+cryptographic policy-decision binding. In this mode, absent
+`policy_signature` and `policy_signer_pubkey` fields on `ai.policy.decision`
+events are promoted from warnings to **critical failures**, and profile
+evaluation fails until source signatures are present and verify.
+
+```bash
+atb verify --bundle run.atb/bundle.atb \
+  --profile atb.profile.policy_decision \
+  --strict-source-signatures
+```
+
+This does not change the event schema or hash contract; it only tightens
+verification behaviour for deployments that configure policy signing.
+
 ## Key storage recommendations
 
 ATB is local-first and does not provide a built-in secrets vault.

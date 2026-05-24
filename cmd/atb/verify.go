@@ -31,6 +31,7 @@ type verifyCLIConfig struct {
 	WithAnchor              bool
 	WithSnapshotCheck       bool
 	RootsPath               string
+	StrictSourceSignatures  bool
 	CorroborationPolicyPath string
 }
 
@@ -153,6 +154,9 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 	evalOpts := make([]verifypkg.EvaluateOption, 0, 1)
 	if corrOpt != nil {
 		evalOpts = append(evalOpts, corrOpt)
+	}
+	if cfg.StrictSourceSignatures {
+		evalOpts = append(evalOpts, verifypkg.WithStrictSourceSignatures(true))
 	}
 	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
 		BundlePath:    cfg.BundlePath,
@@ -335,6 +339,8 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.WithAnchor = true
 		case arg == "--with-snapshot-check":
 			cfg.WithSnapshotCheck = true
+		case arg == "--strict-source-signatures":
+			cfg.StrictSourceSignatures = true
 		case arg == "--roots":
 			if i+1 >= len(args) {
 				return cfg, fmt.Errorf("missing value for --roots")
