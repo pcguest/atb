@@ -1,6 +1,8 @@
 const SHIPPED = [
-  "`atb init`, `append`, `snapshot`, `verify`, `archive`, `export`, and `trust-report` in the Go CLI",
-  "`atb view` running a localhost viewer with verification, timeline, graph, and inspector",
+  "`atb init`, `append`, `snapshot`, `verify`, `archive`, `export`, `trust-report`, and `evidence` in the Go CLI",
+  "`atb capture run` and `atb import chatlog` for Capture v1 workflows",
+  "`atb corroborate`, `atb push`, `atb anchor`, and `atb mcp serve`",
+  "`atb view` localhost viewer with verification, timeline, graph, and inspector",
   "Optional bundle encryption and decryption for local handoff workflows",
   "Deterministic `soc2` and `gdpr` evidence exports",
   "Python SDK plus LangChain callback middleware",
@@ -60,7 +62,7 @@ export default function CurrentScope() {
             What ATB is, and what it is not
           </h2>
           <p className="text-[#9ca3af] text-lg max-w-3xl mx-auto">
-            ATB is an open-source local toolchain for tamper-evident AI traces. The repo ships the
+            ATB is a local-first toolchain for tamper-evident AI traces. The repo ships the
             items on the left today. The items on the right are intentionally out of scope for the
             current release.
           </p>

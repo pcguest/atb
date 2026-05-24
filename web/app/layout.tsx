@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "ATB | Local-first audit trails for AI and agent workflows",
   description:
-    "Open-source local-first audit trails for AI and agent workflows. Go CLI, local viewer, deterministic exports, and Python and TypeScript SDKs.",
+    "Local-first audit trails for AI and agent workflows. Go CLI, local viewer, deterministic exports, and Python and TypeScript SDKs.",
 };
 
 export default function RootLayout({
