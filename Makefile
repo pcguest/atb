@@ -1,4 +1,10 @@
-.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden
+.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+
+build:
+	@echo "🔗 Building embedded ATB CLI..."
+	cd web && npm ci && npm run build
+	$(GOENV) go build -o ./atb ./cmd/atb
+	@echo "✅ Built ./atb with embedded viewer"
 
 test-golden:
 	@echo "🔒 Running cross-language canonical-hash golden vectors..."

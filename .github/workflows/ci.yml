@@ -110,6 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           test -f docs/quickstart.md
+          test -f docs/roadmap.md
 
           go run ./cmd/atb --help > /tmp/atb-help.txt
           CLI_VERSION="$(go run ./cmd/atb version | awk '{print $2}')"
@@ -127,6 +128,17 @@ jobs:
           grep -Fq -- "--profile atb.profile.privileged_tool_action" docs/quickstart.md
           grep -Fq "atb view" docs/quickstart.md
           ! grep -Eq "forthcoming|planned extension" docs/spec-v1.0.md
+
+      - name: Web E2E (mock API)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          go build -o /tmp/atb-e2e ./cmd/atb
+          cd web && npm ci
+          cd web && npm run build
+          /tmp/atb-e2e view --no-open --port 18888 >/tmp/atb-e2e.log 2>&1 & echo $! >/tmp/atb-e2e.pid
+          sleep 3
+          cd web && CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm run test:e2e -- --spec cypress/e2e/dashboard.cy.ts
+          kill $(cat /tmp/atb-e2e.pid) 2>/dev/null || true
 
       - name: Notify Discord
         if: ${{ always() && env.DISCORD_WEBHOOK_URL != '' }}

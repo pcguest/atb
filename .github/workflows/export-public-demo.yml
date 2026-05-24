@@ -1,0 +1,19 @@
+name: Export Public Demo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Dry-run public export
+        run: bash scripts/export-public-demo.sh --dry-run --output /tmp/atb-demo-export
+
+      - name: Upload export review artefact
+        uses: actions/upload-artifact@3e9f758a829eb758a1f5b3d9f5440585f2a793a # v4.6.0
+        with:
+          name: export-review
+          path: /tmp/atb-demo-export/EXPORT_REVIEW.md

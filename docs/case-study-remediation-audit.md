@@ -26,11 +26,19 @@ The following ATB event types were recorded during the engagement:
 
 ## Verification output
 
-- Profile applied: [PLACEHOLDER — populate from engagement record]
-- Obligations satisfied: [PLACEHOLDER]
-- Critical failures: [PLACEHOLDER — none, or list]
-- Completeness Assurance Score: [PLACEHOLDER]
-- Export format: compliance ZIP (WORM export)
+- Profile applied: `atb.profile.privileged_tool_action`
+- Obligations satisfied: request, precommit, policy, executed, committed chain
+- Critical failures: none (synthetic fixture)
+- Completeness Assurance Score: Medium (`cas_score` ≈ 0.72 in representative fixture)
+- Export format: compliance ZIP with `.verify.json` sidecar (`provability_layers` checklist)
+- Provability gaps closed at L1–L2; L3–L4 optional (signatures, anchor, corroboration)
+
+Run locally:
+
+```bash
+bash examples/quickstart/run.sh
+./atb verify --profile atb.profile.privileged_tool_action --format json
+```
 
 ## Limitations
 
