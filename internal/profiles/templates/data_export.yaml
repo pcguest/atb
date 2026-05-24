@@ -2,9 +2,9 @@ id: atb.profile.data_export
 version: 1
 workflow_class: data_export
 blind_spots:
-  - Does not verify downstream data handling or recipient controls after export is committed.
-  - Classification labels on exported records are presence-checked only; correctness of labelling is not attested.
-  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
+  - "Limitation: downstream recipient handling after export is not attested. | Mitigation: corroboration receipt from recipient system (L4). | Residual: post-delivery data handling."
+  - "Limitation: classification label correctness is not verified. | Mitigation: record classification digest at export time (L2). | Residual: label accuracy without independent verification."
+  - "Limitation: XC credit requires corroboration events. | Mitigation: atb corroborate (L4). | Residual: adapter not used."
 weights:
   EC: 0.15
   FC: 0.10

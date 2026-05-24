@@ -2,9 +2,9 @@ id: atb.profile.privileged_tool_action
 version: 1
 workflow_class: privileged_tool_action
 blind_spots:
-  - If an operator bypasses the gate, this profile cannot detect that bypass without external reconciliation.
-  - Tool provider internal processing is not attested unless tool receipts are cryptographically verifiable.
-  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
+  - "Limitation: operator bypass of the ACP gate is not detectable from bundle events alone. | Mitigation: enforce ACP gate at runtime (L5) and/or append atb.corroboration.external (L4). | Residual: actions executed entirely outside the gate remain invisible."
+  - "Limitation: tool provider internal processing is not attested unless tool receipts are cryptographically verifiable. | Mitigation: record tool_receipt_digest from verifiable provider receipts (L3). | Residual: provider execution fidelity without receipt verification."
+  - "Limitation: XC credit requires at least one valid atb.corroboration.external event. | Mitigation: run atb corroborate with a configured adapter (L4). | Residual: absence of corroboration indicates the adapter was not used, not necessarily a recording failure."
 weights:
   EC: 0.20
   FC: 0.15

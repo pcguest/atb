@@ -2,9 +2,9 @@ id: atb.profile.rag_answer
 version: 1
 workflow_class: rag_answer
 blind_spots:
-  - Does not prove retrieval completeness beyond recorded corpus/version.
-  - Does not prove the model produced output exactly as provider executed internally; only that recorded invocation/output digests match the bundle.
-  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
+  - "Limitation: retrieval completeness beyond recorded corpus/version. | Mitigation: ai.retrieval.executed with corpus metadata (L2). | Residual: corpus content not attested."
+  - "Limitation: model provider internal execution fidelity. | Mitigation: prompt_digest and output_digest (L2/L3). | Residual: provider-side execution without independent attestation."
+  - "Limitation: XC credit requires corroboration events. | Mitigation: atb corroborate (L4). | Residual: adapter not used."
 weights:
   EC: 0.25
   FC: 0.15
@@ -66,6 +66,10 @@ optional:
       - output_digest
     message: ai.response.sent recommended for response delivery evidence
     severity: warning
+    required_when:
+      - when_type: ai.model.invoked
+        at_or_after: true
+        message: ai.response.sent must occur at or after ai.model.invoked
 relations:
   - name: request_to_response
     from: ai.response.sent

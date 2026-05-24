@@ -2,9 +2,9 @@ id: atb.profile.human_override
 version: 1
 workflow_class: human_override
 blind_spots:
-  - Cannot verify that the recorded approver identity matches the individual who physically performed the approval action.
-  - Justification digest binds the recorded justification text only; content quality is not assessed.
-  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
+  - "Limitation: approver identity is caller-asserted only. | Mitigation: policy signatures and external IdP binding (L3). | Residual: physical identity of approver."
+  - "Limitation: justification quality is not assessed. | Mitigation: justification_digest binds recorded text (L2). | Residual: comprehension of context."
+  - "Limitation: XC credit requires corroboration events. | Mitigation: atb corroborate (L4). | Residual: adapter not used."
 weights:
   EC: 0.15
   FC: 0.10

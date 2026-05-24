@@ -2,10 +2,10 @@ id: atb.profile.background_automation
 version: 1
 workflow_class: background_automation
 blind_spots:
-  - Scheduling system integrity is not attested; a compromised scheduler could trigger executions without a corresponding schedule record.
-  - Does not verify that the automated job's real-world effect matches the recorded completion outcome or result digest.
-  - Policy authorisation is not required by this profile; append ai.policy.decision separately if the workflow requires it.
-  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
+  - "Limitation: scheduler integrity is not attested. | Mitigation: corroboration from scheduler queue (L4). | Residual: compromised scheduler without external witness."
+  - "Limitation: real-world job effect vs recorded outcome. | Mitigation: result_set_digest and tool receipts (L2/L3). | Residual: uninstrumented side effects."
+  - "Limitation: policy authorisation not required by this profile. | Mitigation: append ai.policy.decision when required (L2). | Residual: unattended jobs without policy events."
+  - "Limitation: XC credit requires corroboration events. | Mitigation: atb corroborate (L4). | Residual: adapter not used."
 weights:
   EC: 0.15
   FC: 0.10

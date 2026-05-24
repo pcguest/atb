@@ -2,9 +2,9 @@ id: atb.profile.policy_decision
 version: 1
 workflow_class: policy_decision
 blind_spots:
-  - Does not verify the correctness or completeness of the policy engine's rule set; only that a decision event was recorded with required fields.
-  - Policy engine internal state and rule evaluation logic are not attested.
-  - XC credit requires at least one valid atb.corroboration.external event. The absence of corroboration events does not indicate a recording failure — it indicates the corroboration adapter was not used.
+  - "Limitation: does not verify policy rule set correctness. | Mitigation: record policy_version and policy_doc_hash with signatures (L3). | Residual: policy engine internal evaluation logic."
+  - "Limitation: policy engine internal state is not attested. | Mitigation: source signatures on ai.policy.decision (L3). | Residual: engine state beyond recorded decision fields."
+  - "Limitation: XC credit requires corroboration events. | Mitigation: atb corroborate (L4). | Residual: adapter not used."
 weights:
   EC: 0.15
   FC: 0.10
@@ -46,6 +46,10 @@ optional:
       - action_parameters_digest
     message: ai.action.precommit recommended to bind policy to a pending action
     severity: warning
+    required_when:
+      - when_type: ai.request.received
+        at_or_after: true
+        message: ai.action.precommit must occur at or after ai.request.received
 relations:
   - name: policy_binds_action
     from: ai.policy.decision
