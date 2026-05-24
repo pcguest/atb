@@ -96,47 +96,17 @@ func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 
 	_ = stdin
-	source := ""
-	format := "json"
-
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch {
-		case arg == "--source":
-			if i+1 >= len(args) {
-				fmt.Fprintln(stderr, "import: --source is required")
-				return exitUserError
-			}
-			i++
-			source = strings.TrimSpace(args[i])
-		case strings.HasPrefix(arg, "--source="):
-			source = strings.TrimSpace(strings.TrimPrefix(arg, "--source="))
-		case arg == "--format":
-			if i+1 >= len(args) {
-				fmt.Fprintln(stderr, "import: --format must be json or csv")
-				return exitUserError
-			}
-			i++
-			format = strings.ToLower(strings.TrimSpace(args[i]))
-		case strings.HasPrefix(arg, "--format="):
-			format = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(arg, "--format=")))
-		default:
-			fmt.Fprintln(stderr, "import: --source is required")
-			return exitUserError
+	_ = stdout
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
+		printImportCommandUsage(stderr)
+		if len(args) > 0 {
+			return exitSuccess
 		}
-	}
-
-	if source == "" {
-		fmt.Fprintln(stderr, "import: --source is required")
 		return exitUserError
 	}
-	if format != "json" && format != "csv" {
-		fmt.Fprintln(stderr, "import: --format must be json or csv")
-		return exitUserError
-	}
-
-	fmt.Fprintln(stdout, "import: not yet implemented (roadmap Q3 2026)")
-	return exitSuccess
+	fmt.Fprintf(stderr, "import: unknown subcommand %q (supported: chatlog)\n", args[0])
+	printImportCommandUsage(stderr)
+	return exitUserError
 }
 
 func printImportCommandUsage(w io.Writer) {
@@ -147,6 +117,7 @@ func printImportCommandUsage(w io.Writer) {
 	fmt.Fprintf(w, "  --max-input-size <bytes> reject inputs larger than this (default %d)\n", defaultMaxImportBytes)
 	fmt.Fprintln(w, "Supported provider types:")
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatGenericJSONL)
+	fmt.Fprintf(w, "  %s\n", capturepkg.FormatOpenAIJSONL)
 }
 
 func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) int {

@@ -10,20 +10,21 @@ import (
 	"testing"
 )
 
-func TestImport_NotImplemented(t *testing.T) {
+func TestImport_RequiresChatlogSubcommand(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
 	exitCode := runImport([]string{"--source", "dummy.atb"}, nil, &stdout, &stderr)
-	if exitCode != exitSuccess {
-		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	if exitCode != exitUserError {
+		t.Fatalf("unexpected exit code: got %d want %d (stderr=%q)", exitCode, exitUserError, stderr.String())
 	}
-	if !strings.Contains(stdout.String(), "import: not yet implemented (roadmap Q3 2026)") {
-		t.Fatalf("expected not-implemented message, got %q", stdout.String())
+	combined := stdout.String() + stderr.String()
+	if !strings.Contains(combined, "supported: chatlog") {
+		t.Fatalf("expected chatlog-only guidance, got %q", combined)
 	}
 }
 
-func TestImport_MissingSource(t *testing.T) {
+func TestImport_MissingSubcommand(t *testing.T) {
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 
@@ -31,8 +32,9 @@ func TestImport_MissingSource(t *testing.T) {
 	if exitCode != exitUserError {
 		t.Fatalf("unexpected exit code: got %d want %d", exitCode, exitUserError)
 	}
-	if !strings.Contains(stdout.String()+stderr.String(), "--source is required") {
-		t.Fatalf("expected missing source message, got stdout=%q stderr=%q", stdout.String(), stderr.String())
+	combined := stdout.String() + stderr.String()
+	if !strings.Contains(combined, "import chatlog") {
+		t.Fatalf("expected import chatlog usage, got stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
 }
 
