@@ -155,12 +155,16 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 						t.Fatalf("read sidecar: %v", err)
 					}
 
-					var report verifypkg.Report
-					if err := json.Unmarshal(sidecarBytes, &report); err != nil {
-						t.Fatalf("unmarshal sidecar report: %v", err)
+					var sidecar verifypkg.ExportVerificationSidecar
+					if err := json.Unmarshal(sidecarBytes, &sidecar); err != nil {
+						t.Fatalf("unmarshal sidecar: %v", err)
 					}
+					report := sidecar.Report
 					if report.BundlePath != bundle.DefaultPath() {
 						t.Fatalf("unexpected report bundle path: got %q want %q", report.BundlePath, bundle.DefaultPath())
+					}
+					if sidecar.ProvabilityLayers == nil {
+						t.Fatalf("expected provability_layers in sidecar")
 					}
 					if tc.checkReport != nil {
 						tc.checkReport(t, report)

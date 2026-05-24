@@ -112,6 +112,7 @@ type Report struct {
 	CAS                *CASResult             `json:"cas,omitempty"` // nil if integrity fails or no profile matched
 	InformationalNotes []string               `json:"informational_notes,omitempty"`
 	Exclusions         []string               `json:"exclusions"`
+	ProvabilityGaps    []ProvabilityGap       `json:"provability_gaps,omitempty"`
 	ResidualRisk       ResidualRisk           `json:"residual_risk"`
 }
 
@@ -136,10 +137,10 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string, anchorRoots .
 		roots = anchorRoots[0]
 	}
 	if b == nil {
-		return evaluateLoadedBundle(nil, bundlePath, nil, profileID == "", roots, false)
+		return evaluateLoadedBundle(nil, bundlePath, nil, profileID == "", roots, false, false)
 	}
 	if strings.TrimSpace(profileID) == "" {
-		return evaluateLoadedBundle(b, bundlePath, nil, true, roots, false)
+		return evaluateLoadedBundle(b, bundlePath, nil, true, roots, false, false)
 	}
 
 	profile := ProfileByID(profileID)
@@ -147,9 +148,9 @@ func Verify(b *bundle.Bundle, bundlePath string, profileID string, anchorRoots .
 		profile = ProfileByID("atb.profile." + profileID)
 	}
 	if profile == nil {
-		return evaluateLoadedBundle(b, bundlePath, nil, false, roots, false)
+		return evaluateLoadedBundle(b, bundlePath, nil, false, roots, false, false)
 	}
-	return evaluateLoadedBundle(b, bundlePath, []Profile{profile}, false, roots, false)
+	return evaluateLoadedBundle(b, bundlePath, []Profile{profile}, false, roots, false, false)
 }
 
 // VerifyWithProfile evaluates a bundle against a specific explicit profile. The
@@ -161,9 +162,9 @@ func VerifyWithProfile(b *bundle.Bundle, bundlePath string, profile Profile, anc
 		roots = anchorRoots[0]
 	}
 	if profile == nil {
-		return evaluateLoadedBundle(b, bundlePath, nil, false, roots, false)
+		return evaluateLoadedBundle(b, bundlePath, nil, false, roots, false, false)
 	}
-	return evaluateLoadedBundle(b, bundlePath, []Profile{profile}, false, roots, false)
+	return evaluateLoadedBundle(b, bundlePath, []Profile{profile}, false, roots, false, false)
 }
 
 func inspectPolicyDecisionSignatures(records []bundle.Record) ([]string, []string, []CriticalFailure) {
@@ -217,9 +218,23 @@ func inspectPolicyDecisionSignatures(records []bundle.Record) ([]string, []strin
 	return warnings, notes, failures
 }
 
-func applyPolicyDecisionSignatureChecks(result *ProfileResult, warnings []string, notes []string, failures []CriticalFailure) {
+func applyPolicyDecisionSignatureChecks(result *ProfileResult, warnings []string, notes []string, failures []CriticalFailure, strict bool) {
 	if result == nil {
 		return
+	}
+	if strict {
+		filteredWarnings := make([]string, 0, len(warnings))
+		for _, warning := range warnings {
+			if strings.Contains(warning, "policy_signature absent") || strings.Contains(warning, "policy_doc_signature absent") {
+				failures = append(failures, CriticalFailure{
+					Kind:   "signature_verification",
+					Detail: warning,
+				})
+				continue
+			}
+			filteredWarnings = append(filteredWarnings, warning)
+		}
+		warnings = filteredWarnings
 	}
 	result.RequiredWarnings = append(result.RequiredWarnings, warnings...)
 	result.InformationalNotes = append(result.InformationalNotes, notes...)

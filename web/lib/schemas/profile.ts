@@ -5,6 +5,13 @@ export const failureDTOSchema = z.object({
   detail: z.string(),
 });
 
+export const provabilityGapSchema = z.object({
+  gap: z.string(),
+  layer: z.string(),
+  mitigation: z.string(),
+  closed_when: z.string(),
+});
+
 export const profileReportSummarySchema = z.object({
   profile_id: z.string(),
   pass: z.boolean(),
@@ -17,7 +24,9 @@ export const profileReportSummarySchema = z.object({
   sub_scores: z.record(z.string(), z.number()).optional().default({}),
   critical_failures: z.array(failureDTOSchema),
   warnings: z.array(z.string()),
+  provability_gaps: z.array(provabilityGapSchema).optional().default([]),
 });
 
 export type FailureDTO = z.infer<typeof failureDTOSchema>;
+export type ProvabilityGapDTO = z.infer<typeof provabilityGapSchema>;
 export type ProfileReportSummary = z.infer<typeof profileReportSummarySchema>;

@@ -129,6 +129,7 @@ Rationale:
 - Chain/anchor status (one line)
 - List of critical obligation failures with `kind` and `detail`
 - Collapsible warnings section
+- Collapsible `provability_gaps` section when present: each item includes `gap`, `layer`, `mitigation`, and `closed_when` from the verify report
 - "Run verify" button triggers `POST /api/v1/bundle/verify` when no startup report was computed
 
 ### Stats overview

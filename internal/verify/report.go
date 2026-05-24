@@ -9,22 +9,23 @@ import (
 const VerifyReportVersion = "verify.report.v1"
 
 type VerifierReport struct {
-	ReportVersion string                `json:"report_version"`
-	BundlePath    string                `json:"bundle_path"`
-	Retrospective bool                  `json:"retrospective,omitempty"`
-	ProfileID     string                `json:"profile_id"`
-	Pass          bool                  `json:"pass"`
-	GateResult    GateResult            `json:"gate_result"`
-	CASScore      float64               `json:"cas_score"`
-	CASGrade      string                `json:"cas_grade,omitempty"`
-	SubScores     map[string]float64    `json:"sub_scores,omitempty"`
-	Failures      []ReportFailure       `json:"critical_failures"`
-	Obligations   []ObligationResult    `json:"obligations,omitempty"`
-	Warnings      []string              `json:"required_warnings"`
-	Notes         []string              `json:"informational_notes"`
-	Exclusions    []string              `json:"exclusions,omitempty"`
-	Signatures    []SignatureProvenance `json:"signatures,omitempty"`
-	ResidualRisk  ResidualRiskReport    `json:"residual_risk"`
+	ReportVersion   string                `json:"report_version"`
+	BundlePath      string                `json:"bundle_path"`
+	Retrospective   bool                  `json:"retrospective,omitempty"`
+	ProfileID       string                `json:"profile_id"`
+	Pass            bool                  `json:"pass"`
+	GateResult      GateResult            `json:"gate_result"`
+	CASScore        float64               `json:"cas_score"`
+	CASGrade        string                `json:"cas_grade,omitempty"`
+	SubScores       map[string]float64    `json:"sub_scores,omitempty"`
+	Failures        []ReportFailure       `json:"critical_failures"`
+	Obligations     []ObligationResult    `json:"obligations,omitempty"`
+	Warnings        []string              `json:"required_warnings"`
+	Notes           []string              `json:"informational_notes"`
+	Exclusions      []string              `json:"exclusions,omitempty"`
+	Signatures      []SignatureProvenance `json:"signatures,omitempty"`
+	ProvabilityGaps []ProvabilityGap      `json:"provability_gaps,omitempty"`
+	ResidualRisk    ResidualRiskReport    `json:"residual_risk"`
 }
 
 type ReportFailure struct {
@@ -89,6 +90,7 @@ func ReportFromVerify(r Report) VerifierReport {
 	report.Obligations = reportObligations(profile)
 	report.Warnings = append([]string(nil), profile.RequiredWarnings...)
 	report.Notes = append([]string(nil), profile.InformationalNotes...)
+	report.ProvabilityGaps = append([]ProvabilityGap(nil), r.ProvabilityGaps...)
 
 	return report
 }

@@ -29,6 +29,7 @@ type TrustReport struct {
 	Sections                []TrustSection     `json:"sections"`
 	Warnings                []string           `json:"warnings,omitempty"`
 	BlindSpots              []string           `json:"blind_spots,omitempty"`
+	ProvabilityGaps         []ProvabilityGap   `json:"provability_gaps,omitempty"`
 	PolicyDocSignatureValid *bool              `json:"policy_doc_signature_valid,omitempty"`
 }
 
@@ -93,6 +94,9 @@ func TrustReportFromVerify(r Report, b *bundle.Bundle) TrustReport {
 	}
 	if len(r.Exclusions) > 0 {
 		report.BlindSpots = append([]string(nil), r.Exclusions...)
+	}
+	if len(r.ProvabilityGaps) > 0 {
+		report.ProvabilityGaps = append([]ProvabilityGap(nil), r.ProvabilityGaps...)
 	}
 	if r.CAS != nil {
 		cas := *r.CAS

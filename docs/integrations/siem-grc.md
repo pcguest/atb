@@ -40,7 +40,7 @@ Every export ZIP is structured under an `evidence/` directory to ensure consiste
 | **`gdpr`** | `evidence/ropa_summary.json` | Summary of processing activities for Article 30 (RoPA). |
 
 ### The verification sidecar (`.verify.json`)
-When `--with-verify` is used, ATB writes a `<output>.verify.json` file next to the ZIP. This sidecar contains the full output of `atb verify --json`. GRC systems should ingest this file to automatically confirm the **integrity** (chain valid) and **completeness** (CAS grade) of the evidence package.
+When `--with-verify` is used, ATB writes a `<output>.verify.json` file next to the ZIP. This sidecar contains the full output of `atb verify --json`, including a `provability_layers` checklist (L1–L5) derived from the verify report. GRC systems should ingest this file to automatically confirm the **integrity** (chain valid) and **completeness** (CAS grade) of the evidence package.
 
 ---
 

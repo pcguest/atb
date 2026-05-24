@@ -23,11 +23,18 @@ var (
 )
 
 type evaluateOpts struct {
-	corroboration *CorroborationPolicy
+	corroboration          *CorroborationPolicy
+	strictSourceSignatures bool
 }
 
 // EvaluateOption configures optional behaviour for EvaluateBundle.
 type EvaluateOption func(*evaluateOpts)
+
+// WithStrictSourceSignatures promotes absent policy signatures from warnings to
+// critical failures during profile evaluation.
+func WithStrictSourceSignatures(strict bool) EvaluateOption {
+	return func(c *evaluateOpts) { c.strictSourceSignatures = strict }
+}
 
 // WithCorroborationPolicy applies a CorroborationPolicy when computing the
 // effective CAS score. A nil policy is a no-op (backward-compatible).
@@ -37,13 +44,14 @@ func WithCorroborationPolicy(p *CorroborationPolicy) EvaluateOption {
 
 // EvaluateConfig describes one bundle evaluation request.
 type EvaluateConfig struct {
-	BundlePath        string
-	Records           []bundle.Record
-	Profiles          []Profile
-	AllApplicable     bool
-	AnchorRoots       *x509.CertPool
-	AnchorRequired    bool
-	RequireValidChain bool
+	BundlePath             string
+	Records                []bundle.Record
+	Profiles               []Profile
+	AllApplicable          bool
+	AnchorRoots            *x509.CertPool
+	AnchorRequired         bool
+	RequireValidChain      bool
+	StrictSourceSignatures bool
 }
 
 // EvaluateBundle loads the requested bundle source and evaluates it with the
@@ -89,6 +97,7 @@ func EvaluateBundle(cfg EvaluateConfig, opts ...EvaluateOption) (*Report, error)
 		cfg.AllApplicable,
 		cfg.AnchorRoots,
 		cfg.AnchorRequired,
+		eopts.strictSourceSignatures || cfg.StrictSourceSignatures,
 	)
 
 	if cfg.RequireValidChain && !report.Integrity.ChainValid {
@@ -116,6 +125,7 @@ func evaluateLoadedBundle(
 	allApplicable bool,
 	roots *x509.CertPool,
 	anchorRequired bool,
+	strictSourceSignatures bool,
 ) Report {
 	report, ok := prepareVerificationReport(b, bundlePath, roots)
 	report.Anchoring.AnchorRequired = anchorRequired
@@ -151,6 +161,7 @@ func evaluateLoadedBundle(
 			report.ResidualRisk = residualRiskNoMatchingProfile()
 		}
 		applyRetrospectiveProvenance(&report, b)
+		report.ProvabilityGaps = DeriveProvabilityGaps(report)
 		return report
 	}
 
@@ -159,7 +170,7 @@ func evaluateLoadedBundle(
 	for i, profile := range selectedProfiles {
 		result := profile.Evaluate(b.Records)
 		stampProfileResult(&result, profile)
-		applyPolicyDecisionSignatureChecks(&result, signatureWarnings, signatureNotes, signatureFailures)
+		applyPolicyDecisionSignatureChecks(&result, signatureWarnings, signatureNotes, signatureFailures, strictSourceSignatures)
 
 		report.Profiles = append(report.Profiles, result)
 		report.Exclusions = appendUniqueStrings(report.Exclusions, profile.BlindSpots()...)
@@ -187,6 +198,7 @@ func evaluateLoadedBundle(
 	}
 
 	applyRetrospectiveProvenance(&report, b)
+	report.ProvabilityGaps = DeriveProvabilityGaps(report)
 	return report
 }
 

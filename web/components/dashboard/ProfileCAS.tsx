@@ -66,6 +66,7 @@ function FailureCard({
 
 function ReportBody({ report }: { report: ProfileReportSummary }) {
   const [warningsOpen, setWarningsOpen] = useState(false);
+  const [gapsOpen, setGapsOpen] = useState(false);
   const casPercent = Math.round(report.cas_score * 100);
   const effectivePct = report.effective_score
     ? Math.round(report.effective_score * 100)
@@ -118,6 +119,44 @@ function ReportBody({ report }: { report: ProfileReportSummary }) {
               <FailureCard key={i} failure={f} variant="critical" />
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Provability gaps — collapsible */}
+      {report.provability_gaps.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setGapsOpen((v) => !v)}
+            aria-expanded={gapsOpen}
+            className="flex items-center gap-1 font-mono text-[10px] uppercase tracking-widest text-sky-400 hover:text-sky-300"
+          >
+            {gapsOpen ? (
+              <ChevronDown className="h-3 w-3" aria-hidden="true" />
+            ) : (
+              <ChevronRight className="h-3 w-3" aria-hidden="true" />
+            )}
+            {report.provability_gaps.length} provability gap
+            {report.provability_gaps.length !== 1 ? "s" : ""}
+          </button>
+          {gapsOpen && (
+            <ul className="mt-1.5 space-y-2">
+              {report.provability_gaps.map((gap) => (
+                <li
+                  key={gap.gap}
+                  className="rounded border border-sky-800/30 bg-sky-950/20 px-3 py-2"
+                >
+                  <p className="font-mono text-[10px] uppercase text-sky-300">
+                    {gap.layer} · {gap.gap}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">{gap.mitigation}</p>
+                  <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+                    closed when: {gap.closed_when}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

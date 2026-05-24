@@ -466,6 +466,17 @@ func viewVerifyReportToSummary(r verifypkg.Report) apiv1.ProfileReportSummary {
 		}
 		summary.Warnings = append([]string{}, p.RequiredWarnings...)
 	}
+	if len(r.ProvabilityGaps) > 0 {
+		summary.ProvabilityGaps = make([]apiv1.ProvabilityGapDTO, len(r.ProvabilityGaps))
+		for i, gap := range r.ProvabilityGaps {
+			summary.ProvabilityGaps[i] = apiv1.ProvabilityGapDTO{
+				Gap:        gap.Gap,
+				Layer:      gap.Layer,
+				Mitigation: gap.Mitigation,
+				ClosedWhen: gap.ClosedWhen,
+			}
+		}
+	}
 	return summary
 }
 

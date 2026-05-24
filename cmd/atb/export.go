@@ -1853,7 +1853,10 @@ func writeExportVerificationSidecar(cfg exportConfig, result exportBuildResult, 
 	if report.Integrity.Error != "" {
 		return verifypkg.Report{}, nil, fmt.Errorf("verify bundle for export: %s", report.Integrity.Error)
 	}
-	data, err := json.MarshalIndent(report, "", "  ")
+	data, err := json.MarshalIndent(verifypkg.ExportVerificationSidecar{
+		Report:            report,
+		ProvabilityLayers: verifypkg.ProvabilityLayerChecklist(report),
+	}, "", "  ")
 	if err != nil {
 		return verifypkg.Report{}, nil, fmt.Errorf("marshal verification sidecar: %w", err)
 	}
