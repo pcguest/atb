@@ -40,16 +40,16 @@ export default function Footer() {
                   href: "https://github.com/pcguest/atb/blob/main/docs/quickstart.md",
                 },
                 {
-                  label: "Incident Review",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/use-cases/incident-review.md",
+                  label: "Incident review",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/incident-review-workflow.md",
                 },
                 {
-                  label: "Customer Handoff",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/use-cases/customer-handoff.md",
+                  label: "Customer handoff",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/customer-handoff-workflow.md",
                 },
                 {
-                  label: "Why local-first",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/comparisons/hosted-observability.md",
+                  label: "Why ATB",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/why-atb.md",
                 },
                 {
                   label: "Security Model",

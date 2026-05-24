@@ -22,7 +22,7 @@ Validate header delivery through the embed flow:
 make test-embed
 ```
 
-## Font Behavior in CI
+## Font behaviour in CI
 
 The dashboard avoids runtime Google Fonts fetches in layout code to keep CI and offline builds reliable.
 
@@ -56,4 +56,4 @@ npm run test:a11y
 npm run build
 ```
 
-See [docs/roadmap.md](../docs/roadmap.md) for planned improvements.
+See [docs/roadmap.md](../docs/roadmap.md) for tracked follow-on work.
