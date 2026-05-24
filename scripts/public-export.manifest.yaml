@@ -1,0 +1,51 @@
+# Public export manifest (deny-by-default)
+#
+# Used by scripts/export-public-demo.sh
+
+include:
+  - schemas/
+  - docs/
+  - sdk/python/
+  - sdk/typescript/
+  - examples/
+  - test/golden/
+  - web/
+  - LICENSE
+  - README.md
+  - CONTRIBUTING.md
+  - CODE_OF_CONDUCT.md
+  - SECURITY.md
+  - THIRD_PARTY_NOTICES
+  - CHANGELOG.md
+
+exclude_paths:
+  - AGENTS.md
+  - docs/release/secrets.md
+  - internal/
+  - cmd/atb/
+  - tools/
+  - .github/workflows/release.yml
+  - .github/workflows/gold-release.yml
+  - .github/workflows/docker-publish.yml
+  - scripts/quality-evidence.sh
+
+exclude_globs:
+  - "**/*.pem"
+  - "**/atb-key*"
+  - "*.atb"
+  - "**/node_modules/**"
+  - "**/.venv/**"
+  - "**/dist/**"
+  - "**/coverage.out"
+  - "**/trivy-report.json"
+
+text_rewrites:
+  - from: "Open-source"
+    to: "Local-first"
+  - from: "open-source"
+    to: "local-first"
+
+secret_patterns:
+  - "BEGIN .* PRIVATE KEY"
+  - "sk-[A-Za-z0-9]{20,}"
+  - "AKIA[0-9A-Z]{16}"
