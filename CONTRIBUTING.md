@@ -10,8 +10,7 @@ This file covers contributor workflow. Release preparation and versioning detail
 ```bash
 git clone https://github.com/pcguest/atb.git
 cd atb
-go build ./...
-go test ./...
+make hygiene-quick
 ```
 
 For `atb view` or the embedded review UI, build the web layer first:
@@ -35,9 +34,9 @@ go build -o atb ./cmd/atb
 
 ## Documentation expectations
 
-- Separate shipped capability from planned work.
 - When behaviour, schema, API, or release-facing text changes, update the relevant docs in the same change.
 - Do not leave stale references to removed flags, UI modes, or deleted files.
+- Tracked follow-on work belongs in [`docs/roadmap.md`](docs/roadmap.md); do not describe unshipped capability as current in user-facing docs.
 
 ## Python SDK
 
@@ -100,15 +99,6 @@ The maintainer release sequence is documented in [docs/release.md](docs/release.
   pull request.
 
 The release tag is the release source of truth. The checked-in version strings must match it.
-
-## Commit history
-
-The repository commit history includes entries from an AI-assisted
-development period. Some commit messages from before v1.5.0 may contain
-co-authorship attributions, session labels, or phrasing that does not
-follow the current style guide. New contributions must follow the commit
-style rules above. Historical commits are not being rewritten as they are
-already on the remote.
 
 ## Security
 

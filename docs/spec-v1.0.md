@@ -236,7 +236,7 @@ The following optional fields may appear in the `atb.bundle.signature` data payl
 
 Newly-signed bundles emitted by the local signer carry `algorithm="ed25519"`, `backend="local"`, and a `signed_at` timestamp explicitly. Bundles signed before these fields were emitted continue to verify: the verifier defaults `algorithm` to `ed25519` and treats absent `backend`/`signed_at` as legacy/implicit local.
 
-#### Planned extensions (non-breaking, additive)
+#### Reserved additive extensions (non-breaking)
 
 The following optional fields are tracked for a future minor release:
 

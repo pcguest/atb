@@ -114,7 +114,7 @@ The hash embedded in the object key is checked against the on-the-fly computed h
 
 ## AWS credentials
 
-`atb push` uses the standard AWS credential chain: environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), `~/.aws/credentials`, instance metadata, or ECS task role. No ATB-specific credential configuration is planned.
+`atb push` uses the standard AWS credential chain: environment variables (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`), `~/.aws/credentials`, instance metadata, or ECS task role. ATB does not add a separate credential configuration layer beyond that chain.
 
 For CI/CD, use the secrets `ATB_WORM_S3_ACCESS_KEY_ID` and `ATB_WORM_S3_SECRET_ACCESS_KEY` as documented in `docs/release/secrets.md`. Map these to the standard AWS credential environment variables in the workflow.
 
