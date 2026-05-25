@@ -38,19 +38,13 @@ const liveEventsRefetchIntervalMs = 5000;
 
 // Session token is delivered in the URL fragment (#session=<token>) by the Go server
 // so it is never sent automatically by the browser as part of HTTP requests.
-// We read it once on first use and attach it as X-ATB-Session-Token on every API call.
-let _sessionToken: string | null = null;
-
+// Re-read the hash on each request so client navigations to a new viewer session work.
 function getSessionToken(): string {
-  if (_sessionToken === null) {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.hash.slice(1));
-      _sessionToken = params.get("session") ?? "";
-    } else {
-      _sessionToken = "";
-    }
+  if (typeof window === "undefined") {
+    return "";
   }
-  return _sessionToken;
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  return params.get("session") ?? "";
 }
 
 export const queryKeys = {
