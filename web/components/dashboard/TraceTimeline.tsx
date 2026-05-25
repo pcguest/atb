@@ -55,7 +55,7 @@ function Row({ index, style, data }: ListChildComponentProps<RowData>) {
           <div className={`truncate font-mono text-sm font-medium ${eventFamilyClass(event.type)}`}>
             {event.type}
           </div>
-          <div className="truncate text-xs text-slate-500">{event.timestamp ?? "no timestamp"}</div>
+          <div className="truncate text-xs text-slate-300">{event.timestamp ?? "no timestamp"}</div>
         </div>
         <div className="ml-3 shrink-0 rounded bg-slate-800/80 px-2 py-0.5 font-mono text-xs text-slate-400">
           #{event.seq}
@@ -79,7 +79,7 @@ export function TraceTimeline({
     return (
       <div
         data-testid="event-list"
-        className="rounded border border-slate-800 bg-slate-900 p-4 font-mono text-xs text-slate-500"
+        className="rounded border border-slate-800 bg-slate-900 p-4 font-mono text-xs text-slate-300"
       >
         No events available.
       </div>
@@ -95,7 +95,7 @@ export function TraceTimeline({
 
   return (
     <div data-testid="event-list" className="rounded border border-slate-800 bg-slate-950">
-      <div className="border-b border-slate-800 px-3 py-2 font-mono text-xs uppercase tracking-widest text-slate-500">
+      <div className="border-b border-slate-800 px-3 py-2 font-mono text-xs uppercase tracking-widest text-slate-300">
         Timeline ({events.length}/{total})
       </div>
       <List
@@ -116,14 +116,14 @@ export function TraceTimeline({
         {Row}
       </List>
       <div className="flex items-center justify-between border-t border-slate-800 px-3 py-2">
-        <span className="font-mono text-xs text-slate-600">
+        <span className="font-mono text-xs text-slate-300">
           {events.length} / {total}
         </span>
         <button
           type="button"
           disabled={disabled || loadingMore || !hasMore}
           onClick={onLoadMore}
-          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-400 hover:border-slate-600 hover:text-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loadingMore ? "Loading..." : hasMore ? "Load More" : "All Loaded"}
         </button>

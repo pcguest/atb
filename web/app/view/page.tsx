@@ -136,6 +136,8 @@ export default function ViewPage() {
 
       {/* ── CENTRE COLUMN ─────────────────────────────────────────────── */}
       <main id="dashboard-content" className="flex flex-1 flex-col overflow-y-auto">
+        <h1 className="sr-only">ATB Trust Dashboard</h1>
+
         {/* DAG graph */}
         <section className="h-[340px] shrink-0 border-b border-border bg-grid">
           {graphQuery.isLoading ? (

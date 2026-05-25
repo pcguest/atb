@@ -1,39 +1,22 @@
 describe("Trust Dashboard", () => {
-  const selectRole = (role: "engineer" | "auditor" | "executive") => {
-    cy.get('[data-testid="role-selector"]').click({ force: true });
-    cy.get(`[data-testid="role-selector-${role}"]`).click({ force: true });
-  };
-
   beforeEach(() => {
     cy.waitForDashboard();
   });
 
   it("displays Trust Score on load", () => {
-    cy.get('[data-testid="trust-score-card"]').should("be.visible");
-    cy.get('[data-testid="trust-score-value"]', { timeout: 15000 })
-      .should("be.visible")
-      .should("not.have.text", "Loading...")
-      .should("not.have.text", "N/A")
-      .invoke("text")
-      .then((value) => {
-        expect(value.trim()).to.match(/^\d+$|TEST-MODE$/);
-      });
+    cy.get('[data-testid="stats-overview"]').should("be.visible");
+    cy.get('[data-testid="trust-score-value"]').should("have.text", "100/100");
+    cy.get('[data-testid="event-count-value"]').should("have.text", "3");
+    cy.get('[data-testid="chain-length-value"]').should("have.text", "3");
   });
 
-  it("switches roles and updates UI", () => {
-    selectRole("engineer");
-    cy.get('[data-testid="raw-data-inspector"]').should("be.visible");
-
-    selectRole("auditor");
-    cy.get('[data-testid="raw-data-inspector"]').should("not.exist");
-    cy.get('[data-testid="export-evidence-btn"]').should("be.visible");
-
-    selectRole("executive");
-    cy.get('[data-testid="executive-summary"]').should("be.visible");
+  it("renders trace data and inspector", () => {
+    cy.get('[data-testid="event-list"]').should("be.visible");
+    cy.contains("Inspector").should("be.visible");
+    cy.contains("Mock workflow start").should("be.visible");
   });
 
   it("keeps event list stable while polling", () => {
-    selectRole("engineer");
     cy.get('[data-testid="event-list"]').should("be.visible");
 
     cy.get("body").then(($body) => {

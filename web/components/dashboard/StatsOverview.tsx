@@ -13,13 +13,23 @@ type StatsOverviewProps = {
   pollingActive?: boolean;
 };
 
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
+function Stat({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: React.ReactNode;
+  testId?: string;
+}) {
   return (
     <div className="flex flex-col gap-0.5 px-4 py-2">
       <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
         {label}
       </span>
-      <span className="font-mono text-sm font-semibold text-foreground">{value}</span>
+      <span className="font-mono text-sm font-semibold text-foreground" data-testid={testId}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -32,11 +42,14 @@ export function StatsOverview({
   pollingActive,
 }: StatsOverviewProps) {
   return (
-    <div className="flex flex-wrap items-center divide-x divide-border">
-      <Stat label="events" value={meta?.event_count ?? "—"} />
-      <Stat label="chain" value={verification?.chain_length ?? "—"} />
-      <Stat label="trust" value={`${trustScore.total}/100`} />
-      <Stat label="role" value={dashboardRoleLabel[role]} />
+    <div
+      className="flex flex-wrap items-center divide-x divide-border"
+      data-testid="stats-overview"
+    >
+      <Stat label="events" value={meta?.event_count ?? "—"} testId="event-count-value" />
+      <Stat label="chain" value={verification?.chain_length ?? "—"} testId="chain-length-value" />
+      <Stat label="trust" value={`${trustScore.total}/100`} testId="trust-score-value" />
+      <Stat label="role" value={dashboardRoleLabel[role]} testId="role-value" />
       {pollingActive !== undefined && (
         <div className="flex flex-col gap-0.5 px-4 py-2">
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
@@ -45,6 +58,7 @@ export function StatsOverview({
           <span
             aria-live="polite"
             aria-label={pollingActive ? "Live polling active" : "Live polling paused"}
+            data-testid="polling-status-value"
             className={`font-mono text-sm font-semibold ${
               pollingActive ? "text-red-400" : "text-muted-foreground"
             }`}

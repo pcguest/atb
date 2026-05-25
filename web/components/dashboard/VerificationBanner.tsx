@@ -51,17 +51,15 @@ export function VerificationBanner({
         aria-label={`Bundle integrity verified. Chain length: ${chainLength ?? 0}`}
         className={`${BASE} border-green-800/50 bg-green-950/80`}
       >
-        <Lock className="h-3 w-3 shrink-0 text-green-500" aria-hidden="true" />
+        <Lock className="h-3 w-3 shrink-0 text-green-300" aria-hidden="true" />
         <span className="font-mono text-xs font-medium tracking-wider text-green-400">
           chain: {chainLength ?? 0} events
         </span>
         {headHash && (
-          <span className="font-mono text-xs text-green-700">
-            {headHash.slice(0, 12)}…
-          </span>
+          <span className="font-mono text-xs text-green-300">{headHash.slice(0, 12)}…</span>
         )}
         {bundlePath && (
-          <span className="ml-2 hidden max-w-[36ch] truncate font-mono text-xs text-green-900 sm:inline">
+          <span className="ml-2 hidden max-w-[36ch] truncate font-mono text-xs text-green-200 sm:inline">
             {bundlePath}
           </span>
         )}

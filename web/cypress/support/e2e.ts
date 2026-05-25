@@ -106,13 +106,15 @@ beforeEach(() => {
 });
 
 Cypress.Commands.add("waitForDashboard", () => {
+  cy.clearLocalStorage("atb-ui-store-v1");
   cy.visit("/view");
   if (isMockMode) {
     cy.wait(["@getVerification", "@getBundleMeta", "@getBundleEvents", "@getBundleGraph"]);
   }
-  cy.get('[data-testid="trust-score-card"]', { timeout: 10000 }).should("be.visible");
-  cy.get('[data-testid="bundle-meta-panel"]', { timeout: 10000 }).should("be.visible");
+  cy.get('[data-testid="stats-overview"]', { timeout: 10000 }).should("be.visible");
+  cy.get('[data-testid="event-list"]', { timeout: 10000 }).should("be.visible");
   cy.get('[data-testid="trust-score-value"]', { timeout: 10000 })
+    .should("be.visible")
     .should("not.contain.text", "TEST-MODE");
 });
 

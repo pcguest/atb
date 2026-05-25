@@ -140,7 +140,7 @@ jobs:
           npm --prefix web run build
           /tmp/atb-e2e view --no-open --port 18888 >/tmp/atb-e2e.log 2>&1 & echo $! >/tmp/atb-e2e.pid
           sleep 3
-          CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm --prefix web run test:e2e -- --spec cypress/e2e/dashboard.cy.ts
+          CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm --prefix web run test:e2e
           kill $(cat /tmp/atb-e2e.pid) 2>/dev/null || true
 
       - name: Notify Discord
