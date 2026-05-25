@@ -85,7 +85,7 @@ fuzz:
 	go test ./internal/canonicalize/... -fuzz=FuzzMarshal -fuzztime=30s
 	go test ./internal/bundle/... -fuzz=FuzzLoad -fuzztime=30s
 
-test-all: hygiene-full test-e2e
+test-all: hygiene-full
 	@echo "✅ All tests passed"
 
 ## install-noembed: install CLI without embedded web UI (for go install compatibility)
@@ -103,7 +103,7 @@ gate-gold-release: test-all
 	@echo "✅ Coverage OK"
 	@echo ""
 	@echo "Step 3: E2E tests..."
-	@-make test-e2e || (echo "⚠️  E2E tests failed — checking mock fallback..." && cd web && CYPRESS_MOCK_API=true npm run test:e2e -- --spec cypress/e2e/dashboard.cy.ts || (echo "❌ E2E tests failed even with mocks"; exit 1))
+	@$(MAKE) test-e2e || (echo "⚠️  E2E tests failed — checking mock fallback..." && cd web && CYPRESS_MOCK_API=true npm run test:e2e -- --spec cypress/e2e/dashboard.cy.ts || (echo "❌ E2E tests failed even with mocks"; exit 1))
 	@echo ""
 	@echo "Step 4: Lighthouse audit..."
 	@-cd web && npm run lighthouse 2>/dev/null || echo "⚠️  Lighthouse skipped (env constraint)"
