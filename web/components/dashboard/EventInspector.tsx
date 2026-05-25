@@ -3,6 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { eventFamilyClass, eventSummary } from "@/lib/event-family";
+import { HashValue } from "@/components/dashboard/HashValue";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/app/view/components/ui/tooltip";
 import { collectMaskedPaths, setByPath } from "@/lib/pii";
 import type { EventRecord } from "@/lib/types";
 
@@ -93,7 +100,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
           </div>
           <div className="break-all">
             <span className="text-slate-300">hash:</span>{" "}
-            <span className="text-slate-200">{event.hash}</span>
+            <HashValue hash={event.hash} className="text-slate-200" />
           </div>
         </div>
 
