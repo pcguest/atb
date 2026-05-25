@@ -52,6 +52,7 @@ export {
 export { DataExportGate, DataExportDeniedError } from "./data-export-gate.js";
 export { HumanOverrideGate, HumanOverrideDeniedError } from "./human-override-gate.js";
 export { PolicyDecisionRecorder } from "./policy-decision-recorder.js";
+export { AutomationSession } from "./automation-session.js";
 export {
   WorkflowContext,
   actorIdHash,
@@ -92,6 +93,14 @@ export type {
   PolicyDecisionActionInput,
   PolicyDecisionRecorderOptions,
 } from "./policy-decision-recorder.js";
+export type {
+  AutomationSessionOptions,
+  CloseSessionOptions,
+  ModelInvocationInput,
+  ModelOutputInput,
+  ResponseSentInput,
+  RetrievalInput,
+} from "./automation-session.js";
 export type {
   WorkflowContextOptions,
   WorkflowPolicyDecision,

@@ -9,6 +9,7 @@ bundle as review-ready for the selected profile.
 - [ ] Obligation profile selected (`atb.profile.*`) and documented for the workflow
 - [ ] SDK or CLI instrumentation covers success, failure, retry, and fallback paths
 - [ ] `atb capture run` or in-process `Bundle` writer configured for the session
+- [ ] TypeScript: optional `AutomationSession` for chained model/tool hops ([automation harness](automation-harness.md))
 - [ ] Capture environment variables set (`ATB_BUNDLE_PATH`, `ATB_CAPTURE_RUN_ID`)
 
 ## Per profile minimum events
