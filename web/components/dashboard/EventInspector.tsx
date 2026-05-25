@@ -107,19 +107,35 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
         {maskedPaths.length > 0 && (
           <div className="rounded border border-slate-800 bg-slate-900 p-2">
             <div className="mb-2 text-xs uppercase tracking-wide text-slate-200">Masked Fields</div>
-            <div className="space-y-1">
-              {maskedPaths.map((path) => (
-                <button
-                  key={path}
-                  type="button"
-                  disabled={disabled || pending === path}
-                  onClick={() => handleReveal(path)}
-                  className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-left text-xs text-slate-100 hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {pending === path ? "Revealing..." : `Click to Reveal: ${path}`}
-                </button>
-              ))}
-            </div>
+            <TooltipProvider>
+              <div className="space-y-2">
+                {maskedPaths.map((path) => (
+                  <div key={path} className="space-y-0.5">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={disabled || pending === path}
+                          onClick={() => handleReveal(path)}
+                          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-left text-xs text-slate-100 hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {pending === path ? "Revealing..." : `Click to Reveal: ${path}`}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs">
+                        <p>
+                          Revealing writes a <span className="font-mono">privacy.reveal</span> event
+                          to the bundle on disk. This action is permanent and tamper-evident.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                    <p className="px-0.5 font-mono text-[10px] text-amber-400/90">
+                      writes privacy.reveal event to bundle
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </TooltipProvider>
           </div>
         )}
 
