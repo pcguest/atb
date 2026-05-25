@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: hygiene-quick hygiene-full profile-fixtures test-go test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -21,11 +21,17 @@ GO_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list ./... | g
 GO_COVER_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/web/node_modules/')
 STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)")
 
+profile-fixtures:
+	$(GOENV) go run ./scripts/generate_profile_fixtures.go
+
+test-go: profile-fixtures
+	$(GOENV) go test $(GO_PACKAGES) -count=1
+
 hygiene-quick:
 	@echo "🧹 Running quick hygiene gate..."
-	$(GOENV) go fmt ./... && $(GOENV) go vet ./...
-	$(GOENV) $(STATICCHECK) ./...
-	$(GOENV) go test ./... -count=1
+	$(GOENV) go fmt $(GO_PACKAGES) && $(GOENV) go vet $(GO_PACKAGES)
+	$(GOENV) $(STATICCHECK) $(GO_PACKAGES)
+	$(MAKE) test-go
 	cd web && npm run lint && npm run typecheck
 
 hygiene-full: hygiene-quick

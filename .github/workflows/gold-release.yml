@@ -35,6 +35,9 @@ jobs:
       - name: Build Web Assets
         run: cd web && npm run build
 
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+
       - name: Run Gold Gate
         run: make gate-gold-release
 

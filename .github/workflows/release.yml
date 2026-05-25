@@ -87,7 +87,7 @@ jobs:
           npm run build
 
       - name: Run Go tests
-        run: scripts/ci-atb-capture.sh "tests-pass" -- go test ./... -count=1
+        run: scripts/ci-atb-capture.sh "tests-pass" -- make test-go
 
       - name: Run Python tests
         working-directory: sdk/python
@@ -332,6 +332,9 @@ jobs:
 
       - name: Build web assets
         run: cd web && npm run build
+
+      - name: Install staticcheck
+        run: go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
 
       - name: Run gold release gate
         run: make gate-gold-release
