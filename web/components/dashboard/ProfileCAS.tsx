@@ -4,7 +4,14 @@ import { ChevronDown, ChevronRight, RotateCcw, ShieldOff } from "lucide-react";
 import { useState } from "react";
 
 import { useBundleProfileQuery, useRunBundleVerifyMutation } from "@/lib/api-client";
+import { casSubScoreInlineLabel, casSubScoreMeta } from "@/lib/cas-subscores";
 import type { FailureDTO, ProfileReportSummary } from "@/lib/types";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/app/view/components/ui/tooltip";
 
 // ─── Grade chip colours ───────────────────────────────────────────────────────
 
@@ -19,11 +26,30 @@ const GRADE_STYLE: Record<string, string> = {
 
 function SubScoreBar({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
+  const meta = casSubScoreMeta(label);
+  const inlineLabel = casSubScoreInlineLabel(label);
+
+  const labelEl = (
+    <span className="truncate font-mono text-[10px] uppercase text-muted-foreground">
+      {inlineLabel}
+    </span>
+  );
+
   return (
     <div className="flex items-center gap-2">
-      <span className="w-6 shrink-0 font-mono text-[10px] uppercase text-muted-foreground">
-        {label}
-      </span>
+      {meta ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="w-[5.5rem] shrink-0 cursor-help">{labelEl}</span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs">
+            <p className="font-mono text-[10px] font-semibold uppercase">{meta.name}</p>
+            <p className="mt-1 text-muted-foreground">{meta.definition}</p>
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <span className="w-[5.5rem] shrink-0">{labelEl}</span>
+      )}
       <div className="flex-1 overflow-hidden rounded-full bg-muted" style={{ height: 4 }}>
         <div
           className="h-full rounded-full bg-primary/40 transition-all"
@@ -288,6 +314,7 @@ export function ProfileCAS({ className }: ProfileCASProps) {
       {/* Collapsible body */}
       {open && (
         <div className="border-t border-border px-3 pt-3">
+          <TooltipProvider>
           {/* Forbidden / tamper */}
           {isForbidden && (
             <div className="flex items-center gap-2 py-2 text-xs text-red-400">
@@ -359,6 +386,7 @@ export function ProfileCAS({ className }: ProfileCASProps) {
               </div>
             </>
           )}
+          </TooltipProvider>
         </div>
       )}
     </div>
