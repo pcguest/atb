@@ -35,6 +35,15 @@ MCP host
 atb mcp serve
 ```
 
+## ATB Agent (optional, separate today)
+
+The [ATB Agent](../guides/agent.md) (`atb agent run`) is an optional local
+background HTTP service for local capture sessions and workspace bundle
+listing. It does **not** replace `atb mcp serve`: MCP remains a standalone
+stdio process. Planned work will host MCP and viewer coordination on the Agent
+with a shared workspace; until then, configure MCP hosts to invoke
+`atb mcp serve` directly.
+
 ## Configuration
 
 ### Claude Desktop

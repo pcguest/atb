@@ -1,6 +1,6 @@
 # ATB
 
-[![Release](https://img.shields.io/badge/release-v1.11.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/release-v1.12.0-blue.svg)](CHANGELOG.md) [![Go Reference](https://pkg.go.dev/badge/github.com/pcguest/atb.svg)](https://pkg.go.dev/github.com/pcguest/atb) [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) [![Security](https://github.com/pcguest/atb/actions/workflows/security.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/security.yml) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
 ATB is a local-first tamper-evident audit trail for AI and agent workflows. It records events into an append-only, hash-chained bundle on local disk so teams can verify later whether the recorded sequence was altered, without a hosted backend and without routing payload data to external infrastructure by default.
 
@@ -8,7 +8,7 @@ ATB is not an observability platform, a model evaluator, or a compliance certifi
 
 Integrity primitive: SHA-256 hash chaining over RFC 8785 canonical JSON, with optional Ed25519 or ECDSA P-256 bundle signatures and optional RFC 3161 TSA anchoring. ATB proves integrity of what was recorded; it does not prove recording completeness, model correctness, or that risk controls were applied.
 
-Current release: [`v1.11.0`](CHANGELOG.md)
+Current release: [`v1.12.0`](CHANGELOG.md)
 
 ## Is ATB right for me?
 
@@ -129,7 +129,7 @@ cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb
 | LangChain | [`docs/integrations/langchain.md`](docs/integrations/langchain.md) |
 | Chatlog import | [`docs/integrations/chatlog-import.md`](docs/integrations/chatlog-import.md) |
 | MCP stdio bridge | [`docs/integrations/mcp.md`](docs/integrations/mcp.md) |
-| ATB Agent (local service) | [`docs/guides/agent.md`](docs/guides/agent.md) — optional; health and info endpoints today |
+| ATB Agent (local service) | [`docs/guides/agent.md`](docs/guides/agent.md) — optional local capture and workspace service |
 | WORM / S3 export | [`docs/integrations/worm-s3.md`](docs/integrations/worm-s3.md) |
 | Queue push transport | [`docs/integrations/push-transports.md`](docs/integrations/push-transports.md) |
 | SIEM / GRC export patterns | [`docs/integrations/siem-grc.md`](docs/integrations/siem-grc.md) |

@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Bundle } from "./bundle.js";
 import { canonicalize } from "./canonicalize.js";
 import { normalizeOptionalIdentity } from "./event.js";
+import type { WorkflowEventSink } from "./workflow-common.js";
 
 const DEFAULT_SAVE_PATH = "run.atb/bundle.atb";
 
@@ -39,6 +40,7 @@ export interface ActionGateOptions {
   actorId?: string;
   orgId?: string;
   workspaceId?: string;
+  eventSink?: WorkflowEventSink;
 }
 
 /** Error thrown when a gated action is denied in enforce mode. */
@@ -66,6 +68,7 @@ export class ActionGate {
   private readonly actorId?: string;
   private readonly orgId?: string;
   private readonly workspaceId?: string;
+  private readonly eventSink?: WorkflowEventSink;
 
   /**
    * @param options Gate configuration.
@@ -88,6 +91,7 @@ export class ActionGate {
     this.actorId = options.actorId;
     this.orgId = options.orgId;
     this.workspaceId = options.workspaceId;
+    this.eventSink = options.eventSink;
 
     if (!["log_only", "enforce"].includes(this.mode)) {
       throw new Error("mode must be one of: log_only, enforce");
@@ -148,6 +152,10 @@ export class ActionGate {
   }
 
   private emit(eventType: string, payload: Record<string, unknown>): void {
+    if (this.eventSink) {
+      this.eventSink.append(eventType, payload);
+      return;
+    }
     this.bundle.append(eventType, payload, {
       actorId: this.actorId,
       orgId: this.orgId,

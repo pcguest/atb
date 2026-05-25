@@ -1,11 +1,19 @@
-# Automation harness (TypeScript)
+# Automation harness
 
-The TypeScript SDK ships `AutomationSession` for chained AI workflow capture.
-It composes existing profile helpers so you open one bundle connection, emit
-events across successive model and tool hops, and flush without repeating
-bootstrap boilerplate at every call site.
+The TypeScript and Python SDKs ship `AutomationSession` for chained AI workflow
+capture. It composes existing profile helpers so you open one bundle
+connection, emit events across successive model and tool hops, and flush
+without repeating bootstrap boilerplate at every call site.
 
 For inventory and design rationale see [internal automation notes](../internal/automation-notes.md).
+
+## ATB Agent (optional)
+
+`AutomationSession` writes bundles in-process, via paths from `atb capture run`,
+or through the optional [ATB Agent](agent.md) (`atb agent run`). Set
+`ATB_AGENT_URL` to an explicit loopback Agent URL, or set `ATB_AGENT_AUTO=1` to
+use the default `http://127.0.0.1:6180` when the Agent health check passes. CLI
+and SDK workflows remain valid without the Agent.
 
 ## Compared to manual profile helpers
 
@@ -74,6 +82,13 @@ if (session) {
   session.close();
 }
 ```
+
+## Python parity
+
+The Python SDK exposes the same session concept via `atb.automation_session`.
+Use `AutomationSession.open(...)` for disk-backed capture or
+`AutomationSession.from_capture_environment()` inside an `atb capture run`
+child process.
 
 ## API summary
 

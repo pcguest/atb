@@ -11,3 +11,7 @@ export {
   failureDTOSchema,
   profileReportSummarySchema,
 } from "@/lib/schemas/profile";
+export {
+  workspaceBundleSummarySchema,
+  workspaceBundlesResponseSchema,
+} from "@/lib/schemas/workspace";

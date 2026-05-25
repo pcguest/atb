@@ -33,7 +33,7 @@
  */
 
 /** Current SDK package version. */
-export const SDK_VERSION = "1.11.0";
+export const SDK_VERSION = "1.12.0";
 
 /**
  * @returns SDK version and hash-chain algorithm metadata.

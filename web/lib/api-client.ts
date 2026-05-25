@@ -18,6 +18,7 @@ import {
   privacyRevealResponseSchema,
   profileReportSummarySchema,
   verificationResponseSchema,
+  workspaceBundlesResponseSchema,
 } from "@/lib/schemas";
 import type {
   BundleEventsResponse,
@@ -28,6 +29,7 @@ import type {
   PrivacyRevealResponse,
   ProfileReportSummary,
   VerificationResponse,
+  WorkspaceBundlesResponse,
 } from "@/lib/types";
 
 const defaultEventsPageSize = 200;
@@ -57,6 +59,7 @@ export const queryKeys = {
   bundleGraph: ["atb", "bundle", "graph"] as const,
   bundleEvents: ["atb", "bundle", "events"] as const,
   bundleProfile: ["atb", "bundle", "profile"] as const,
+  workspaceBundles: ["atb", "workspace", "bundles"] as const,
 };
 
 function parseWithSchema<T>(schema: ZodSchema<T>, payload: unknown, path: string): T {
@@ -118,6 +121,10 @@ export function getBundleEvents(
 
 export function getBundleGraph(): Promise<BundleGraphResponse> {
   return requestJSON("/api/v1/bundle/graph", bundleGraphResponseSchema);
+}
+
+export function listWorkspaceBundles(): Promise<WorkspaceBundlesResponse> {
+  return requestJSON("/v1/workspace/bundles", workspaceBundlesResponseSchema);
 }
 
 export async function getBundleProfile(): Promise<ProfileReportSummary | null> {
@@ -212,6 +219,18 @@ export function useBundleGraphQuery(enabled: boolean): UseQueryResult<BundleGrap
     enabled,
     refetchInterval: enabled ? dashboardRefetchIntervalMs : false,
     retry: 1,
+  });
+}
+
+export function useWorkspaceBundlesQuery(
+  enabled: boolean,
+): UseQueryResult<WorkspaceBundlesResponse, Error> {
+  return useQuery({
+    queryKey: queryKeys.workspaceBundles,
+    queryFn: listWorkspaceBundles,
+    enabled,
+    retry: false,
+    staleTime: 30000,
   });
 }
 

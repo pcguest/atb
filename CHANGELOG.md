@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.12.0] - 2026-05-25
+
 ### Added
 - [Custos development handoff](docs/custos-handoff.md): layer model, stable contracts, Custos build phases, and demo script for custodian-of-record development.
-- Custos ingest conformance test (`test/custos/conformance_test.go`) locking `verify.report.v1` on pass fixtures.
+- Custos ingest conformance test (`test/custos/conformance_test.go`) locking `verify.report.v1` on pass fixtures and checking emitted top-level report fields against the frozen custody schema.
 - Profile workflow SDK helpers (TypeScript and Python): `DataExportGate`, `PolicyDecisionRecorder`, `HumanOverrideGate`, and `BackgroundJobTracker` for emitting canonical events aligned with built-in obligation profiles.
 - `examples/bundles/generate-profile-fixtures.sh` to regenerate passing and failing `.atb` fixtures for all six built-in profiles.
 - `go run ./scripts/generate_profile_fixtures.go` as the canonical fixture generator (also available via the shell wrapper).
 - Viewer API endpoint `GET /api/v1/bundle/verify/report` returning the stable `verify.report.v1` JSON contract for auditors.
 - Optional `corroboration_bonus` and `effective_score` fields in `atb verify --format json` output when corroboration policy applies.
+- `atb evidence pack` to verify multiple local bundles and emit a combined JSON or Markdown evidence summary.
+- `atb agent run` CLI entrypoint for the optional local Agent service, including loopback health/info, capture session open/append/close, and read-only workspace bundle listing APIs.
+- TypeScript and Python `AutomationSession` helpers for multi-hop workflow capture, with optional routing through the local ATB Agent when `ATB_AGENT_URL` or `ATB_AGENT_AUTO` is set.
+- Internal TypeScript and Python Agent HTTP clients used by `AutomationSession` for local session open/append/close flows.
 
 ### Changed
 - Expanded `docs/cas-guide.md` with canonical sub-score table, grade bands, and per-profile interpretation examples.
@@ -22,9 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `verify.report.v1` now includes `profile_version` and propagates `residual_risk.drivers` / `recommended_next_evidence` from the internal verifier report.
 - Human-readable `atb verify` text output opens with a concise Summary block (integrity, profile, CAS, top issues, exclusion count).
 - Fixed stale integration tests that used `ai.action.*` events for the `atb.profile.data_export` profile.
+- ATB Agent and automation docs now describe the implemented local capture/workspace APIs rather than the earlier health/info-only placeholder.
 
 ### Fixed
 - `atb.profile.policy_decision` test fixtures now include required `ai.action.precommit` (triggered by `required_when` when `ai.request.received` is present).
+- Pinned the `verify.report.v1.schema.1` SHA-256 in tests so custody schema changes are reviewed deliberately.
 
 ## [v1.11.0] - 2026-05-23
 

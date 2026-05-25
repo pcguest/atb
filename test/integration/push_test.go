@@ -184,7 +184,7 @@ func newPushTestBundle(t *testing.T) (string, queueEnvelope, []byte) {
 		Digest:        hex.EncodeToString(sum[:]),
 		SealTimestamp: "2026-04-20T03:05:06Z",
 		ProfileID:     "",
-		ATBVersion:    "1.11.0",
+		ATBVersion:    "1.12.0",
 	}, []byte("push-queue-secret")
 }
 

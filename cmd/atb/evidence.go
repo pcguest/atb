@@ -23,7 +23,12 @@ type evidenceConfig struct {
 }
 
 func cmdEvidence() {
-	os.Exit(runEvidence(os.Args[2:], os.Stdout, os.Stderr))
+	args := os.Args[2:]
+	if len(args) > 0 && args[0] == "pack" {
+		os.Exit(runEvidencePack(args[1:], os.Stdout, os.Stderr))
+		return
+	}
+	os.Exit(runEvidence(args, os.Stdout, os.Stderr))
 }
 
 func runEvidence(args []string, stdout, stderr io.Writer) int {
@@ -113,6 +118,7 @@ func parseEvidenceArgs(args []string) (evidenceConfig, error) {
 
 func printEvidenceUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: atb evidence --bundle <path> [--format text|json]")
+	fmt.Fprintln(w, "       atb evidence pack [--output json] <bundle.atb> [<bundle2.atb> ...]")
 }
 
 func writeEvidence(w io.Writer, format string, ev evidencepkg.BundleEvidence) error {

@@ -14,12 +14,12 @@ import (
 )
 
 type sessionRecord struct {
-	params    OpenParams
+	params     OpenParams
 	bundlePath string
-	events    []PendingEvent
-	createdAt time.Time
-	closed    bool
-	closedAt  time.Time
+	events     []PendingEvent
+	createdAt  time.Time
+	closed     bool
+	closedAt   time.Time
 }
 
 // MemoryBundleManager is a test-only stub: placeholder paths and synthetic

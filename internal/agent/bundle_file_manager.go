@@ -63,8 +63,8 @@ func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) 
 	}
 
 	var (
-		b         *bundle.Bundle
-		createdAt time.Time
+		b          *bundle.Bundle
+		createdAt  time.Time
 		eventCount int
 	)
 	if _, statErr := os.Stat(bundlePath); statErr == nil {

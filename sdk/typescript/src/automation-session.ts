@@ -14,6 +14,11 @@ import {
   type ActionGateInput,
   type ActionGateOptions,
 } from "./action-gate.js";
+import {
+  AgentClient,
+  tryCreateAgentClient,
+  type AgentClientOptions,
+} from "./agent-client.js";
 import { Bundle } from "./bundle.js";
 import { isCaptureEnvironment } from "./capture.js";
 import {
@@ -32,6 +37,7 @@ import {
   DEFAULT_WORKFLOW_SAVE_PATH,
   WorkflowContext,
   type WorkflowContextOptions,
+  type WorkflowEventSink,
   type WorkflowPolicyDecision,
   canonicalDigest,
   newActionId,
@@ -48,6 +54,13 @@ export interface AutomationSessionOptions extends WorkflowContextOptions {
   captureRunId?: string;
   /** Action gate mode and policy when using {@link AutomationSession.runToolAction}. */
   toolGate?: Pick<ActionGateOptions, "mode" | "policy">;
+  /**
+   * Override agent HTTP transport (tests). `null` forces local bundle I/O even
+   * when agent environment variables are set.
+   */
+  agentClient?: AgentClient | null;
+  /** Optional environment lookup for agent discovery (defaults to `process.env`). */
+  env?: Record<string, string | undefined>;
 }
 
 /** Input for {@link AutomationSession.logModelInvocation}. */
@@ -100,14 +113,34 @@ export class AutomationSession {
   private readonly savePath: string;
   private readonly toolGate: ActionGate;
   private readonly policyRecorder: PolicyDecisionRecorder;
+  private readonly agentClient?: AgentClient;
+  private readonly usesAgent: boolean;
   private activeRequestId?: string;
 
   constructor(options: AutomationSessionOptions = {}) {
-    this.ctx = new WorkflowContext(options);
+    const env = options.env ?? process.env;
+    const agentClient = resolveSessionAgentClient(options, env);
+    const eventSink: WorkflowEventSink | undefined = agentClient ?? undefined;
+    this.agentClient = agentClient;
+    this.usesAgent = agentClient !== undefined;
+
+    this.ctx = new WorkflowContext({ ...options, eventSink });
     this.captureRunId = options.captureRunId?.trim() || undefined;
     this.defaultPurposeTag = options.purposeTag?.trim() || "ai_workflow";
-    this.savePath = options.savePath ?? DEFAULT_WORKFLOW_SAVE_PATH;
+    let savePath = options.savePath ?? DEFAULT_WORKFLOW_SAVE_PATH;
     this.activeRequestId = options.requestId?.trim() || undefined;
+
+    if (agentClient) {
+      const openResult = agentClient.openSession({
+        actorId: options.actorId,
+        purposeTag: this.defaultPurposeTag,
+        bundlePath: savePath,
+      });
+      if (openResult.bundlePath) {
+        savePath = openResult.bundlePath;
+      }
+    }
+    this.savePath = savePath;
 
     this.toolGate = new ActionGate({
       bundle: this.ctx.bundle,
@@ -118,6 +151,7 @@ export class AutomationSession {
       workspaceId: options.workspaceId,
       mode: options.toolGate?.mode,
       policy: options.toolGate?.policy,
+      eventSink,
     });
     this.policyRecorder = new PolicyDecisionRecorder({
       bundle: this.ctx.bundle,
@@ -126,7 +160,13 @@ export class AutomationSession {
       actorId: options.actorId,
       orgId: options.orgId,
       workspaceId: options.workspaceId,
+      eventSink,
     });
+  }
+
+  /** True when this session emits through the local ATB Agent HTTP API. */
+  isUsingAgent(): boolean {
+    return this.usesAgent;
   }
 
   /** Open a session with auto-save enabled (typical live capture default). */
@@ -242,6 +282,9 @@ export class AutomationSession {
 
   /** Persist the bundle to disk. */
   save(savePath?: string): void {
+    if (this.usesAgent) {
+      return;
+    }
     this.ctx.bundle.save(savePath ?? this.savePath);
   }
 
@@ -259,6 +302,12 @@ export class AutomationSession {
     if (options.snapshotName !== undefined) {
       this.snapshot(options.snapshotName);
     }
+    if (this.agentClient) {
+      this.agentClient.closeSession({
+        snapshotName: options.snapshotName,
+      });
+      return;
+    }
     this.save(options.savePath);
   }
 
@@ -266,4 +315,24 @@ export class AutomationSession {
     const candidate = explicit?.trim() || this.activeRequestId;
     return candidate || undefined;
   }
+}
+
+function resolveSessionAgentClient(
+  options: AutomationSessionOptions,
+  env: Record<string, string | undefined>
+): AgentClient | undefined {
+  if (options.agentClient === null) {
+    return undefined;
+  }
+  if (options.agentClient) {
+    return options.agentClient;
+  }
+  return tryCreateAgentClient(env) ?? undefined;
+}
+
+/** @internal Construct an agent client with explicit options (tests). */
+export function createAgentClientForTest(
+  options: AgentClientOptions
+): AgentClient {
+  return new AgentClient(options);
 }

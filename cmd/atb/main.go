@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	version         = "1.11.0"
+	version         = "1.12.0"
 	verifyAlgorithm = "SHA-256||RFC8785"
 )
 
@@ -165,9 +165,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "evidence",
-				Usage:       "atb evidence --bundle <path> [--format text|json]",
-				Description: "Emit a structured local bundle evidence summary.",
-				Flags:       []string{"--bundle", "--format"},
+				Usage:       "atb evidence --bundle <path> [--format text|json] | atb evidence pack [--output json] <bundle.atb> [...]",
+				Description: "Emit a structured local bundle evidence summary or pack multiple verified bundles as JSON.",
+				Flags:       []string{"--bundle", "--format", "--output"},
 				Mutating:    false,
 			},
 			{
@@ -251,6 +251,12 @@ func usageJSON() helpOutput {
 				Name:        "mcp",
 				Usage:       "atb mcp serve",
 				Description: "Start the MCP stdio server.",
+				Mutating:    false,
+			},
+			{
+				Name:        "agent",
+				Usage:       "atb agent run",
+				Description: "Start the local ATB Agent HTTP service for capture sessions and workspace bundle listing.",
 				Mutating:    false,
 			},
 			{
@@ -364,6 +370,8 @@ func main() {
 		cmdMCP()
 	case "serve":
 		cmdServe()
+	case "agent":
+		cmdAgent()
 	case "corroborate":
 		cmdCorroborate()
 	case "doc":
@@ -406,6 +414,7 @@ Commands:
   sign --bundle <path> [--key <path>] [--out <path>] [--backend local|https-http|aws-kms|gcp-kms|vault] [--lock-wait <duration>]  Append a TOCTOU-hardened bundle signature record with crash-safe, atomic, locked writes
   verify [bundle_path] [--bundle <path>] [--profile <id|path>] [--json] [--format text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]  Verify integrity and profiles with cancellation support and the default five-minute operation timeout
   evidence --bundle <path> [--format text|json]  Emit a structured local bundle evidence summary
+  evidence pack [--output json] <bundle.atb> [<bundle2.atb> ...]  Verify bundles and emit a combined JSON evidence pack
   profiles validate [--file <path>] [--dir <path>] [--format text|json]  Validate built-in and supplied profile definitions
   inspect [bundle_path] [--bundle <path>] [--json] [--seq <n>]  Inspect bundle records in table or JSON form
   events [--json] [--profile <id>]  List canonical ATB event types
@@ -418,6 +427,7 @@ Commands:
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
   view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>]  Open the local review UI
   mcp serve         Start the MCP stdio server
+  agent run         Start the local ATB Agent HTTP service
   corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]  Fetch external corroboration receipt and append atb.corroboration.external event
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
   version           Print the ATB version
@@ -468,6 +478,8 @@ Examples:
   atb verify --with-anchor --roots ./tsa-roots.pem
   atb evidence --bundle run.atb/bundle.atb
   atb evidence --bundle run.atb/bundle.atb --format json
+  atb evidence pack examples/bundles/profiles/rag_answer-pass.atb
+  atb evidence pack bundle-a.atb bundle-b.atb --output json
   atb profiles validate
   atb profiles validate --dir ./profiles --format json
   atb inspect --bundle run.atb/bundle.atb

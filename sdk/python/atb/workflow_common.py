@@ -6,12 +6,19 @@ import hashlib
 import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from atb.bundle import Bundle
 from atb.canonicalize import canonicalize
 
 DEFAULT_WORKFLOW_SAVE_PATH = "run.atb/bundle.atb"
+
+
+class WorkflowEventSink(Protocol):
+    """Optional sink that receives workflow events instead of local bundle I/O."""
+
+    def append(self, event_type: str, payload: Mapping[str, Any]) -> None:
+        ...
 
 
 class WorkflowContext:
@@ -26,6 +33,7 @@ class WorkflowContext:
         actor_id: str | None = None,
         org_id: str | None = None,
         workspace_id: str | None = None,
+        event_sink: WorkflowEventSink | None = None,
     ) -> None:
         self.bundle = bundle if bundle is not None else Bundle()
         self.auto_save = auto_save
@@ -33,9 +41,13 @@ class WorkflowContext:
         self.actor_id = actor_id
         self.org_id = org_id
         self.workspace_id = workspace_id
+        self.event_sink = event_sink
         self._request_bootstrapped = False
 
     def emit(self, event_type: str, payload: Mapping[str, Any]) -> None:
+        if self.event_sink is not None:
+            self.event_sink.append(event_type, dict(payload))
+            return
         self.bundle.append(
             event_type,
             dict(payload),

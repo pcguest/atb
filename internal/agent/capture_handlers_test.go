@@ -21,8 +21,8 @@ func TestSessionOpenHandler(t *testing.T) {
 		validate   func(t *testing.T, rec *httptest.ResponseRecorder)
 	}{
 		{
-			name: "happy path",
-			body: `{"actor_id":"actor-1","purpose_tag":"demo","profile_id":"atb.profile.test"}`,
+			name:       "happy path",
+			body:       `{"actor_id":"actor-1","purpose_tag":"demo","profile_id":"atb.profile.test"}`,
 			wantStatus: http.StatusCreated,
 			validate: func(t *testing.T, rec *httptest.ResponseRecorder) {
 				var resp openSessionResponse

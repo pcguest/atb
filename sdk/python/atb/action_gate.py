@@ -24,6 +24,7 @@ from typing import Any, Literal, TypeVar
 from atb.bundle import Bundle
 from atb.canonicalize import canonicalize
 from atb.exceptions import ATBError
+from atb.workflow_common import WorkflowEventSink
 
 T = TypeVar("T")
 
@@ -131,6 +132,7 @@ class ActionGate:
         actor_id: str | None = None,
         org_id: str | None = None,
         workspace_id: str | None = None,
+        event_sink: WorkflowEventSink | None = None,
     ) -> None:
         if mode not in {"log_only", "enforce"}:
             raise ValueError("mode must be one of: log_only, enforce")
@@ -142,6 +144,7 @@ class ActionGate:
         self.actor_id = actor_id
         self.org_id = org_id
         self.workspace_id = workspace_id
+        self.event_sink = event_sink
 
     def run(self, action: ActionGateInput, fn: Callable[[], T]) -> T:
         """Run a synchronous action under gate policy.
@@ -231,6 +234,9 @@ class ActionGate:
         return f"act_{uuid.uuid4().hex}"
 
     def _emit(self, event_type: str, payload: dict[str, Any]) -> None:
+        if self.event_sink is not None:
+            self.event_sink.append(event_type, payload)
+            return
         self.bundle.append(
             event_type,
             payload,

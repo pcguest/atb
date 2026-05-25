@@ -11,6 +11,7 @@ bundle as review-ready for the selected profile.
 - [ ] `atb capture run` or in-process `Bundle` writer configured for the session
 - [ ] TypeScript: optional `AutomationSession` for chained model/tool hops ([automation harness](automation-harness.md))
 - [ ] Capture environment variables set (`ATB_BUNDLE_PATH`, `ATB_CAPTURE_RUN_ID`)
+- [ ] Optional: `atb agent run` for a local Agent process ([Agent guide](agent.md)); not required for CLI or SDK capture
 
 ## Per profile minimum events
 

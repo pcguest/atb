@@ -25,6 +25,7 @@ from atb.human_override_gate import (
     HumanOverrideDeniedError,
     HumanOverrideGate,
 )
+from atb.automation_session import AutomationSession, is_capture_environment
 from atb.policy_decision_recorder import PolicyDecisionActionInput, PolicyDecisionRecorder
 from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
@@ -101,7 +102,7 @@ except ModuleNotFoundError as exc:
             "Install sdk/python dependencies to use decrypt_bundle()."
         ) from _encrypt_import_error
 
-__version__ = "1.11.0"
+__version__ = "1.12.0"
 __all__ = [
     "Bundle",
     "event_types",
@@ -118,6 +119,8 @@ __all__ = [
     "HumanOverrideApprovalInput",
     "HumanOverrideDeniedError",
     "HumanOverrideGate",
+    "AutomationSession",
+    "is_capture_environment",
     "PolicyDecisionActionInput",
     "PolicyDecisionRecorder",
     "gate_langchain_tool",

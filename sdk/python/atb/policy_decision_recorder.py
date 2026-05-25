@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from atb.workflow_common import WorkflowContext, canonical_digest, new_action_id
+from atb.workflow_common import WorkflowContext, WorkflowEventSink, canonical_digest, new_action_id
 
 
 @dataclass(frozen=True)
@@ -28,6 +28,7 @@ class PolicyDecisionRecorder:
         actor_id: str | None = None,
         org_id: str | None = None,
         workspace_id: str | None = None,
+        event_sink: WorkflowEventSink | None = None,
     ) -> None:
         self.ctx = WorkflowContext(
             bundle,
@@ -36,6 +37,7 @@ class PolicyDecisionRecorder:
             actor_id=actor_id,
             org_id=org_id,
             workspace_id=workspace_id,
+            event_sink=event_sink,
         )
 
     @property

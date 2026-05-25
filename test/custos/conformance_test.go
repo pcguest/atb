@@ -11,11 +11,13 @@ import (
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/pkg/custody"
 )
 
 // TestCustosIngestConformance asserts that passing profile fixtures produce
 // stable verify.report.v1 output suitable for Custos receipt storage.
 func TestCustosIngestConformance(t *testing.T) {
+	schemaFields := verifyReportSchemaFields(t)
 	root := filepath.Join("..", "..", "examples", "bundles", "profiles")
 	entries, err := os.ReadDir(root)
 	if err != nil {
@@ -85,6 +87,29 @@ func TestCustosIngestConformance(t *testing.T) {
 					t.Errorf("custody contract missing field %q", key)
 				}
 			}
+			for key := range round {
+				if _, ok := schemaFields[key]; !ok {
+					t.Errorf("custody contract emitted field %q outside %s", key, custody.VerifyReportSchemaVersion)
+				}
+			}
 		})
 	}
+}
+
+func verifyReportSchemaFields(t *testing.T) map[string]struct{} {
+	t.Helper()
+	var schema struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	if err := json.Unmarshal(custody.VerifyReportSchemaJSON(), &schema); err != nil {
+		t.Fatalf("unmarshal verify report schema: %v", err)
+	}
+	if len(schema.Properties) == 0 {
+		t.Fatal("verify report schema has no properties")
+	}
+	fields := make(map[string]struct{}, len(schema.Properties))
+	for key := range schema.Properties {
+		fields[key] = struct{}{}
+	}
+	return fields
 }

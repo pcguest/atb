@@ -5,6 +5,11 @@ import { normalizeOptionalIdentity } from "./event.js";
 
 export const DEFAULT_WORKFLOW_SAVE_PATH = "run.atb/bundle.atb";
 
+/** Optional sink that receives workflow events instead of local bundle I/O. */
+export interface WorkflowEventSink {
+  append(eventType: string, payload: Record<string, unknown>): void;
+}
+
 /** Shared emitter options for profile workflow helpers. */
 export interface WorkflowContextOptions {
   bundle?: Bundle;
@@ -13,6 +18,8 @@ export interface WorkflowContextOptions {
   actorId?: string;
   orgId?: string;
   workspaceId?: string;
+  /** When set, events are sent to the local ATB Agent instead of the bundle file. */
+  eventSink?: WorkflowEventSink;
 }
 
 /** Policy decision shape shared by workflow gates. */
@@ -32,6 +39,7 @@ export class WorkflowContext {
   private readonly actorId?: string;
   private readonly orgId?: string;
   private readonly workspaceId?: string;
+  private readonly eventSink?: WorkflowEventSink;
   private requestBootstrapped = false;
 
   constructor(options: WorkflowContextOptions = {}) {
@@ -41,10 +49,15 @@ export class WorkflowContext {
     this.actorId = options.actorId;
     this.orgId = options.orgId;
     this.workspaceId = options.workspaceId;
+    this.eventSink = options.eventSink;
   }
 
   /** Emit one event to the bundle. */
   emit(eventType: string, payload: Record<string, unknown>): void {
+    if (this.eventSink) {
+      this.eventSink.append(eventType, payload);
+      return;
+    }
     this.bundle.append(eventType, payload, {
       actorId: this.actorId,
       orgId: this.orgId,

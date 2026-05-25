@@ -12,6 +12,7 @@ Internal design note for SDK/CLI automation work. Not a user-facing guide; see
 | `atb capture run` | Prepares bundle path, injects `ATB_BUNDLE_PATH` / `ATB_CAPTURE_RUN_ID`, runs child process, optional snapshot + verify | Process-scoped; child must write events via SDK or export JSONL for import |
 | `atb import chatlog` | Retrospective reconstruction from saved chatlogs (`generic-jsonl`, `openai-jsonl`) | One-shot import; marks bundles as retrospective |
 | `atb mcp serve` | Stdio MCP bridge: init bundle, append events, verify, PageIndex RAG tools | Host-driven tool calls; narrow surface, no auto-instrumentation of third-party MCP servers |
+| `atb agent run` | Local loopback HTTP service: `/healthz`, `/v1/info`, capture session open/append/close, and read-only workspace bundle listing | Optional capture target for SDK `AutomationSession`; MCP remains standalone — see [agent architecture](agent-architecture.md) |
 
 ### SDK profile workflow helpers (Go parity in TS + Python)
 
@@ -45,27 +46,27 @@ These emit correct event sequences but require callers to wire each hop manually
 4. **Capture env is detect-only** — SDKs can read `ATB_BUNDLE_PATH` but do not load/append to the prepared bundle automatically.
 5. **Committed gap** — `ActionGate` stops at `ai.action.executed`; `privileged_tool_action` verification expects `ai.action.committed` as well.
 
-## Chosen approach: Option A — TypeScript `AutomationSession`
+## Chosen approach: Option A — SDK `AutomationSession`
 
-**Why:** Smallest high-impact change. TypeScript already has the richest integration surface (Vercel AI middleware + profile gates). A session wrapper composes existing helpers without new event types or CLI changes.
+**Why:** Smallest high-impact change. The session wrapper composes existing helpers without new event types or profile schema changes, and now exists in both TypeScript and Python.
 
 **Scope (this session):**
 
 - `AutomationSession` in `sdk/typescript/src/automation-session.ts`
+- `AutomationSession` in `sdk/python/atb/automation_session.py`
 - Convenience methods: request bootstrap, RAG model/retrieval/response, tool action (with commit), policy decision, save/snapshot/close
 - `fromCaptureEnvironment()` to append into `atb capture run` bundles
+- Optional Agent routing through `ATB_AGENT_URL` / `ATB_AGENT_AUTO`
 - Unit tests + short guide under `docs/guides/automation-harness.md`
 
 **Non-goals:**
 
-- Python parity (future)
 - YAML/DSL config layer (Option B)
-- CLI capture harness changes (Option C)
 - New event types or verify.report.v1 / profile schema changes
 - Full orchestration framework or host-level capture
 
 **Future expansion:**
 
-- Python `AutomationSession` mirroring TS API
 - Optional bridge from `AutomationSession` to Vercel middleware for mixed profile + integration traces
 - Snapshot name validation shared with CLI
+- MCP hosted by the Agent with shared workspace state (see [agent architecture](agent-architecture.md))
