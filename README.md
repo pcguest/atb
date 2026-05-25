@@ -147,6 +147,7 @@ Six built-in obligation profiles (`atb.profile.*`) define required event sets fo
 - [CAS guide](docs/cas-guide.md)
 - [Provability ladder](docs/provability-ladder.md)
 - [LangChain integration](docs/integrations/langchain.md)
+- [LangGraph integration](docs/integrations/langgraph.md)
 - [Chatlog import](docs/integrations/chatlog-import.md)
 - [MCP integration](docs/integrations/mcp.md)
 - [WORM/S3 export](docs/integrations/worm-s3.md)

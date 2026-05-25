@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Composite demo bundle `examples/bundles/demo-workflow/` (~20-event support escalation narrative; passes `policy_decision` and `human_override`).
+- Profile workflow demo scripts under `examples/demo/` (Python and TypeScript) with CLI verify.
+- LangGraph reference integration (`examples/python/langgraph_demo.py`, `docs/integrations/langgraph.md`, optional `langgraph` Python extra).
+
+### Fixed
+- Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.
+
 ## [v1.12.0] - 2026-05-25
 
 ### Added

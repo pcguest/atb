@@ -80,9 +80,9 @@ Cross-language hash parity is locked by Go / Python / TypeScript golden tests. C
 - [x] Passing/failing fixture corpus (`examples/bundles/profiles/`, 12 files)
 - [x] S3/WORM push (client-side; bucket policy is operator responsibility)
 - [x] Local viewer with profile/CAS summary (`atb view`)
-- Viewer API: `GET /api/v1/bundle/verify/report` for full verifier JSON
-- Custos ingest conformance test (`test/custos/conformance_test.go`)
+- [x] Viewer API: `GET /api/v1/bundle/verify/report` for full verifier JSON
 - [x] Custos ingest conformance test (`test/custos/conformance_test.go`)
+- [x] `atb verify --schema` prints frozen JSON Schema (`verify.report.v1.schema.1`)
 
 ---
 
@@ -162,7 +162,7 @@ Concrete tasks (1–2 days):
 
 1. ~~Add `test/custos/conformance_test.go`~~ — done; locks custody contract on pass fixtures.
 2. Document ingest pseudocode in this file (done above) and link from `docs/roadmap.md`.
-3. Optional: `atb verify --format json --schema` flag printing JSON Schema for `VerifierReport` (machine-readable contract for Custos codegen).
+3. Optional: `atb verify --format json --schema` flag printing JSON Schema for `VerifierReport` (machine-readable contract for Custos codegen). **Shipped** as `atb verify --schema`.
 
 Do **not** expand ATB into multi-tenant storage, auth, or billing — that belongs in Custos.
 
