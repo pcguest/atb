@@ -1,9 +1,13 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Regenerate examples/bundles/demo-workflow/demo-workflow.atb (signed + snapshotted).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 OUT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ATB_BIN="${ATB_BIN:-}"
+if [[ -z "$ATB_BIN" && -x "$ROOT/atb" ]]; then
+  ATB_BIN="$ROOT/atb"
+fi
 ATB_BIN="${ATB_BIN:-atb}"
 BUNDLE="$OUT_DIR/demo-workflow.atb"
 KEY="$OUT_DIR/demo-signing-key.pem"

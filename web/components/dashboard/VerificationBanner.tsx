@@ -4,6 +4,7 @@ import { Lock, ShieldOff } from "lucide-react";
 import { useEffect } from "react";
 
 import { useBundleMetaQuery, useVerificationQuery } from "@/lib/api-client";
+import { displayBundlePath } from "@/lib/display-path";
 
 // ─── Pure / presentational ───────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ export function VerificationBanner({
         )}
         {bundlePath && (
           <span className="ml-2 hidden max-w-[36ch] truncate font-mono text-xs text-green-200 sm:inline">
-            {bundlePath}
+            {displayBundlePath(bundlePath)}
           </span>
         )}
       </div>
