@@ -86,7 +86,10 @@ jobs:
           python -m pip install -e ./sdk/python[dev]
 
       - name: Test Go packages
-        run: go test -race -v -skip TestInstalledBinarySmokeFlow ./...
+        shell: bash
+        run: |
+          go run ./scripts/generate_profile_fixtures.go
+          go test -race -v -skip TestInstalledBinarySmokeFlow $(go list ./... | grep -v '/web/node_modules/')
 
       - name: Test Python SDK
         working-directory: sdk/python
@@ -133,11 +136,11 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           go build -o /tmp/atb-e2e ./cmd/atb
-          cd web && npm ci
-          cd web && npm run build
+          npm --prefix web ci
+          npm --prefix web run build
           /tmp/atb-e2e view --no-open --port 18888 >/tmp/atb-e2e.log 2>&1 & echo $! >/tmp/atb-e2e.pid
           sleep 3
-          cd web && CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm run test:e2e -- --spec cypress/e2e/dashboard.cy.ts
+          CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm --prefix web run test:e2e -- --spec cypress/e2e/dashboard.cy.ts
           kill $(cat /tmp/atb-e2e.pid) 2>/dev/null || true
 
       - name: Notify Discord
