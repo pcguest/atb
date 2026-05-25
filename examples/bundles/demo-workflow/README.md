@@ -35,7 +35,13 @@ atb view --bundle examples/bundles/demo-workflow/demo-workflow.atb \
 ## Regenerate
 
 ```bash
-bash examples/bundles/demo-workflow/generate.sh
+./examples/bundles/demo-workflow/generate.sh
 ```
 
-Requires `atb` on PATH (or set `ATB_BIN`). The generator asserts both profiles pass before signing. Committed `demo-signing-key.pem` is a **demo-only** key — never use in production.
+Requires `atb` on PATH, or a built `./atb` at repo root (auto-detected). Set `ATB_BIN` to override. Use `./generate.sh` directly — some shells alias `bash` to policy wrappers that break `-c`.
+
+## Caveats
+
+⚠ The viewer's privacy reveal feature appends `privacy.reveal` events to the bundle on disk. For read-only demos, work on a copy or regenerate from `generate.sh`. This behavior is auditable by design but extends the chain on what would otherwise be a read action — flagged for v1.13.0 design review.
+
+See [DEMO.md](./DEMO.md) for the live narration script and tamper walkthrough.
