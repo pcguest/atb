@@ -64,7 +64,34 @@ atb view --bundle run.atb/bundle.atb
 
 `atb view` requires a build with the embedded UI; use a [GitHub Releases](https://github.com/pcguest/atb/releases) binary if `go install` serves install guidance only.
 
-Further paths: [`docs/quickstart.md`](docs/quickstart.md), [`docs/guides/capture-quickstart.md`](docs/guides/capture-quickstart.md) (`atb capture run`, `atb import chatlog`), [`docs/guides/instrumentation-checklist.md`](docs/guides/instrumentation-checklist.md).
+Further paths: [`docs/quickstart.md`](docs/quickstart.md), [`docs/guides/capture-quickstart.md`](docs/guides/capture-quickstart.md) (`atb capture run`, `atb import chatlog`), [`docs/guides/instrumentation-checklist.md`](docs/guides/instrumentation-checklist.md), [`docs/guides/agent.md`](docs/guides/agent.md) — **recommended for local desktop usage** (optional Agent + workspace capture).
+
+## ATB Agent (optional)
+
+The **ATB Agent** is an optional local background service for installed
+workflows. It is not required: the CLI, SDKs, `atb capture run`, and
+`atb view` work without it. For multiple session bundles on one machine,
+see [`docs/guides/agent.md`](docs/guides/agent.md) (first-run behaviour and configuration).
+
+Start the Agent:
+
+```bash
+atb agent run
+```
+
+**Current capabilities:** loopback HTTP only (default `127.0.0.1:6180`):
+
+- `GET /healthz` — readiness check (`{"status":"ok"}`).
+- `GET /v1/info` — ATB version, build metadata when available, and config
+  summary (`listen_addr`, `data_dir`).
+- Capture and workspace index APIs — session open/append/close and
+  `GET /v1/workspace/bundles` (read-only bundle list).
+
+Default workspace data directory: `~/.atb/agent` (override with
+`ATB_AGENT_DATA_DIR` or `agent.data_dir` in `~/.atb/config.json`).
+
+**Planned (high level):** multi-bundle viewer integration; MCP hosted by the
+Agent. See [`docs/guides/agent.md`](docs/guides/agent.md).
 
 ## Exit codes
 
@@ -102,6 +129,7 @@ cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb
 | LangChain | [`docs/integrations/langchain.md`](docs/integrations/langchain.md) |
 | Chatlog import | [`docs/integrations/chatlog-import.md`](docs/integrations/chatlog-import.md) |
 | MCP stdio bridge | [`docs/integrations/mcp.md`](docs/integrations/mcp.md) |
+| ATB Agent (local service) | [`docs/guides/agent.md`](docs/guides/agent.md) — optional; health and info endpoints today |
 | WORM / S3 export | [`docs/integrations/worm-s3.md`](docs/integrations/worm-s3.md) |
 | Queue push transport | [`docs/integrations/push-transports.md`](docs/integrations/push-transports.md) |
 | SIEM / GRC export patterns | [`docs/integrations/siem-grc.md`](docs/integrations/siem-grc.md) |
@@ -125,6 +153,7 @@ Six built-in obligation profiles (`atb.profile.*`) define required event sets fo
 - [Push transports](docs/integrations/push-transports.md)
 - [SIEM and GRC integration](docs/integrations/siem-grc.md)
 - [Capture quickstart](docs/guides/capture-quickstart.md)
+- [ATB Agent (local service)](docs/guides/agent.md)
 - [Incident review workflow](docs/guides/incident-review-workflow.md)
 - [Customer handoff workflow](docs/guides/customer-handoff-workflow.md)
 - [Compliance export](docs/compliance/export.md)
