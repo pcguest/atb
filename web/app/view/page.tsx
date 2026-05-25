@@ -108,7 +108,10 @@ export default function ViewPage() {
       {/* ── LEFT RAIL ─────────────────────────────────────────────────── */}
       <aside className="flex w-64 shrink-0 flex-col border-r border-border">
         <div className="border-b border-border px-3 py-2">
-          <p className="truncate font-mono text-xs uppercase tracking-widest text-muted-foreground">
+          <p
+            className="min-w-0 truncate font-mono text-xs uppercase tracking-widest text-muted-foreground"
+            title={displayBundlePath(metaQuery.data?.bundle_path) ?? undefined}
+          >
             ATB · {displayBundlePath(metaQuery.data?.bundle_path)}
           </p>
         </div>
@@ -130,6 +133,7 @@ export default function ViewPage() {
               onSelect={setSelectedSeq}
               onLoadMore={() => void eventsQuery.fetchNextPage()}
               disabled={!verificationValid || eventsQuery.isFetching}
+              role={role}
             />
           )}
         </div>

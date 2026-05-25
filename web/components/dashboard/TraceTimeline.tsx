@@ -2,6 +2,8 @@
 
 import { eventFamilyClass } from "@/lib/event-family";
 import type { EventRecord } from "@/lib/types";
+import { eventDisplayLabel } from "@/lib/event-labels";
+import type { DashboardRole } from "@/lib/roles";
 import { FixedSizeList as List, type ListChildComponentProps } from "react-window";
 
 type TraceTimelineProps = {
@@ -13,6 +15,7 @@ type TraceTimelineProps = {
   onSelect: (seq: number) => void;
   onLoadMore: () => void;
   disabled?: boolean;
+  role: DashboardRole;
 };
 
 type RowData = {
@@ -20,6 +23,7 @@ type RowData = {
   selectedSeq: number | null;
   onSelect: (seq: number) => void;
   disabled: boolean;
+  role: DashboardRole;
 };
 
 const rowHeight = 72;
@@ -43,7 +47,7 @@ function Row({ index, style, data }: ListChildComponentProps<RowData>) {
       >
         <div className="min-w-0">
           <div className={`truncate font-mono text-sm font-medium ${eventFamilyClass(event.type)}`}>
-            {event.type}
+            {eventDisplayLabel(event.type, data.role)}
           </div>
           <div className="truncate text-xs text-slate-300">{event.timestamp ?? "no timestamp"}</div>
         </div>
@@ -64,6 +68,7 @@ export function TraceTimeline({
   onSelect,
   onLoadMore,
   disabled = false,
+  role,
 }: TraceTimelineProps) {
   if (events.length === 0) {
     return (
@@ -81,6 +86,7 @@ export function TraceTimeline({
     selectedSeq,
     onSelect,
     disabled,
+    role,
   };
 
   return (
