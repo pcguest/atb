@@ -18,6 +18,17 @@ npx tsx ../../examples/demo/profile_workflows_demo.ts
 
 Set `ATB_BIN=/path/to/atb` when the CLI is not on `PATH`.
 
+## Timing (cold cache, script runtime)
+
+Measured on macOS with repo-root `./atb` and dependencies pre-installed:
+
+| Script | Wall time |
+|--------|-----------|
+| Python (`profile_workflows_demo.py`) | ~1 s |
+| TypeScript (`profile_workflows_demo.ts`) | ~5 s (includes cold `npx tsx` on first run) |
+
+First-time setup (venv + `pip install -e sdk/python`, or `npm install` in `sdk/typescript`) adds ~10–15 s. Both scripts finish well under 30 seconds once dependencies are installed.
+
 ## What runs
 
 1. **BackgroundJobTracker** — schedules and runs a nightly analytics export job.
