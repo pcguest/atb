@@ -103,7 +103,8 @@ func TestACPControlPlaneGate(t *testing.T) {
 				if violationProfile.Pass {
 					t.Fatalf("expected profile failure, got warnings %v", violationProfile.RequiredWarnings)
 				}
-				if !hasCriticalFailure(violationProfile.CriticalFailures, "missing_event", "ai.action.precommit missing required fields") {
+				precommitType := acpPrecommitEventType(profile.profileID)
+				if !hasCriticalFailure(violationProfile.CriticalFailures, "missing_event", precommitType+" missing required fields") {
 					t.Fatalf("expected missing precommit critical failure, got %+v", violationProfile.CriticalFailures)
 				}
 
@@ -114,7 +115,7 @@ func TestACPControlPlaneGate(t *testing.T) {
 				if violationTrustReport.Gate.Status != trust.StatusFail {
 					t.Fatalf("expected failing trust gate status, got %q", violationTrustReport.Gate.Status)
 				}
-				if !hasTrustCheckDetail(violationTrustReport, "obligation_profile", "missing_event: ai.action.precommit missing required fields") {
+				if !hasTrustCheckDetail(violationTrustReport, "obligation_profile", "missing_event: "+precommitType+" missing required fields") {
 					t.Fatalf("expected trust report missing precommit failure, got %+v", violationTrustReport.Categories)
 				}
 				switch profile.profileID {
@@ -167,6 +168,24 @@ func TestACPControlPlaneGate(t *testing.T) {
 	}
 }
 
+func acpPrecommitEventType(profileID string) string {
+	switch profileID {
+	case profileIDDataExport:
+		return event.TypeDataExportPrecommit
+	default:
+		return event.TypeAIActionPrecommit
+	}
+}
+
+func acpExecutedEventType(profileID string) string {
+	switch profileID {
+	case profileIDDataExport:
+		return event.TypeDataExportExecuted
+	default:
+		return event.TypeAIActionExecuted
+	}
+}
+
 func appendACPControlPlaneEvents(
 	t *testing.T,
 	bundlePath string,
@@ -177,6 +196,8 @@ func appendACPControlPlaneEvents(
 	t.Helper()
 
 	actionID := "act-acp-" + profile.name + "-" + suffix
+	precommitType := acpPrecommitEventType(profile.profileID)
+	executedType := acpExecutedEventType(profile.profileID)
 
 	appendEvent(t, bundlePath, event.TypeAIRequestReceived, map[string]any{
 		"request_id":    "req-acp-" + profile.name + "-" + suffix,
@@ -184,7 +205,7 @@ func appendACPControlPlaneEvents(
 		"purpose_tag":   profile.purposeTag,
 	})
 	if includePrecommit {
-		appendEvent(t, bundlePath, event.TypeAIActionPrecommit, map[string]any{
+		appendEvent(t, bundlePath, precommitType, map[string]any{
 			"action_id":                actionID,
 			"action_type":              profile.actionType,
 			"action_parameters_digest": "sha256:params-acp-" + profile.name + "-" + suffix,
@@ -200,7 +221,7 @@ func appendACPControlPlaneEvents(
 		"subject_id_hash":       "subject-acp-" + profile.name + "-" + suffix,
 		"action_id":             actionID,
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
+	appendEvent(t, bundlePath, executedType, map[string]any{
 		"action_id":           actionID,
 		"execution_outcome":   "success",
 		"tool_receipt_digest": "sha256:tool-receipt-acp-" + profile.name + "-" + suffix,
@@ -212,11 +233,13 @@ func appendACPControlPlaneEvents(
 		"justification_digest": "sha256:justification-acp-" + profile.name + "-" + suffix,
 		"action_id":            actionID,
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
-		"action_id":           actionID,
-		"commit_outcome":      "success",
-		"sink_receipt_digest": "sha256:sink-receipt-acp-" + profile.name + "-" + suffix,
-	})
+	if profile.profileID == profileIDPrivilegedToolAction {
+		appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
+			"action_id":           actionID,
+			"commit_outcome":      "success",
+			"sink_receipt_digest": "sha256:sink-receipt-acp-" + profile.name + "-" + suffix,
+		})
+	}
 }
 
 func verifyACPControlPlaneBundle(t *testing.T, bundlePath string, profileID string) verify.Report {

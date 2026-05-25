@@ -46,6 +46,20 @@ export { Bundle, ATBVerificationError } from "./bundle.js";
 export type { SignatureEvidence, VerifyResult } from "./bundle.js";
 export * from "./eventTypes.js";
 export { ActionGate, ActionGateDeniedError } from "./action-gate.js";
+export {
+  BackgroundJobTracker,
+} from "./background-job-tracker.js";
+export { DataExportGate, DataExportDeniedError } from "./data-export-gate.js";
+export { HumanOverrideGate, HumanOverrideDeniedError } from "./human-override-gate.js";
+export { PolicyDecisionRecorder } from "./policy-decision-recorder.js";
+export {
+  WorkflowContext,
+  actorIdHash,
+  canonicalDigest,
+  newActionId,
+  newJobId,
+  valueDigest,
+} from "./workflow-common.js";
 export { EncryptError, decryptBundle, decryptRaw, encryptBundle, encryptRaw } from "./encrypt.js";
 export { computeHash, chainEvents, GENESIS_HASH } from "./hash.js";
 export { canonicalize } from "./canonicalize.js";
@@ -58,6 +72,30 @@ export type {
   ActionGateMode,
   ActionGateOptions,
 } from "./action-gate.js";
+export type {
+  BackgroundJobScheduleInput,
+  BackgroundJobTrackerOptions,
+} from "./background-job-tracker.js";
+export type {
+  DataExportApproval,
+  DataExportGateOptions,
+  DataExportInput,
+  DataExportGateMode,
+} from "./data-export-gate.js";
+export type {
+  HumanOverrideActionInput,
+  HumanOverrideApprovalInput,
+  HumanOverrideGateOptions,
+  HumanOverrideGateMode,
+} from "./human-override-gate.js";
+export type {
+  PolicyDecisionActionInput,
+  PolicyDecisionRecorderOptions,
+} from "./policy-decision-recorder.js";
+export type {
+  WorkflowContextOptions,
+  WorkflowPolicyDecision,
+} from "./workflow-common.js";
 export type { AppendIdentityOptions, Event } from "./event.js";
 export type {
   ATBMiddleware,

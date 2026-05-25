@@ -165,6 +165,11 @@ func newPolicyDecisionBundle(t testing.TB) *bundle.Bundle {
 		"actor_id_hash": "actor-hash",
 		"purpose_tag":   "policy_decision",
 	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+		"action_id":                "act-1",
+		"action_type":              "approve_change",
+		"action_parameters_digest": "params-digest",
+	}, "2026-03-27T12:00:30Z")
 	appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
 		"policy_id":             "pol-1",
 		"policy_version":        "2026-03",

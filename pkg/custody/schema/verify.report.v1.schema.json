@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://atb.dev/schemas/verify.report.v1.schema.1.json",
+  "title": "ATB VerifierReport",
+  "description": "Stable automation contract for atb verify --format json (verify.report.v1).",
+  "type": "object",
+  "required": [
+    "report_version",
+    "bundle_path",
+    "profile_id",
+    "pass",
+    "gate_result",
+    "critical_failures",
+    "required_warnings",
+    "informational_notes",
+    "residual_risk"
+  ],
+  "properties": {
+    "report_version": {
+      "type": "string",
+      "const": "verify.report.v1"
+    },
+    "bundle_path": { "type": "string" },
+    "retrospective": { "type": "boolean" },
+    "profile_id": { "type": "string" },
+    "profile_version": { "type": "integer", "minimum": 1 },
+    "pass": { "type": "boolean" },
+    "gate_result": {
+      "type": "object",
+      "required": ["pass", "chain_valid", "profile_pass", "anchor_required"],
+      "properties": {
+        "pass": { "type": "boolean" },
+        "chain_valid": { "type": "boolean" },
+        "profile_pass": { "type": "boolean" },
+        "anchor_required": { "type": "boolean" },
+        "anchor_pass": { "type": ["boolean", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "cas_score": { "type": "number" },
+    "cas_grade": {
+      "type": "string",
+      "enum": ["High", "Medium", "Low", "Insufficient", ""]
+    },
+    "corroboration_bonus": { "type": "number" },
+    "effective_score": { "type": "number" },
+    "sub_scores": {
+      "type": "object",
+      "additionalProperties": { "type": "number" }
+    },
+    "critical_failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "detail"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string" },
+          "detail": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "obligations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "severity", "status"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "type": "string" },
+          "event_type": { "type": "string" },
+          "severity": { "type": "string" },
+          "status": { "type": "string" },
+          "message": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "required_warnings": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "informational_notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "exclusions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "signatures": { "type": "array" },
+    "provability_gaps": { "type": "array" },
+    "residual_risk": {
+      "type": "object",
+      "required": ["level"],
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High", "Critical", "Unknown", ""]
+        },
+        "drivers": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recommended_next_evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

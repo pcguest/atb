@@ -9,23 +9,26 @@ import (
 const VerifyReportVersion = "verify.report.v1"
 
 type VerifierReport struct {
-	ReportVersion   string                `json:"report_version"`
-	BundlePath      string                `json:"bundle_path"`
-	Retrospective   bool                  `json:"retrospective,omitempty"`
-	ProfileID       string                `json:"profile_id"`
-	Pass            bool                  `json:"pass"`
-	GateResult      GateResult            `json:"gate_result"`
-	CASScore        float64               `json:"cas_score"`
-	CASGrade        string                `json:"cas_grade,omitempty"`
-	SubScores       map[string]float64    `json:"sub_scores,omitempty"`
-	Failures        []ReportFailure       `json:"critical_failures"`
-	Obligations     []ObligationResult    `json:"obligations,omitempty"`
-	Warnings        []string              `json:"required_warnings"`
-	Notes           []string              `json:"informational_notes"`
-	Exclusions      []string              `json:"exclusions,omitempty"`
-	Signatures      []SignatureProvenance `json:"signatures,omitempty"`
-	ProvabilityGaps []ProvabilityGap      `json:"provability_gaps,omitempty"`
-	ResidualRisk    ResidualRiskReport    `json:"residual_risk"`
+	ReportVersion      string                `json:"report_version"`
+	BundlePath         string                `json:"bundle_path"`
+	Retrospective      bool                  `json:"retrospective,omitempty"`
+	ProfileID          string                `json:"profile_id"`
+	ProfileVersion     int                   `json:"profile_version,omitempty"`
+	Pass               bool                  `json:"pass"`
+	GateResult         GateResult            `json:"gate_result"`
+	CASScore           float64               `json:"cas_score"`
+	CASGrade           string                `json:"cas_grade,omitempty"`
+	CorroborationBonus float64               `json:"corroboration_bonus,omitempty"`
+	EffectiveScore     float64               `json:"effective_score,omitempty"`
+	SubScores          map[string]float64    `json:"sub_scores,omitempty"`
+	Failures           []ReportFailure       `json:"critical_failures"`
+	Obligations        []ObligationResult    `json:"obligations,omitempty"`
+	Warnings           []string              `json:"required_warnings"`
+	Notes              []string              `json:"informational_notes"`
+	Exclusions         []string              `json:"exclusions,omitempty"`
+	Signatures         []SignatureProvenance `json:"signatures,omitempty"`
+	ProvabilityGaps    []ProvabilityGap      `json:"provability_gaps,omitempty"`
+	ResidualRisk       ResidualRiskReport    `json:"residual_risk"`
 }
 
 type ReportFailure struct {
@@ -51,8 +54,8 @@ func ReportFromVerify(r Report) VerifierReport {
 		Notes:         []string{},
 		ResidualRisk: ResidualRiskReport{
 			Level:                   r.ResidualRisk.Level,
-			Drivers:                 []string{},
-			RecommendedNextEvidence: []string{},
+			Drivers:                 append([]string(nil), r.ResidualRisk.Drivers...),
+			RecommendedNextEvidence: append([]string(nil), r.ResidualRisk.RecommendedNextEvidence...),
 		},
 	}
 
@@ -67,6 +70,10 @@ func ReportFromVerify(r Report) VerifierReport {
 	if r.CAS != nil {
 		report.CASScore = r.CAS.Overall
 		report.CASGrade = r.CAS.Grade
+		if r.CAS.CorroborationBonus != 0 {
+			report.CorroborationBonus = r.CAS.CorroborationBonus
+			report.EffectiveScore = r.CAS.EffectiveScore
+		}
 		if len(r.CAS.SubScores) > 0 {
 			report.SubScores = make(map[string]float64, len(r.CAS.SubScores))
 			for key, value := range r.CAS.SubScores {
@@ -82,6 +89,7 @@ func ReportFromVerify(r Report) VerifierReport {
 	profile := r.Profiles[0]
 	report.GateResult = gateResultFromVerify(r, profile.Pass)
 	report.ProfileID = profile.ProfileID
+	report.ProfileVersion = profile.Version
 	report.Pass = report.GateResult.Pass
 	report.Failures = make([]ReportFailure, 0, len(profile.CriticalFailures))
 	for _, failure := range profile.CriticalFailures {

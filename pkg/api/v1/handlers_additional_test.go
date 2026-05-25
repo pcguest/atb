@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 func createRichTestBundle(t *testing.T) (string, *bundle.Bundle) {
@@ -777,6 +778,44 @@ func TestProfileAndVerifyEndpointContracts(t *testing.T) {
 		t.Fatalf("warnings must be a non-nil array, got nil")
 	}
 
+	// GET /api/v1/bundle/verify/report without report → 204.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/bundle/verify/report", nil)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("verify report with no report: got %d want %d", rr.Code, http.StatusNoContent)
+	}
+
+	fullReport := verifypkg.VerifierReport{
+		ReportVersion: verifypkg.VerifyReportVersion,
+		ProfileID:     "atb.profile.rag_answer",
+		Pass:          true,
+		GateResult: verifypkg.GateResult{
+			Pass:        true,
+			ChainValid:  true,
+			ProfilePass: true,
+		},
+		CASScore: 0.75,
+		CASGrade: "Medium",
+	}
+	_, handlerWithFullReport := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		RevealAuthToken: "test-token",
+		ProfileReport:   preReport,
+		VerifierReport:  &fullReport,
+	})
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/bundle/verify/report", nil)
+	rr = httptest.NewRecorder()
+	handlerWithFullReport.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("verify report with report: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	gotFull := decodeResponseJSON[verifypkg.VerifierReport](t, rr)
+	if gotFull.ReportVersion != verifypkg.VerifyReportVersion {
+		t.Fatalf("report_version = %q want %q", gotFull.ReportVersion, verifypkg.VerifyReportVersion)
+	}
+
 	// Tamper mode: profile and verify both return 403.
 	_, tamperHandler := buildTestAPIServer(t, APIConfig{
 		BundlePath:      bundlePath,
@@ -789,6 +828,7 @@ func TestProfileAndVerifyEndpointContracts(t *testing.T) {
 		path   string
 	}{
 		{http.MethodGet, "/api/v1/bundle/profile"},
+		{http.MethodGet, "/api/v1/bundle/verify/report"},
 		{http.MethodPost, "/api/v1/bundle/verify"},
 	} {
 		req := httptest.NewRequest(tc.method, tc.path, nil)

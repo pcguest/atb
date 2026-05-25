@@ -127,6 +127,11 @@ func TestIntegrationProfiles_PolicyDecision(t *testing.T) {
 		"actor_id_hash": "actor-policy-001",
 		"purpose_tag":   "policy_decision",
 	})
+	appendEvent(t, bundlePath, event.TypeAIActionPrecommit, map[string]any{
+		"action_id":                "act-policy-001",
+		"action_type":              "approve_change",
+		"action_parameters_digest": "sha256:params-policy-001",
+	})
 	appendEvent(t, bundlePath, event.TypeAIPolicyDecision, map[string]any{
 		"policy_id":             "policy-001",
 		"policy_version":        "2026-04",
@@ -142,9 +147,6 @@ func TestIntegrationProfiles_PolicyDecision(t *testing.T) {
 	requireSingleProfileResult(t, result)
 	if !result.Profiles[0].Pass {
 		t.Fatalf("expected profile pass, got failures %+v", result.Profiles[0].CriticalFailures)
-	}
-	if !containsString(result.Profiles[0].RequiredWarnings, "ai.action.precommit recommended to bind policy to a pending action") {
-		t.Fatalf("expected precommit recommendation warning, got %v", result.Profiles[0].RequiredWarnings)
 	}
 	if result.CAS == nil {
 		t.Fatalf("expected CAS for %q", profileIDPolicyDecision)

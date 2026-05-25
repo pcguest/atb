@@ -17,6 +17,15 @@ Quick start::
 from atb.bundle import Bundle
 from . import event_types
 from atb.action_gate import ActionGate, ActionGateDecision, ActionGateDeniedError, ActionGateInput
+from atb.background_job_tracker import BackgroundJobScheduleInput, BackgroundJobTracker
+from atb.data_export_gate import DataExportDeniedError, DataExportGate, DataExportInput
+from atb.human_override_gate import (
+    HumanOverrideActionInput,
+    HumanOverrideApprovalInput,
+    HumanOverrideDeniedError,
+    HumanOverrideGate,
+)
+from atb.policy_decision_recorder import PolicyDecisionActionInput, PolicyDecisionRecorder
 from atb.event import Event
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
@@ -100,6 +109,17 @@ __all__ = [
     "ActionGateDeniedError",
     "ActionGateInput",
     "ActionGateDecision",
+    "BackgroundJobScheduleInput",
+    "BackgroundJobTracker",
+    "DataExportDeniedError",
+    "DataExportGate",
+    "DataExportInput",
+    "HumanOverrideActionInput",
+    "HumanOverrideApprovalInput",
+    "HumanOverrideDeniedError",
+    "HumanOverrideGate",
+    "PolicyDecisionActionInput",
+    "PolicyDecisionRecorder",
     "gate_langchain_tool",
     "Event",
     "ATBError",

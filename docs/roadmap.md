@@ -12,6 +12,7 @@ otherwise.
 | v1.11.0 (current) | Hash-chained NDJSON; Ed25519 and ECDSA-P256 signatures; RFC 3161 anchoring; six obligation profiles; Capture v1 (`capture run`, `import chatlog`); corroboration events; WORM export and queue push; MCP transport; AES-256-GCM encryption; Go, Python, and TypeScript SDKs | Shipped |
 | Q2 2026 | Obligation-profile DSL v1 formalisation; verifier report v1 structured output; privileged-action and data-export profiles end-to-end | Shipped |
 | Q3 2026 | Temporal ordering gates; CAS v1 formalisation; source signatures for policy gate; provability ladder in verifier output | Scoped |
+| Custos (separate product) | Hosted custodian-of-record: ingest, WORM receipts, auditor portal, retention | Planned — see [custos-handoff.md](./custos-handoff.md) |
 
 The Completeness Assurance Score is a structural score over what a bundle
 contains. It is not an audit opinion. A high CAS indicates that the expected

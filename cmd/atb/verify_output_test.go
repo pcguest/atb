@@ -128,6 +128,47 @@ func TestRenderVerifyTerminalReport_PrintsAnchorStates(t *testing.T) {
 	}
 }
 
+func TestRenderVerifyTerminalReport_PrintsSummary(t *testing.T) {
+	var output bytes.Buffer
+
+	renderVerifyTerminalReport(&output, verifypkg.Report{
+		BundlePath: "bundle.atb",
+		Integrity:  verifypkg.IntegrityResult{ChainValid: true},
+		Profiles: []verifypkg.ProfileResult{{
+			ProfileID: "atb.profile.rag_answer",
+			Pass:      false,
+			CriticalFailures: []verifypkg.CriticalFailure{{
+				Kind:   "missing_event",
+				Detail: "required event type not present: ai.model.invoked",
+			}},
+		}},
+		CAS: &verifypkg.CASResult{
+			Overall: 0.18,
+			Grade:   "Insufficient",
+		},
+		ResidualRisk: verifypkg.ResidualRisk{
+			Level:   "High",
+			Drivers: []string{"EC", "SC"},
+		},
+		Exclusions: []string{"does not prove retrieval completeness"},
+	})
+
+	rendered := output.String()
+	for _, want := range []string{
+		"Summary\n",
+		"Integrity: PASS",
+		"Profile:   FAIL",
+		"CAS:       0.18 (Insufficient)",
+		"Issues\n",
+		"required event type not present: ai.model.invoked",
+		"Exclusions: 1 declared blind spot(s)",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected summary output to contain %q, got:\n%s", want, rendered)
+		}
+	}
+}
+
 func TestRenderVerifyTerminalReport_PrintsInformationalNotes(t *testing.T) {
 	var output bytes.Buffer
 

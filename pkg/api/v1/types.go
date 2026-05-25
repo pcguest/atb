@@ -104,6 +104,7 @@ type ProvabilityGapDTO struct {
 // POST /api/v1/bundle/verify runs (or re-runs) verify and returns a fresh summary.
 type ProfileReportSummary struct {
 	ProfileID          string              `json:"profile_id"`
+	ProfileVersion     int                 `json:"profile_version,omitempty"`
 	Pass               bool                `json:"pass"`
 	ChainValid         bool                `json:"chain_valid"`
 	AnchorStatus       string              `json:"anchor_status"`
@@ -112,6 +113,8 @@ type ProfileReportSummary struct {
 	SubScores          map[string]float64  `json:"sub_scores,omitempty"`
 	CriticalFailures   []FailureDTO        `json:"critical_failures"`
 	Warnings           []string            `json:"warnings"`
+	Exclusions         []string            `json:"exclusions,omitempty"`
+	ResidualRiskLevel  string              `json:"residual_risk_level,omitempty"`
 	CorroborationBonus float64             `json:"corroboration_bonus,omitempty"`
 	EffectiveScore     float64             `json:"effective_score,omitempty"`
 	ProvabilityGaps    []ProvabilityGapDTO `json:"provability_gaps,omitempty"`

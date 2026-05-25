@@ -16,6 +16,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/push"
 	verifypkg "github.com/pcguest/atb/internal/verify"
+	custodypkg "github.com/pcguest/atb/pkg/custody"
 )
 
 var errVerifyHelp = errors.New("verify help requested")
@@ -33,6 +34,8 @@ type verifyCLIConfig struct {
 	RootsPath               string
 	StrictSourceSignatures  bool
 	CorroborationPolicyPath string
+	Schema                  bool
+	SchemaOut               string
 }
 
 type verifySelection struct {
@@ -62,6 +65,10 @@ func runVerify(args []string, stdout, stderr io.Writer) int {
 			printVerifyUsage(stderr)
 		}
 		return exitUserError
+	}
+
+	if cfg.Schema {
+		return writeVerifySchema(cfg, stdout, stderr)
 	}
 
 	// --remote: download from S3 and stream-verify, then check key hash.
@@ -365,6 +372,16 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.RemoteURI = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--remote="):
 			cfg.RemoteURI = strings.TrimSpace(strings.TrimPrefix(arg, "--remote="))
+		case arg == "--schema":
+			cfg.Schema = true
+		case arg == "--schema-out":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --schema-out")
+			}
+			i++
+			cfg.SchemaOut = filepath.Clean(strings.TrimSpace(args[i]))
+		case strings.HasPrefix(arg, "--schema-out="):
+			cfg.SchemaOut = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--schema-out=")))
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -389,12 +406,46 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 }
 
 func printVerifyUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--remote s3://bucket/key] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--remote s3://bucket/key] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--schema [--schema-out <path>]] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]")
+	fmt.Fprintln(w, "  --format json   stable automation contract: pass/fail, CAS (cas_score, cas_grade, sub_scores EC–GC), critical_failures")
+	fmt.Fprintln(w, "  --schema        print frozen JSON Schema for verify.report.v1 (machine-readable custody contract)")
+	fmt.Fprintln(w, "  --schema-out    write JSON Schema to path instead of stdout")
+	fmt.Fprintln(w, "  --json          diagnostic report with nested integrity, anchoring, corroboration_bonus, effective_score")
 	fmt.Fprintln(w, "  --remote s3://bucket/prefix/sha256-<hash>.atb  stream-verify a bundle stored on S3; checks key hash against computed head hash")
 	fmt.Fprintln(w, "  --with-anchor  verify RFC 3161 timestamp token: digest, cert chain, and signature")
 	fmt.Fprintln(w, "  --with-snapshot-check  verify each atb.snapshot bundle_hash against the recorded bundle prefix")
 	fmt.Fprintln(w, "  --roots <pem-file>   PEM file containing trusted root certificates for TSA chain verification (default: system roots)")
 	fmt.Fprintln(w, "  --corroboration-policy <json-file>   JSON file with CorroborationPolicy overrides (requires --with-anchor; default: built-in policy)")
+	fmt.Fprintln(w, "")
+	fmt.Fprintln(w, "CAS sub-scores: EC (event coverage), FC (field completeness), RC (relation consistency),")
+	fmt.Fprintln(w, "  TC (temporal consistency), SC (source commitment), XC (external corroboration),")
+	fmt.Fprintln(w, "  AC (anchor coverage), GC (gating completeness). See docs/cas-guide.md.")
+}
+
+func writeVerifySchema(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
+	schema := custodypkg.VerifyReportSchemaJSON()
+	if cfg.SchemaOut != "" {
+		if err := os.WriteFile(cfg.SchemaOut, schema, 0o644); err != nil {
+			fmt.Fprintf(stderr, "atb verify: write schema: %v\n", err)
+			return exitSystemError
+		}
+		if !cfg.Quiet {
+			fmt.Fprintf(stdout, "schema_version: %s\nschema_sha256: %s\nschema_path: %s\n",
+				custodypkg.VerifyReportSchemaVersion,
+				custodypkg.VerifyReportSchemaSHA256(),
+				cfg.SchemaOut,
+			)
+		}
+		return exitSuccess
+	}
+	if _, err := stdout.Write(schema); err != nil {
+		fmt.Fprintf(stderr, "atb verify: write schema: %v\n", err)
+		return exitSystemError
+	}
+	if len(schema) > 0 && schema[len(schema)-1] != '\n' {
+		_, _ = stdout.Write([]byte("\n"))
+	}
+	return exitSuccess
 }
 
 func verificationExitCode(report verifypkg.Report) int {

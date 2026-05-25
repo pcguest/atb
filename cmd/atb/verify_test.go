@@ -912,3 +912,29 @@ func buildUnrelatedRootPEM(t testing.TB) []byte {
 	}
 	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 }
+
+func TestRunVerify_SchemaOutput(t *testing.T) {
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--schema"}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("exit=%d stderr=%q", exitCode, stderr.String())
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &doc); err != nil {
+		t.Fatalf("schema is not valid JSON: %v", err)
+	}
+	if doc["$schema"] == nil {
+		t.Fatal("schema missing $schema")
+	}
+
+	dir := t.TempDir()
+	outPath := filepath.Join(dir, "verify.report.schema.json")
+	exitCode = runVerify([]string{"--schema", "--schema-out", outPath}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("schema-out exit=%d", exitCode)
+	}
+	if _, err := os.Stat(outPath); err != nil {
+		t.Fatalf("schema file missing: %v", err)
+	}
+}

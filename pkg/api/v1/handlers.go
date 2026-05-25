@@ -50,7 +50,8 @@ type APIConfig struct {
 	RevealRateLimit  int
 	RevealRateWindow time.Duration
 	ProfileReport    *ProfileReportSummary // optional; pre-computed at startup via --profile
-	ProfilePath      string                // optional; re-used by POST /api/v1/bundle/verify
+	VerifierReport   *verifypkg.VerifierReport
+	ProfilePath      string // optional; re-used by POST /api/v1/bundle/verify
 }
 
 // APIServer serves dashboard data from a verified (or failed-verification) bundle snapshot.
@@ -64,6 +65,7 @@ type APIServer struct {
 	revealRateWindow   time.Duration
 	revealRateCounters map[string]revealRateCounter
 	profileReport      *ProfileReportSummary
+	verifierReport     *verifypkg.VerifierReport
 	profilePath        string
 	mu                 sync.Mutex
 	rateMu             sync.Mutex
@@ -96,6 +98,7 @@ func NewAPIServer(cfg APIConfig) *APIServer {
 		revealRateWindow:   revealRateWindow,
 		revealRateCounters: make(map[string]revealRateCounter),
 		profileReport:      cfg.ProfileReport,
+		verifierReport:     cfg.VerifierReport,
 		profilePath:        cfg.ProfilePath,
 	}
 }
@@ -108,6 +111,7 @@ func (s *APIServer) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/bundle/graph", s.handleBundleGraph)
 	mux.HandleFunc("/api/v1/bundle/profile", s.handleBundleProfile)
 	mux.HandleFunc("/api/v1/bundle/verify", s.handleBundleVerify)
+	mux.HandleFunc("/api/v1/bundle/verify/report", s.handleBundleVerifyReport)
 	mux.HandleFunc("/api/v1/privacy/reveal", s.handlePrivacyReveal)
 }
 
@@ -470,11 +474,46 @@ func (s *APIServer) handleBundleVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	summary := verifyReportToSummary(*report)
+	fullReport := verifypkg.ReportFromVerify(*report)
 	s.mu.Lock()
 	s.profileReport = &summary
+	s.verifierReport = &fullReport
 	s.mu.Unlock()
 
 	writeJSON(w, http.StatusOK, summary)
+}
+
+// @OpenAPI
+// @Summary      Get full verifier report
+// @Description  Returns the stable VerifierReport (verify.report.v1) from the last profile evaluation.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  verifypkg.VerifierReport
+// @Success      204  "No verifier report available; run POST /api/v1/bundle/verify first"
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/bundle/verify/report [get]
+func (s *APIServer) handleBundleVerifyReport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
+	if !s.requireVerified(w) {
+		return
+	}
+
+	s.mu.Lock()
+	report := s.verifierReport
+	s.mu.Unlock()
+
+	if report == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	writeJSON(w, http.StatusOK, report)
 }
 
 // verifyReportToSummary converts an internal verify.Report to the API summary shape.
@@ -504,6 +543,7 @@ func verifyReportToSummary(r verifypkg.Report) ProfileReportSummary {
 	if len(r.Profiles) > 0 {
 		p := r.Profiles[0]
 		summary.ProfileID = p.ProfileID
+		summary.ProfileVersion = p.Version
 		summary.Pass = r.Integrity.ChainValid && p.Pass
 		for _, f := range p.CriticalFailures {
 			summary.CriticalFailures = append(summary.CriticalFailures, FailureDTO{Kind: f.Kind, Detail: f.Detail})
@@ -521,6 +561,13 @@ func verifyReportToSummary(r verifypkg.Report) ProfileReportSummary {
 				ClosedWhen: gap.ClosedWhen,
 			}
 		}
+	}
+
+	if len(r.Exclusions) > 0 {
+		summary.Exclusions = append([]string(nil), r.Exclusions...)
+	}
+	if r.ResidualRisk.Level != "" {
+		summary.ResidualRiskLevel = r.ResidualRisk.Level
 	}
 
 	return summary

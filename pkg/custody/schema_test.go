@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: MIT
+package custody_test
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/pcguest/atb/pkg/custody"
+)
+
+func TestVerifyReportSchemaFrozen(t *testing.T) {
+	raw := custody.VerifyReportSchemaJSON()
+	if len(raw) == 0 {
+		t.Fatal("empty schema")
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		t.Fatalf("unmarshal schema: %v", err)
+	}
+	if doc["$id"] == nil {
+		t.Fatal("schema missing $id")
+	}
+	if custody.VerifyReportSchemaVersion == "" {
+		t.Fatal("empty schema version")
+	}
+	if custody.VerifyReportSchemaSHA256() == "" {
+		t.Fatal("empty schema hash")
+	}
+	if len(custody.VerifyReportSchemaSHA256()) != 64 {
+		t.Fatalf("schema hash length = %d", len(custody.VerifyReportSchemaSHA256()))
+	}
+}

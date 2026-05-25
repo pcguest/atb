@@ -134,6 +134,7 @@ Six built-in obligation profiles (`atb.profile.*`) define required event sets fo
 - [CLI flag reference](docs/config.md)
 - [Key management](docs/key-management.md)
 - [Roadmap](docs/roadmap.md)
+- [Custos development handoff](docs/custos-handoff.md)
 - [Changelog](CHANGELOG.md)
 
 ## Attribution

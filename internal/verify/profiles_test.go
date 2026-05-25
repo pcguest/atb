@@ -517,3 +517,134 @@ func TestRAGAnswerSubScores_GCIsFixed(t *testing.T) {
 		t.Fatalf("ragAnswerSubScores GC = %v, want %v", got, want)
 	}
 }
+
+func TestDataExport_AllCriticalPresent(t *testing.T) {
+	result := (&DataExportProfile{}).Evaluate(newDataExportBundle(t).Records)
+	if !result.Pass {
+		t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+	}
+}
+
+func TestDataExport_MissingPrecommit(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id": "req-1", "actor_id_hash": "actor", "purpose_tag": "data_export",
+	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, event.TypeAIPolicyDecision, map[string]any{
+		"policy_id": "pol-1", "policy_version": "2026-03", "decision": "allow",
+		"decision_reason_codes": []any{"ok"}, "subject_id_hash": "sub", "action_id": "act-1",
+	}, "2026-03-27T12:01:00Z")
+	appendVerifyRecord(t, b, event.TypeDataExportExecuted, map[string]any{
+		"action_id": "act-1", "execution_outcome": "success", "tool_receipt_digest": "rcpt",
+	}, "2026-03-27T12:02:00Z")
+
+	result := (&DataExportProfile{}).Evaluate(b.Records)
+	if result.Pass {
+		t.Fatal("expected profile failure when data.export.precommit is missing")
+	}
+	if !hasFailure(result.CriticalFailures, "missing_event", "data.export.precommit") {
+		t.Fatalf("expected missing precommit failure, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestDataExport_RelationViolation(t *testing.T) {
+	b := newDataExportBundle(t)
+	data := dataMap(b.Records[len(b.Records)-2].Event.Data)
+	data["action_id"] = "act-mismatch"
+
+	result := (&DataExportProfile{}).Evaluate(b.Records)
+	if !hasFailure(result.CriticalFailures, "relation_violation", "execution_after_authorization") {
+		t.Fatalf("expected relation violation, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestPolicyDecision_AllCriticalPresent(t *testing.T) {
+	result := (&PolicyDecisionProfile{}).Evaluate(newPolicyDecisionBundle(t).Records)
+	if !result.Pass {
+		t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+	}
+}
+
+func TestPolicyDecision_MissingPolicyDecision(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id": "req-1", "actor_id_hash": "actor", "purpose_tag": "policy_decision",
+	}, "2026-03-27T12:00:00Z")
+
+	result := (&PolicyDecisionProfile{}).Evaluate(b.Records)
+	if result.Pass {
+		t.Fatal("expected profile failure when ai.policy.decision is missing")
+	}
+	if !hasFailure(result.CriticalFailures, "missing_event", "ai.policy.decision") {
+		t.Fatalf("expected missing policy decision failure, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestHumanOverride_AllCriticalPresent(t *testing.T) {
+	result := (&HumanOverrideProfile{}).Evaluate(newHumanOverrideBundle(t).Records)
+	if !result.Pass {
+		t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+	}
+}
+
+func TestHumanOverride_MissingApproval(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{
+		"request_id": "req-1", "actor_id_hash": "actor", "purpose_tag": "human_override",
+	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, event.TypeAIActionPrecommit, map[string]any{
+		"action_id": "act-1", "action_type": "override", "action_parameters_digest": "p",
+		"target_resource_id": "svc", "intended_effect": "override",
+	}, "2026-03-27T12:01:00Z")
+	appendVerifyRecord(t, b, event.TypeAIActionExecuted, map[string]any{
+		"action_id": "act-1", "execution_outcome": "success", "tool_receipt_digest": "rcpt",
+	}, "2026-03-27T12:02:00Z")
+
+	result := (&HumanOverrideProfile{}).Evaluate(b.Records)
+	if result.Pass {
+		t.Fatal("expected profile failure when ai.human.approval is missing")
+	}
+	if !hasFailure(result.CriticalFailures, "missing_event", "ai.human.approval") {
+		t.Fatalf("expected missing approval failure, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestBackgroundAutomation_AllCriticalPresent(t *testing.T) {
+	result := (&BackgroundAutomationProfile{}).Evaluate(newBackgroundAutomationBundle(t).Records)
+	if !result.Pass {
+		t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+	}
+}
+
+func TestBackgroundAutomation_MissingCompleted(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
+		"job_id": "job-1", "job_type": "sync", "trigger_source": "cron", "scheduled_by_id_hash": "sched",
+	}, "2026-03-27T12:00:00Z")
+	appendVerifyRecord(t, b, event.TypeAIJobStarted, map[string]any{
+		"job_id": "job-1", "worker_id_hash": "worker", "started_at": "2026-03-27T12:01:00Z",
+	}, "2026-03-27T12:01:00Z")
+
+	result := (&BackgroundAutomationProfile{}).Evaluate(b.Records)
+	if result.Pass {
+		t.Fatal("expected profile failure when ai.job.completed is missing")
+	}
+	if !hasFailure(result.CriticalFailures, "missing_event", "ai.job.completed") {
+		t.Fatalf("expected missing completion failure, got %+v", result.CriticalFailures)
+	}
+}
+
+func TestBackgroundAutomation_JobIDRelationViolation(t *testing.T) {
+	b := newBackgroundAutomationBundle(t)
+	for i := range b.Records {
+		if b.Records[i].Event.Type == event.TypeAIJobCompleted {
+			data := dataMap(b.Records[i].Event.Data)
+			data["job_id"] = "job-other"
+		}
+	}
+
+	result := (&BackgroundAutomationProfile{}).Evaluate(b.Records)
+	if !hasFailure(result.CriticalFailures, "relation_violation", "job_completed_requires_started") {
+		t.Fatalf("expected job_id relation violation, got %+v", result.CriticalFailures)
+	}
+}

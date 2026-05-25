@@ -144,8 +144,9 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 	}
 
 	var profileReport *apiv1.ProfileReportSummary
+	var verifierReport *verifypkg.VerifierReport
 	if profilePath != "" && verifyErr == nil {
-		profileReport = buildStartupProfileReport(b, bundlePath, profilePath)
+		profileReport, verifierReport = buildStartupProfileReports(b, bundlePath, profilePath)
 	}
 
 	eventCount := len(b.Records)
@@ -157,6 +158,7 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 		SessionToken:    sessionToken,
 		RevealAuthToken: revealAuthToken,
 		ProfileReport:   profileReport,
+		VerifierReport:  verifierReport,
 		ProfilePath:     profilePath,
 	})
 	api.Register(mux)
@@ -412,13 +414,13 @@ func isAddrInUseError(err error) bool {
 		strings.Contains(msg, "only one usage of each socket address")
 }
 
-// buildStartupProfileReport runs verify against the given profile and returns a summary for the API.
-// Errors loading the profile are silently swallowed; callers should treat a nil return as
+// buildStartupProfileReports runs verify against the given profile and returns API reports.
+// Errors loading the profile are silently swallowed; callers should treat nil returns as
 // "no report yet" rather than a hard failure — the user can re-trigger via POST /api/v1/bundle/verify.
-func buildStartupProfileReport(b *bundle.Bundle, bundlePath, profilePath string) *apiv1.ProfileReportSummary {
+func buildStartupProfileReports(b *bundle.Bundle, bundlePath, profilePath string) (*apiv1.ProfileReportSummary, *verifypkg.VerifierReport) {
 	selection, _, err := resolveVerifySelection(profilePath)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
@@ -428,11 +430,12 @@ func buildStartupProfileReport(b *bundle.Bundle, bundlePath, profilePath string)
 		AllApplicable: selection.allApplicable,
 	})
 	if err != nil {
-		return nil
+		return nil, nil
 	}
 
 	summary := viewVerifyReportToSummary(*report)
-	return &summary
+	full := verifypkg.ReportFromVerify(*report)
+	return &summary, &full
 }
 
 // viewVerifyReportToSummary converts a verify.Report to the API summary shape.
@@ -460,6 +463,7 @@ func viewVerifyReportToSummary(r verifypkg.Report) apiv1.ProfileReportSummary {
 	if len(r.Profiles) > 0 {
 		p := r.Profiles[0]
 		summary.ProfileID = p.ProfileID
+		summary.ProfileVersion = p.Version
 		summary.Pass = r.Integrity.ChainValid && p.Pass
 		for _, f := range p.CriticalFailures {
 			summary.CriticalFailures = append(summary.CriticalFailures, apiv1.FailureDTO{Kind: f.Kind, Detail: f.Detail})
@@ -476,6 +480,12 @@ func viewVerifyReportToSummary(r verifypkg.Report) apiv1.ProfileReportSummary {
 				ClosedWhen: gap.ClosedWhen,
 			}
 		}
+	}
+	if len(r.Exclusions) > 0 {
+		summary.Exclusions = append([]string(nil), r.Exclusions...)
+	}
+	if r.ResidualRisk.Level != "" {
+		summary.ResidualRiskLevel = r.ResidualRisk.Level
 	}
 	return summary
 }

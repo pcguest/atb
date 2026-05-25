@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- [Custos development handoff](docs/custos-handoff.md): layer model, stable contracts, Custos build phases, and demo script for custodian-of-record development.
+- Custos ingest conformance test (`test/custos/conformance_test.go`) locking `verify.report.v1` on pass fixtures.
+- Profile workflow SDK helpers (TypeScript and Python): `DataExportGate`, `PolicyDecisionRecorder`, `HumanOverrideGate`, and `BackgroundJobTracker` for emitting canonical events aligned with built-in obligation profiles.
+- `examples/bundles/generate-profile-fixtures.sh` to regenerate passing and failing `.atb` fixtures for all six built-in profiles.
+- `go run ./scripts/generate_profile_fixtures.go` as the canonical fixture generator (also available via the shell wrapper).
+- Viewer API endpoint `GET /api/v1/bundle/verify/report` returning the stable `verify.report.v1` JSON contract for auditors.
+- Optional `corroboration_bonus` and `effective_score` fields in `atb verify --format json` output when corroboration policy applies.
+
+### Changed
+- Expanded `docs/cas-guide.md` with canonical sub-score table, grade bands, and per-profile interpretation examples.
+- Updated `docs/api/verify-schema.md` and `docs/profiles.md` (blind spots, `required_when` semantics) to match verifier behaviour.
+- `verify.report.v1` now includes `profile_version` and propagates `residual_risk.drivers` / `recommended_next_evidence` from the internal verifier report.
+- Human-readable `atb verify` text output opens with a concise Summary block (integrity, profile, CAS, top issues, exclusion count).
+- Fixed stale integration tests that used `ai.action.*` events for the `atb.profile.data_export` profile.
+
+### Fixed
+- `atb.profile.policy_decision` test fixtures now include required `ai.action.precommit` (triggered by `required_when` when `ai.request.received` is present).
+
 ## [v1.11.0] - 2026-05-23
 
 ### Docs

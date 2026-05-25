@@ -59,7 +59,7 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 	fmt.Fprintln(w)
 	fmt.Fprintf(w, "Bundle: %s\n", report.BundlePath)
 	fmt.Fprintf(w, "Profile: %s\n", renderVerifyProfileLine(report))
-	fmt.Fprintf(w, "Grade: %s\n", renderer.renderGrade(report))
+	renderer.renderVerifySummary(w, report)
 	fmt.Fprintln(w)
 
 	fmt.Fprintln(w, "Obligations")
@@ -167,6 +167,103 @@ func isTerminal(w io.Writer) bool {
 	return info.Mode()&os.ModeCharDevice != 0
 }
 
+const maxVerifySummaryIssues = 7
+
+func (r verifyTextRenderer) renderVerifySummary(w io.Writer, report verifypkg.Report) {
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Summary")
+	fmt.Fprintln(w)
+
+	integrityLabel := "FAIL"
+	integrityColour := ansiRed
+	if report.Integrity.ChainValid {
+		integrityLabel = "PASS"
+		integrityColour = ansiGreen
+	}
+	fmt.Fprintf(w, "Integrity: %s\n", r.colourise(integrityLabel, integrityColour))
+
+	profileLabel := "NOT EVALUATED"
+	profileColour := ansiYellow
+	if len(report.Profiles) > 0 {
+		if report.Profiles[0].Pass {
+			profileLabel = "PASS"
+			profileColour = ansiGreen
+		} else {
+			profileLabel = "FAIL"
+			profileColour = ansiRed
+		}
+	}
+	fmt.Fprintf(w, "Profile:   %s\n", r.colourise(profileLabel, profileColour))
+
+	if report.CAS != nil {
+		fmt.Fprintf(w, "CAS:       %.2f (%s)\n", report.CAS.Overall, report.CAS.Grade)
+	} else {
+		fmt.Fprintf(w, "CAS:       n/a\n")
+	}
+
+	issues := collectVerifySummaryIssues(report, maxVerifySummaryIssues)
+	if len(issues) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Issues")
+		for _, issue := range issues {
+			r.renderLine(w, issue)
+		}
+	}
+
+	if len(report.Exclusions) > 0 {
+		fmt.Fprintf(w, "\nExclusions: %d declared blind spot(s) (see below)\n", len(report.Exclusions))
+	}
+}
+
+func collectVerifySummaryIssues(report verifypkg.Report, limit int) []verifyOutputLine {
+	if limit <= 0 {
+		return nil
+	}
+
+	lines := make([]verifyOutputLine, 0, limit)
+
+	if !report.Integrity.ChainValid && report.Integrity.Error != "" {
+		lines = append(lines, verifyOutputLine{
+			status: verifyLineFail,
+			text:   report.Integrity.Error,
+		})
+	}
+
+	if len(report.Profiles) > 0 {
+		profile := report.Profiles[0]
+		for _, failure := range profile.CriticalFailures {
+			if len(lines) >= limit {
+				return lines
+			}
+			lines = append(lines, verifyOutputLine{
+				status: verifyLineFail,
+				text:   failure.Detail,
+			})
+		}
+		for _, warning := range profile.RequiredWarnings {
+			if len(lines) >= limit {
+				return lines
+			}
+			lines = append(lines, verifyOutputLine{
+				status: verifyLineWarn,
+				text:   warning,
+			})
+		}
+	}
+
+	for _, driver := range report.ResidualRisk.Drivers {
+		if len(lines) >= limit {
+			return lines
+		}
+		lines = append(lines, verifyOutputLine{
+			status: verifyLineNote,
+			text:   "residual risk driver: " + driver,
+		})
+	}
+
+	return lines
+}
+
 func renderVerifyProfileLine(report verifypkg.Report) string {
 	if len(report.Profiles) == 0 {
 		return "none matched"
@@ -188,32 +285,6 @@ func humaniseWorkflowClass(workflowClass string) string {
 		return workflowClass
 	}
 	return strings.Join(words, " ")
-}
-
-func (r verifyTextRenderer) renderGrade(report verifypkg.Report) string {
-	if report.CAS == nil {
-		return fmt.Sprintf("n/a (residual risk: %s)", strings.ToLower(report.ResidualRisk.Level))
-	}
-
-	grade := displayLetterGrade(report.CAS)
-	return fmt.Sprintf("%s (residual risk: %s)", r.colourGrade(grade), strings.ToLower(report.ResidualRisk.Level))
-}
-
-func displayLetterGrade(cas *verifypkg.CASResult) string {
-	if cas == nil {
-		return "N/A"
-	}
-
-	switch cas.Grade {
-	case "High":
-		return "A"
-	case "Medium":
-		return "B"
-	case "Low":
-		return "C"
-	default:
-		return "F"
-	}
 }
 
 func obligationLines(report verifypkg.Report) []verifyOutputLine {
@@ -500,19 +571,6 @@ func (r verifyTextRenderer) linePrefix(status verifyLineStatus) string {
 		return r.colourise("⚠", ansiYellow)
 	default:
 		return "-"
-	}
-}
-
-func (r verifyTextRenderer) colourGrade(grade string) string {
-	switch grade {
-	case "A", "B":
-		return r.colourise(grade, ansiGreen)
-	case "C":
-		return r.colourise(grade, ansiYellow)
-	case "D", "F":
-		return r.colourise(grade, ansiRed)
-	default:
-		return grade
 	}
 }
 

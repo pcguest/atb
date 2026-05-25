@@ -159,6 +159,7 @@
     ],
     "pass": true,
     "profile_id": "atb.profile.rag_answer",
+    "profile_version": 1,
     "provability_gaps": [
       {
         "closed_when": "SC sub-score \u003e= 0.5 and no policy_signature absent warnings.",
@@ -191,7 +192,19 @@
       "ai.retrieval.executed recommended for RAG answer provenance"
     ],
     "residual_risk": {
-      "level": "Medium"
+      "drivers": [
+        "AC",
+        "GC",
+        "SC",
+        "XC"
+      ],
+      "level": "Medium",
+      "recommended_next_evidence": [
+        "Add RFC 3161 TSA anchoring for exports and privileged actions.",
+        "Ensure precommit-\u003eexecute-\u003ecommit event chain is present for ACP gating.",
+        "Add source signatures from policy engine or action gate.",
+        "Configure external corroboration: gateway log, DB receipt, or queue dequeue."
+      ]
     },
     "sub_scores": {
       "AC": 0,

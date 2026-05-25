@@ -308,14 +308,14 @@ func TestGoldenPath_DataExport(t *testing.T) {
 		"subject_id_hash":       "subject-export-001",
 		"action_id":             actionID,
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionPrecommit, map[string]any{
+	appendEvent(t, bundlePath, event.TypeDataExportPrecommit, map[string]any{
 		"action_id":                actionID,
 		"action_type":              "export_data",
 		"action_parameters_digest": "sha256:params-export-001",
 		"target_resource_id":       "customer-dataset-001",
 		"intended_effect":          "export approved customer dataset",
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
+	appendEvent(t, bundlePath, event.TypeDataExportExecuted, map[string]any{
 		"action_id":           actionID,
 		"execution_outcome":   "success",
 		"tool_receipt_digest": "sha256:tool-receipt-export-001",
@@ -326,11 +326,6 @@ func TestGoldenPath_DataExport(t *testing.T) {
 		"approval_outcome":     "approved",
 		"justification_digest": "sha256:justification-export-001",
 		"action_id":            actionID,
-	})
-	appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
-		"action_id":           actionID,
-		"commit_outcome":      "success",
-		"sink_receipt_digest": "sha256:sink-receipt-export-001",
 	})
 
 	b := loadBundle(t, bundlePath)
@@ -352,8 +347,8 @@ func TestGoldenPath_DataExport(t *testing.T) {
 	if result.Integrity.FirstSeq != 0 {
 		t.Fatalf("unexpected first seq: got %d want %d", result.Integrity.FirstSeq, 0)
 	}
-	if result.Integrity.LastSeq != 6 {
-		t.Fatalf("unexpected last seq: got %d want %d", result.Integrity.LastSeq, 6)
+	if result.Integrity.LastSeq != 5 {
+		t.Fatalf("unexpected last seq: got %d want %d", result.Integrity.LastSeq, 5)
 	}
 	if len(result.Profiles) != 1 {
 		t.Fatalf("expected 1 profile result, got %d", len(result.Profiles))
@@ -395,8 +390,8 @@ func TestGoldenPath_DataExport(t *testing.T) {
 	if report.CAS == nil {
 		t.Fatalf("expected trust-report CAS for %q", profileIDDataExport)
 	}
-	if report.ChainLength != 7 {
-		t.Fatalf("unexpected chain length: got %d want %d", report.ChainLength, 7)
+	if report.ChainLength != 6 {
+		t.Fatalf("unexpected chain length: got %d want %d", report.ChainLength, 6)
 	}
 	if report.HeadHash == "" {
 		t.Fatalf("expected non-empty head hash")
@@ -420,22 +415,17 @@ func TestGoldenPath_DataExport(t *testing.T) {
 			"subject_id_hash":       "subject-export-missing-approval-001",
 			"action_id":             actionID,
 		})
-		appendEvent(t, bundlePath, event.TypeAIActionPrecommit, map[string]any{
+		appendEvent(t, bundlePath, event.TypeDataExportPrecommit, map[string]any{
 			"action_id":                actionID,
 			"action_type":              "export_data",
 			"action_parameters_digest": "sha256:params-export-missing-approval-001",
 			"target_resource_id":       "customer-dataset-001",
 			"intended_effect":          "export approved customer dataset",
 		})
-		appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
+		appendEvent(t, bundlePath, event.TypeDataExportExecuted, map[string]any{
 			"action_id":           actionID,
 			"execution_outcome":   "success",
 			"tool_receipt_digest": "sha256:tool-receipt-export-missing-approval-001",
-		})
-		appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
-			"action_id":           actionID,
-			"commit_outcome":      "success",
-			"sink_receipt_digest": "sha256:sink-receipt-export-missing-approval-001",
 		})
 
 		b := loadBundle(t, bundlePath)

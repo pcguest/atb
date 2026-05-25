@@ -40,6 +40,12 @@ Relation checks:
 - `ai.policy.decision` must bind to `ai.action.precommit` by `action_id`.
 - `ai.action.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
 
+Blind spots / out of scope:
+
+- Operator bypass of the ACP gate is not detectable from bundle events alone.
+- Tool provider internal processing is not attested unless tool receipts are cryptographically verifiable.
+- XC credit requires at least one valid `atb.corroboration.external` event.
+
 CAS weight vector:
 
 | Code | Weight |
@@ -70,13 +76,19 @@ Optional evidence:
 
 - `ai.policy.decision` — warning. Fields: `policy_id`, `policy_version`, `decision`, `decision_reason_codes`
 - `ai.retrieval.executed` — warning. Fields: `retrieval_query_hash`, `retrieval_corpus_id`, `retrieval_corpus_version`, `top_k`, `result_set_digest`
-- `ai.response.sent` — warning. Fields: `request_id`, `output_digest`
+- `ai.response.sent` — warning; becomes required (critical via `required_when`) when `ai.model.invoked` is present and must occur at or after it. Fields: `request_id`, `output_digest`
 
 > **MCP PageIndex note:** The MCP bridge RAG tools (`rag_index_record`, `rag_retrieval_record`) emit `atb.event.rag_index` and `atb.event.rag_retrieval`, not `ai.retrieval.executed`. A bundle produced by those tools alone will not satisfy the retrieval evidence check in this profile. Emit `ai.retrieval.executed` from the surrounding workflow if you want full profile coverage.
 
 Relation checks:
 
 - `ai.response.sent` must bind to `ai.request.received` by `request_id` when both are present.
+
+Blind spots / out of scope:
+
+- Retrieval completeness beyond recorded corpus/version.
+- Model provider internal execution fidelity.
+- XC credit requires corroboration events.
 
 CAS weight vector:
 
@@ -116,6 +128,12 @@ Relation checks:
 - `ai.policy.decision` must bind to `data.export.precommit` by `action_id`.
 - `data.export.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
 
+Blind spots / out of scope:
+
+- Downstream recipient handling after export is not attested.
+- Classification label correctness is not verified.
+- XC credit requires corroboration events.
+
 CAS weight vector:
 
 | Code | Weight |
@@ -143,11 +161,17 @@ Required events:
 
 Optional evidence:
 
-- `ai.action.precommit` — warning. Fields: `action_id`, `action_type`, `action_parameters_digest`
+- `ai.action.precommit` — listed as optional but **effectively required** because `ai.request.received` is always present and triggers `required_when` (critical failure when absent). Must occur at or after the request. Fields: `action_id`, `action_type`, `action_parameters_digest`
 
 Relation checks:
 
 - `ai.policy.decision` must bind to `ai.action.precommit` by `action_id` when both are present.
+
+Blind spots / out of scope:
+
+- Does not verify policy rule set correctness.
+- Policy engine internal state is not attested.
+- XC credit requires corroboration events.
 
 CAS weight vector:
 
@@ -183,7 +207,13 @@ Optional evidence:
 Relation checks:
 
 - `ai.human.approval` must bind to `ai.action.precommit` by `action_id`.
-- `ai.action.executed` must bind to an approved `ai.human.approval` for the same `action_id`.
+- `ai.action.executed` must bind to an approved `ai.human.approval` for the same `action_id` (ID binding enforced; `approval_outcome=approved` is checked in CAS RC/GC, not as a hard obligation failure).
+
+Blind spots / out of scope:
+
+- Approver identity is caller-asserted only.
+- Justification quality is not assessed.
+- XC credit requires corroboration events.
 
 CAS weight vector:
 
@@ -219,6 +249,13 @@ Relation checks:
 
 - `ai.job.started` must bind to `ai.job.scheduled` by `job_id`.
 - `ai.job.completed` must bind to `ai.job.started` by `job_id`.
+
+Blind spots / out of scope:
+
+- Scheduler integrity is not attested.
+- Real-world job effect vs recorded outcome.
+- Policy authorisation not required by this profile.
+- XC credit requires corroboration events.
 
 CAS weight vector:
 

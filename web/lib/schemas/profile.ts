@@ -14,6 +14,7 @@ export const provabilityGapSchema = z.object({
 
 export const profileReportSummarySchema = z.object({
   profile_id: z.string(),
+  profile_version: z.number().int().positive().optional(),
   pass: z.boolean(),
   chain_valid: z.boolean().optional(),
   anchor_status: z.string().optional(),
@@ -24,6 +25,8 @@ export const profileReportSummarySchema = z.object({
   sub_scores: z.record(z.string(), z.number()).optional().default({}),
   critical_failures: z.array(failureDTOSchema),
   warnings: z.array(z.string()),
+  exclusions: z.array(z.string()).optional().default([]),
+  residual_risk_level: z.string().optional().default(""),
   provability_gaps: z.array(provabilityGapSchema).optional().default([]),
 });
 

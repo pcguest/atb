@@ -160,6 +160,32 @@ function ReportBody({ report }: { report: ProfileReportSummary }) {
         </div>
       )}
 
+      {/* Blind spots / exclusions */}
+      {report.exclusions.length > 0 && (
+        <div className="space-y-1">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            blind spots ({report.exclusions.length})
+          </p>
+          <ul className="space-y-1">
+            {report.exclusions.map((line, i) => (
+              <li
+                key={i}
+                className="rounded border border-border/60 bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground"
+              >
+                {line}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {report.residual_risk_level && (
+        <p className="font-mono text-[10px] text-muted-foreground">
+          residual risk:{" "}
+          <span className="text-foreground">{report.residual_risk_level}</span>
+        </p>
+      )}
+
       {/* Warnings — collapsible */}
       {report.warnings.length > 0 && (
         <div>
