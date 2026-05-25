@@ -126,7 +126,7 @@ jobs:
           grep -q "^## \\[${CLI_TAG}\\]" CHANGELOG.md
           grep -Fq "Current release: [\`${CLI_TAG}\`](CHANGELOG.md)" README.md
           grep -Fq "atb bundle new" README.md
-          grep -Fq -- "--profile atb.profile.privileged_tool_action" README.md
+          grep -Fq -- "--profile atb.profile.policy_decision" README.md
           grep -Fq "atb bundle new" docs/quickstart.md
           grep -Fq -- "--profile atb.profile.privileged_tool_action" docs/quickstart.md
           grep -Fq "atb view" docs/quickstart.md
