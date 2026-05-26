@@ -1,29 +1,34 @@
-# ATB Roadmap
+## Current state
 
-ATB is a layered assurance framework for high-impact AI workflows. Its purpose
-is to capture, bind, verify, score, and export evidence of what happened, when
-it happened, and under what policy and control conditions it happened. The
-design is integrity-first: every bundle carries explicit exclusions and known
-blind spots. ATB does not claim to capture everything and does not pretend
-otherwise.
+ATB v1.12.0 ships a verified core bundle engine, six obligation profiles with CAS scoring, Go/Python/TypeScript SDKs, the EU AI Act retention guard, the `atb` CLI, MCP transport, and the `verify.report.v1` custody contract. The shipped runtime covers local capture, hash-chained bundle integrity, signing, encryption, TSA anchoring, WORM export, queue push, and corroboration event recording.
 
-| Phase | Focus | Status |
-|-------|-------|--------|
-| v1.12.0 (current) | Hash-chained NDJSON; Ed25519 and ECDSA-P256 signatures; RFC 3161 anchoring; six obligation profiles; Capture v1 (`capture run`, `import chatlog`); corroboration events; (atb corroborate CLI + atb.corroboration.external events; adapter framework in Phase 9) WORM export and queue push; MCP transport; AES-256-GCM encryption; `verify.report.v1` custody contract; Agent capture/workspace APIs; profile workflow helpers across Go, Python, and TypeScript SDKs | Shipped |
-| Phase 9 (Q3–Q4 2026) | Corroboration adapters: OTel inbound transport (pkg/otel), external corroborators (pkg/corroborate — GitHub audit/webhook first); OTLP decode and GenAI semconv mapping deferred | Scaffolded |
-| Q2 2026 | Obligation-profile DSL v1 formalisation; verifier report v1 structured output; privileged-action and data-export profiles end-to-end | Shipped |
-| Q3 2026 | Temporal ordering gates; CAS v1 formalisation; source signatures for policy gate; provability ladder in verifier output; corroboration adapter wiring (OTel → bundle, GitHub verify) | Scoped |
-| Custos (separate product) | Hosted custodian-of-record: ingest, WORM receipts, auditor portal, retention | Planned — see [custos-handoff.md](./custos-handoff.md) |
+## Near term — Q3 2026
 
-The Completeness Assurance Score is a structural score over what a bundle
-contains. It is not an audit opinion. A high CAS indicates that the expected
-event shape is present and chained correctly; it does not prove model
-correctness, actor identity, or that no relevant action occurred outside the
-captured session. Obligations in a profile are the hard gate; CAS is the
-explanatory signal.
+- Implement Phase 9 corroboration adapter wiring (OTel → bundle events)
+- Implement GitHub audit log corroboration (pkg/corroborate/github)
+- Implement LangChain/LangGraph corroboration (pkg/corroborate/langchain)
+- Formalise obligation-profile DSL v1
+- Produce verifier report v1 structured output
+- Wire automatic capture to Claude and OpenAI SDK callbacks
+- Enforce EU AI Act Article 12 logging in automatic capture path
 
-For the provability model and how to shrink recorded blind spots, see
-[provability-ladder.md](./provability-ladder.md).
+## Medium term — Q4 2026 to Q1 2027
 
-Phase 9 packages: pkg/otel (OTel inbound transport) and pkg/corroborate (external corroborators).
-See docs/integrations/ for integration patterns. docs/integrations/corroboration.md is planned.
+- OTLP decode and GenAI semconv mapping (pkg/otel full implementation)
+- DB reconciliation assurance packs
+- Reviewer identity anchoring (EU AI Act Article 14 gap closure)
+- Retention enforcement access logging
+- Automated compliance evidence pack export (Articles 17–20 gap)
+- CAS v1 formalisation with provability ladder output
+
+## Out of scope (explicit)
+
+- Managed storage, SSO, or RBAC
+- Hosted tracing or telemetry collection
+- Real-time prevention or blocking of AI actions
+- Universal completeness guarantees (direct API bypass is a known gap)
+- Training data governance (Articles 10–11)
+
+## Custos
+
+Custos is the planned commercial layer for central ATB bundle ingest, retention enforcement, auditor portal access, and policy gate dashboards. It is not yet implemented and is out of scope for this repository.
