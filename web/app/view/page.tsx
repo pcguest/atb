@@ -21,6 +21,7 @@ import {
 import { canViewExecutiveSummary, canViewRawData } from "@/lib/roles";
 import { useUIStore } from "@/lib/state/ui-store";
 import { calculateTrustScore } from "@/lib/trust-score";
+import { displayBundlePath } from "@/lib/display-path";
 
 export default function ViewPage() {
   const role = useUIStore((state) => state.role);
@@ -106,7 +107,7 @@ export default function ViewPage() {
       <aside className="flex w-64 shrink-0 flex-col border-r border-border">
         <div className="border-b border-border px-3 py-2">
           <p className="truncate font-mono text-xs uppercase tracking-widest text-muted-foreground">
-            ATB · {metaQuery.data?.bundle_path ?? "—"}
+            ATB · {displayBundlePath(metaQuery.data?.bundle_path)}
           </p>
         </div>
 
