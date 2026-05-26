@@ -9,9 +9,10 @@ otherwise.
 
 | Phase | Focus | Status |
 |-------|-------|--------|
-| v1.12.0 (current) | Hash-chained NDJSON; Ed25519 and ECDSA-P256 signatures; RFC 3161 anchoring; six obligation profiles; Capture v1 (`capture run`, `import chatlog`); corroboration events; WORM export and queue push; MCP transport; AES-256-GCM encryption; `verify.report.v1` custody contract; Agent capture/workspace APIs; profile workflow helpers across Go, Python, and TypeScript SDKs | Shipped |
+| v1.12.0 (current) | Hash-chained NDJSON; Ed25519 and ECDSA-P256 signatures; RFC 3161 anchoring; six obligation profiles; Capture v1 (`capture run`, `import chatlog`); corroboration events; (atb corroborate CLI + atb.corroboration.external events; adapter framework in Phase 9) WORM export and queue push; MCP transport; AES-256-GCM encryption; `verify.report.v1` custody contract; Agent capture/workspace APIs; profile workflow helpers across Go, Python, and TypeScript SDKs | Shipped |
+| Phase 9 (Q3–Q4 2026) | Corroboration adapters: OTel inbound transport (pkg/otel), external corroborators (pkg/corroborate — GitHub audit/webhook first); OTLP decode and GenAI semconv mapping deferred | Scaffolded |
 | Q2 2026 | Obligation-profile DSL v1 formalisation; verifier report v1 structured output; privileged-action and data-export profiles end-to-end | Shipped |
-| Q3 2026 | Temporal ordering gates; CAS v1 formalisation; source signatures for policy gate; provability ladder in verifier output | Scoped |
+| Q3 2026 | Temporal ordering gates; CAS v1 formalisation; source signatures for policy gate; provability ladder in verifier output; corroboration adapter wiring (OTel → bundle, GitHub verify) | Scoped |
 | Custos (separate product) | Hosted custodian-of-record: ingest, WORM receipts, auditor portal, retention | Planned — see [custos-handoff.md](./custos-handoff.md) |
 
 The Completeness Assurance Score is a structural score over what a bundle
@@ -23,3 +24,6 @@ explanatory signal.
 
 For the provability model and how to shrink recorded blind spots, see
 [provability-ladder.md](./provability-ladder.md).
+
+Phase 9 packages: pkg/otel (OTel inbound transport) and pkg/corroborate (external corroborators).
+See docs/integrations/ for integration patterns. docs/integrations/corroboration.md is planned.
