@@ -32,3 +32,16 @@ ATB v1.12.0 ships a verified core bundle engine, six obligation profiles with CA
 ## Custos
 
 Custos is the planned commercial layer for central ATB bundle ingest, retention enforcement, auditor portal access, and policy gate dashboards. It is not yet implemented and is out of scope for this repository.
+
+## Custos Enterprise Layer
+
+- Phase 10: Ingestion engine scaffold (custos/ package tree) — Q3 2026
+- Phase 10: AI tool discovery + registry — Q3 2026
+- Phase 10: Onboarding flow + API key provisioning — Q3 2026
+- Phase 10: Automatic bundle signing policy per org (key reference,
+  TSA toggle, rotation schedule) — Q3 2026
+- Phase 11: Human-in-the-loop review queue + oversight — Q4 2026
+- Phase 11: Auditable work tree UI + handoff lineage — Q4 2026
+- Phase 11: Insight extraction + pitfall detection — Q4 2026
+- Phase 12: Org/team management + per-team allow-lists — Q1 2027
+- Phase 12: EU AI Act Article 12 retention enforcement per org — Q1 2027
