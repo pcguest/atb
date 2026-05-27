@@ -1,3 +1,5 @@
+<!-- TODO: consolidate into docs/compliance/eu-ai-act.md -->
+
 # Human Oversight
 
 ## Snapshot attribution

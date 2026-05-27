@@ -1,3 +1,5 @@
+<!-- TODO: consolidate into docs/guides/agent.md -->
+
 # ATB Agent — internal architecture note
 
 Internal design note for the local ATB Agent. Not a user-facing guide.
@@ -42,7 +44,7 @@ Update this list after each Agent prompt so it matches shipped behaviour.
 
 ## Out of scope for the Agent
 
-- Direct cloud sync or Custos ingestion (explicit `atb push` and separate
+- Direct cloud sync or hosted ingestion (explicit `atb push` and separate
   custodian products remain the export path).
 - Credentials management, OAuth, or identity-provider integration.
 - Host-level or network-level capture (eBPF, transparent proxy, packet
