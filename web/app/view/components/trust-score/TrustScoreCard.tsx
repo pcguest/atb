@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/app/view/components/ui/tooltip";
-import type { TrustScoreBreakdown } from "@/lib/trust-score";
+import type { ViewerHealthBreakdown } from "@/lib/trust-score";
 
 const TrustScoreRadial = dynamic(
   () =>
@@ -33,17 +33,17 @@ const TrustScoreRadial = dynamic(
 
 type TrustScoreCardProps = {
   loading: boolean;
-  breakdown: TrustScoreBreakdown | null;
+  breakdown: ViewerHealthBreakdown | null;
 };
 
 const scoreRows: Array<{
-  key: keyof Omit<TrustScoreBreakdown, "total">;
+  key: keyof Omit<ViewerHealthBreakdown, "total">;
   label: string;
   weight: number;
 }> = [
   { key: "continuity", label: "Continuity", weight: 40 },
-  { key: "encryption", label: "Encryption", weight: 30 },
-  { key: "timestamp", label: "Timestamp", weight: 20 },
+  { key: "bundle_integrity", label: "Bundle integrity", weight: 30 },
+  { key: "event_chain", label: "Event chain", weight: 20 },
   { key: "freshness", label: "Freshness", weight: 10 },
 ];
 
@@ -58,8 +58,8 @@ export function TrustScoreCard({ loading, breakdown }: TrustScoreCardProps) {
         style={{ backgroundColor: "hsl(220, 40%, 12%)" }}
       >
         <CardHeader>
-          <CardTitle>Trust Score</CardTitle>
-          <CardDescription>Verifying controls and freshness.</CardDescription>
+          <CardTitle>Viewer Health</CardTitle>
+          <CardDescription>Verifying chain continuity and freshness.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {isCypressRuntime ? (
@@ -93,26 +93,27 @@ export function TrustScoreCard({ loading, breakdown }: TrustScoreCardProps) {
       >
         <CardHeader>
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-lg">Trust Score</CardTitle>
+            <CardTitle className="text-lg">Viewer Health</CardTitle>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
                     type="button"
                     className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                    aria-label="Explain trust score weighting"
+                    aria-label="Explain viewer health weighting"
                   >
                     <Info className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  Current weights: continuity (40), encryption (30), timestamp (20), freshness (10).
+                  Current weights: continuity (40), bundle integrity (30), event chain (20), freshness (10).
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
           <CardDescription>
-            Real-time confidence from hash-chain and freshness checks.
+            Local viewer signal from hash-chain continuity and freshness checks. Not a
+            substitute for the verifier report.
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -71,6 +71,42 @@ Cross-language hash parity is locked by Go / Python / TypeScript golden tests. C
 
 ---
 
+## Wire format
+
+ATB exports one local bundle handoff object for custody ingest. The object is a
+JSON document; the `bundle` field is the original verified `.atb` bytes encoded
+as base64 by standard JSON encoding for byte slices. Custos must store the
+bundle bytes as an opaque artefact and use the embedded verifier report as a
+snapshot of ATB's local interpretation at export time.
+
+```json
+{
+  "export_version": "atb.custody.bundle_export.v1",
+  "receipt_id": "sha256-<head-hash>",
+  "bundle_hash": "<head-hash>",
+  "submitted_at": "2026-05-28T00:00:00Z",
+  "profile_id": "atb.profile.rag_answer",
+  "submitter_ref": "customer-local-ref",
+  "verify_report": {
+    "report_version": "verify.report.v1"
+  },
+  "bundle": "<base64 .atb bytes>"
+}
+```
+
+Required fields: `export_version`, `receipt_id`, `bundle_hash`,
+`submitted_at`, `verify_report`, and `bundle`.
+
+Optional fields: `profile_id` and `submitter_ref`.
+
+`bundle_hash` is the ATB bundle head hash, i.e. the hash on the final NDJSON
+record after `LoadVerified` succeeds. `receipt_id` is the content-addressed key
+`sha256-<bundle_hash>`. This wire object does not prove that capture was
+complete, that the submitter identity is legally verified, or that a hosted
+custodian has accepted the artefact; those are Custos responsibilities.
+
+---
+
 ## What ATB provides today (substrate checklist)
 
 - [x] Tamper-evident local bundles
@@ -116,6 +152,83 @@ Reuse: viewer components (`web/components/dashboard/ProfileCAS.tsx`) as UX refer
 - Corroboration adapter registry (ATB emits `atb.corroboration.external`; Custos schedules/triggers adapters).
 - SIEM/GRC forwarders (see `docs/integrations/siem-grc.md`).
 - Multi-tenant auth, billing, SLA — explicitly out of ATB scope.
+
+---
+
+## Running `custosd` (current daemon)
+
+A scaffold `custosd` now exists in this repo (`custos/cmd/custosd`). It is an
+early ingest/receipt daemon, not the hosted multi-tenant service. Its trust
+boundary is deliberately conservative; understand these defaults before
+exposing it beyond a developer machine.
+
+### Bind and authentication
+
+- **Loopback by default.** `--host` defaults to `127.0.0.1` and `--port` to
+  `9090`. A fresh daemon is not reachable off the host.
+- **Auth token.** Set `CUSTOS_AUTH_TOKEN` to require a bearer token on every
+  route except `GET /health`. Empty token keeps local-dev ergonomics.
+- **Fail-closed bind guard.** The daemon **refuses to start** if `--host` is a
+  non-loopback interface (e.g. `0.0.0.0`, a LAN address, or empty) while
+  `CUSTOS_AUTH_TOKEN` is unset. There is no unauthenticated network exposure by
+  accident; you must opt in by setting a token. Loopback + empty token remains
+  allowed for local development only.
+
+### Ingest limits
+
+- **`--max-ingest-bytes`** (default 32 MiB) bounds the `POST /ingest` body via
+  `http.MaxBytesReader` at the HTTP boundary. Oversize uploads return **HTTP
+  413** before the body is buffered into memory or verified, so a large or
+  malicious upload cannot exhaust memory ahead of validation.
+- Status codes: `413` oversize, `400` empty body, `422` invalid/unverifiable
+  bundle, `405` non-`POST`, `201` accepted (returns the receipt JSON).
+
+### Transport
+
+- The daemon speaks **bare HTTP** (`#nosec G114`). This is intentional for the
+  loopback-by-default posture: terminate TLS at an operator-controlled reverse
+  proxy (or equivalent) when exposing the service, and pair it with
+  `CUSTOS_AUTH_TOKEN`. Do not expose bare HTTP to an untrusted network.
+
+### Storage
+
+- `--worm-dir` / `--receipt-dir` (default under `~/.atb/custos/`) select the
+  filesystem WORM and receipt stores. Setting **both** flags empty selects the
+  in-memory stores (test harnesses only); a half-configured pair is rejected at
+  startup. The WORM `Retrieve` path rejects receipt IDs that would escape the
+  configured root (path-traversal regression-tested).
+
+### Production hardening checklist
+
+The scaffold daemon is safe by default for local use, but it is a **transport
+guard, not an identity system**. Before exposing it to anything beyond a single
+operator's machine, confirm the boundary below. The bearer token is a shared
+secret that authenticates the *connection*, not a *tenant* or a *user*.
+
+What the daemon covers today:
+
+- Loopback-default bind with a fail-closed guard against unauthenticated network
+  exposure (see *Bind and authentication*).
+- Constant-time bearer-token comparison (`crypto/subtle`) on every route except
+  `GET /health`.
+- Bounded ingest body with verify-before-persist ordering: only bundles that
+  pass hash-chain verification reach the WORM store.
+
+What it does **not** cover (operator responsibilities before production):
+
+- [ ] **TLS.** Terminate TLS at an operator-controlled reverse proxy; never
+      expose bare HTTP to an untrusted network.
+- [ ] **Token rotation.** `CUSTOS_AUTH_TOKEN` is a single static secret. Rotate
+      it out of band; there is no built-in rotation, revocation, or expiry.
+- [ ] **Per-tenant / per-user identity.** There is no mTLS, OIDC, or tenant
+      scoping. Every holder of the token has identical access to ingest and to
+      every receipt and bundle. Add an authenticating proxy if you need
+      multi-tenant isolation.
+- [ ] **Rate limiting / abuse controls.** None are built in; rely on the proxy.
+- [ ] **Verification scope.** `GET /receipts/{id}/verify` re-runs **hash-chain**
+      verification only (empty profile); it does **not** re-check
+      profile-completeness. Treat a green re-verify as "bytes are intact and the
+      chain is sound", not "the bundle satisfies an obligation profile".
 
 ---
 

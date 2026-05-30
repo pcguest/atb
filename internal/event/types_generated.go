@@ -3,6 +3,81 @@
 
 package event
 
+const (
+	// TypeBundleManifest is "atb.bundle.manifest".
+	TypeBundleManifest = "atb.bundle.manifest"
+	// TypeBundleAnchor is "atb.bundle.anchor".
+	TypeBundleAnchor = "atb.bundle.anchor"
+	// TypeBundleSignature is "atb.bundle.signature".
+	TypeBundleSignature = "atb.bundle.signature"
+	// TypeSnapshot is "atb.snapshot".
+	TypeSnapshot = "atb.snapshot"
+	// TypeBundlePushed is "atb.bundle.pushed".
+	TypeBundlePushed = "atb.bundle.pushed"
+	// TypeAIRequestReceived is "ai.request.received".
+	TypeAIRequestReceived = "ai.request.received"
+	// TypeAIResponseSent is "ai.response.sent".
+	TypeAIResponseSent = "ai.response.sent"
+	// TypeAILLMCall is "ai.llm.call".
+	TypeAILLMCall = "ai.llm.call"
+	// TypeAIToolExec is "ai.tool.exec".
+	TypeAIToolExec = "ai.tool.exec"
+	// TypeAIChainRun is "ai.chain.run".
+	TypeAIChainRun = "ai.chain.run"
+	// TypeAIPolicyDecision is "ai.policy.decision".
+	TypeAIPolicyDecision = "ai.policy.decision"
+	// TypeAIRetrievalExecuted is "ai.retrieval.executed".
+	TypeAIRetrievalExecuted = "ai.retrieval.executed"
+	// TypeAIModelInvoked is "ai.model.invoked".
+	TypeAIModelInvoked = "ai.model.invoked"
+	// TypeAIModelOutput is "ai.model.output".
+	TypeAIModelOutput = "ai.model.output"
+	// TypeAIActionPrecommit is "ai.action.precommit".
+	TypeAIActionPrecommit = "ai.action.precommit"
+	// TypeAIActionExecuted is "ai.action.executed".
+	TypeAIActionExecuted = "ai.action.executed"
+	// TypeAIActionCommitted is "ai.action.committed".
+	TypeAIActionCommitted = "ai.action.committed"
+	// TypeAIHumanApproval is "ai.human.approval".
+	TypeAIHumanApproval = "ai.human.approval"
+	// TypeAIOverrideRequested is "ai.override.requested".
+	TypeAIOverrideRequested = "ai.override.requested"
+	// TypeAIJobScheduled is "ai.job.scheduled".
+	TypeAIJobScheduled = "ai.job.scheduled"
+	// TypeAIJobStarted is "ai.job.started".
+	TypeAIJobStarted = "ai.job.started"
+	// TypeAIJobStep is "ai.job.step".
+	TypeAIJobStep = "ai.job.step"
+	// TypeAIJobCompleted is "ai.job.completed".
+	TypeAIJobCompleted = "ai.job.completed"
+	// TypeDataExportPrecommit is "data.export.precommit".
+	TypeDataExportPrecommit = "data.export.precommit"
+	// TypeDataExportExecuted is "data.export.executed".
+	TypeDataExportExecuted = "data.export.executed"
+	// TypeDevSession is "dev.session".
+	TypeDevSession = "dev.session"
+	// TypeSnapshotBuild is "snapshot.build".
+	TypeSnapshotBuild = "snapshot.build"
+	// TypeCorroborationExternal is "atb.corroboration.external".
+	TypeCorroborationExternal = "atb.corroboration.external"
+	// TypeRAGIndex is "atb.event.rag_index".
+	TypeRAGIndex = "atb.event.rag_index"
+	// TypeRAGRetrieval is "atb.event.rag_retrieval".
+	TypeRAGRetrieval = "atb.event.rag_retrieval"
+	// TypeToolCall is "atb.tool.call".
+	TypeToolCall = "atb.tool.call"
+	// TypeDataExport is "atb.data.export".
+	TypeDataExport = "atb.data.export"
+	// TypeHumanOverride is "atb.human.override".
+	TypeHumanOverride = "atb.human.override"
+	// TypeHumanApproval is "atb.human.approval".
+	TypeHumanApproval = "atb.human.approval"
+	// TypeSessionClose is "atb.session.close".
+	TypeSessionClose = "atb.session.close"
+	// TypeExchangeComplete is "atb.exchange.complete".
+	TypeExchangeComplete = "atb.exchange.complete"
+)
+
 // EventTypeSpecGenerated mirrors the schema event_types metadata block.
 type EventTypeSpecGenerated struct {
 	Type           string   `json:"type"`
@@ -44,6 +119,12 @@ var EventTypesGenerated = []EventTypeSpecGenerated{
 	{Type: TypeCorroborationExternal, Description: "External corroboration record (adapter-retrieved evidence)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
 	{Type: TypeRAGIndex, Description: "PageIndex document tree build record (index_hash, node_count)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{}},
 	{Type: TypeRAGRetrieval, Description: "PageIndex reasoning-based retrieval result (node_id, page_start/end)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{}},
+	{Type: TypeToolCall, Description: "Tool invocation recorded for session oversight", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "tool_name"}},
+	{Type: TypeDataExport, Description: "Data export outside session boundary", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "export_target"}},
+	{Type: TypeHumanOverride, Description: "Human operator overrode an AI-recommended action", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "override_reason"}},
+	{Type: TypeHumanApproval, Description: "Human operator approved a pending action", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "approved_action_id"}},
+	{Type: TypeSessionClose, Description: "Capture session closed (proxy-internal lifecycle marker)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{"session_id", "actor_id"}},
+	{Type: TypeExchangeComplete, Description: "Request/response exchange completed within a capture session (proxy-internal)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{"session_id", "exchange_id", "request_event_id"}},
 }
 
 // RegistryGenerated is the EventInfo view generated from schemas/event.v1.json event_types.
@@ -78,6 +159,12 @@ var RegistryGenerated = []EventInfo{
 	{TypeCorroborationExternal, "External corroboration record (adapter-retrieved evidence)", "", "informational"},
 	{TypeRAGIndex, "PageIndex document tree build record (index_hash, node_count)", "atb.profile.rag_answer", "required"},
 	{TypeRAGRetrieval, "PageIndex reasoning-based retrieval result (node_id, page_start/end)", "atb.profile.rag_answer", "required"},
+	{TypeToolCall, "Tool invocation recorded for session oversight", "", "required"},
+	{TypeDataExport, "Data export outside session boundary", "", "required"},
+	{TypeHumanOverride, "Human operator overrode an AI-recommended action", "", "required"},
+	{TypeHumanApproval, "Human operator approved a pending action", "", "required"},
+	{TypeSessionClose, "Capture session closed (proxy-internal lifecycle marker)", "", "informational"},
+	{TypeExchangeComplete, "Request/response exchange completed within a capture session (proxy-internal)", "", "informational"},
 }
 
 // RequiredFieldsGenerated maps each event type to schema-declared required data fields.
@@ -112,4 +199,10 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeCorroborationExternal: []string{},
 	TypeRAGIndex:              []string{},
 	TypeRAGRetrieval:          []string{},
+	TypeToolCall:              []string{"session_id", "tool_name"},
+	TypeDataExport:            []string{"session_id", "export_target"},
+	TypeHumanOverride:         []string{"session_id", "override_reason"},
+	TypeHumanApproval:         []string{"session_id", "approved_action_id"},
+	TypeSessionClose:          []string{"session_id", "actor_id"},
+	TypeExchangeComplete:      []string{"session_id", "exchange_id", "request_event_id"},
 }

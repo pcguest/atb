@@ -4,6 +4,9 @@ This template provides a standard structure for SOC2 evidence generated from ATB
 
 ATB provides tamper-evident records of the events that were appended during the workflow. Completeness against the SOC2 control is evaluated per the declared obligation profile, not by universal capture.
 
+This package is evidence support for a SOC 2 review. It is not a SOC 2
+attestation, control certification, or substitute for auditor judgement.
+
 ## Control criteria
 
 - **CC6.1:** Logical Access Security
@@ -39,4 +42,5 @@ The SOC2 export produces a zip containing:
 ## Auditor notes
 
 This bundle was generated automatically by the current release. Verify the
-`chain_valid` field in `evidence/verification_report.json` before proceeding with attestation.
+`chain_valid` field in `evidence/verification_report.json` before relying on the
+evidence in an audit review.

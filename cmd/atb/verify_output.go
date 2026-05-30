@@ -311,12 +311,11 @@ func obligationLines(report verifypkg.Report) []verifyOutputLine {
 	usedWarnings := make([]bool, len(warnings))
 
 	for _, spec := range specs {
-		display := fmt.Sprintf("%s %s", spec.eventType, spec.message)
 		if idx := matchingFailureIndex(failures, usedFailures, spec.eventType); idx >= 0 {
 			usedFailures[idx] = true
 			lines = append(lines, verifyOutputLine{
 				status: verifyLineFail,
-				text:   display + " [CRITICAL FAIL]",
+				text:   failures[idx].Detail + " [CRITICAL FAIL]",
 			})
 			continue
 		}
@@ -324,11 +323,11 @@ func obligationLines(report verifypkg.Report) []verifyOutputLine {
 			usedWarnings[idx] = true
 			lines = append(lines, verifyOutputLine{
 				status: verifyLineWarn,
-				text:   display + " [warning]",
+				text:   warnings[idx] + " [warning]",
 			})
 			continue
 		}
-		lines = append(lines, verifyOutputLine{status: verifyLinePass, text: display})
+		lines = append(lines, verifyOutputLine{status: verifyLinePass, text: obligationPassText(spec)})
 	}
 
 	for i, failure := range failures {
@@ -454,6 +453,17 @@ func loadOutputSchema(profileID string) (profiledsl.ProfileSchema, bool) {
 		return profiledsl.ProfileSchema{}, false
 	}
 	return profiledsl.MustLoadSchema(profileID), true
+}
+
+// obligationPassText renders a satisfied obligation in positive terms. Schema
+// rule messages are failure-phrased (e.g. "atb.bundle.manifest missing"), so
+// they must not be reused verbatim on a passing line where they read as a
+// contradiction next to the ✓ marker.
+func obligationPassText(spec verifyObligationSpec) string {
+	if spec.warning {
+		return spec.eventType + " — recorded (recommended)"
+	}
+	return spec.eventType + " — recorded (required)"
 }
 
 func schemaRuleMessage(rule profiledsl.EventRule) string {

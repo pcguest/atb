@@ -9,16 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/app/view/components/ui/card";
-import type { TrustScoreBreakdown } from "@/lib/trust-score";
+import type { ViewerHealthBreakdown } from "@/lib/trust-score";
 import type { BundleMetaResponse, VerificationResponse } from "@/lib/types";
 
 type Props = {
   verification: VerificationResponse | null;
   meta: BundleMetaResponse | null;
-  trustScore: TrustScoreBreakdown;
+  viewerHealth: ViewerHealthBreakdown;
 };
 
-export function ExecutiveSummaryPanel({ verification, meta, trustScore }: Props) {
+export function ExecutiveSummaryPanel({ verification, meta, viewerHealth }: Props) {
   const topEventTypes = Object.entries(meta?.type_counts ?? {})
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3);
@@ -33,8 +33,8 @@ export function ExecutiveSummaryPanel({ verification, meta, trustScore }: Props)
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-3">
         <div className="rounded-md border border-border bg-background/70 p-3">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Trust Posture</p>
-          <p className="mt-1 text-sm font-medium text-foreground">{trustScore.total} / 100</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Viewer Health</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{viewerHealth.total} / 100</p>
         </div>
         <div className="rounded-md border border-border bg-background/70 p-3 md:col-span-2">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Trend Summary</p>

@@ -99,6 +99,10 @@ function ReportBody({ report }: { report: ProfileReportSummary }) {
             effective {effectivePct}% (with corroboration +{bonusPct}%)
           </p>
         )}
+        <p className="font-mono text-[10px] text-muted-foreground">
+          chain {report.chain_valid === false ? "invalid" : "valid"} · anchor{" "}
+          {report.anchor_status ?? "unknown"}
+        </p>
       </div>
 
       {/* Sub-score grid — 2 columns */}

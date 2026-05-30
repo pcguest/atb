@@ -11,13 +11,13 @@ import {
   CardTitle,
 } from "@/app/view/components/ui/card";
 import { canExportEvidence } from "@/lib/roles";
-import type { TrustScoreBreakdown } from "@/lib/trust-score";
+import type { ViewerHealthBreakdown } from "@/lib/trust-score";
 import type { BundleMetaResponse, VerificationResponse } from "@/lib/types";
 
 type Props = {
   verification: VerificationResponse | null;
   meta: BundleMetaResponse | null;
-  trustScore: TrustScoreBreakdown;
+  viewerHealth: ViewerHealthBreakdown;
 };
 
 function downloadReviewSummary(payload: Record<string, unknown>): void {
@@ -30,14 +30,14 @@ function downloadReviewSummary(payload: Record<string, unknown>): void {
   URL.revokeObjectURL(url);
 }
 
-export function AuditorCompliancePanel({ verification, meta, trustScore }: Props) {
+export function AuditorCompliancePanel({ verification, meta, viewerHealth }: Props) {
   const reviewSummaryEnabled = canExportEvidence("auditor");
 
   function handleDownload(): void {
     if (!verification || !meta) return;
     downloadReviewSummary({
       generated_at: new Date().toISOString(),
-      trust_score: trustScore.total,
+      viewer_health: viewerHealth.total,
       verification_status: verification.status,
       chain_length: verification.chain_length,
       head_hash: verification.head_hash ?? null,
@@ -69,8 +69,8 @@ export function AuditorCompliancePanel({ verification, meta, trustScore }: Props
           <p className="mt-1 text-sm font-medium text-foreground">{meta?.event_count ?? 0}</p>
         </div>
         <div className="rounded-md border border-border bg-background/70 p-3">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">Trust Score</p>
-          <p className="mt-1 text-sm font-medium text-foreground">{trustScore.total}</p>
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Viewer Health</p>
+          <p className="mt-1 text-sm font-medium text-foreground">{viewerHealth.total}</p>
         </div>
         <div className="md:col-span-3">
           <Button

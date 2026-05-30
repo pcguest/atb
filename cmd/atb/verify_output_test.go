@@ -45,6 +45,62 @@ func TestRelationSpecs_DeriveFromSchema(t *testing.T) {
 	}
 }
 
+func TestObligationLines_PassLinesReadPositively(t *testing.T) {
+	report := verifypkg.Report{
+		BundlePath: "bundle.atb",
+		Integrity:  verifypkg.IntegrityResult{ChainValid: true},
+		Profiles: []verifypkg.ProfileResult{{
+			ProfileID: "atb.profile.privileged_tool_action",
+			Pass:      true,
+		}},
+	}
+
+	for _, line := range obligationLines(report) {
+		if line.status != verifyLinePass {
+			t.Fatalf("expected only passing obligation lines, got status %d: %q", line.status, line.text)
+		}
+		// Regression: passing lines must not echo the failure-phrased schema
+		// message (e.g. "atb.bundle.manifest atb.bundle.manifest missing").
+		if strings.Contains(line.text, "missing") {
+			t.Fatalf("passing obligation line should not contain failure phrasing: %q", line.text)
+		}
+		if !strings.Contains(line.text, "recorded") {
+			t.Fatalf("passing obligation line should read positively: %q", line.text)
+		}
+	}
+}
+
+func TestObligationLines_FailDetailNotDoubled(t *testing.T) {
+	report := verifypkg.Report{
+		BundlePath: "bundle.atb",
+		Integrity:  verifypkg.IntegrityResult{ChainValid: true},
+		Profiles: []verifypkg.ProfileResult{{
+			ProfileID: "atb.profile.privileged_tool_action",
+			Pass:      false,
+			CriticalFailures: []verifypkg.CriticalFailure{{
+				Kind:   "missing_event",
+				Detail: "atb.bundle.manifest missing",
+			}},
+		}},
+	}
+
+	var found bool
+	for _, line := range obligationLines(report) {
+		if line.status == verifyLineFail && strings.Contains(line.text, "atb.bundle.manifest") {
+			found = true
+			if strings.Count(line.text, "atb.bundle.manifest") != 1 {
+				t.Fatalf("failure line should mention the event type exactly once: %q", line.text)
+			}
+			if !strings.Contains(line.text, "[CRITICAL FAIL]") {
+				t.Fatalf("failure line should carry the CRITICAL FAIL marker: %q", line.text)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("expected a failing obligation line for atb.bundle.manifest")
+	}
+}
+
 func TestRenderVerifyTerminalReport_PrintsAnchorWarnings(t *testing.T) {
 	var output bytes.Buffer
 

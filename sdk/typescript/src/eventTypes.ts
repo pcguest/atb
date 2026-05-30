@@ -31,3 +31,8 @@ export const AI_JOB_COMPLETED_EVENT_TYPE = "ai.job.completed";
 
 export const DATA_EXPORT_PRECOMMIT_EVENT_TYPE = "data.export.precommit";
 export const DATA_EXPORT_EXECUTED_EVENT_TYPE = "data.export.executed";
+
+export const TOOL_CALL = "atb.tool.call";
+export const DATA_EXPORT = "atb.data.export";
+export const HUMAN_OVERRIDE = "atb.human.override";
+export const HUMAN_APPROVAL = "atb.human.approval";

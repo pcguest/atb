@@ -254,6 +254,13 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "intercept",
+				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]...",
+				Description: "Start a local HTTPS capture proxy scaffold that records AI API traffic into a live ATB bundle.",
+				Flags:       []string{"--port", "--bundle", "--target", "--identity-map"},
+				Mutating:    false,
+			},
+			{
 				Name:        "agent",
 				Usage:       "atb agent run",
 				Description: "Start the local ATB Agent HTTP service for capture sessions and workspace bundle listing.",
@@ -370,6 +377,10 @@ func main() {
 		cmdMCP()
 	case "serve":
 		cmdServe()
+	case "intercept":
+		cmdIntercept()
+	case "identity":
+		cmdIdentity()
 	case "agent":
 		cmdAgent()
 	case "corroborate":

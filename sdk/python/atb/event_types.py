@@ -34,6 +34,11 @@ AI_JOB_COMPLETED_EVENT_TYPE = "ai.job.completed"
 DATA_EXPORT_PRECOMMIT_EVENT_TYPE = "data.export.precommit"
 DATA_EXPORT_EXECUTED_EVENT_TYPE = "data.export.executed"
 
+TOOL_CALL = "atb.tool.call"
+DATA_EXPORT = "atb.data.export"
+HUMAN_OVERRIDE = "atb.human.override"
+HUMAN_APPROVAL = "atb.human.approval"
+
 __all__ = [
     "BUNDLE_MANIFEST_EVENT_TYPE",
     "BUNDLE_ANCHOR_EVENT_TYPE",
@@ -61,4 +66,8 @@ __all__ = [
     "AI_JOB_COMPLETED_EVENT_TYPE",
     "DATA_EXPORT_PRECOMMIT_EVENT_TYPE",
     "DATA_EXPORT_EXECUTED_EVENT_TYPE",
+    "TOOL_CALL",
+    "DATA_EXPORT",
+    "HUMAN_OVERRIDE",
+    "HUMAN_APPROVAL",
 ]

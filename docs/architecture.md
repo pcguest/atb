@@ -10,6 +10,8 @@ flowchart LR
     TypeScriptSDK["TypeScript SDK"] --> Core
     Capture["Capture wrapper<br/>(atb capture run)"] --> Core
     Import["Chatlog import<br/>(atb import chatlog)"] --> Core
+    OTel["OTel translator<br/>(pkg/otel)"] --> Core
+    GitHubAudit["GitHub audit-log corroborator<br/>(pkg/corroborate/github)"] --> Core
     Core --> BundleStore["Bundle Store<br/>(.atb file)"]
     BundleStore --> Verify["Verify<br/>(hash chain + profiles)"]
     BundleStore --> View["Dashboard<br/>(atb view)"]
@@ -89,6 +91,11 @@ Capture v1 reduces manual event entry; it does not guarantee that every
 relevant event was captured, and CAS continues to score recorded evidence
 within the declared profile boundary.
 
+`pkg/otel` exposes the public Phase 9 OTel translator. It maps caller-provided
+span structs to the canonical AI trace event envelope documented in
+[`spec-ai-traces.md`](./spec-ai-traces.md). It is a mapping layer, not an OTLP
+collector, hosted telemetry service, or automatic runtime instrumentation.
+
 ## Corroboration model
 
 The problem corroboration addresses: ATB records only what the instrumented code explicitly
@@ -115,3 +122,9 @@ Where additional adapter types would be added: `internal/corroboration/`, implem
 `HTTPGatewayAdapter`, which fetches a JSON receipt from a configured URL. Further adapters
 (SQS, S3 event notifications, Kafka, manual) would be added to the same package using the
 same interface — no registry or plugin system is needed at this stage.
+
+Phase 9 also exposes `pkg/corroborate/github`, a public GitHub organisation
+audit-log corroborator. It performs an explicit, caller-configured GitHub API
+request using the supplied token and organisation, parses the audit-log
+response, and reports the observed result plus rate-limit metadata. It does
+not retry, append to bundles by itself, or prove GitHub-side completeness.

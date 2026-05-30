@@ -11,9 +11,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Composite demo bundle `examples/bundles/demo-workflow/` (~20-event support escalation narrative; passes `policy_decision` and `human_override`).
 - Profile workflow demo scripts under `examples/demo/` (Python and TypeScript) with CLI verify.
 - LangGraph reference integration (`examples/python/langgraph_demo.py`, `docs/integrations/langgraph.md`, optional `langgraph` Python extra).
+- `pkg/corroborate`: shared corroboration package defining `Actor`, `Event`, `CorrobResult` (including `QueryURL`), `Corroborator`, and `ErrEventTypeNotSupported`; both adapters import this shared contract.
+- `pkg/corroborate/langchain`: `LangChainCorroborator` constructing LangSmith run query URLs for `atb.tool.call`, `atb.data.export`, and `atb.retrieval.*` events using `url.Values`. Live HTTP lookup deferred.
+- `pkg/corroborate/github`: `GitHubCorroborator` constructing GitHub Audit Log API query URLs for `atb.tool.call`, `atb.data.export`, `atb.policy.decision`, and `atb.human.override` events. Prefers actor email over display name. Live HTTP lookup deferred.
+- `pkg/otel`: OTel inbound transport scaffold with stub `Translate(span OTelSpan) (*Event, error)` interface.
+- `internal/sessionindex`: `BuildIndex` and `GroupByActor`, with canonical profile inference and anomaly detection rules per `spec-dashboard.md`.
+- View server: `GET /api/v1/sessions` and `GET /api/v1/sessions/by-actor` endpoints returning `SessionEntry` arrays and actor-grouped maps.
+- `atb view --sessions` flag: accepts a directory or glob of `.atb` bundles to populate the session index at startup.
+- `custos/internal/receipt`: `FileSystemWORMStore` with atomic POSIX write protocol (`tmp` -> `fsync` -> `rename`), idempotent by SHA-256 content hash, and pre-write head-hash integrity check.
+- `custos/internal/receipt`: `FileSystemReceiptStore` with JSON save/get/list, typed `ErrReceiptNotFound` sentinel, and ascending `SubmittedAt` sort on list.
+- `custosd`: `--worm-dir` and `--receipt-dir` flags with tilde expansion and in-memory store fallback when both flags are explicitly empty.
+- `custosd` HTTP API: `POST /ingest`, `GET /receipts/:id`, and `GET /receipts/:id/verify` endpoints.
+- `custosd`: `--max-ingest-bytes` flag (default 32 MiB) bounding the `/ingest` request body via `http.MaxBytesReader`; oversize uploads return HTTP 413 before the body is buffered into memory or verified. `custos/cmd/custosd/main_test.go` covers the 413/422/400 ingest paths and the bind-config guard; `worm_fs_test.go` adds a path-traversal regression for `Retrieve`.
+- `internal/proxy`: `CustosPusher` with `PushBytes(ctx, []byte)`, one retry on network fault, and locked bundle byte snapshot taken on `atb.session.close` before the recorder mutex is released.
+- `atb intercept --custos` flag to configure the Custos ingest endpoint; prints configured endpoint or disabled status on startup.
+- Web viewer: `SessionList`, `ActorSessions`, and `AnomalyBadge` components with Vitest test coverage.
+- Web viewer: `/sessions` page with `Navbar` navigation entry.
+- `internal/event`: `TypeToolCall`, `TypeDataExport`, `TypeHumanOverride`, `TypeHumanApproval` constants and Registry entries for the four canonical oversight event types.
+- `internal/emit`: new `Emitter` package; `ToolCall`, `DataExport`, `HumanOverride`, `HumanApproval` emitters with required-field validation and British English error messages; seven unit tests (stub appendFn, no file I/O).
+- `sdk/python/atb/oversight.py`: `ToolCallEmitter`, `DataExportEmitter`, `HumanOverrideEmitter`, `HumanApprovalEmitter`; duck-typed event sink (emit/append dispatch); seven pytest tests.
+- `sdk/typescript/src/oversight.ts`: matching four TypeScript emitter classes with options interfaces, session_id propagation, and JSDoc; seven Vitest tests.
+- `internal/proxy/export_test.go`: test seams (`NewProxyForTest`, `CaptureRequestForTest`, `CaptureResponseForTest`) for black-box proxy tests.
+- `Makefile`: `check-generated` target regenerates the schema-driven bindings (`internal/event/types_generated.go`, `sdk/python/atb/event_types_generated.py`, `sdk/typescript/src/eventTypes_generated.ts`) and fails if any drift from the committed output. Wired into `hygiene-quick`, so the gold-release gate now rejects a schema change that was not regenerated, or a hand-edit to a generated file.
+- `internal/proxy`: `CountToolCallsFromResponse` helper counts tool/function invocations in a provider response body (Anthropic `tool_use`, OpenAI `tool_calls`/`function_call`); used to populate `tool_calls_count` on `atb.exchange.complete`.
+- `test/schema/emitter_contract_test.go`: executable contract test that drives the Go oversight emitters (`internal/emit`) and the proxy lifecycle records (`SessionCloseRecord`, `ExchangeCompleteRecord`) and asserts every emitted field is declared in `schemas/event.v1.json` `documented_event_types.properties` and every required field is present — turns required/optional field drift into a build failure rather than a silent divergence.
+- `internal/event`: `TestRegistryMatchesGenerated` asserts the legacy hand-maintained `Registry` and the schema-generated `RegistryGenerated` describe exactly the same event-type set.
+- `docs/custos-handoff.md`: production hardening checklist making the `custosd` threat model explicit — the bearer token is a transport guard, not an identity system, so TLS termination, token rotation, per-tenant/per-user identity, rate limiting, and the hash-chain-only scope of `GET /receipts/{id}/verify` are called out as operator responsibilities before any non-local exposure.
+- View server: `GET /api/v1/schema/status` endpoint returning ecosystem-level contract health for the loaded bundle — declared-vs-observed event types, per-type required-field completeness, and any undeclared (unknown) types. Gated by the same session-token auth and verification check as the other read endpoints; covered by `pkg/api/v1/schema_status_test.go` (logic, auth gating, and method rejection).
+- Web viewer: `SchemaStatus` component and a "Contract status" panel on the `/sessions` page surfacing the new endpoint — summary cards plus a per-type table that flags `undeclared`, `N incomplete` (with the missing field names), `complete`, and `not observed` states so contract drift is visible at a glance rather than buried in per-session detail. Vitest coverage in `web/components/SchemaStatus.test.tsx`.
 
 ### Fixed
 - Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.
+- Removed cross-module internal import of Custos receipt types from `internal/proxy` (Items 1-2, Findings 1-2).
+- Removed unused imports in `internal/sessionindex` and `custos/internal/receipt` (Findings 3, 6).
+- Corrected Custos module import paths in `custosd` and ingest handler from `github.com/pcguest/atb/custos/...` to `github.com/pcguest/custos/...` (Findings 4-5).
+- Replaced forbidden `atb/internal/verify` usage in Custos integration tests with public `pkg/custody` types (Finding 7).
+- Updated stale `NewBundleRecorder` call sites to pass nil `CustosPusher` (Finding 8).
+- Added nil-store guard in Custos ingest handler to prevent panic on valid bundle with uninitialised stores (Finding 10).
+- Async Custos push now uses an immutable locked byte snapshot, preventing a file-level race between session close and concurrent bundle appends (Finding 11).
+- Session close is now idempotent under lock; idle timer stop with channel drain prevents duplicate `atb.session.close` events and duplicate Custos pushes (Finding 12).
+- `internal/sessionindex`: profile inference now matches the canonical event types `ai.policy.decision` and `ai.retrieval.*` (previously the non-existent `atb.policy.decision` / `atb.retrieval.*`), so `policy_decision` and `rag_answer` profiles are correctly inferred.
+- `internal/sessionindex`: the `tool_without_approval` anomaly now respects record order — an `atb.human.approval` only closes the flag when it precedes the `atb.tool.call` in the same session; a later approval no longer retroactively clears it. Flags remain scoped per `session_id`.
+- `custosd`: refuses to start when bound to a non-loopback `--host` while `CUSTOS_AUTH_TOKEN` is empty (previously only warned). A loopback bind without a token remains allowed for local development.
+- Web viewer tests: `SessionList.test.tsx` and `ActorSessions.test.tsx` now import `beforeEach` from `vitest` (the suites previously threw `ReferenceError: beforeEach is not defined` because vitest runs without `globals`).
+- Web viewer test harness: `vitest.setup.ts` now registers a global `afterEach(cleanup)` so rendered output no longer accumulates across `it` blocks; without it, `getByText` queries collided with lingering DOM from earlier tests ("found multiple elements").
+- View server: `actorsForRequest` and `sessionsForRequest` now return a cloned session index on the cached-error path as well as the success path, so an `sessionIndexErr` response can no longer alias the server's shared session slice/actor map.
+- Web viewer: `ActorSessions` actor headers and session rows are keyboard-accessible (`role="button"`, `tabIndex={0}`, Enter/Space activation, and `aria-expanded` on the expandable header) rather than mouse-only `onClick` targets.
+
+### Changed
+- `internal/proxy/session.go`: `actor_id` now unconditionally emitted on `atb.session.close`; was previously omitted when identity resolution returned an empty string.
+- `internal/proxy/recorder.go`: `AppendEventHash` returns the appended record hash to enable provability linkage from `atb.exchange.complete` → hashed request record.
+- `internal/proxy/forward.go`: `atb.exchange.complete` now emits a superset payload — `actor_id`, `model`, `input_tokens`, `output_tokens`, `tool_calls_count`, `latency_ms`, `completed_at`, and `request_event_id` sourced from the real append hash — in addition to the original required fields.
+- `internal/proxy/session.go`: `tool_calls_count` on `atb.exchange.complete` now reflects a real count parsed from the response body (`CountToolCallsFromResponse`: Anthropic `tool_use` blocks, OpenAI Chat Completions `tool_calls`, OpenAI Responses `function_call`/`tool_call` items) instead of a hardcoded `0`. Best-effort: an unrecognised or unparseable body yields `0` and never blocks recording.
+- `docs/spec-ai-traces.md`: the `atb.exchange.complete` subsection now distinguishes required, always-emitted (`actor_id`, `completed_at`, `tool_calls_count`), and optional fields, matching the emitted payload exactly.
+- `schemas/event.v1.json`: added the four canonical oversight event types (`atb.tool.call`, `atb.data.export`, `atb.human.override`, `atb.human.approval`) and the two proxy-internal session types (`atb.session.close`, `atb.exchange.complete`) to the schema source of truth, with `required_fields` and matching `documented_event_types` entries. Regenerated the Go/Python/TypeScript bindings; the generated `internal/event/types_generated.go` now owns the canonical type constants (previously hand-declared in `types.go`), removing the duplicate-declaration drift between the generator and the committed output.
+- `internal/emit`, `sdk/python/atb/oversight.py`, `sdk/typescript/src/oversight.ts`: renamed the optional tool-call digest fields from `input_hash`/`output_hash` to `tool_input_digest`/`tool_output_digest` to follow the ATB `*_digest` naming convention used elsewhere in the schema. The Go emitter validation error prefix is now `atb:` (was `emit:`), matching the Python and TypeScript surfaces.
+- `docs/spec-ai-traces.md`: reconciled the `atb.tool.call`, `atb.data.export`, `atb.human.override`, and `atb.human.approval` field tables with the shipped SDK contract (required fields are the essential identifier plus `session_id`; `actor_id`, digests, `record_count`, and `classification` are optional) and added `atb.bundle.pushed` to the complete event type registry table.
+- `tools/eventgen`: the generator now maps the generic `atb.<namespace>.<name>` form to the canonical hand-named constants (e.g. `atb.tool.call` to `TypeToolCall`) so schema-driven generation matches the existing Go and SDK constant names.
+- `schemas/event.v1.json`: `documented_event_types` for `atb.session.close` and `atb.exchange.complete` now declare their always-emitted and optional fields as `properties` (`model`, `exchange_count`, `total_tokens`, `closed_at` for session close; `actor_id`, `completed_at`, `tool_calls_count`, `model`, `input_tokens`, `output_tokens`, `latency_ms` for exchange complete), matching the proxy payload exactly. The `required` arrays are unchanged, so the schema-consistency test and generated bindings are unaffected.
+- `docs/spec-ai-traces.md`: the `atb.session.close` subsection now documents its always-emitted fields (`model`, `exchange_count`, `total_tokens`, `closed_at`), matching the schema and emitted payload.
+- `internal/event/types.go`: the legacy deprecated `Registry` now includes `atb.session.close` and `atb.exchange.complete`, ending its silent divergence from the schema-generated `RegistryGenerated` (guarded by the new parity test).
+- `internal/proxy/session.go`: simplified `NoteExchange` token accumulation to `TotalTokens += promptTokens + outputTokens`, removing a tautological no-op branch; behaviour is unchanged.
 
 ## [v1.12.0] - 2026-05-25
 
@@ -263,6 +321,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.6.0] - 2026-04-15
 
+### Added
+- `atb trust-report --format text` adds a human-readable trust report with ANSI
+  status colour (PASS/FAIL/WARN) and a conditional CAS block showing profile,
+  grade, anchor quality label, and all eight sub-scores.
+- `atb snapshot <name>` appends an `atb.snapshot` record containing `name`,
+  `bundle_hash` (SHA-256 hex of serialised bundle), `record_count`, and
+  `snapshot_at` (RFC 3339 UTC). Accepts `--bundle` and `--quiet`.
+- `internal/event` adds `TypeSnapshot = "atb.snapshot"`.
+- `internal/verify` adds an offline RFC 3161 fixture
+  (`testdata/anchor_token_verified.tsr`) and generator, and unskips
+  `TestClassifyAnchor_Verified`.
+- SDK version parity updates `sdk/python` and `sdk/typescript` to `1.6.0`.
+
+### Changed
+- `cmd/atb/main.go` replaces the snapshot stub with the real command in
+  `snapshot.go`.
+- `internal/verify/anchor_classify.go` adds a narrow root-pool hook for test
+  override while leaving the production path unchanged.
+
 ### Pre-launch surface polish
 
 - `atb view` now accepts `--profile <id-or-path>`: evaluates the bundle against the
@@ -396,27 +473,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Versioning reset to v0.9.0-beta to accurately reflect pre-production status
 - TSA verification: certificate chain validation is implemented and used for CAS scoring
 - Bundle-level Ed25519 signing: fully implemented via `atb sign` and `atb verify`
-
-## [v1.6.0] - 2026-04-01
-
-### Added
-- `atb trust-report --format text` adds a human-readable trust report with ANSI
-  status colour (PASS/FAIL/WARN) and a conditional CAS block showing profile,
-  grade, anchor quality label, and all eight sub-scores.
-- `atb snapshot <name>` appends an `atb.snapshot` record containing `name`,
-  `bundle_hash` (SHA-256 hex of serialised bundle), `record_count`, and
-  `snapshot_at` (RFC 3339 UTC). Accepts `--bundle` and `--quiet`.
-- `internal/event` adds `TypeSnapshot = "atb.snapshot"`.
-- `internal/verify` adds an offline RFC 3161 fixture
-  (`testdata/anchor_token_verified.tsr`) and generator, and unskips
-  `TestClassifyAnchor_Verified`.
-- SDK version parity updates `sdk/python` and `sdk/typescript` to `1.6.0`.
-
-### Changed
-- `cmd/atb/main.go` replaces the snapshot stub with the real command in
-  `snapshot.go`.
-- `internal/verify/anchor_classify.go` adds a narrow root-pool hook for test
-  override while leaving the production path unchanged.
 
 ## [v1.5.0] - 2026-03-31
 

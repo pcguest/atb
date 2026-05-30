@@ -7,25 +7,9 @@ package event
 
 //go:generate go run ../../tools/eventgen/main.go -schema ../../schemas/event.v1.json
 
-// Bundle lifecycle events.
-const (
-	TypeBundleManifest  = "atb.bundle.manifest"
-	TypeBundleAnchor    = "atb.bundle.anchor"
-	TypeBundleSignature = "atb.bundle.signature"
-	TypeSnapshot        = "atb.snapshot"
-	TypeBundlePushed    = "atb.bundle.pushed"
-)
-
-// AI request and response events.
-const (
-	TypeAIRequestReceived   = "ai.request.received"
-	TypeAIResponseSent      = "ai.response.sent"
-	TypeAILLMCall           = "ai.llm.call"
-	TypeAIToolExec          = "ai.tool.exec"
-	TypeAIChainRun          = "ai.chain.run"
-	TypeAIPolicyDecision    = "ai.policy.decision"
-	TypeAIRetrievalExecuted = "ai.retrieval.executed"
-)
+// Canonical event type constants (TypeBundleManifest, TypeToolCall, ...) are
+// generated from schemas/event.v1.json into types_generated.go. Do not declare
+// them by hand here; add the type to the schema and run `go generate ./...`.
 
 // Policy decision events.
 const (
@@ -45,23 +29,6 @@ type EventInfo struct {
 	// Criticality is one of: "critical", "required", "informational", "".
 	Criticality string `json:"criticality"`
 }
-
-// Additional canonical event type constants referenced by Registry.
-const (
-	TypeAIHumanApproval       = "ai.human.approval"
-	TypeAIOverrideRequested   = "ai.override.requested"
-	TypeAIJobScheduled        = "ai.job.scheduled"
-	TypeAIJobStarted          = "ai.job.started"
-	TypeAIJobStep             = "ai.job.step"
-	TypeAIJobCompleted        = "ai.job.completed"
-	TypeDataExportPrecommit   = "data.export.precommit"
-	TypeDataExportExecuted    = "data.export.executed"
-	TypeDevSession            = "dev.session"
-	TypeSnapshotBuild         = "snapshot.build"
-	TypeCorroborationExternal = "atb.corroboration.external"
-	TypeRAGIndex              = "atb.event.rag_index"
-	TypeRAGRetrieval          = "atb.event.rag_retrieval"
-)
 
 // Registry is the legacy ordered list of all canonical event types.
 //
@@ -99,13 +66,10 @@ var Registry = []EventInfo{
 	{TypeCorroborationExternal, "External corroboration record (adapter-retrieved evidence)", "", "informational"},
 	{TypeRAGIndex, "PageIndex document tree build record (index_hash, node_count)", "atb.profile.rag_answer", "required"},
 	{TypeRAGRetrieval, "PageIndex reasoning-based retrieval result (node_id, page_start/end)", "atb.profile.rag_answer", "required"},
+	{TypeToolCall, "Tool invocation recorded for session oversight", "", "required"},
+	{TypeDataExport, "Data export outside session boundary", "", "required"},
+	{TypeHumanOverride, "Human operator overrode an AI-recommended action", "", "required"},
+	{TypeHumanApproval, "Human operator approved a pending action", "", "required"},
+	{TypeSessionClose, "Capture session closed (proxy-internal lifecycle marker)", "", "informational"},
+	{TypeExchangeComplete, "Request/response exchange completed within a capture session (proxy-internal)", "", "informational"},
 }
-
-// AI model and action events (generated from schema; declared here as canonical constants).
-const (
-	TypeAIModelInvoked    = "ai.model.invoked"
-	TypeAIModelOutput     = "ai.model.output"
-	TypeAIActionPrecommit = "ai.action.precommit"
-	TypeAIActionExecuted  = "ai.action.executed"
-	TypeAIActionCommitted = "ai.action.committed"
-)

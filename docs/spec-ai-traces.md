@@ -304,6 +304,171 @@ the external system that produced them. A compromised gateway can produce valid-
 corroboration records. ATB records that the adapter retrieved something with the recorded
 digest; it does not verify the external system's own integrity.
 
+## Session, oversight, and tool events
+
+The following event types support session lifecycle, human oversight, tool
+invocation, and data export workflows. ATB records and verifies these events;
+it does not certify legal or regulatory compliance.
+
+Each subsection lists the required `event.data` fields. Implementations MAY
+emit additional payload fields; readers MUST ignore unknown fields.
+
+Classification:
+
+- **proxy-internal** — emitted by `atb intercept` only. SDKs SHOULD NOT emit
+  these types directly; they describe capture-side lifecycle that the proxy
+  owns.
+- **canonical (SDK-emittable)** — declared canonical types that SDKs and
+  framework integrations MAY emit when the corresponding workflow occurs.
+
+### `atb.session.close`
+
+Classification: proxy-internal. Emitted by `atb intercept` on session
+teardown; triggers Custos auto-push when `CustosEndpoint` is configured (see
+`internal/proxy/recorder.go`).
+
+**Required fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `session_id` | string | Stable identifier of the closed capture session. |
+| `actor_id` | string | Canonical actor reference for the session; empty string when unresolved. |
+
+#### Always-emitted fields
+
+The proxy always writes these on close, even when a value is zero or empty, so
+consumers can rely on their presence:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `model` | string | Last model observed on the session; empty string when none seen. |
+| `exchange_count` | int | Number of request/response exchanges captured in the session. |
+| `total_tokens` | int | Summed prompt and output tokens across the session, when reported by the model. |
+| `closed_at` | string | RFC 3339 timestamp the session was closed. |
+
+### `atb.exchange.complete`
+
+Classification: proxy-internal. Emitted by `atb intercept` at the close of
+one request/response exchange within a session. Consumed by the session
+index to count exchanges per session.
+
+**Required fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `session_id` | string | Session identifier the exchange belongs to. |
+| `exchange_id` | string | Stable identifier of the completed exchange. |
+| `request_event_id` | string | Hash of the originating proxy request record. |
+
+#### Always-emitted fields
+
+The proxy always writes these, even when a value is zero or empty, so consumers
+can rely on their presence:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `actor_id` | string | Resolved actor identity; empty string when unresolvable. |
+| `completed_at` | string | RFC 3339 timestamp of response completion. |
+| `tool_calls_count` | int | Tool/function invocations counted in the response body (`tool_use` for Anthropic, `tool_calls`/`function_call` for OpenAI); `0` when none or when the body is not recognised. |
+
+#### Optional fields (emitted when known)
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `model` | string | Model identifier from the proxied response. |
+| `input_tokens` | int | Token count from the request, when reported by the model. |
+| `output_tokens` | int | Token count from the response, when reported by the model. |
+| `latency_ms` | int | Wall-clock milliseconds from request arrival to response flush. |
+
+> All fields beyond the required set are additive under the manifest v1
+> contract. Consumers MUST NOT require them; producers SHOULD emit them when
+> the information is available without additional I/O. `tool_calls_count` is
+> best-effort: it reflects only what is parseable from the response body and
+> never blocks recording.
+
+### `atb.tool.call`
+
+Classification: canonical (SDK-emittable). Records that an AI agent invoked
+a tool. Triggers the `tool_without_approval` anomaly flag in the session
+index when no preceding `atb.human.approval` event exists in the same
+session.
+
+**Required fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `session_id` | string | Session identifier the tool call belongs to. |
+| `tool_name` | string | Identifier of the invoked tool. |
+
+**Optional fields (emitted when known):**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `actor_id` | string | Actor reference for the invocation. |
+| `tool_input_digest` | string | SHA-256 hex of the canonicalised tool input. |
+| `tool_output_digest` | string | SHA-256 hex of the canonicalised tool output. |
+
+### `atb.data.export`
+
+Classification: canonical (SDK-emittable). Records that an AI agent exported
+data outside the session boundary.
+
+**Required fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `session_id` | string | Session identifier the export belongs to. |
+| `export_target` | string | Identifier of the export destination (URI, system, or sink name). |
+
+**Optional fields (emitted when known):**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `actor_id` | string | Actor reference for the export. |
+| `record_count` | integer | Number of records exported; omitted when zero or unknown. |
+| `classification` | string | Data classification label. |
+
+### `atb.human.override`
+
+Classification: canonical (SDK-emittable). Records that a human operator
+overrode an AI-recommended action.
+
+**Required fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `session_id` | string | Session identifier the override belongs to. |
+| `override_reason` | string | Short rationale for the override. |
+
+**Optional fields (emitted when known):**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `actor_id` | string | Canonical identifier of the human operator. |
+| `overridden_action_id` | string | Identifier of the overridden action. |
+
+### `atb.human.approval`
+
+Classification: canonical (SDK-emittable). Records that a human operator
+explicitly approved a pending action. When recorded in sequence before a
+corresponding `atb.tool.call` in the same session, it closes the
+`tool_without_approval` anomaly flag.
+
+**Required fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `session_id` | string | Session identifier the approval belongs to. |
+| `approved_action_id` | string | Identifier of the action being approved. |
+
+**Optional fields (emitted when known):**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `actor_id` | string | Canonical identifier of the approving human operator. |
+| `approver_id` | string | Approver reference. |
+| `note` | string | Free-text approval note. |
+
 ## Complete event type registry
 
 The table below lists every canonical ATB event type. The three integration events (`ai.llm.call`, `ai.tool.exec`, `ai.chain.run`) are documented in detail above. The remaining types are used directly via the CLI or SDKs without a framework callback mapping.
@@ -316,6 +481,7 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `atb.bundle.anchor` | Bundle lifecycle | required | All profiles |
 | `atb.bundle.signature` | Bundle lifecycle | required | All profiles |
 | `atb.snapshot` | Bundle lifecycle | informational | — |
+| `atb.bundle.pushed` | Bundle lifecycle | informational | — |
 | `ai.request.received` | AI request/response | critical | `rag_answer`, `privileged_tool_action`, `data_export`, `policy_decision`, `human_override` |
 | `ai.response.sent` | AI request/response | required | `rag_answer` |
 | `ai.llm.call` | AI integration (see above) | informational | — |
@@ -338,6 +504,12 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `ai.job.completed` | Background automation | critical | `background_automation` |
 | `data.export.precommit` | Data export | critical | `data_export` |
 | `data.export.executed` | Data export | critical | `data_export` |
+| `atb.session.close` | Session lifecycle | informational | — |
+| `atb.exchange.complete` | Session lifecycle | informational | — |
+| `atb.tool.call` | Tool invocation | required | — |
+| `atb.data.export` | Data export | required | — |
+| `atb.human.override` | Human oversight | required | — |
+| `atb.human.approval` | Human oversight | required | — |
 | `dev.session` | Developer tooling | informational | — |
 | `snapshot.build` | Developer tooling | informational | — |
 | `atb.corroboration.external` | Corroboration | informational | All (contributes to XC) |

@@ -333,6 +333,14 @@ func constParts(eventType string) []string {
 		return append([]string{"corroboration"}, splitName(strings.TrimPrefix(eventType, "atb.corroboration."))...)
 	case strings.HasPrefix(eventType, "ai."):
 		return append([]string{"ai"}, splitName(strings.TrimPrefix(eventType, "ai."))...)
+	case strings.HasPrefix(eventType, "atb."):
+		// Generic atb.* namespace (atb.tool.call, atb.human.override,
+		// atb.session.close, ...): the leading "atb." is dropped so the
+		// generated const matches the canonical hand-named consts
+		// (atb.tool.call -> TypeToolCall). The more specific atb.bundle.,
+		// atb.snapshot, atb.event., and atb.corroboration. cases above take
+		// precedence and keep their existing names.
+		return splitName(strings.TrimPrefix(eventType, "atb."))
 	default:
 		return splitName(eventType)
 	}

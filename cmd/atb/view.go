@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -22,6 +23,7 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/sessionindex"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 	apiv1 "github.com/pcguest/atb/pkg/api/v1"
 )
@@ -37,6 +39,7 @@ type viewConfig struct {
 	LogReveals   bool
 	ProfilePath  string
 	SessionToken string
+	SessionPaths []string
 }
 
 const defaultViewHost = "127.0.0.1"
@@ -68,7 +71,7 @@ func cmdView() {
 		}
 	}
 
-	handler, eventCount, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.ProfilePath, sessionToken)
+	handler, eventCount, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.ProfilePath, sessionToken, cfg.SessionPaths)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		os.Exit(classifyBundleLoadError(err))
@@ -127,8 +130,12 @@ func cmdView() {
 // suggested open path, and any error.
 // When the embedded review UI is absent (e.g. a go install build), a minimal install-guidance
 // page is served at / instead; it exposes no bundle data.
-func buildViewServer(bundlePath string, logReveals bool, profilePath string, sessionToken string) (http.Handler, int, bool, string, error) {
+func buildViewServer(bundlePath string, logReveals bool, profilePath string, sessionToken string, sessionPathSets ...[]string) (http.Handler, int, bool, string, error) {
 	_ = logReveals // Privacy reveal auditing is always on; flag retained for CLI compatibility.
+	var sessionPaths []string
+	if len(sessionPathSets) > 0 {
+		sessionPaths = sessionPathSets[0]
+	}
 
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
@@ -149,6 +156,19 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 		profileReport, verifierReport = buildStartupProfileReports(b, bundlePath, profilePath)
 	}
 
+	var sessions []sessionindex.SessionEntry
+	var sessionsByActor map[string][]sessionindex.SessionEntry
+	var sessionIndexErr error
+	if len(sessionPaths) > 0 {
+		indexPaths := sessionIndexPaths(bundlePath, sessionPaths)
+		sessions, sessionIndexErr = sessionindex.BuildIndex(context.Background(), indexPaths)
+		sessionsByActor = sessionindex.GroupByActor(sessions)
+		if sessionIndexErr != nil {
+			fmt.Fprintf(os.Stderr, "atb view: session index built with load errors: %v\n", sessionIndexErr)
+		}
+		fmt.Fprintf(os.Stderr, "Session index built: %d sessions from %s\n", len(sessions), describeSessionSource(sessionPaths))
+	}
+
 	eventCount := len(b.Records)
 	mux := http.NewServeMux()
 	api := apiv1.NewAPIServer(apiv1.APIConfig{
@@ -160,6 +180,10 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 		ProfileReport:   profileReport,
 		VerifierReport:  verifierReport,
 		ProfilePath:     profilePath,
+		Sessions:        sessions,
+		SessionsByActor: sessionsByActor,
+		SessionIndexErr: sessionIndexErr,
+		SessionIndexed:  len(sessionPaths) > 0,
 	})
 	api.Register(mux)
 
@@ -188,6 +212,200 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 	// Serve a minimal guidance page that exposes no bundle data.
 	mux.Handle("/", newInstallFallbackHandler())
 	return withSecurityHeaders(mux, revealAuthToken), eventCount, false, "/", nil
+}
+
+func resolveBundlePath(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return bundle.DefaultPath(), nil
+	}
+	info, err := os.Stat(path)
+	if err == nil {
+		if info.IsDir() {
+			return filepath.Join(path, bundle.BundleFile), nil
+		}
+		return path, nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+	if strings.HasSuffix(path, string(os.PathSeparator)) {
+		return filepath.Join(path, bundle.BundleFile), nil
+	}
+	return path, nil
+}
+
+func generateRevealAuthToken() (string, error) {
+	var token [32]byte
+	if _, err := rand.Read(token[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(token[:]), nil
+}
+
+func candidateViewPorts(port int, explicit bool) []int {
+	if explicit || port == 0 {
+		return []int{port}
+	}
+	ports := []int{port}
+	for next := port + 1; next <= port+2 && next <= 65535; next++ {
+		ports = append(ports, next)
+	}
+	return ports
+}
+
+func listenViewPort(host string, port int, explicit bool) (net.Listener, int, error) {
+	var lastErr error
+	for _, candidate := range candidateViewPorts(port, explicit) {
+		addr := net.JoinHostPort(host, strconv.Itoa(candidate))
+		ln, err := net.Listen("tcp", addr)
+		if err == nil {
+			actualPort := candidate
+			if tcpAddr, ok := ln.Addr().(*net.TCPAddr); ok {
+				actualPort = tcpAddr.Port
+			}
+			return ln, actualPort, nil
+		}
+		lastErr = err
+		if explicit || !isAddrInUseError(err) {
+			return nil, 0, fmt.Errorf("listen on %s: %w", addr, err)
+		}
+	}
+	return nil, 0, fmt.Errorf("listen on %s:%d: %w", host, port, lastErr)
+}
+
+func isAddrInUseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+	var errno syscall.Errno
+	if errors.As(err, &errno) && errno == syscall.Errno(10048) {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "address already in use") ||
+		strings.Contains(msg, "only one usage of each socket address")
+}
+
+func openBrowser(url string) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+	return cmd.Start()
+}
+
+func buildStartupProfileReports(b *bundle.Bundle, bundlePath string, profilePath string) (*apiv1.ProfileReportSummary, *verifypkg.VerifierReport) {
+	selection, _, err := resolveVerifySelection(profilePath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "atb view: profile evaluation skipped: %v\n", err)
+		return nil, nil
+	}
+	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
+		BundlePath:    bundlePath,
+		Records:       b.Records,
+		Profiles:      selection.profiles,
+		AllApplicable: selection.allApplicable,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "atb view: profile evaluation skipped: %v\n", err)
+		return nil, nil
+	}
+	summary := startupProfileSummary(*report)
+	verifierReport := verifypkg.ReportFromVerify(*report)
+	return &summary, &verifierReport
+}
+
+func startupProfileSummary(report verifypkg.Report) apiv1.ProfileReportSummary {
+	summary := apiv1.ProfileReportSummary{
+		ChainValid:       report.Integrity.ChainValid,
+		AnchorStatus:     report.Anchoring.Status,
+		CriticalFailures: []apiv1.FailureDTO{},
+		Warnings:         []string{},
+	}
+	if report.CAS != nil {
+		summary.CASScore = report.CAS.Overall
+		summary.CASGrade = report.CAS.Grade
+		summary.CorroborationBonus = report.CAS.CorroborationBonus
+		summary.EffectiveScore = report.CAS.EffectiveScore
+		summary.SubScores = report.CAS.SubScores
+	}
+	if len(report.Profiles) > 0 {
+		profile := report.Profiles[0]
+		summary.ProfileID = profile.ProfileID
+		summary.ProfileVersion = profile.Version
+		summary.Pass = report.Integrity.ChainValid && profile.Pass
+		summary.Warnings = append(summary.Warnings, profile.RequiredWarnings...)
+		for _, failure := range profile.CriticalFailures {
+			summary.CriticalFailures = append(summary.CriticalFailures, apiv1.FailureDTO{Kind: failure.Kind, Detail: failure.Detail})
+		}
+	}
+	summary.Exclusions = append(summary.Exclusions, report.Exclusions...)
+	summary.ResidualRiskLevel = report.ResidualRisk.Level
+	for _, gap := range report.ProvabilityGaps {
+		summary.ProvabilityGaps = append(summary.ProvabilityGaps, apiv1.ProvabilityGapDTO{
+			Gap:        gap.Gap,
+			Layer:      gap.Layer,
+			Mitigation: gap.Mitigation,
+			ClosedWhen: gap.ClosedWhen,
+		})
+	}
+	return summary
+}
+
+func withSecurityHeaders(next http.Handler, revealAuthToken string) http.Handler {
+	csp := strings.Join([]string{
+		"default-src 'self'",
+		"base-uri 'none'",
+		"frame-ancestors 'none'",
+		"object-src 'none'",
+		"script-src 'self' 'unsafe-inline'",
+		"style-src 'self' 'unsafe-inline'",
+		"img-src 'self' data: blob:",
+		"font-src 'self' data:",
+		"connect-src 'self'",
+		"worker-src 'self' blob:",
+		"form-action 'none'",
+	}, "; ")
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", csp)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "no-referrer")
+		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+		if revealAuthToken != "" {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "atb_reveal_token",
+				Value:    revealAuthToken,
+				Path:     "/",
+				HttpOnly: true,
+				SameSite: http.SameSiteStrictMode,
+			})
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func embeddedDashboardFS() (http.FileSystem, bool) {
+	dashboard, err := fs.Sub(atbembed.WebOutFS, "web/out")
+	if err != nil {
+		return nil, false
+	}
+	if _, err := fs.Stat(dashboard, "view/index.html"); err != nil {
+		return nil, false
+	}
+	return http.FS(dashboard), true
 }
 
 // newInstallFallbackHandler returns a minimal HTML page for builds that do not include
@@ -225,7 +443,7 @@ func newInstallFallbackHandler() http.Handler {
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>] [--sessions <glob-or-dir>]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -304,6 +522,24 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			cfg.SessionToken = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--session-token="):
 			cfg.SessionToken = strings.TrimSpace(strings.TrimPrefix(arg, "--session-token="))
+		case arg == "--sessions":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --sessions")
+			}
+			i++
+			pattern := args[i]
+			paths, err := resolveSessionPaths(pattern)
+			if err != nil {
+				return cfg, fmt.Errorf("failed to resolve session paths for %q: %w", pattern, err)
+			}
+			cfg.SessionPaths = append(cfg.SessionPaths, paths...)
+		case strings.HasPrefix(arg, "--sessions="):
+			pattern := strings.TrimPrefix(arg, "--sessions=")
+			paths, err := resolveSessionPaths(pattern)
+			if err != nil {
+				return cfg, fmt.Errorf("failed to resolve session paths for %q: %w", pattern, err)
+			}
+			cfg.SessionPaths = append(cfg.SessionPaths, paths...)
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -320,231 +556,62 @@ func parseViewArgs(args []string) (viewConfig, error) {
 	return cfg, nil
 }
 
-func resolveBundlePath(raw string) (string, error) {
-	if raw == "" {
-		return bundle.DefaultPath(), nil
+func resolveSessionPaths(pattern string) ([]string, error) {
+	pattern = strings.TrimSpace(pattern)
+	if pattern == "" {
+		return nil, fmt.Errorf("session path cannot be empty")
 	}
-
-	info, err := os.Stat(raw)
-	if err == nil {
-		if info.IsDir() {
-			return filepath.Join(raw, bundle.BundleFile), nil
-		}
-		return raw, nil
-	}
-	if !os.IsNotExist(err) {
-		return "", err
-	}
-	if strings.HasSuffix(raw, string(os.PathSeparator)) {
-		return filepath.Join(raw, bundle.BundleFile), nil
-	}
-	return raw, nil
-}
-
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", url) // #nosec G204 -- url is internally constructed http://localhost link, not user input
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) // #nosec G204 -- url is internally constructed http://localhost link, not user input
-	default:
-		cmd = exec.Command("xdg-open", url) // #nosec G204 -- url is internally constructed http://localhost link, not user input
-	}
-	return cmd.Start()
-}
-
-func listenViewPort(host string, startPort int, explicit bool) (net.Listener, int, error) {
-	if strings.TrimSpace(host) == "" {
-		host = defaultViewHost
-	}
-	for _, port := range candidateViewPorts(startPort, explicit) {
-		addr := net.JoinHostPort(host, strconv.Itoa(port))
-		ln, err := net.Listen("tcp", addr)
-		if err == nil {
-			return ln, port, nil
-		}
-		if !isAddrInUseError(err) {
-			return nil, 0, fmt.Errorf("listen %s: %w", addr, err)
-		}
-	}
-	if explicit {
-		return nil, 0, fmt.Errorf("port %d is already in use", startPort)
-	}
-	return nil, 0, fmt.Errorf("ports %d-%d are already in use", startPort, startPort+2)
-}
-
-func candidateViewPorts(startPort int, explicit bool) []int {
-	if explicit {
-		return []int{startPort}
-	}
-
-	ports := make([]int, 0, 3)
-	for i := 0; i < 3; i++ {
-		p := startPort + i
-		if p > 65535 {
-			break
-		}
-		ports = append(ports, p)
-	}
-	if len(ports) == 0 {
-		return []int{startPort}
-	}
-	return ports
-}
-
-func isAddrInUseError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, syscall.EADDRINUSE) {
-		return true
-	}
-
-	var errno syscall.Errno
-	if errors.As(err, &errno) {
-		// 10048 is WSAEADDRINUSE on Windows.
-		if errno == syscall.Errno(10048) {
-			return true
-		}
-	}
-
-	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "address already in use") ||
-		strings.Contains(msg, "only one usage of each socket address")
-}
-
-// buildStartupProfileReports runs verify against the given profile and returns API reports.
-// Errors loading the profile are silently swallowed; callers should treat nil returns as
-// "no report yet" rather than a hard failure — the user can re-trigger via POST /api/v1/bundle/verify.
-func buildStartupProfileReports(b *bundle.Bundle, bundlePath, profilePath string) (*apiv1.ProfileReportSummary, *verifypkg.VerifierReport) {
-	selection, _, err := resolveVerifySelection(profilePath)
-	if err != nil {
-		return nil, nil
-	}
-
-	report, err := verifypkg.EvaluateBundle(verifypkg.EvaluateConfig{
-		BundlePath:    bundlePath,
-		Records:       b.Records,
-		Profiles:      selection.profiles,
-		AllApplicable: selection.allApplicable,
-	})
-	if err != nil {
-		return nil, nil
-	}
-
-	summary := viewVerifyReportToSummary(*report)
-	full := verifypkg.ReportFromVerify(*report)
-	return &summary, &full
-}
-
-// viewVerifyReportToSummary converts a verify.Report to the API summary shape.
-func viewVerifyReportToSummary(r verifypkg.Report) apiv1.ProfileReportSummary {
-	summary := apiv1.ProfileReportSummary{
-		ChainValid:       r.Integrity.ChainValid,
-		AnchorStatus:     r.Anchoring.Status,
-		CriticalFailures: []apiv1.FailureDTO{},
-		Warnings:         []string{},
-	}
-	if r.CAS != nil {
-		summary.CASScore = r.CAS.Overall
-		summary.CASGrade = r.CAS.Grade
-		if r.CAS.CorroborationBonus != 0 {
-			summary.CorroborationBonus = r.CAS.CorroborationBonus
-			summary.EffectiveScore = r.CAS.EffectiveScore
-		}
-		if len(r.CAS.SubScores) > 0 {
-			summary.SubScores = make(map[string]float64, len(r.CAS.SubScores))
-			for k, v := range r.CAS.SubScores {
-				summary.SubScores[k] = v
+	info, err := os.Stat(pattern)
+	if err == nil && info.IsDir() {
+		var paths []string
+		err := filepath.WalkDir(pattern, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
 			}
-		}
-	}
-	if len(r.Profiles) > 0 {
-		p := r.Profiles[0]
-		summary.ProfileID = p.ProfileID
-		summary.ProfileVersion = p.Version
-		summary.Pass = r.Integrity.ChainValid && p.Pass
-		for _, f := range p.CriticalFailures {
-			summary.CriticalFailures = append(summary.CriticalFailures, apiv1.FailureDTO{Kind: f.Kind, Detail: f.Detail})
-		}
-		summary.Warnings = append([]string{}, p.RequiredWarnings...)
-	}
-	if len(r.ProvabilityGaps) > 0 {
-		summary.ProvabilityGaps = make([]apiv1.ProvabilityGapDTO, len(r.ProvabilityGaps))
-		for i, gap := range r.ProvabilityGaps {
-			summary.ProvabilityGaps[i] = apiv1.ProvabilityGapDTO{
-				Gap:        gap.Gap,
-				Layer:      gap.Layer,
-				Mitigation: gap.Mitigation,
-				ClosedWhen: gap.ClosedWhen,
+			if !d.IsDir() && strings.HasSuffix(d.Name(), ".atb") {
+				paths = append(paths, path)
 			}
-		}
+			return nil
+		})
+		sort.Strings(paths)
+		return paths, err
 	}
-	if len(r.Exclusions) > 0 {
-		summary.Exclusions = append([]string(nil), r.Exclusions...)
-	}
-	if r.ResidualRisk.Level != "" {
-		summary.ResidualRiskLevel = r.ResidualRisk.Level
-	}
-	return summary
-}
 
-func embeddedDashboardFS() (http.FileSystem, bool) {
-	sub, err := fs.Sub(atbembed.WebOutFS, "web/out")
+	paths, err := filepath.Glob(pattern)
 	if err != nil {
-		return nil, false
+		return nil, err
 	}
-	f, err := sub.Open(filepath.ToSlash(filepath.Join("view", "index.html")))
-	if err != nil {
-		return nil, false
-	}
-	_ = f.Close()
-	return http.FS(sub), true
+	sort.Strings(paths)
+	return paths, nil
 }
 
-func generateRevealAuthToken() (string, error) {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(buf), nil
-}
-
-func withSecurityHeaders(next http.Handler, revealAuthToken string) http.Handler {
-	csp := strings.Join([]string{
-		"default-src 'self'",
-		"base-uri 'none'",
-		"frame-ancestors 'none'",
-		"object-src 'none'",
-		"script-src 'self' 'unsafe-inline'",
-		"style-src 'self' 'unsafe-inline'",
-		"img-src 'self' data: blob:",
-		"font-src 'self' data:",
-		"connect-src 'self'",
-		"worker-src 'self' blob:",
-		"form-action 'none'",
-	}, "; ")
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", csp)
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-Frame-Options", "DENY")
-		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
-		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
-
-		if revealAuthToken != "" {
-			http.SetCookie(w, &http.Cookie{
-				Name:     "atb_reveal_token",
-				Value:    revealAuthToken,
-				Path:     "/",
-				HttpOnly: true,
-				SameSite: http.SameSiteStrictMode,
-			})
+func sessionIndexPaths(bundlePath string, sessionPaths []string) []string {
+	seen := make(map[string]struct{}, len(sessionPaths)+1)
+	paths := make([]string, 0, len(sessionPaths)+1)
+	for _, path := range append([]string{bundlePath}, sessionPaths...) {
+		key, err := filepath.Abs(path)
+		if err != nil {
+			key = path
 		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		paths = append(paths, path)
+	}
+	return paths
+}
 
-		next.ServeHTTP(w, r)
-	})
+func describeSessionSource(sessionPaths []string) string {
+	if len(sessionPaths) == 0 {
+		return ""
+	}
+	if len(sessionPaths) == 1 {
+		info, err := os.Stat(sessionPaths[0])
+		if err == nil && info.IsDir() {
+			return sessionPaths[0]
+		}
+		return filepath.Dir(sessionPaths[0])
+	}
+	return fmt.Sprintf("%d bundle paths", len(sessionPaths))
 }

@@ -2,6 +2,7 @@
 package apiv1
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -18,7 +20,9 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/internal/sessionindex"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
@@ -52,6 +56,10 @@ type APIConfig struct {
 	ProfileReport    *ProfileReportSummary // optional; pre-computed at startup via --profile
 	VerifierReport   *verifypkg.VerifierReport
 	ProfilePath      string // optional; re-used by POST /api/v1/bundle/verify
+	Sessions         []sessionindex.SessionEntry
+	SessionsByActor  map[string][]sessionindex.SessionEntry
+	SessionIndexErr  error
+	SessionIndexed   bool
 }
 
 // APIServer serves dashboard data from a verified (or failed-verification) bundle snapshot.
@@ -67,6 +75,10 @@ type APIServer struct {
 	profileReport      *ProfileReportSummary
 	verifierReport     *verifypkg.VerifierReport
 	profilePath        string
+	sessions           []sessionindex.SessionEntry
+	sessionsByActor    map[string][]sessionindex.SessionEntry
+	sessionIndexErr    error
+	sessionIndexed     bool
 	mu                 sync.Mutex
 	rateMu             sync.Mutex
 }
@@ -100,6 +112,10 @@ func NewAPIServer(cfg APIConfig) *APIServer {
 		profileReport:      cfg.ProfileReport,
 		verifierReport:     cfg.VerifierReport,
 		profilePath:        cfg.ProfilePath,
+		sessions:           cfg.Sessions,
+		sessionsByActor:    cfg.SessionsByActor,
+		sessionIndexErr:    cfg.SessionIndexErr,
+		sessionIndexed:     cfg.SessionIndexed,
 	}
 }
 
@@ -113,6 +129,315 @@ func (s *APIServer) Register(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/bundle/verify", s.handleBundleVerify)
 	mux.HandleFunc("/api/v1/bundle/verify/report", s.handleBundleVerifyReport)
 	mux.HandleFunc("/api/v1/privacy/reveal", s.handlePrivacyReveal)
+	mux.HandleFunc("/api/v1/sessions", s.handleSessions)
+	mux.HandleFunc("/api/v1/sessions/by-actor", s.handleSessionsByActor)
+	mux.HandleFunc("/api/v1/schema/status", s.handleSchemaStatus)
+}
+
+// SessionsResponse is the API response for GET /api/v1/sessions.
+type SessionsResponse struct {
+	Sessions []sessionindex.SessionEntry `json:"sessions"`
+}
+
+// ActorsResponse is the API response for GET /api/v1/sessions/by-actor.
+type ActorsResponse struct {
+	Actors map[string][]sessionindex.SessionEntry `json:"actors"`
+}
+
+type SessionIndexErrorResponse struct {
+	Error   string                   `json:"error"`
+	Bundles []sessionindex.LoadError `json:"bundles"`
+}
+
+// @OpenAPI
+// @Summary      Get all sessions
+// @Description  Returns a list of all sessions from the indexed bundles.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  SessionsResponse
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/sessions [get]
+func (s *APIServer) handleSessions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
+	if !s.requireVerified(w) {
+		return
+	}
+
+	sessions, err := s.sessionsForRequest(r)
+	if err != nil {
+		writeSessionIndexError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, SessionsResponse{Sessions: sessions})
+}
+
+// @OpenAPI
+// @Summary      Get sessions grouped by actor
+// @Description  Returns a map of sessions grouped by actor display name.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  ActorsResponse
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/sessions/by-actor [get]
+func (s *APIServer) handleSessionsByActor(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
+	if !s.requireVerified(w) {
+		return
+	}
+
+	actors, err := s.actorsForRequest(r)
+	if err != nil {
+		writeSessionIndexError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, ActorsResponse{Actors: actors})
+}
+
+func (s *APIServer) actorsForRequest(r *http.Request) (map[string][]sessionindex.SessionEntry, error) {
+	if strings.TrimSpace(r.URL.Query().Get("bundle_dir")) == "" && s.sessionIndexed {
+		if s.sessionIndexErr != nil {
+			return cloneActorSessions(s.sessionsByActor), s.sessionIndexErr
+		}
+		return cloneActorSessions(s.sessionsByActor), nil
+	}
+	sessions, err := s.sessionsForRequest(r)
+	if err != nil {
+		return nil, err
+	}
+	return sessionindex.GroupByActor(sessions), nil
+}
+
+func (s *APIServer) sessionsForRequest(r *http.Request) ([]sessionindex.SessionEntry, error) {
+	if bundleDir := strings.TrimSpace(r.URL.Query().Get("bundle_dir")); bundleDir != "" {
+		return buildSessionIndexForDir(r.Context(), bundleDir)
+	}
+	if s.sessionIndexed {
+		if s.sessionIndexErr != nil {
+			return append([]sessionindex.SessionEntry(nil), s.sessions...), s.sessionIndexErr
+		}
+		return append([]sessionindex.SessionEntry(nil), s.sessions...), nil
+	}
+	return buildSessionIndexForDir(r.Context(), filepath.Dir(s.bundlePath))
+}
+
+func buildSessionIndexForDir(ctx context.Context, dir string) ([]sessionindex.SessionEntry, error) {
+	paths, err := sessionBundlePaths(dir)
+	if err != nil {
+		return nil, err
+	}
+	return sessionindex.BuildIndex(ctx, paths)
+}
+
+func sessionBundlePaths(dir string) ([]string, error) {
+	matches, err := filepath.Glob(filepath.Join(dir, "*.atb"))
+	if err != nil {
+		return nil, err
+	}
+	return matches, nil
+}
+
+func cloneActorSessions(in map[string][]sessionindex.SessionEntry) map[string][]sessionindex.SessionEntry {
+	out := make(map[string][]sessionindex.SessionEntry, len(in))
+	for key, entries := range in {
+		out[key] = append([]sessionindex.SessionEntry(nil), entries...)
+	}
+	return out
+}
+
+func writeSessionIndexError(w http.ResponseWriter, err error) {
+	if loadErrors := sessionindex.ExtractLoadErrors(err); len(loadErrors) > 0 {
+		writeJSON(w, http.StatusForbidden, SessionIndexErrorResponse{
+			Error:   "one or more session bundles failed verification",
+			Bundles: loadErrors,
+		})
+		return
+	}
+	writeJSON(w, http.StatusInternalServerError, APIError{Error: "session index unavailable"})
+}
+
+// EventTypeStatusDTO describes the contract health of a single event type in the
+// loaded bundle: whether the schema declares it, how many records were observed,
+// and how many of those observed records are missing a schema-required field.
+type EventTypeStatusDTO struct {
+	Type           string   `json:"type"`
+	Criticality    string   `json:"criticality"`
+	Declared       bool     `json:"declared"`
+	Observed       int      `json:"observed"`
+	RequiredFields []string `json:"required_fields"`
+	Incomplete     int      `json:"incomplete"`
+	MissingFields  []string `json:"missing_fields,omitempty"`
+}
+
+// SchemaStatusResponse is the API response for GET /api/v1/schema/status. It
+// gives operators an ecosystem-level view of contract health for the loaded
+// bundle rather than only per-session detail: declared-vs-observed event types,
+// required-field completeness, and any undeclared (unknown) types present.
+type SchemaStatusResponse struct {
+	SchemaSource     string               `json:"schema_source"`
+	DeclaredTypes    int                  `json:"declared_types"`
+	ObservedTypes    int                  `json:"observed_types"`
+	TotalEvents      int                  `json:"total_events"`
+	IncompleteEvents int                  `json:"incomplete_events"`
+	UndeclaredTypes  []string             `json:"undeclared_types"`
+	Types            []EventTypeStatusDTO `json:"types"`
+}
+
+// @OpenAPI
+// @Summary      Schema contract status
+// @Description  Returns ecosystem-level contract health for the loaded bundle: declared vs observed event types, required-field completeness, and any undeclared types.
+// @Tags         viewer
+// @Produce      json
+// @Success      200  {object}  SchemaStatusResponse
+// @Failure      403  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/schema/status [get]
+func (s *APIServer) handleSchemaStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireSessionAuth(w, r) {
+		return
+	}
+	if !s.requireVerified(w) {
+		return
+	}
+
+	writeJSON(w, http.StatusOK, s.computeSchemaStatus())
+}
+
+// computeSchemaStatus walks the loaded bundle and scores every event type
+// against the schema-generated contract (event.RegistryGenerated and
+// event.RequiredFieldsGenerated). It is pure given the bundle snapshot so it can
+// be unit-tested without a live server.
+func (s *APIServer) computeSchemaStatus() SchemaStatusResponse {
+	declaredOrder := event.RegistryGenerated
+	requiredByType := event.RequiredFieldsGenerated
+
+	observed := make(map[string]int)
+	missingByType := make(map[string]map[string]int) // type -> required field -> records missing it
+	incompleteByType := make(map[string]int)
+	totalEvents := 0
+	incompleteEvents := 0
+
+	if s.b != nil {
+		for _, record := range s.b.Records {
+			eventType := record.Event.Type
+			observed[eventType]++
+			totalEvents++
+
+			required := requiredByType[eventType]
+			if len(required) == 0 {
+				continue
+			}
+			data, ok := record.Event.Data.(map[string]any)
+			// A non-map payload (e.g. the legacy v1 manifest string) cannot be
+			// field-checked here; do not flag it as incomplete on shape alone.
+			if !ok {
+				continue
+			}
+			recordMissing := false
+			for _, field := range required {
+				if _, present := data[field]; !present {
+					if missingByType[eventType] == nil {
+						missingByType[eventType] = make(map[string]int)
+					}
+					missingByType[eventType][field]++
+					recordMissing = true
+				}
+			}
+			if recordMissing {
+				incompleteByType[eventType]++
+				incompleteEvents++
+			}
+		}
+	}
+
+	types := make([]EventTypeStatusDTO, 0, len(declaredOrder))
+	declaredSet := make(map[string]struct{}, len(declaredOrder))
+	for _, info := range declaredOrder {
+		declaredSet[info.Type] = struct{}{}
+		types = append(types, EventTypeStatusDTO{
+			Type:           info.Type,
+			Criticality:    info.Criticality,
+			Declared:       true,
+			Observed:       observed[info.Type],
+			RequiredFields: normaliseStringSlice(requiredByType[info.Type]),
+			Incomplete:     incompleteByType[info.Type],
+			MissingFields:  sortedKeys(missingByType[info.Type]),
+		})
+	}
+
+	// Observed types the schema does not declare are surfaced explicitly so a
+	// drifted or rogue producer is visible rather than silently absorbed.
+	var undeclared []string
+	for eventType := range observed {
+		if _, ok := declaredSet[eventType]; ok {
+			continue
+		}
+		undeclared = append(undeclared, eventType)
+		types = append(types, EventTypeStatusDTO{
+			Type:           eventType,
+			Criticality:    "",
+			Declared:       false,
+			Observed:       observed[eventType],
+			RequiredFields: []string{},
+			Incomplete:     0,
+		})
+	}
+	sort.Strings(undeclared)
+
+	observedTypes := 0
+	for _, count := range observed {
+		if count > 0 {
+			observedTypes++
+		}
+	}
+
+	return SchemaStatusResponse{
+		SchemaSource:     "schemas/event.v1.json",
+		DeclaredTypes:    len(declaredOrder),
+		ObservedTypes:    observedTypes,
+		TotalEvents:      totalEvents,
+		IncompleteEvents: incompleteEvents,
+		UndeclaredTypes:  undeclared,
+		Types:            types,
+	}
+}
+
+func normaliseStringSlice(in []string) []string {
+	if len(in) == 0 {
+		return []string{}
+	}
+	return in
+}
+
+func sortedKeys(m map[string]int) []string {
+	if len(m) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // NewTamperHandler returns a static red warning page for invalid hash chains.

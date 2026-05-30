@@ -57,7 +57,7 @@ Each line in a bundle file is a JSON object with the following schema:
 
 > **NOTE — Manifest data encoding (v1 and v2)**
 >
-> The `atb.bundle.manifest` record has **two supported data shapes** selected by the `version` field. The current writer format is **v2** for structured manifest data; **v1** is the legacy compatibility format.
+> The `atb.bundle.manifest` record has **two supported data shapes** selected by the `version` field. The default writer remains **v1** for compatibility; **v2** is the opt-in structured manifest format.
 >
 > | Field           | v1 (legacy compatibility)                                                   | v2 (current structured format)                       |
 > |-----------------|-----------------------------------------------------------------------------|------------------------------------------------------|
@@ -474,9 +474,10 @@ const eventWithActor: Event = {
 
 ## 9. Schema versioning
 
-The manifest `version` field governs bundle compatibility. The current writer
-format is **2**. Legacy version **1** stores manifest `data` as a JSON-encoded
-string and is retained for compatibility with existing bundles. The product
+The manifest `version` field governs bundle compatibility. The default writer
+format remains **1**. Version **1** stores manifest `data` as a JSON-encoded
+string and is retained for compatibility with existing bundles. Version **2**
+is the opt-in structured-object manifest format. The product
 CLI/SDK SemVer policy is separate and lives
 in `VERSIONING.md`; this section governs the on-disk bundle format only.
 

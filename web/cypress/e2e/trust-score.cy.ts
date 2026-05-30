@@ -1,7 +1,7 @@
 describe("ATB Trust Dashboard", () => {
-  it("load bundle -> display Trust Score", () => {
+  it("load bundle -> display Viewer Health", () => {
     cy.visit("/view/");
-    cy.contains("Trust Score").should("be.visible");
+    cy.get('[data-testid="viewer-health-value"]').should("be.visible");
     cy.contains("Verify bundle").should("be.visible");
   });
 });

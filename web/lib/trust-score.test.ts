@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { calculateTrustScore } from "@/lib/trust-score";
+import { calculateViewerHealthScore } from "@/lib/trust-score";
 
-describe("calculateTrustScore", () => {
+describe("calculateViewerHealthScore", () => {
   it("returns full score when verification is valid and fresh", () => {
-    const result = calculateTrustScore({
+    const result = calculateViewerHealthScore({
       verification: {
         status: "valid",
         message: "ok",
@@ -18,13 +18,13 @@ describe("calculateTrustScore", () => {
 
     expect(result.total).toBe(100);
     expect(result.continuity).toBe(40);
-    expect(result.encryption).toBe(30);
-    expect(result.timestamp).toBe(20);
+    expect(result.bundle_integrity).toBe(30);
+    expect(result.event_chain).toBe(20);
     expect(result.freshness).toBe(10);
   });
 
   it("downgrades score when verification is invalid and stale", () => {
-    const result = calculateTrustScore({
+    const result = calculateViewerHealthScore({
       verification: {
         status: "invalid",
         message: "tampered",
@@ -37,8 +37,8 @@ describe("calculateTrustScore", () => {
 
     expect(result.total).toBe(0);
     expect(result.continuity).toBe(0);
-    expect(result.encryption).toBe(0);
-    expect(result.timestamp).toBe(0);
+    expect(result.bundle_integrity).toBe(0);
+    expect(result.event_chain).toBe(0);
     expect(result.freshness).toBe(0);
   });
 });

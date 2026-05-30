@@ -20,7 +20,7 @@ import {
 } from "@/lib/api-client";
 import { canViewExecutiveSummary, canViewRawData } from "@/lib/roles";
 import { useUIStore } from "@/lib/state/ui-store";
-import { calculateTrustScore } from "@/lib/trust-score";
+import { calculateViewerHealthScore } from "@/lib/trust-score";
 import { displayBundlePath } from "@/lib/display-path";
 
 export default function ViewPage() {
@@ -87,8 +87,8 @@ export default function ViewPage() {
     };
   }, [shouldLoadRawEventData]);
 
-  const trustScore = useMemo(
-    () => calculateTrustScore({ verification, lastTimestamp: metaQuery.data?.last_timestamp }),
+  const viewerHealth = useMemo(
+    () => calculateViewerHealthScore({ verification, lastTimestamp: metaQuery.data?.last_timestamp }),
     [metaQuery.data?.last_timestamp, verification],
   );
 
@@ -160,7 +160,7 @@ export default function ViewPage() {
           <StatsOverview
             verification={verification}
             meta={metaQuery.data ?? null}
-            trustScore={trustScore}
+            viewerHealth={viewerHealth}
             role={role}
             pollingActive={shouldLoadRawEventData ? !pollingPaused : undefined}
           />
@@ -172,7 +172,7 @@ export default function ViewPage() {
             <AuditorCompliancePanel
               verification={verification}
               meta={metaQuery.data ?? null}
-              trustScore={trustScore}
+              viewerHealth={viewerHealth}
             />
           </div>
         )}
@@ -181,7 +181,7 @@ export default function ViewPage() {
             <ExecutiveSummaryPanel
               verification={verification}
               meta={metaQuery.data ?? null}
-              trustScore={trustScore}
+              viewerHealth={viewerHealth}
             />
           </div>
         )}

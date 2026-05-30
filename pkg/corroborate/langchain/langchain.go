@@ -1,55 +1,86 @@
 // SPDX-License-Identifier: MIT
-// Package langchain defines the Phase 9 scaffold for corroborating ATB bundle events
-// against LangSmith run logs or LangGraph execution traces.
+// Package langchain constructs LangSmith corroboration lookup URLs for ATB events.
 package langchain
 
 import (
-	"errors"
+	"net/url"
+	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/pkg/corroborate"
 )
 
-// ErrNotImplemented indicates the LangChain corroborator is scaffold-only.
-var ErrNotImplemented = errors.New("corroborate/langchain: verification not implemented")
+// Event is the shared adapter-facing ATB event type.
+type Event = corroborate.Event
 
-// CorrobResult reports whether an external source matched a bundle event.
-type CorrobResult struct {
-	Matched   bool
-	Source    string
-	Timestamp time.Time
-	Note      string
-}
+// CorrobResult is the shared corroboration result type.
+type CorrobResult = corroborate.CorrobResult
 
-// Corroborator verifies an ATB event against an external LangChain or LangGraph evidence source.
-type Corroborator interface {
-	Verify(ev *event.Event) (CorrobResult, error)
-}
-
-// LangChainCorroborator checks events against LangSmith or LangGraph trace data.
-// Phase 9 scaffold only: no HTTP calls to LangSmith APIs.
+// LangChainCorroborator maps ATB events to LangSmith run queries.
 type LangChainCorroborator struct {
-	// ProjectName is the LangSmith project or chain name used when resolving runs.
+	// LangSmithAPIURL is the base URL for the LangSmith API.
+	LangSmithAPIURL string
+	// ProjectName is the LangSmith project used when resolving runs.
 	ProjectName string
-	// EndpointRef names a future LangSmith API endpoint reference (local config key).
-	EndpointRef string
 }
 
-// NewLangChainCorroborator returns a corroborator with the given project context.
-func NewLangChainCorroborator(projectName string) *LangChainCorroborator {
-	return &LangChainCorroborator{ProjectName: projectName}
-}
-
-// Verify implements Corroborator.
-func (c *LangChainCorroborator) Verify(ev *event.Event) (CorrobResult, error) {
-	if ev == nil {
-		return CorrobResult{}, errors.New("corroborate/langchain: event is nil")
+// NewLangChainCorroborator returns a LangSmith query URL corroborator.
+func NewLangChainCorroborator(
+	langsmithAPIURL string,
+	projectName string,
+) *LangChainCorroborator {
+	// Added: The constructor stores only local query context and performs no network work.
+	return &LangChainCorroborator{
+		LangSmithAPIURL: langsmithAPIURL,
+		ProjectName:     projectName,
 	}
-	_ = c.ProjectName
+}
+
+// Verify constructs a LangSmith run lookup URL without making an HTTP request.
+func (c *LangChainCorroborator) Verify(event *Event) (CorrobResult, error) {
+	// Added: Nil inputs cannot be mapped to a supported ATB event type.
+	if c == nil || event == nil {
+		return CorrobResult{}, corroborate.ErrEventTypeNotSupported
+	}
+	// Added: Unsupported event types are rejected before query construction.
+	if !supportsEventType(event.Type) {
+		return CorrobResult{}, corroborate.ErrEventTypeNotSupported
+	}
+	// Added: Tool names provide the closest LangSmith run-name lookup when present.
+	runName := event.Type
+	if event.Metadata != nil {
+		if toolName := event.Metadata["tool_name"]; toolName != "" {
+			runName = toolName
+		}
+	}
+
+	// Added: url.Values safely escapes every query parameter value.
+	values := url.Values{}
+	values.Set("project_name", c.ProjectName)
+	values.Set("filter", `eq(name,"`+runName+`")`)
+	values.Set("start_time", event.OccurredAt.UTC().Format(time.RFC3339))
+
+	// Added: Only the base path is joined directly; query parameters come from url.Values.Encode.
+	baseURL := strings.TrimRight(c.LangSmithAPIURL, "/") + "/api/v1/runs"
 	return CorrobResult{
 		Matched:   false,
 		Source:    "langchain",
-		Timestamp: time.Time{},
-		Note:      "scaffold: LangChain/LangGraph verification not implemented",
-	}, ErrNotImplemented
+		Timestamp: event.OccurredAt,
+		Note:      "query URL constructed; live HTTP lookup deferred",
+		QueryURL:  baseURL + "?" + values.Encode(),
+	}, nil
+}
+
+// supportsEventType reports whether LangChain can map the ATB event type.
+func supportsEventType(eventType string) bool {
+	// Added: Retrieval events are a namespace and therefore use a prefix match.
+	if strings.HasPrefix(eventType, "atb.retrieval.") {
+		return true
+	}
+	switch eventType {
+	case "atb.tool.call", "atb.data.export":
+		return true
+	default:
+		return false
+	}
 }

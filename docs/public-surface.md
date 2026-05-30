@@ -18,11 +18,57 @@ logic, KMS integrations, and operational harness material:
 ## Safe to expose publicly
 
 - `schemas/event.v1.json` and trimmed specification docs
+- `pkg/otel/` and `pkg/corroborate/` (`github`, `langchain`) as opt-in integration adapters
 - `sdk/python/` and `sdk/typescript/` (integration surface)
 - `examples/` and generated sample bundles
 - `test/golden/` cross-language parity fixtures
 - `web/` viewer and landing (with copy aligned to public positioning)
 - Conceptual docs: `docs/why-atb.md`, `docs/security.md`, `docs/provability-ladder.md`, quickstart guides
+
+## atb view server
+
+### Session index endpoints
+
+`GET /api/v1/sessions`
+
+Returns a JSON array of `SessionEntry` objects for all bundles in the session
+index. Each entry includes: `session_id`, `actor.display_name`, `actor.email`,
+`started_at`, `closed_at`, `exchange_count`, `inferred_profile`, `cas_grade`,
+`anomaly_flags`, and `bundle_path`. Requires session token auth when
+configured.
+
+`GET /api/v1/sessions/by-actor`
+
+Returns a JSON object mapping actor display name to an array of `SessionEntry`
+objects. Same auth requirements as above.
+
+### Contract status endpoint
+
+`GET /api/v1/schema/status`
+
+Returns ecosystem-level contract health for the loaded bundle: `schema_source`,
+`declared_types`, `observed_types`, `total_events`, `incomplete_events`,
+`undeclared_types`, and a per-type `types` array (`type`, `criticality`,
+`declared`, `observed`, `required_fields`, `incomplete`, `missing_fields`). It
+scores every event type against the schema-generated contract so operators can
+see declared-vs-observed coverage, required-field completeness, and any
+undeclared (unknown) types at a glance. Same session-token auth and
+verification gate as the session index endpoints.
+
+ATB surfaces aggregated session metadata for audit and oversight purposes; it
+records and verifies evidence but does not certify legal or regulatory
+compliance.
+
+## atb intercept
+
+### --custos flag
+
+`--custos <url>`
+
+When set, automatically POSTs the closed bundle to the configured Custos ingest
+endpoint on each `atb.session.close` event, using an immutable byte snapshot
+taken under the recorder lock. The endpoint URL is printed on startup.
+Auto-push is disabled when the flag is not set.
 
 ## Public demo repository notice
 
@@ -63,3 +109,56 @@ The generated public tree (for example `atb-demo`) is intentionally narrow:
 
 The verifier ships as a **release binary artefact** in the public repo; obligation
 evaluation logic is not re-exported as Go source.
+
+## custosd HTTP API
+
+`custosd` is the ATB custody daemon. It receives, verifies, stores, and
+receipts ATB bundles for long-term custody and independent re-verification. It
+records custody evidence; it does not certify regulatory compliance.
+
+`POST /ingest`
+
+Accepts a raw ATB bundle (`.atb` file) as the request body. Verifies integrity
+via the public custody verifier. On success, stores the bundle via `WORMStore`
+(atomic, idempotent by SHA-256 content hash) and issues a `Receipt`. Returns
+the `Receipt` as JSON. Returns 422 for empty or invalid bundles. Returns 500
+if required stores are not initialised.
+
+`GET /receipts/:id`
+
+Returns the stored `Receipt` JSON for the given receipt ID. Returns 404 with
+`ErrReceiptNotFound` if the ID is unknown.
+
+`GET /receipts/:id/verify`
+
+Re-runs verification on the stored bundle bytes and returns a fresh
+`verify.report.v1` JSON object. Use this endpoint to confirm a previously
+ingested bundle still passes integrity checks at any point after ingest.
+
+## Corroboration
+
+Corroboration adapters in `pkg/corroborate` construct query URLs for
+independent verification of ATB events against external audit sources. All
+adapters share the `CorrobResult` type defined in
+`pkg/corroborate/corroborate.go`.
+
+`CorrobResult.QueryURL`
+
+Present on all `CorrobResult` values. Contains the fully-constructed URL for
+the external audit source query. ATB constructs this URL but does not make the
+external HTTP request and does not certify the result. Intended for manual
+review or integration with automated verification pipelines.
+
+`LangChainCorroborator` (`pkg/corroborate/langchain`)
+
+Constructs LangSmith run query URLs for `atb.tool.call`, `atb.data.export`,
+and `atb.retrieval.*` events. Uses `url.Values.Encode()` for safe parameter
+encoding. Live HTTP lookup is deferred; `QueryURL` is returned for external
+use.
+
+`GitHubCorroborator` (`pkg/corroborate/github`)
+
+Constructs GitHub Audit Log API query URLs for `atb.tool.call`,
+`atb.data.export`, `atb.policy.decision`, and `atb.human.override` events.
+Prefers actor email over display name as the phrase filter. Live HTTP lookup
+is deferred; `QueryURL` is returned for external use.

@@ -2,6 +2,9 @@
 
 ATB can package local audit evidence into zip archives for `compliance`, `soc2`, and `gdpr` workflows.
 
+Exports package verified local evidence. They do not certify compliance,
+create legal custody, or prove that all relevant events were captured.
+
 ## Command
 
 ```bash

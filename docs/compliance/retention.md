@@ -2,6 +2,10 @@
 
 ATB retention is local-first and controlled through CLI config.
 
+Retention configuration supports operator policy and audit evidence. It is not
+a legal hold system, custodian-of-record service, or retention-law
+determination.
+
 ## Configure retention
 
 Set retention days in local config:
@@ -20,7 +24,7 @@ This writes `./.atb/config.json` with:
 ## Statutory minimum
 
 EU AI Act Article 19 requires covered records to be retained for at least 6 months.
-ATB enforces a conservative 183-day floor for `atb config retention --days <n>`.
+ATB applies a conservative 183-day floor for `atb config retention --days <n>`.
 Operators can pass `--allow-below-eu-minimum` to set a shorter period, but must record the separate legal basis for that override outside ATB config.
 
 ## Run archive

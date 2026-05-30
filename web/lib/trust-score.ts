@@ -1,14 +1,14 @@
 import type { VerificationResponse } from "@/lib/types";
 
-export type TrustScoreBreakdown = {
+export type ViewerHealthBreakdown = {
   continuity: number;
-  encryption: number;
-  timestamp: number;
+  bundle_integrity: number;
+  event_chain: number;
   freshness: number;
   total: number;
 };
 
-export type TrustScoreInput = {
+export type ViewerHealthInput = {
   verification: VerificationResponse | null;
   lastTimestamp?: string;
   now?: Date;
@@ -16,8 +16,8 @@ export type TrustScoreInput = {
 
 const maxWeights = {
   continuity: 40,
-  encryption: 30,
-  timestamp: 20,
+  bundle_integrity: 30,
+  event_chain: 20,
   freshness: 10,
 } as const;
 
@@ -42,30 +42,30 @@ function calculateFreshnessScore(lastTimestamp: string | undefined, now: Date): 
 }
 
 /**
- * Calculate Trust Score for the dashboard.
+ * Calculate Viewer Health Score for the dashboard.
  *
  * Formula:
  * - continuity (40): `verification.status === "valid"`
- * - encryption (30): `verification.head_hash` is present
- * - timestamp (20): `verification.chain_length > 0`
+ * - bundle_integrity (30): `verification.head_hash` is present
+ * - event_chain (20): `verification.chain_length > 0`
  * - freshness (10): based on `lastTimestamp` age (<=24h full, <=72h half, older zero)
  *
  * Returns an integer from 0 to 100.
  */
-export function calculateTrustScore(input: TrustScoreInput): TrustScoreBreakdown {
+export function calculateViewerHealthScore(input: ViewerHealthInput): ViewerHealthBreakdown {
   const now = input.now ?? new Date();
   const verification = input.verification;
 
   const continuity = verification?.status === "valid" ? maxWeights.continuity : 0;
-  const encryption = verification?.head_hash ? maxWeights.encryption : 0;
-  const timestamp = verification && verification.chain_length > 0 ? maxWeights.timestamp : 0;
+  const bundle_integrity = verification?.head_hash ? maxWeights.bundle_integrity : 0;
+  const event_chain = verification && verification.chain_length > 0 ? maxWeights.event_chain : 0;
   const freshness = calculateFreshnessScore(input.lastTimestamp, now);
-  const total = continuity + encryption + timestamp + freshness;
+  const total = continuity + bundle_integrity + event_chain + freshness;
 
   return {
     continuity,
-    encryption,
-    timestamp,
+    bundle_integrity,
+    event_chain,
     freshness,
     total,
   };

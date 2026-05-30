@@ -113,7 +113,7 @@ Cypress.Commands.add("waitForDashboard", () => {
   }
   cy.get('[data-testid="stats-overview"]', { timeout: 10000 }).should("be.visible");
   cy.get('[data-testid="event-list"]', { timeout: 10000 }).should("be.visible");
-  cy.get('[data-testid="trust-score-value"]', { timeout: 10000 })
+  cy.get('[data-testid="viewer-health-value"]', { timeout: 10000 })
     .should("be.visible")
     .should("not.contain.text", "TEST-MODE");
 });

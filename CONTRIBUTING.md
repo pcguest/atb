@@ -3,7 +3,7 @@
 ATB is an open project. Contributions, bug reports, and focused documentation improvements are welcome.
 
 This file covers contributor workflow. Release preparation and versioning details live in
-[`docs/release.md`](docs/release.md) and [`VERSIONING.md`](VERSIONING.md).
+`[docs/release.md](docs/release.md)` and `[VERSIONING.md](VERSIONING.md)`.
 
 ## Local setup
 
@@ -28,7 +28,7 @@ go build -o atb ./cmd/atb
 - Use a short-lived branch or fork and submit against `main`.
 - Do not push directly to `main` routinely.
 - Run `make hygiene-quick` before every push. It runs `go fmt`,
-  `go vet`, short Go tests, and the web lint and typecheck steps.
+`go vet`, short Go tests, and the web lint and typecheck steps.
 - Install the pre-commit hook with `make install-hooks`.
 - Do not add new Go module dependencies without prior discussion.
 
@@ -36,7 +36,7 @@ go build -o atb ./cmd/atb
 
 - When behaviour, schema, API, or release-facing text changes, update the relevant docs in the same change.
 - Do not leave stale references to removed flags, UI modes, or deleted files.
-- Tracked follow-on work belongs in [`docs/roadmap.md`](docs/roadmap.md); do not describe unshipped capability as current in user-facing docs.
+- Tracked follow-on work belongs in `[docs/roadmap.md](docs/roadmap.md)`; do not describe unshipped capability as current in user-facing docs.
 
 ## Python SDK
 
@@ -88,15 +88,15 @@ fields do not require this notice.
 The maintainer release sequence is documented in [docs/release.md](docs/release.md). Two scripts are central:
 
 - `scripts/release-check.sh` — full preflight suite: Go tests,
-  TypeScript build and tests, Python tests and package build, web
-  dashboard build, installed binary smoke gate, and Docker smoke build.
-  Run this before tagging.
+TypeScript build and tests, Python tests and package build, web
+dashboard build, installed binary smoke gate, and Docker smoke build.
+Run this before tagging.
 - `scripts/check-versions.sh` — targeted version-string agreement check
-  against the release tag across the checked version locations. Run with
-  `ATB_SKIP_TAG_CHECK=1` on a feature branch before the tag exists; run
-  without the flag after tagging to confirm the tag matches. This check
-  also runs in CI via the `version-gate.yml` workflow on every push and
-  pull request.
+against the release tag across the checked version locations. Run with
+`ATB_SKIP_TAG_CHECK=1` on a feature branch before the tag exists; run
+without the flag after tagging to confirm the tag matches. This check
+also runs in CI via the `version-gate.yml` workflow on every push and
+pull request.
 
 The release tag is the release source of truth. The checked-in version strings must match it.
 

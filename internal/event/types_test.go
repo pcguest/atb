@@ -29,6 +29,32 @@ func TestRegistryNoDuplicateTypes(t *testing.T) {
 	}
 }
 
+// TestRegistryMatchesGenerated guards against the legacy hand-maintained
+// Registry silently diverging from the schema-generated RegistryGenerated.
+// Both must describe exactly the same set of event types; the schema
+// (schemas/event.v1.json) remains the single source of truth.
+func TestRegistryMatchesGenerated(t *testing.T) {
+	legacy := make(map[string]bool, len(event.Registry))
+	for _, entry := range event.Registry {
+		legacy[entry.Type] = true
+	}
+	generated := make(map[string]bool, len(event.RegistryGenerated))
+	for _, entry := range event.RegistryGenerated {
+		generated[entry.Type] = true
+	}
+
+	for typ := range generated {
+		if !legacy[typ] {
+			t.Errorf("event type %q is in RegistryGenerated but missing from legacy Registry", typ)
+		}
+	}
+	for typ := range legacy {
+		if !generated[typ] {
+			t.Errorf("event type %q is in legacy Registry but missing from RegistryGenerated (stale entry)", typ)
+		}
+	}
+}
+
 // TestBundleConstantsMatch guards cross-package consistency.
 func TestBundleConstantsMatch(t *testing.T) {
 	if event.TypeBundleManifest != bundle.ManifestEventType {

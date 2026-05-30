@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full profile-fixtures test-go test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: hygiene-quick hygiene-full profile-fixtures check-generated test-go test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -24,10 +24,27 @@ STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/stat
 profile-fixtures:
 	$(GOENV) go run ./scripts/generate_profile_fixtures.go
 
+# check-generated regenerates the schema-driven bindings and fails if any of
+# them drift from the committed output. Comparing against a pre-regen snapshot
+# (rather than `git diff`) keeps the check correct on a dirty working tree.
+check-generated:
+	@echo "🔁 Checking generated bindings match schemas/event.v1.json..."
+	@cp internal/event/types_generated.go /tmp/atb-gen-go.bak
+	@cp sdk/python/atb/event_types_generated.py /tmp/atb-gen-py.bak
+	@cp sdk/typescript/src/eventTypes_generated.ts /tmp/atb-gen-ts.bak
+	$(GOENV) go generate ./internal/event/...
+	@ok=1; \
+	cmp -s internal/event/types_generated.go /tmp/atb-gen-go.bak || { echo "❌ internal/event/types_generated.go is out of date"; ok=0; }; \
+	cmp -s sdk/python/atb/event_types_generated.py /tmp/atb-gen-py.bak || { echo "❌ sdk/python/atb/event_types_generated.py is out of date"; ok=0; }; \
+	cmp -s sdk/typescript/src/eventTypes_generated.ts /tmp/atb-gen-ts.bak || { echo "❌ sdk/typescript/src/eventTypes_generated.ts is out of date"; ok=0; }; \
+	rm -f /tmp/atb-gen-go.bak /tmp/atb-gen-py.bak /tmp/atb-gen-ts.bak; \
+	if [ $$ok -ne 1 ]; then echo "   Run 'go generate ./internal/event/...' and commit the result."; exit 1; fi
+	@echo "✅ Generated bindings in sync with schema"
+
 test-go: profile-fixtures
 	$(GOENV) go test $(GO_PACKAGES) -count=1
 
-hygiene-quick:
+hygiene-quick: check-generated
 	@echo "🧹 Running quick hygiene gate..."
 	$(GOENV) go fmt $(GO_PACKAGES) && $(GOENV) go vet $(GO_PACKAGES)
 	$(GOENV) $(STATICCHECK) $(GO_PACKAGES)

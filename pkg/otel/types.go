@@ -4,8 +4,8 @@ package otel
 import "time"
 
 // OTelSpan is a transport-layer representation of an OpenTelemetry span.
-// Phase 9 scaffold only: fields mirror common OTLP span payloads without
-// importing the OpenTelemetry SDK.
+// Fields mirror common OTLP span payloads without importing the OpenTelemetry
+// SDK, keeping pkg/otel usable without a collector dependency.
 type OTelSpan struct {
 	TraceID       string
 	SpanID        string

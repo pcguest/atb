@@ -45,6 +45,12 @@ export default function Navbar() {
               Scope
             </a>
             <a
+              href="/sessions" // New link to sessions page
+              className="text-[#9ca3af] hover:text-white text-sm transition-colors"
+            >
+              Sessions
+            </a>
+            <a
               href="https://github.com/pcguest/atb/blob/main/docs/quickstart.md"
               target="_blank"
               rel="noopener noreferrer"

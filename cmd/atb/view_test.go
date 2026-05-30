@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -81,7 +82,7 @@ func TestParseViewArgs(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parseViewArgs returned error: %v", err)
 			}
-			if got != tc.want {
+			if !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("unexpected config: got %+v want %+v", got, tc.want)
 			}
 		})

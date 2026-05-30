@@ -101,6 +101,24 @@ export const RAG_INDEX_EVENT_TYPE = RAG_INDEX;
 export const RAG_RETRIEVAL = "atb.event.rag_retrieval" as const;
 export const RAG_RETRIEVAL_EVENT_TYPE = RAG_RETRIEVAL;
 
+export const TOOL_CALL = "atb.tool.call" as const;
+export const TOOL_CALL_EVENT_TYPE = TOOL_CALL;
+
+export const DATA_EXPORT = "atb.data.export" as const;
+export const DATA_EXPORT_EVENT_TYPE = DATA_EXPORT;
+
+export const HUMAN_OVERRIDE = "atb.human.override" as const;
+export const HUMAN_OVERRIDE_EVENT_TYPE = HUMAN_OVERRIDE;
+
+export const HUMAN_APPROVAL = "atb.human.approval" as const;
+export const HUMAN_APPROVAL_EVENT_TYPE = HUMAN_APPROVAL;
+
+export const SESSION_CLOSE = "atb.session.close" as const;
+export const SESSION_CLOSE_EVENT_TYPE = SESSION_CLOSE;
+
+export const EXCHANGE_COMPLETE = "atb.exchange.complete" as const;
+export const EXCHANGE_COMPLETE_EVENT_TYPE = EXCHANGE_COMPLETE;
+
 export const EVENT_TYPE_REGISTRY = [
   {
     type: BUNDLE_MANIFEST,
@@ -312,6 +330,48 @@ export const EVENT_TYPE_REGISTRY = [
     criticality: "required",
     required_fields: [],
   },
+  {
+    type: TOOL_CALL,
+    description: "Tool invocation recorded for session oversight",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["session_id", "tool_name"],
+  },
+  {
+    type: DATA_EXPORT,
+    description: "Data export outside session boundary",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["session_id", "export_target"],
+  },
+  {
+    type: HUMAN_OVERRIDE,
+    description: "Human operator overrode an AI-recommended action",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["session_id", "override_reason"],
+  },
+  {
+    type: HUMAN_APPROVAL,
+    description: "Human operator approved a pending action",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["session_id", "approved_action_id"],
+  },
+  {
+    type: SESSION_CLOSE,
+    description: "Capture session closed (proxy-internal lifecycle marker)",
+    profiles: [],
+    criticality: "informational",
+    required_fields: ["session_id", "actor_id"],
+  },
+  {
+    type: EXCHANGE_COMPLETE,
+    description: "Request/response exchange completed within a capture session (proxy-internal)",
+    profiles: [],
+    criticality: "informational",
+    required_fields: ["session_id", "exchange_id", "request_event_id"],
+  },
 ] as const satisfies readonly EventTypeSpec[];
 
 export const EVENT_TYPE_REQUIRED_FIELDS = {
@@ -345,4 +405,10 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [CORROBORATION_EXTERNAL]: [],
   [RAG_INDEX]: [],
   [RAG_RETRIEVAL]: [],
+  [TOOL_CALL]: ["session_id", "tool_name"],
+  [DATA_EXPORT]: ["session_id", "export_target"],
+  [HUMAN_OVERRIDE]: ["session_id", "override_reason"],
+  [HUMAN_APPROVAL]: ["session_id", "approved_action_id"],
+  [SESSION_CLOSE]: ["session_id", "actor_id"],
+  [EXCHANGE_COMPLETE]: ["session_id", "exchange_id", "request_event_id"],
 } as const;

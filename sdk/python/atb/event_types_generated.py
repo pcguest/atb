@@ -104,6 +104,24 @@ RAG_INDEX_EVENT_TYPE: Final = RAG_INDEX
 RAG_RETRIEVAL: Final = "atb.event.rag_retrieval"
 RAG_RETRIEVAL_EVENT_TYPE: Final = RAG_RETRIEVAL
 
+TOOL_CALL: Final = "atb.tool.call"
+TOOL_CALL_EVENT_TYPE: Final = TOOL_CALL
+
+DATA_EXPORT: Final = "atb.data.export"
+DATA_EXPORT_EVENT_TYPE: Final = DATA_EXPORT
+
+HUMAN_OVERRIDE: Final = "atb.human.override"
+HUMAN_OVERRIDE_EVENT_TYPE: Final = HUMAN_OVERRIDE
+
+HUMAN_APPROVAL: Final = "atb.human.approval"
+HUMAN_APPROVAL_EVENT_TYPE: Final = HUMAN_APPROVAL
+
+SESSION_CLOSE: Final = "atb.session.close"
+SESSION_CLOSE_EVENT_TYPE: Final = SESSION_CLOSE
+
+EXCHANGE_COMPLETE: Final = "atb.exchange.complete"
+EXCHANGE_COMPLETE_EVENT_TYPE: Final = EXCHANGE_COMPLETE
+
 EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
     {
         "type": BUNDLE_MANIFEST,
@@ -315,6 +333,48 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "criticality": "required",
         "required_fields": [],
     },
+    {
+        "type": TOOL_CALL,
+        "description": "Tool invocation recorded for session oversight",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["session_id", "tool_name"],
+    },
+    {
+        "type": DATA_EXPORT,
+        "description": "Data export outside session boundary",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["session_id", "export_target"],
+    },
+    {
+        "type": HUMAN_OVERRIDE,
+        "description": "Human operator overrode an AI-recommended action",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["session_id", "override_reason"],
+    },
+    {
+        "type": HUMAN_APPROVAL,
+        "description": "Human operator approved a pending action",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["session_id", "approved_action_id"],
+    },
+    {
+        "type": SESSION_CLOSE,
+        "description": "Capture session closed (proxy-internal lifecycle marker)",
+        "profiles": [],
+        "criticality": "informational",
+        "required_fields": ["session_id", "actor_id"],
+    },
+    {
+        "type": EXCHANGE_COMPLETE,
+        "description": "Request/response exchange completed within a capture session (proxy-internal)",
+        "profiles": [],
+        "criticality": "informational",
+        "required_fields": ["session_id", "exchange_id", "request_event_id"],
+    },
 ]
 
 EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
@@ -348,6 +408,12 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     CORROBORATION_EXTERNAL: [],
     RAG_INDEX: [],
     RAG_RETRIEVAL: [],
+    TOOL_CALL: ["session_id", "tool_name"],
+    DATA_EXPORT: ["session_id", "export_target"],
+    HUMAN_OVERRIDE: ["session_id", "override_reason"],
+    HUMAN_APPROVAL: ["session_id", "approved_action_id"],
+    SESSION_CLOSE: ["session_id", "actor_id"],
+    EXCHANGE_COMPLETE: ["session_id", "exchange_id", "request_event_id"],
 }
 
 __all__ = [
@@ -414,4 +480,16 @@ __all__ = [
     "RAG_INDEX_EVENT_TYPE",
     "RAG_RETRIEVAL",
     "RAG_RETRIEVAL_EVENT_TYPE",
+    "TOOL_CALL",
+    "TOOL_CALL_EVENT_TYPE",
+    "DATA_EXPORT",
+    "DATA_EXPORT_EVENT_TYPE",
+    "HUMAN_OVERRIDE",
+    "HUMAN_OVERRIDE_EVENT_TYPE",
+    "HUMAN_APPROVAL",
+    "HUMAN_APPROVAL_EVENT_TYPE",
+    "SESSION_CLOSE",
+    "SESSION_CLOSE_EVENT_TYPE",
+    "EXCHANGE_COMPLETE",
+    "EXCHANGE_COMPLETE_EVENT_TYPE",
 ]

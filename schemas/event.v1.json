@@ -280,6 +280,79 @@
     },
     "snapshot.build": {
       "description": "Build snapshot marker used by tooling and tests."
+    },
+    "atb.tool.call": {
+      "description": "Tool invocation recorded for session oversight. Emitted by the SDK oversight emitters and by atb intercept session capture.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Session identifier the tool call belongs to." },
+        "tool_name": { "type": "string", "description": "Identifier of the invoked tool." },
+        "actor_id": { "type": "string", "description": "Optional actor reference for the invocation." },
+        "tool_input_digest": { "type": "string", "description": "SHA-256 hex of the canonicalised tool input." },
+        "tool_output_digest": { "type": "string", "description": "SHA-256 hex of the canonicalised tool output." }
+      },
+      "required": ["session_id", "tool_name"]
+    },
+    "atb.data.export": {
+      "description": "Data export recorded outside the session boundary.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Session identifier the export belongs to." },
+        "export_target": { "type": "string", "description": "Identifier of the export destination (URI, system, or sink name)." },
+        "actor_id": { "type": "string", "description": "Optional actor reference for the export." },
+        "record_count": { "type": "integer", "description": "Number of records exported." },
+        "classification": { "type": "string", "description": "Optional data classification label." }
+      },
+      "required": ["session_id", "export_target"]
+    },
+    "atb.human.override": {
+      "description": "Human operator overrode an AI-recommended action.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Session identifier the override belongs to." },
+        "override_reason": { "type": "string", "description": "Short rationale for the override." },
+        "actor_id": { "type": "string", "description": "Optional canonical identifier of the human operator." },
+        "overridden_action_id": { "type": "string", "description": "Optional identifier of the overridden action." }
+      },
+      "required": ["session_id", "override_reason"]
+    },
+    "atb.human.approval": {
+      "description": "Human operator approved a pending action. When recorded in sequence before a corresponding atb.tool.call in the same session, it closes the tool_without_approval anomaly flag.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Session identifier the approval belongs to." },
+        "approved_action_id": { "type": "string", "description": "Identifier of the action being approved." },
+        "actor_id": { "type": "string", "description": "Optional canonical identifier of the approving operator." },
+        "approver_id": { "type": "string", "description": "Optional approver reference." },
+        "note": { "type": "string", "description": "Optional free-text approval note." }
+      },
+      "required": ["session_id", "approved_action_id"]
+    },
+    "atb.session.close": {
+      "description": "Capture session closed. Proxy-internal lifecycle marker emitted by atb intercept on session teardown.",
+      "$comment": "Beyond the required fields the proxy always emits the always-emitted fields below; they are additive under the manifest v1 contract and readers MUST NOT require them. See docs/spec-ai-traces.md and internal/proxy/session.go SessionCloseRecord.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Stable identifier of the closed capture session." },
+        "actor_id": { "type": "string", "description": "Canonical actor reference for the session; empty string when unresolved." },
+        "model": { "type": "string", "description": "Always-emitted: last model observed on the session; empty string when none seen." },
+        "exchange_count": { "type": "integer", "description": "Always-emitted: number of request/response exchanges captured in the session." },
+        "total_tokens": { "type": "integer", "description": "Always-emitted: summed prompt and output tokens across the session, when reported by the model." },
+        "closed_at": { "type": "string", "format": "date-time", "description": "Always-emitted: RFC 3339 timestamp the session was closed." }
+      },
+      "required": ["session_id", "actor_id"]
+    },
+    "atb.exchange.complete": {
+      "description": "Request/response exchange completed within a capture session. Proxy-internal; consumed by the session index to count exchanges per session.",
+      "$comment": "Beyond the required fields the proxy always emits actor_id, completed_at, and tool_calls_count, and emits model/input_tokens/output_tokens/latency_ms when known. All are additive under the manifest v1 contract and readers MUST NOT require them. See docs/spec-ai-traces.md and internal/proxy/session.go ExchangeCompleteRecord.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Session identifier the exchange belongs to." },
+        "exchange_id": { "type": "string", "description": "Stable identifier of the completed exchange." },
+        "request_event_id": { "type": "string", "description": "Hash of the originating proxy request record." },
+        "actor_id": { "type": "string", "description": "Always-emitted: resolved actor identity; empty string when unresolvable." },
+        "completed_at": { "type": "string", "format": "date-time", "description": "Always-emitted: RFC 3339 timestamp of response completion." },
+        "tool_calls_count": { "type": "integer", "description": "Always-emitted: tool/function invocations counted in the response body; 0 when none or when the body is not recognised." },
+        "model": { "type": "string", "description": "Optional: model identifier from the proxied response, when known." },
+        "input_tokens": { "type": "integer", "description": "Optional: token count from the request, when reported by the model." },
+        "output_tokens": { "type": "integer", "description": "Optional: token count from the response, when reported by the model." },
+        "latency_ms": { "type": "integer", "description": "Optional: wall-clock milliseconds from request arrival to response flush." }
+      },
+      "required": ["session_id", "exchange_id", "request_event_id"]
     }
   },
   "event_types": [
@@ -493,6 +566,48 @@
       "profiles": ["atb.profile.rag_answer"],
       "criticality": "required",
       "required_fields": []
+    },
+    {
+      "type": "atb.tool.call",
+      "description": "Tool invocation recorded for session oversight",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["session_id", "tool_name"]
+    },
+    {
+      "type": "atb.data.export",
+      "description": "Data export outside session boundary",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["session_id", "export_target"]
+    },
+    {
+      "type": "atb.human.override",
+      "description": "Human operator overrode an AI-recommended action",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["session_id", "override_reason"]
+    },
+    {
+      "type": "atb.human.approval",
+      "description": "Human operator approved a pending action",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["session_id", "approved_action_id"]
+    },
+    {
+      "type": "atb.session.close",
+      "description": "Capture session closed (proxy-internal lifecycle marker)",
+      "profiles": [],
+      "criticality": "informational",
+      "required_fields": ["session_id", "actor_id"]
+    },
+    {
+      "type": "atb.exchange.complete",
+      "description": "Request/response exchange completed within a capture session (proxy-internal)",
+      "profiles": [],
+      "criticality": "informational",
+      "required_fields": ["session_id", "exchange_id", "request_event_id"]
     }
   ],
   "type": "object",

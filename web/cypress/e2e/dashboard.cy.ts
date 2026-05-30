@@ -3,9 +3,9 @@ describe("Trust Dashboard", () => {
     cy.waitForDashboard();
   });
 
-  it("displays Trust Score on load", () => {
+  it("displays Viewer Health on load", () => {
     cy.get('[data-testid="stats-overview"]').should("be.visible");
-    cy.get('[data-testid="trust-score-value"]').should("have.text", "100/100");
+    cy.get('[data-testid="viewer-health-value"]').should("have.text", "100/100");
     cy.get('[data-testid="event-count-value"]').should("have.text", "3");
     cy.get('[data-testid="chain-length-value"]').should("have.text", "3");
   });

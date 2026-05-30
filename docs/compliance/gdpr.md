@@ -1,6 +1,9 @@
 # GDPR export specification (Article 15 and 30)
 
-This document defines the schema for Data Subject Requests (DSR) and Records of Processing Activities (RoPA). It enforces strict PII handling, legal basis declaration, and retention compliance.
+This document describes ATB's local export structure for Data Subject
+Requests (DSR) and Records of Processing Activities (RoPA). The exporter can
+apply heuristic PII handling, include legal-basis fields, and record retention
+metadata, but it does not determine GDPR compliance or replace legal review.
 
 ## 1. Export command usage
 
@@ -18,7 +21,9 @@ atb export --format gdpr --type ropa --bundle <path> --output gdpr-ropa.zip
 
 ## 2. PII classification and redaction rules
 
-Before export, the CLI MUST scan all event payloads for fields matched against the heuristic PII classifier (see `docs/compliance/pii-fields.json` for the field list).
+The current exporter applies heuristic classification to event payload fields
+using the bundled PII field guidance (see `docs/compliance/pii-fields.json`
+for the field list).
 
 | Field Category | Action in DSR Export | Action in RoPA Export |
 | --- | --- | --- |
@@ -103,9 +108,9 @@ This aggregates processing activities without exposing individual user data.
 }
 ```
 
-## 5. Compliance checks
+## 5. Export checks
 
-The export command MUST fail if:
+The export command fails if:
 
 - The `--subject-id` does not exist in the bundle (for DSR).
 - Any event in the chain fails hash verification.
