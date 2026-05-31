@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { eventFamilyClass, eventSummary } from "@/lib/event-family";
 import { collectMaskedPaths, setByPath } from "@/lib/pii";
 import type { EventRecord } from "@/lib/types";
 
@@ -76,8 +77,16 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
         <div className="grid gap-2 text-xs text-slate-200">
           <div>
             <span className="text-slate-300">type:</span>{" "}
-            <span className="text-slate-200">{event.type}</span>
+            <span className={`font-medium ${eventFamilyClass(event.type)}`}>{event.type}</span>
           </div>
+          {eventSummary(event.type, event.data) && (
+            <div data-testid="event-summary">
+              <span className="text-slate-300">summary:</span>{" "}
+              <span className={`font-medium ${eventFamilyClass(event.type)}`}>
+                {eventSummary(event.type, event.data)}
+              </span>
+            </div>
+          )}
           <div>
             <span className="text-slate-300">seq:</span>{" "}
             <span className="text-slate-200">{event.seq}</span>

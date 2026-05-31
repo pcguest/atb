@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { eventFamily, eventFamilyClass } from "./event-family";
+import { eventFamily, eventFamilyClass, eventSummary } from "./event-family";
 
 describe("eventFamily", () => {
   it("groups capture (atb.*) events with their runtime (ai.*) families", () => {
@@ -42,5 +42,25 @@ describe("eventFamilyClass", () => {
     for (const t of ["ai.job.started", "atb.corroboration.external", "unknown.type"]) {
       expect(eventFamilyClass(t)).toMatch(/^ev-/);
     }
+  });
+});
+
+describe("eventSummary", () => {
+  it("summarises forensic events", () => {
+    expect(eventSummary("atb.tool.call", { tool_name: "wipe_db" })).toBe("tool=wipe_db");
+    expect(eventSummary("ai.action.error", { action_id: "toolu_1", error_class: "failed" })).toBe(
+      "action=toolu_1 error_class=failed",
+    );
+    expect(eventSummary("atb.llm.response", { method: "POST", path: "/v1/messages", status_code: 200 })).toBe(
+      "POST /v1/messages → 200",
+    );
+    expect(eventSummary("ai.policy.decision", { decision: "deny" })).toBe("decision=deny");
+  });
+
+  it("returns empty string when there is nothing concise to say", () => {
+    expect(eventSummary("dev.session", { x: 1 })).toBe("");
+    expect(eventSummary("atb.tool.call", {})).toBe("");
+    expect(eventSummary("ai.action.error", { action_id: "x" })).toBe(""); // no error_class
+    expect(eventSummary("atb.llm.request", "not-an-object")).toBe("");
   });
 });

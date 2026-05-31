@@ -56,3 +56,42 @@ const familyClass: Record<EventFamily, string> = {
 export function eventFamilyClass(eventType: string): string {
   return familyClass[eventFamily(eventType)];
 }
+
+/**
+ * eventSummary returns a short, reviewer-facing one-liner for an event, or ""
+ * when there is nothing concise to say. It mirrors the CLI incident report's
+ * summaries (internal/incident) so the timeline, inspector, and report agree.
+ */
+export function eventSummary(eventType: string, data: unknown): string {
+  const d = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const s = (k: string): string => (typeof d[k] === "string" ? (d[k] as string).trim() : "");
+  const num = (k: string): number | null => (typeof d[k] === "number" ? (d[k] as number) : null);
+
+  switch (eventType) {
+    case "atb.tool.call": {
+      const tool = s("tool_name");
+      return tool ? `tool=${tool}` : "";
+    }
+    case "ai.action.error": {
+      const ec = s("error_class");
+      return ec ? `action=${s("action_id")} error_class=${ec}` : "";
+    }
+    case "atb.llm.request":
+      return `${s("method")} ${s("path")}`.trim();
+    case "atb.llm.response": {
+      const base = `${s("method")} ${s("path")}`.trim();
+      const code = num("status_code");
+      return code !== null ? `${base} → ${code}` : base;
+    }
+    case "ai.policy.decision": {
+      const decision = s("decision");
+      return decision ? `decision=${decision}` : "";
+    }
+    case "ai.human.approval": {
+      const outcome = s("approval_outcome");
+      return outcome ? `approval=${outcome}` : "";
+    }
+    default:
+      return "";
+  }
+}
