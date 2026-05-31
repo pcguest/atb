@@ -1,5 +1,6 @@
 "use client";
 
+import { eventFamilyClass } from "@/lib/event-family";
 import type { EventRecord } from "@/lib/types";
 import { FixedSizeList as List, type ListChildComponentProps } from "react-window";
 
@@ -23,17 +24,6 @@ type RowData = {
 
 const rowHeight = 72;
 const nearEndThreshold = 20;
-
-function eventFamilyClass(eventType: string): string {
-  if (eventType.startsWith("ai.llm")) return "ev-llm";
-  if (eventType.startsWith("ai.tool")) return "ev-tool";
-  if (eventType.startsWith("ai.chain")) return "ev-chain";
-  if (eventType.startsWith("ai.policy")) return "ev-policy";
-  if (eventType.startsWith("ai.human")) return "ev-human";
-  if (eventType.startsWith("ai.export") || eventType.startsWith("atb.corroboration"))
-    return "ev-export";
-  return "ev-default";
-}
 
 function Row({ index, style, data }: ListChildComponentProps<RowData>) {
   const event = data.events[index];

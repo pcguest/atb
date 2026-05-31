@@ -37,6 +37,7 @@
     --ev-policy:   38  95% 52%;
     --ev-human:   354  82% 60%;
     --ev-export:  186  85% 43%;
+    --ev-action:   14  88% 52%;
     --ev-default: 215  16% 47%;
   }
 
@@ -71,6 +72,7 @@
     --ev-policy:   38  90% 60%;
     --ev-human:   354  75% 65%;
     --ev-export:  186  75% 52%;
+    --ev-action:   14  85% 62%;
     --ev-default: 215  14% 55%;
   }
 
@@ -104,6 +106,7 @@
   .ev-policy  { --ev-color: var(--ev-policy);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
   .ev-human   { --ev-color: var(--ev-human);   color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
   .ev-export  { --ev-color: var(--ev-export);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-action  { --ev-color: var(--ev-action);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
   .ev-default { --ev-color: var(--ev-default); color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
 
   /* Subtle dot-grid — graph/canvas backgrounds */

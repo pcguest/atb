@@ -1,5 +1,6 @@
 "use client";
 
+import { eventFamily } from "@/lib/event-family";
 import type { DashboardRole } from "@/lib/roles";
 import { dashboardRoleLabel } from "@/lib/roles";
 import type { ViewerHealthBreakdown } from "@/lib/trust-score";
@@ -32,17 +33,6 @@ function Stat({
       </span>
     </div>
   );
-}
-
-function eventFamily(eventType: string): string {
-  if (eventType.startsWith("ai.llm")) return "llm";
-  if (eventType.startsWith("ai.tool")) return "tool";
-  if (eventType.startsWith("ai.chain")) return "chain";
-  if (eventType.startsWith("ai.policy")) return "policy";
-  if (eventType.startsWith("ai.action")) return "action";
-  if (eventType.startsWith("ai.job")) return "job";
-  if (eventType.startsWith("atb.corroboration")) return "corroboration";
-  return "other";
 }
 
 function eventFamilyCounts(meta: BundleMetaResponse | null): string {
