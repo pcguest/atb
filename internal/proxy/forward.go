@@ -181,7 +181,7 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 		return err
 	}
 	sess.setLastRequestEventHash(requestHash)
-	f.recordToolResultErrors(rec.RecordedAt, body)
+	f.recordToolResultErrors(sess.ID, rec.RecordedAt, body)
 	return nil
 }
 
@@ -293,9 +293,10 @@ func (f *forwarder) recordToolCalls(sess *Session, body []byte, actorID string, 
 // recordToolResultErrors appends an ai.action.error accountability event for
 // each failed tool result carried in a request body (Anthropic tool_result
 // with is_error=true). Error detail is digested, never stored raw.
-func (f *forwarder) recordToolResultErrors(ts time.Time, body []byte) {
+func (f *forwarder) recordToolResultErrors(sessionID string, ts time.Time, body []byte) {
 	for _, tre := range ExtractToolResultErrors(body) {
 		data := map[string]any{
+			"session_id":  sessionID,
 			"action_id":   tre.ToolUseID,
 			"error_class": "failed",
 		}

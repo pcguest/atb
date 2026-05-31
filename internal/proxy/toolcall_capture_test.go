@@ -75,6 +75,9 @@ func TestCaptureRecordsToolCallAndActionError(t *testing.T) {
 			if data["error_class"] != "failed" {
 				t.Errorf("ai.action.error error_class = %v, want failed", data["error_class"])
 			}
+			if sid, _ := data["session_id"].(string); sid == "" {
+				t.Error("ai.action.error must carry session_id for correlation")
+			}
 		}
 	}
 	if !sawToolCall {
