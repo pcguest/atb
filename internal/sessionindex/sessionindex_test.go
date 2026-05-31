@@ -332,6 +332,44 @@ type testEvent struct {
 	actorID   *string
 }
 
+func TestBuildIndexSkipsBundleLevelEvents(t *testing.T) {
+	path := writeSessionBundle(t, []testEvent{
+		{
+			eventType: "atb.tool.call",
+			timestamp: "2026-05-28T10:01:00Z",
+			data:      map[string]any{"session_id": "session-real", "tool_name": "deploy"},
+		},
+		{
+			eventType: "atb.session.close",
+			timestamp: "2026-05-28T10:05:00Z",
+			data:      map[string]any{"session_id": "session-real", "actor_id": "agent-x"},
+		},
+		// Bundle-level events carry no session_id. Before the fix these seeded a
+		// spurious path-derived pseudo-session (visible once a bundle is signed).
+		{
+			eventType: "atb.snapshot",
+			timestamp: "2026-05-28T10:06:00Z",
+			data:      map[string]any{"name": "snap"},
+		},
+		{
+			eventType: "atb.bundle.signature",
+			timestamp: "2026-05-28T10:07:00Z",
+			data:      map[string]any{"bundle_hash": "abc", "signature": "sig", "pubkey": "pk"},
+		},
+	})
+
+	entries, err := BuildIndex(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("BuildIndex: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries length = %d, want 1 (bundle-level events must not create sessions)", len(entries))
+	}
+	if entries[0].SessionID != "session-real" {
+		t.Errorf("session id = %q, want session-real", entries[0].SessionID)
+	}
+}
+
 func writeSessionBundle(t *testing.T, events []testEvent) string {
 	t.Helper()
 

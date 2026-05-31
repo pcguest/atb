@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
 	"github.com/pcguest/atb/internal/verify"
 )
@@ -158,12 +159,30 @@ type sessionAccumulator struct {
 	seenSession         bool
 }
 
+// bundleLevelEvent reports whether the event type is a bundle-scoped system
+// record (manifest, signature, anchor, push marker, snapshot) rather than
+// session activity. These carry no session_id, so without this skip they would
+// seed a spurious path-derived pseudo-session — visible, for example, once a
+// captured bundle is signed.
+func bundleLevelEvent(eventType string) bool {
+	switch eventType {
+	case event.TypeBundleManifest,
+		event.TypeBundleSignature,
+		event.TypeBundleAnchor,
+		event.TypeBundlePushed,
+		event.TypeSnapshot:
+		return true
+	default:
+		return false
+	}
+}
+
 func entriesForBundle(bundlePath string, b *bundle.Bundle) []SessionEntry {
 	sessions := make(map[string]*sessionAccumulator)
 	order := []string{}
 
 	for _, record := range b.Records {
-		if record.Event.Type == bundle.ManifestEventType {
+		if bundleLevelEvent(record.Event.Type) {
 			continue
 		}
 		sessionID := sessionIDForEvent(record.Event, bundlePath)
