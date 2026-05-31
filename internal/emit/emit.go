@@ -148,6 +148,44 @@ func (e *Emitter) HumanApproval(opts HumanApprovalOptions) error {
 	return e.append(event.TypeHumanApproval, data)
 }
 
+// ActionErrorOptions carries fields for an ai.action.error event.
+type ActionErrorOptions struct {
+	ActionID     string // required
+	ErrorClass   string // required: failed|blocked|timeout|exception|denied_at_sink
+	ActorID      string
+	DetailDigest string // SHA-256 hex of the failure detail
+	ActionType   string
+	SessionID    string // override; uses Emitter.sessionID when empty
+}
+
+// ActionError emits an ai.action.error event recording a privileged action that
+// was attempted but did not succeed. ActionID and ErrorClass are required.
+func (e *Emitter) ActionError(opts ActionErrorOptions) error {
+	if strings.TrimSpace(opts.ActionID) == "" {
+		return fmt.Errorf("atb: ActionError requires ActionID")
+	}
+	if strings.TrimSpace(opts.ErrorClass) == "" {
+		return fmt.Errorf("atb: ActionError requires ErrorClass")
+	}
+	data := map[string]any{
+		"action_id":   strings.TrimSpace(opts.ActionID),
+		"error_class": strings.TrimSpace(opts.ErrorClass),
+	}
+	if v := strings.TrimSpace(e.sessionIDFor(opts.SessionID)); v != "" {
+		data["session_id"] = v
+	}
+	if v := strings.TrimSpace(opts.ActorID); v != "" {
+		data["actor_id"] = v
+	}
+	if v := strings.TrimSpace(opts.DetailDigest); v != "" {
+		data["error_detail_digest"] = v
+	}
+	if v := strings.TrimSpace(opts.ActionType); v != "" {
+		data["action_type"] = v
+	}
+	return e.append(event.TypeAIActionError, data)
+}
+
 func (e *Emitter) sessionIDFor(override string) string {
 	if v := strings.TrimSpace(override); v != "" {
 		return v

@@ -173,3 +173,59 @@ func TestHumanApproval_MissingRequired(t *testing.T) {
 		t.Fatalf("expected no append on validation failure, got %d events", len(*captured))
 	}
 }
+
+func TestActionError_MissingRequired(t *testing.T) {
+	t.Parallel()
+
+	stub, captured := stubAppendFn()
+	emitter, err := emit.NewEmitter("sess-1", stub)
+	if err != nil {
+		t.Fatalf("NewEmitter: %v", err)
+	}
+	if err := emitter.ActionError(emit.ActionErrorOptions{ErrorClass: "failed"}); err == nil {
+		t.Fatal("expected error for missing ActionID")
+	}
+	if err := emitter.ActionError(emit.ActionErrorOptions{ActionID: "act-1"}); err == nil {
+		t.Fatal("expected error for missing ErrorClass")
+	}
+	if len(*captured) != 0 {
+		t.Fatalf("expected no append on validation failure, got %d events", len(*captured))
+	}
+}
+
+func TestActionError_Valid(t *testing.T) {
+	t.Parallel()
+
+	stub, captured := stubAppendFn()
+	emitter, err := emit.NewEmitter("sess-1", stub)
+	if err != nil {
+		t.Fatalf("NewEmitter: %v", err)
+	}
+	if err := emitter.ActionError(emit.ActionErrorOptions{
+		ActionID:     "act-1",
+		ErrorClass:   "exception",
+		DetailDigest: "sha256:abc",
+	}); err != nil {
+		t.Fatalf("ActionError: %v", err)
+	}
+	if len(*captured) != 1 {
+		t.Fatalf("captured = %d, want 1", len(*captured))
+	}
+	ev := (*captured)[0]
+	if ev.Type != event.TypeAIActionError {
+		t.Fatalf("Type = %q, want %q", ev.Type, event.TypeAIActionError)
+	}
+	data := dataMap(t, ev)
+	if data["action_id"] != "act-1" {
+		t.Fatalf("action_id = %v, want act-1", data["action_id"])
+	}
+	if data["error_class"] != "exception" {
+		t.Fatalf("error_class = %v, want exception", data["error_class"])
+	}
+	if data["error_detail_digest"] != "sha256:abc" {
+		t.Fatalf("error_detail_digest = %v, want sha256:abc", data["error_detail_digest"])
+	}
+	if data["session_id"] != "sess-1" {
+		t.Fatalf("session_id = %v, want sess-1", data["session_id"])
+	}
+}

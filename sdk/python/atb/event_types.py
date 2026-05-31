@@ -22,6 +22,7 @@ RAG_RETRIEVAL_EVENT_TYPE = "atb.event.rag_retrieval"
 AI_ACTION_PRECOMMIT_EVENT_TYPE = "ai.action.precommit"
 AI_ACTION_EXECUTED_EVENT_TYPE = "ai.action.executed"
 AI_ACTION_COMMITTED_EVENT_TYPE = "ai.action.committed"
+AI_ACTION_ERROR_EVENT_TYPE = "ai.action.error"
 
 AI_HUMAN_APPROVAL_EVENT_TYPE = "ai.human.approval"
 AI_OVERRIDE_REQUESTED_EVENT_TYPE = "ai.override.requested"

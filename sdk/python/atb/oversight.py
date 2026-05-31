@@ -12,6 +12,7 @@ __all__ = [
     "DataExportEmitter",
     "HumanOverrideEmitter",
     "HumanApprovalEmitter",
+    "ActionErrorEmitter",
 ]
 
 
@@ -170,3 +171,33 @@ class HumanApprovalEmitter:
         _optional_str(payload, kwargs, "approver_id")
         _optional_str(payload, kwargs, "note")
         _dispatch(self._ctx, event_types.HUMAN_APPROVAL, payload)
+
+
+class ActionErrorEmitter:
+    """Emits ai.action.error events for privileged actions that did not succeed."""
+
+    def __init__(self, ctx: Any) -> None:
+        if not (callable(getattr(ctx, "emit", None)) or callable(getattr(ctx, "append", None))):
+            raise ValueError("atb: context must provide emit or append")
+        self._ctx = ctx
+
+    def emit(self, action_id: str, error_class: str, **kwargs: Any) -> None:
+        """Emit an ai.action.error event.
+
+        Args:
+            action_id: Identifier of the action that failed. Required.
+            error_class: One of failed, blocked, timeout, exception,
+                denied_at_sink. Required.
+            **kwargs: Optional actor_id, error_detail_digest, action_type,
+                session_id (overrides context session_id if provided).
+
+        Raises:
+            ValueError: If action_id or error_class is empty or not provided.
+        """
+        payload = _base_payload(self._ctx, kwargs)
+        payload["action_id"] = _require_non_empty(action_id, "action_id")
+        payload["error_class"] = _require_non_empty(error_class, "error_class")
+        _optional_str(payload, kwargs, "actor_id")
+        _optional_str(payload, kwargs, "error_detail_digest")
+        _optional_str(payload, kwargs, "action_type")
+        _dispatch(self._ctx, event_types.AI_ACTION_ERROR_EVENT_TYPE, payload)

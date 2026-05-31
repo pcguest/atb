@@ -6,6 +6,7 @@ import pytest
 
 from atb import event_types
 from atb.oversight import (
+    ActionErrorEmitter,
     DataExportEmitter,
     HumanApprovalEmitter,
     HumanOverrideEmitter,
@@ -83,3 +84,26 @@ def test_empty_session_id_propagated() -> None:
     emitter.emit("search")
     _, payload = sink.events[0]
     assert payload.get("session_id") == "test-session-1"
+
+
+def test_action_error_emitter_missing_required() -> None:
+    sink = _StubSink()
+    emitter = ActionErrorEmitter(sink)
+    with pytest.raises(ValueError, match="action_id"):
+        emitter.emit("", "failed")
+    with pytest.raises(ValueError, match="error_class"):
+        emitter.emit("act-1", "")
+    assert len(sink.events) == 0
+
+
+def test_action_error_emitter_valid_emits_correct_type() -> None:
+    sink = _StubSink()
+    emitter = ActionErrorEmitter(sink)
+    emitter.emit("act-1", "exception", error_detail_digest="sha256:abc")
+    assert len(sink.events) == 1
+    event_type, payload = sink.events[0]
+    assert event_type == event_types.AI_ACTION_ERROR_EVENT_TYPE
+    assert payload["action_id"] == "act-1"
+    assert payload["error_class"] == "exception"
+    assert payload["error_detail_digest"] == "sha256:abc"
+    assert payload["session_id"] == "test-session-1"
