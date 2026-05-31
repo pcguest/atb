@@ -38,6 +38,8 @@ const (
 	TypeAIActionExecuted = "ai.action.executed"
 	// TypeAIActionCommitted is "ai.action.committed".
 	TypeAIActionCommitted = "ai.action.committed"
+	// TypeAIActionError is "ai.action.error".
+	TypeAIActionError = "ai.action.error"
 	// TypeAIHumanApproval is "ai.human.approval".
 	TypeAIHumanApproval = "ai.human.approval"
 	// TypeAIOverrideRequested is "ai.override.requested".
@@ -106,6 +108,7 @@ var EventTypesGenerated = []EventTypeSpecGenerated{
 	{Type: TypeAIActionPrecommit, Description: "Pre-commit record for a gated privileged action", Profiles: []string{"atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.policy_decision", "atb.profile.human_override"}, Criticality: "critical", RequiredFields: []string{"action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"}},
 	{Type: TypeAIActionExecuted, Description: "Privileged action executed through gate", Profiles: []string{"atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.human_override"}, Criticality: "critical", RequiredFields: []string{"action_id", "execution_outcome", "tool_receipt_digest"}},
 	{Type: TypeAIActionCommitted, Description: "Privileged action committed to sink", Profiles: []string{"atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.human_override"}, Criticality: "critical", RequiredFields: []string{}},
+	{Type: TypeAIActionError, Description: "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"action_id", "error_class"}},
 	{Type: TypeAIHumanApproval, Description: "Human approval of an action or override", Profiles: []string{"atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.human_override"}, Criticality: "required", RequiredFields: []string{}},
 	{Type: TypeAIOverrideRequested, Description: "Human override requested", Profiles: []string{}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeAIJobScheduled, Description: "Background job scheduled", Profiles: []string{"atb.profile.background_automation"}, Criticality: "critical", RequiredFields: []string{}},
@@ -146,6 +149,7 @@ var RegistryGenerated = []EventInfo{
 	{TypeAIActionPrecommit, "Pre-commit record for a gated privileged action", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.policy_decision,atb.profile.human_override", "critical"},
 	{TypeAIActionExecuted, "Privileged action executed through gate", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "critical"},
 	{TypeAIActionCommitted, "Privileged action committed to sink", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "critical"},
+	{TypeAIActionError, "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", "", "required"},
 	{TypeAIHumanApproval, "Human approval of an action or override", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "required"},
 	{TypeAIOverrideRequested, "Human override requested", "", "critical"},
 	{TypeAIJobScheduled, "Background job scheduled", "atb.profile.background_automation", "critical"},
@@ -186,6 +190,7 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeAIActionPrecommit:     []string{"action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"},
 	TypeAIActionExecuted:      []string{"action_id", "execution_outcome", "tool_receipt_digest"},
 	TypeAIActionCommitted:     []string{},
+	TypeAIActionError:         []string{"action_id", "error_class"},
 	TypeAIHumanApproval:       []string{},
 	TypeAIOverrideRequested:   []string{},
 	TypeAIJobScheduled:        []string{},

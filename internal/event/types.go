@@ -53,6 +53,7 @@ var Registry = []EventInfo{
 	{TypeAIActionPrecommit, "Pre-commit record for a gated privileged action", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.policy_decision,atb.profile.human_override", "critical"},
 	{TypeAIActionExecuted, "Privileged action executed through gate", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "critical"},
 	{TypeAIActionCommitted, "Privileged action committed to sink", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "critical"},
+	{TypeAIActionError, "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", "", "required"},
 	{TypeAIHumanApproval, "Human approval of an action or override", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "required"},
 	{TypeAIOverrideRequested, "Human override requested", "", "critical"},
 	{TypeAIJobScheduled, "Background job scheduled", "atb.profile.background_automation", "critical"},

@@ -95,6 +95,45 @@ func TestAllCriticalProfileEventsPresent(t *testing.T) {
 	}
 }
 
+// TestActionErrorEventRegistered pins the forensic ai.action.error event:
+// it must be registered with action_id + error_class as required fields, and
+// must NOT be bound to any obligation profile (it is an additive forensic
+// vocabulary populated by capture, not a scored obligation — keeping it out of
+// profiles is what makes the addition non-breaking for existing bundles).
+func TestActionErrorEventRegistered(t *testing.T) {
+	if event.TypeAIActionError != "ai.action.error" {
+		t.Fatalf("TypeAIActionError = %q, want ai.action.error", event.TypeAIActionError)
+	}
+
+	var spec *event.EventTypeSpecGenerated
+	for i := range event.EventTypesGenerated {
+		if event.EventTypesGenerated[i].Type == event.TypeAIActionError {
+			spec = &event.EventTypesGenerated[i]
+			break
+		}
+	}
+	if spec == nil {
+		t.Fatal("ai.action.error missing from EventTypesGenerated")
+	}
+	if spec.Criticality != "required" {
+		t.Errorf("ai.action.error criticality = %q, want required", spec.Criticality)
+	}
+	if len(spec.Profiles) != 0 {
+		t.Errorf("ai.action.error must not be bound to any profile, got %v", spec.Profiles)
+	}
+
+	want := map[string]bool{"action_id": true, "error_class": true}
+	got := event.RequiredFieldsGenerated[event.TypeAIActionError]
+	if len(got) != len(want) {
+		t.Fatalf("ai.action.error required_fields = %v, want keys %v", got, want)
+	}
+	for _, f := range got {
+		if !want[f] {
+			t.Errorf("ai.action.error unexpected required field %q", f)
+		}
+	}
+}
+
 func TestRegistryProfileAnnotationsCoverEmbeddedTemplates(t *testing.T) {
 	registryByType := make(map[string]event.EventInfo, len(event.Registry))
 	for _, entry := range event.Registry {

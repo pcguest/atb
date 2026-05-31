@@ -62,6 +62,9 @@ export const AI_ACTION_EXECUTED_EVENT_TYPE = AI_ACTION_EXECUTED;
 export const AI_ACTION_COMMITTED = "ai.action.committed" as const;
 export const AI_ACTION_COMMITTED_EVENT_TYPE = AI_ACTION_COMMITTED;
 
+export const AI_ACTION_ERROR = "ai.action.error" as const;
+export const AI_ACTION_ERROR_EVENT_TYPE = AI_ACTION_ERROR;
+
 export const AI_HUMAN_APPROVAL = "ai.human.approval" as const;
 export const AI_HUMAN_APPROVAL_EVENT_TYPE = AI_HUMAN_APPROVAL;
 
@@ -240,6 +243,13 @@ export const EVENT_TYPE_REGISTRY = [
     required_fields: [],
   },
   {
+    type: AI_ACTION_ERROR,
+    description: "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink)",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["action_id", "error_class"],
+  },
+  {
     type: AI_HUMAN_APPROVAL,
     description: "Human approval of an action or override",
     profiles: ["atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.human_override"],
@@ -392,6 +402,7 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [AI_ACTION_PRECOMMIT]: ["action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"],
   [AI_ACTION_EXECUTED]: ["action_id", "execution_outcome", "tool_receipt_digest"],
   [AI_ACTION_COMMITTED]: [],
+  [AI_ACTION_ERROR]: ["action_id", "error_class"],
   [AI_HUMAN_APPROVAL]: [],
   [AI_OVERRIDE_REQUESTED]: [],
   [AI_JOB_SCHEDULED]: [],

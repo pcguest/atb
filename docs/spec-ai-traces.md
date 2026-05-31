@@ -496,6 +496,7 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `ai.action.precommit` | Privileged action | critical | `privileged_tool_action`, `data_export`, `policy_decision`, `human_override` |
 | `ai.action.executed` | Privileged action | critical | `privileged_tool_action`, `data_export`, `human_override` |
 | `ai.action.committed` | Privileged action | critical | `privileged_tool_action`, `data_export`, `human_override` |
+| `ai.action.error` | Privileged action | required | — |
 | `ai.human.approval` | Human oversight | required | `privileged_tool_action`, `data_export`, `human_override` |
 | `ai.override.requested` | Human oversight | critical | — |
 | `ai.job.scheduled` | Background automation | critical | `background_automation` |

@@ -242,6 +242,18 @@
     "ai.action.committed": {
       "description": "Privileged action committed to its downstream sink."
     },
+    "ai.action.error": {
+      "description": "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink). Forensic counterpart to the success-shaped ai.action.executed.",
+      "properties": {
+        "action_id": { "type": "string" },
+        "error_class": {
+          "type": "string",
+          "enum": ["failed", "blocked", "timeout", "exception", "denied_at_sink"]
+        },
+        "error_detail_digest": { "type": "string" }
+      },
+      "required": ["action_id", "error_class"]
+    },
     "ai.human.approval": {
       "description": "Human approval of an action or override."
     },
@@ -475,6 +487,14 @@
       "profiles": ["atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.human_override"],
       "criticality": "critical",
       "required_fields": []
+    },
+    {
+      "type": "ai.action.error",
+      "description": "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink)",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["action_id", "error_class"],
+      "$comment": "Forensic record of a non-success execution outcome, distinct from the success-shaped ai.action.executed. error_class is one of: failed, blocked, timeout, exception, denied_at_sink. Optional error_detail_digest carries a privacy-safe hash of the failure detail. Not yet bound to an obligation profile; populated by capture and surfaced in incident reconstruction."
     },
     {
       "type": "ai.human.approval",
