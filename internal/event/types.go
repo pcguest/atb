@@ -71,6 +71,8 @@ var Registry = []EventInfo{
 	{TypeDataExport, "Data export outside session boundary", "", "required"},
 	{TypeHumanOverride, "Human operator overrode an AI-recommended action", "", "required"},
 	{TypeHumanApproval, "Human operator approved a pending action", "", "required"},
+	{TypeLLMRequest, "Captured upstream LLM API request (proxy-internal)", "", "informational"},
+	{TypeLLMResponse, "Captured upstream LLM API response (proxy-internal)", "", "informational"},
 	{TypeSessionClose, "Capture session closed (proxy-internal lifecycle marker)", "", "informational"},
 	{TypeExchangeComplete, "Request/response exchange completed within a capture session (proxy-internal)", "", "informational"},
 }

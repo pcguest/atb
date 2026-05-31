@@ -116,6 +116,12 @@ export const HUMAN_OVERRIDE_EVENT_TYPE = HUMAN_OVERRIDE;
 export const HUMAN_APPROVAL = "atb.human.approval" as const;
 export const HUMAN_APPROVAL_EVENT_TYPE = HUMAN_APPROVAL;
 
+export const LLM_REQUEST = "atb.llm.request" as const;
+export const LLM_REQUEST_EVENT_TYPE = LLM_REQUEST;
+
+export const LLM_RESPONSE = "atb.llm.response" as const;
+export const LLM_RESPONSE_EVENT_TYPE = LLM_RESPONSE;
+
 export const SESSION_CLOSE = "atb.session.close" as const;
 export const SESSION_CLOSE_EVENT_TYPE = SESSION_CLOSE;
 
@@ -369,6 +375,20 @@ export const EVENT_TYPE_REGISTRY = [
     required_fields: ["session_id", "approved_action_id"],
   },
   {
+    type: LLM_REQUEST,
+    description: "Captured upstream LLM API request (proxy-internal)",
+    profiles: [],
+    criticality: "informational",
+    required_fields: ["session_id", "host", "method", "path"],
+  },
+  {
+    type: LLM_RESPONSE,
+    description: "Captured upstream LLM API response (proxy-internal)",
+    profiles: [],
+    criticality: "informational",
+    required_fields: ["session_id", "host", "method", "path", "status_code"],
+  },
+  {
     type: SESSION_CLOSE,
     description: "Capture session closed (proxy-internal lifecycle marker)",
     profiles: [],
@@ -420,6 +440,8 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [DATA_EXPORT]: ["session_id", "export_target"],
   [HUMAN_OVERRIDE]: ["session_id", "override_reason"],
   [HUMAN_APPROVAL]: ["session_id", "approved_action_id"],
+  [LLM_REQUEST]: ["session_id", "host", "method", "path"],
+  [LLM_RESPONSE]: ["session_id", "host", "method", "path", "status_code"],
   [SESSION_CLOSE]: ["session_id", "actor_id"],
   [EXCHANGE_COMPLETE]: ["session_id", "exchange_id", "request_event_id"],
 } as const;

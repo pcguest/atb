@@ -30,9 +30,11 @@ func recordBody(data map[string]any, body []byte, captureRaw bool) {
 
 const (
 	// TypeLLMRequest is the ATB event type for a captured upstream LLM request.
-	TypeLLMRequest = "atb.llm.request"
+	// Aliased to the schema-generated constant so the proxy and the canonical
+	// event registry (schemas/event.v1.json) cannot drift.
+	TypeLLMRequest = event.TypeLLMRequest
 	// TypeLLMResponse is the ATB event type for a captured upstream LLM response.
-	TypeLLMResponse = "atb.llm.response"
+	TypeLLMResponse = event.TypeLLMResponse
 )
 
 // RequestRecord holds normalised metadata for a captured LLM API request.

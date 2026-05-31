@@ -365,6 +365,40 @@
         "latency_ms": { "type": "integer", "description": "Optional: wall-clock milliseconds from request arrival to response flush." }
       },
       "required": ["session_id", "exchange_id", "request_event_id"]
+    },
+    "atb.llm.request": {
+      "description": "Captured upstream LLM API request. Proxy-internal; emitted by atb intercept for each request through the capture proxy.",
+      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Credential and session-secret headers are stripped before recording. See internal/proxy/types.go RequestRecord.ToEvent.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Capture session the request belongs to." },
+        "host": { "type": "string", "description": "Upstream provider host (e.g. api.openai.com)." },
+        "method": { "type": "string", "description": "HTTP method of the captured request." },
+        "path": { "type": "string", "description": "Request path on the upstream host." },
+        "provider": { "type": "string", "description": "Optional: normalised provider name." },
+        "model": { "type": "string", "description": "Optional: model identifier parsed from the request body." },
+        "body_sha256": { "type": "string", "description": "SHA-256 digest of the request body; absent when the body is empty." },
+        "body_bytes": { "type": "integer", "description": "Byte length of the request body." },
+        "body": { "type": "string", "description": "Raw request body; present only under --capture-bodies." }
+      },
+      "required": ["session_id", "host", "method", "path"]
+    },
+    "atb.llm.response": {
+      "description": "Captured upstream LLM API response. Proxy-internal; emitted by atb intercept for each response through the capture proxy.",
+      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Credential and session-secret headers are stripped before recording. See internal/proxy/types.go ResponseRecord.ToEvent.",
+      "properties": {
+        "session_id": { "type": "string", "description": "Capture session the response belongs to." },
+        "host": { "type": "string", "description": "Upstream provider host." },
+        "method": { "type": "string", "description": "HTTP method of the originating request." },
+        "path": { "type": "string", "description": "Request path on the upstream host." },
+        "status_code": { "type": "integer", "description": "HTTP status code returned by the upstream provider." },
+        "provider": { "type": "string", "description": "Optional: normalised provider name." },
+        "model": { "type": "string", "description": "Optional: model identifier parsed from the response or session." },
+        "body_sha256": { "type": "string", "description": "SHA-256 digest of the response body; absent when the body is empty." },
+        "body_bytes": { "type": "integer", "description": "Byte length of the response body." },
+        "usage": { "type": "object", "description": "Optional: token usage {prompt_tokens, completion_tokens, total_tokens} when reported by the model." },
+        "body": { "type": "string", "description": "Raw response body; present only under --capture-bodies." }
+      },
+      "required": ["session_id", "host", "method", "path", "status_code"]
     }
   },
   "event_types": [
@@ -614,6 +648,20 @@
       "profiles": [],
       "criticality": "required",
       "required_fields": ["session_id", "approved_action_id"]
+    },
+    {
+      "type": "atb.llm.request",
+      "description": "Captured upstream LLM API request (proxy-internal)",
+      "profiles": [],
+      "criticality": "informational",
+      "required_fields": ["session_id", "host", "method", "path"]
+    },
+    {
+      "type": "atb.llm.response",
+      "description": "Captured upstream LLM API response (proxy-internal)",
+      "profiles": [],
+      "criticality": "informational",
+      "required_fields": ["session_id", "host", "method", "path", "status_code"]
     },
     {
       "type": "atb.session.close",

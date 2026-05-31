@@ -119,6 +119,12 @@ HUMAN_OVERRIDE_EVENT_TYPE: Final = HUMAN_OVERRIDE
 HUMAN_APPROVAL: Final = "atb.human.approval"
 HUMAN_APPROVAL_EVENT_TYPE: Final = HUMAN_APPROVAL
 
+LLM_REQUEST: Final = "atb.llm.request"
+LLM_REQUEST_EVENT_TYPE: Final = LLM_REQUEST
+
+LLM_RESPONSE: Final = "atb.llm.response"
+LLM_RESPONSE_EVENT_TYPE: Final = LLM_RESPONSE
+
 SESSION_CLOSE: Final = "atb.session.close"
 SESSION_CLOSE_EVENT_TYPE: Final = SESSION_CLOSE
 
@@ -372,6 +378,20 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "required_fields": ["session_id", "approved_action_id"],
     },
     {
+        "type": LLM_REQUEST,
+        "description": "Captured upstream LLM API request (proxy-internal)",
+        "profiles": [],
+        "criticality": "informational",
+        "required_fields": ["session_id", "host", "method", "path"],
+    },
+    {
+        "type": LLM_RESPONSE,
+        "description": "Captured upstream LLM API response (proxy-internal)",
+        "profiles": [],
+        "criticality": "informational",
+        "required_fields": ["session_id", "host", "method", "path", "status_code"],
+    },
+    {
         "type": SESSION_CLOSE,
         "description": "Capture session closed (proxy-internal lifecycle marker)",
         "profiles": [],
@@ -423,6 +443,8 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     DATA_EXPORT: ["session_id", "export_target"],
     HUMAN_OVERRIDE: ["session_id", "override_reason"],
     HUMAN_APPROVAL: ["session_id", "approved_action_id"],
+    LLM_REQUEST: ["session_id", "host", "method", "path"],
+    LLM_RESPONSE: ["session_id", "host", "method", "path", "status_code"],
     SESSION_CLOSE: ["session_id", "actor_id"],
     EXCHANGE_COMPLETE: ["session_id", "exchange_id", "request_event_id"],
 }
@@ -501,6 +523,10 @@ __all__ = [
     "HUMAN_OVERRIDE_EVENT_TYPE",
     "HUMAN_APPROVAL",
     "HUMAN_APPROVAL_EVENT_TYPE",
+    "LLM_REQUEST",
+    "LLM_REQUEST_EVENT_TYPE",
+    "LLM_RESPONSE",
+    "LLM_RESPONSE_EVENT_TYPE",
     "SESSION_CLOSE",
     "SESSION_CLOSE_EVENT_TYPE",
     "EXCHANGE_COMPLETE",
