@@ -30,7 +30,7 @@ wc -l examples/bundles/demo-workflow/demo-workflow.atb
 **Expected:**
 
 ```
-    8847 examples/bundles/demo-workflow/demo-workflow.atb
+    8844 examples/bundles/demo-workflow/demo-workflow.atb
       22 examples/bundles/demo-workflow/demo-workflow.atb
 ```
 
@@ -41,13 +41,18 @@ wc -l examples/bundles/demo-workflow/demo-workflow.atb
 ## 3. Verify moment (60 s)
 
 ```bash
-./atb verify --bundle examples/bundles/demo-workflow/demo-workflow.atb \
-  --profile atb.profile.policy_decision
+./atb verify --bundle examples/bundles/demo-workflow/demo-workflow.atb
 ```
+
+No `--profile` flag is needed: the bundle declares its workflow class
+(`policy_decision`) via the `purpose_tag` on `ai.request.received`, so `verify`
+auto-selects the right obligation profile.
 
 **Expected (excerpt):**
 
 ```
+Profile: atb.profile.policy_decision (Policy Decision)
+
 Summary
 
 Integrity: PASS
@@ -72,8 +77,7 @@ cd examples/bundles/demo-workflow
 cp demo-workflow.atb demo-tampered.atb
 ./tamper.sh demo-workflow.atb demo-tampered.atb
 cd ../..
-./atb verify --bundle examples/bundles/demo-workflow/demo-tampered.atb \
-  --profile atb.profile.policy_decision
+./atb verify --bundle examples/bundles/demo-workflow/demo-tampered.atb
 ```
 
 **Expected (excerpt):**
@@ -86,7 +90,7 @@ Profile:   FAIL
 CAS:       0.00 (Insufficient)
 
 Issues
-✗ bundle: verify: tamper detected at event 11 (seq 11): expected 2a663651…, got ef4f1177…: bundle: tampered
+✗ bundle: verify: tamper detected at event 11 (seq 11): expected <hash>…, got <hash>…: bundle: tampered
 ...
 Verification: FAIL
 ```
