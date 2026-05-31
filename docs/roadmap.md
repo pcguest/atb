@@ -38,9 +38,11 @@ ATB v1.12.0 ships a verified core bundle engine, six obligation profiles with CA
 
 ## Custos
 
-Custos is the planned commercial layer for central ATB bundle ingest, retention enforcement, auditor portal access, and policy gate dashboards. It is not yet implemented and is out of scope for this repository.
+Custos is the in-repo reference receipt, custody, and attestation layer for ATB bundles. It lives under `custos/` as a separate Go module and is being scaffolded incrementally: the ingestion boundary, receipt store, per-org signing policy, and auth packages have unit tests today, while discovery, registry, onboarding, oversight, and insights are early scaffolds. Custos demonstrates how recorded bundles are ingested, signed, and held under custody — it is reference infrastructure, not a finished product.
 
-## Custos Enterprise Layer
+Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/RBAC, legal hold, and custodian-of-record operations — remain outside the ATB runtime and outside this repository, per `AGENTS.md`. The roadmap below tracks the in-repo reference layer only.
+
+## Custos Enterprise Layer (in-repo reference)
 
 - ✅ Phase 10: Ingestion engine scaffold (custos/ package tree) — Q3 2026 (completed 28 May 2026)
 - Phase 10: AI tool discovery + registry — Q3 2026

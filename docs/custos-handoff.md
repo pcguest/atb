@@ -2,7 +2,7 @@
 
 This document is the engineering handoff from **ATB** (local integrity substrate) to **Custos** (hosted custodian-of-record service). It states what is stable today, what Custos must add, and the recommended build order.
 
-Custos is not implemented in this repository. Everything below is grounded in shipped ATB behaviour, tests, and docs.
+The hosted custodian-of-record service described here is not implemented. An early in-repo reference layer exists under `custos/` (a separate Go module covering ingestion, receipt store, signing policy, and auth) to prototype the ingest and custody boundary; it is not the hosted service. Everything below is grounded in shipped ATB behaviour, tests, and docs.
 
 ---
 
