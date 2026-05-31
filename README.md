@@ -21,6 +21,24 @@ atb capture run -- your-ai-script.sh
 atb verify <bundle-file>
 ```
 
+## Agent incident forensics
+
+ATB doubles as a local-first flight recorder for AI agents. `atb intercept`
+records an agent's provider API traffic, tool calls, and failures into a
+tamper-evident bundle — request/response bodies are digested (not stored) by
+default, and credential headers are stripped. Afterwards:
+
+```bash
+atb incident list   --bundle <bundle-file>                  # discover sessions + anomalies
+atb incident report --bundle <bundle-file> --session <id>   # session-scoped forensic report
+```
+
+The report shows integrity (hash chain), bundle signature provenance, anomaly
+flags such as `tool_without_approval`, and every event hash-addressed to the
+authoritative bundle — so a failed or unapproved privileged action is provable
+even when the agent's own logs can't be trusted. See the
+[agent incident forensics walkthrough](./docs/guides/agent-incident-forensics.md).
+
 ## How it works
 
 ATB canonicalises each event with RFC 8785 before hashing. Each record hash is SHA-256 over the previous hash and canonical event JSON, with a zero hash genesis sentinel. Bundles can be signed with Ed25519 and anchored through an RFC 3161 timestamp authority. Sensitive bundles can be encrypted with AES-256-GCM before storage or transfer. Verification recomputes the chain and checks signatures, anchors, profile obligations, and CAS output.

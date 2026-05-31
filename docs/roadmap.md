@@ -10,9 +10,22 @@ ATB v1.12.0 ships a verified core bundle engine, six obligation profiles with CA
 - ✅ Session index and actor grouping (added 28 May 2026 — completed out of roadmap order)
 - ✅ UI session list and anomaly badge views (added 28 May 2026 — completed out of roadmap order)
 
+## Completed — Agent incident forensics (May–June 2026)
+
+The agent-incident-forensics wedge: capture an agent session, then reconstruct
+and review it from a tamper-evident bundle.
+
+- ✅ `ai.action.error` forensic event for failed/denied privileged actions (schema + Go/Python/TS bindings)
+- ✅ `atb intercept` records captured exchanges privacy-safely — bodies digested by default (`--capture-bodies` to retain raw), credential/session-secret headers stripped
+- ✅ Proxy emits accountability events: `atb.tool.call` per requested tool, `ai.action.error` per failed Anthropic `tool_result`
+- ✅ Registered `atb.llm.request` / `atb.llm.response` capture event types
+- ✅ `atb incident list` (discover sessions) and `atb incident report` (session-scoped report: integrity, signature provenance, anomalies, hash-addressed events)
+- ✅ Viewer renders capture/action events by family with one-line summaries
+- ✅ SDK action gates emit `ai.action.error` on failure (TS + Python ActionGate, TS + Python HumanOverrideGate); Go `emit.ActionError` + Python `oversight.ActionErrorEmitter`
+
 ## Near term — Q3 2026
 
-- Phase 10: Transparent Proxy Capture (`atb intercept`) — local HTTPS MITM proxy that records AI API traffic into a live bundle
+- ✅ Phase 10: Transparent Proxy Capture (`atb intercept`) — local HTTPS MITM/reverse proxy that records AI API traffic, tool calls, and failures into a live bundle (shipped May–June 2026)
 - ✅ Proxy auto-push to Custos on session close (added 28 May 2026 — completed out of roadmap order)
 - ✅ Formalise obligation-profile DSL v1 (completed 29 May 2026)
 - ✅ Produce verifier report v1 structured output (completed 29 May 2026)
@@ -33,7 +46,7 @@ ATB v1.12.0 ships a verified core bundle engine, six obligation profiles with CA
 - Managed storage, SSO, or RBAC
 - Hosted tracing or telemetry collection
 - Real-time prevention or blocking of AI actions
-- Universal completeness guarantees (direct API bypass is a known gap until proxy capture ships)
+- Universal completeness guarantees — `atb intercept` captures provider API traffic, but an agent that bypasses the proxy (or a direct in-process SDK call) is not seen; completeness is bounded by what flows through the recorder
 - Training data governance (Articles 10–11)
 
 ## Custos
