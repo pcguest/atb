@@ -61,6 +61,15 @@ compliance.
 
 ## atb intercept
 
+### Body capture (privacy default)
+
+By default the capture proxy records only a SHA-256 digest (`body_sha256`) and
+byte length (`body_bytes`) of each request and response body — never the raw
+prompt, completion, or any PII it contains. Credential and session-secret
+headers (`Authorization`, `X-Api-Key`, `Proxy-Authorization`, `Cookie`) are
+always stripped before recording. Pass `--capture-bodies` to retain raw bodies
+in the bundle where that tradeoff is acceptable.
+
 ### --custos flag
 
 `--custos <url>`

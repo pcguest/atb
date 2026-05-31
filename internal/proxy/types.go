@@ -2,6 +2,8 @@
 package proxy
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"time"
@@ -9,6 +11,22 @@ import (
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/identity"
 )
+
+// recordBody writes privacy-safe body evidence into a captured event payload.
+// By default only a SHA-256 digest and byte length are stored so an always-on
+// recorder never persists raw prompts, completions, or PII. The raw body is
+// included only when captureRaw is set (ProxyConfig.CaptureBodies).
+func recordBody(data map[string]any, body []byte, captureRaw bool) {
+	if len(body) == 0 {
+		return
+	}
+	sum := sha256.Sum256(body)
+	data["body_sha256"] = hex.EncodeToString(sum[:])
+	data["body_bytes"] = len(body)
+	if captureRaw {
+		data["body"] = string(body)
+	}
+}
 
 const (
 	// TypeLLMRequest is the ATB event type for a captured upstream LLM request.
@@ -31,6 +49,9 @@ type RequestRecord struct {
 	RecordedAt  time.Time
 	DisplayName string
 	Email       string
+	// CaptureBody retains the raw body in the recorded event; default false
+	// records only a digest. Set from ProxyConfig.CaptureBodies.
+	CaptureBody bool
 }
 
 // ResponseRecord holds normalised metadata for a captured LLM API response.
@@ -51,6 +72,9 @@ type ResponseRecord struct {
 	PromptTokens int
 	OutputTokens int
 	TotalTokens  int
+	// CaptureBody retains the raw body in the recorded event; default false
+	// records only a digest. Set from ProxyConfig.CaptureBodies.
+	CaptureBody bool
 }
 
 // ToEvent maps the request record to a canonical ATB event envelope.
@@ -78,9 +102,7 @@ func (r RequestRecord) ToEvent() (*event.Event, error) {
 	if r.Model != "" {
 		data["model"] = r.Model
 	}
-	if len(r.Body) > 0 {
-		data["body"] = string(r.Body)
-	}
+	recordBody(data, r.Body, r.CaptureBody)
 	if len(r.Headers) > 0 {
 		data["headers"] = r.Headers
 	}
@@ -123,9 +145,7 @@ func (r ResponseRecord) ToEvent() (*event.Event, error) {
 	if r.Model != "" {
 		data["model"] = r.Model
 	}
-	if len(r.Body) > 0 {
-		data["body"] = string(r.Body)
-	}
+	recordBody(data, r.Body, r.CaptureBody)
 	if len(r.Headers) > 0 {
 		data["headers"] = r.Headers
 	}

@@ -77,6 +77,7 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 	targets := []string{"openai", "anthropic"}
 	identityMap := map[string]string{}
 	custosEndpoint := "" // New field
+	captureBodies := false
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -140,6 +141,8 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 			i++
 		case strings.HasPrefix(arg, "--custos="): // New case for --custos=value
 			custosEndpoint = strings.TrimSpace(strings.TrimPrefix(arg, "--custos="))
+		case arg == "--capture-bodies":
+			captureBodies = true
 		default:
 			return proxy.ProxyConfig{}, fmt.Errorf("unknown argument %q", arg)
 		}
@@ -155,6 +158,7 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 		TargetHosts:    proxy.DefaultTargetHosts(targets...),
 		IdentityMap:    identityMap,
 		CustosEndpoint: custosEndpoint,
+		CaptureBodies:  captureBodies,
 	}
 	return cfg, cfg.Validate()
 }
@@ -207,5 +211,10 @@ Flags:
   --target <names>           Comma-separated provider shorthand or hostnames (default openai,anthropic)
   --identity-map key=name    Map API keys to display names (repeatable)
   --custos <endpoint>        Custos ingest endpoint for auto-push on session close
+  --capture-bodies           Record raw request/response bodies (default: digest only)
+
+By default only a SHA-256 digest and byte length of each request/response body
+are recorded, so the bundle never persists prompts, completions, or PII.
+Pass --capture-bodies to retain raw bodies where that tradeoff is acceptable.
 `)
 }

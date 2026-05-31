@@ -489,11 +489,20 @@ func intFromAny(values ...any) int {
 }
 
 // ScanHeaders copies selected request headers for evidence capture.
+// sensitiveHeaders are never recorded into a bundle: they carry credentials or
+// session secrets that must not be persisted in tamper-evident evidence.
+var sensitiveHeaders = map[string]struct{}{
+	"authorization":       {},
+	"x-api-key":           {},
+	"proxy-authorization": {},
+	"cookie":              {},
+	"set-cookie":          {},
+}
+
 func ScanHeaders(header http.Header) map[string]string {
 	out := map[string]string{}
 	for key, values := range header {
-		lower := strings.ToLower(key)
-		if lower == "authorization" || lower == "x-api-key" {
+		if _, sensitive := sensitiveHeaders[strings.ToLower(key)]; sensitive {
 			continue
 		}
 		if len(values) > 0 {

@@ -22,6 +22,11 @@ type ProxyConfig struct {
 	IdentityMap    map[string]string
 	Identity       identity.Resolver
 	CustosEndpoint string // New field
+	// CaptureBodies retains raw request/response bodies in recorded events.
+	// Default false: only a SHA-256 digest and byte length are recorded, so an
+	// always-on recorder does not persist prompts, completions, or PII. Enable
+	// only in environments that accept storing raw content in the bundle.
+	CaptureBodies bool
 }
 
 // Validate checks required fields and normalises host entries.

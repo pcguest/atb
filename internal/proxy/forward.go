@@ -153,10 +153,11 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 		Path:       req.URL.Path,
 		Provider:   ProviderFromHost(host),
 		Model:      ParseModelFromBody(body),
-		APIKey:     apiKey,
-		Headers:    ScanHeaders(req.Header),
-		Body:       body,
-		RecordedAt: time.Now().UTC(),
+		APIKey:      apiKey,
+		Headers:     ScanHeaders(req.Header),
+		Body:        body,
+		RecordedAt:  time.Now().UTC(),
+		CaptureBody: f.proxy.cfg.CaptureBodies,
 	}
 	id := f.proxy.cfg.ResolveIdentity(apiKey)
 	actorID := id.DisplayName
@@ -218,6 +219,7 @@ func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.R
 		PromptTokens: prompt,
 		OutputTokens: output,
 		TotalTokens:  total,
+		CaptureBody:  f.proxy.cfg.CaptureBodies,
 	}
 	if err := f.proxy.HandleResponse(context.Background(), rec, apiKey); err != nil {
 		return err
