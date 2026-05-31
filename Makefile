@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full profile-fixtures check-generated test-go test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: hygiene-quick hygiene-full profile-fixtures goldens check-generated test-go test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -23,6 +23,18 @@ STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/stat
 
 profile-fixtures:
 	$(GOENV) go run ./scripts/generate_profile_fixtures.go
+
+# goldens regenerates every example/demo bundle a fresh clone needs for the
+# local demo path and the docs links under examples/. These .atb bundles are
+# gitignored (generated artefacts, not source); run this once after `make build`
+# to materialise them. Pass/fail semantics are asserted by each generator.
+goldens:
+	@test -x ./atb || { echo "❌ ./atb not found — run 'make build' (or 'go build -o ./atb ./cmd/atb') first"; exit 1; }
+	@echo "📦 Regenerating example + demo bundles..."
+	$(GOENV) go run ./scripts/generate_profile_fixtures.go
+	ATB_BIN=$(CURDIR)/atb bash examples/bundles/generate.sh
+	ATB_BIN=$(CURDIR)/atb bash examples/bundles/demo-workflow/generate.sh
+	@echo "✅ Regenerated examples/bundles/{profiles,project-bootstrap,demo-workflow}"
 
 # check-generated regenerates the schema-driven bindings and fails if any of
 # them drift from the committed output. Comparing against a pre-regen snapshot
