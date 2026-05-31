@@ -147,12 +147,12 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 	sess := f.proxy.sessions.Resolve(threadKey)
 	apiKey := ExtractAPIKey(req.Header)
 	rec := RequestRecord{
-		SessionID:  sess.ID,
-		Host:       stripPort(host),
-		Method:     req.Method,
-		Path:       req.URL.Path,
-		Provider:   ProviderFromHost(host),
-		Model:      ParseModelFromBody(body),
+		SessionID:   sess.ID,
+		Host:        stripPort(host),
+		Method:      req.Method,
+		Path:        req.URL.Path,
+		Provider:    ProviderFromHost(host),
+		Model:       ParseModelFromBody(body),
 		APIKey:      apiKey,
 		Headers:     ScanHeaders(req.Header),
 		Body:        body,
@@ -181,6 +181,7 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 		return err
 	}
 	sess.setLastRequestEventHash(requestHash)
+	f.recordToolResultErrors(rec.RecordedAt, body)
 	return nil
 }
 
@@ -252,7 +253,64 @@ func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.R
 			completedAt,
 		),
 	}
-	return f.proxy.recorder.AppendEvent(exchangeEvent)
+	if err := f.proxy.recorder.AppendEvent(exchangeEvent); err != nil {
+		return err
+	}
+	f.recordToolCalls(sess, body, actorID, completedAt)
+	return nil
+}
+
+// recordToolCalls appends an atb.tool.call accountability event for each
+// tool/function call the model requested in the response. Tool arguments are
+// digested, never stored raw. Recording failures are logged, not fatal: a
+// hiccup recording an accountability detail must not break the proxied flow.
+func (f *forwarder) recordToolCalls(sess *Session, body []byte, actorID string, ts time.Time) {
+	for _, tc := range ExtractToolCalls(body) {
+		if tc.Name == "" {
+			continue // atb.tool.call requires tool_name
+		}
+		data := map[string]any{
+			"session_id": sess.ID,
+			"tool_name":  tc.Name,
+		}
+		if d := tc.InputDigest(); d != "" {
+			data["tool_input_digest"] = d
+		}
+		if actorID != "" {
+			data["actor_id"] = actorID
+		}
+		ev := &event.Event{
+			Type:      event.TypeToolCall,
+			Timestamp: ts.UTC().Format(time.RFC3339Nano),
+			Data:      data,
+		}
+		if err := f.proxy.recorder.AppendEvent(ev); err != nil && f.proxy.logger != nil {
+			f.proxy.logger.Warn("proxy record tool call failed", "error", err)
+		}
+	}
+}
+
+// recordToolResultErrors appends an ai.action.error accountability event for
+// each failed tool result carried in a request body (Anthropic tool_result
+// with is_error=true). Error detail is digested, never stored raw.
+func (f *forwarder) recordToolResultErrors(ts time.Time, body []byte) {
+	for _, tre := range ExtractToolResultErrors(body) {
+		data := map[string]any{
+			"action_id":   tre.ToolUseID,
+			"error_class": "failed",
+		}
+		if d := tre.DetailDigest(); d != "" {
+			data["error_detail_digest"] = d
+		}
+		ev := &event.Event{
+			Type:      event.TypeAIActionError,
+			Timestamp: ts.UTC().Format(time.RFC3339Nano),
+			Data:      data,
+		}
+		if err := f.proxy.recorder.AppendEvent(ev); err != nil && f.proxy.logger != nil {
+			f.proxy.logger.Warn("proxy record tool error failed", "error", err)
+		}
+	}
 }
 
 func urlForHost(host string) *url.URL {

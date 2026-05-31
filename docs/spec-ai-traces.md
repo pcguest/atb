@@ -321,6 +321,22 @@ Classification:
 - **canonical (SDK-emittable)** — declared canonical types that SDKs and
   framework integrations MAY emit when the corresponding workflow occurs.
 
+### Accountability events from capture
+
+Beyond the capture lifecycle types, `atb intercept` derives accountability
+events from the traffic it observes:
+
+- **`atb.tool.call`** — emitted for each tool/function call a model requests in
+  a response (Anthropic `tool_use`, OpenAI Chat `tool_calls`, OpenAI Responses
+  `function_call`). Records `tool_name` and a `tool_input_digest` (SHA-256 of
+  the arguments); raw arguments are never stored. Feeds the session-index
+  `tool_without_approval` oversight signal.
+- **`ai.action.error`** — emitted for each failed tool result a client reports
+  back (Anthropic `tool_result` with `is_error: true`), with `action_id` set to
+  the originating `tool_use_id`, `error_class` `failed`, and an
+  `error_detail_digest`. OpenAI tool messages carry no standard error flag, so
+  they are not classified as failures.
+
 ### `atb.session.close`
 
 Classification: proxy-internal. Emitted by `atb intercept` on session
