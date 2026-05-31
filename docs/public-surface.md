@@ -79,6 +79,21 @@ endpoint on each `atb.session.close` event, using an immutable byte snapshot
 taken under the recorder lock. The endpoint URL is printed on startup.
 Auto-push is disabled when the flag is not set.
 
+## atb incident report
+
+`atb incident report --bundle <path> --session <id> [--format markdown|json]`
+
+Builds a session-scoped forensic report over a captured bundle: integrity
+status, the session's actor and anomaly flags (e.g. `tool_without_approval`),
+and an ordered list of the session's events with a one-line summary and the
+record hash of each.
+
+A bundle's integrity is verified across the whole hash chain, so a single
+session cannot be carved into an independently verifiable sub-bundle. The full
+signed bundle therefore remains the authoritative evidence; the report scopes
+one session for review, and every event row's record hash is checkable against
+that bundle.
+
 ## Public demo repository notice
 
 When publishing a public tree, include this notice in the public README:
