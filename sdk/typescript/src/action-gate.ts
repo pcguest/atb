@@ -132,14 +132,14 @@ export class ActionGate {
       const result = await fn();
       this.emit(
         "ai.action.executed",
-        this.executedPayload(action, actionId, startedAt, result, "success")
+        this.executedPayload(action, actionId, startedAt, result)
       );
       return result;
     } catch (error) {
-      this.emit(
-        "ai.action.executed",
-        this.executedPayload(action, actionId, startedAt, error, "error")
-      );
+      // A privileged action that threw did not execute successfully: record the
+      // forensic ai.action.error event (not a success-shaped executed record),
+      // so SDK-instrumented agents surface failures the same way capture does.
+      this.emit("ai.action.error", this.errorPayload(action, actionId, error));
       throw error;
     }
   }
@@ -191,15 +191,27 @@ export class ActionGate {
     action: ActionGateInput,
     actionId: string,
     startedAt: number,
-    receipt: unknown,
-    executionOutcome: "success" | "error"
+    receipt: unknown
   ): Record<string, unknown> {
     return {
       action_id: actionId,
       action_type: action.actionType,
       tool_receipt_digest: valueDigest(receipt),
       execution_duration_ms: Math.max(0, Date.now() - startedAt),
-      execution_outcome: executionOutcome,
+      execution_outcome: "success",
+    };
+  }
+
+  private errorPayload(
+    action: ActionGateInput,
+    actionId: string,
+    error: unknown
+  ): Record<string, unknown> {
+    return {
+      action_id: actionId,
+      action_type: action.actionType,
+      error_class: "exception",
+      error_detail_digest: valueDigest(error),
     };
   }
 }

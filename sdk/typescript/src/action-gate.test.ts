@@ -168,4 +168,30 @@ describe("ActionGate", () => {
       "ai.action.executed",
     ]);
   });
+
+  it("records ai.action.error when the gated action throws", async () => {
+    const bundle = new Bundle();
+    const gate = new ActionGate({ bundle, actorId: "actor-1" });
+
+    await expect(
+      gate.run(makeAction({ actionType: "delete_records" }), async () => {
+        throw new Error("sink refused");
+      })
+    ).rejects.toThrow("sink refused");
+
+    expect(userTypes(bundle)).toEqual([
+      "ai.action.precommit",
+      "ai.policy.decision",
+      "ai.action.error",
+    ]);
+
+    const events = bundle.records
+      .filter((record) => record.event.type !== "atb.bundle.manifest")
+      .map((record) => record.event);
+    const precommit = events[0].data as Record<string, unknown>;
+    const error = events[2].data as Record<string, unknown>;
+    expect(error.action_id).toBe(precommit.action_id);
+    expect(error.error_class).toBe("exception");
+    expect(error.error_detail_digest).toMatch(/^sha256:/);
+  });
 });
