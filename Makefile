@@ -34,7 +34,8 @@ goldens:
 	$(GOENV) go run ./scripts/generate_profile_fixtures.go
 	ATB_BIN=$(CURDIR)/atb bash examples/bundles/generate.sh
 	ATB_BIN=$(CURDIR)/atb bash examples/bundles/demo-workflow/generate.sh
-	@echo "✅ Regenerated examples/bundles/{profiles,project-bootstrap,demo-workflow}"
+	$(GOENV) go run ./examples/bundles/incident-capture/
+	@echo "✅ Regenerated examples/bundles/{profiles,project-bootstrap,demo-workflow,incident-capture}"
 
 # check-generated regenerates the schema-driven bindings and fails if any of
 # them drift from the committed output. Comparing against a pre-regen snapshot

@@ -22,6 +22,10 @@ Profile workflow helper demos (5-minute runnable scripts with CLI verify): [exam
 
 Support-escalation narrative bundle for dashboard demos: [examples/bundles/demo-workflow/](./bundles/demo-workflow/)
 
+## Incident capture demo
+
+Capture-shaped agent-incident bundle (privileged tool call with no approval, plus a failed tool execution) that verifies clean yet raises the `tool_without_approval` oversight anomaly: [examples/bundles/incident-capture/](./bundles/incident-capture/)
+
 ## Quickstart variants
 
 - [README quickstart](../README.md#quickstart) — `atb.profile.policy_decision` (support triage deny)
