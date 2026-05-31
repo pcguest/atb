@@ -62,6 +62,24 @@ func TestRunIncidentReportJSON(t *testing.T) {
 	}
 }
 
+func TestRunIncidentReportShowsValidSignature(t *testing.T) {
+	path := writeIncidentBundle(t)
+	keyPath := writeSignTestPrivateKey(t, t.TempDir())
+	var sOut, sErr bytes.Buffer
+	if code := runSign([]string{"--bundle", path, "--key", keyPath}, &sOut, &sErr); code != exitSuccess {
+		t.Fatalf("runSign exit = %d, stderr=%s", code, sErr.String())
+	}
+
+	var out, errBuf bytes.Buffer
+	if code := runIncident([]string{"report", "--bundle", path, "--session", "sess-A"}, &out, &errBuf); code != exitSuccess {
+		t.Fatalf("incident exit = %d, stderr=%s", code, errBuf.String())
+	}
+	got := strings.ToLower(out.String())
+	if !strings.Contains(got, "signature: valid") {
+		t.Errorf("expected a valid signature line in the report:\n%s", out.String())
+	}
+}
+
 func TestRunIncidentReportErrors(t *testing.T) {
 	path := writeIncidentBundle(t)
 	cases := []struct {

@@ -20,6 +20,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/sessionindex"
+	"github.com/pcguest/atb/internal/verify"
 )
 
 // EventRow is one event scoped to the incident session.
@@ -35,11 +36,12 @@ type EventRow struct {
 type Report struct {
 	BundlePath     string                     `json:"bundle_path"`
 	SessionID      string                     `json:"session_id"`
-	Found          bool                       `json:"found"`
-	IntegrityValid bool                       `json:"integrity_valid"`
-	ChainHeadHash  string                     `json:"chain_head_hash"`
-	Session        *sessionindex.SessionEntry `json:"session,omitempty"`
-	Events         []EventRow                 `json:"events"`
+	Found          bool                         `json:"found"`
+	IntegrityValid bool                         `json:"integrity_valid"`
+	ChainHeadHash  string                       `json:"chain_head_hash"`
+	Signatures     []verify.SignatureProvenance `json:"signatures,omitempty"`
+	Session        *sessionindex.SessionEntry   `json:"session,omitempty"`
+	Events         []EventRow                   `json:"events"`
 }
 
 // Build loads bundlePath, verifies its integrity, and assembles the report for
@@ -57,13 +59,25 @@ func Build(ctx context.Context, bundlePath, sessionID string) (Report, error) {
 	}
 
 	rep := Report{
-		BundlePath:     bundlePath,
-		SessionID:      sessionID,
-		IntegrityValid: b.Verify() == nil,
-		Events:         []EventRow{},
+		BundlePath: bundlePath,
+		SessionID:  sessionID,
+		Events:     []EventRow{},
 	}
 	if n := len(b.Records); n > 0 {
 		rep.ChainHeadHash = b.Records[n-1].Hash
+	}
+
+	// Integrity (hash chain) and signature provenance come from the canonical
+	// verifier so the incident report makes no independent trust claims.
+	if report, evalErr := verify.EvaluateBundle(verify.EvaluateConfig{
+		BundlePath:    bundlePath,
+		Records:       b.Records,
+		AllApplicable: true,
+	}); evalErr == nil && report != nil {
+		rep.IntegrityValid = report.Integrity.ChainValid
+		rep.Signatures = report.Signatures
+	} else {
+		rep.IntegrityValid = b.Verify() == nil
 	}
 
 	// Session summary + anomaly flags from the session index (best effort).
@@ -114,6 +128,7 @@ func (r Report) Markdown() string {
 	}
 	fmt.Fprintf(&b, "- Bundle: `%s`\n", r.BundlePath)
 	fmt.Fprintf(&b, "- Integrity (hash chain): **%s**\n", integrity)
+	fmt.Fprintf(&b, "- Signature: %s\n", signatureSummary(r.Signatures))
 	fmt.Fprintf(&b, "- Chain head hash: `%s`\n", r.ChainHeadHash)
 	if r.Session != nil {
 		fmt.Fprintf(&b, "- Actor: %s\n", actorLabel(r.Session.Actor))
@@ -192,6 +207,38 @@ func intField(data map[string]any, key string) (int, bool) {
 		}
 	}
 	return 0, false
+}
+
+// signatureSummary renders the bundle's signing provenance for the report
+// header. An unsigned bundle is itself a chain-of-custody finding, so it is
+// stated plainly rather than omitted.
+func signatureSummary(sigs []verify.SignatureProvenance) string {
+	if len(sigs) == 0 {
+		return "none (unsigned bundle)"
+	}
+	latest := sigs[len(sigs)-1]
+	verdict := "INVALID"
+	if latest.Valid {
+		verdict = "valid"
+	}
+	parts := []string{verdict}
+	if latest.PubKey != "" {
+		parts = append(parts, "pubkey "+shortHash(latest.PubKey))
+	}
+	if latest.SignedAt != "" {
+		parts = append(parts, "signed "+latest.SignedAt)
+	}
+	if latest.Backend != "" {
+		parts = append(parts, "backend "+latest.Backend)
+	}
+	summary := strings.Join(parts, ", ")
+	if len(sigs) > 1 {
+		summary = fmt.Sprintf("%d signatures; latest: %s", len(sigs), summary)
+	}
+	if !latest.Valid && latest.Error != "" {
+		summary += " (" + latest.Error + ")"
+	}
+	return summary
 }
 
 func actorLabel(a sessionindex.ActorSummary) string {

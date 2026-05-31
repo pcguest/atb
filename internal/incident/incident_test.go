@@ -83,9 +83,18 @@ func TestBuildScopesSessionAndReportsIntegrity(t *testing.T) {
 		t.Errorf("want tool_without_approval anomaly, got %v", rep.Session.AnomalyFlags)
 	}
 
+	// The fixture bundle is unsigned: that is a chain-of-custody finding the
+	// report must state plainly, not omit.
+	if len(rep.Signatures) != 0 {
+		t.Errorf("want no signatures for an unsigned bundle, got %d", len(rep.Signatures))
+	}
+
 	md := rep.Markdown()
 	if !strings.Contains(md, "tool=wipe_db") || !strings.Contains(md, "error_class=failed") {
 		t.Errorf("markdown missing event summaries:\n%s", md)
+	}
+	if !strings.Contains(md, "unsigned") {
+		t.Errorf("markdown should state the bundle is unsigned:\n%s", md)
 	}
 }
 

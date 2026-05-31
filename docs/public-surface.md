@@ -84,9 +84,10 @@ Auto-push is disabled when the flag is not set.
 `atb incident report --bundle <path> --session <id> [--format markdown|json]`
 
 Builds a session-scoped forensic report over a captured bundle: integrity
-status, the session's actor and anomaly flags (e.g. `tool_without_approval`),
-and an ordered list of the session's events with a one-line summary and the
-record hash of each.
+status, **bundle signature provenance** (who signed it, when, and whether the
+signature is valid — an unsigned bundle is stated plainly), the session's actor
+and anomaly flags (e.g. `tool_without_approval`), and an ordered list of the
+session's events with a one-line summary and the record hash of each.
 
 A bundle's integrity is verified across the whole hash chain, so a single
 session cannot be carved into an independently verifiable sub-bundle. The full
