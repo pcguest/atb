@@ -21,6 +21,19 @@ raises the `tool_without_approval` anomaly** — the core oversight signal for
 agent incidents. Integrity proves the record was not altered; the anomaly
 proves a control was missing. The two are independent, and ATB surfaces both.
 
+## Review it
+
+```bash
+atb incident report \
+  --bundle examples/bundles/incident-capture/incident-capture.atb \
+  --session sess-incident-7731
+```
+
+Produces a session-scoped forensic report: **Integrity PASS**, anomalies
+**`tool_without_approval`**, and the ordered event list (privileged
+`atb.tool.call` → failed `ai.action.error`) with each row's record hash. Add
+`--format json` for a machine-readable report.
+
 ## Regenerate
 
 ```bash
