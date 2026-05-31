@@ -62,6 +62,35 @@ func TestRunIncidentReportJSON(t *testing.T) {
 	}
 }
 
+func TestRunIncidentList(t *testing.T) {
+	path := writeIncidentBundle(t)
+
+	var out, errBuf bytes.Buffer
+	if code := runIncident([]string{"list", "--bundle", path}, &out, &errBuf); code != exitSuccess {
+		t.Fatalf("list exit = %d, stderr=%s", code, errBuf.String())
+	}
+	if !strings.Contains(out.String(), "sess-A") {
+		t.Errorf("list missing sess-A:\n%s", out.String())
+	}
+
+	var jOut, jErr bytes.Buffer
+	if code := runIncident([]string{"list", "--bundle", path, "--format", "json"}, &jOut, &jErr); code != exitSuccess {
+		t.Fatalf("list json exit = %d, stderr=%s", code, jErr.String())
+	}
+	var entries []map[string]any
+	if err := json.Unmarshal(jOut.Bytes(), &entries); err != nil {
+		t.Fatalf("invalid json: %v\n%s", err, jOut.String())
+	}
+	if len(entries) == 0 {
+		t.Error("expected at least one session in json list")
+	}
+
+	var eOut, eErr bytes.Buffer
+	if code := runIncident([]string{"list"}, &eOut, &eErr); code != exitUserError {
+		t.Errorf("list without --bundle: exit = %d, want %d", code, exitUserError)
+	}
+}
+
 func TestRunIncidentReportShowsValidSignature(t *testing.T) {
 	path := writeIncidentBundle(t)
 	keyPath := writeSignTestPrivateKey(t, t.TempDir())

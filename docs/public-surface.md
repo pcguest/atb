@@ -79,7 +79,13 @@ endpoint on each `atb.session.close` event, using an immutable byte snapshot
 taken under the recorder lock. The endpoint URL is printed on startup.
 Auto-push is disabled when the flag is not set.
 
-## atb incident report
+## atb incident
+
+`atb incident list --bundle <path> [--format markdown|json]`
+
+Lists the agent sessions captured in a bundle — session id, actor, exchange
+count, inferred profile, CAS grade, and anomaly flags — so a reviewer can
+discover which session to report on.
 
 `atb incident report --bundle <path> --session <id> [--format markdown|json]`
 

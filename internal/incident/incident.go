@@ -34,8 +34,8 @@ type EventRow struct {
 
 // Report is a session-scoped incident report over a single bundle.
 type Report struct {
-	BundlePath     string                     `json:"bundle_path"`
-	SessionID      string                     `json:"session_id"`
+	BundlePath     string                       `json:"bundle_path"`
+	SessionID      string                       `json:"session_id"`
 	Found          bool                         `json:"found"`
 	IntegrityValid bool                         `json:"integrity_valid"`
 	ChainHeadHash  string                       `json:"chain_head_hash"`
@@ -111,6 +111,35 @@ func Build(ctx context.Context, bundlePath, sessionID string) (Report, error) {
 // JSON renders the report as indented JSON.
 func (r Report) JSON() ([]byte, error) {
 	return json.MarshalIndent(r, "", "  ")
+}
+
+// ListSessions returns the sessions found in a bundle, so a reviewer can
+// discover which session to report on. It is a thin wrapper over the session
+// index, scoped to a single bundle.
+func ListSessions(ctx context.Context, bundlePath string) ([]sessionindex.SessionEntry, error) {
+	return sessionindex.BuildIndex(ctx, []string{bundlePath})
+}
+
+// SessionListMarkdown renders a session list as a reviewer-facing table.
+func SessionListMarkdown(bundlePath string, entries []sessionindex.SessionEntry) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Sessions in `%s`\n\n", bundlePath)
+	if len(entries) == 0 {
+		b.WriteString("No sessions found.\n")
+		return b.String()
+	}
+	b.WriteString("| Session | Actor | Exchanges | Profile | CAS | Anomalies |\n")
+	b.WriteString("| --- | --- | --- | --- | --- | --- |\n")
+	for _, e := range entries {
+		anomalies := "none"
+		if len(e.AnomalyFlags) > 0 {
+			anomalies = strings.Join(e.AnomalyFlags, ", ")
+		}
+		fmt.Fprintf(&b, "| `%s` | %s | %d | %s | %s | %s |\n",
+			e.SessionID, actorLabel(e.Actor), e.ExchangeCount,
+			orDash(e.InferredProfile), orDash(e.CASGrade), anomalies)
+	}
+	return b.String()
 }
 
 // Markdown renders the report as a reviewer-facing markdown document.

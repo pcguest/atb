@@ -112,6 +112,24 @@ func TestBuildSessionNotFound(t *testing.T) {
 	}
 }
 
+func TestListSessions(t *testing.T) {
+	path := writeBundle(t) // sess-A (4 events incl. a tool call) + sess-B
+	entries, err := incident.ListSessions(context.Background(), path)
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("want 2 sessions, got %d", len(entries))
+	}
+	md := incident.SessionListMarkdown(path, entries)
+	if !strings.Contains(md, "sess-A") || !strings.Contains(md, "sess-B") {
+		t.Errorf("session list markdown missing sessions:\n%s", md)
+	}
+	if !strings.Contains(md, "tool_without_approval") {
+		t.Errorf("session list should surface the anomaly:\n%s", md)
+	}
+}
+
 func TestReportJSONRoundTrips(t *testing.T) {
 	path := writeBundle(t)
 	rep, err := incident.Build(context.Background(), path, "sess-A")

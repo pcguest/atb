@@ -24,6 +24,10 @@ proves a control was missing. The two are independent, and ATB surfaces both.
 ## Review it
 
 ```bash
+# Discover the sessions in the bundle:
+atb incident list --bundle examples/bundles/incident-capture/incident-capture.atb
+
+# Then report on one:
 atb incident report \
   --bundle examples/bundles/incident-capture/incident-capture.atb \
   --session sess-incident-7731
