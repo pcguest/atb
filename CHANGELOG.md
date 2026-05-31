@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/custos-handoff.md`: production hardening checklist making the `custosd` threat model explicit — the bearer token is a transport guard, not an identity system, so TLS termination, token rotation, per-tenant/per-user identity, rate limiting, and the hash-chain-only scope of `GET /receipts/{id}/verify` are called out as operator responsibilities before any non-local exposure.
 - View server: `GET /api/v1/schema/status` endpoint returning ecosystem-level contract health for the loaded bundle — declared-vs-observed event types, per-type required-field completeness, and any undeclared (unknown) types. Gated by the same session-token auth and verification check as the other read endpoints; covered by `pkg/api/v1/schema_status_test.go` (logic, auth gating, and method rejection).
 - Web viewer: `SchemaStatus` component and a "Contract status" panel on the `/sessions` page surfacing the new endpoint — summary cards plus a per-type table that flags `undeclared`, `N incomplete` (with the missing field names), `complete`, and `not observed` states so contract drift is visible at a glance rather than buried in per-session detail. Vitest coverage in `web/components/SchemaStatus.test.tsx`.
+- `ai.action.error` forensic event type (schema + Go/Python/TypeScript bindings) recording a privileged action that was attempted but did not succeed (`error_class`: `failed|blocked|timeout|exception|denied_at_sink`), distinct from the success-shaped `ai.action.executed`.
+- `atb.llm.request` / `atb.llm.response` registered as capture event types (previously emitted by `atb intercept` but absent from the schema registry).
+- `atb intercept` now derives accountability events from captured traffic: `atb.tool.call` per tool the model requests (Anthropic `tool_use`, OpenAI Chat `tool_calls`, OpenAI Responses `function_call`) and `ai.action.error` per failed Anthropic `tool_result` (`is_error: true`). Arguments and error detail are digested, never stored raw.
+- `atb incident list` and `atb incident report` commands (`internal/incident`): discover the sessions captured in a bundle, and produce a session-scoped forensic report — integrity, bundle signature provenance, anomaly flags (e.g. `tool_without_approval`), and an ordered event list with each record's hash (markdown or JSON).
+- `examples/bundles/incident-capture/`: deterministic agent-incident demo bundle (privileged tool call with no approval + a failed action), wired into `make goldens`.
+- `docs/guides/agent-incident-forensics.md`: capture → discover → review walkthrough.
+- `internal/emit.ActionError` and Python `atb.oversight.ActionErrorEmitter`: standalone `ai.action.error` writers for direct SDK instrumentation.
+- Web viewer: shared `web/lib/event-family.ts` (`eventFamily` / `eventFamilyClass` / `eventSummary`); the timeline colour-codes capture and action events (new `ev-action` family) and the event inspector shows a one-line summary for forensic events.
 
 ### Fixed
 - Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.
@@ -57,6 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Web viewer test harness: `vitest.setup.ts` now registers a global `afterEach(cleanup)` so rendered output no longer accumulates across `it` blocks; without it, `getByText` queries collided with lingering DOM from earlier tests ("found multiple elements").
 - View server: `actorsForRequest` and `sessionsForRequest` now return a cloned session index on the cached-error path as well as the success path, so an `sessionIndexErr` response can no longer alias the server's shared session slice/actor map.
 - Web viewer: `ActorSessions` actor headers and session rows are keyboard-accessible (`role="button"`, `tabIndex={0}`, Enter/Space activation, and `aria-expanded` on the expandable header) rather than mouse-only `onClick` targets.
+- `internal/sessionindex`: bundle-level records (manifest, signature, anchor, push marker, snapshot) no longer seed a path-derived pseudo-session — signing a captured bundle no longer adds a spurious second session to `atb incident list` / `/api/v1/sessions`.
+- `internal/proxy`: the `ai.action.error` emitted for a failed tool result now carries `session_id`, so it groups with its capture session instead of a separate path-derived one.
+- `examples/bundles/demo-workflow`: verifies PASS without an explicit `--profile` by declaring its workflow class (`policy_decision`) via the `ai.request.received` `purpose_tag`, instead of falling through to the `privileged_tool_action` heuristic.
 
 ### Changed
 - `internal/proxy/session.go`: `actor_id` now unconditionally emitted on `atb.session.close`; was previously omitted when identity resolution returned an empty string.
@@ -72,6 +83,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/spec-ai-traces.md`: the `atb.session.close` subsection now documents its always-emitted fields (`model`, `exchange_count`, `total_tokens`, `closed_at`), matching the schema and emitted payload.
 - `internal/event/types.go`: the legacy deprecated `Registry` now includes `atb.session.close` and `atb.exchange.complete`, ending its silent divergence from the schema-generated `RegistryGenerated` (guarded by the new parity test).
 - `internal/proxy/session.go`: simplified `NoteExchange` token accumulation to `TotalTokens += promptTokens + outputTokens`, removing a tautological no-op branch; behaviour is unchanged.
+- `atb intercept` records request/response bodies as a SHA-256 digest (`body_sha256`) and byte length (`body_bytes`) by default, not raw content; pass `--capture-bodies` to retain raw bodies. `ScanHeaders` now also strips `Proxy-Authorization`, `Cookie`, and `Set-Cookie` (in addition to `Authorization` / `X-Api-Key`), so no credential or session secret is persisted.
+- SDK action gates emit `ai.action.error` when a gated action fails, instead of a success-shaped `ai.action.executed` with `execution_outcome="error"` — TypeScript and Python `ActionGate` (sync + async) and `HumanOverrideGate`. Success still emits `ai.action.executed`.
+- `docs/roadmap.md` and `README.md`: record the shipped agent-incident-forensics capability (capture, `ai.action.error`, `atb incident list`/`report`, viewer rendering) and mark Phase 10 proxy capture complete.
 
 ## [v1.12.0] - 2026-05-25
 
