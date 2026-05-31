@@ -179,3 +179,57 @@ def test_action_gate_arun_matches_sync_semantics() -> None:
         "ai.policy.decision",
         "ai.action.executed",
     ]
+
+
+def test_action_gate_run_records_action_error_on_failure() -> None:
+    bundle = Bundle()
+    gate = ActionGate(bundle=bundle, actor_id="actor-1")
+    action = ActionGateInput(
+        action_type="delete_records",
+        target_resource_id="svc-prod",
+        intended_effect="purge accounts",
+        action_parameters={"scope": "all"},
+    )
+
+    def boom() -> str:
+        raise RuntimeError("sink refused")
+
+    with pytest.raises(RuntimeError, match="sink refused"):
+        gate.run(action, boom)
+
+    events = [record.event for record in _user_records(bundle)]
+    assert [event["type"] for event in events] == [
+        "ai.action.precommit",
+        "ai.policy.decision",
+        "ai.action.error",
+    ]
+    precommit = events[0]["data"]
+    error = events[2]["data"]
+    assert error["action_id"] == precommit["action_id"]
+    assert error["error_class"] == "exception"
+    assert error["error_detail_digest"].startswith("sha256:")
+
+
+def test_action_gate_arun_records_action_error_on_failure() -> None:
+    bundle = Bundle()
+    gate = ActionGate(bundle=bundle, actor_id="actor-1")
+    action = ActionGateInput(
+        action_type="delete_records",
+        target_resource_id="svc-prod",
+        intended_effect="purge accounts",
+        action_parameters={"scope": "all"},
+    )
+
+    async def boom() -> str:
+        raise RuntimeError("async sink refused")
+
+    with pytest.raises(RuntimeError, match="async sink refused"):
+        asyncio.run(gate.arun(action, boom))
+
+    events = [record.event for record in _user_records(bundle)]
+    assert [event["type"] for event in events] == [
+        "ai.action.precommit",
+        "ai.policy.decision",
+        "ai.action.error",
+    ]
+    assert events[2]["data"]["error_class"] == "exception"

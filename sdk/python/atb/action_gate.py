@@ -181,10 +181,13 @@ class ActionGate:
         try:
             result = fn()
         except Exception as exc:
-            self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, exc, "error"))
+            # A privileged action that raised did not execute successfully:
+            # record the forensic ai.action.error event, not a success-shaped
+            # executed record, so SDK incidents match capture-side incidents.
+            self._emit("ai.action.error", self._error_payload(action, action_id, exc))
             raise
 
-        self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, result, "success"))
+        self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, result))
         return result
 
     async def arun(self, action: ActionGateInput, fn: Callable[[], Awaitable[T]]) -> T:
@@ -222,10 +225,13 @@ class ActionGate:
         try:
             result = await fn()
         except Exception as exc:
-            self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, exc, "error"))
+            # A privileged action that raised did not execute successfully:
+            # record the forensic ai.action.error event, not a success-shaped
+            # executed record, so SDK incidents match capture-side incidents.
+            self._emit("ai.action.error", self._error_payload(action, action_id, exc))
             raise
 
-        self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, result, "success"))
+        self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, result))
         return result
 
     def _action_id(self, action: ActionGateInput) -> str:
@@ -273,14 +279,26 @@ class ActionGate:
         action_id: str,
         started_at: float,
         receipt: Any,
-        execution_outcome: str,
     ) -> dict[str, Any]:
         return {
             "action_id": action_id,
             "action_type": action.action_type,
             "tool_receipt_digest": _value_digest(receipt),
             "execution_duration_ms": max(0, int((time.perf_counter() - started_at) * 1000)),
-            "execution_outcome": execution_outcome,
+            "execution_outcome": "success",
+        }
+
+    def _error_payload(
+        self,
+        action: ActionGateInput,
+        action_id: str,
+        error: Any,
+    ) -> dict[str, Any]:
+        return {
+            "action_id": action_id,
+            "action_type": action.action_type,
+            "error_class": "exception",
+            "error_detail_digest": _value_digest(error),
         }
 
 
