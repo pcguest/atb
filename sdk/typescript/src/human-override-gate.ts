@@ -96,11 +96,12 @@ export class HumanOverrideGate {
       });
       return result;
     } catch (error) {
-      this.ctx.emit("ai.action.executed", {
+      // An overridden action that threw did not execute successfully: record
+      // the forensic ai.action.error event, not a success-shaped executed one.
+      this.ctx.emit("ai.action.error", {
         action_id: actionId,
-        execution_outcome: "error",
-        tool_receipt_digest: valueDigest(error),
-        execution_duration_ms: Math.max(0, Date.now() - startedAt),
+        error_class: "exception",
+        error_detail_digest: valueDigest(error),
       });
       throw error;
     }

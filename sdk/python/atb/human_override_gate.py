@@ -117,13 +117,15 @@ class HumanOverrideGate:
             )
             return result
         except Exception as exc:
+            # An overridden action that raised did not execute successfully:
+            # record the forensic ai.action.error event, not a success-shaped
+            # executed record.
             self.ctx.emit(
-                "ai.action.executed",
+                "ai.action.error",
                 {
                     "action_id": action_id,
-                    "execution_outcome": "error",
-                    "tool_receipt_digest": value_digest(exc),
-                    "execution_duration_ms": max(0, int((time.perf_counter() - started) * 1000)),
+                    "error_class": "exception",
+                    "error_detail_digest": value_digest(exc),
                 },
             )
             raise
