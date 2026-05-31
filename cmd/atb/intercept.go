@@ -16,7 +16,10 @@ import (
 	"github.com/pcguest/atb/internal/proxy"
 )
 
-const interceptLongDescription = `Start a local HTTPS capture proxy scaffold.
+const interceptLongDescription = `Start the local HTTPS capture proxy.
+
+Records AI provider API traffic, tool calls, and failures into a live ATB
+bundle. Completeness is bounded by what flows through the proxy.
 
 Usage:
   atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--custos <endpoint>]

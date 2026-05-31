@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Package proxy implements the local HTTPS capture proxy scaffold for ATB.
+// Package proxy implements the local HTTPS capture proxy for ATB.
 package proxy
 
 import (

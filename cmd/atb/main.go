@@ -256,7 +256,7 @@ func usageJSON() helpOutput {
 			{
 				Name:        "intercept",
 				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]...",
-				Description: "Start a local HTTPS capture proxy scaffold that records AI API traffic into a live ATB bundle.",
+				Description: "Start the local HTTPS capture proxy that records AI API traffic, tool calls, and failures into a live ATB bundle.",
 				Flags:       []string{"--port", "--bundle", "--target", "--identity-map"},
 				Mutating:    false,
 			},
