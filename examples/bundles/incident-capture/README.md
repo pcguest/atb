@@ -47,3 +47,6 @@ go run ./examples/bundles/incident-capture/      # writes incident-capture.atb
 The `.atb` artefact is gitignored; `make goldens` regenerates it along with the
 other example bundles. Behaviour (integrity + the `tool_without_approval`
 signal) is covered by `go test ./examples/bundles/incident-capture/`.
+
+For the full capture → discover → review path, see the
+[agent incident forensics walkthrough](../../../docs/guides/agent-incident-forensics.md).
