@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Acting-principal attribution: an optional `principal` (`type` human/agent/tool, `id_hash`, `on_behalf_of`) on `ai.action.precommit`, recorded by the `ActionGate` and `HumanOverrideGate` (TypeScript + Python; exported as `ActionPrincipal`).
 - `effective_scope` (optional) on `ai.action.executed` — the permission scope/role/grant the action ran under — recorded by the `ActionGate`. Completes the accountability-core schema (principal + execution scope + error event).
 - `ai.action.error` writers for direct instrumentation: Go `emit.ActionError` and Python `oversight.ActionErrorEmitter`; the TypeScript and Python `ActionGate` and `HumanOverrideGate` emit `ai.action.error` on failure. The forensic summaries (incident report + viewer) render `ai.action.precommit`/`executed` with principal and scope, and the data-export and action-error events.
+- `atb.capture.scope` capture-coverage attestation written by `atb intercept` at startup (captured targets, capture mode, redacted headers, and a plain out-of-scope statement of what the proxy cannot see), surfaced in the incident report header.
+- `atb incident export --bundle <path> --session <id> --out <pack.zip>` — a self-contained, independently verifiable incident evidence package (bundle, incident report, verifier report, and a `MANIFEST.json` chain-of-custody record digesting every file; the packed bundle re-verifies on its own).
+- Custos signs custody receipts: each receipt carries an Ed25519 `attestation` (`custos/internal/receipt.Signer`) proving Custos received bundle `<hash>` at `<submitted_at>`, verifiable with `receipt.VerifyAttestation` against the embedded public key; `custosd` generates and persists a stable receipt-signing key on first run.
 
 ### Fixed
 - Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.
