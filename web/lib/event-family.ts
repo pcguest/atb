@@ -68,6 +68,20 @@ export function eventSummary(eventType: string, data: unknown): string {
   const num = (k: string): number | null => (typeof d[k] === "number" ? (d[k] as number) : null);
 
   switch (eventType) {
+    case "ai.action.precommit": {
+      const base = `action=${s("action_type")}`;
+      const principal = d["principal"];
+      if (principal && typeof principal === "object") {
+        const p = principal as Record<string, unknown>;
+        const type = typeof p.type === "string" ? p.type : "";
+        const idHash = typeof p.id_hash === "string" ? p.id_hash : "";
+        if (type && idHash) {
+          const obo = typeof p.on_behalf_of === "string" && p.on_behalf_of ? ` on_behalf_of ${p.on_behalf_of}` : "";
+          return `${base} by ${type}:${idHash}${obo}`;
+        }
+      }
+      return base;
+    }
     case "atb.tool.call": {
       const tool = s("tool_name");
       return tool ? `tool=${tool}` : "";

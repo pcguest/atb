@@ -70,6 +70,31 @@ class ActionGateInput:
     subject_id: str | None = None
     action_id: str | None = None
     policy_context: Mapping[str, Any] | None = None
+    principal: "ActionPrincipal | None" = None
+
+
+@dataclass(frozen=True)
+class ActionPrincipal:
+    """Acting principal: who initiated the action, and for whom when delegated.
+
+    Args:
+        type: One of "human", "agent", or "tool".
+        id_hash: Hashed principal identifier.
+        on_behalf_of: Optional hashed identifier the action is delegated for.
+    """
+
+    type: str
+    id_hash: str
+    on_behalf_of: str | None = None
+
+
+def _principal_payload(principal: "ActionPrincipal | None") -> dict[str, Any] | None:
+    if principal is None or not principal.type or not principal.id_hash:
+        return None
+    payload: dict[str, Any] = {"type": principal.type, "id_hash": principal.id_hash}
+    if principal.on_behalf_of:
+        payload["on_behalf_of"] = principal.on_behalf_of
+    return payload
 
 
 @dataclass(frozen=True)
@@ -161,16 +186,17 @@ class ActionGate:
             Exception: Re-raises any exception produced by ``fn``.
         """
         action_id = self._action_id(action)
-        self._emit(
-            "ai.action.precommit",
-            {
-                "action_id": action_id,
-                "action_type": action.action_type,
-                "action_parameters_digest": _canonical_digest(dict(action.action_parameters)),
-                "target_resource_id": action.target_resource_id,
-                "intended_effect": action.intended_effect,
-            },
-        )
+        precommit: dict[str, Any] = {
+            "action_id": action_id,
+            "action_type": action.action_type,
+            "action_parameters_digest": _canonical_digest(dict(action.action_parameters)),
+            "target_resource_id": action.target_resource_id,
+            "intended_effect": action.intended_effect,
+        }
+        principal = _principal_payload(action.principal)
+        if principal is not None:
+            precommit["principal"] = principal
+        self._emit("ai.action.precommit", precommit)
 
         decision = self.policy(action)
         self._emit("ai.policy.decision", self._policy_payload(action, action_id, decision))
@@ -205,16 +231,17 @@ class ActionGate:
             Exception: Re-raises any exception produced by ``fn``.
         """
         action_id = self._action_id(action)
-        self._emit(
-            "ai.action.precommit",
-            {
-                "action_id": action_id,
-                "action_type": action.action_type,
-                "action_parameters_digest": _canonical_digest(dict(action.action_parameters)),
-                "target_resource_id": action.target_resource_id,
-                "intended_effect": action.intended_effect,
-            },
-        )
+        precommit: dict[str, Any] = {
+            "action_id": action_id,
+            "action_type": action.action_type,
+            "action_parameters_digest": _canonical_digest(dict(action.action_parameters)),
+            "target_resource_id": action.target_resource_id,
+            "intended_effect": action.intended_effect,
+        }
+        principal = _principal_payload(action.principal)
+        if principal is not None:
+            precommit["principal"] = principal
+        self._emit("ai.action.precommit", precommit)
 
         decision = self.policy(action)
         self._emit("ai.policy.decision", self._policy_payload(action, action_id, decision))

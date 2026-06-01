@@ -124,6 +124,32 @@ func TestBuildSummarisesDataExport(t *testing.T) {
 	}
 }
 
+func TestBuildSummarisesPrincipal(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new bundle: %v", err)
+	}
+	if err := b.AppendWithOptions(event.TypeAIActionPrecommit, map[string]any{
+		"session_id": "sess-P", "action_id": "act-1", "action_type": "deploy",
+		"principal": map[string]any{
+			"type": "agent", "id_hash": "sha256:a1", "on_behalf_of": "sha256:u9",
+		},
+	}, &bundle.AppendOptions{Timestamp: "2026-05-28T09:00:00Z"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "principal.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	rep, err := incident.Build(context.Background(), path, "sess-P")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if md := rep.Markdown(); !strings.Contains(md, "by agent:sha256:a1 on_behalf_of sha256:u9") {
+		t.Errorf("markdown missing principal summary:\n%s", md)
+	}
+}
+
 func TestBuildSessionNotFound(t *testing.T) {
 	path := writeBundle(t)
 	rep, err := incident.Build(context.Background(), path, "sess-missing")

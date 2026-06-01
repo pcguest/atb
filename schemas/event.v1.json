@@ -226,7 +226,17 @@
         "action_type": { "type": "string" },
         "action_parameters_digest": { "type": "string" },
         "target_resource_id": { "type": "string" },
-        "intended_effect": { "type": "string" }
+        "intended_effect": { "type": "string" },
+        "principal": {
+          "type": "object",
+          "description": "Optional acting-principal attribution. Distinguishes who initiated the action (an autonomous agent, a human, or a tool) and, when an agent acts for a person, on whose behalf — the identity/permission gap behind agent incidents.",
+          "properties": {
+            "type": { "type": "string", "enum": ["human", "agent", "tool"] },
+            "id_hash": { "type": "string", "description": "Hashed principal identifier." },
+            "on_behalf_of": { "type": "string", "description": "Hashed identifier of the principal this action is taken for, when delegated." }
+          },
+          "required": ["type", "id_hash"]
+        }
       },
       "required": ["action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"]
     },

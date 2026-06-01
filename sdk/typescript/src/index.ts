@@ -45,7 +45,7 @@ export function version(): { version: string; algorithm: string } {
 export { Bundle, ATBVerificationError } from "./bundle.js";
 export type { SignatureEvidence, VerifyResult } from "./bundle.js";
 export * from "./eventTypes.js";
-export { ActionGate, ActionGateDeniedError } from "./action-gate.js";
+export { ActionGate, ActionGateDeniedError, principalPayload } from "./action-gate.js";
 export {
   BackgroundJobTracker,
 } from "./background-job-tracker.js";
@@ -72,6 +72,7 @@ export type {
   ActionGateInput,
   ActionGateMode,
   ActionGateOptions,
+  ActionPrincipal,
 } from "./action-gate.js";
 export type {
   BackgroundJobScheduleInput,

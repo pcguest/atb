@@ -16,7 +16,13 @@ Quick start::
 
 from atb.bundle import Bundle
 from . import event_types
-from atb.action_gate import ActionGate, ActionGateDecision, ActionGateDeniedError, ActionGateInput
+from atb.action_gate import (
+    ActionGate,
+    ActionGateDecision,
+    ActionGateDeniedError,
+    ActionGateInput,
+    ActionPrincipal,
+)
 from atb.background_job_tracker import BackgroundJobScheduleInput, BackgroundJobTracker
 from atb.data_export_gate import DataExportDeniedError, DataExportGate, DataExportInput
 from atb.human_override_gate import (
@@ -110,6 +116,7 @@ __all__ = [
     "ActionGateDeniedError",
     "ActionGateInput",
     "ActionGateDecision",
+    "ActionPrincipal",
     "BackgroundJobScheduleInput",
     "BackgroundJobTracker",
     "DataExportDeniedError",

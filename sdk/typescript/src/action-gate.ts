@@ -9,6 +9,13 @@ const DEFAULT_SAVE_PATH = "run.atb/bundle.atb";
 /** Action gate operating mode. */
 export type ActionGateMode = "log_only" | "enforce";
 
+/** Acting principal: who initiated the action, and for whom when delegated. */
+export interface ActionPrincipal {
+  type: "human" | "agent" | "tool";
+  idHash: string;
+  onBehalfOf?: string;
+}
+
 /** Input metadata recorded before a gated action executes. */
 export interface ActionGateInput {
   actionType: string;
@@ -18,6 +25,24 @@ export interface ActionGateInput {
   subjectId?: string;
   actionId?: string;
   policyContext?: Record<string, unknown>;
+  principal?: ActionPrincipal;
+}
+
+/** Serialise an ActionPrincipal to the snake_case event payload shape. */
+export function principalPayload(
+  principal: ActionPrincipal | undefined
+): Record<string, unknown> | undefined {
+  if (!principal || !principal.type || !principal.idHash) {
+    return undefined;
+  }
+  const payload: Record<string, unknown> = {
+    type: principal.type,
+    id_hash: principal.idHash,
+  };
+  if (principal.onBehalfOf) {
+    payload.on_behalf_of = principal.onBehalfOf;
+  }
+  return payload;
 }
 
 /** Policy decision returned by an action gate policy callback. */
@@ -110,13 +135,18 @@ export class ActionGate {
     fn: () => T | Promise<T>
   ): Promise<T> {
     const actionId = this.actionId(action);
-    this.emit("ai.action.precommit", {
+    const precommit: Record<string, unknown> = {
       action_id: actionId,
       action_type: action.actionType,
       action_parameters_digest: canonicalDigest(action.actionParameters),
       target_resource_id: action.targetResourceId,
       intended_effect: action.intendedEffect,
-    });
+    };
+    const principal = principalPayload(action.principal);
+    if (principal) {
+      precommit.principal = principal;
+    }
+    this.emit("ai.action.precommit", precommit);
 
     const rawDecision = await this.policy(action);
     const decision = normalizeDecision(rawDecision);

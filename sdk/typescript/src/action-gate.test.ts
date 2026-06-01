@@ -194,4 +194,25 @@ describe("ActionGate", () => {
     expect(error.error_class).toBe("exception");
     expect(error.error_detail_digest).toMatch(/^sha256:/);
   });
+
+  it("records the acting principal on precommit when provided", async () => {
+    const bundle = new Bundle();
+    const gate = new ActionGate({ bundle, actorId: "actor-1" });
+
+    await gate.run(
+      makeAction({
+        principal: { type: "agent", idHash: "sha256:agent-1", onBehalfOf: "sha256:user-9" },
+      }),
+      async () => "ok",
+    );
+
+    const events = bundle.records
+      .filter((record) => record.event.type !== "atb.bundle.manifest")
+      .map((record) => record.event);
+    expect((events[0].data as Record<string, unknown>).principal).toEqual({
+      type: "agent",
+      id_hash: "sha256:agent-1",
+      on_behalf_of: "sha256:user-9",
+    });
+  });
 });

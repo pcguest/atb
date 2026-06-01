@@ -61,6 +61,13 @@ describe("eventSummary", () => {
     expect(eventSummary("atb.data.export", { export_target: "s3://bucket" })).toBe(
       "export=s3://bucket",
     );
+    expect(eventSummary("ai.action.precommit", { action_type: "deploy" })).toBe("action=deploy");
+    expect(
+      eventSummary("ai.action.precommit", {
+        action_type: "deploy",
+        principal: { type: "agent", id_hash: "sha256:a1", on_behalf_of: "sha256:u9" },
+      }),
+    ).toBe("action=deploy by agent:sha256:a1 on_behalf_of sha256:u9");
   });
 
   it("returns empty string when there is nothing concise to say", () => {

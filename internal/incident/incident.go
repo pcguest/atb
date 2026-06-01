@@ -201,6 +201,12 @@ func summarise(ev event.Event) string {
 	data, _ := ev.Data.(map[string]any)
 	get := func(k string) string { s, _ := data[k].(string); return strings.TrimSpace(s) }
 	switch ev.Type {
+	case event.TypeAIActionPrecommit:
+		base := "action=" + get("action_type")
+		if p := principalSummary(data); p != "" {
+			return base + " " + p
+		}
+		return base
 	case event.TypeToolCall:
 		return "tool=" + get("tool_name")
 	case event.TypeAIActionError:
@@ -235,6 +241,25 @@ func summarise(ev event.Event) string {
 	default:
 		return ""
 	}
+}
+
+// principalSummary renders the acting-principal attribution from an event's
+// optional `principal` object, e.g. "by agent:sha256-… on_behalf_of sha256-…".
+func principalSummary(data map[string]any) string {
+	p, ok := data["principal"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	typ, _ := p["type"].(string)
+	id, _ := p["id_hash"].(string)
+	if strings.TrimSpace(typ) == "" || strings.TrimSpace(id) == "" {
+		return ""
+	}
+	label := fmt.Sprintf("by %s:%s", typ, id)
+	if obo, _ := p["on_behalf_of"].(string); strings.TrimSpace(obo) != "" {
+		label += " on_behalf_of " + obo
+	}
+	return label
 }
 
 func intField(data map[string]any, key string) (int, bool) {
