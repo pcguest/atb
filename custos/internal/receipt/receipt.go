@@ -21,6 +21,7 @@ type Receipt struct {
 	ProfileID     string          `json:"profile_id,omitempty"`
 	SubmitterRef  string          `json:"submitter_ref,omitempty"`
 	VerifyReport  json.RawMessage `json:"verify_report"` // Raw JSON from verify.report.v1
+	Attestation   *Attestation    `json:"attestation,omitempty"`
 }
 
 // WORMStore defines the interface for Write-Once, Read-Many storage.

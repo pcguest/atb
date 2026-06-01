@@ -2,6 +2,9 @@
 package main
 
 import (
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -10,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -44,9 +48,15 @@ func main() {
 		fmt.Fprintf(os.Stderr, "custosd: %v\n", err)
 		os.Exit(1)
 	}
+	signer, err := loadOrCreateReceiptSigner(*receiptDir, logger)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "custosd: %v\n", err)
+		os.Exit(1)
+	}
 	ingestHandler := ingest.IngestHandler{
 		WORMStore:    wormStore,
 		ReceiptStore: receiptStore,
+		Signer:       signer,
 	}
 
 	mux := newMux(ingestHandler, wormStore, receiptStore, *maxIngestBytes, logger)
@@ -257,6 +267,41 @@ func handleVerifyReceipt(w http.ResponseWriter, r *http.Request, receiptID strin
 }
 
 // buildStores selects filesystem stores unless both directories are explicitly empty.
+// loadOrCreateReceiptSigner returns the Custos custody-attestation signer,
+// loading a stable Ed25519 key from <receipt-dir>/custos-receipt-key or
+// generating and persisting one on first run so receipts are attested to a key
+// that survives restarts. The public key is logged so operators can pin it.
+func loadOrCreateReceiptSigner(receiptDir string, logger *slog.Logger) (*receipt.Signer, error) {
+	dir, err := expandHome(receiptDir)
+	if err != nil {
+		return nil, fmt.Errorf("expand receipt-dir for key: %w", err)
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create receipt-dir: %w", err)
+	}
+	keyPath := filepath.Join(dir, "custos-receipt-key")
+
+	if raw, err := os.ReadFile(keyPath); err == nil {
+		if len(raw) != ed25519.PrivateKeySize {
+			return nil, fmt.Errorf("custos receipt key %q: bad size %d", keyPath, len(raw))
+		}
+		return receipt.NewSigner(ed25519.PrivateKey(raw))
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, fmt.Errorf("read receipt key: %w", err)
+	}
+
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("generate receipt key: %w", err)
+	}
+	if err := os.WriteFile(keyPath, priv, 0o600); err != nil {
+		return nil, fmt.Errorf("persist receipt key: %w", err)
+	}
+	logger.Info("generated custos receipt-signing key",
+		"path", keyPath, "pubkey", base64.StdEncoding.EncodeToString(pub))
+	return receipt.NewSigner(priv)
+}
+
 func buildStores(wormDir string, receiptDir string) (receipt.WORMStore, receipt.ReceiptStore, error) {
 	// Added: Empty flags are reserved for test harnesses that need ephemeral in-memory state.
 	if wormDir == "" && receiptDir == "" {

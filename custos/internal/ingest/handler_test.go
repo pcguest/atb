@@ -4,6 +4,8 @@ package ingest_test
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	// Fixed: errors is needed to map malformed input onto the HTTP status asserted by the test.
 	"errors"
 	// Fixed: net/http provides the public 422 status constant used by the malformed-input assertion.
@@ -17,6 +19,39 @@ import (
 	// Fixed: In-memory stores avoid nil-store panics while keeping the test local-first.
 	"github.com/pcguest/custos/internal/receipt"
 )
+
+func TestIngestHandlerAttestsReceiptWhenSignerSet(t *testing.T) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed")
+	}
+	fixture := filepath.Join(filepath.Dir(file), "..", "..", "..", "examples", "bundles", "profiles", "rag_answer-pass.atb")
+	raw, err := os.ReadFile(fixture)
+	if err != nil {
+		t.Skipf("fixture not generated (run make goldens): %v", err)
+	}
+
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	signer, err := receipt.NewSigner(priv)
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+	handler := ingest.IngestHandler{
+		WORMStore:    receipt.NewInMemoryWORMStore(),
+		ReceiptStore: receipt.NewInMemoryReceiptStore(),
+		Signer:       signer,
+	}
+	rec, err := handler.Handle(context.Background(), bytes.NewReader(raw))
+	if err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if rec.Attestation == nil {
+		t.Fatal("expected a custody attestation on the receipt")
+	}
+	if err := receipt.VerifyAttestation(*rec); err != nil {
+		t.Errorf("attestation does not verify: %v", err)
+	}
+}
 
 func TestIngestHandlerAcceptsValidBundle(t *testing.T) {
 	_, file, _, ok := runtime.Caller(0)

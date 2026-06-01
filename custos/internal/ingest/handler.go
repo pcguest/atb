@@ -29,6 +29,8 @@ type IngestHandler struct {
 	ProfileID    string
 	WORMStore    receipt.WORMStore
 	ReceiptStore receipt.ReceiptStore
+	// Signer, when set, attaches a Custos custody attestation to each receipt.
+	Signer *receipt.Signer
 }
 
 // Handle reads bundle bytes, verifies the hash chain via ATB custody export, and returns the head hash.
@@ -90,6 +92,12 @@ func (h IngestHandler) Handle(ctx context.Context, r io.Reader) (*receipt.Receip
 		SubmittedAt:   time.Now().UTC().Format(time.RFC3339),
 		ProfileID:     export.ProfileID,
 		VerifyReport:  verifierReportJSON,
+	}
+
+	// Attest receipt (independent Custos proof of receipt) before storing.
+	if h.Signer != nil {
+		att := h.Signer.Attest(newReceipt, time.Now())
+		newReceipt.Attestation = &att
 	}
 
 	// Store Receipt
