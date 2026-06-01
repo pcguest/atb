@@ -46,6 +46,34 @@ func TestExtractToolCallsOpenAIResponses(t *testing.T) {
 	}
 }
 
+func TestExtractToolCallsOpenAIStreaming(t *testing.T) {
+	// Tool name arrives in the first delta; arguments stream across chunks.
+	body := []byte(
+		`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"get_weather","arguments":"{\"ci"}}]}}]}` + "\n\n" +
+			`data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"ty\":\"Paris\"}"}}]}}]}` + "\n\n" +
+			`data: [DONE]` + "\n")
+	calls := proxy.ExtractToolCalls(body)
+	if len(calls) != 1 || calls[0].Name != "get_weather" {
+		t.Fatalf("unexpected streamed calls: %+v", calls)
+	}
+	if string(calls[0].Arguments) != `{"city":"Paris"}` {
+		t.Errorf("reassembled arguments = %q", string(calls[0].Arguments))
+	}
+}
+
+func TestExtractToolCallsAnthropicStreaming(t *testing.T) {
+	body := []byte(
+		`data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","name":"lookup_account","input":{}}}` + "\n\n" +
+			`data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"id\":\"cust-1\"}"}}` + "\n\n")
+	calls := proxy.ExtractToolCalls(body)
+	if len(calls) != 1 || calls[0].Name != "lookup_account" {
+		t.Fatalf("unexpected streamed calls: %+v", calls)
+	}
+	if string(calls[0].Arguments) != `{"id":"cust-1"}` {
+		t.Errorf("reassembled arguments = %q", string(calls[0].Arguments))
+	}
+}
+
 func TestExtractToolCallsNoneForPlainResponse(t *testing.T) {
 	body := []byte(`{"choices":[{"message":{"content":"hello"}}]}`)
 	if got := proxy.ExtractToolCalls(body); len(got) != 0 {

@@ -2,6 +2,7 @@
 package proxy
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -26,11 +27,16 @@ func (t ToolCall) InputDigest() string {
 
 // ExtractToolCalls parses the tool/function calls a model requested in a
 // response body. It recognises Anthropic Messages (tool_use content blocks),
-// OpenAI Chat Completions (choices[].message.tool_calls), and OpenAI Responses
-// (output[] function_call items). Unrecognised bodies yield no tool calls.
+// OpenAI Chat Completions (choices[].message.tool_calls), OpenAI Responses
+// (output[] function_call items), and the streamed (SSE) forms of the Chat
+// Completions and Anthropic Messages APIs. Unrecognised bodies yield no calls.
 func ExtractToolCalls(body []byte) []ToolCall {
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
+		// Not a single JSON object; it may be a Server-Sent Events stream.
+		if bytes.Contains(body, []byte("data:")) {
+			return extractStreamingToolCalls(body)
+		}
 		return nil
 	}
 
@@ -90,6 +96,108 @@ func ExtractToolCalls(body []byte) []ToolCall {
 	}
 
 	return calls
+}
+
+// extractStreamingToolCalls reassembles tool calls from a Server-Sent Events
+// stream — OpenAI Chat Completions (choices[].delta.tool_calls deltas) and
+// Anthropic Messages (content_block_start tool_use + input_json_delta). Tool
+// names and accumulated argument fragments are recovered by index; partial
+// streams still yield the tool name (the full body is digested separately).
+func extractStreamingToolCalls(body []byte) []ToolCall {
+	type acc struct {
+		name string
+		args []byte
+	}
+	byIndex := map[int]*acc{}
+	order := []int{}
+	at := func(i int) *acc {
+		a, ok := byIndex[i]
+		if !ok {
+			a = &acc{}
+			byIndex[i] = a
+			order = append(order, i)
+		}
+		return a
+	}
+
+	for _, line := range bytes.Split(body, []byte("\n")) {
+		line = bytes.TrimSpace(line)
+		if !bytes.HasPrefix(line, []byte("data:")) {
+			continue
+		}
+		payload := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
+		if len(payload) == 0 || string(payload) == "[DONE]" {
+			continue
+		}
+		var ev map[string]any
+		if err := json.Unmarshal(payload, &ev); err != nil {
+			continue
+		}
+
+		// Anthropic Messages streaming.
+		switch str(ev["type"]) {
+		case "content_block_start":
+			if cb, ok := ev["content_block"].(map[string]any); ok && str(cb["type"]) == "tool_use" {
+				at(intOf(ev["index"])).name = str(cb["name"])
+			}
+			continue
+		case "content_block_delta":
+			if d, ok := ev["delta"].(map[string]any); ok && str(d["type"]) == "input_json_delta" {
+				a := at(intOf(ev["index"]))
+				a.args = append(a.args, []byte(str(d["partial_json"]))...)
+			}
+			continue
+		}
+
+		// OpenAI Chat Completions streaming.
+		for _, choice := range asSlice(ev["choices"]) {
+			cm, ok := choice.(map[string]any)
+			if !ok {
+				continue
+			}
+			delta, ok := cm["delta"].(map[string]any)
+			if !ok {
+				continue
+			}
+			for _, tc := range asSlice(delta["tool_calls"]) {
+				tcm, ok := tc.(map[string]any)
+				if !ok {
+					continue
+				}
+				a := at(intOf(tcm["index"]))
+				if fn, ok := tcm["function"].(map[string]any); ok {
+					if n := str(fn["name"]); n != "" {
+						a.name = n
+					}
+					a.args = append(a.args, []byte(str(fn["arguments"]))...)
+				}
+			}
+		}
+	}
+
+	var calls []ToolCall
+	for _, i := range order {
+		a := byIndex[i]
+		if a.name == "" {
+			continue
+		}
+		calls = append(calls, ToolCall{Name: a.name, Arguments: a.args})
+	}
+	return calls
+}
+
+func intOf(v any) int {
+	switch n := v.(type) {
+	case float64:
+		return int(n)
+	case int:
+		return n
+	case json.Number:
+		if i, err := n.Int64(); err == nil {
+			return int(i)
+		}
+	}
+	return 0
 }
 
 // ToolResultError is a tool result the client reported as failed, carried in a
