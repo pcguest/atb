@@ -47,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/guides/agent-incident-forensics.md`: capture → discover → review walkthrough.
 - `internal/emit.ActionError` and Python `atb.oversight.ActionErrorEmitter`: standalone `ai.action.error` writers for direct SDK instrumentation.
 - Web viewer: shared `web/lib/event-family.ts` (`eventFamily` / `eventFamilyClass` / `eventSummary`); the timeline colour-codes capture and action events (new `ev-action` family) and the event inspector shows a one-line summary for forensic events.
+- Web viewer: `SessionAnomalies` banner on the `/view` dashboard surfacing the loaded bundle's session anomaly flags (e.g. `tool_without_approval`), via an authenticated `getSessions` / `useSessionsQuery` and `web/lib/schemas/session.ts`.
+- `data.export.error` event for failed data exports (schema + Go/Python/TS bindings); the TypeScript and Python `DataExportGate` emit it on failure instead of `data.export.executed` with `execution_outcome="error"`.
+- Acting-principal attribution: an optional `principal` (`type` human/agent/tool, `id_hash`, `on_behalf_of`) on `ai.action.precommit`, recorded by the `ActionGate` and `HumanOverrideGate` (TypeScript + Python; exported as `ActionPrincipal`).
+- `effective_scope` (optional) on `ai.action.executed` — the permission scope/role/grant the action ran under — recorded by the `ActionGate`. Completes the accountability-core schema (principal + execution scope + error event).
+- `ai.action.error` writers for direct instrumentation: Go `emit.ActionError` and Python `oversight.ActionErrorEmitter`; the TypeScript and Python `ActionGate` and `HumanOverrideGate` emit `ai.action.error` on failure. The forensic summaries (incident report + viewer) render `ai.action.precommit`/`executed` with principal and scope, and the data-export and action-error events.
 
 ### Fixed
 - Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.

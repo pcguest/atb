@@ -15,8 +15,9 @@ ATB v1.12.0 ships a verified core bundle engine, six obligation profiles with CA
 The agent-incident-forensics wedge: capture an agent session, then reconstruct
 and review it from a tamper-evident bundle.
 
-- ✅ `ai.action.error` forensic event for failed/denied privileged actions (schema + Go/Python/TS bindings)
+- ✅ Accountability core (per the research memo): `ai.action.error` for failed/denied actions, `data.export.error` for failed exports, optional `principal` (human/agent/tool + on_behalf_of) on `ai.action.precommit`, and `effective_scope` on `ai.action.executed` — schema + Go/Python/TS bindings, recorded by the SDK gates and surfaced in the forensic report and viewer
 - ✅ `atb intercept` records captured exchanges privacy-safely — bodies digested by default (`--capture-bodies` to retain raw), credential/session-secret headers stripped
+- ✅ `/view` dashboard surfaces session anomaly flags (e.g. `tool_without_approval`)
 - ✅ Proxy emits accountability events: `atb.tool.call` per requested tool, `ai.action.error` per failed Anthropic `tool_result`
 - ✅ Registered `atb.llm.request` / `atb.llm.response` capture event types
 - ✅ `atb incident list` (discover sessions) and `atb incident report` (session-scoped report: integrity, signature provenance, anomalies, hash-addressed events)
