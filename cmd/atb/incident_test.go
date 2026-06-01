@@ -92,6 +92,24 @@ func TestRunIncidentList(t *testing.T) {
 	}
 }
 
+func TestRunIncidentReportNDJSON(t *testing.T) {
+	path := writeIncidentBundle(t)
+	var out, errBuf bytes.Buffer
+	code := runIncident([]string{"report", "--bundle", path, "--session", "sess-A", "--format", "ndjson"}, &out, &errBuf)
+	if code != exitSuccess {
+		t.Fatalf("ndjson exit = %d, stderr=%s", code, errBuf.String())
+	}
+	for _, line := range strings.Split(strings.TrimSpace(out.String()), "\n") {
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			t.Fatalf("ndjson line not valid JSON: %v\n%s", err, line)
+		}
+		if obj["session_id"] != "sess-A" {
+			t.Errorf("line session_id = %v", obj["session_id"])
+		}
+	}
+}
+
 func TestRunIncidentReportShowsValidSignature(t *testing.T) {
 	path := writeIncidentBundle(t)
 	keyPath := writeSignTestPrivateKey(t, t.TempDir())

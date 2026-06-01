@@ -207,6 +207,35 @@ func TestBuildSummarisesPrincipal(t *testing.T) {
 	}
 }
 
+func TestReportNDJSON(t *testing.T) {
+	path := writeBundle(t) // sess-A has 4 events incl. a tool call
+	rep, err := incident.Build(context.Background(), path, "sess-A")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	raw, err := rep.NDJSON()
+	if err != nil {
+		t.Fatalf("NDJSON: %v", err)
+	}
+	lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+	if len(lines) != len(rep.Events) {
+		t.Fatalf("ndjson lines = %d, want %d events", len(lines), len(rep.Events))
+	}
+	var first map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
+		t.Fatalf("ndjson line not valid JSON: %v", err)
+	}
+	if first["session_id"] != "sess-A" {
+		t.Errorf("session_id = %v", first["session_id"])
+	}
+	if _, ok := first["record_hash"]; !ok {
+		t.Error("ndjson line missing record_hash")
+	}
+	if _, ok := first["anomaly_flags"]; !ok {
+		t.Error("ndjson line missing anomaly_flags")
+	}
+}
+
 func TestBuildSessionNotFound(t *testing.T) {
 	path := writeBundle(t)
 	rep, err := incident.Build(context.Background(), path, "sess-missing")

@@ -11,6 +11,7 @@
 package incident
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -126,6 +127,38 @@ func Build(ctx context.Context, bundlePath, sessionID string) (Report, error) {
 // JSON renders the report as indented JSON.
 func (r Report) JSON() ([]byte, error) {
 	return json.MarshalIndent(r, "", "  ")
+}
+
+// NDJSON renders one JSON object per session event, newline-delimited, for
+// direct ingestion into a SIEM (Splunk/Elastic). Each line is denormalised with
+// the session's integrity status and anomaly flags so it stands alone.
+func (r Report) NDJSON() ([]byte, error) {
+	var flags []string
+	if r.Session != nil {
+		flags = r.Session.AnomalyFlags
+	}
+	if flags == nil {
+		flags = []string{}
+	}
+	var buf bytes.Buffer
+	for _, e := range r.Events {
+		line, err := json.Marshal(map[string]any{
+			"session_id":      r.SessionID,
+			"seq":             e.Seq,
+			"type":            e.Type,
+			"timestamp":       e.Timestamp,
+			"summary":         e.Summary,
+			"record_hash":     e.Hash,
+			"integrity_valid": r.IntegrityValid,
+			"anomaly_flags":   flags,
+		})
+		if err != nil {
+			return nil, err
+		}
+		buf.Write(line)
+		buf.WriteByte('\n')
+	}
+	return buf.Bytes(), nil
 }
 
 // ListSessions returns the sessions found in a bundle, so a reviewer can

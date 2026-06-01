@@ -96,7 +96,10 @@ provenance, capture scope, and a SHA-256 of every file). The packed bundle
 re-verifies on its own with `atb verify bundle.atb` — no trust in the package
 required.
 
-`atb incident report --bundle <path> --session <id> [--format markdown|json]`
+`atb incident report --bundle <path> --session <id> [--format markdown|json|ndjson]`
+
+`ndjson` emits one JSON object per session event (denormalised with the
+session's integrity status and anomaly flags) for direct SIEM ingestion.
 
 Builds a session-scoped forensic report over a captured bundle: integrity
 status, **bundle signature provenance** (who signed it, when, and whether the

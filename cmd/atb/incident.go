@@ -99,8 +99,8 @@ func runIncidentReport(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "atb incident report: --session is required")
 		return exitUserError
 	}
-	if format != "markdown" && format != "json" {
-		fmt.Fprintf(stderr, "atb incident report: invalid --format %q (expected markdown|json)\n", format)
+	if format != "markdown" && format != "json" && format != "ndjson" {
+		fmt.Fprintf(stderr, "atb incident report: invalid --format %q (expected markdown|json|ndjson)\n", format)
 		return exitUserError
 	}
 
@@ -118,6 +118,13 @@ func runIncidentReport(args []string, stdout, stderr io.Writer) int {
 			return exitSystemError
 		}
 		fmt.Fprintln(stdout, string(out))
+	case "ndjson":
+		out, err := report.NDJSON()
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident report: render ndjson: %v\n", err)
+			return exitSystemError
+		}
+		fmt.Fprint(stdout, string(out))
 	default:
 		fmt.Fprint(stdout, report.Markdown())
 	}
@@ -305,9 +312,9 @@ list flags:
   --format markdown|json     Output format (default markdown)
 
 report flags:
-  --bundle <path>            Bundle to read (required)
-  --session <id>             Session identifier to report on (required)
-  --format markdown|json     Output format (default markdown)
+  --bundle <path>              Bundle to read (required)
+  --session <id>               Session identifier to report on (required)
+  --format markdown|json|ndjson  Output format (default markdown; ndjson = one event per line for SIEM ingest)
 
 export flags:
   --bundle <path>            Bundle to read (required)
