@@ -98,6 +98,32 @@ func TestBuildScopesSessionAndReportsIntegrity(t *testing.T) {
 	}
 }
 
+func TestBuildSummarisesDataExport(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new bundle: %v", err)
+	}
+	add := func(typ string, data map[string]any) {
+		if err := b.AppendWithOptions(typ, data, &bundle.AppendOptions{Timestamp: "2026-05-28T09:00:00Z"}); err != nil {
+			t.Fatalf("append %s: %v", typ, err)
+		}
+	}
+	add(event.TypeLLMRequest, map[string]any{"session_id": "sess-X", "host": "h", "method": "POST", "path": "/p"})
+	add(event.TypeDataExportExecuted, map[string]any{"session_id": "sess-X", "execution_outcome": "success"})
+
+	path := filepath.Join(t.TempDir(), "export.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	rep, err := incident.Build(context.Background(), path, "sess-X")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if md := rep.Markdown(); !strings.Contains(md, "export outcome=success") {
+		t.Errorf("markdown missing data export summary:\n%s", md)
+	}
+}
+
 func TestBuildSessionNotFound(t *testing.T) {
 	path := writeBundle(t)
 	rep, err := incident.Build(context.Background(), path, "sess-missing")

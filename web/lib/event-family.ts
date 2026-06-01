@@ -91,6 +91,14 @@ export function eventSummary(eventType: string, data: unknown): string {
       const outcome = s("approval_outcome");
       return outcome ? `approval=${outcome}` : "";
     }
+    case "data.export.executed": {
+      const outcome = s("execution_outcome");
+      return outcome ? `export outcome=${outcome}` : "export";
+    }
+    case "atb.data.export": {
+      const target = s("export_target");
+      return target ? `export=${target}` : "export";
+    }
     default:
       return "";
   }

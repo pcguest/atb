@@ -55,6 +55,12 @@ describe("eventSummary", () => {
       "POST /v1/messages → 200",
     );
     expect(eventSummary("ai.policy.decision", { decision: "deny" })).toBe("decision=deny");
+    expect(eventSummary("data.export.executed", { execution_outcome: "success" })).toBe(
+      "export outcome=success",
+    );
+    expect(eventSummary("atb.data.export", { export_target: "s3://bucket" })).toBe(
+      "export=s3://bucket",
+    );
   });
 
   it("returns empty string when there is nothing concise to say", () => {

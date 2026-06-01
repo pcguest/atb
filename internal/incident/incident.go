@@ -217,6 +217,16 @@ func summarise(ev event.Event) string {
 		return "decision=" + get("decision")
 	case event.TypeAIHumanApproval:
 		return "approval=" + get("approval_outcome")
+	case event.TypeDataExportExecuted:
+		if outcome := get("execution_outcome"); outcome != "" {
+			return "export outcome=" + outcome
+		}
+		return "export"
+	case event.TypeDataExport:
+		if target := get("export_target"); target != "" {
+			return "export=" + target
+		}
+		return "export"
 	default:
 		return ""
 	}
