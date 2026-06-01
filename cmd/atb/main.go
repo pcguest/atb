@@ -282,9 +282,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "incident",
-				Usage:       "atb incident list|report --bundle <path> [--session <id>] [--format markdown|json]",
-				Description: "Discover (list) and review (report) agent sessions captured in a bundle for forensic review.",
-				Flags:       []string{"--bundle", "--session", "--format"},
+				Usage:       "atb incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>]",
+				Description: "Discover (list), review (report), and package (export) agent sessions captured in a bundle for forensic review.",
+				Flags:       []string{"--bundle", "--session", "--format", "--out"},
 				Mutating:    false,
 			},
 			{
@@ -450,7 +450,7 @@ Commands:
   agent run         Start the local ATB Agent HTTP service
   corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]  Fetch external corroboration receipt and append atb.corroboration.external event
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
-  incident list|report --bundle <path> [--session <id>] [--format markdown|json]  Discover and review captured agent sessions for forensic review
+  incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>]  Discover, review, and package captured agent sessions for forensic review
   version           Print the ATB version
 
 Exit codes:

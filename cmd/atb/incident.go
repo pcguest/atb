@@ -2,6 +2,7 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -27,6 +28,8 @@ func runIncident(args []string, stdout, stderr io.Writer) int {
 		return runIncidentReport(args[1:], stdout, stderr)
 	case "list":
 		return runIncidentList(args[1:], stdout, stderr)
+	case "export":
+		return runIncidentExport(args[1:], stdout, stderr)
 	case "-h", "--help", "help":
 		printIncidentUsage(stdout)
 		return exitSuccess
@@ -186,11 +189,112 @@ func runIncidentList(args []string, stdout, stderr io.Writer) int {
 	return exitSuccess
 }
 
+func runIncidentExport(args []string, stdout, stderr io.Writer) int {
+	bundlePath := ""
+	sessionID := ""
+	out := ""
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		next := func() (string, bool) {
+			if i+1 >= len(args) {
+				return "", false
+			}
+			i++
+			return args[i], true
+		}
+		switch {
+		case arg == "-h", arg == "--help":
+			printIncidentUsage(stdout)
+			return exitSuccess
+		case arg == "--bundle":
+			v, ok := next()
+			if !ok {
+				fmt.Fprintln(stderr, "atb incident export: missing value for --bundle")
+				return exitUserError
+			}
+			bundlePath = strings.TrimSpace(v)
+		case strings.HasPrefix(arg, "--bundle="):
+			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "--bundle="))
+		case arg == "--session":
+			v, ok := next()
+			if !ok {
+				fmt.Fprintln(stderr, "atb incident export: missing value for --session")
+				return exitUserError
+			}
+			sessionID = strings.TrimSpace(v)
+		case strings.HasPrefix(arg, "--session="):
+			sessionID = strings.TrimSpace(strings.TrimPrefix(arg, "--session="))
+		case arg == "--out":
+			v, ok := next()
+			if !ok {
+				fmt.Fprintln(stderr, "atb incident export: missing value for --out")
+				return exitUserError
+			}
+			out = strings.TrimSpace(v)
+		case strings.HasPrefix(arg, "--out="):
+			out = strings.TrimSpace(strings.TrimPrefix(arg, "--out="))
+		default:
+			fmt.Fprintf(stderr, "atb incident export: unknown argument %q\n", arg)
+			return exitUserError
+		}
+	}
+	if bundlePath == "" {
+		fmt.Fprintln(stderr, "atb incident export: --bundle is required")
+		return exitUserError
+	}
+	if sessionID == "" {
+		fmt.Fprintln(stderr, "atb incident export: --session is required")
+		return exitUserError
+	}
+	if out == "" {
+		fmt.Fprintln(stderr, "atb incident export: --out is required")
+		return exitUserError
+	}
+
+	files, err := incident.BuildPack(context.Background(), bundlePath, sessionID, version)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+		return exitSystemError
+	}
+	if err := writeIncidentPack(out, files); err != nil {
+		fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+		return exitSystemError
+	}
+	fmt.Fprintf(stdout, "wrote incident evidence package %s (%d files)\n", out, len(files))
+	return exitSuccess
+}
+
+func writeIncidentPack(out string, files []incident.PackFile) error {
+	f, err := os.Create(out) // #nosec G304 -- operator-supplied output path
+	if err != nil {
+		return fmt.Errorf("create %s: %w", out, err)
+	}
+	defer f.Close()
+
+	zw := zip.NewWriter(f)
+	for _, pf := range files {
+		w, err := zw.Create(pf.Name)
+		if err != nil {
+			_ = zw.Close()
+			return fmt.Errorf("zip entry %s: %w", pf.Name, err)
+		}
+		if _, err := w.Write(pf.Content); err != nil {
+			_ = zw.Close()
+			return fmt.Errorf("write %s: %w", pf.Name, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		return fmt.Errorf("finalise zip: %w", err)
+	}
+	return nil
+}
+
 func printIncidentUsage(w io.Writer) {
 	fmt.Fprint(w, `atb incident list   --bundle <path> [--format markdown|json]
 atb incident report --bundle <path> --session <id> [--format markdown|json]
+atb incident export --bundle <path> --session <id> --out <pack.zip>
 
-Discover and review agent sessions captured in an ATB bundle.
+Discover, review, and package agent sessions captured in an ATB bundle.
 
 The full signed bundle remains the authoritative, tamper-evident evidence; a
 report scopes one session for review and lists each event with its sequence and
@@ -204,5 +308,10 @@ report flags:
   --bundle <path>            Bundle to read (required)
   --session <id>             Session identifier to report on (required)
   --format markdown|json     Output format (default markdown)
+
+export flags:
+  --bundle <path>            Bundle to read (required)
+  --session <id>             Session identifier to package (required)
+  --out <pack.zip>           Output evidence package path (required)
 `)
 }

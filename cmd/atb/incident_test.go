@@ -2,6 +2,7 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"path/filepath"
@@ -106,6 +107,38 @@ func TestRunIncidentReportShowsValidSignature(t *testing.T) {
 	got := strings.ToLower(out.String())
 	if !strings.Contains(got, "signature: valid") {
 		t.Errorf("expected a valid signature line in the report:\n%s", out.String())
+	}
+}
+
+func TestRunIncidentExport(t *testing.T) {
+	path := writeIncidentBundle(t)
+	out := filepath.Join(t.TempDir(), "pack.zip")
+
+	var stdout, stderr bytes.Buffer
+	code := runIncident([]string{"export", "--bundle", path, "--session", "sess-A", "--out", out}, &stdout, &stderr)
+	if code != exitSuccess {
+		t.Fatalf("export exit = %d, stderr=%s", code, stderr.String())
+	}
+
+	zr, err := zip.OpenReader(out)
+	if err != nil {
+		t.Fatalf("open pack: %v", err)
+	}
+	defer zr.Close()
+	names := map[string]bool{}
+	for _, f := range zr.File {
+		names[f.Name] = true
+	}
+	for _, want := range []string{"bundle.atb", "incident-report.md", "MANIFEST.json"} {
+		if !names[want] {
+			t.Errorf("pack missing %q (got %v)", want, names)
+		}
+	}
+
+	// missing --out is a user error
+	var o2, e2 bytes.Buffer
+	if c := runIncident([]string{"export", "--bundle", path, "--session", "sess-A"}, &o2, &e2); c != exitUserError {
+		t.Errorf("export without --out: exit = %d, want %d", c, exitUserError)
 	}
 }
 

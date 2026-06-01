@@ -87,6 +87,15 @@ Lists the agent sessions captured in a bundle — session id, actor, exchange
 count, inferred profile, CAS grade, and anomaly flags — so a reviewer can
 discover which session to report on.
 
+`atb incident export --bundle <path> --session <id> --out <pack.zip>`
+
+Writes a self-contained, independently verifiable incident evidence package: the
+signed bundle, the incident report (markdown + JSON), the full verifier report,
+and a `MANIFEST.json` chain-of-custody record (bundle hash, signature
+provenance, capture scope, and a SHA-256 of every file). The packed bundle
+re-verifies on its own with `atb verify bundle.atb` — no trust in the package
+required.
+
 `atb incident report --bundle <path> --session <id> [--format markdown|json]`
 
 Builds a session-scoped forensic report over a captured bundle: integrity
