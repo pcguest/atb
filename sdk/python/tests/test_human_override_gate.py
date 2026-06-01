@@ -41,3 +41,27 @@ def test_human_override_gate_records_action_error_on_failure() -> None:
     error = bundle.records[-1].event["data"]
     assert error["error_class"] == "exception"
     assert error["error_detail_digest"].startswith("sha256:")
+
+
+def test_human_override_gate_records_principal_on_precommit() -> None:
+    from atb.action_gate import ActionPrincipal
+
+    bundle = Bundle()
+    gate = HumanOverrideGate(bundle=bundle, actor_id="actor-1")
+    action = HumanOverrideActionInput(
+        action_type="override_action",
+        target_resource_id="svc-1",
+        intended_effect="run override",
+        action_parameters={"x": 1},
+        principal=ActionPrincipal(type="human", id_hash="sha256:op-1"),
+    )
+    approval = HumanOverrideApprovalInput(approver_id_hash="sha256:approver")
+
+    gate.run(action, approval, lambda: "ok")
+
+    precommit = next(
+        record.event["data"]
+        for record in bundle.records
+        if record.event["type"] == "ai.action.precommit"
+    )
+    assert precommit["principal"] == {"type": "human", "id_hash": "sha256:op-1"}

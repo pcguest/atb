@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
+from atb.action_gate import ActionPrincipal, _principal_payload
 from atb.exceptions import ATBError
 from atb.workflow_common import (
     WorkflowContext,
@@ -31,6 +32,7 @@ class HumanOverrideActionInput:
     action_parameters: Mapping[str, Any]
     action_id: str | None = None
     request_id: str | None = None
+    principal: "ActionPrincipal | None" = None
 
 
 @dataclass(frozen=True)
@@ -89,16 +91,17 @@ class HumanOverrideGate:
                 "action_id": action_id,
             },
         )
-        self.ctx.emit(
-            "ai.action.precommit",
-            {
-                "action_id": action_id,
-                "action_type": action.action_type,
-                "action_parameters_digest": canonical_digest(dict(action.action_parameters)),
-                "target_resource_id": action.target_resource_id,
-                "intended_effect": action.intended_effect,
-            },
-        )
+        precommit: dict[str, Any] = {
+            "action_id": action_id,
+            "action_type": action.action_type,
+            "action_parameters_digest": canonical_digest(dict(action.action_parameters)),
+            "target_resource_id": action.target_resource_id,
+            "intended_effect": action.intended_effect,
+        }
+        principal = _principal_payload(action.principal)
+        if principal is not None:
+            precommit["principal"] = principal
+        self.ctx.emit("ai.action.precommit", precommit)
 
         if approval.approval_outcome == "denied" and self.mode == "enforce":
             raise HumanOverrideDeniedError(f"human override denied for action_id {action_id}")

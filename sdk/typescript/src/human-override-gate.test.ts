@@ -45,4 +45,20 @@ describe("HumanOverrideGate", () => {
     expect(error.error_class).toBe("exception");
     expect(String(error.error_detail_digest)).toMatch(/^sha256:/);
   });
+
+  it("records the acting principal on precommit when provided", async () => {
+    const bundle = new Bundle();
+    const gate = new HumanOverrideGate({ bundle, actorId: "actor-1" });
+
+    await gate.run(
+      { ...action, principal: { type: "human", idHash: "sha256:op-1" } },
+      approval,
+      async () => "ok",
+    );
+
+    const precommit = bundle.records
+      .map((record) => record.event)
+      .find((event) => event.type === "ai.action.precommit")!.data as Record<string, unknown>;
+    expect(precommit.principal).toEqual({ type: "human", id_hash: "sha256:op-1" });
+  });
 });

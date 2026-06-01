@@ -1,3 +1,4 @@
+import { type ActionPrincipal, principalPayload } from "./action-gate.js";
 import {
   WorkflowContext,
   type WorkflowContextOptions,
@@ -16,6 +17,7 @@ export interface HumanOverrideActionInput {
   actionParameters: Record<string, unknown>;
   actionId?: string;
   requestId?: string;
+  principal?: ActionPrincipal;
 }
 
 export interface HumanOverrideApprovalInput {
@@ -71,13 +73,18 @@ export class HumanOverrideGate {
       action_id: actionId,
     });
 
-    this.ctx.emit("ai.action.precommit", {
+    const precommit: Record<string, unknown> = {
       action_id: actionId,
       action_type: action.actionType,
       action_parameters_digest: canonicalDigest(action.actionParameters),
       target_resource_id: action.targetResourceId,
       intended_effect: action.intendedEffect,
-    });
+    };
+    const principal = principalPayload(action.principal);
+    if (principal) {
+      precommit.principal = principal;
+    }
+    this.ctx.emit("ai.action.precommit", precommit);
 
     if (outcome === "denied" && this.mode === "enforce") {
       throw new HumanOverrideDeniedError(
