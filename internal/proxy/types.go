@@ -12,6 +12,28 @@ import (
 	"github.com/pcguest/atb/internal/identity"
 )
 
+// CaptureScopeEvent builds the atb.capture.scope attestation recorded at proxy
+// startup. It makes the bundle self-describing about what the recorder could
+// and could not observe.
+func CaptureScopeEvent(cfg ProxyConfig) *event.Event {
+	mode := "digest"
+	if cfg.CaptureBodies {
+		mode = "raw"
+	}
+	data := map[string]any{
+		"targets":          append([]string{}, cfg.TargetHosts...),
+		"capture_mode":     mode,
+		"redacted_headers": redactedHeaderNames(),
+		"out_of_scope":     "Provider API traffic that does not pass through this proxy (e.g. direct in-process SDK calls or other egress) is not captured.",
+		"recorded_at":      time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	return &event.Event{
+		Type:      event.TypeCaptureScope,
+		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		Data:      data,
+	}
+}
+
 // recordBody writes privacy-safe body evidence into a captured event payload.
 // By default only a SHA-256 digest and byte length are stored so an always-on
 // recorder never persists raw prompts, completions, or PII. The raw body is

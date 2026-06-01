@@ -522,6 +522,7 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `data.export.precommit` | Data export | critical | `data_export` |
 | `data.export.executed` | Data export | critical | `data_export` |
 | `data.export.error` | Data export | required | — |
+| `atb.capture.scope` | Capture (proxy-internal) | required | — |
 | `atb.llm.request` | Capture (proxy-internal) | informational | — |
 | `atb.llm.response` | Capture (proxy-internal) | informational | — |
 | `atb.session.close` | Session lifecycle | informational | — |

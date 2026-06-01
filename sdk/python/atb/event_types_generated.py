@@ -122,6 +122,9 @@ HUMAN_OVERRIDE_EVENT_TYPE: Final = HUMAN_OVERRIDE
 HUMAN_APPROVAL: Final = "atb.human.approval"
 HUMAN_APPROVAL_EVENT_TYPE: Final = HUMAN_APPROVAL
 
+CAPTURE_SCOPE: Final = "atb.capture.scope"
+CAPTURE_SCOPE_EVENT_TYPE: Final = CAPTURE_SCOPE
+
 LLM_REQUEST: Final = "atb.llm.request"
 LLM_REQUEST_EVENT_TYPE: Final = LLM_REQUEST
 
@@ -388,6 +391,13 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "required_fields": ["session_id", "approved_action_id"],
     },
     {
+        "type": CAPTURE_SCOPE,
+        "description": "Capture-coverage attestation written by atb intercept at startup: what the recorder can and cannot see",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["targets", "capture_mode"],
+    },
+    {
         "type": LLM_REQUEST,
         "description": "Captured upstream LLM API request (proxy-internal)",
         "profiles": [],
@@ -454,6 +464,7 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     DATA_EXPORT: ["session_id", "export_target"],
     HUMAN_OVERRIDE: ["session_id", "override_reason"],
     HUMAN_APPROVAL: ["session_id", "approved_action_id"],
+    CAPTURE_SCOPE: ["targets", "capture_mode"],
     LLM_REQUEST: ["session_id", "host", "method", "path"],
     LLM_RESPONSE: ["session_id", "host", "method", "path", "status_code"],
     SESSION_CLOSE: ["session_id", "actor_id"],
@@ -536,6 +547,8 @@ __all__ = [
     "HUMAN_OVERRIDE_EVENT_TYPE",
     "HUMAN_APPROVAL",
     "HUMAN_APPROVAL_EVENT_TYPE",
+    "CAPTURE_SCOPE",
+    "CAPTURE_SCOPE_EVENT_TYPE",
     "LLM_REQUEST",
     "LLM_REQUEST_EVENT_TYPE",
     "LLM_RESPONSE",

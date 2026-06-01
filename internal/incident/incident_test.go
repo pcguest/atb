@@ -124,6 +124,39 @@ func TestBuildSummarisesDataExport(t *testing.T) {
 	}
 }
 
+func TestBuildSurfacesCaptureScope(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new bundle: %v", err)
+	}
+	add := func(typ string, data map[string]any) {
+		if err := b.AppendWithOptions(typ, data, &bundle.AppendOptions{Timestamp: "2026-05-28T09:00:00Z"}); err != nil {
+			t.Fatalf("append %s: %v", typ, err)
+		}
+	}
+	add(event.TypeCaptureScope, map[string]any{
+		"targets": []any{"api.openai.com"}, "capture_mode": "digest",
+		"out_of_scope": "Traffic that bypasses the proxy is not captured.",
+	})
+	add(event.TypeLLMRequest, map[string]any{"session_id": "sess-C", "host": "h", "method": "POST", "path": "/p"})
+
+	path := filepath.Join(t.TempDir(), "scope.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	rep, err := incident.Build(context.Background(), path, "sess-C")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if rep.CaptureScope == nil || rep.CaptureScope.CaptureMode != "digest" {
+		t.Fatalf("capture scope not extracted: %+v", rep.CaptureScope)
+	}
+	md := rep.Markdown()
+	if !strings.Contains(md, "Capture coverage") || !strings.Contains(md, "bypasses the proxy") {
+		t.Errorf("markdown missing capture coverage:\n%s", md)
+	}
+}
+
 func TestBuildSummarisesEffectiveScope(t *testing.T) {
 	b, err := bundle.New()
 	if err != nil {

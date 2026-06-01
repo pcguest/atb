@@ -170,7 +170,8 @@ func bundleLevelEvent(eventType string) bool {
 		event.TypeBundleSignature,
 		event.TypeBundleAnchor,
 		event.TypeBundlePushed,
-		event.TypeSnapshot:
+		event.TypeSnapshot,
+		event.TypeCaptureScope:
 		return true
 	default:
 		return false

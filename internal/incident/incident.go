@@ -32,6 +32,13 @@ type EventRow struct {
 	Summary   string `json:"summary,omitempty"`
 }
 
+// CaptureScope is the recorder's coverage attestation (atb.capture.scope).
+type CaptureScope struct {
+	Targets     []string `json:"targets,omitempty"`
+	CaptureMode string   `json:"capture_mode,omitempty"`
+	OutOfScope  string   `json:"out_of_scope,omitempty"`
+}
+
 // Report is a session-scoped incident report over a single bundle.
 type Report struct {
 	BundlePath     string                       `json:"bundle_path"`
@@ -40,6 +47,7 @@ type Report struct {
 	IntegrityValid bool                         `json:"integrity_valid"`
 	ChainHeadHash  string                       `json:"chain_head_hash"`
 	Signatures     []verify.SignatureProvenance `json:"signatures,omitempty"`
+	CaptureScope   *CaptureScope                `json:"capture_scope,omitempty"`
 	Session        *sessionindex.SessionEntry   `json:"session,omitempty"`
 	Events         []EventRow                   `json:"events"`
 }
@@ -88,6 +96,13 @@ func Build(ctx context.Context, bundlePath, sessionID string) (Report, error) {
 				rep.Session = &e
 				break
 			}
+		}
+	}
+
+	// Capture-coverage attestation is bundle-level (no session_id); take the latest.
+	for _, rec := range b.Records {
+		if rec.Event.Type == event.TypeCaptureScope {
+			rep.CaptureScope = captureScopeFrom(rec.Event)
 		}
 	}
 
@@ -158,6 +173,13 @@ func (r Report) Markdown() string {
 	fmt.Fprintf(&b, "- Bundle: `%s`\n", r.BundlePath)
 	fmt.Fprintf(&b, "- Integrity (hash chain): **%s**\n", integrity)
 	fmt.Fprintf(&b, "- Signature: %s\n", signatureSummary(r.Signatures))
+	if r.CaptureScope != nil {
+		fmt.Fprintf(&b, "- Capture coverage: targets=[%s] mode=%s\n",
+			strings.Join(r.CaptureScope.Targets, ", "), orDash(r.CaptureScope.CaptureMode))
+		if r.CaptureScope.OutOfScope != "" {
+			fmt.Fprintf(&b, "  - Out of scope: %s\n", r.CaptureScope.OutOfScope)
+		}
+	}
 	fmt.Fprintf(&b, "- Chain head hash: `%s`\n", r.ChainHeadHash)
 	if r.Session != nil {
 		fmt.Fprintf(&b, "- Actor: %s\n", actorLabel(r.Session.Actor))
@@ -180,6 +202,28 @@ func (r Report) Markdown() string {
 	}
 	b.WriteString("\n> Integrity proves these records are unaltered. This report scopes them to the named session; the full signed bundle is the authoritative evidence, and each row's record hash is verifiable against it.\n")
 	return b.String()
+}
+
+func captureScopeFrom(ev event.Event) *CaptureScope {
+	data, ok := ev.Data.(map[string]any)
+	if !ok {
+		return nil
+	}
+	scope := &CaptureScope{}
+	if mode, ok := data["capture_mode"].(string); ok {
+		scope.CaptureMode = mode
+	}
+	if oos, ok := data["out_of_scope"].(string); ok {
+		scope.OutOfScope = oos
+	}
+	if targets, ok := data["targets"].([]any); ok {
+		for _, t := range targets {
+			if s, ok := t.(string); ok {
+				scope.Targets = append(scope.Targets, s)
+			}
+		}
+	}
+	return scope
 }
 
 func eventSessionID(ev event.Event) string {

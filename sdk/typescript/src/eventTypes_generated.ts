@@ -119,6 +119,9 @@ export const HUMAN_OVERRIDE_EVENT_TYPE = HUMAN_OVERRIDE;
 export const HUMAN_APPROVAL = "atb.human.approval" as const;
 export const HUMAN_APPROVAL_EVENT_TYPE = HUMAN_APPROVAL;
 
+export const CAPTURE_SCOPE = "atb.capture.scope" as const;
+export const CAPTURE_SCOPE_EVENT_TYPE = CAPTURE_SCOPE;
+
 export const LLM_REQUEST = "atb.llm.request" as const;
 export const LLM_REQUEST_EVENT_TYPE = LLM_REQUEST;
 
@@ -385,6 +388,13 @@ export const EVENT_TYPE_REGISTRY = [
     required_fields: ["session_id", "approved_action_id"],
   },
   {
+    type: CAPTURE_SCOPE,
+    description: "Capture-coverage attestation written by atb intercept at startup: what the recorder can and cannot see",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["targets", "capture_mode"],
+  },
+  {
     type: LLM_REQUEST,
     description: "Captured upstream LLM API request (proxy-internal)",
     profiles: [],
@@ -451,6 +461,7 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [DATA_EXPORT]: ["session_id", "export_target"],
   [HUMAN_OVERRIDE]: ["session_id", "override_reason"],
   [HUMAN_APPROVAL]: ["session_id", "approved_action_id"],
+  [CAPTURE_SCOPE]: ["targets", "capture_mode"],
   [LLM_REQUEST]: ["session_id", "host", "method", "path"],
   [LLM_RESPONSE]: ["session_id", "host", "method", "path", "status_code"],
   [SESSION_CLOSE]: ["session_id", "actor_id"],

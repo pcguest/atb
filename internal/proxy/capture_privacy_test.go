@@ -102,3 +102,33 @@ func TestScanHeadersRedactsSecrets(t *testing.T) {
 		t.Errorf("non-sensitive header should pass through, got %v", got)
 	}
 }
+
+// TestCaptureScopeEvent verifies the coverage attestation states what the
+// recorder sees (targets, mode, redacted headers) and — critically for
+// forensics — what it does NOT see (the out-of-scope bypass gap).
+func TestCaptureScopeEvent(t *testing.T) {
+	ev := proxy.CaptureScopeEvent(proxy.ProxyConfig{
+		TargetHosts: []string{"api.openai.com", "api.anthropic.com"},
+	})
+	if ev.Type != "atb.capture.scope" {
+		t.Fatalf("type = %q, want atb.capture.scope", ev.Type)
+	}
+	data := eventData(t, ev.Data)
+	if data["capture_mode"] != "digest" {
+		t.Errorf("capture_mode = %v, want digest", data["capture_mode"])
+	}
+	if targets, _ := data["targets"].([]string); len(targets) != 2 {
+		t.Errorf("targets = %v, want 2", data["targets"])
+	}
+	if rh, _ := data["redacted_headers"].([]string); len(rh) == 0 {
+		t.Error("redacted_headers should list the stripped headers")
+	}
+	if oos, _ := data["out_of_scope"].(string); oos == "" {
+		t.Error("out_of_scope must state the bypass gap")
+	}
+
+	raw := proxy.CaptureScopeEvent(proxy.ProxyConfig{TargetHosts: []string{"h"}, CaptureBodies: true})
+	if eventData(t, raw.Data)["capture_mode"] != "raw" {
+		t.Error("capture_mode should be raw when CaptureBodies is set")
+	}
+}

@@ -76,6 +76,8 @@ const (
 	TypeHumanOverride = "atb.human.override"
 	// TypeHumanApproval is "atb.human.approval".
 	TypeHumanApproval = "atb.human.approval"
+	// TypeCaptureScope is "atb.capture.scope".
+	TypeCaptureScope = "atb.capture.scope"
 	// TypeLLMRequest is "atb.llm.request".
 	TypeLLMRequest = "atb.llm.request"
 	// TypeLLMResponse is "atb.llm.response".
@@ -133,6 +135,7 @@ var EventTypesGenerated = []EventTypeSpecGenerated{
 	{Type: TypeDataExport, Description: "Data export outside session boundary", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "export_target"}},
 	{Type: TypeHumanOverride, Description: "Human operator overrode an AI-recommended action", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "override_reason"}},
 	{Type: TypeHumanApproval, Description: "Human operator approved a pending action", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "approved_action_id"}},
+	{Type: TypeCaptureScope, Description: "Capture-coverage attestation written by atb intercept at startup: what the recorder can and cannot see", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"targets", "capture_mode"}},
 	{Type: TypeLLMRequest, Description: "Captured upstream LLM API request (proxy-internal)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{"session_id", "host", "method", "path"}},
 	{Type: TypeLLMResponse, Description: "Captured upstream LLM API response (proxy-internal)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{"session_id", "host", "method", "path", "status_code"}},
 	{Type: TypeSessionClose, Description: "Capture session closed (proxy-internal lifecycle marker)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{"session_id", "actor_id"}},
@@ -177,6 +180,7 @@ var RegistryGenerated = []EventInfo{
 	{TypeDataExport, "Data export outside session boundary", "", "required"},
 	{TypeHumanOverride, "Human operator overrode an AI-recommended action", "", "required"},
 	{TypeHumanApproval, "Human operator approved a pending action", "", "required"},
+	{TypeCaptureScope, "Capture-coverage attestation written by atb intercept at startup: what the recorder can and cannot see", "", "required"},
 	{TypeLLMRequest, "Captured upstream LLM API request (proxy-internal)", "", "informational"},
 	{TypeLLMResponse, "Captured upstream LLM API response (proxy-internal)", "", "informational"},
 	{TypeSessionClose, "Capture session closed (proxy-internal lifecycle marker)", "", "informational"},
@@ -221,6 +225,7 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeDataExport:            []string{"session_id", "export_target"},
 	TypeHumanOverride:         []string{"session_id", "override_reason"},
 	TypeHumanApproval:         []string{"session_id", "approved_action_id"},
+	TypeCaptureScope:          []string{"targets", "capture_mode"},
 	TypeLLMRequest:            []string{"session_id", "host", "method", "path"},
 	TypeLLMResponse:           []string{"session_id", "host", "method", "path", "status_code"},
 	TypeSessionClose:          []string{"session_id", "actor_id"},

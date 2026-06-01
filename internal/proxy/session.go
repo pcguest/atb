@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -497,6 +498,17 @@ var sensitiveHeaders = map[string]struct{}{
 	"proxy-authorization": {},
 	"cookie":              {},
 	"set-cookie":          {},
+}
+
+// redactedHeaderNames returns the sorted set of header names ScanHeaders strips,
+// for the atb.capture.scope attestation.
+func redactedHeaderNames() []string {
+	names := make([]string, 0, len(sensitiveHeaders))
+	for name := range sensitiveHeaders {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func ScanHeaders(header http.Header) map[string]string {

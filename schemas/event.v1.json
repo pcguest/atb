@@ -392,6 +392,17 @@
       },
       "required": ["session_id", "exchange_id", "request_event_id"]
     },
+    "atb.capture.scope": {
+      "description": "Capture-coverage attestation written by atb intercept at startup. Makes the bundle self-describing about what the recorder could and could not observe, so absence of an event is evidence of scope rather than of an event that did not occur.",
+      "properties": {
+        "targets": { "type": "array", "items": { "type": "string" }, "description": "Upstream provider hosts captured by the proxy." },
+        "capture_mode": { "type": "string", "enum": ["digest", "raw"], "description": "digest: only body_sha256 + byte length recorded; raw: full bodies retained (--capture-bodies)." },
+        "redacted_headers": { "type": "array", "items": { "type": "string" }, "description": "Header names stripped before recording." },
+        "out_of_scope": { "type": "string", "description": "Plain statement of what this recorder does not see (e.g. provider traffic that bypasses the proxy)." },
+        "recorded_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["targets", "capture_mode"]
+    },
     "atb.llm.request": {
       "description": "Captured upstream LLM API request. Proxy-internal; emitted by atb intercept for each request through the capture proxy.",
       "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Credential and session-secret headers are stripped before recording. See internal/proxy/types.go RequestRecord.ToEvent.",
@@ -682,6 +693,13 @@
       "profiles": [],
       "criticality": "required",
       "required_fields": ["session_id", "approved_action_id"]
+    },
+    {
+      "type": "atb.capture.scope",
+      "description": "Capture-coverage attestation written by atb intercept at startup: what the recorder can and cannot see",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["targets", "capture_mode"]
     },
     {
       "type": "atb.llm.request",

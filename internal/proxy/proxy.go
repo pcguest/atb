@@ -96,6 +96,14 @@ func (p *Proxy) Start(ctx context.Context) error {
 	p.cancel = cancel
 	p.started = true
 
+	// Record the capture-coverage attestation first, so the bundle states what
+	// this recorder can and cannot see before any traffic is captured.
+	if p.recorder != nil {
+		if err := p.recorder.AppendEvent(CaptureScopeEvent(p.cfg)); err != nil && p.logger != nil {
+			p.logger.Warn("proxy record capture scope failed", "error", err)
+		}
+	}
+
 	go func() {
 		if err := p.ListenAndServe(runCtx); err != nil && p.logger != nil {
 			p.logger.Error("proxy listener stopped", "error", err)
