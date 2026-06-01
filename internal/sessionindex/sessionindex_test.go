@@ -370,6 +370,99 @@ func TestBuildIndexSkipsBundleLevelEvents(t *testing.T) {
 	}
 }
 
+func TestBuildIndexFlagsPolicyDeniedExecuted(t *testing.T) {
+	path := writeSessionBundle(t, []testEvent{
+		{
+			eventType: "ai.policy.decision",
+			timestamp: "2026-05-28T10:00:00Z",
+			data:      map[string]any{"session_id": "sess-deny", "action_id": "act-1", "decision": "deny"},
+		},
+		{
+			eventType: "ai.action.executed",
+			timestamp: "2026-05-28T10:01:00Z",
+			data:      map[string]any{"session_id": "sess-deny", "action_id": "act-1", "execution_outcome": "success"},
+		},
+		{
+			eventType: "atb.session.close",
+			timestamp: "2026-05-28T10:02:00Z",
+			data:      map[string]any{"session_id": "sess-deny", "actor_id": "agent-x"},
+		},
+	})
+	entries, err := BuildIndex(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("BuildIndex: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("want 1 session, got %d", len(entries))
+	}
+	if !contains(entries[0].AnomalyFlags, "policy_denied_executed") {
+		t.Errorf("want policy_denied_executed, got %v", entries[0].AnomalyFlags)
+	}
+}
+
+func TestBuildIndexFlagsActionFailed(t *testing.T) {
+	path := writeSessionBundle(t, []testEvent{
+		{
+			eventType: "ai.action.error",
+			timestamp: "2026-05-28T10:01:00Z",
+			data:      map[string]any{"session_id": "sess-fail", "action_id": "act-1", "error_class": "exception"},
+		},
+		{
+			eventType: "atb.session.close",
+			timestamp: "2026-05-28T10:02:00Z",
+			data:      map[string]any{"session_id": "sess-fail", "actor_id": "agent-x"},
+		},
+	})
+	entries, err := BuildIndex(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("BuildIndex: %v", err)
+	}
+	if len(entries) != 1 || !contains(entries[0].AnomalyFlags, "action_failed") {
+		t.Errorf("want action_failed, got %v", entries)
+	}
+}
+
+// TestBuildIndexNoFalsePositiveDeniedExecuted: a deny for one action and a
+// (different) approved action executing must NOT raise policy_denied_executed.
+func TestBuildIndexNoFalsePositiveDeniedExecuted(t *testing.T) {
+	path := writeSessionBundle(t, []testEvent{
+		{
+			eventType: "ai.policy.decision",
+			timestamp: "2026-05-28T10:00:00Z",
+			data:      map[string]any{"session_id": "sess-ok", "action_id": "act-refund", "decision": "deny"},
+		},
+		{
+			eventType: "ai.action.executed",
+			timestamp: "2026-05-28T10:01:00Z",
+			data:      map[string]any{"session_id": "sess-ok", "action_id": "act-credit", "execution_outcome": "success"},
+		},
+		{
+			eventType: "atb.session.close",
+			timestamp: "2026-05-28T10:02:00Z",
+			data:      map[string]any{"session_id": "sess-ok", "actor_id": "agent-x"},
+		},
+	})
+	entries, err := BuildIndex(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("BuildIndex: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("want 1 session, got %d", len(entries))
+	}
+	if contains(entries[0].AnomalyFlags, "policy_denied_executed") {
+		t.Errorf("false positive: %v", entries[0].AnomalyFlags)
+	}
+}
+
+func contains(flags []string, want string) bool {
+	for _, f := range flags {
+		if f == want {
+			return true
+		}
+	}
+	return false
+}
+
 func writeSessionBundle(t *testing.T, events []testEvent) string {
 	t.Helper()
 

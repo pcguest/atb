@@ -26,6 +26,22 @@ const AnomalyBadge: React.FC<AnomalyBadgeProps> = ({ flag }) => {
       );
       tooltipText = 'Actor identity is unresolved (e.g., API key).';
       break;
+    case 'policy_denied_executed':
+      icon = (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="text-red-500">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+        </svg>
+      );
+      tooltipText = 'Policy denied the action, but it executed anyway.';
+      break;
+    case 'action_failed':
+      icon = (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="text-orange-500">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+        </svg>
+      );
+      tooltipText = 'A privileged action did not succeed (ai.action.error).';
+      break;
     case 'session_not_closed':
       icon = (
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="text-red-500">

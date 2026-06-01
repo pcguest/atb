@@ -58,4 +58,15 @@ describe("SessionAnomaliesBanner", () => {
     const { container } = render(<SessionAnomaliesBanner sessions={[session("a", [])]} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("labels the ai.* detection anomalies", () => {
+    render(
+      <SessionAnomaliesBanner
+        sessions={[session("a", ["policy_denied_executed", "action_failed"])]}
+      />,
+    );
+    const banner = screen.getByTestId("session-anomalies");
+    expect(banner.textContent).toContain("Policy denied but action executed");
+    expect(banner.textContent).toContain("Privileged action failed");
+  });
 });

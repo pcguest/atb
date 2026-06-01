@@ -6,6 +6,8 @@ import type { SessionEntry } from "@/lib/types";
 
 const ANOMALY_LABELS: Record<string, string> = {
   tool_without_approval: "Tool call without approval",
+  policy_denied_executed: "Policy denied but action executed",
+  action_failed: "Privileged action failed",
   unresolved_identity: "Unresolved identity",
   session_not_closed: "Session not closed",
   load_error: "Bundle load error",

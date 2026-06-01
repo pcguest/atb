@@ -157,6 +157,13 @@ type sessionAccumulator struct {
 	// the tool call.
 	toolWithoutApproval bool
 	seenSession         bool
+	// deniedActions records action_ids a policy decision denied; if one later
+	// executes, deniedThenExecuted is raised (policy said no, the action ran).
+	deniedActions      map[string]bool
+	deniedThenExecuted bool
+	// actionFailed records that a privileged action did not succeed
+	// (an ai.action.error was observed).
+	actionFailed bool
 }
 
 // bundleLevelEvent reports whether the event type is a bundle-scoped system
@@ -257,6 +264,22 @@ func applyEvent(acc *sessionAccumulator, event hash.Event) {
 		if count, ok := intField(eventDataMap(event), "exchange_count"); ok {
 			acc.entry.ExchangeCount = count
 		}
+	case "ai.policy.decision":
+		data := eventDataMap(event)
+		if stringField(data, "decision") == "deny" {
+			if id := stringField(data, "action_id"); id != "" {
+				if acc.deniedActions == nil {
+					acc.deniedActions = map[string]bool{}
+				}
+				acc.deniedActions[id] = true
+			}
+		}
+	case "ai.action.executed", "ai.action.committed":
+		if id := stringField(eventDataMap(event), "action_id"); id != "" && acc.deniedActions[id] {
+			acc.deniedThenExecuted = true
+		}
+	case "ai.action.error":
+		acc.actionFailed = true
 	}
 }
 
@@ -264,6 +287,12 @@ func anomalyFlags(acc *sessionAccumulator) []string {
 	flags := []string{}
 	if acc.toolWithoutApproval {
 		flags = append(flags, "tool_without_approval")
+	}
+	if acc.deniedThenExecuted {
+		flags = append(flags, "policy_denied_executed")
+	}
+	if acc.actionFailed {
+		flags = append(flags, "action_failed")
 	}
 	if strings.HasPrefix(acc.entry.Actor.DisplayName, "api-key:") {
 		flags = append(flags, "unresolved_identity")
