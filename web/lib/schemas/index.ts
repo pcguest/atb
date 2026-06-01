@@ -15,3 +15,8 @@ export {
   workspaceBundleSummarySchema,
   workspaceBundlesResponseSchema,
 } from "@/lib/schemas/workspace";
+export {
+  sessionActorSchema,
+  sessionEntrySchema,
+  sessionsResponseSchema,
+} from "@/lib/schemas/session";

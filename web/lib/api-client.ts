@@ -17,6 +17,7 @@ import {
   privacyRevealRequestSchema,
   privacyRevealResponseSchema,
   profileReportSummarySchema,
+  sessionsResponseSchema,
   verificationResponseSchema,
   workspaceBundlesResponseSchema,
 } from "@/lib/schemas";
@@ -28,6 +29,7 @@ import type {
   PrivacyRevealRequest,
   PrivacyRevealResponse,
   ProfileReportSummary,
+  SessionEntry,
   VerificationResponse,
   WorkspaceBundlesResponse,
 } from "@/lib/types";
@@ -54,6 +56,7 @@ export const queryKeys = {
   bundleEvents: ["atb", "bundle", "events"] as const,
   bundleProfile: ["atb", "bundle", "profile"] as const,
   workspaceBundles: ["atb", "workspace", "bundles"] as const,
+  sessions: ["atb", "sessions"] as const,
 };
 
 function parseWithSchema<T>(schema: ZodSchema<T>, payload: unknown, path: string): T {
@@ -119,6 +122,11 @@ export function getBundleGraph(): Promise<BundleGraphResponse> {
 
 export function listWorkspaceBundles(): Promise<WorkspaceBundlesResponse> {
   return requestJSON("/v1/workspace/bundles", workspaceBundlesResponseSchema);
+}
+
+export async function getSessions(): Promise<SessionEntry[]> {
+  const response = await requestJSON("/api/v1/sessions", sessionsResponseSchema);
+  return response.sessions;
 }
 
 export async function getBundleProfile(): Promise<ProfileReportSummary | null> {
@@ -222,6 +230,16 @@ export function useWorkspaceBundlesQuery(
   return useQuery({
     queryKey: queryKeys.workspaceBundles,
     queryFn: listWorkspaceBundles,
+    enabled,
+    retry: false,
+    staleTime: 30000,
+  });
+}
+
+export function useSessionsQuery(enabled: boolean): UseQueryResult<SessionEntry[], Error> {
+  return useQuery({
+    queryKey: queryKeys.sessions,
+    queryFn: getSessions,
     enabled,
     retry: false,
     staleTime: 30000,

@@ -7,6 +7,7 @@ import { ExecutiveSummaryPanel } from "@/app/view/components/ExecutiveSummaryPan
 import { Skeleton } from "@/app/view/components/ui/skeleton";
 import { EventInspector } from "@/components/dashboard/EventInspector";
 import { ProfileCAS } from "@/components/dashboard/ProfileCAS";
+import { SessionAnomalies } from "@/components/dashboard/SessionAnomalies";
 import { StatsOverview } from "@/components/dashboard/StatsOverview";
 import { TraceGraph } from "@/components/dashboard/TraceGraph";
 import { TraceTimeline } from "@/components/dashboard/TraceTimeline";
@@ -138,6 +139,9 @@ export default function ViewPage() {
       {/* ── CENTRE COLUMN ─────────────────────────────────────────────── */}
       <main id="dashboard-content" className="flex flex-1 flex-col overflow-y-auto">
         <h1 className="sr-only">ATB Trust Dashboard</h1>
+
+        {/* Oversight anomalies for the loaded bundle's sessions */}
+        <SessionAnomalies enabled={verificationValid} />
 
         {/* DAG graph */}
         <section className="h-[340px] shrink-0 border-b border-border bg-grid">
