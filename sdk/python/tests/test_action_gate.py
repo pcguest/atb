@@ -262,3 +262,24 @@ def test_action_gate_records_principal_on_precommit() -> None:
         "id_hash": "sha256:agent-1",
         "on_behalf_of": "sha256:user-9",
     }
+
+
+def test_action_gate_records_effective_scope_on_executed() -> None:
+    bundle = Bundle()
+    gate = ActionGate(bundle=bundle, actor_id="actor-1")
+    action = ActionGateInput(
+        action_type="deploy_change",
+        target_resource_id="svc-prod",
+        intended_effect="roll out release",
+        action_parameters={"version": "1"},
+        effective_scope="role:prod-operator",
+    )
+
+    gate.run(action, lambda: "ok")
+
+    executed = next(
+        record.event["data"]
+        for record in _user_records(bundle)
+        if record.event["type"] == "ai.action.executed"
+    )
+    assert executed["effective_scope"] == "role:prod-operator"

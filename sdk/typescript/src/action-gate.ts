@@ -26,6 +26,8 @@ export interface ActionGateInput {
   actionId?: string;
   policyContext?: Record<string, unknown>;
   principal?: ActionPrincipal;
+  /** Permission scope, role, or grant the action runs under (recorded on executed). */
+  effectiveScope?: string;
 }
 
 /** Serialise an ActionPrincipal to the snake_case event payload shape. */
@@ -223,13 +225,17 @@ export class ActionGate {
     startedAt: number,
     receipt: unknown
   ): Record<string, unknown> {
-    return {
+    const payload: Record<string, unknown> = {
       action_id: actionId,
       action_type: action.actionType,
       tool_receipt_digest: valueDigest(receipt),
       execution_duration_ms: Math.max(0, Date.now() - startedAt),
       execution_outcome: "success",
     };
+    if (action.effectiveScope && action.effectiveScope.trim() !== "") {
+      payload.effective_scope = action.effectiveScope.trim();
+    }
+    return payload;
   }
 
   private errorPayload(

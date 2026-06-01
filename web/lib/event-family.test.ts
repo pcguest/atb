@@ -63,6 +63,12 @@ describe("eventSummary", () => {
     );
     expect(eventSummary("ai.action.precommit", { action_type: "deploy" })).toBe("action=deploy");
     expect(
+      eventSummary("ai.action.executed", {
+        execution_outcome: "success",
+        effective_scope: "role:prod-operator",
+      }),
+    ).toBe("executed outcome=success scope=role:prod-operator");
+    expect(
       eventSummary("ai.action.precommit", {
         action_type: "deploy",
         principal: { type: "agent", id_hash: "sha256:a1", on_behalf_of: "sha256:u9" },

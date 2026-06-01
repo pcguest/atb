@@ -71,6 +71,7 @@ class ActionGateInput:
     action_id: str | None = None
     policy_context: Mapping[str, Any] | None = None
     principal: "ActionPrincipal | None" = None
+    effective_scope: str | None = None
 
 
 @dataclass(frozen=True)
@@ -307,13 +308,16 @@ class ActionGate:
         started_at: float,
         receipt: Any,
     ) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "action_id": action_id,
             "action_type": action.action_type,
             "tool_receipt_digest": _value_digest(receipt),
             "execution_duration_ms": max(0, int((time.perf_counter() - started_at) * 1000)),
             "execution_outcome": "success",
         }
+        if action.effective_scope and action.effective_scope.strip():
+            payload["effective_scope"] = action.effective_scope.strip()
+        return payload
 
     def _error_payload(
         self,

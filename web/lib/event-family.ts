@@ -82,6 +82,11 @@ export function eventSummary(eventType: string, data: unknown): string {
       }
       return base;
     }
+    case "ai.action.executed": {
+      const base = `executed outcome=${s("execution_outcome")}`;
+      const scope = s("effective_scope");
+      return scope ? `${base} scope=${scope}` : base;
+    }
     case "atb.tool.call": {
       const tool = s("tool_name");
       return tool ? `tool=${tool}` : "";

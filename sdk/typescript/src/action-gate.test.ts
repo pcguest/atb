@@ -215,4 +215,16 @@ describe("ActionGate", () => {
       on_behalf_of: "sha256:user-9",
     });
   });
+
+  it("records effective_scope on executed when provided", async () => {
+    const bundle = new Bundle();
+    const gate = new ActionGate({ bundle, actorId: "actor-1" });
+
+    await gate.run(makeAction({ effectiveScope: "role:prod-operator" }), async () => "ok");
+
+    const executed = bundle.records
+      .map((record) => record.event)
+      .find((event) => event.type === "ai.action.executed")!.data as Record<string, unknown>;
+    expect(executed.effective_scope).toBe("role:prod-operator");
+  });
 });

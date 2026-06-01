@@ -207,6 +207,12 @@ func summarise(ev event.Event) string {
 			return base + " " + p
 		}
 		return base
+	case event.TypeAIActionExecuted:
+		base := "executed outcome=" + get("execution_outcome")
+		if scope := get("effective_scope"); scope != "" {
+			return base + " scope=" + scope
+		}
+		return base
 	case event.TypeToolCall:
 		return "tool=" + get("tool_name")
 	case event.TypeAIActionError:

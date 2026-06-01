@@ -245,7 +245,11 @@
       "properties": {
         "action_id": { "type": "string" },
         "execution_outcome": { "type": "string" },
-        "tool_receipt_digest": { "type": "string" }
+        "tool_receipt_digest": { "type": "string" },
+        "effective_scope": {
+          "type": "string",
+          "description": "Optional permission scope, role, or grant the action actually ran under. Records the access context behind privileged-action incidents (e.g. an agent executing with broader-than-expected operator permissions)."
+        }
       },
       "required": ["action_id", "execution_outcome", "tool_receipt_digest"]
     },

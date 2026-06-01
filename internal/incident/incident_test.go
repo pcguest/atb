@@ -124,6 +124,30 @@ func TestBuildSummarisesDataExport(t *testing.T) {
 	}
 }
 
+func TestBuildSummarisesEffectiveScope(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new bundle: %v", err)
+	}
+	if err := b.AppendWithOptions(event.TypeAIActionExecuted, map[string]any{
+		"session_id": "sess-S", "action_id": "act-1",
+		"execution_outcome": "success", "effective_scope": "role:prod-operator",
+	}, &bundle.AppendOptions{Timestamp: "2026-05-28T09:00:00Z"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "scope.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	rep, err := incident.Build(context.Background(), path, "sess-S")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if md := rep.Markdown(); !strings.Contains(md, "executed outcome=success scope=role:prod-operator") {
+		t.Errorf("markdown missing effective_scope summary:\n%s", md)
+	}
+}
+
 func TestBuildSummarisesPrincipal(t *testing.T) {
 	b, err := bundle.New()
 	if err != nil {
