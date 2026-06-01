@@ -118,11 +118,12 @@ export class DataExportGate {
       this.maybeRecordApproval(exportAction, actionId);
       return result;
     } catch (error) {
-      this.ctx.emit("data.export.executed", {
+      // A data export that threw did not complete: record the forensic
+      // data.export.error event, not a success-shaped executed record.
+      this.ctx.emit("data.export.error", {
         action_id: actionId,
-        execution_outcome: "error",
-        tool_receipt_digest: valueDigest(error),
-        execution_duration_ms: Math.max(0, Date.now() - startedAt),
+        error_class: "exception",
+        error_detail_digest: valueDigest(error),
       });
       this.maybeRecordApproval(exportAction, actionId);
       throw error;

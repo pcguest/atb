@@ -92,6 +92,9 @@ DATA_EXPORT_PRECOMMIT_EVENT_TYPE: Final = DATA_EXPORT_PRECOMMIT
 DATA_EXPORT_EXECUTED: Final = "data.export.executed"
 DATA_EXPORT_EXECUTED_EVENT_TYPE: Final = DATA_EXPORT_EXECUTED
 
+DATA_EXPORT_ERROR: Final = "data.export.error"
+DATA_EXPORT_ERROR_EVENT_TYPE: Final = DATA_EXPORT_ERROR
+
 DEV_SESSION: Final = "dev.session"
 DEV_SESSION_EVENT_TYPE: Final = DEV_SESSION
 
@@ -315,6 +318,13 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "required_fields": [],
     },
     {
+        "type": DATA_EXPORT_ERROR,
+        "description": "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["action_id", "error_class"],
+    },
+    {
         "type": DEV_SESSION,
         "description": "Developer session marker (tooling use)",
         "profiles": [],
@@ -434,6 +444,7 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     AI_JOB_COMPLETED: [],
     DATA_EXPORT_PRECOMMIT: [],
     DATA_EXPORT_EXECUTED: [],
+    DATA_EXPORT_ERROR: ["action_id", "error_class"],
     DEV_SESSION: [],
     SNAPSHOT_BUILD: [],
     CORROBORATION_EXTERNAL: [],
@@ -505,6 +516,8 @@ __all__ = [
     "DATA_EXPORT_PRECOMMIT_EVENT_TYPE",
     "DATA_EXPORT_EXECUTED",
     "DATA_EXPORT_EXECUTED_EVENT_TYPE",
+    "DATA_EXPORT_ERROR",
+    "DATA_EXPORT_ERROR_EVENT_TYPE",
     "DEV_SESSION",
     "DEV_SESSION_EVENT_TYPE",
     "SNAPSHOT_BUILD",

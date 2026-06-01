@@ -56,6 +56,8 @@ const (
 	TypeDataExportPrecommit = "data.export.precommit"
 	// TypeDataExportExecuted is "data.export.executed".
 	TypeDataExportExecuted = "data.export.executed"
+	// TypeDataExportError is "data.export.error".
+	TypeDataExportError = "data.export.error"
 	// TypeDevSession is "dev.session".
 	TypeDevSession = "dev.session"
 	// TypeSnapshotBuild is "snapshot.build".
@@ -121,6 +123,7 @@ var EventTypesGenerated = []EventTypeSpecGenerated{
 	{Type: TypeAIJobCompleted, Description: "Background job completed", Profiles: []string{"atb.profile.background_automation"}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeDataExportPrecommit, Description: "Pre-commit record for a data export", Profiles: []string{"atb.profile.data_export"}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeDataExportExecuted, Description: "Data export executed to sink", Profiles: []string{"atb.profile.data_export"}, Criticality: "critical", RequiredFields: []string{}},
+	{Type: TypeDataExportError, Description: "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"action_id", "error_class"}},
 	{Type: TypeDevSession, Description: "Developer session marker (tooling use)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
 	{Type: TypeSnapshotBuild, Description: "Build snapshot (tooling use)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
 	{Type: TypeCorroborationExternal, Description: "External corroboration record (adapter-retrieved evidence)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
@@ -164,6 +167,7 @@ var RegistryGenerated = []EventInfo{
 	{TypeAIJobCompleted, "Background job completed", "atb.profile.background_automation", "critical"},
 	{TypeDataExportPrecommit, "Pre-commit record for a data export", "atb.profile.data_export", "critical"},
 	{TypeDataExportExecuted, "Data export executed to sink", "atb.profile.data_export", "critical"},
+	{TypeDataExportError, "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", "", "required"},
 	{TypeDevSession, "Developer session marker (tooling use)", "", "informational"},
 	{TypeSnapshotBuild, "Build snapshot (tooling use)", "", "informational"},
 	{TypeCorroborationExternal, "External corroboration record (adapter-retrieved evidence)", "", "informational"},
@@ -207,6 +211,7 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeAIJobCompleted:        []string{},
 	TypeDataExportPrecommit:   []string{},
 	TypeDataExportExecuted:    []string{},
+	TypeDataExportError:       []string{"action_id", "error_class"},
 	TypeDevSession:            []string{},
 	TypeSnapshotBuild:         []string{},
 	TypeCorroborationExternal: []string{},

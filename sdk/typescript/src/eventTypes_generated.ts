@@ -89,6 +89,9 @@ export const DATA_EXPORT_PRECOMMIT_EVENT_TYPE = DATA_EXPORT_PRECOMMIT;
 export const DATA_EXPORT_EXECUTED = "data.export.executed" as const;
 export const DATA_EXPORT_EXECUTED_EVENT_TYPE = DATA_EXPORT_EXECUTED;
 
+export const DATA_EXPORT_ERROR = "data.export.error" as const;
+export const DATA_EXPORT_ERROR_EVENT_TYPE = DATA_EXPORT_ERROR;
+
 export const DEV_SESSION = "dev.session" as const;
 export const DEV_SESSION_EVENT_TYPE = DEV_SESSION;
 
@@ -312,6 +315,13 @@ export const EVENT_TYPE_REGISTRY = [
     required_fields: [],
   },
   {
+    type: DATA_EXPORT_ERROR,
+    description: "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["action_id", "error_class"],
+  },
+  {
     type: DEV_SESSION,
     description: "Developer session marker (tooling use)",
     profiles: [],
@@ -431,6 +441,7 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [AI_JOB_COMPLETED]: [],
   [DATA_EXPORT_PRECOMMIT]: [],
   [DATA_EXPORT_EXECUTED]: [],
+  [DATA_EXPORT_ERROR]: ["action_id", "error_class"],
   [DEV_SESSION]: [],
   [SNAPSHOT_BUILD]: [],
   [CORROBORATION_EXTERNAL]: [],

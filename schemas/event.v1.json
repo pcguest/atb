@@ -278,6 +278,18 @@
     "data.export.executed": {
       "description": "Data export executed to its downstream sink."
     },
+    "data.export.error": {
+      "description": "Data export attempted but did not succeed. Forensic counterpart to data.export.executed, mirroring ai.action.error.",
+      "properties": {
+        "action_id": { "type": "string" },
+        "error_class": {
+          "type": "string",
+          "enum": ["failed", "blocked", "timeout", "exception", "denied_at_sink"]
+        },
+        "error_detail_digest": { "type": "string" }
+      },
+      "required": ["action_id", "error_class"]
+    },
     "atb.corroboration.external": {
       "description": "External corroboration record retrieved by an adapter from a third-party system."
     },
@@ -585,6 +597,14 @@
       "profiles": ["atb.profile.data_export"],
       "criticality": "critical",
       "required_fields": []
+    },
+    {
+      "type": "data.export.error",
+      "description": "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["action_id", "error_class"],
+      "$comment": "Forensic counterpart to data.export.executed, mirroring ai.action.error. error_class is one of: failed, blocked, timeout, exception, denied_at_sink. Optional error_detail_digest carries a privacy-safe hash of the failure detail. Not bound to an obligation profile; emitted by the data-export gate on failure."
     },
     {
       "type": "dev.session",

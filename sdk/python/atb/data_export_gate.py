@@ -106,13 +106,14 @@ class DataExportGate:
             self._maybe_record_approval(action_id)
             return result
         except Exception as exc:
+            # A data export that raised did not complete: record the forensic
+            # data.export.error event, not a success-shaped executed record.
             self.ctx.emit(
-                "data.export.executed",
+                "data.export.error",
                 {
                     "action_id": action_id,
-                    "execution_outcome": "error",
-                    "tool_receipt_digest": value_digest(exc),
-                    "execution_duration_ms": max(0, int((time.perf_counter() - started) * 1000)),
+                    "error_class": "exception",
+                    "error_detail_digest": value_digest(exc),
                 },
             )
             self._maybe_record_approval(action_id)

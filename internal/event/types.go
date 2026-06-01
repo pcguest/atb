@@ -62,6 +62,7 @@ var Registry = []EventInfo{
 	{TypeAIJobCompleted, "Background job completed", "atb.profile.background_automation", "critical"},
 	{TypeDataExportPrecommit, "Pre-commit record for a data export", "atb.profile.data_export", "critical"},
 	{TypeDataExportExecuted, "Data export executed to sink", "atb.profile.data_export", "critical"},
+	{TypeDataExportError, "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", "", "required"},
 	{TypeDevSession, "Developer session marker (tooling use)", "", "informational"},
 	{TypeSnapshotBuild, "Build snapshot (tooling use)", "", "informational"},
 	{TypeCorroborationExternal, "External corroboration record (adapter-retrieved evidence)", "", "informational"},

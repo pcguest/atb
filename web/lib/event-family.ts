@@ -95,6 +95,10 @@ export function eventSummary(eventType: string, data: unknown): string {
       const outcome = s("execution_outcome");
       return outcome ? `export outcome=${outcome}` : "export";
     }
+    case "data.export.error": {
+      const ec = s("error_class");
+      return ec ? `export action=${s("action_id")} error_class=${ec}` : "export error";
+    }
     case "atb.data.export": {
       const target = s("export_target");
       return target ? `export=${target}` : "export";

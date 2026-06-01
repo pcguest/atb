@@ -222,6 +222,11 @@ func summarise(ev event.Event) string {
 			return "export outcome=" + outcome
 		}
 		return "export"
+	case event.TypeDataExportError:
+		if ec := get("error_class"); ec != "" {
+			return fmt.Sprintf("export action=%s error_class=%s", get("action_id"), ec)
+		}
+		return "export error"
 	case event.TypeDataExport:
 		if target := get("export_target"); target != "" {
 			return "export=" + target
