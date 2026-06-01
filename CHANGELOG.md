@@ -55,6 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `atb.capture.scope` capture-coverage attestation written by `atb intercept` at startup (captured targets, capture mode, redacted headers, and a plain out-of-scope statement of what the proxy cannot see), surfaced in the incident report header.
 - `atb incident export --bundle <path> --session <id> --out <pack.zip>` — a self-contained, independently verifiable incident evidence package (bundle, incident report, verifier report, and a `MANIFEST.json` chain-of-custody record digesting every file; the packed bundle re-verifies on its own).
 - Custos signs custody receipts: each receipt carries an Ed25519 `attestation` (`custos/internal/receipt.Signer`) proving Custos received bundle `<hash>` at `<submitted_at>`, verifiable with `receipt.VerifyAttestation` against the embedded public key; `custosd` generates and persists a stable receipt-signing key on first run.
+- Detection: session-index anomaly rules over the `ai.*` gate/proxy events — `policy_denied_executed` (an `ai.policy.decision` denied an action_id that an `ai.action.executed`/`committed` later ran) and `action_failed` (an `ai.action.error` was observed). They flow through the incident report, `/view` anomaly banner, and session list automatically.
+- Streamed (SSE) tool-call extraction: `atb intercept` now reassembles tool calls from OpenAI Chat Completions and Anthropic Messages event streams (previously only single-JSON responses were parsed), so streamed tool invocations still produce `atb.tool.call` events.
+- `atb incident report --format ndjson`: one JSON object per session event, denormalised with integrity status and anomaly flags, for direct SIEM (Splunk/Elastic) ingestion.
 
 ### Fixed
 - Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.
