@@ -178,3 +178,73 @@ func TestVerifyAttestationMissingReceiptIs404(t *testing.T) {
 		t.Fatalf("status = %d, want 404", rec.Code)
 	}
 }
+
+func TestCustodyKeyPublishesSignerKey(t *testing.T) {
+	mux, store, signer := newSeededMux(t)
+	seedAttestedReceipt(t, store, signer, "rcpt-key", "hash-key")
+
+	req := httptest.NewRequest(http.MethodGet, "/custody/key", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body=%q)", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		SigningEnabled bool   `json:"signing_enabled"`
+		Algorithm      string `json:"algorithm"`
+		PubKey         string `json:"pubkey"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !resp.SigningEnabled || resp.Algorithm != "ed25519" || resp.PubKey == "" {
+		t.Fatalf("unexpected key response: %+v", resp)
+	}
+	// The published key must equal the signer's key and the key embedded in the
+	// attestation, so a holder can pin one and verify the other.
+	if resp.PubKey != signer.PublicKeyBase64() {
+		t.Errorf("published key %q != signer key %q", resp.PubKey, signer.PublicKeyBase64())
+	}
+	rec2 := httptest.NewRecorder()
+	mux.ServeHTTP(rec2, httptest.NewRequest(http.MethodGet, "/receipts/rcpt-key/attestation", nil))
+	var att attestationResult
+	if err := json.Unmarshal(rec2.Body.Bytes(), &att); err != nil {
+		t.Fatalf("decode attestation: %v", err)
+	}
+	if att.PubKey != resp.PubKey {
+		t.Errorf("attestation key %q != published key %q", att.PubKey, resp.PubKey)
+	}
+}
+
+func TestCustodyKeyWithoutSignerIs503(t *testing.T) {
+	// A daemon with no signer must say so plainly rather than pretend to attest.
+	worm := receipt.NewInMemoryWORMStore()
+	rcpt := receipt.NewInMemoryReceiptStore()
+	handler := ingest.IngestHandler{WORMStore: worm, ReceiptStore: rcpt} // no Signer
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	mux := newMux(handler, worm, rcpt, defaultMaxIngestBytes, logger)
+
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/custody/key", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503", rec.Code)
+	}
+	var resp struct {
+		SigningEnabled bool `json:"signing_enabled"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.SigningEnabled {
+		t.Error("signing_enabled should be false with no signer")
+	}
+}
+
+func TestCustodyKeyRejectsNonGet(t *testing.T) {
+	mux, _, _ := newSeededMux(t)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/custody/key", nil))
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", rec.Code)
+	}
+}

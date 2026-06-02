@@ -153,6 +153,17 @@ func newMux(
 		_ = json.NewEncoder(w).Encode(rec)
 	})
 
+	// The custody signing key is published so a receipt holder can verify an
+	// attestation against an out-of-band copy of the key (and detect rotation),
+	// rather than trusting only the key embedded in the receipt.
+	mux.HandleFunc("/custody/key", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		handleCustodyKey(w, ingestHandler.Signer)
+	})
+
 	// Exact /receipts (no trailing slash) enumerates the custody log. Registered
 	// separately from the /receipts/ subtree so it is not shadowed by the
 	// id-scoped handler.
@@ -233,6 +244,26 @@ func handleGetReceipt(w http.ResponseWriter, r *http.Request, receiptID string, 
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(rec)
+}
+
+// handleCustodyKey publishes the daemon's receipt-signing public key so a
+// holder can verify a receipt's attestation against this key out-of-band. A
+// daemon with no signer configured reports that plainly rather than pretending.
+func handleCustodyKey(w http.ResponseWriter, signer *receipt.Signer) {
+	w.Header().Set("Content-Type", "application/json")
+	if signer == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"signing_enabled": false,
+			"detail":          "this custosd has no receipt signer configured; receipts are not attested",
+		})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"signing_enabled": true,
+		"algorithm":       "ed25519",
+		"pubkey":          signer.PublicKeyBase64(),
+	})
 }
 
 // handleListReceipts enumerates the custody log. Custos is only an auditable

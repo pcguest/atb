@@ -100,3 +100,41 @@ func TestAuthMiddleware_HealthBypass(t *testing.T) {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
 	}
 }
+
+func TestAuthMiddleware_CustodyKeyBypass(t *testing.T) {
+	t.Parallel()
+	// The public verification key must be fetchable without the operator's
+	// token, even when auth is enabled — it is not secret and a holder needs it
+	// to verify an attestation out-of-band.
+	next := &echoOK{}
+	mw := Middleware("correct-token", next)
+
+	req := httptest.NewRequest(http.MethodGet, "/custody/key", nil)
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if !next.called {
+		t.Fatalf("handler not called on custody/key bypass")
+	}
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+}
+
+func TestAuthMiddleware_CustodyKeyNonGetStillGuarded(t *testing.T) {
+	t.Parallel()
+	// The bypass is GET-only; a non-GET to the same path must still require auth.
+	next := &echoOK{}
+	mw := Middleware("correct-token", next)
+
+	req := httptest.NewRequest(http.MethodPost, "/custody/key", nil)
+	rec := httptest.NewRecorder()
+	mw.ServeHTTP(rec, req)
+
+	if next.called {
+		t.Fatalf("POST /custody/key bypassed auth; must be guarded")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}

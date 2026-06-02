@@ -183,6 +183,18 @@ identical bytes is idempotent. This is distinct from the receipt's `bundle_hash`
 field, which carries the ATB **hash-chain head hash** — the bundle's integrity
 anchor, a different value from the content hash.
 
+`GET /custody/key`
+
+Publishes the daemon's receipt-signing public key:
+`{ "signing_enabled": true, "algorithm": "ed25519", "pubkey": "<base64>" }` (or
+`{ "signing_enabled": false, ... }` with HTTP 503 when no signer is configured).
+This endpoint is **unauthenticated even when `CUSTOS_AUTH_TOKEN` is set** — a
+public verification key is not a secret (it is embedded in every receipt), and a
+holder must be able to fetch it out-of-band to verify an attestation without the
+operator's token. Pin this key, then verify any receipt's attestation against
+it; if it stops matching the key embedded in new receipts, the signing key has
+rotated. The bypass is GET-only.
+
 `GET /receipts`
 
 Enumerates the custody log: returns `{ "count": N, "receipts": [...] }` for

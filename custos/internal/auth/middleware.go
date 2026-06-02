@@ -22,23 +22,26 @@ const unauthorisedResponseBody = `{"error":"unauthorised","code":401}`
 //
 // Behaviour:
 //   - When token is empty, every request is forwarded to next unchanged.
-//   - When token is non-empty, every request except GET /health must carry
-//     Authorization: Bearer <token>. Mismatched or absent tokens receive a
-//     401 application/json response with the body
+//   - When token is non-empty, every request except GET /health and
+//     GET /custody/key must carry Authorization: Bearer <token>. Mismatched or
+//     absent tokens receive a 401 application/json response with the body
 //     {"error":"unauthorised","code":401}.
 //   - Token comparison uses crypto/subtle.ConstantTimeCompare to avoid
 //     timing-based discrimination between near-correct and wholly-wrong
 //     tokens.
 //
-// The health bypass is intentionally limited to GET so non-idempotent methods
-// against /health cannot be used to smuggle requests past the guard.
+// The bypasses are intentionally limited to GET so non-idempotent methods
+// cannot be used to smuggle requests past the guard. GET /custody/key is open
+// because it serves only the receipt-signing public key — a value that is not
+// secret (it is embedded in every receipt) and must be fetchable out-of-band by
+// a holder who wants to verify an attestation without the operator's token.
 func Middleware(token string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if token == "" {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+		if r.Method == http.MethodGet && (r.URL.Path == "/health" || r.URL.Path == "/custody/key") {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -33,6 +33,15 @@ func NewSigner(priv ed25519.PrivateKey) (*Signer, error) {
 	return &Signer{priv: priv}, nil
 }
 
+// PublicKeyBase64 returns the signer's Ed25519 public key, base64-std encoded —
+// the same encoding embedded in each attestation. Publishing this key lets a
+// receipt holder verify an attestation against an out-of-band copy of the key
+// rather than trusting the key the receipt carries.
+func (s *Signer) PublicKeyBase64() string {
+	pub := s.priv.Public().(ed25519.PublicKey)
+	return base64.StdEncoding.EncodeToString(pub)
+}
+
 // attestationMessage is the canonical byte string Custos signs. Changing it is
 // a breaking change to attestation verification.
 func attestationMessage(bundleHash, receiptID, submittedAt, signedAt string) []byte {

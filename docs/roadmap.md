@@ -66,7 +66,7 @@ Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/R
 ## Custos Enterprise Layer (in-repo reference)
 
 - ✅ Phase 10: Ingestion engine scaffold (custos/ package tree) — Q3 2026 (completed 28 May 2026)
-- ✅ Custody log made auditable: content-addressed ingest fixed (filesystem stores now accept real bundles), `GET /receipts` enumerates the log, `GET /receipts/:id/attestation` verifies the Ed25519 custody attestation server-side (June 2026)
+- ✅ Custody log made auditable: content-addressed ingest fixed (filesystem stores now accept real bundles), `GET /receipts` enumerates the log, `GET /receipts/:id/attestation` verifies the Ed25519 custody attestation server-side, and `GET /custody/key` publishes the signing key for independent (operator-token-free) attestation verification and rotation detection (June 2026)
 - Phase 10: AI tool discovery + registry — Q3 2026
 - Phase 10: Onboarding flow + API key provisioning — Q3 2026
 - Phase 10: Automatic bundle signing policy per org (key reference,

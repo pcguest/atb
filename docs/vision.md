@@ -79,9 +79,10 @@ plus custody (Custos) is the full chain a regulator, auditor, or court needs.
 - **An auditable custody log, not a write-only receipt printer.** You can submit
   a bundle, get a signed receipt, enumerate everything held, fetch the signing
   key, and independently verify both the bundle's integrity and Custos's
-  attestation over it. *(Ingest, signed receipts, enumeration, and server-side
-  attestation verification are shipped; independent key discovery and inclusion
-  proofs are next.)*
+  attestation over it. *(Ingest, signed receipts, enumeration, server-side
+  attestation verification, and published-key discovery for operator-token-free
+  verification are shipped; transparency-log inclusion proofs are the remaining
+  larger design.)*
 - **Transparency-log shaped.** Following Rekor's lesson: append-only, publicly
   verifiable, with inclusion proofs, so trust in a receipt does not require trust
   in the operator. A holder verifies offline against a published key.
