@@ -153,6 +153,17 @@ func newMux(
 		_ = json.NewEncoder(w).Encode(rec)
 	})
 
+	// Exact /receipts (no trailing slash) enumerates the custody log. Registered
+	// separately from the /receipts/ subtree so it is not shadowed by the
+	// id-scoped handler.
+	mux.HandleFunc("/receipts", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		handleListReceipts(w, r, receiptStore, logger)
+	})
+
 	mux.HandleFunc("/receipts/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -168,6 +179,11 @@ func newMux(
 
 		if len(pathParts) == 2 && pathParts[1] == "verify" {
 			handleVerifyReceipt(w, r, receiptID, wormStore, logger)
+			return
+		}
+
+		if len(pathParts) == 2 && pathParts[1] == "attestation" {
+			handleVerifyAttestation(w, r, receiptID, receiptStore, logger)
 			return
 		}
 
@@ -217,6 +233,75 @@ func handleGetReceipt(w http.ResponseWriter, r *http.Request, receiptID string, 
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(rec)
+}
+
+// handleListReceipts enumerates the custody log. Custos is only an auditable
+// custody record if a holder can see everything it holds, not just fetch
+// receipts whose IDs they already know. Each returned receipt carries its
+// embedded attestation, so the list is independently verifiable.
+func handleListReceipts(w http.ResponseWriter, r *http.Request, store receipt.ReceiptStore, logger *slog.Logger) {
+	receipts, err := store.List(r.Context())
+	if err != nil {
+		logger.Error("list receipts", "err", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	if receipts == nil {
+		receipts = []receipt.Receipt{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"count":    len(receipts),
+		"receipts": receipts,
+	})
+}
+
+// attestationResult is the custody-proof verdict for one receipt: whether
+// Custos's Ed25519 attestation over the receipt's custody facts verifies against
+// the public key embedded in it.
+type attestationResult struct {
+	ReceiptID  string `json:"receipt_id"`
+	BundleHash string `json:"bundle_hash"`
+	Algorithm  string `json:"algorithm,omitempty"`
+	PubKey     string `json:"pubkey,omitempty"`
+	SignedAt   string `json:"signed_at,omitempty"`
+	Valid      bool   `json:"valid"`
+	Error      string `json:"error,omitempty"`
+}
+
+// handleVerifyAttestation checks the receipt's custody attestation. This is
+// distinct from /verify, which re-checks bundle integrity: /verify proves the
+// recorded bytes are intact, /attestation proves Custos actually attested
+// receiving them. Together they are the full custody proof.
+func handleVerifyAttestation(w http.ResponseWriter, r *http.Request, receiptID string, store receipt.ReceiptStore, logger *slog.Logger) {
+	rec, err := store.GetReceipt(r.Context(), receiptID)
+	if err != nil {
+		if errors.Is(err, receipt.ErrReceiptNotFound) || strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Receipt not found", http.StatusNotFound)
+			return
+		}
+		logger.Error("get receipt for attestation", "err", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	result := attestationResult{ReceiptID: rec.ReceiptID, BundleHash: rec.BundleHash}
+	if rec.Attestation != nil {
+		result.Algorithm = rec.Attestation.Algorithm
+		result.PubKey = rec.Attestation.PubKey
+		result.SignedAt = rec.Attestation.SignedAt
+	}
+	if verr := receipt.VerifyAttestation(rec); verr != nil {
+		result.Valid = false
+		result.Error = verr.Error()
+	} else {
+		result.Valid = true
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	// An unverifiable attestation is a custody finding, not a server error, so
+	// the verdict is returned with 200 and the caller inspects `valid`.
+	_ = json.NewEncoder(w).Encode(result)
 }
 
 func handleVerifyReceipt(w http.ResponseWriter, r *http.Request, receiptID string, wormStore receipt.WORMStore, logger *slog.Logger) {

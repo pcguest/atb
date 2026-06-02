@@ -177,6 +177,19 @@ via the public custody verifier. On success, stores the bundle via `WORMStore`
 the `Receipt` as JSON. Returns 422 for empty or invalid bundles. Returns 500
 if required stores are not initialised.
 
+The store is **content-addressed**: the receipt ID is `sha256-<SHA-256 of the
+bundle bytes>` and the WORM file is named by that content hash, so re-ingesting
+identical bytes is idempotent. This is distinct from the receipt's `bundle_hash`
+field, which carries the ATB **hash-chain head hash** — the bundle's integrity
+anchor, a different value from the content hash.
+
+`GET /receipts`
+
+Enumerates the custody log: returns `{ "count": N, "receipts": [...] }` for
+every receipt held, each carrying its embedded attestation. Custos is only an
+auditable custody record if a holder can enumerate what it holds, not merely
+fetch receipts whose IDs they already know.
+
 `GET /receipts/:id`
 
 Returns the stored `Receipt` JSON for the given receipt ID. Returns 404 with
@@ -186,7 +199,19 @@ Returns the stored `Receipt` JSON for the given receipt ID. Returns 404 with
 
 Re-runs verification on the stored bundle bytes and returns a fresh
 `verify.report.v1` JSON object. Use this endpoint to confirm a previously
-ingested bundle still passes integrity checks at any point after ingest.
+ingested bundle still passes integrity checks at any point after ingest. This
+checks **bundle integrity** (the recorded bytes are intact).
+
+`GET /receipts/:id/attestation`
+
+Verifies the receipt's **custody attestation** — Custos's Ed25519 signature over
+the receipt's custody facts (bundle hash, receipt ID, submitted/signed times) —
+against the public key embedded in it. Returns `{ receipt_id, bundle_hash,
+algorithm, pubkey, signed_at, valid, error }`. Distinct from `/verify`:
+`/verify` proves the bundle's bytes are intact, `/attestation` proves Custos
+actually attested receiving them. Together they are the full custody proof. An
+attestation that does not verify is returned with HTTP 200 and `valid: false`
+(a custody finding, not a server error); an unknown receipt ID returns 404.
 
 ## Corroboration
 

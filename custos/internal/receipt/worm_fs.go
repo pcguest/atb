@@ -28,12 +28,13 @@ func (s *FileSystemWORMStore) Store(ctx context.Context, bundleBytes []byte, bun
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
-	// Added: The storage boundary verifies that the supplied head hash matches the bytes accepted.
+	// The store is content-addressed: the supplied hash must be the SHA-256 of
+	// the bytes being stored. This is a storage-boundary integrity check (the
+	// bytes written match their key), not the bundle's hash-chain head hash.
 	actualHash := sha256.Sum256(bundleBytes)
-	// Added: Hex encoding matches the ATB bundle head hash representation.
 	actualHex := hex.EncodeToString(actualHash[:])
 	if actualHex != bundleHash {
-		return "", fmt.Errorf("worm store: head hash mismatch: got %s want %s", actualHex, bundleHash)
+		return "", fmt.Errorf("worm store: content hash mismatch: got %s want %s", actualHex, bundleHash)
 	}
 	if strings.TrimSpace(s.BaseDir) == "" {
 		return "", errors.New("worm store: base directory required")

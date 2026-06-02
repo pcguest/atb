@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `custosd`: `GET /receipts` enumerates the custody log (`{count, receipts[]}`, each receipt carrying its embedded attestation) — Custos was previously write-only over HTTP (you could fetch a receipt only if you already knew its ID).
+- `custosd`: `GET /receipts/:id/attestation` verifies the receipt's Ed25519 custody attestation server-side and returns `{receipt_id, bundle_hash, algorithm, pubkey, signed_at, valid, error}`. Distinct from `/verify` (bundle-byte integrity): `/attestation` proves Custos actually attested receiving the bundle. Together they are the full custody proof.
 - `atb incident report`: a **Findings** section that explains each raised anomaly flag instead of leaving the reviewer to re-derive it — per flag a severity, a plain-English meaning, and the sequence number(s) of the triggering event(s). The session index stays the sole authority on whether a flag fires; the report explains and locates it against the session's own events (`internal/incident/findings.go`, with markdown/JSON rendering and tests).
 - `atb incident report --format ndjson`: each event line now carries `triggered_flags`, the subset of the session's anomaly flags that *this specific record* triggered, so a SIEM can alert on the offending event rather than the whole session.
 - `atb incident export`: the chain-of-custody `MANIFEST.json` now carries an always-present `signature_status` field, stated plainly as `none (unsigned bundle)` when there is no signature — the manifest no longer silently omits signature provenance for unsigned bundles, and the package README wording matches.
@@ -63,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `atb incident report --format ndjson`: one JSON object per session event, denormalised with integrity status and anomaly flags, for direct SIEM (Splunk/Elastic) ingestion.
 
 ### Fixed
+- **`custosd` could not ingest any bundle into filesystem storage.** The ingest handler passed the bundle's hash-chain *head* hash to the content-addressed WORM store, which expects the SHA-256 of the bundle *bytes* — two different values — so every `POST /ingest` returned HTTP 500 (`content hash mismatch`) under the production filesystem stores. Every test used the in-memory store, which ignored the hash, so the break was invisible. The handler now content-addresses storage by the byte SHA-256 (receipt ID `sha256-<content-hash>`) and keeps the chain-head hash as the receipt's `bundle_hash` integrity anchor; `InMemoryWORMStore` is now idempotent on identical content to match `FileSystemWORMStore`; added a filesystem end-to-end ingest→retrieve→attestation round-trip test (`custos/test/ingest_filesystem_test.go`) that exercises the real custody path.
 - `atb incident` usage: the top-line summary for `report` listed `--format markdown|json`, omitting `ndjson`; corrected to match the detailed help and actual behaviour.
 - Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.
 - Removed cross-module internal import of Custos receipt types from `internal/proxy` (Items 1-2, Findings 1-2).

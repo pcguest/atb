@@ -3,6 +3,8 @@ package ingest
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json" // New import for json.RawMessage
 	"errors"
 	"fmt"
@@ -69,13 +71,20 @@ func (h IngestHandler) Handle(ctx context.Context, r io.Reader) (*receipt.Receip
 		return nil, fmt.Errorf("%w: %v", ErrInvalidBundle, err)
 	}
 
-	// Store bundle bytes in WORM store
-	// Changed: The WORM store may return a filesystem path, so receipt IDs stay content-addressed.
-	if _, err := h.WORMStore.Store(ctx, raw, export.BundleHash); err != nil {
+	// The WORM store is content-addressed by the SHA-256 of the stored bytes —
+	// this is the storage key and the integrity self-check at the storage
+	// boundary. It is NOT the bundle's hash-chain head hash (export.BundleHash),
+	// which is a different value derived from the last record. Conflating the two
+	// made every filesystem ingest fail; address storage by the content hash and
+	// keep the chain-head hash as the receipt's BundleHash integrity anchor.
+	sum := sha256.Sum256(raw)
+	contentHash := hex.EncodeToString(sum[:])
+	if _, err := h.WORMStore.Store(ctx, raw, contentHash); err != nil {
 		return nil, fmt.Errorf("custos ingest: store bundle in WORM: %w", err)
 	}
-	// Changed: Receipt IDs remain URL-safe and match the custody wire contract.
-	receiptID := fmt.Sprintf("sha256-%s", export.BundleHash)
+	// Receipt ID is the content-address of the stored bytes (URL-safe), matching
+	// the WORM file name so the bundle is retrievable by receipt ID.
+	receiptID := fmt.Sprintf("sha256-%s", contentHash)
 
 	// Marshal VerifierReport to json.RawMessage
 	// Fixed: BundleExport exposes VerifyReport as the public custody report field.
