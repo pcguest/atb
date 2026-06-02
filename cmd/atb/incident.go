@@ -272,7 +272,7 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 }
 
 func writeIncidentPack(out string, files []incident.PackFile) error {
-	f, err := os.Create(out) // #nosec G304 -- operator-supplied output path
+	f, err := os.Create(out) // #nosec G304 G703 -- operator-supplied --output path from CLI flags
 	if err != nil {
 		return fmt.Errorf("create %s: %w", out, err)
 	}

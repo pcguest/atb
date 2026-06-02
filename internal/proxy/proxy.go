@@ -5,6 +5,7 @@ package proxy
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -52,7 +53,11 @@ func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, er
 
 	var cp *CustosPusher
 	if cfg.CustosEndpoint != "" {
-		cp = NewCustosPusher(cfg.CustosEndpoint)
+		var err error
+		cp, err = NewCustosPusher(cfg.CustosEndpoint)
+		if err != nil {
+			return nil, fmt.Errorf("custos push endpoint: %w", err)
+		}
 	}
 
 	recorder := NewBundleRecorder(cfg.BundlePath, cp)

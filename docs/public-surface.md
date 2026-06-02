@@ -59,6 +59,25 @@ ATB surfaces aggregated session metadata for audit and oversight purposes; it
 records and verifies evidence but does not certify legal or regulatory
 compliance.
 
+## Shipped vs planned (June 2026)
+
+| Surface | Status | Notes |
+| --- | --- | --- |
+| Hash chain + `atb verify` + golden vectors | **Shipped** | Go canonical; Python/TS parity locked |
+| Six obligation profiles + CAS | **Shipped** | CLI + viewer Profile/CAS panel |
+| `atb intercept` + incident forensics | **Shipped** | `incident list` / `report` / `export` |
+| `/view/` dashboard (single bundle) | **Shipped** | Timeline, graph, inspector, verify gate |
+| Session index API (`--sessions`) | **Shipped** | Server-side; `SessionAnomalies` on `/view/` |
+| Session list / actor / schema UI | **Planned** | Components exist; not mounted; `/sessions/` stub |
+| Role selector (engineer/auditor/executive) | **Planned** | `web/lib/roles.ts` enforced; no in-UI switch |
+| Custos ingest + receipts + attestation | **Shipped** | In-repo reference module |
+| Custos UI (`docs/custos/ui-spec.md`) | **Planned** | discovery/registry/onboarding/oversight/insights scaffolds |
+| Hosted Custos / SSO / billing | **Out of scope** | External product per `AGENTS.md` |
+| OTLP decode (`pkg/otel`) | **Planned** | Scaffold only |
+| Compliance certification claims | **Never** | Mapping docs only; no certification language |
+
+See `docs/maintenance/baseline-handoff.md` for the next feature prompt scope.
+
 ## atb intercept
 
 ### Body capture (privacy default)

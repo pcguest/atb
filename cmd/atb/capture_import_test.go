@@ -7,6 +7,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -518,6 +519,9 @@ func TestRunImportChatlogMissingFileExitsUserError(t *testing.T) {
 }
 
 func TestRunImportChatlogPermissionDeniedExitsSystemError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("permission-bit read failure is not portable on Windows")
+	}
 	if os.Getuid() == 0 {
 		t.Skip("running as root")
 	}

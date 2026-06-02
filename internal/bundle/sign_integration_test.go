@@ -180,6 +180,7 @@ func TestBundleSignTwiceVerifiesFullChain(t *testing.T) {
 }
 
 func TestConcurrentSignToReturnsLockedAndLeavesOneSignature(t *testing.T) {
+	requireAdvisoryLocking(t)
 	t.Parallel()
 
 	_, firstPrivateKey, err := ed25519.GenerateKey(cryptorand.Reader)
@@ -461,6 +462,7 @@ func TestSignToAtomic(t *testing.T) {
 // the contention, but together with -race it documents and catches regression
 // to the prior os.ReadFile + Load(...) double-read pattern.
 func TestSignNoTOCTOU(t *testing.T) {
+	requireAdvisoryLocking(t)
 	t.Parallel()
 
 	_, privateKey, err := ed25519.GenerateKey(cryptorand.Reader)

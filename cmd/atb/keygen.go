@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -138,9 +139,11 @@ func generateKeypair(cfg keygenConfig) (keygenResult, error) {
 		return result, fmt.Errorf("write public key: %w", err)
 	}
 
-	// Belt-and-braces: confirm the umask did not widen the private key mode.
-	if info, err := os.Stat(privateKeyPath); err == nil && info.Mode().Perm() != 0600 {
-		return result, fmt.Errorf("keygen: private key was written with mode %o; expected 0600", info.Mode().Perm())
+	// Belt-and-braces: confirm the umask did not widen the private key mode (Unix only).
+	if runtime.GOOS != "windows" {
+		if info, err := os.Stat(privateKeyPath); err == nil && info.Mode().Perm() != 0600 {
+			return result, fmt.Errorf("keygen: private key was written with mode %o; expected 0600", info.Mode().Perm())
+		}
 	}
 
 	return result, nil

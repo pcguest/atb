@@ -1,5 +1,10 @@
 # Custos UI/UX Specification
 
+> **Status (June 2026):** This spec describes the target Custos product UI. The in-repo
+> `custos/` module ships ingest, receipts, attestation verify, and auth — not these views.
+> Do not treat this document as shipped behaviour. See `docs/custos-handoff.md` and
+> `docs/public-surface.md`.
+
 ## Onboarding / Setup Wizard
 
 - Purpose: collect organisation setup, team contact mode, AI service access, allowed tool list, and automatic signing policy.

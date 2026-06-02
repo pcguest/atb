@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -129,6 +130,10 @@ func TestRunKeygenWarnsAtRepoRoot(t *testing.T) {
 	}
 	if !bytes.Contains(stderr.Bytes(), []byte("repository root")) {
 		t.Fatalf("stderr did not contain repo-root warning: %q", stderr.String())
+	}
+
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission bits are not enforced on Windows file modes")
 	}
 
 	info, err := os.Stat(filepath.Join(dir, "atb-key.pem"))

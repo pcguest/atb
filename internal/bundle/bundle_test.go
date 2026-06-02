@@ -433,6 +433,7 @@ func TestSaveAtomic(t *testing.T) {
 }
 
 func TestSaveConcurrentWritersSerialiseOrReturnLocked(t *testing.T) {
+	requireAdvisoryLocking(t)
 	t.Parallel()
 
 	const goroutines = 5
@@ -941,6 +942,7 @@ func TestTypedErrors(t *testing.T) {
 }
 
 func TestSaveConcurrent(t *testing.T) {
+	requireAdvisoryLocking(t)
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -1004,6 +1006,7 @@ func TestSaveConcurrent(t *testing.T) {
 }
 
 func TestSaveAcquiresLock(t *testing.T) {
+	requireAdvisoryLocking(t)
 	t.Parallel()
 
 	dir := t.TempDir()

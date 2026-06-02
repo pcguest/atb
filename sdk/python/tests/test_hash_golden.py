@@ -31,7 +31,7 @@ CORPUS_PATH = (
 def _load_corpus() -> list[dict]:
     if not CORPUS_PATH.is_file():
         pytest.fail(f"golden corpus missing at {CORPUS_PATH}")
-    return json.loads(CORPUS_PATH.read_text())
+    return json.loads(CORPUS_PATH.read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("entry", _load_corpus(), ids=lambda e: e["description"])

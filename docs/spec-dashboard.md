@@ -2,14 +2,11 @@
 
 ## Status
 
-Dashboard implementation is complete for the single-bundle viewer:
-- local `atb view` API server with verification gate and privacy reveal flow
-- `/view` viewer UI with verification banner, timeline, graph, inspector, and stats
-- reveal audit logging appended into `bundle.atb`
+**Single-bundle viewer (`/view/`) — shipped:** local `atb view` API server with verification gate and privacy reveal flow; verification banner, timeline, trace graph, event inspector, stats strip, Profile/CAS panel, and `SessionAnomalies` banner when `--sessions` indexes additional bundles; reveal audit logging appended into `bundle.atb`.
 
-Session list views (cross-bundle index) are specified below and ship as an
-extension of the same `atb view` server process. There is no hosted mode,
-collaborative workspace, or remote multi-tenant review surface.
+**Cross-bundle session UI — partial:** `GET /api/v1/sessions`, `GET /api/v1/sessions/by-actor`, and `GET /api/v1/schema/status` are implemented server-side. React components `SessionList`, `ActorSessions`, `SchemaStatus`, and `RoleSelector` exist with Vitest coverage but are **not mounted** on any route; `web/app/sessions/page.tsx` is a placeholder. See `docs/maintenance/baseline-handoff.md`.
+
+There is no hosted mode, collaborative workspace, or remote multi-tenant review surface.
 
 ## Purpose
 
@@ -261,13 +258,13 @@ Clicking a session row opens the existing single-bundle viewer for
 - event family counts
 - verification status
 
-### Session list
+### Session list `[planned UI — API shipped]`
 - virtualised table fed by `GET /api/v1/sessions`
 - columns: actor (`display_name`), `started_at`, model (from session events),
   `exchange_count`, inferred profile badge, CAS grade chip, anomaly flag icons
 - row click opens the single-bundle viewer for `bundle_path`
 
-### Actor sessions
+### Actor sessions `[planned UI — API shipped]`
 - grouped list fed by `GET /api/v1/sessions/by-actor`
 - each actor row expands to show that actor's sessions (sorted by `started_at`
   descending within the group)
@@ -280,7 +277,7 @@ Clicking a session row opens the existing single-bundle viewer for
 - `unresolved_identity` → grey person icon
 - `session_not_closed` → red clock icon
 
-### Contract status
+### Contract status `[planned UI — API shipped]`
 - fed by `GET /api/v1/schema/status`
 - summary cards: declared types, observed types, total events, incomplete events
   (incomplete count emphasised when non-zero)

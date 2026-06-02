@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.13.0] - 2026-06-03
+
 ### Added
 - `custosd`: `GET /custody/key` publishes the receipt-signing Ed25519 public key (`{signing_enabled, algorithm, pubkey}`) so a receipt holder can verify an attestation against a published key out-of-band and detect key rotation. Intentionally unauthenticated even when `CUSTOS_AUTH_TOKEN` is set — a public verification key is not a secret — with a GET-only auth bypass; a daemon with no signer returns 503 `signing_enabled:false`. Completes the independent custody-verification loop (published key matches the key embedded in every receipt).
 - `custosd`: `GET /receipts` enumerates the custody log (`{count, receipts[]}`, each receipt carrying its embedded attestation) — Custos was previously write-only over HTTP (you could fetch a receipt only if you already knew its ID).
@@ -31,8 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `custosd`: `--max-ingest-bytes` flag (default 32 MiB) bounding the `/ingest` request body via `http.MaxBytesReader`; oversize uploads return HTTP 413 before the body is buffered into memory or verified. `custos/cmd/custosd/main_test.go` covers the 413/422/400 ingest paths and the bind-config guard; `worm_fs_test.go` adds a path-traversal regression for `Retrieve`.
 - `internal/proxy`: `CustosPusher` with `PushBytes(ctx, []byte)`, one retry on network fault, and locked bundle byte snapshot taken on `atb.session.close` before the recorder mutex is released.
 - `atb intercept --custos` flag to configure the Custos ingest endpoint; prints configured endpoint or disabled status on startup.
-- Web viewer: `SessionList`, `ActorSessions`, and `AnomalyBadge` components with Vitest test coverage.
-- Web viewer: `/sessions` page with `Navbar` navigation entry.
+- Web viewer: `SessionList`, `ActorSessions`, `AnomalyBadge`, and `SchemaStatus` components with Vitest coverage (**not yet mounted** on `/view/` or `/sessions/`; see `docs/maintenance/baseline-handoff.md`).
+- Web viewer: `/sessions` route is a placeholder; session API is consumed from `/view/` via `SessionAnomalies` when `--sessions` is set.
 - `internal/event`: `TypeToolCall`, `TypeDataExport`, `TypeHumanOverride`, `TypeHumanApproval` constants and Registry entries for the four canonical oversight event types.
 - `internal/emit`: new `Emitter` package; `ToolCall`, `DataExport`, `HumanOverride`, `HumanApproval` emitters with required-field validation and British English error messages; seven unit tests (stub appendFn, no file I/O).
 - `sdk/python/atb/oversight.py`: `ToolCallEmitter`, `DataExportEmitter`, `HumanOverrideEmitter`, `HumanApprovalEmitter`; duck-typed event sink (emit/append dispatch); seven pytest tests.
@@ -44,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `internal/event`: `TestRegistryMatchesGenerated` asserts the legacy hand-maintained `Registry` and the schema-generated `RegistryGenerated` describe exactly the same event-type set.
 - `docs/custos-handoff.md`: production hardening checklist making the `custosd` threat model explicit — the bearer token is a transport guard, not an identity system, so TLS termination, token rotation, per-tenant/per-user identity, rate limiting, and the hash-chain-only scope of `GET /receipts/{id}/verify` are called out as operator responsibilities before any non-local exposure.
 - View server: `GET /api/v1/schema/status` endpoint returning ecosystem-level contract health for the loaded bundle — declared-vs-observed event types, per-type required-field completeness, and any undeclared (unknown) types. Gated by the same session-token auth and verification check as the other read endpoints; covered by `pkg/api/v1/schema_status_test.go` (logic, auth gating, and method rejection).
-- Web viewer: `SchemaStatus` component and a "Contract status" panel on the `/sessions` page surfacing the new endpoint — summary cards plus a per-type table that flags `undeclared`, `N incomplete` (with the missing field names), `complete`, and `not observed` states so contract drift is visible at a glance rather than buried in per-session detail. Vitest coverage in `web/components/SchemaStatus.test.tsx`.
+- Web viewer: `SchemaStatus` component (**built, not mounted**; `/sessions` remains a placeholder) surfacing `GET /api/v1/schema/status` — summary cards plus a per-type table that flags `undeclared`, `N incomplete` (with the missing field names), `complete`, and `not observed` states so contract drift is visible at a glance rather than buried in per-session detail. Vitest coverage in `web/components/SchemaStatus.test.tsx`.
 - `ai.action.error` forensic event type (schema + Go/Python/TypeScript bindings) recording a privileged action that was attempted but did not succeed (`error_class`: `failed|blocked|timeout|exception|denied_at_sink`), distinct from the success-shaped `ai.action.executed`.
 - `atb.llm.request` / `atb.llm.response` registered as capture event types (previously emitted by `atb intercept` but absent from the schema registry).
 - `atb intercept` now derives accountability events from captured traffic: `atb.tool.call` per tool the model requests (Anthropic `tool_use`, OpenAI Chat `tool_calls`, OpenAI Responses `function_call`) and `ai.action.error` per failed Anthropic `tool_result` (`is_error: true`). Arguments and error detail are digested, never stored raw.
@@ -105,7 +109,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `atb intercept` records request/response bodies as a SHA-256 digest (`body_sha256`) and byte length (`body_bytes`) by default, not raw content; pass `--capture-bodies` to retain raw bodies. `ScanHeaders` now also strips `Proxy-Authorization`, `Cookie`, and `Set-Cookie` (in addition to `Authorization` / `X-Api-Key`), so no credential or session secret is persisted.
 - SDK action gates emit `ai.action.error` when a gated action fails, instead of a success-shaped `ai.action.executed` with `execution_outcome="error"` — TypeScript and Python `ActionGate` (sync + async) and `HumanOverrideGate`. Success still emits `ai.action.executed`.
 - `docs/roadmap.md` and `README.md`: record the shipped agent-incident-forensics capability (capture, `ai.action.error`, `atb incident list`/`report`, viewer rendering) and mark Phase 10 proxy capture complete.
-
 ## [v1.12.0] - 2026-05-25
 
 ### Added
@@ -507,7 +510,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TSA verification: certificate chain validation is implemented and used for CAS scoring
 - Bundle-level Ed25519 signing: fully implemented via `atb sign` and `atb verify`
 
-## [v1.5.0] - 2026-03-31
+## [v1.4.1] - 2026-03-31
 
 ### Added
 - Add `atb bundle new` as an alias for `atb init`.

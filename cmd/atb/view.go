@@ -561,10 +561,10 @@ func resolveSessionPaths(pattern string) ([]string, error) {
 	if pattern == "" {
 		return nil, fmt.Errorf("session path cannot be empty")
 	}
-	info, err := os.Stat(pattern)
+	info, err := os.Stat(pattern) // #nosec G703 -- pattern is operator-supplied --sessions glob or directory from CLI
 	if err == nil && info.IsDir() {
 		var paths []string
-		err := filepath.WalkDir(pattern, func(path string, d fs.DirEntry, err error) error {
+		err := filepath.WalkDir(pattern, func(path string, d fs.DirEntry, err error) error { // #nosec G703 -- walks only under operator-supplied session directory
 			if err != nil {
 				return err
 			}

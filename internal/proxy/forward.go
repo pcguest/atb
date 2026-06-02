@@ -129,7 +129,7 @@ func (f *forwarder) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	targetURL := urlForHost(host)
-	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	proxy := httputil.NewSingleHostReverseProxy(targetURL) // #nosec G704 -- host validated by IsTargetHost allowlist before proxy construction
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		respBody, err := io.ReadAll(resp.Body)
 		if err != nil {

@@ -44,6 +44,10 @@ jobs:
           npm ci
           npm run build
 
+      - name: Test web UI (Vitest)
+        working-directory: web
+        run: npm test -- --run
+
       - name: Remove node_modules (Windows)
         if: runner.os == 'Windows'
         shell: pwsh

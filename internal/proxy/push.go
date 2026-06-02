@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -29,13 +31,38 @@ type pushReceipt struct {
 }
 
 // NewCustosPusher creates a new CustosPusher.
-func NewCustosPusher(endpoint string) *CustosPusher {
+func NewCustosPusher(endpoint string) (*CustosPusher, error) {
+	validated, err := validatePushEndpoint(endpoint)
+	if err != nil {
+		return nil, err
+	}
 	return &CustosPusher{
-		Endpoint: endpoint,
+		Endpoint: validated,
 		Client: &http.Client{
 			Timeout: 30 * time.Second, // Reasonable timeout for network operations
 		},
+	}, nil
+}
+
+// validatePushEndpoint parses and normalises an operator-configured Custos ingest URL.
+func validatePushEndpoint(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", fmt.Errorf("custos endpoint is not configured")
 	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("custos endpoint URL: %w", err)
+	}
+	switch parsed.Scheme {
+	case "http", "https":
+	default:
+		return "", fmt.Errorf("custos endpoint must use http or https, got %q", parsed.Scheme)
+	}
+	if parsed.Host == "" {
+		return "", fmt.Errorf("custos endpoint must include a host")
+	}
+	return parsed.String(), nil
 }
 
 // Push reads the bundle from bundlePath, POSTs it to the Custos endpoint,
@@ -71,7 +98,7 @@ func (p *CustosPusher) postBundleBytes(ctx context.Context, bundleBytes []byte) 
 		}
 		req.Header.Set("Content-Type", "application/octet-stream") // Or appropriate content type
 
-		resp, err := p.Client.Do(req)
+		resp, err := p.Client.Do(req) // #nosec G704 -- endpoint validated in NewCustosPusher to http/https with host
 		if err != nil {
 			// Network error, retry if it's the first attempt
 			if i == 0 {

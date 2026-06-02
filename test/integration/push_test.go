@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sync/atomic"
 	"testing"
@@ -184,8 +185,23 @@ func newPushTestBundle(t *testing.T) (string, queueEnvelope, []byte) {
 		Digest:        hex.EncodeToString(sum[:]),
 		SealTimestamp: "2026-04-20T03:05:06Z",
 		ProfileID:     "",
-		ATBVersion:    "1.12.0",
+		ATBVersion:    atbCLIVersion(t, repoRootForPushIntegration(t)),
 	}, []byte("push-queue-secret")
+}
+
+var atbVersionRE = regexp.MustCompile(`version\s+=\s+"([0-9]+\.[0-9]+\.[0-9]+)"`)
+
+func atbCLIVersion(t *testing.T, repoRoot string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(repoRoot, "cmd/atb/main.go"))
+	if err != nil {
+		t.Fatalf("read cmd/atb/main.go: %v", err)
+	}
+	m := atbVersionRE.FindSubmatch(data)
+	if len(m) != 2 {
+		t.Fatal("could not parse CLI version from cmd/atb/main.go")
+	}
+	return string(m[1])
 }
 
 func runATB(t *testing.T, args ...string) (string, string, int) {

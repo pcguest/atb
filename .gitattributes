@@ -1,0 +1,5 @@
+# Preserve LF for hash-stable embedded artefacts and golden vectors.
+/pkg/custody/schema/*.json text eol=lf
+/schemas/*.json text eol=lf
+/test/golden/** text eol=lf
+/internal/hash/testdata/*.json text eol=lf

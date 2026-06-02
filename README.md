@@ -2,6 +2,8 @@ ATB — tamper-evident audit trails for AI systems.
 
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.3-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE) ![EU AI Act Article 12 logging](https://img.shields.io/badge/EU%20AI%20Act-Article%2012%20logging-blue)
 
+Current release: [`v1.13.0`](CHANGELOG.md)
+
 ## What ATB does
 
 ATB records AI workflow events into append-only `.atb` bundles whose records are linked by a SHA-256 hash chain. It is local-first: bundles are written to disk and can be verified without a hosted service or vendor account. The CLI and Go, Python, and TypeScript SDKs support capture, signing, verification, export, and profile-scored review. Its current logging model aligns with EU AI Act Article 12 by preserving automatic logs with retention guardrails and independently verifiable custody reports.
@@ -14,11 +16,13 @@ Install the CLI:
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-Capture an AI workflow and verify the bundle path printed by the command:
+Initialise a bundle, capture a workflow, and verify against a profile:
 
 ```bash
+atb bundle new
 atb capture run -- your-ai-script.sh
-atb verify <bundle-file>
+atb verify --profile atb.profile.policy_decision <bundle-file>
+atb view <bundle-file> --profile atb.profile.policy_decision
 ```
 
 ## Agent incident forensics

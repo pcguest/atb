@@ -35,10 +35,14 @@ func TestCustosPusher_Push(t *testing.T) {
 	b.Save(dummyBundlePath)
 
 	t.Run("no push when CustosEndpoint is empty", func(t *testing.T) {
-		pusher := NewCustosPusher("")
-		err := pusher.Push(context.Background(), dummyBundlePath)
+		_, err := NewCustosPusher("")
 		if err == nil || !strings.Contains(err.Error(), "custos endpoint is not configured") {
 			t.Errorf("Expected 'custos endpoint is not configured' error, got: %v", err)
+		}
+		pusher := &CustosPusher{}
+		err = pusher.Push(context.Background(), dummyBundlePath)
+		if err == nil || !strings.Contains(err.Error(), "custos endpoint is not configured") {
+			t.Errorf("Expected 'custos endpoint is not configured' error on Push, got: %v", err)
 		}
 	})
 
@@ -59,8 +63,11 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher := NewCustosPusher(mockServer.URL)
-		err := pusher.Push(context.Background(), dummyBundlePath)
+		pusher, err := NewCustosPusher(mockServer.URL)
+		if err != nil {
+			t.Fatalf("NewCustosPusher: %v", err)
+		}
+		err = pusher.Push(context.Background(), dummyBundlePath)
 		if err != nil {
 			t.Fatalf("Push failed: %v", err)
 		}
@@ -77,7 +84,10 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher := NewCustosPusher(mockServer.URL)
+		pusher, err := NewCustosPusher(mockServer.URL)
+		if err != nil {
+			t.Fatalf("NewCustosPusher: %v", err)
+		}
 		// Capture stdout/stderr to check log output
 		// Fixed: Custos success messages are written to stdout, so the test captures stdout.
 		oldStdout := os.Stdout
@@ -85,7 +95,7 @@ func TestCustosPusher_Push(t *testing.T) {
 		// Fixed: Redirect stdout to the pipe that is inspected below.
 		os.Stdout = w
 
-		err := pusher.Push(context.Background(), dummyBundlePath)
+		err = pusher.Push(context.Background(), dummyBundlePath)
 		if err != nil {
 			t.Fatalf("Push failed: %v", err)
 		}
@@ -107,8 +117,11 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher := NewCustosPusher(mockServer.URL)
-		err := pusher.Push(context.Background(), dummyBundlePath)
+		pusher, err := NewCustosPusher(mockServer.URL)
+		if err != nil {
+			t.Fatalf("NewCustosPusher: %v", err)
+		}
+		err = pusher.Push(context.Background(), dummyBundlePath)
 		if err == nil || !strings.Contains(err.Error(), "custos push failed with client error 400") {
 			t.Errorf("Expected 400 error, got: %v", err)
 		}
@@ -131,8 +144,11 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher := NewCustosPusher(mockServer.URL)
-		err := pusher.Push(context.Background(), dummyBundlePath)
+		pusher, err := NewCustosPusher(mockServer.URL)
+		if err != nil {
+			t.Fatalf("NewCustosPusher: %v", err)
+		}
+		err = pusher.Push(context.Background(), dummyBundlePath)
 		if err != nil {
 			t.Fatalf("Push failed: %v", err)
 		}

@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -15,7 +16,15 @@ import (
 	"github.com/pcguest/atb/internal/signer"
 )
 
+func requireAdvisoryLocking(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("advisory bundle locking is a no-op on Windows; see lock_windows.go")
+	}
+}
+
 func TestLockPath_ContentionReturnsErrBundleLocked(t *testing.T) {
+	requireAdvisoryLocking(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bundle.atb")
 
@@ -61,6 +70,7 @@ func TestLockPath_DifferentPathsDoNotConflict(t *testing.T) {
 }
 
 func TestSave_ContentionSurfacesErrBundleLocked(t *testing.T) {
+	requireAdvisoryLocking(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bundle.atb")
 
@@ -83,6 +93,7 @@ func TestSave_ContentionSurfacesErrBundleLocked(t *testing.T) {
 }
 
 func TestSave_SerialisesConcurrentWritersWithoutLoss(t *testing.T) {
+	requireAdvisoryLocking(t)
 	// Two goroutines call Save on the same path. One gets the lock;
 	// the other gets ErrBundleLocked or succeeds after the first releases.
 	// Either way, no save returns nil while the other returns a non-lock error,
@@ -135,6 +146,7 @@ func TestSave_SerialisesConcurrentWritersWithoutLoss(t *testing.T) {
 }
 
 func TestSignToWithSigner_HonoursLock(t *testing.T) {
+	requireAdvisoryLocking(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bundle.atb")
 
@@ -170,6 +182,7 @@ func TestSignToWithSigner_HonoursLock(t *testing.T) {
 }
 
 func TestAcquireWithRetrySucceedsAfterContentionReleases(t *testing.T) {
+	requireAdvisoryLocking(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bundle.atb")
 

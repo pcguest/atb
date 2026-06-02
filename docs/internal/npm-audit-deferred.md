@@ -5,6 +5,8 @@ deferred. Each entry states why the upgrade is blocked and what would unblock it
 
 Run `npm audit` in `web/` to refresh advisory metadata before release review.
 
+**Last refreshed:** 2026-06-03 — `web/` reports 6 vulnerabilities (4 moderate, 2 critical, 0 high).
+
 ## postcss (via Next.js)
 
 

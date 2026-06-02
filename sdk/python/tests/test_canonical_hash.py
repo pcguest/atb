@@ -36,7 +36,7 @@ def _load_vectors() -> list[dict]:
             "Regenerate with: go test ./internal/hash/... "
             "-run TestGoldenVectors -update-vectors"
         )
-    return json.loads(VECTORS_PATH.read_text())
+    return json.loads(VECTORS_PATH.read_text(encoding="utf-8"))
 
 
 @pytest.mark.parametrize("vector", _load_vectors(), ids=lambda v: v["description"])
