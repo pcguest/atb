@@ -236,6 +236,89 @@ func TestReportNDJSON(t *testing.T) {
 	}
 }
 
+func TestFindingsExplainAndLocateAnomalies(t *testing.T) {
+	path := writeBundle(t) // sess-A: tool call w/o approval (seq 2) + action error (seq 3)
+	rep, err := incident.Build(context.Background(), path, "sess-A")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+
+	byFlag := map[string]incident.Finding{}
+	for _, f := range rep.Findings {
+		byFlag[f.Flag] = f
+	}
+
+	twa, ok := byFlag["tool_without_approval"]
+	if !ok {
+		t.Fatalf("want a tool_without_approval finding, got %+v", rep.Findings)
+	}
+	if twa.Severity != "high" {
+		t.Errorf("tool_without_approval severity = %q, want high", twa.Severity)
+	}
+	if len(twa.EventSeqs) != 1 || twa.EventSeqs[0] != 2 {
+		t.Errorf("tool_without_approval should point at the tool call (seq 2), got %v", twa.EventSeqs)
+	}
+
+	af, ok := byFlag["action_failed"]
+	if !ok {
+		t.Fatalf("want an action_failed finding, got %+v", rep.Findings)
+	}
+	if len(af.EventSeqs) != 1 || af.EventSeqs[0] != 3 {
+		t.Errorf("action_failed should point at the error event (seq 3), got %v", af.EventSeqs)
+	}
+
+	// Every finding's flag must be one the session index actually raised — the
+	// index stays authoritative; findings only explain.
+	raised := map[string]bool{}
+	for _, fl := range rep.Session.AnomalyFlags {
+		raised[fl] = true
+	}
+	for _, f := range rep.Findings {
+		if !raised[f.Flag] {
+			t.Errorf("finding %q has no matching anomaly flag", f.Flag)
+		}
+	}
+
+	md := rep.Markdown()
+	if !strings.Contains(md, "## Findings") || !strings.Contains(md, "Tool call with no preceding approval") {
+		t.Errorf("markdown missing findings section:\n%s", md)
+	}
+	if !strings.Contains(md, "seq 2") {
+		t.Errorf("findings section should cite the triggering sequence:\n%s", md)
+	}
+}
+
+func TestNDJSONTagsTriggeringEvent(t *testing.T) {
+	path := writeBundle(t)
+	rep, err := incident.Build(context.Background(), path, "sess-A")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	raw, err := rep.NDJSON()
+	if err != nil {
+		t.Fatalf("NDJSON: %v", err)
+	}
+	for _, line := range strings.Split(strings.TrimRight(string(raw), "\n"), "\n") {
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			t.Fatalf("ndjson line not valid JSON: %v", err)
+		}
+		triggered, ok := obj["triggered_flags"].([]any)
+		if !ok {
+			t.Fatalf("ndjson line missing triggered_flags: %s", line)
+		}
+		// The tool call is seq 2; only it should carry tool_without_approval.
+		if obj["type"] == "atb.tool.call" {
+			if len(triggered) != 1 || triggered[0] != "tool_without_approval" {
+				t.Errorf("tool.call triggered_flags = %v, want [tool_without_approval]", triggered)
+			}
+		}
+		if obj["type"] == "atb.llm.request" && len(triggered) != 0 {
+			t.Errorf("benign event should trigger nothing, got %v", triggered)
+		}
+	}
+}
+
 func TestBuildSessionNotFound(t *testing.T) {
 	path := writeBundle(t)
 	rep, err := incident.Build(context.Background(), path, "sess-missing")

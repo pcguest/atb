@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `atb incident report`: a **Findings** section that explains each raised anomaly flag instead of leaving the reviewer to re-derive it — per flag a severity, a plain-English meaning, and the sequence number(s) of the triggering event(s). The session index stays the sole authority on whether a flag fires; the report explains and locates it against the session's own events (`internal/incident/findings.go`, with markdown/JSON rendering and tests).
+- `atb incident report --format ndjson`: each event line now carries `triggered_flags`, the subset of the session's anomaly flags that *this specific record* triggered, so a SIEM can alert on the offending event rather than the whole session.
+- `atb incident export`: the chain-of-custody `MANIFEST.json` now carries an always-present `signature_status` field, stated plainly as `none (unsigned bundle)` when there is no signature — the manifest no longer silently omits signature provenance for unsigned bundles, and the package README wording matches.
 - Composite demo bundle `examples/bundles/demo-workflow/` (~20-event support escalation narrative; passes `policy_decision` and `human_override`).
 - Profile workflow demo scripts under `examples/demo/` (Python and TypeScript) with CLI verify.
 - LangGraph reference integration (`examples/python/langgraph_demo.py`, `docs/integrations/langgraph.md`, optional `langgraph` Python extra).
@@ -60,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `atb incident report --format ndjson`: one JSON object per session event, denormalised with integrity status and anomaly flags, for direct SIEM (Splunk/Elastic) ingestion.
 
 ### Fixed
+- `atb incident` usage: the top-line summary for `report` listed `--format markdown|json`, omitting `ndjson`; corrected to match the detailed help and actual behaviour.
 - Viewer session token is re-read from the URL hash on each API request so navigating to a new `atb view` session works without a hard refresh.
 - Removed cross-module internal import of Custos receipt types from `internal/proxy` (Items 1-2, Findings 1-2).
 - Removed unused imports in `internal/sessionindex` and `custos/internal/receipt` (Findings 3, 6).

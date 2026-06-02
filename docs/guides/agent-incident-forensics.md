@@ -74,7 +74,16 @@ atb incident report \
 - Integrity (hash chain): **PASS**
 - Signature: valid, pubkey +SvycALFZp0L2eCg…, signed 2026-05-31T…, backend local
 - Actor: agent-support-bot
-- Anomalies: **tool_without_approval**
+- Anomalies: **tool_without_approval, action_failed**
+
+## Findings
+
+Each anomaly flag, what it means, and the event(s) that triggered it.
+
+| Severity | Finding | Triggered at | Detail |
+| --- | --- | --- | --- |
+| HIGH   | Tool call with no preceding approval | seq 3 | A privileged tool was invoked without a human approval recorded earlier in the session. … |
+| MEDIUM | Action error recorded                | seq 5 | An ai.action.error was recorded: an attempted action did not complete successfully. … |
 
 ## Events
 
@@ -87,7 +96,14 @@ atb incident report \
 | 7 | `atb.session.close`| … |                                | `72ab81f8…` |
 ```
 
-Add `--format json` for a machine-readable report.
+The **Findings** section does the correlation for you: rather than handing you a
+bare flag, it names the severity, explains the flag in plain English, and points
+at the exact event sequence that triggered it (seq 3 ran the tool with no
+approval; seq 5 recorded the failure).
+
+Add `--format json` for a machine-readable report, or `--format ndjson` for one
+JSON object per event — each line tagged with the `triggered_flags` it set off,
+ready for SIEM ingestion and per-record alerting.
 
 ## What the report proves (and what it doesn't)
 

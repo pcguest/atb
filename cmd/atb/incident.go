@@ -298,7 +298,7 @@ func writeIncidentPack(out string, files []incident.PackFile) error {
 
 func printIncidentUsage(w io.Writer) {
 	fmt.Fprint(w, `atb incident list   --bundle <path> [--format markdown|json]
-atb incident report --bundle <path> --session <id> [--format markdown|json]
+atb incident report --bundle <path> --session <id> [--format markdown|json|ndjson]
 atb incident export --bundle <path> --session <id> --out <pack.zip>
 
 Discover, review, and package agent sessions captured in an ATB bundle.

@@ -91,21 +91,31 @@ discover which session to report on.
 
 Writes a self-contained, independently verifiable incident evidence package: the
 signed bundle, the incident report (markdown + JSON), the full verifier report,
-and a `MANIFEST.json` chain-of-custody record (bundle hash, signature
-provenance, capture scope, and a SHA-256 of every file). The packed bundle
-re-verifies on its own with `atb verify bundle.atb` — no trust in the package
-required.
+and a `MANIFEST.json` chain-of-custody record (bundle hash, signature status —
+stated plainly as `none (unsigned bundle)` when there is no signature — capture
+scope, and a SHA-256 of every file). The packed bundle re-verifies on its own
+with `atb verify bundle.atb` — no trust in the package required.
 
 `atb incident report --bundle <path> --session <id> [--format markdown|json|ndjson]`
 
 `ndjson` emits one JSON object per session event (denormalised with the
-session's integrity status and anomaly flags) for direct SIEM ingestion.
+session's integrity status and anomaly flags) for direct SIEM ingestion. Each
+line also carries `triggered_flags`: the subset of the session's anomaly flags
+that *this specific event* triggered, so a SIEM can alert on the offending
+record rather than the whole session.
 
 Builds a session-scoped forensic report over a captured bundle: integrity
 status, **bundle signature provenance** (who signed it, when, and whether the
 signature is valid — an unsigned bundle is stated plainly), the session's actor
-and anomaly flags (e.g. `tool_without_approval`), and an ordered list of the
-session's events with a one-line summary and the record hash of each.
+and anomaly flags (e.g. `tool_without_approval`), an ordered list of the
+session's events with a one-line summary and the record hash of each, and a
+**Findings** section.
+
+The Findings section explains each raised anomaly flag rather than leaving the
+reviewer to re-derive it: per flag it gives a severity, a plain-English meaning,
+and the sequence number(s) of the event(s) that triggered it. The session index
+remains the sole authority on *whether* a flag fires; the report only explains
+and locates it against the session's own events.
 
 A bundle's integrity is verified across the whole hash chain, so a single
 session cannot be carved into an independently verifiable sub-bundle. The full

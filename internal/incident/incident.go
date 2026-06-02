@@ -50,6 +50,7 @@ type Report struct {
 	Signatures     []verify.SignatureProvenance `json:"signatures,omitempty"`
 	CaptureScope   *CaptureScope                `json:"capture_scope,omitempty"`
 	Session        *sessionindex.SessionEntry   `json:"session,omitempty"`
+	Findings       []Finding                    `json:"findings,omitempty"`
 	Events         []EventRow                   `json:"events"`
 }
 
@@ -107,6 +108,7 @@ func Build(ctx context.Context, bundlePath, sessionID string) (Report, error) {
 		}
 	}
 
+	var scoped []scopedEvent
 	for _, rec := range b.Records {
 		if eventSessionID(rec.Event) != sessionID {
 			continue
@@ -119,8 +121,18 @@ func Build(ctx context.Context, bundlePath, sessionID string) (Report, error) {
 			Hash:      rec.Hash,
 			Summary:   summarise(rec.Event),
 		})
+		data, _ := rec.Event.Data.(map[string]any)
+		scoped = append(scoped, scopedEvent{seq: rec.Event.Sequence, typ: rec.Event.Type, data: data})
 	}
 	sort.SliceStable(rep.Events, func(i, j int) bool { return rep.Events[i].Seq < rep.Events[j].Seq })
+	sort.SliceStable(scoped, func(i, j int) bool { return scoped[i].seq < scoped[j].seq })
+
+	// Explain the session index's anomaly flags as located findings. The index
+	// stays authoritative on which flags fire; here we attach severity, meaning,
+	// and the triggering event sequence numbers.
+	if rep.Session != nil {
+		rep.Findings = buildFindings(rep.Session.AnomalyFlags, scoped)
+	}
 	return rep, nil
 }
 
@@ -140,8 +152,13 @@ func (r Report) NDJSON() ([]byte, error) {
 	if flags == nil {
 		flags = []string{}
 	}
+	bySeq := triggeredFlagsBySeq(r.Findings)
 	var buf bytes.Buffer
 	for _, e := range r.Events {
+		triggered := bySeq[e.Seq]
+		if triggered == nil {
+			triggered = []string{}
+		}
 		line, err := json.Marshal(map[string]any{
 			"session_id":      r.SessionID,
 			"seq":             e.Seq,
@@ -151,6 +168,10 @@ func (r Report) NDJSON() ([]byte, error) {
 			"record_hash":     e.Hash,
 			"integrity_valid": r.IntegrityValid,
 			"anomaly_flags":   flags,
+			// triggered_flags is the subset of anomaly_flags this specific event
+			// triggered — so a SIEM can alert on the offending record, not just
+			// the session.
+			"triggered_flags": triggered,
 		})
 		if err != nil {
 			return nil, err
@@ -224,6 +245,21 @@ func (r Report) Markdown() string {
 			flags = strings.Join(r.Session.AnomalyFlags, ", ")
 		}
 		fmt.Fprintf(&b, "- Anomalies: **%s**\n", flags)
+	}
+
+	if len(r.Findings) > 0 {
+		b.WriteString("\n## Findings\n\n")
+		b.WriteString("Each anomaly flag, what it means, and the event(s) that triggered it.\n\n")
+		b.WriteString("| Severity | Finding | Triggered at | Detail |\n")
+		b.WriteString("| --- | --- | --- | --- |\n")
+		for _, f := range r.Findings {
+			at := "—"
+			if len(f.EventSeqs) > 0 {
+				at = "seq " + joinSeqs(f.EventSeqs)
+			}
+			fmt.Fprintf(&b, "| %s | %s | %s | %s |\n",
+				strings.ToUpper(f.Severity), f.Title, at, f.Detail)
+		}
 	}
 
 	b.WriteString("\n## Events\n\n")
@@ -409,6 +445,14 @@ func orDash(s string) string {
 		return "—"
 	}
 	return s
+}
+
+func joinSeqs(seqs []int) string {
+	parts := make([]string, len(seqs))
+	for i, s := range seqs {
+		parts[i] = fmt.Sprintf("%d", s)
+	}
+	return strings.Join(parts, ", ")
 }
 
 func shortHash(h string) string {

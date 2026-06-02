@@ -68,6 +68,11 @@ func TestBuildPack(t *testing.T) {
 	if manifest.CaptureScope == nil || manifest.CaptureScope.CaptureMode != "digest" {
 		t.Errorf("manifest capture scope = %+v", manifest.CaptureScope)
 	}
+	// An unsigned bundle must say so plainly in the manifest, not omit the field
+	// — the README claims a stated signature status, so it must be present.
+	if manifest.SignatureStatus != "none (unsigned bundle)" {
+		t.Errorf("manifest signature_status = %q, want unsigned statement", manifest.SignatureStatus)
+	}
 
 	// Every non-manifest file must be digested in the manifest, correctly.
 	digests := map[string]string{}

@@ -22,6 +22,7 @@ and review it from a tamper-evident bundle.
 - ✅ `atb incident export` — self-contained, independently verifiable incident evidence package (bundle + reports + chain-of-custody manifest)
 - ✅ Custos signs custody receipts (Ed25519 attestation of receipt, verifiable against the embedded key)
 - ✅ Detection: `policy_denied_executed` and `action_failed` anomalies over the `ai.*` gate/proxy events
+- ✅ Explained findings: the incident report turns each raised anomaly flag into a located finding (severity, plain-English meaning, triggering event sequence numbers) in markdown and JSON, with per-event `triggered_flags` in the NDJSON for SIEM record-level alerting
 - ✅ Streamed (SSE) tool-call extraction for OpenAI and Anthropic
 - ✅ NDJSON incident report format for SIEM ingestion
 - ✅ Proxy emits accountability events: `atb.tool.call` per requested tool, `ai.action.error` per failed Anthropic `tool_result`

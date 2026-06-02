@@ -35,6 +35,7 @@ type Manifest struct {
 	SessionID          string                       `json:"session_id"`
 	IntegrityValid     bool                         `json:"integrity_valid"`
 	ChainHeadHash      string                       `json:"chain_head_hash"`
+	SignatureStatus    string                       `json:"signature_status"`
 	Signatures         []verify.SignatureProvenance `json:"signatures,omitempty"`
 	CaptureScope       *CaptureScope                `json:"capture_scope,omitempty"`
 	Files              []FileDigest                 `json:"files"`
@@ -52,16 +53,17 @@ Contents:
 - incident-report.json  Machine-readable session report.
 - verify-report.json    Full verifier output (integrity, signatures, anchoring).
 - MANIFEST.json         Chain-of-custody manifest: bundle hash, signature
-                        provenance, capture scope, and a SHA-256 of every file
-                        in this package.
+                        status (or "none (unsigned bundle)"), capture scope,
+                        and a SHA-256 of every file in this package.
 
 To verify independently (no trust in this package required):
 
     atb verify bundle.atb
 
-The hash chain proves the records were not altered; the signature provenance in
-MANIFEST.json attributes the bundle to a signing key; each event in the report
-carries its record hash, checkable against bundle.atb.
+The hash chain proves the records were not altered. MANIFEST.json states the
+bundle's signature status — including plainly when the bundle is unsigned, which
+is itself a chain-of-custody finding. Each event in the report carries its
+record hash, checkable against bundle.atb.
 `
 
 // BuildPack assembles a self-contained incident evidence package for one
@@ -114,6 +116,7 @@ func BuildPack(ctx context.Context, bundlePath, sessionID, toolVersion string) (
 		SessionID:          sessionID,
 		IntegrityValid:     report.IntegrityValid,
 		ChainHeadHash:      report.ChainHeadHash,
+		SignatureStatus:    signatureSummary(report.Signatures),
 		Signatures:         report.Signatures,
 		CaptureScope:       report.CaptureScope,
 		VerifyInstructions: "Recompute integrity independently with: atb verify bundle.atb",
