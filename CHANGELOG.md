@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `custos/signing`: `SigningPolicy.Validate()` plus `InMemoryPolicyStore` and `FileSystemPolicyStore` implementing the previously stub-only `PolicyStore` interface — per-org automatic-signing policy (key source/reference, RFC 3161 TSA toggle, cron rotation schedule) is now persistable and retrievable. The filesystem store writes one owner-only JSON document per org via the temp-fsync-rename protocol and rejects org IDs that would escape its directory. Validation enforces a non-empty org ID and key reference, a known key source, and a well-formed 5-field cron schedule (empty = rotation disabled). Custos records the policy; ATB core still performs the actual signing at capture time. Completes the Phase 10 "automatic bundle signing policy per org" roadmap item.
 
+### Changed
+- CI: the `custos` module (a separate Go module, previously **never run in CI**) is now vetted and tested with `-race` on Linux and macOS. The daemon targets POSIX semantics (owner-only perms, directory fsync), so it is excluded from the Windows matrix leg; the policy-store directory-permission test is GOOS-guarded so it is correct if run on Windows locally.
+
 ## [v1.13.0] - 2026-06-03
 
 ### Added

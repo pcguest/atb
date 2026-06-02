@@ -95,6 +95,17 @@ jobs:
           go run ./scripts/generate_profile_fixtures.go
           go test -race -v -skip TestInstalledBinarySmokeFlow $(go list ./... | grep -v '/web/node_modules/')
 
+      # custos is a separate Go module (its own go.mod), so the root `go list
+      # ./...` above does not reach it. The daemon targets POSIX (0700 perms,
+      # directory fsync), so it is exercised on Linux and macOS only.
+      - name: Test Custos module
+        if: matrix.os != 'windows-latest'
+        working-directory: custos
+        shell: bash
+        run: |
+          go vet ./...
+          go test -race ./...
+
       - name: Test Python SDK
         working-directory: sdk/python
         run: pytest

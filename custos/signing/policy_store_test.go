@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -178,12 +179,15 @@ func TestFileSystemPolicyStore_RoundTrip(t *testing.T) {
 	}
 
 	// The store directory must be owner-only because it references key material.
-	info, err := os.Stat(dir)
-	if err != nil {
-		t.Fatalf("Stat dir: %v", err)
-	}
-	if perm := info.Mode().Perm(); perm != 0o700 {
-		t.Fatalf("base dir perm = %o, want 700", perm)
+	// POSIX permission bits do not map onto Windows file modes.
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(dir)
+		if err != nil {
+			t.Fatalf("Stat dir: %v", err)
+		}
+		if perm := info.Mode().Perm(); perm != 0o700 {
+			t.Fatalf("base dir perm = %o, want 700", perm)
+		}
 	}
 }
 
