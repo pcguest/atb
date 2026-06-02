@@ -244,6 +244,33 @@ actually attested receiving them. Together they are the full custody proof. An
 attestation that does not verify is returned with HTTP 200 and `valid: false`
 (a custody finding, not a server error); an unknown receipt ID returns 404.
 
+## OpenTelemetry ingest (`pkg/otel`)
+
+`pkg/otel` translates inbound OpenTelemetry traces into canonical ATB AI trace
+events without importing the OpenTelemetry SDK, so it is usable without a
+collector dependency.
+
+`DecodeTraceJSON(data []byte) ([]OTelTrace, error)`
+
+Decodes an OTLP/JSON `ExportTraceServiceRequest` payload into `OTelTrace`
+batches grouped by trace id (first-seen order; span order preserved within a
+trace). It implements the OTLP/JSON wire encoding directly: hex-encoded trace
+and span ids, unix-nano timestamps carried as JSON strings, the `AnyValue`
+union (string/bool/int64-as-string/double/array/kvlist/bytes), and span kind /
+status code expressed as either the integer enum or the proto string name.
+Resource- and scope-level attributes are merged into each span (span attributes
+take precedence), so context recorded once per resource — for example
+`gen_ai.system` — reaches the translator. A payload with no spans returns a nil
+slice and no error; malformed JSON returns an error.
+
+`Translator` / `DefaultTranslator.Translate(span OTelSpan) (*event.Event, error)`
+
+Maps a decoded span to a canonical ATB event, recognising the OpenTelemetry
+GenAI semantic conventions (`gen_ai.system`, `gen_ai.request.model`,
+`gen_ai.usage.*`, and the tool/chain attribute families). Feed decoded traces
+through `Receiver.Receive` to translate a whole batch. ATB records the
+translated events; it does not collect or host telemetry.
+
 ## Corroboration
 
 Corroboration adapters in `pkg/corroborate` construct query URLs for
