@@ -67,10 +67,14 @@ Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/R
 
 - ✅ Phase 10: Ingestion engine scaffold (custos/ package tree) — Q3 2026 (completed 28 May 2026)
 - ✅ Custody log made auditable: content-addressed ingest fixed (filesystem stores now accept real bundles), `GET /receipts` enumerates the log, `GET /receipts/:id/attestation` verifies the Ed25519 custody attestation server-side, and `GET /custody/key` publishes the signing key for independent (operator-token-free) attestation verification and rotation detection (June 2026)
+- ✅ Phase 10: Automatic bundle signing policy per org — `custos/signing` now
+  persists per-org policy (key source/reference, RFC 3161 TSA toggle, cron
+  rotation schedule) via `InMemoryPolicyStore` and an owner-only
+  `FileSystemPolicyStore`, with `SigningPolicy.Validate()` guarding org ID, key
+  reference, key source, and the cron schedule. Custos records the policy; ATB
+  core performs the signing (completed June 2026)
 - Phase 10: AI tool discovery + registry — Q3 2026
 - Phase 10: Onboarding flow + API key provisioning — Q3 2026
-- Phase 10: Automatic bundle signing policy per org (key reference,
-  TSA toggle, rotation schedule) — Q3 2026
 - Phase 11: Human-in-the-loop review queue + oversight — Q4 2026
 - Phase 11: Auditable work tree UI + handoff lineage — Q4 2026
 - Phase 11: Insight extraction + pitfall detection — Q4 2026
