@@ -15,6 +15,10 @@ receipts. It is a separate Go module from the ATB core runtime.
   generated and persisted under the receipt directory on first run.
 - `GET /receipts/{id}` — fetch a stored receipt (including its attestation).
 - `GET /receipts/{id}/verify` — re-verify the stored bundle's hash chain.
+- `GET /receipts/by-hash?bundle_hash=<hash>` — the digest-keyed reverse lookup:
+  every receipt custodying a given bundle hash. Backed by `registry` (the
+  receipt + digest index), built from the receipt store. Auth-gated like
+  `GET /receipts`.
 - WORM (`FileSystemWORMStore`) and receipt (`FileSystemReceiptStore`) stores,
   content-addressed and idempotent by SHA-256.
 - Bearer-token transport auth (a guard, **not** an identity system — see
@@ -23,5 +27,6 @@ receipts. It is a separate Go module from the ATB core runtime.
 
 ## Scaffold (interfaces / TODOs only)
 
-`discovery`, `registry`, `onboarding`, `oversight`, `insights` — type and
-interface stubs for the planned enterprise workflows; not yet implemented.
+`discovery`, `onboarding`, `oversight`, `insights` — type and interface stubs
+for the planned enterprise workflows; not yet implemented. (`registry` is now
+implemented as the receipt + digest index, surfaced via `GET /receipts/by-hash`.)

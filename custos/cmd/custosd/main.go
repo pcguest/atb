@@ -23,6 +23,7 @@ import (
 	"github.com/pcguest/custos/internal/ingest"
 	// Fixed: Custos internal packages must be imported through the Custos module path.
 	"github.com/pcguest/custos/internal/receipt"
+	"github.com/pcguest/custos/registry"
 )
 
 func main() {
@@ -175,6 +176,16 @@ func newMux(
 		handleListReceipts(w, r, receiptStore, logger)
 	})
 
+	// Exact /receipts/by-hash answers the digest-keyed lookup. Registered as an
+	// exact pattern so ServeMux prefers it over the /receipts/ id subtree.
+	mux.HandleFunc("/receipts/by-hash", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		handleFindReceiptsByHash(w, r, receiptStore, logger)
+	})
+
 	mux.HandleFunc("/receipts/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -284,6 +295,41 @@ func handleListReceipts(w http.ResponseWriter, r *http.Request, store receipt.Re
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"count":    len(receipts),
 		"receipts": receipts,
+	})
+}
+
+// handleFindReceiptsByHash answers the digest-keyed custody question: given a
+// bundle hash, which receipts custody it? Receipt IDs are content-addressed, so
+// an auditor who holds a bundle's chain-head hash (not its receipt ID) needs
+// this reverse lookup. The registry is rebuilt from the durable receipt store
+// per request, so the answer reflects every receipt currently held; a
+// production custodian would maintain the index incrementally instead.
+func handleFindReceiptsByHash(w http.ResponseWriter, r *http.Request, store receipt.ReceiptStore, logger *slog.Logger) {
+	bundleHash := strings.TrimSpace(r.URL.Query().Get("bundle_hash"))
+	if bundleHash == "" {
+		http.Error(w, "bundle_hash query parameter required", http.StatusBadRequest)
+		return
+	}
+	reg, err := registry.Build(r.Context(), store)
+	if err != nil {
+		logger.Error("build registry", "err", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	receipts, err := reg.FindByBundleHash(r.Context(), bundleHash)
+	if err != nil {
+		logger.Error("find receipts by hash", "err", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	if receipts == nil {
+		receipts = []receipt.Receipt{}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"bundle_hash": bundleHash,
+		"count":       len(receipts),
+		"receipts":    receipts,
 	})
 }
 
