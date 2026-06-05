@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - CI: the `custos` module (a separate Go module, previously **never run in CI**) is now vetted and tested with `-race` on Linux and macOS. The daemon targets POSIX semantics (owner-only perms, directory fsync), so it is excluded from the Windows matrix leg; the policy-store directory-permission test is GOOS-guarded so it is correct if run on Windows locally.
 
+### Fixed
+- `internal/bundle`: Windows now performs **real exclusive advisory locking** via `LockFileEx` (`LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY`) instead of the previous no-op placeholder, so concurrent bundle writers on Windows are serialised and contention surfaces `ErrBundleLocked` exactly as on Unix (`flock`). The lock-file create/open helper (`openLockFile`) is extracted into `lock_open.go` so both platforms share identical sidecar semantics; `lock_windows_test.go` validates exclusive contention, re-acquisition after release, and release on the Windows CI runner. Cross-platform bundle integrity under Windows multi-process writes no longer depends on cooperative timing.
+
 ## [v1.13.0] - 2026-06-03
 
 ### Added

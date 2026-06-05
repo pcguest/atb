@@ -84,23 +84,3 @@ func lockPath(path string) (release func() error, err error) {
 	}
 	return release, nil
 }
-
-func openLockFile(lockFile string) (*os.File, bool, error) {
-	for {
-		f, err := os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600) // #nosec G304 -- derived from caller path
-		if err == nil {
-			return f, true, nil
-		}
-		if !errors.Is(err, os.ErrExist) {
-			return nil, false, err
-		}
-
-		f, err = os.OpenFile(lockFile, os.O_RDWR, 0o600) // #nosec G304 -- derived from caller path
-		if err == nil {
-			return f, false, nil
-		}
-		if !errors.Is(err, os.ErrNotExist) {
-			return nil, false, err
-		}
-	}
-}
