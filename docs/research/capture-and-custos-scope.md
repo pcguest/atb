@@ -124,12 +124,20 @@ already has what it needs to demonstrate per-org binding: the signing
 `PolicyStore` (key/TSA/rotation per org). No credential-provisioning side effects
 should land in-repo. Leave the stub as an interface that documents the boundary.
 
-### `discovery` / `registry` — defer until there is a real consumer
+### `discovery` — defer until there is a real consumer
 
-Both are speculative without a real discovery source feeding them. Implementing an
-in-memory registry that nothing populates is scaffolding for its own sake. Defer
-until a concrete capture/corroboration consumer needs a known-tool lookup;
-revisit then.
+The *tool-signature* discovery scaffold is speculative without a real discovery
+source feeding it. Implementing a known-tool lookup that nothing populates is
+scaffolding for its own sake. Defer until a concrete capture/corroboration
+consumer needs it; revisit then.
+
+> **Update (2026-06-05):** `registry` was originally a sibling tool-signature
+> scaffold and is no longer covered by this guardrail. Per
+> `docs/custos-handoff.md`, the registry is the **receipt + digest registry** —
+> a lookup index over the (real, populated) receipt store, answering "which
+> receipts custody this bundle hash?". That has a real consumer (the daemon's
+> read API) and is implemented in `custos/registry/`. Only the tool-signature
+> `discovery` scaffold remains deferred.
 
 ## One-paragraph summary
 

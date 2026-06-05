@@ -58,14 +58,23 @@ already landed — so the real P0 was the orphaned components.
 - ⬜ `trust-score.ts` vs CAS labelling — Viewer Health rename already landed in a
   prior pass; re-confirm no residual inconsistency.
 
-## Phase 3 — Custos reference layer ⬜
+## Phase 3 — Custos reference layer 🚧 (in progress)
 
-Per `docs/custos-handoff.md` Receipt MVP: implement `custos/registry/`,
-`onboarding/`, `discovery/` with auth tests; harden `custosd` ops doc (TLS,
-token rotation, max-ingest); E2E `atb intercept --custos` → ingest →
-attestation; keep `test/custos/conformance_test.go` green. Hold the scope
-guardrails in `docs/research/capture-and-custos-scope.md` (no generative
-`insights`, no hosted workflow in `oversight`/`onboarding`).
+Per `docs/custos-handoff.md` Receipt MVP. Hold the scope guardrails in
+`docs/research/capture-and-custos-scope.md` (no generative `insights`, no hosted
+workflow in `oversight`/`onboarding`).
+
+- 🚧 **`custos/registry/`** (`feat/custos-receipt-registry`). Repurposed the
+  inert tool-signature stub into the handoff's **receipt + digest registry**:
+  `InMemoryRegistry` indexes receipts by ID and by bundle hash (the reverse
+  lookup the receipt store lacks), idempotent `Register` upsert, `Build` from a
+  store, deterministic ordering, race-tested. The tool-sig concept is deferred
+  with `discovery`. Full custos module green with `-race` incl. conformance.
+- ⬜ `custos/onboarding/` — minimal API-key provisioning HTTP + auth tests
+  (hold the guardrail: no multi-tenant account side effects; document boundary).
+- ⬜ `custos/discovery/` — deferred (tool-signature scaffold; no real consumer yet).
+- ⬜ Harden `custosd` operator doc (TLS, token rotation, max-ingest).
+- ⬜ E2E `atb intercept --custos` → ingest → attestation verify.
 
 ## Phase 4 — Capture & integration (P2) ⬜
 
