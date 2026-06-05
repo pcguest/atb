@@ -77,8 +77,14 @@ workflow in `oversight`/`onboarding`).
 - ⛔ `custos/onboarding/` — **out of scope** per AGENTS.md + research guardrail
   (multi-tenant account provisioning). Left as a boundary-documenting stub.
 - ⬜ `custos/discovery/` — deferred (tool-signature scaffold; no real consumer yet).
-- ⬜ Harden `custosd` operator doc (TLS, token rotation, max-ingest).
-- ⬜ E2E `atb intercept --custos` → ingest → attestation verify.
+- ⬜ Harden `custosd` operator doc (TLS, token rotation, max-ingest) — the
+  hardening checklist in `docs/custos-handoff.md` already covers these; light touch.
+- ✅ **E2E ingest → attestation → digest lookup** (`test/custos-e2e-ingest-attestation`).
+  Drives the real `newMux` with a real ATB fixture bundle through the full custody
+  path; proves the wire contract `atb intercept --custos` relies on. (Module
+  isolation + flaky-binary risk make an in-process daemon test the robust choice
+  over an `atb intercept` exec test; the ATB push side is covered in
+  `internal/proxy/push_test.go`.)
 
 ## Phase 4 — Capture & integration (P2) ⬜
 
