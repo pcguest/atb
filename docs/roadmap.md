@@ -43,10 +43,12 @@ and review it from a tamper-evident bundle.
 ## Medium term — Q4 2026 to Q1 2027
 
 - OTLP decode and GenAI semconv mapping (pkg/otel) — ◐ partial: GenAI semantic-convention
-  mapping (`gen_ai.*` → canonical AI trace events) and **OTLP/JSON** decode
+  mapping (`gen_ai.*` → canonical AI trace events), **OTLP/JSON** decode
   (`DecodeTraceJSON`, dependency-free, hex ids / unix-nano / AnyValue union /
-  enum-as-int-or-string) shipped June 2026; OTLP/protobuf (gRPC) transport
-  remains deferred as it would require an OpenTelemetry proto dependency
+  enum-as-int-or-string), and the OTLP/JSON **ingest path** (`Receiver.ReceiveJSON`
+  + `atb import otel`, appending translated spans to a bundle with trace linkage
+  preserved) shipped June 2026; OTLP/protobuf (gRPC) transport remains deferred as
+  it would require an OpenTelemetry proto dependency
 - DB reconciliation assurance packs
 - Reviewer identity anchoring (EU AI Act Article 14 gap closure)
 - Retention enforcement access logging

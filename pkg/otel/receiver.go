@@ -60,6 +60,35 @@ func (r *Receiver) Receive(ctx context.Context, trace OTelTrace) (ReceiverResult
 	return result, nil
 }
 
+// ReceiveJSON decodes an OTLP/JSON ExportTraceServiceRequest payload and
+// translates every span in every trace it contains, aggregating the results
+// into one ReceiverResult. It is the wired path from DecodeTraceJSON to
+// Receive: a caller hands it raw OTLP/JSON bytes and gets ATB events ready to
+// append to a bundle, without touching the trace-batching in between.
+//
+// A payload with no spans yields an empty result and no error; malformed JSON
+// returns the decode error unchanged. As with Receive, a span that cannot be
+// translated (ErrNotImplemented) increments SkippedCount, while any other
+// translation error aborts and is returned with the events gathered so far.
+func (r *Receiver) ReceiveJSON(ctx context.Context, data []byte) (ReceiverResult, error) {
+	traces, err := DecodeTraceJSON(data)
+	if err != nil {
+		return ReceiverResult{}, err
+	}
+
+	var agg ReceiverResult
+	for _, trace := range traces {
+		res, recvErr := r.Receive(ctx, trace)
+		agg.Events = append(agg.Events, res.Events...)
+		agg.SkippedCount += res.SkippedCount
+		agg.Errors = append(agg.Errors, res.Errors...)
+		if recvErr != nil {
+			return agg, recvErr
+		}
+	}
+	return agg, nil
+}
+
 // StubTransport is a no-op InboundTransport for tests and wiring checks.
 type StubTransport struct{}
 
