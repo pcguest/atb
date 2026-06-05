@@ -93,13 +93,20 @@ wrappers (Claude/OpenAI) on existing emitters, profile-bound, blind spots
 documented; align `atb.capture.scope` with the EU AI Act mapping as *support*,
 not certification.
 
-## Phase 5 — Release & narrative ⬜
+## Phase 5 — Release & narrative 🚧 (in progress)
 
-**Truth gap to close:** README says `Current release: v1.13.0` and the CHANGELOG
-is consolidated to v1.13.0, but the latest git tag is `v1.12.0` and the latest
-GitHub Release is `v1.9.0`. Run the full release gates, cut tags/Releases for
-v1.10–v1.13, then map `docs/research/*` to public roadmap bullets without
-promising hosted features in the ATB repo.
+- ✅ **Release-truth gap closed.** `v1.13.0` is now tagged at `863303d` (#104 —
+  where the `[v1.13.0]` CHANGELOG heading and `version = "1.13.0"` were
+  finalised; #105–#108 were already `[Unreleased]` and correctly excluded).
+  GitHub Releases created for the tagged-but-unreleased `v1.10.0`, `v1.11.0`,
+  `v1.12.0` and the new `v1.13.0` (marked **Latest**), from their CHANGELOG
+  sections. `scripts/check-versions.sh` passes — all version strings agree with
+  the latest tag. README's "Current release: v1.13.0" is now true.
+- ⬜ This session's `[Unreleased]` work (deps batch, Windows locks, viewer
+  wiring, Custos registry + by-hash + E2E) is a future **v1.14.0** (minor; new
+  features, no hash/schema break) — cut when ready.
+- ⬜ Map `docs/research/*` to public roadmap bullets without promising hosted
+  features in the ATB repo.
 
 ## Out of scope (not in the ATB repo)
 
