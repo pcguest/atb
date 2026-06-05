@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.14.0] - 2026-06-05
+
 ### Added
 - `custosd`: end-to-end custody test (`TestE2EIngestAttestationAndDigestLookup`) drives the **real daemon routing** (`newMux`) with a real ATB-produced fixture bundle through the full path a submission takes — `POST /ingest` → `201` receipt → `GET /receipts/{id}/attestation` (verifies valid) → `GET /receipts/by-hash` (finds the receipt by its bundle hash) → `GET /receipts/{id}`. Skips gracefully when the profile fixture has not been generated. Proves the wire contract `atb intercept --custos` relies on, exactly as a client sees it.
 - `custosd`: `GET /receipts/by-hash?bundle_hash=<hash>` surfaces the new receipt + digest registry over HTTP — the digest-keyed reverse lookup (returns every receipt custodying a given bundle hash, `{bundle_hash, count, receipts}`). Receipt IDs are content-addressed, so an auditor holding a bundle's chain-head hash rather than its receipt ID can still find its custody receipts. Auth-gated like `GET /receipts`; the registry is rebuilt from the durable receipt store per request (a production custodian would maintain the index incrementally). Registered as an exact route so it is not shadowed by the `/receipts/{id}` subtree.

@@ -45,7 +45,7 @@ it is merged on `main` and CI-green.
 viewer commits are *polish*, not the wiring) and the api-client hash-token fix
 already landed — so the real P0 was the orphaned components.
 
-- 🚧 **Mount session/schema views** (`feat/wire-session-schema-views`).
+- ✅ **Mount session/schema views** — PR #112 (merged).
   `SessionList` + `SchemaStatus` were built, unit-tested, but imported by nothing
   and used raw `fetch()` (unauthenticated). Rewired to the authenticated
   api-client (added `useSchemaStatusQuery` + zod schema for `SchemaStatusResponse`)
@@ -70,10 +70,10 @@ workflow in `oversight`/`onboarding`).
   lookup the receipt store lacks), idempotent `Register` upsert, `Build` from a
   store, deterministic ordering, race-tested. Tool-sig concept deferred with
   `discovery`.
-- 🚧 **Wire registry into `custosd`** (`feat/custosd-receipts-by-hash`).
-  Authenticated `GET /receipts/by-hash?bundle_hash=<hash>` backed by the registry
-  (built from the receipt store per request) — the registry's real consumer.
-  Handler + routing-precedence tests; README/CHANGELOG updated.
+- ✅ **Wire registry into `custosd`** — PR #114 (merged). Authenticated
+  `GET /receipts/by-hash?bundle_hash=<hash>` backed by the registry (built from the
+  receipt store per request) — the registry's real consumer. Handler +
+  routing-precedence tests; README/CHANGELOG updated.
 - ⛔ `custos/onboarding/` — **out of scope** per AGENTS.md + research guardrail
   (multi-tenant account provisioning). Left as a boundary-documenting stub.
 - ⬜ `custos/discovery/` — deferred (tool-signature scaffold; no real consumer yet).
@@ -102,9 +102,17 @@ not certification.
   `v1.12.0` and the new `v1.13.0` (marked **Latest**), from their CHANGELOG
   sections. `scripts/check-versions.sh` passes — all version strings agree with
   the latest tag. README's "Current release: v1.13.0" is now true.
-- ⬜ This session's `[Unreleased]` work (deps batch, Windows locks, viewer
-  wiring, Custos registry + by-hash + E2E) is a future **v1.14.0** (minor; new
-  features, no hash/schema break) — cut when ready.
+- 🚧 **Cut v1.14.0** (`release/v1.14.0`). The accumulated `[Unreleased]` work
+  (deps batch, Windows `LockFileEx`, viewer `/sessions` mount, Custos registry +
+  by-hash + E2E, `pkg/otel` `DecodeTraceJSON`, signing PolicyStore) is a minor
+  release — new features, no hash/schema break. CHANGELOG `[Unreleased]` → moved
+  to `## [v1.14.0] - 2026-06-05`; all nine version strings bumped 1.13.0 → 1.14.0
+  (`check-versions.sh` green with `ATB_SKIP_TAG_CHECK=1`). Doc-truth sweep in the
+  same PR: `baseline-handoff.md`, `roadmap.md`, `public-surface.md` reconciled
+  (OTLP decode shipped / receiver wire-up planned; registry implemented), and the
+  stale "no-op on Windows" skip reason in `advisory_lock_testsupport_test.go`
+  corrected (#111 shipped real locking). Tag + GitHub Release after gates pass and
+  maintainer review.
 - ⬜ Map `docs/research/*` to public roadmap bullets without promising hosted
   features in the ATB repo.
 
