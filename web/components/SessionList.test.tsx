@@ -1,15 +1,15 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import SessionList from './SessionList';
+import { useSessionsQuery } from '@/lib/api-client';
 
-// Mock @tanstack/react-query
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: vi.fn(),
+// Mock the api-client hook so the component is tested through the authenticated
+// data path it actually uses (the hook attaches the session token).
+vi.mock('@/lib/api-client', () => ({
+  useSessionsQuery: vi.fn(),
 }));
 
-// Mock next/navigation
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(),
 }));
@@ -57,17 +57,17 @@ describe('SessionList', () => {
   });
 
   it('renders loading state', () => {
-    (useQuery as Mock).mockReturnValue({
+    (useSessionsQuery as Mock).mockReturnValue({
       data: undefined,
       isLoading: true,
       error: null,
     });
     render(<SessionList />);
-    expect(screen.getByText('Loading sessions...')).toBeInTheDocument();
+    expect(screen.getByText('Loading sessions…')).toBeInTheDocument();
   });
 
   it('renders error state', () => {
-    (useQuery as Mock).mockReturnValue({
+    (useSessionsQuery as Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
       error: new Error('Failed to fetch'),
@@ -77,7 +77,7 @@ describe('SessionList', () => {
   });
 
   it('renders no sessions found state', () => {
-    (useQuery as Mock).mockReturnValue({
+    (useSessionsQuery as Mock).mockReturnValue({
       data: [],
       isLoading: false,
       error: null,
@@ -87,7 +87,7 @@ describe('SessionList', () => {
   });
 
   it('renders sessions correctly', async () => {
-    (useQuery as Mock).mockReturnValue({
+    (useSessionsQuery as Mock).mockReturnValue({
       data: mockSessions,
       isLoading: false,
       error: null,
@@ -106,8 +106,8 @@ describe('SessionList', () => {
     });
   });
 
-  it('navigates to bundle viewer on row click', async () => {
-    (useQuery as Mock).mockReturnValue({
+  it('navigates to bundle viewer on row click, preserving the session token', async () => {
+    (useSessionsQuery as Mock).mockReturnValue({
       data: mockSessions,
       isLoading: false,
       error: null,

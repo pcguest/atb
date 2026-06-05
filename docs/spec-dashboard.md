@@ -4,7 +4,7 @@
 
 **Single-bundle viewer (`/view/`) — shipped:** local `atb view` API server with verification gate and privacy reveal flow; verification banner, timeline, trace graph, event inspector, stats strip, Profile/CAS panel, and `SessionAnomalies` banner when `--sessions` indexes additional bundles; reveal audit logging appended into `bundle.atb`.
 
-**Cross-bundle session UI — partial:** `GET /api/v1/sessions`, `GET /api/v1/sessions/by-actor`, and `GET /api/v1/schema/status` are implemented server-side. React components `SessionList`, `ActorSessions`, `SchemaStatus`, and `RoleSelector` exist with Vitest coverage but are **not mounted** on any route; `web/app/sessions/page.tsx` is a placeholder. See `docs/maintenance/baseline-handoff.md`.
+**Cross-bundle session UI — partial:** `GET /api/v1/sessions`, `GET /api/v1/sessions/by-actor`, and `GET /api/v1/schema/status` are implemented server-side. `SessionList` (session index) and `SchemaStatus` (contract health) are **mounted on `/sessions`** and read through the authenticated api-client, so the viewer session token is attached. `ActorSessions` and `RoleSelector` exist with Vitest coverage but are **not yet mounted**. See `docs/maintenance/baseline-handoff.md`.
 
 There is no hosted mode, collaborative workspace, or remote multi-tenant review surface.
 

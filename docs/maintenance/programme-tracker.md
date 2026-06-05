@@ -28,26 +28,35 @@ it is merged on `main` and CI-green.
   reads *logging*, not *compliant* — defensible per
   `docs/research/eu-ai-act-mapping.md`. No change needed.
 
-## Phase 1 — Hardening 🚧 (in progress)
+## Phase 1 — Hardening ✅ (complete)
 
-- 🚧 **Windows advisory locks** (`fix/windows-advisory-lock`). Real
-  `LockFileEx` exclusive locking ported into `internal/bundle/lock_windows.go`
-  (was a no-op placeholder), `openLockFile` extracted to shared `lock_open.go`,
-  Windows contention tests added. Salvaged by manual port from
-  `chore/dependabot-batch` (never merged). Unix tests green; Windows path
-  cross-vetted; CHANGELOG `Fixed` entry added.
-- ⬜ Deps batch — folded into Phase 0 PR #109; routine future increments
+- ✅ **Windows advisory locks** — PR #111 (merged, `8d80f4f`). Real `LockFileEx`
+  exclusive locking ported into `internal/bundle/lock_windows.go` (was a no-op
+  placeholder), `openLockFile` extracted to shared `lock_open.go`, Windows
+  contention tests added and **green on the Windows CI runner**. Salvaged by
+  manual port from `chore/dependabot-batch` (never merged).
+- ✅ Deps batch — folded into Phase 0 PR #109; routine future increments
   (#100–#103, #110) swept periodically, not chased per-commit.
-- ⬜ Verify `scripts/check-support-matrix.sh` + docs-sync stay green on `main`
-  (support-matrix confirmed locally during #109).
+- ✅ `scripts/check-support-matrix.sh` confirmed green (locally and in CI on #109/#111).
 
-## Phase 2 — ATB demonstrability (P0) ⬜
+## Phase 2 — ATB demonstrability (P0) 🚧 (in progress)
 
-Source: `private/demo-prep` (10 unpushed viewer commits). Mount
-SessionList/SchemaStatus on `/view/`; fix `web/lib/api-client.ts` session token
-on hash navigation; resolve `trust-score.ts` vs verifier CAS labelling; add a
-tamper→verify→profile-gaps smoke/E2E; update `spec-dashboard.md` + CHANGELOG for
-shipped behaviour only.
+**Baseline correction:** `private/demo-prep` is 64 commits behind main (its 10
+viewer commits are *polish*, not the wiring) and the api-client hash-token fix
+already landed — so the real P0 was the orphaned components.
+
+- 🚧 **Mount session/schema views** (`feat/wire-session-schema-views`).
+  `SessionList` + `SchemaStatus` were built, unit-tested, but imported by nothing
+  and used raw `fetch()` (unauthenticated). Rewired to the authenticated
+  api-client (added `useSchemaStatusQuery` + zod schema for `SchemaStatusResponse`)
+  and mounted on `/sessions`, replacing the static placeholder. Tests + page
+  mount test green; lint/typecheck clean; `spec-dashboard.md`/`public-surface.md`/
+  CHANGELOG updated to shipped.
+- ⬜ Cherry-pick the 10 `private/demo-prep` polish commits onto main (separate PR).
+- ⬜ `ActorSessions` / `RoleSelector` mounting (still orphaned).
+- ⬜ tamper→verify→profile-gaps smoke/E2E.
+- ⬜ `trust-score.ts` vs CAS labelling — Viewer Health rename already landed in a
+  prior pass; re-confirm no residual inconsistency.
 
 ## Phase 3 — Custos reference layer ⬜
 

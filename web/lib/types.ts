@@ -12,6 +12,8 @@ import {
   privacyRevealRequestSchema,
   privacyRevealResponseSchema,
   profileReportSummarySchema,
+  schemaStatusResponseSchema,
+  eventTypeStatusSchema,
   sessionEntrySchema,
   sessionsResponseSchema,
   verificationResponseSchema,
@@ -33,3 +35,5 @@ export type ProfileReportSummary = z.infer<typeof profileReportSummarySchema>;
 export type WorkspaceBundlesResponse = z.infer<typeof workspaceBundlesResponseSchema>;
 export type SessionEntry = z.infer<typeof sessionEntrySchema>;
 export type SessionsResponse = z.infer<typeof sessionsResponseSchema>;
+export type EventTypeStatus = z.infer<typeof eventTypeStatusSchema>;
+export type SchemaStatusResponse = z.infer<typeof schemaStatusResponseSchema>;

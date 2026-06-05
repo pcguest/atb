@@ -68,7 +68,8 @@ compliance.
 | `atb intercept` + incident forensics | **Shipped** | `incident list` / `report` / `export` |
 | `/view/` dashboard (single bundle) | **Shipped** | Timeline, graph, inspector, verify gate |
 | Session index API (`--sessions`) | **Shipped** | Server-side; `SessionAnomalies` on `/view/` |
-| Session list / actor / schema UI | **Planned** | Components exist; not mounted; `/sessions/` stub |
+| Session list + schema UI (`/sessions`) | **Shipped** | `SessionList` + `SchemaStatus` mounted, authenticated |
+| Actor-grouped session UI | **Planned** | `ActorSessions` exists; not mounted |
 | Role selector (engineer/auditor/executive) | **Planned** | `web/lib/roles.ts` enforced; no in-UI switch |
 | Custos ingest + receipts + attestation | **Shipped** | In-repo reference module |
 | Custos UI (`docs/custos/ui-spec.md`) | **Planned** | discovery/registry/onboarding/oversight/insights scaffolds |

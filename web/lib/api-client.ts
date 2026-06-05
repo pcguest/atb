@@ -17,6 +17,7 @@ import {
   privacyRevealRequestSchema,
   privacyRevealResponseSchema,
   profileReportSummarySchema,
+  schemaStatusResponseSchema,
   sessionsResponseSchema,
   verificationResponseSchema,
   workspaceBundlesResponseSchema,
@@ -29,6 +30,7 @@ import type {
   PrivacyRevealRequest,
   PrivacyRevealResponse,
   ProfileReportSummary,
+  SchemaStatusResponse,
   SessionEntry,
   VerificationResponse,
   WorkspaceBundlesResponse,
@@ -57,6 +59,7 @@ export const queryKeys = {
   bundleProfile: ["atb", "bundle", "profile"] as const,
   workspaceBundles: ["atb", "workspace", "bundles"] as const,
   sessions: ["atb", "sessions"] as const,
+  schemaStatus: ["atb", "schema", "status"] as const,
 };
 
 function parseWithSchema<T>(schema: ZodSchema<T>, payload: unknown, path: string): T {
@@ -127,6 +130,10 @@ export function listWorkspaceBundles(): Promise<WorkspaceBundlesResponse> {
 export async function getSessions(): Promise<SessionEntry[]> {
   const response = await requestJSON("/api/v1/sessions", sessionsResponseSchema);
   return response.sessions;
+}
+
+export function getSchemaStatus(): Promise<SchemaStatusResponse> {
+  return requestJSON("/api/v1/schema/status", schemaStatusResponseSchema);
 }
 
 export async function getBundleProfile(): Promise<ProfileReportSummary | null> {
@@ -240,6 +247,18 @@ export function useSessionsQuery(enabled: boolean): UseQueryResult<SessionEntry[
   return useQuery({
     queryKey: queryKeys.sessions,
     queryFn: getSessions,
+    enabled,
+    retry: false,
+    staleTime: 30000,
+  });
+}
+
+export function useSchemaStatusQuery(
+  enabled: boolean,
+): UseQueryResult<SchemaStatusResponse, Error> {
+  return useQuery({
+    queryKey: queryKeys.schemaStatus,
+    queryFn: getSchemaStatus,
     enabled,
     retry: false,
     staleTime: 30000,

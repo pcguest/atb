@@ -20,3 +20,7 @@ export {
   sessionEntrySchema,
   sessionsResponseSchema,
 } from "@/lib/schemas/session";
+export {
+  eventTypeStatusSchema,
+  schemaStatusResponseSchema,
+} from "@/lib/schemas/schema-status";

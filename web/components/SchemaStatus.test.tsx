@@ -1,10 +1,12 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { useQuery } from '@tanstack/react-query';
 import SchemaStatus from './SchemaStatus';
+import { useSchemaStatusQuery } from '@/lib/api-client';
 
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: vi.fn(),
+// Mock the api-client hook so the component is tested through the authenticated
+// data path it actually uses (the hook attaches the session token).
+vi.mock('@/lib/api-client', () => ({
+  useSchemaStatusQuery: vi.fn(),
 }));
 
 const mockStatus = {
@@ -49,13 +51,13 @@ describe('SchemaStatus', () => {
   });
 
   it('renders loading state', () => {
-    (useQuery as Mock).mockReturnValue({ data: undefined, isLoading: true, error: null });
+    (useSchemaStatusQuery as Mock).mockReturnValue({ data: undefined, isLoading: true, error: null });
     render(<SchemaStatus />);
-    expect(screen.getByText('Loading schema status...')).toBeInTheDocument();
+    expect(screen.getByText('Loading schema status…')).toBeInTheDocument();
   });
 
   it('renders error state', () => {
-    (useQuery as Mock).mockReturnValue({
+    (useSchemaStatusQuery as Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
       error: new Error('boom'),
@@ -65,7 +67,7 @@ describe('SchemaStatus', () => {
   });
 
   it('surfaces summary, undeclared types, and incomplete rows', () => {
-    (useQuery as Mock).mockReturnValue({ data: mockStatus, isLoading: false, error: null });
+    (useSchemaStatusQuery as Mock).mockReturnValue({ data: mockStatus, isLoading: false, error: null });
     render(<SchemaStatus />);
 
     // Summary cards.
