@@ -1,13 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import ActorSessions from './ActorSessions';
-import AnomalyBadge from './AnomalyBadge'; // Import AnomalyBadge for mocking
+import { useActorSessionsQuery } from '@/lib/api-client';
 
-// Mock @tanstack/react-query
-vi.mock('@tanstack/react-query', () => ({
-  useQuery: vi.fn(),
+// Mock the authenticated api-client hook the component now reads through (it
+// attaches the viewer session token); the component no longer calls fetch().
+vi.mock('@/lib/api-client', () => ({
+  useActorSessionsQuery: vi.fn(),
 }));
 
 // Mock next/navigation
@@ -78,7 +78,7 @@ describe('ActorSessions', () => {
   });
 
   it('renders loading state', () => {
-    (useQuery as Mock).mockReturnValue({
+    (useActorSessionsQuery as Mock).mockReturnValue({
       data: undefined,
       isLoading: true,
       error: null,
@@ -88,7 +88,7 @@ describe('ActorSessions', () => {
   });
 
   it('renders error state', () => {
-    (useQuery as Mock).mockReturnValue({
+    (useActorSessionsQuery as Mock).mockReturnValue({
       data: undefined,
       isLoading: false,
       error: new Error('Failed to fetch'),
@@ -98,7 +98,7 @@ describe('ActorSessions', () => {
   });
 
   it('renders no actor sessions found state', () => {
-    (useQuery as Mock).mockReturnValue({
+    (useActorSessionsQuery as Mock).mockReturnValue({
       data: {},
       isLoading: false,
       error: null,
@@ -108,7 +108,7 @@ describe('ActorSessions', () => {
   });
 
   it('renders actor groups and expands/collapses', async () => {
-    (useQuery as Mock).mockReturnValue({
+    (useActorSessionsQuery as Mock).mockReturnValue({
       data: mockActorSessions,
       isLoading: false,
       error: null,
@@ -136,7 +136,7 @@ describe('ActorSessions', () => {
   });
 
   it('displays unresolved_identity badge for actor group if any session has it', async () => {
-    (useQuery as Mock).mockReturnValue({
+    (useActorSessionsQuery as Mock).mockReturnValue({
       data: mockActorSessions,
       isLoading: false,
       error: null,
@@ -155,7 +155,7 @@ describe('ActorSessions', () => {
   });
 
   it('navigates to bundle viewer on session row click', async () => {
-    (useQuery as Mock).mockReturnValue({
+    (useActorSessionsQuery as Mock).mockReturnValue({
       data: mockActorSessions,
       isLoading: false,
       error: null,

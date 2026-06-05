@@ -1,50 +1,19 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import AnomalyBadge from './AnomalyBadge'; // Assuming AnomalyBadge is in the same directory
 
-// Actor summary as serialized by internal/sessionindex (nested object).
-interface ActorSummary {
-  display_name: string;
-  email: string;
-}
+import { useActorSessionsQuery } from '@/lib/api-client';
+import type { SessionEntry } from '@/lib/types';
+import AnomalyBadge from './AnomalyBadge';
 
-// Define the SessionEntry type based on the Go struct
-interface SessionEntry {
-  session_id: string;
-  actor: ActorSummary;
-  started_at: string; // ISO 8601 string
-  closed_at: string | null; // ISO 8601 string or null
-  exchange_count: number;
-  inferred_profile: string;
-  cas_grade: string;
-  anomaly_flags: string[];
-  bundle_path: string;
-}
-
-interface ActorsResponse {
-  actors: {
-    [actorDisplayName: string]: SessionEntry[];
-  };
-}
-
-const fetchActorSessions = async (): Promise<ActorsResponse['actors']> => {
-  const response = await fetch('/api/v1/sessions/by-actor');
-  if (!response.ok) {
-    throw new Error('Failed to fetch actor sessions');
-  }
-  const data: ActorsResponse = await response.json();
-  return data.actors;
-};
-
+// ActorSessions renders the actor-grouped session index from
+// GET /api/v1/sessions/by-actor. It reads through the shared api-client so the
+// viewer session token (delivered in the URL fragment) is attached to the
+// request; a raw fetch() would be rejected by the authenticated viewer.
 const ActorSessions: React.FC = () => {
   const router = useRouter();
-  const { data: actors, isLoading, error } = useQuery<ActorsResponse['actors']>({
-    queryKey: ['actorSessions'],
-    queryFn: fetchActorSessions,
-  });
+  const { data: actors, isLoading, error } = useActorSessionsQuery(true);
   const [expandedActors, setExpandedActors] = useState<Set<string>>(new Set());
 
   if (isLoading) return <div>Loading actor sessions...</div>;

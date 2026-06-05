@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { AuditorCompliancePanel } from "@/app/view/components/AuditorCompliancePanel";
 import { ExecutiveSummaryPanel } from "@/app/view/components/ExecutiveSummaryPanel";
+import { RoleSelector } from "@/app/view/components/role-selector/RoleSelector";
 import { Skeleton } from "@/app/view/components/ui/skeleton";
 import { EventInspector } from "@/components/dashboard/EventInspector";
 import { ProfileCAS } from "@/components/dashboard/ProfileCAS";
@@ -139,6 +140,12 @@ export default function ViewPage() {
       {/* ── CENTRE COLUMN ─────────────────────────────────────────────── */}
       <main id="dashboard-content" className="flex flex-1 flex-col overflow-y-auto">
         <h1 className="sr-only">ATB Trust Dashboard</h1>
+
+        {/* Top bar: the role selector drives the role-conditional panels below
+            (raw event data for engineers, the auditor and executive summaries). */}
+        <div className="flex shrink-0 items-center justify-end gap-3 border-b border-border px-4 py-2">
+          <RoleSelector />
+        </div>
 
         {/* Oversight anomalies for the loaded bundle's sessions */}
         <SessionAnomalies enabled={verificationValid} />

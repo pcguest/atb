@@ -10,6 +10,7 @@ import { type ZodSchema } from "zod";
 
 import { dashboardRoles, type DashboardRole } from "@/lib/roles";
 import {
+  actorSessionsResponseSchema,
   apiErrorSchema,
   bundleEventsResponseSchema,
   bundleGraphResponseSchema,
@@ -59,6 +60,7 @@ export const queryKeys = {
   bundleProfile: ["atb", "bundle", "profile"] as const,
   workspaceBundles: ["atb", "workspace", "bundles"] as const,
   sessions: ["atb", "sessions"] as const,
+  actorSessions: ["atb", "sessions", "by-actor"] as const,
   schemaStatus: ["atb", "schema", "status"] as const,
 };
 
@@ -130,6 +132,11 @@ export function listWorkspaceBundles(): Promise<WorkspaceBundlesResponse> {
 export async function getSessions(): Promise<SessionEntry[]> {
   const response = await requestJSON("/api/v1/sessions", sessionsResponseSchema);
   return response.sessions;
+}
+
+export async function getActorSessions(): Promise<Record<string, SessionEntry[]>> {
+  const response = await requestJSON("/api/v1/sessions/by-actor", actorSessionsResponseSchema);
+  return response.actors;
 }
 
 export function getSchemaStatus(): Promise<SchemaStatusResponse> {
@@ -247,6 +254,18 @@ export function useSessionsQuery(enabled: boolean): UseQueryResult<SessionEntry[
   return useQuery({
     queryKey: queryKeys.sessions,
     queryFn: getSessions,
+    enabled,
+    retry: false,
+    staleTime: 30000,
+  });
+}
+
+export function useActorSessionsQuery(
+  enabled: boolean,
+): UseQueryResult<Record<string, SessionEntry[]>, Error> {
+  return useQuery({
+    queryKey: queryKeys.actorSessions,
+    queryFn: getActorSessions,
     enabled,
     retry: false,
     staleTime: 30000,
