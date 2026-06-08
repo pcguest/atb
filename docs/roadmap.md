@@ -37,7 +37,11 @@ and review it from a tamper-evident bundle.
 - ✅ Proxy auto-push to Custos on session close (added 28 May 2026 — completed out of roadmap order)
 - ✅ Formalise obligation-profile DSL v1 (completed 29 May 2026)
 - ✅ Produce verifier report v1 structured output (completed 29 May 2026)
-- Wire automatic capture to Claude and OpenAI SDK callbacks
+- ✅ Wire automatic capture to Claude and OpenAI SDK clients — opt-in
+  `wrapOpenAI`/`wrapAnthropic` (TS) and `wrap_openai`/`wrap_anthropic` (Python)
+  thin adapters that record the chat/messages `create` call (request, response,
+  token usage, tool calls, errors) through the existing recorders; streaming and
+  non-chat endpoints are documented blind spots (shipped June 2026)
 - Enforce EU AI Act Article 12 logging in automatic capture path
 
 ## Medium term — Q4 2026 to Q1 2027

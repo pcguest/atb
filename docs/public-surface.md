@@ -75,6 +75,7 @@ compliance.
 | Custos UI (`docs/custos/ui-spec.md`) | **Planned** | discovery/onboarding/oversight/insights scaffolds (registry now implemented) |
 | Hosted Custos / SSO / billing | **Out of scope** | External product per `AGENTS.md` |
 | OTLP/JSON ingest (`pkg/otel` + `atb import otel`) | **Shipped** | `DecodeTraceJSON` → `Receiver.ReceiveJSON` → `atb import otel` appends spans (retrospective provenance); protobuf/gRPC transport planned |
+| OpenAI/Anthropic SDK capture adapters | **Shipped** | `wrapOpenAI`/`wrapAnthropic` (TS), `wrap_openai`/`wrap_anthropic` (Python); opt-in, privacy-moded; streaming + non-chat endpoints are documented blind spots |
 | Compliance certification claims | **Never** | Mapping docs only; no certification language |
 
 See `docs/maintenance/baseline-handoff.md` for the next feature prompt scope.

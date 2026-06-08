@@ -66,6 +66,14 @@ export { computeHash, chainEvents, GENESIS_HASH } from "./hash.js";
 export { canonicalize } from "./canonicalize.js";
 export { atbMiddleware } from "./vercel-ai-middleware.js";
 export { gateVercelTool } from "./vercel-gate.js";
+export { wrapOpenAI, wrapAnthropic } from "./sdk-capture.js";
+export type {
+  SDKCaptureOptions,
+  OpenAIChatParams,
+  OpenAIChatResponse,
+  AnthropicMessagesParams,
+  AnthropicMessagesResponse,
+} from "./sdk-capture.js";
 export { normalizeOptionalIdentity, prepareForCanonical } from "./event.js";
 export type {
   ActionGateDecision,
