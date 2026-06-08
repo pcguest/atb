@@ -26,5 +26,16 @@ export const sessionsResponseSchema = z.object({
     .transform((value) => value ?? []),
 });
 
+// Mirrors pkg/api/v1.ActorsResponse from GET /api/v1/sessions/by-actor: an
+// "actors" object mapping each actor display name to its sessions. A nil Go map
+// marshals to null, so coerce the absent case to {}.
+export const actorSessionsResponseSchema = z.object({
+  actors: z
+    .record(z.string(), z.array(sessionEntrySchema))
+    .nullable()
+    .transform((value) => value ?? {}),
+});
+
 export type SessionEntry = z.infer<typeof sessionEntrySchema>;
 export type SessionsResponse = z.infer<typeof sessionsResponseSchema>;
+export type ActorSessionsResponse = z.infer<typeof actorSessionsResponseSchema>;

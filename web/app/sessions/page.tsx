@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import ActorSessions from "@/components/ActorSessions";
 import SchemaStatus from "@/components/SchemaStatus";
 import SessionList from "@/components/SessionList";
 
@@ -24,6 +25,7 @@ const SessionsPage: React.FC = () => {
       <section className="space-y-6" aria-label="Session and schema overview">
         <SchemaStatus />
         <SessionList />
+        <ActorSessions />
       </section>
     </main>
   );

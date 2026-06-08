@@ -12,12 +12,16 @@ vi.mock("@/components/SessionList", () => ({
 vi.mock("@/components/SchemaStatus", () => ({
   default: () => <div data-testid="schema-status" />,
 }));
+vi.mock("@/components/ActorSessions", () => ({
+  default: () => <div data-testid="actor-sessions" />,
+}));
 
 describe("SessionsPage", () => {
-  it("mounts the session and schema-status views", () => {
+  it("mounts the session, schema-status, and actor-grouped views", () => {
     render(<SessionsPage />);
     expect(screen.getByTestId("session-list")).toBeInTheDocument();
     expect(screen.getByTestId("schema-status")).toBeInTheDocument();
+    expect(screen.getByTestId("actor-sessions")).toBeInTheDocument();
   });
 
   it("documents how the workspace index is populated", () => {
