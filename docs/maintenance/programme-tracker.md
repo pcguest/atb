@@ -96,7 +96,7 @@ workflow in `oversight`/`onboarding`).
   over an `atb intercept` exec test; the ATB push side is covered in
   `internal/proxy/push_test.go`.)
 
-## Phase 4 — Capture & integration (P2) 🚧 (in progress — local main)
+## Phase 4 — Capture & integration (P2) ✅ (complete — local main)
 
 Wire `pkg/otel` decode to the receiver path; thin opt-in SDK auto-capture
 wrappers (Claude/OpenAI) on existing emitters, profile-bound, blind spots
@@ -109,8 +109,15 @@ not certification.
   with trace linkage and retrospective provenance. gRPC/protobuf transport stays
   deferred (would pull an OpenTelemetry proto dependency). `public-surface.md`
   OTLP row flipped to shipped.
-- ⬜ **D2** — thin opt-in Claude/OpenAI SDK auto-capture adapters on existing
-  emitters, profile-bound, blind spots documented.
+- ✅ **D2** — opt-in Claude/OpenAI SDK capture adapters — merged to local main
+  (`feat/sdk-capture-adapters`). `wrapOpenAI`/`wrapAnthropic` (TS,
+  `sdk-capture.ts`) and `wrap_openai`/`wrap_anthropic` (Python, `atb.sdk_capture`)
+  wrap the direct clients' `create` method and record request/response/tool-calls/
+  error through the existing `atbMiddleware` / `ATBCallbackHandler` recorders — no
+  second emit path, no hard SDK dependency. Opt-in, privacy-moded, profile-bound.
+  Blind spots documented: streaming (`stream:true`) raises → use `atb intercept`;
+  only chat/messages create is instrumented. TS 95/95, Python 125/125, golden
+  parity green.
 
 ## Phase 5 — Release & narrative 🚧 (in progress)
 
