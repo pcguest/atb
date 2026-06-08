@@ -69,12 +69,12 @@ compliance.
 | `/view/` dashboard (single bundle) | **Shipped** | Timeline, graph, inspector, verify gate |
 | Session index API (`--sessions`) | **Shipped** | Server-side; `SessionAnomalies` on `/view/` |
 | Session list + schema UI (`/sessions`) | **Shipped** | `SessionList` + `SchemaStatus` mounted, authenticated |
-| Actor-grouped session UI | **Planned** | `ActorSessions` exists; not mounted |
-| Role selector (engineer/auditor/executive) | **Planned** | `web/lib/roles.ts` enforced; no in-UI switch |
+| Actor-grouped session UI | **Shipped** | `ActorSessions` mounted on `/sessions`, authenticated api-client |
+| Role selector (engineer/auditor/executive) | **Shipped** | `RoleSelector` mounted in `/view` header; `web/lib/roles.ts` gates panels |
 | Custos ingest + receipts + attestation | **Shipped** | In-repo reference module; receipt + digest registry, `GET /receipts/by-hash` |
 | Custos UI (`docs/custos/ui-spec.md`) | **Planned** | discovery/onboarding/oversight/insights scaffolds (registry now implemented) |
 | Hosted Custos / SSO / billing | **Out of scope** | External product per `AGENTS.md` |
-| OTLP decode (`pkg/otel`) | **Shipped** | `DecodeTraceJSON` (OTLP/JSON, dependency-free); receiver wire-up + protobuf/gRPC planned |
+| OTLP/JSON ingest (`pkg/otel` + `atb import otel`) | **Shipped** | `DecodeTraceJSON` → `Receiver.ReceiveJSON` → `atb import otel` appends spans (retrospective provenance); protobuf/gRPC transport planned |
 | Compliance certification claims | **Never** | Mapping docs only; no certification language |
 
 See `docs/maintenance/baseline-handoff.md` for the next feature prompt scope.
