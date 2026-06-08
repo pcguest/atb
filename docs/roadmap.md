@@ -90,3 +90,33 @@ Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/R
 - Phase 11: Insight extraction + pitfall detection — Q4 2026
 - Phase 12: Org/team management + per-team allow-lists — Q1 2027
 - Phase 12: EU AI Act Article 12 retention enforcement per org — Q1 2027
+
+## Research & design notes (forward-looking — not commitments)
+
+These notes in [`docs/research/`](./research/) lock a trust model or scope
+*before* code, so the product does not overclaim. They are design direction, not
+shipped features and not hosted-service promises; each maps to in-repo reference
+work only.
+
+- **Custos transparency log** ([`transparency-log.md`](./research/transparency-log.md))
+  — reference design for a Merkle-tree inclusion-proof log with C2SP signed-note
+  checkpoints over the existing receipt store, additive to the current
+  `GET /receipts` surface. The note is explicit that a single-operator log is
+  **not** equivocation-resistant on its own: split-view detection requires
+  **witness cosignatures**, so the checkpoint format is witness-cosignable from
+  day one. In-repo direction for the Custos reference layer; the production,
+  multi-operator log service stays out of this repository.
+- **EU AI Act evidence-to-obligation mapping**
+  ([`eu-ai-act-mapping.md`](./research/eu-ai-act-mapping.md)) — an honest mapping
+  of what ATB/Custos evidence *supports* against what specific Articles *require*.
+  Direction: keep Article 12 (logging/traceability) as the defensible core,
+  surface Article 14 (human oversight) and Articles 17–20 (evidence-pack export)
+  as **support, not certification**. Drives the "reviewer identity anchoring" and
+  "compliance evidence pack export" medium-term items above. Not legal advice;
+  no certification language enters the product.
+- **SDK auto-capture decision & Custos scope guardrails**
+  ([`capture-and-custos-scope.md`](./research/capture-and-custos-scope.md)) — the
+  decision record behind the shipped opt-in SDK capture adapters (keep capture
+  thin, profile-bound, with documented blind spots) and the guardrails that keep
+  `discovery`/`onboarding`/`oversight`/`insights` as bounded stubs rather than
+  hosted multi-tenant features in this repo.
