@@ -218,8 +218,14 @@ What it does **not** cover (operator responsibilities before production):
 
 - [ ] **TLS.** Terminate TLS at an operator-controlled reverse proxy; never
       expose bare HTTP to an untrusted network.
-- [ ] **Token rotation.** `CUSTOS_AUTH_TOKEN` is a single static secret. Rotate
-      it out of band; there is no built-in rotation, revocation, or expiry.
+- [ ] **Token rotation.** `CUSTOS_AUTH_TOKEN` is a single static secret; there is
+      no built-in rotation, revocation, or expiry. Procedure: issue the new token
+      at the reverse proxy, restart `custosd` with the new `CUSTOS_AUTH_TOKEN`,
+      then retire the old one. The daemon holds **one** token at a time (no
+      dual-token overlap window), so clients see brief `401`s until they present
+      the new token — schedule rotation for a maintenance moment, or front the
+      daemon with a proxy that injects the bearer token so rotation is invisible
+      to clients.
 - [ ] **Per-tenant / per-user identity.** There is no mTLS, OIDC, or tenant
       scoping. Every holder of the token has identical access to ingest and to
       every receipt and bundle. Add an authenticating proxy if you need
