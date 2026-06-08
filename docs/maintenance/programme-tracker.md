@@ -39,7 +39,7 @@ it is merged on `main` and CI-green.
   (#100–#103, #110) swept periodically, not chased per-commit.
 - ✅ `scripts/check-support-matrix.sh` confirmed green (locally and in CI on #109/#111).
 
-## Phase 2 — ATB demonstrability (P0) 🚧 (in progress)
+## Phase 2 — ATB demonstrability (P0) ✅ (complete — local main)
 
 **Baseline correction:** `private/demo-prep` is 64 commits behind main (its 10
 viewer commits are *polish*, not the wiring) and the api-client hash-token fix
@@ -52,11 +52,21 @@ already landed — so the real P0 was the orphaned components.
   and mounted on `/sessions`, replacing the static placeholder. Tests + page
   mount test green; lint/typecheck clean; `spec-dashboard.md`/`public-surface.md`/
   CHANGELOG updated to shipped.
-- ⬜ Cherry-pick the 10 `private/demo-prep` polish commits onto main (separate PR).
-- ⬜ `ActorSessions` / `RoleSelector` mounting (still orphaned).
-- ⬜ tamper→verify→profile-gaps smoke/E2E.
-- ⬜ `trust-score.ts` vs CAS labelling — Viewer Health rename already landed in a
-  prior pass; re-confirm no residual inconsistency.
+- ⬜ Cherry-pick the 10 `private/demo-prep` polish commits onto main (separate
+  branch — **C3**, never merge `private/demo-prep` itself).
+- ✅ **`ActorSessions` / `RoleSelector` mounting** — merged to local main
+  (`5badf10`, C1). `ActorSessions` rewired raw `fetch` → authenticated
+  `useActorSessionsQuery` (+ `actorSessionsResponseSchema`) and mounted on
+  `/sessions`; `RoleSelector` mounted in the `/view` header, driving the
+  role-gated panels. Web tests 58/58, lint/typecheck clean, `public-surface.md`
+  rows flipped to shipped.
+- ✅ **tamper→verify→profile-gaps smoke** — merged to local main (`427a957`, C2).
+  `TestProfileGapsOnIntactButIncompleteBundle` proves the *completeness* failure
+  mode (intact chain, `Pass=false`, obligation gaps, CAS below complete) is
+  distinct from the *integrity* mode (`TestTamperDetection`).
+- ✅ `trust-score.ts` vs CAS labelling — re-confirmed clean: Viewer Health Score
+  (liveness) stays distinct from verifier CAS obligation grade; no residual
+  conflation.
 
 ## Phase 3 — Custos reference layer 🚧 (in progress)
 
@@ -86,12 +96,21 @@ workflow in `oversight`/`onboarding`).
   over an `atb intercept` exec test; the ATB push side is covered in
   `internal/proxy/push_test.go`.)
 
-## Phase 4 — Capture & integration (P2) ⬜
+## Phase 4 — Capture & integration (P2) 🚧 (in progress — local main)
 
 Wire `pkg/otel` decode to the receiver path; thin opt-in SDK auto-capture
 wrappers (Claude/OpenAI) on existing emitters, profile-bound, blind spots
 documented; align `atb.capture.scope` with the EU AI Act mapping as *support*,
 not certification.
+
+- ✅ **OTLP/JSON ingest wired** — merged to local main (`0894e7c`, D).
+  `DecodeTraceJSON` → `Receiver.ReceiveJSON` (decode→translate every span,
+  aggregate) → `atb import otel` subcommand appends translated spans to a bundle
+  with trace linkage and retrospective provenance. gRPC/protobuf transport stays
+  deferred (would pull an OpenTelemetry proto dependency). `public-surface.md`
+  OTLP row flipped to shipped.
+- ⬜ **D2** — thin opt-in Claude/OpenAI SDK auto-capture adapters on existing
+  emitters, profile-bound, blind spots documented.
 
 ## Phase 5 — Release & narrative 🚧 (in progress)
 
@@ -102,17 +121,22 @@ not certification.
   `v1.12.0` and the new `v1.13.0` (marked **Latest**), from their CHANGELOG
   sections. `scripts/check-versions.sh` passes — all version strings agree with
   the latest tag. README's "Current release: v1.13.0" is now true.
-- 🚧 **Cut v1.14.0** (`release/v1.14.0`). The accumulated `[Unreleased]` work
-  (deps batch, Windows `LockFileEx`, viewer `/sessions` mount, Custos registry +
-  by-hash + E2E, `pkg/otel` `DecodeTraceJSON`, signing PolicyStore) is a minor
-  release — new features, no hash/schema break. CHANGELOG `[Unreleased]` → moved
-  to `## [v1.14.0] - 2026-06-05`; all nine version strings bumped 1.13.0 → 1.14.0
-  (`check-versions.sh` green with `ATB_SKIP_TAG_CHECK=1`). Doc-truth sweep in the
-  same PR: `baseline-handoff.md`, `roadmap.md`, `public-surface.md` reconciled
-  (OTLP decode shipped / receiver wire-up planned; registry implemented), and the
-  stale "no-op on Windows" skip reason in `advisory_lock_testsupport_test.go`
-  corrected (#111 shipped real locking). Tag + GitHub Release after gates pass and
-  maintainer review.
+- ✅ **Cut v1.14.0** (`release/v1.14.0`, merged to local main `fb2a19e`). The
+  accumulated `[Unreleased]` work (deps batch, Windows `LockFileEx`, viewer
+  `/sessions` mount, Custos registry + by-hash + E2E, `pkg/otel` `DecodeTraceJSON`,
+  signing PolicyStore) is a minor release — new features, no hash/schema break.
+  CHANGELOG `[Unreleased]` → `## [v1.14.0] - 2026-06-05`; all nine version strings
+  bumped 1.13.0 → 1.14.0; README "Current release:" line bumped (CI docs-sync gate
+  checks it, `check-versions.sh` does not); stale "no-op on Windows" skip reason
+  in `advisory_lock_testsupport_test.go` corrected. **Local-only:** committed and
+  merged on local `main`; tag/push/GitHub Release deferred until budget restored.
+- ✅ **v1.14.0 stack integrated on local main** (`899b36b`). Merge order
+  A(`fb2a19e`)→B(`e8ae18c`)→C1(`5badf10`)→C2(`427a957`)→D(`0894e7c`) +
+  public-surface shipped-status follow-up. Full local gate suite green: golden
+  parity, `go test ./...` (36 pkgs), `custos` race (9 pkgs), web vitest 58/58,
+  lint, typecheck, `check-versions` (1.14.0), support-matrix, docs-sync greps.
+  Pre-existing Trivy Docker CVE (Go 1.26.3 stdlib `CVE-2026-42504`) deferred to a
+  Go 1.26.4 toolchain bump — not a stack blocker.
 - ⬜ Map `docs/research/*` to public roadmap bullets without promising hosted
   features in the ATB repo.
 
