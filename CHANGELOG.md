@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- SDK capture adapters for the **direct OpenAI and Anthropic clients** — `wrapOpenAI` / `wrapAnthropic` (TypeScript, `sdk-capture.ts`) and `wrap_openai` / `wrap_anthropic` (Python, `atb.sdk_capture`). Unlike LangChain or the Vercel AI SDK, the first-party `openai`/`anthropic` clients expose no callback hook, so the adapter wraps the bound `chat.completions.create` / `messages.create` method: it records the request, calls through to the real SDK, records the response (text, token usage, finish/stop reason, and any tool calls) or the error, and returns the untouched value. Opt-in and privacy-moded (`off`/`hash`/`redact`), profile-bound (emits the `ai.request.received` → `ai.model.invoked` → `ai.model.output` triplet alongside `ai.llm.call`), and **optional-dependency** — no hard import of the provider SDKs, so the adapters type-check and test against plain fakes. All emission delegates to the existing recorders (`atbMiddleware` / `ATBCallbackHandler`); the new code only maps each SDK's request/response shape, adding no second emit path. **Documented blind spots:** streaming responses (`stream: true`) raise rather than silently under-capture (use `atb intercept` for token-level streaming capture), and only the chat/messages create call is instrumented (embeddings/files/other endpoints pass through unrecorded).
+
 ## [v1.14.0] - 2026-06-05
 
 ### Added
