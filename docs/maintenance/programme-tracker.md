@@ -52,8 +52,16 @@ already landed — so the real P0 was the orphaned components.
   and mounted on `/sessions`, replacing the static placeholder. Tests + page
   mount test green; lint/typecheck clean; `spec-dashboard.md`/`public-surface.md`/
   CHANGELOG updated to shipped.
-- ⬜ Cherry-pick the 10 `private/demo-prep` polish commits onto main (separate
-  branch — **C3**, never merge `private/demo-prep` itself).
+- ✅ **C3 — demo-prep viewer polish cherry-picked (additive-only)** — merged to
+  local main (`chore/demo-prep-polish`). `private/demo-prep` was 86 commits behind
+  main, which had independently reimplemented much of the polish, so only the four
+  genuinely-additive commits were ported: hash truncation + click-to-copy
+  (`HashValue`/`hash-display.ts`), the reveal-appends-audit-event warning,
+  role-aware event labels (`event-labels.ts` + `TraceTimeline`), and CAS sub-score
+  definitions (`cas-subscores.ts`). **Skipped as superseded** (already on main):
+  provability-gaps surfacing, re-run-verify button. **Skipped as cosmetic/
+  obsolete**: minimap z-index, polling-colour, edge-labels, demo screenshots.
+  `private/demo-prep` itself is **never merged**. Web 58/58, typecheck, lint green.
 - ✅ **`ActorSessions` / `RoleSelector` mounting** — merged to local main
   (`5badf10`, C1). `ActorSessions` rewired raw `fetch` → authenticated
   `useActorSessionsQuery` (+ `actorSessionsResponseSchema`) and mounted on
