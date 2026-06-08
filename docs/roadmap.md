@@ -1,6 +1,6 @@
 ## Current state
 
-ATB v1.13.0 ships a verified core bundle engine, six obligation profiles with CAS scoring, Go/Python/TypeScript SDKs, the EU AI Act retention guard, the `atb` CLI, MCP transport, and the `verify.report.v1` custody contract. The shipped runtime covers local capture, hash-chained bundle integrity, signing, encryption, TSA anchoring, WORM export, queue push, and corroboration event recording.
+ATB v1.14.0 ships a verified core bundle engine, six obligation profiles with CAS scoring, Go/Python/TypeScript SDKs, the EU AI Act retention guard, the `atb` CLI, MCP transport, and the `verify.report.v1` custody contract. The shipped runtime covers local capture, hash-chained bundle integrity, signing, encryption, TSA anchoring, WORM export, queue push, and corroboration event recording.
 
 ## Completed — Phase 9 (Q3 2026)
 
@@ -63,7 +63,7 @@ and review it from a tamper-evident bundle.
 
 ## Custos
 
-Custos is the in-repo reference receipt, custody, and attestation layer for ATB bundles. It lives under `custos/` as a separate Go module and is being scaffolded incrementally: the ingestion boundary, receipt store, per-org signing policy, and auth packages have unit tests today, while discovery, registry, onboarding, oversight, and insights are early scaffolds. Custos demonstrates how recorded bundles are ingested, signed, and held under custody — it is reference infrastructure, not a finished product.
+Custos is the in-repo reference receipt, custody, and attestation layer for ATB bundles. It lives under `custos/` as a separate Go module and is being scaffolded incrementally: the ingestion boundary, receipt store, the receipt + digest registry (with the `GET /receipts/by-hash` daemon lookup), per-org signing policy, and auth packages have unit tests today, while discovery, onboarding, oversight, and insights are early scaffolds. Custos demonstrates how recorded bundles are ingested, signed, and held under custody — it is reference infrastructure, not a finished product.
 
 Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/RBAC, legal hold, and custodian-of-record operations — remain outside the ATB runtime and outside this repository, per `AGENTS.md`. The roadmap below tracks the in-repo reference layer only.
 

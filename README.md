@@ -2,7 +2,7 @@ ATB — tamper-evident audit trails for AI systems.
 
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.3-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE) ![EU AI Act Article 12 logging](https://img.shields.io/badge/EU%20AI%20Act-Article%2012%20logging-blue)
 
-Current release: [`v1.13.0`](CHANGELOG.md)
+Current release: [`v1.14.0`](CHANGELOG.md)
 
 ## What ATB does
 
