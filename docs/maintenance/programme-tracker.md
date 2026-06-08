@@ -76,7 +76,7 @@ already landed — so the real P0 was the orphaned components.
   (liveness) stays distinct from verifier CAS obligation grade; no residual
   conflation.
 
-## Phase 3 — Custos reference layer 🚧 (in progress)
+## Phase 3 — Custos reference layer ✅ (complete — in-repo scope)
 
 Per `docs/custos-handoff.md` Receipt MVP. Hold the scope guardrails in
 `docs/research/capture-and-custos-scope.md` (no generative `insights`, no hosted
@@ -94,9 +94,15 @@ workflow in `oversight`/`onboarding`).
   routing-precedence tests; README/CHANGELOG updated.
 - ⛔ `custos/onboarding/` — **out of scope** per AGENTS.md + research guardrail
   (multi-tenant account provisioning). Left as a boundary-documenting stub.
-- ⬜ `custos/discovery/` — deferred (tool-signature scaffold; no real consumer yet).
-- ⬜ Harden `custosd` operator doc (TLS, token rotation, max-ingest) — the
-  hardening checklist in `docs/custos-handoff.md` already covers these; light touch.
+- ⛔ `custos/discovery/`, `oversight/`, `insights/` — **out of scope / deferred**
+  (no real consumer; hosted multi-tenant workflows per the research guardrail).
+  Left as boundary-documenting stubs — not in-repo TODOs.
+- ✅ **Custos operator doc pass (E)** — merged to local main (`docs/custos-operator`).
+  `custos/README.md` gained a self-contained "Operating `custosd`" section
+  (bind/auth, TLS-at-proxy, token rotation, `--max-ingest-bytes`, storage)
+  consistent with the authoritative checklist in `docs/custos-handoff.md`; the
+  handoff's token-rotation item is now an actionable procedure (single static
+  token, no overlap window) rather than only noting the gap.
 - ✅ **E2E ingest → attestation → digest lookup** (`test/custos-e2e-ingest-attestation`).
   Drives the real `newMux` with a real ATB fixture bundle through the full custody
   path; proves the wire contract `atb intercept --custos` relies on. (Module
@@ -127,7 +133,7 @@ not certification.
   only chat/messages create is instrumented. TS 95/95, Python 125/125, golden
   parity green.
 
-## Phase 5 — Release & narrative 🚧 (in progress)
+## Phase 5 — Release & narrative ✅ (complete — in-repo scope; tag/push deferred to budget)
 
 - ✅ **Release-truth gap closed.** `v1.13.0` is now tagged at `863303d` (#104 —
   where the `[v1.13.0]` CHANGELOG heading and `version = "1.13.0"` were
@@ -152,8 +158,24 @@ not certification.
   lint, typecheck, `check-versions` (1.14.0), support-matrix, docs-sync greps.
   Pre-existing Trivy Docker CVE (Go 1.26.3 stdlib `CVE-2026-42504`) deferred to a
   Go 1.26.4 toolchain bump — not a stack blocker.
-- ⬜ Map `docs/research/*` to public roadmap bullets without promising hosted
-  features in the ATB repo.
+- ✅ **Map `docs/research/*` to roadmap** (`docs/research-to-roadmap`, merged) —
+  added a "Research & design notes (forward-looking — not commitments)" section to
+  `docs/roadmap.md` mapping the transparency-log, EU AI Act, and capture/scope
+  notes to in-repo reference direction. Honest framing held: a single-operator
+  transparency log is not equivocation-resistant without witness cosignatures; AI
+  Act evidence is *support, not certification*; no hosted-service promises in this
+  repo.
+
+### Programme status — Phases 0–5 complete for in-repo scope
+
+All six phases are done for what lives in `pcguest/atb`. Remaining ATB work is
+**bugfixes, golden parity, and dependency hygiene only** (e.g. the deferred Go
+1.26.4 toolchain bump for the pre-existing Trivy stdlib CVE; optional `atb
+reconcile` per the narrowed #49). The v1.14.0 stack + D2 + C3 + E + narrative are
+integrated on local `main`; **tag/push/GitHub Release are deferred until the
+Actions budget is restored**. Net-new feature direction now belongs to the
+**Custos product** (new repo / hosted), which depends on ATB as a frozen
+contract — not to more code in the in-repo `custos/` stubs.
 
 ## Out of scope (not in the ATB repo)
 
