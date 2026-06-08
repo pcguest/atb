@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { useBundleMetaQuery, useVerificationQuery } from "@/lib/api-client";
 import { displayBundlePath } from "@/lib/display-path";
+import { truncateSha256 } from "@/lib/hash-display";
 
 // ─── Pure / presentational ───────────────────────────────────────────────────
 
@@ -57,10 +58,15 @@ export function VerificationBanner({
           chain: {chainLength ?? 0} events
         </span>
         {headHash && (
-          <span className="font-mono text-xs text-green-300">{headHash.slice(0, 12)}…</span>
+          <span className="font-mono text-xs text-green-300" title={headHash}>
+            {truncateSha256(headHash)}
+          </span>
         )}
         {bundlePath && (
-          <span className="ml-2 hidden max-w-[36ch] truncate font-mono text-xs text-green-200 sm:inline">
+          <span
+            className="ml-auto min-w-0 flex-1 truncate text-right font-mono text-xs text-green-200"
+            title={displayBundlePath(bundlePath)}
+          >
             {displayBundlePath(bundlePath)}
           </span>
         )}
