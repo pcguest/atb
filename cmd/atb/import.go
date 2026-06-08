@@ -95,6 +95,13 @@ func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		return runImportChatlogWithContext(ctx, chatlogArgs, stdin, stdout, stderr)
 	}
 
+	if len(args) > 0 && args[0] == "otel" {
+		const opTimeout = 5 * time.Minute // Guard against hung bundle file operations.
+		ctx, cancel := context.WithTimeout(context.Background(), opTimeout)
+		defer cancel()
+		return runImportOTel(ctx, args[1:], stdin, stdout, stderr)
+	}
+
 	_ = stdin
 	_ = stdout
 	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
@@ -104,20 +111,22 @@ func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 		}
 		return exitUserError
 	}
-	fmt.Fprintf(stderr, "import: unknown subcommand %q (supported: chatlog)\n", args[0])
+	fmt.Fprintf(stderr, "import: unknown subcommand %q (supported: chatlog, otel)\n", args[0])
 	printImportCommandUsage(stderr)
 	return exitUserError
 }
 
 func printImportCommandUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: atb import chatlog --from <provider-type> --input <path|-> [--bundle <path>] [--snapshot <name>] [--format text|json] [--max-input-size <bytes>]")
-	fmt.Fprintln(w, "  --input -                read chatlog from stdin")
+	fmt.Fprintln(w, "       atb import otel --input <path|-> [--bundle <path>] [--snapshot <name>] [--format text|json] [--max-input-size <bytes>]")
+	fmt.Fprintln(w, "  --input -                read input from stdin")
 	fmt.Fprintln(w, "  --format text            default; single-line summary on stdout")
 	fmt.Fprintln(w, "  --format json            structured JSON object on stdout")
 	fmt.Fprintf(w, "  --max-input-size <bytes> reject inputs larger than this (default %d)\n", defaultMaxImportBytes)
-	fmt.Fprintln(w, "Supported provider types:")
+	fmt.Fprintln(w, "chatlog provider types:")
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatGenericJSONL)
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatOpenAIJSONL)
+	fmt.Fprintln(w, "otel: ingest an OTLP/JSON trace export (OTLP/protobuf gRPC transport not yet supported)")
 }
 
 func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) int {

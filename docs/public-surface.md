@@ -272,6 +272,29 @@ GenAI semantic conventions (`gen_ai.system`, `gen_ai.request.model`,
 through `Receiver.Receive` to translate a whole batch. ATB records the
 translated events; it does not collect or host telemetry.
 
+`Receiver.ReceiveJSON(ctx, data []byte) (ReceiverResult, error)`
+
+The wired path from `DecodeTraceJSON` to `Receive`: it decodes an OTLP/JSON
+export and translates every span across every trace it contains, returning the
+aggregated events plus a skipped-span count. A payload with no spans yields an
+empty result and no error; malformed JSON returns the decode error. A span that
+maps to no ATB event type surfaces `ErrUnmappableSpan` — the ingest records only
+spans it can attribute rather than dropping them silently.
+
+### `atb import otel`
+
+```
+atb import otel --input <path|-> [--bundle <path>] [--snapshot <name>] [--format text|json] [--max-input-size <bytes>]
+```
+
+Ingests an OTLP/JSON trace export (a file or stdin, size-capped) into a bundle:
+it runs the payload through `Receiver.ReceiveJSON` and appends each translated
+event with its W3C trace linkage (`trace_id` / `span_id` / `parent_span_id`)
+preserved, creating the bundle and stamping retrospective provenance if it does
+not exist. This is the documented OTLP ingest path; the OTLP/protobuf (gRPC)
+transport remains deferred as it would require an OpenTelemetry proto
+dependency.
+
 ## Corroboration
 
 Corroboration adapters in `pkg/corroborate` construct query URLs for
