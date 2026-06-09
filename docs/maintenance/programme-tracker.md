@@ -177,6 +177,15 @@ Actions budget is restored**. Net-new feature direction now belongs to the
 **Custos product** (new repo / hosted), which depends on ATB as a frozen
 contract — not to more code in the in-repo `custos/` stubs.
 
+**Trunk-readiness (2026-06-09).** Trunk audit found one doc-truth gap: D2 (SDK
+adapters) was under `[Unreleased]` and C3 (viewer polish) had no CHANGELOG entry,
+though both ship when v1.14.0 is tagged at HEAD. Folded both into `## [v1.14.0]`
+and emptied `[Unreleased]` so the tag's content matches its changelog. Added
+[`trunk-ready.md`](./trunk-ready.md) — the publish/tag checklist (local gates,
+release steps, and the frozen `pkg/custody` / `verify.report.v1` / bundle-format /
+export-wire contracts that the Custos product imports without forking). `public-
+surface.md` re-audited: honest, only the Custos UI scaffold is "Planned".
+
 ## Out of scope (not in the ATB repo)
 
 Multi-tenant auth, billing, legal-hold UI, SIEM platform, KMS product,
