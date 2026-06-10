@@ -76,6 +76,20 @@ Open a short-lived branch or fork and submit against `main`. Include:
 
 If the change touches viewer routes or DTOs, update `docs/spec-dashboard.md` and `docs/api/openapi.yaml` as part of the same patch.
 
+### Local release gates
+
+If GitHub Actions is unavailable (for example, a billing or spending-limit
+block on a private repository), run the release gates locally before merging
+to `main`:
+
+```sh
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.3 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.3 go test ./... -count=1
+bash scripts/check-versions.sh
+```
+
+These mirror the `release-gate.yml` workflow; all three must pass.
+
 ## Schema changes
 
 Changes to `schemas/event.v1.json` that alter the canonical hash input
