@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- No unreleased changes. -->
 
+## [v1.14.1] - 2026-06-10
+
+### Added
+- `pkg/jcs`: public wrapper exposing ATB's RFC 8785 (JCS) canonicalisation (`Marshal` / `MarshalRaw`, delegating to the golden-tested `internal/canonicalize`). Downstream custody layers — specifically the Custos transparency log, whose Merkle leaf preimage is the RFC 8785 canonical receipt — can now reuse ATB's canonical form instead of reimplementing RFC 8785 and risking silent divergence. No behaviour change to ATB itself.
+
 ## [v1.14.0] - 2026-06-08
 
 ### Added
