@@ -2,7 +2,19 @@
 
 This document is the engineering handoff from **ATB** (local integrity substrate) to **Custos** (hosted custodian-of-record service). It states what is stable today, what Custos must add, and the recommended build order.
 
-The hosted custodian-of-record service described here is not implemented. An early in-repo reference layer exists under `custos/` (a separate Go module covering ingestion, receipt store, signing policy, and auth) to prototype the ingest and custody boundary; it is not the hosted service. Everything below is grounded in shipped ATB behaviour, tests, and docs.
+**Status update:** the custody product now exists as its own repository —
+[`custos-product`](https://github.com/pcguest/custos-product) (v0.4.0:
+verify-on-ingest, S3 Object Lock WORM, Ed25519 receipts, multi-tenant keys,
+RFC 3161 timestamps, and an RFC 6962 transparency log with witness
+cosignatures, a public checkpoint feed, and a fork monitor). Point ingest
+integrations at its `custos-ingestd`, not at the in-repo scaffold. The
+end-to-end flow is documented in `custos-product/docs/e2e-atb-custos.md`.
+Note for `atb intercept --custos <endpoint>`: the auto-push sends **no
+Authorization header**, so it suits no-auth dev daemons or a reverse proxy
+that injects the Bearer key; token-guarded `custos-ingestd` deployments
+should ingest via `curl`/presigned uploads instead.
+
+The in-repo reference layer under `custos/` (a separate Go module covering ingestion, receipt store, signing policy, and auth) remains a prototype of the ingest and custody boundary; it is not the product. Everything below is grounded in shipped ATB behaviour, tests, and docs, and predates the product repo — read it as the original handoff brief.
 
 ---
 
