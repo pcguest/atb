@@ -79,8 +79,7 @@ If the change touches viewer routes or DTOs, update `docs/spec-dashboard.md` and
 ### Local release gates
 
 If GitHub Actions is unavailable (for example, a billing or spending-limit
-block on a private repository), run the release gates locally before merging
-to `main`:
+block), run the release gates locally before merging to `main`:
 
 ```sh
 GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.3 make test-golden
