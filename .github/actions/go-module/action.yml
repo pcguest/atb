@@ -1,0 +1,17 @@
+name: ATB Go module
+description: Expose this checkout as a local Go module to another private repository.
+
+outputs:
+  module-path:
+    description: Absolute path to the ATB module root.
+    value: ${{ steps.module-path.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - id: module-path
+      shell: bash
+      run: |
+        module_path="${GITHUB_ACTION_PATH%/.github/actions/go-module}"
+        test "$(sed -n 's/^module //p' "$module_path/go.mod")" = "github.com/pcguest/atb"
+        echo "path=$module_path" >> "$GITHUB_OUTPUT"
