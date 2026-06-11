@@ -282,7 +282,7 @@ The following canonical event families are used by obligation profiles and verif
 - `ai.policy.decision`
 - `ai.retrieval.executed`, `ai.model.invoked`, `ai.model.output`
 - `ai.action.precommit`, `ai.action.executed`, `ai.action.committed`
-- `ai.human.approval`, `ai.override.requested`
+- `ai.human.approval`
 - `ai.job.scheduled`, `ai.job.started`, `ai.job.step`, `ai.job.completed`
 
 The built-in profile templates currently evaluate the following required event sets:

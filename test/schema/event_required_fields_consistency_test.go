@@ -65,7 +65,6 @@ func TestEventRequiredFieldsConsistentAcrossSchemaSections(t *testing.T) {
 		"atb.bundle.anchor":    {},
 		"atb.bundle.signature": {},
 		"atb.snapshot":         {},
-		"atb.bundle.pushed":    {},
 	}
 
 	var missingInRegistry []string

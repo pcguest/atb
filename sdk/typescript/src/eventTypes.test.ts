@@ -12,7 +12,6 @@ import {
   AI_LLM_CALL_EVENT_TYPE,
   AI_MODEL_INVOKED_EVENT_TYPE,
   AI_MODEL_OUTPUT_EVENT_TYPE,
-  AI_OVERRIDE_REQUESTED_EVENT_TYPE,
   AI_POLICY_DECISION_EVENT_TYPE,
   AI_REQUEST_RECEIVED_EVENT_TYPE,
   AI_RESPONSE_SENT_EVENT_TYPE,
@@ -49,7 +48,6 @@ describe("event type constants", () => {
     expect(AI_ACTION_EXECUTED_EVENT_TYPE).toBe("ai.action.executed");
     expect(AI_ACTION_COMMITTED_EVENT_TYPE).toBe("ai.action.committed");
     expect(AI_HUMAN_APPROVAL_EVENT_TYPE).toBe("ai.human.approval");
-    expect(AI_OVERRIDE_REQUESTED_EVENT_TYPE).toBe("ai.override.requested");
     expect(AI_JOB_SCHEDULED_EVENT_TYPE).toBe("ai.job.scheduled");
     expect(AI_JOB_STARTED_EVENT_TYPE).toBe("ai.job.started");
     expect(AI_JOB_STEP_EVENT_TYPE).toBe("ai.job.step");

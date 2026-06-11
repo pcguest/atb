@@ -22,7 +22,6 @@ export const AI_ACTION_EXECUTED_EVENT_TYPE = "ai.action.executed";
 export const AI_ACTION_COMMITTED_EVENT_TYPE = "ai.action.committed";
 
 export const AI_HUMAN_APPROVAL_EVENT_TYPE = "ai.human.approval";
-export const AI_OVERRIDE_REQUESTED_EVENT_TYPE = "ai.override.requested";
 
 export const AI_JOB_SCHEDULED_EVENT_TYPE = "ai.job.scheduled";
 export const AI_JOB_STARTED_EVENT_TYPE = "ai.job.started";

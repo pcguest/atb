@@ -28,7 +28,7 @@ describe("Bundle", () => {
     const bundle = new Bundle({ path });
 
     bundle.append("dev.session", { date: "2026-03-04" });
-    bundle.append("snapshot.build", { gate: "pass" });
+    bundle.append("dev.session", { gate: "pass" });
     bundle.save();
 
     const loaded = Bundle.load(path);

@@ -12,8 +12,6 @@ const (
 	TypeBundleSignature = "atb.bundle.signature"
 	// TypeSnapshot is "atb.snapshot".
 	TypeSnapshot = "atb.snapshot"
-	// TypeBundlePushed is "atb.bundle.pushed".
-	TypeBundlePushed = "atb.bundle.pushed"
 	// TypeAIRequestReceived is "ai.request.received".
 	TypeAIRequestReceived = "ai.request.received"
 	// TypeAIResponseSent is "ai.response.sent".
@@ -42,8 +40,6 @@ const (
 	TypeAIActionError = "ai.action.error"
 	// TypeAIHumanApproval is "ai.human.approval".
 	TypeAIHumanApproval = "ai.human.approval"
-	// TypeAIOverrideRequested is "ai.override.requested".
-	TypeAIOverrideRequested = "ai.override.requested"
 	// TypeAIJobScheduled is "ai.job.scheduled".
 	TypeAIJobScheduled = "ai.job.scheduled"
 	// TypeAIJobStarted is "ai.job.started".
@@ -60,8 +56,6 @@ const (
 	TypeDataExportError = "data.export.error"
 	// TypeDevSession is "dev.session".
 	TypeDevSession = "dev.session"
-	// TypeSnapshotBuild is "snapshot.build".
-	TypeSnapshotBuild = "snapshot.build"
 	// TypeCorroborationExternal is "atb.corroboration.external".
 	TypeCorroborationExternal = "atb.corroboration.external"
 	// TypeRAGIndex is "atb.event.rag_index".
@@ -103,7 +97,6 @@ var EventTypesGenerated = []EventTypeSpecGenerated{
 	{Type: TypeBundleAnchor, Description: "RFC 3161 TSA timestamp anchor", Profiles: []string{"all"}, Criticality: "required", RequiredFields: []string{"tsa_url", "bundle_hash", "tsr_hash", "tsr_der", "certified_time"}},
 	{Type: TypeBundleSignature, Description: "Ed25519 bundle signature", Profiles: []string{"all"}, Criticality: "required", RequiredFields: []string{"bundle_hash", "signature", "pubkey"}},
 	{Type: TypeSnapshot, Description: "Bundle snapshot marker", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{"name", "bundle_hash", "record_count", "snapshot_at"}},
-	{Type: TypeBundlePushed, Description: "Bundle pushed to remote WORM target (atb push)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
 	{Type: TypeAIRequestReceived, Description: "AI request received at app boundary", Profiles: []string{"atb.profile.rag_answer", "atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.policy_decision", "atb.profile.human_override"}, Criticality: "critical", RequiredFields: []string{"request_id", "actor_id_hash", "purpose_tag"}},
 	{Type: TypeAIResponseSent, Description: "AI response sent from app boundary", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{"request_id", "output_digest"}},
 	{Type: TypeAILLMCall, Description: "Canonical LLM lifecycle event for integrations", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
@@ -118,16 +111,14 @@ var EventTypesGenerated = []EventTypeSpecGenerated{
 	{Type: TypeAIActionCommitted, Description: "Privileged action committed to sink", Profiles: []string{"atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.human_override"}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeAIActionError, Description: "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"action_id", "error_class"}},
 	{Type: TypeAIHumanApproval, Description: "Human approval of an action or override", Profiles: []string{"atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.human_override"}, Criticality: "required", RequiredFields: []string{}},
-	{Type: TypeAIOverrideRequested, Description: "Human override requested", Profiles: []string{}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeAIJobScheduled, Description: "Background job scheduled", Profiles: []string{"atb.profile.background_automation"}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeAIJobStarted, Description: "Background job started by worker", Profiles: []string{"atb.profile.background_automation"}, Criticality: "critical", RequiredFields: []string{}},
-	{Type: TypeAIJobStep, Description: "Individual step within a background job", Profiles: []string{"atb.profile.background_automation"}, Criticality: "critical", RequiredFields: []string{}},
+	{Type: TypeAIJobStep, Description: "Individual step within a background job", Profiles: []string{"atb.profile.background_automation"}, Criticality: "required", RequiredFields: []string{}},
 	{Type: TypeAIJobCompleted, Description: "Background job completed", Profiles: []string{"atb.profile.background_automation"}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeDataExportPrecommit, Description: "Pre-commit record for a data export", Profiles: []string{"atb.profile.data_export"}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeDataExportExecuted, Description: "Data export executed to sink", Profiles: []string{"atb.profile.data_export"}, Criticality: "critical", RequiredFields: []string{}},
 	{Type: TypeDataExportError, Description: "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"action_id", "error_class"}},
 	{Type: TypeDevSession, Description: "Developer session marker (tooling use)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
-	{Type: TypeSnapshotBuild, Description: "Build snapshot (tooling use)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
 	{Type: TypeCorroborationExternal, Description: "External corroboration record (adapter-retrieved evidence)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
 	{Type: TypeRAGIndex, Description: "PageIndex document tree build record (index_hash, node_count)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{}},
 	{Type: TypeRAGRetrieval, Description: "PageIndex reasoning-based retrieval result (node_id, page_start/end)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{}},
@@ -148,7 +139,6 @@ var RegistryGenerated = []EventInfo{
 	{TypeBundleAnchor, "RFC 3161 TSA timestamp anchor", "all", "required"},
 	{TypeBundleSignature, "Ed25519 bundle signature", "all", "required"},
 	{TypeSnapshot, "Bundle snapshot marker", "", "informational"},
-	{TypeBundlePushed, "Bundle pushed to remote WORM target (atb push)", "", "informational"},
 	{TypeAIRequestReceived, "AI request received at app boundary", "atb.profile.rag_answer,atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.policy_decision,atb.profile.human_override", "critical"},
 	{TypeAIResponseSent, "AI response sent from app boundary", "atb.profile.rag_answer", "required"},
 	{TypeAILLMCall, "Canonical LLM lifecycle event for integrations", "", "informational"},
@@ -163,16 +153,14 @@ var RegistryGenerated = []EventInfo{
 	{TypeAIActionCommitted, "Privileged action committed to sink", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "critical"},
 	{TypeAIActionError, "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", "", "required"},
 	{TypeAIHumanApproval, "Human approval of an action or override", "atb.profile.privileged_tool_action,atb.profile.data_export,atb.profile.human_override", "required"},
-	{TypeAIOverrideRequested, "Human override requested", "", "critical"},
 	{TypeAIJobScheduled, "Background job scheduled", "atb.profile.background_automation", "critical"},
 	{TypeAIJobStarted, "Background job started by worker", "atb.profile.background_automation", "critical"},
-	{TypeAIJobStep, "Individual step within a background job", "atb.profile.background_automation", "critical"},
+	{TypeAIJobStep, "Individual step within a background job", "atb.profile.background_automation", "required"},
 	{TypeAIJobCompleted, "Background job completed", "atb.profile.background_automation", "critical"},
 	{TypeDataExportPrecommit, "Pre-commit record for a data export", "atb.profile.data_export", "critical"},
 	{TypeDataExportExecuted, "Data export executed to sink", "atb.profile.data_export", "critical"},
 	{TypeDataExportError, "Data export attempted but did not succeed (failed, blocked, timed out, or denied at the sink)", "", "required"},
 	{TypeDevSession, "Developer session marker (tooling use)", "", "informational"},
-	{TypeSnapshotBuild, "Build snapshot (tooling use)", "", "informational"},
 	{TypeCorroborationExternal, "External corroboration record (adapter-retrieved evidence)", "", "informational"},
 	{TypeRAGIndex, "PageIndex document tree build record (index_hash, node_count)", "atb.profile.rag_answer", "required"},
 	{TypeRAGRetrieval, "PageIndex reasoning-based retrieval result (node_id, page_start/end)", "atb.profile.rag_answer", "required"},
@@ -193,7 +181,6 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeBundleAnchor:          []string{"tsa_url", "bundle_hash", "tsr_hash", "tsr_der", "certified_time"},
 	TypeBundleSignature:       []string{"bundle_hash", "signature", "pubkey"},
 	TypeSnapshot:              []string{"name", "bundle_hash", "record_count", "snapshot_at"},
-	TypeBundlePushed:          []string{},
 	TypeAIRequestReceived:     []string{"request_id", "actor_id_hash", "purpose_tag"},
 	TypeAIResponseSent:        []string{"request_id", "output_digest"},
 	TypeAILLMCall:             []string{},
@@ -208,7 +195,6 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeAIActionCommitted:     []string{},
 	TypeAIActionError:         []string{"action_id", "error_class"},
 	TypeAIHumanApproval:       []string{},
-	TypeAIOverrideRequested:   []string{},
 	TypeAIJobScheduled:        []string{},
 	TypeAIJobStarted:          []string{},
 	TypeAIJobStep:             []string{},
@@ -217,7 +203,6 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeDataExportExecuted:    []string{},
 	TypeDataExportError:       []string{"action_id", "error_class"},
 	TypeDevSession:            []string{},
-	TypeSnapshotBuild:         []string{},
 	TypeCorroborationExternal: []string{},
 	TypeRAGIndex:              []string{},
 	TypeRAGRetrieval:          []string{},

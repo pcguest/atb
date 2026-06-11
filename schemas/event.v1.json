@@ -143,9 +143,6 @@
           "description": "Optional EU AI Act Article 14 human oversight attribution: human rationale or review note captured with the snapshot."
         }
       }
-    },
-    "atb.bundle.pushed": {
-      "description": "Marker appended by atb push after a bundle is replicated to a remote WORM target. Informational; not used for verification."
     }
   },
   "documented_event_types": {
@@ -271,9 +268,6 @@
     "ai.human.approval": {
       "description": "Human approval of an action or override."
     },
-    "ai.override.requested": {
-      "description": "Human override requested over a prior automated decision."
-    },
     "ai.job.scheduled": {
       "description": "Background job scheduled for asynchronous execution."
     },
@@ -315,9 +309,6 @@
     },
     "dev.session": {
       "description": "Developer session marker used by tooling and tests."
-    },
-    "snapshot.build": {
-      "description": "Build snapshot marker used by tooling and tests."
     },
     "atb.tool.call": {
       "description": "Tool invocation recorded for session oversight. Emitted by the SDK oversight emitters and by atb intercept session capture.",
@@ -468,13 +459,6 @@
       "required_fields": ["name", "bundle_hash", "record_count", "snapshot_at"]
     },
     {
-      "type": "atb.bundle.pushed",
-      "description": "Bundle pushed to remote WORM target (atb push)",
-      "profiles": [],
-      "criticality": "informational",
-      "required_fields": []
-    },
-    {
       "type": "ai.request.received",
       "description": "AI request received at app boundary",
       "profiles": ["atb.profile.rag_answer", "atb.profile.privileged_tool_action", "atb.profile.data_export", "atb.profile.policy_decision", "atb.profile.human_override"],
@@ -575,13 +559,6 @@
       "required_fields": []
     },
     {
-      "type": "ai.override.requested",
-      "description": "Human override requested",
-      "profiles": [],
-      "criticality": "critical",
-      "required_fields": []
-    },
-    {
       "type": "ai.job.scheduled",
       "description": "Background job scheduled",
       "profiles": ["atb.profile.background_automation"],
@@ -599,7 +576,7 @@
       "type": "ai.job.step",
       "description": "Individual step within a background job",
       "profiles": ["atb.profile.background_automation"],
-      "criticality": "critical",
+      "criticality": "required",
       "required_fields": []
     },
     {
@@ -634,13 +611,6 @@
     {
       "type": "dev.session",
       "description": "Developer session marker (tooling use)",
-      "profiles": [],
-      "criticality": "informational",
-      "required_fields": []
-    },
-    {
-      "type": "snapshot.build",
-      "description": "Build snapshot (tooling use)",
       "profiles": [],
       "criticality": "informational",
       "required_fields": []

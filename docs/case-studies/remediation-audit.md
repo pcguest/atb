@@ -22,7 +22,6 @@ The following ATB event types were recorded during the engagement:
 - `ai.action.executed` — Privileged action executed through gate
 - `ai.action.committed` — Privileged action committed to sink
 - `ai.human.approval` — Human approval of an action or override
-- `atb.bundle.pushed` — Bundle pushed to remote WORM target (atb push)
 
 ## Verification output
 

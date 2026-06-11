@@ -176,7 +176,6 @@ func bundleLevelEvent(eventType string) bool {
 	case event.TypeBundleManifest,
 		event.TypeBundleSignature,
 		event.TypeBundleAnchor,
-		event.TypeBundlePushed,
 		event.TypeSnapshot,
 		event.TypeCaptureScope:
 		return true

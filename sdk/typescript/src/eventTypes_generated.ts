@@ -23,9 +23,6 @@ export const BUNDLE_SIGNATURE_EVENT_TYPE = BUNDLE_SIGNATURE;
 export const SNAPSHOT = "atb.snapshot" as const;
 export const SNAPSHOT_EVENT_TYPE = SNAPSHOT;
 
-export const BUNDLE_PUSHED = "atb.bundle.pushed" as const;
-export const BUNDLE_PUSHED_EVENT_TYPE = BUNDLE_PUSHED;
-
 export const AI_REQUEST_RECEIVED = "ai.request.received" as const;
 export const AI_REQUEST_RECEIVED_EVENT_TYPE = AI_REQUEST_RECEIVED;
 
@@ -68,9 +65,6 @@ export const AI_ACTION_ERROR_EVENT_TYPE = AI_ACTION_ERROR;
 export const AI_HUMAN_APPROVAL = "ai.human.approval" as const;
 export const AI_HUMAN_APPROVAL_EVENT_TYPE = AI_HUMAN_APPROVAL;
 
-export const AI_OVERRIDE_REQUESTED = "ai.override.requested" as const;
-export const AI_OVERRIDE_REQUESTED_EVENT_TYPE = AI_OVERRIDE_REQUESTED;
-
 export const AI_JOB_SCHEDULED = "ai.job.scheduled" as const;
 export const AI_JOB_SCHEDULED_EVENT_TYPE = AI_JOB_SCHEDULED;
 
@@ -94,9 +88,6 @@ export const DATA_EXPORT_ERROR_EVENT_TYPE = DATA_EXPORT_ERROR;
 
 export const DEV_SESSION = "dev.session" as const;
 export const DEV_SESSION_EVENT_TYPE = DEV_SESSION;
-
-export const SNAPSHOT_BUILD = "snapshot.build" as const;
-export const SNAPSHOT_BUILD_EVENT_TYPE = SNAPSHOT_BUILD;
 
 export const CORROBORATION_EXTERNAL = "atb.corroboration.external" as const;
 export const CORROBORATION_EXTERNAL_EVENT_TYPE = CORROBORATION_EXTERNAL;
@@ -162,13 +153,6 @@ export const EVENT_TYPE_REGISTRY = [
     profiles: [],
     criticality: "informational",
     required_fields: ["name", "bundle_hash", "record_count", "snapshot_at"],
-  },
-  {
-    type: BUNDLE_PUSHED,
-    description: "Bundle pushed to remote WORM target (atb push)",
-    profiles: [],
-    criticality: "informational",
-    required_fields: [],
   },
   {
     type: AI_REQUEST_RECEIVED,
@@ -269,13 +253,6 @@ export const EVENT_TYPE_REGISTRY = [
     required_fields: [],
   },
   {
-    type: AI_OVERRIDE_REQUESTED,
-    description: "Human override requested",
-    profiles: [],
-    criticality: "critical",
-    required_fields: [],
-  },
-  {
     type: AI_JOB_SCHEDULED,
     description: "Background job scheduled",
     profiles: ["atb.profile.background_automation"],
@@ -293,7 +270,7 @@ export const EVENT_TYPE_REGISTRY = [
     type: AI_JOB_STEP,
     description: "Individual step within a background job",
     profiles: ["atb.profile.background_automation"],
-    criticality: "critical",
+    criticality: "required",
     required_fields: [],
   },
   {
@@ -327,13 +304,6 @@ export const EVENT_TYPE_REGISTRY = [
   {
     type: DEV_SESSION,
     description: "Developer session marker (tooling use)",
-    profiles: [],
-    criticality: "informational",
-    required_fields: [],
-  },
-  {
-    type: SNAPSHOT_BUILD,
-    description: "Build snapshot (tooling use)",
     profiles: [],
     criticality: "informational",
     required_fields: [],
@@ -429,7 +399,6 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [BUNDLE_ANCHOR]: ["tsa_url", "bundle_hash", "tsr_hash", "tsr_der", "certified_time"],
   [BUNDLE_SIGNATURE]: ["bundle_hash", "signature", "pubkey"],
   [SNAPSHOT]: ["name", "bundle_hash", "record_count", "snapshot_at"],
-  [BUNDLE_PUSHED]: [],
   [AI_REQUEST_RECEIVED]: ["request_id", "actor_id_hash", "purpose_tag"],
   [AI_RESPONSE_SENT]: ["request_id", "output_digest"],
   [AI_LLM_CALL]: [],
@@ -444,7 +413,6 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [AI_ACTION_COMMITTED]: [],
   [AI_ACTION_ERROR]: ["action_id", "error_class"],
   [AI_HUMAN_APPROVAL]: [],
-  [AI_OVERRIDE_REQUESTED]: [],
   [AI_JOB_SCHEDULED]: [],
   [AI_JOB_STARTED]: [],
   [AI_JOB_STEP]: [],
@@ -453,7 +421,6 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [DATA_EXPORT_EXECUTED]: [],
   [DATA_EXPORT_ERROR]: ["action_id", "error_class"],
   [DEV_SESSION]: [],
-  [SNAPSHOT_BUILD]: [],
   [CORROBORATION_EXTERNAL]: [],
   [RAG_INDEX]: [],
   [RAG_RETRIEVAL]: [],

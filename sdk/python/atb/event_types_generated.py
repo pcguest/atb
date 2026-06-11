@@ -26,9 +26,6 @@ BUNDLE_SIGNATURE_EVENT_TYPE: Final = BUNDLE_SIGNATURE
 SNAPSHOT: Final = "atb.snapshot"
 SNAPSHOT_EVENT_TYPE: Final = SNAPSHOT
 
-BUNDLE_PUSHED: Final = "atb.bundle.pushed"
-BUNDLE_PUSHED_EVENT_TYPE: Final = BUNDLE_PUSHED
-
 AI_REQUEST_RECEIVED: Final = "ai.request.received"
 AI_REQUEST_RECEIVED_EVENT_TYPE: Final = AI_REQUEST_RECEIVED
 
@@ -71,9 +68,6 @@ AI_ACTION_ERROR_EVENT_TYPE: Final = AI_ACTION_ERROR
 AI_HUMAN_APPROVAL: Final = "ai.human.approval"
 AI_HUMAN_APPROVAL_EVENT_TYPE: Final = AI_HUMAN_APPROVAL
 
-AI_OVERRIDE_REQUESTED: Final = "ai.override.requested"
-AI_OVERRIDE_REQUESTED_EVENT_TYPE: Final = AI_OVERRIDE_REQUESTED
-
 AI_JOB_SCHEDULED: Final = "ai.job.scheduled"
 AI_JOB_SCHEDULED_EVENT_TYPE: Final = AI_JOB_SCHEDULED
 
@@ -97,9 +91,6 @@ DATA_EXPORT_ERROR_EVENT_TYPE: Final = DATA_EXPORT_ERROR
 
 DEV_SESSION: Final = "dev.session"
 DEV_SESSION_EVENT_TYPE: Final = DEV_SESSION
-
-SNAPSHOT_BUILD: Final = "snapshot.build"
-SNAPSHOT_BUILD_EVENT_TYPE: Final = SNAPSHOT_BUILD
 
 CORROBORATION_EXTERNAL: Final = "atb.corroboration.external"
 CORROBORATION_EXTERNAL_EVENT_TYPE: Final = CORROBORATION_EXTERNAL
@@ -165,13 +156,6 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "profiles": [],
         "criticality": "informational",
         "required_fields": ["name", "bundle_hash", "record_count", "snapshot_at"],
-    },
-    {
-        "type": BUNDLE_PUSHED,
-        "description": "Bundle pushed to remote WORM target (atb push)",
-        "profiles": [],
-        "criticality": "informational",
-        "required_fields": [],
     },
     {
         "type": AI_REQUEST_RECEIVED,
@@ -272,13 +256,6 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "required_fields": [],
     },
     {
-        "type": AI_OVERRIDE_REQUESTED,
-        "description": "Human override requested",
-        "profiles": [],
-        "criticality": "critical",
-        "required_fields": [],
-    },
-    {
         "type": AI_JOB_SCHEDULED,
         "description": "Background job scheduled",
         "profiles": ["atb.profile.background_automation"],
@@ -296,7 +273,7 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "type": AI_JOB_STEP,
         "description": "Individual step within a background job",
         "profiles": ["atb.profile.background_automation"],
-        "criticality": "critical",
+        "criticality": "required",
         "required_fields": [],
     },
     {
@@ -330,13 +307,6 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
     {
         "type": DEV_SESSION,
         "description": "Developer session marker (tooling use)",
-        "profiles": [],
-        "criticality": "informational",
-        "required_fields": [],
-    },
-    {
-        "type": SNAPSHOT_BUILD,
-        "description": "Build snapshot (tooling use)",
         "profiles": [],
         "criticality": "informational",
         "required_fields": [],
@@ -432,7 +402,6 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     BUNDLE_ANCHOR: ["tsa_url", "bundle_hash", "tsr_hash", "tsr_der", "certified_time"],
     BUNDLE_SIGNATURE: ["bundle_hash", "signature", "pubkey"],
     SNAPSHOT: ["name", "bundle_hash", "record_count", "snapshot_at"],
-    BUNDLE_PUSHED: [],
     AI_REQUEST_RECEIVED: ["request_id", "actor_id_hash", "purpose_tag"],
     AI_RESPONSE_SENT: ["request_id", "output_digest"],
     AI_LLM_CALL: [],
@@ -447,7 +416,6 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     AI_ACTION_COMMITTED: [],
     AI_ACTION_ERROR: ["action_id", "error_class"],
     AI_HUMAN_APPROVAL: [],
-    AI_OVERRIDE_REQUESTED: [],
     AI_JOB_SCHEDULED: [],
     AI_JOB_STARTED: [],
     AI_JOB_STEP: [],
@@ -456,7 +424,6 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     DATA_EXPORT_EXECUTED: [],
     DATA_EXPORT_ERROR: ["action_id", "error_class"],
     DEV_SESSION: [],
-    SNAPSHOT_BUILD: [],
     CORROBORATION_EXTERNAL: [],
     RAG_INDEX: [],
     RAG_RETRIEVAL: [],
@@ -483,8 +450,6 @@ __all__ = [
     "BUNDLE_SIGNATURE_EVENT_TYPE",
     "SNAPSHOT",
     "SNAPSHOT_EVENT_TYPE",
-    "BUNDLE_PUSHED",
-    "BUNDLE_PUSHED_EVENT_TYPE",
     "AI_REQUEST_RECEIVED",
     "AI_REQUEST_RECEIVED_EVENT_TYPE",
     "AI_RESPONSE_SENT",
@@ -513,8 +478,6 @@ __all__ = [
     "AI_ACTION_ERROR_EVENT_TYPE",
     "AI_HUMAN_APPROVAL",
     "AI_HUMAN_APPROVAL_EVENT_TYPE",
-    "AI_OVERRIDE_REQUESTED",
-    "AI_OVERRIDE_REQUESTED_EVENT_TYPE",
     "AI_JOB_SCHEDULED",
     "AI_JOB_SCHEDULED_EVENT_TYPE",
     "AI_JOB_STARTED",
@@ -531,8 +494,6 @@ __all__ = [
     "DATA_EXPORT_ERROR_EVENT_TYPE",
     "DEV_SESSION",
     "DEV_SESSION_EVENT_TYPE",
-    "SNAPSHOT_BUILD",
-    "SNAPSHOT_BUILD_EVENT_TYPE",
     "CORROBORATION_EXTERNAL",
     "CORROBORATION_EXTERNAL_EVENT_TYPE",
     "RAG_INDEX",

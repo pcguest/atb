@@ -489,7 +489,7 @@ corresponding `atb.tool.call` in the same session, it closes the
 
 The table below lists every canonical ATB event type. The three integration events (`ai.llm.call`, `ai.tool.exec`, `ai.chain.run`) are documented in detail above. The remaining types are used directly via the CLI or SDKs without a framework callback mapping.
 
-Developer-only types (`dev.session`, `snapshot.build`) are used internally by tooling and tests and are not intended for operator use.
+Developer-only types (`dev.session`) are used internally by tooling and tests and are not intended for operator use.
 
 | Event type | Category | Criticality | Primary profiles |
 | --- | --- | --- | --- |
@@ -497,7 +497,6 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `atb.bundle.anchor` | Bundle lifecycle | required | All profiles |
 | `atb.bundle.signature` | Bundle lifecycle | required | All profiles |
 | `atb.snapshot` | Bundle lifecycle | informational | — |
-| `atb.bundle.pushed` | Bundle lifecycle | informational | — |
 | `ai.request.received` | AI request/response | critical | `rag_answer`, `privileged_tool_action`, `data_export`, `policy_decision`, `human_override` |
 | `ai.response.sent` | AI request/response | required | `rag_answer` |
 | `ai.llm.call` | AI integration (see above) | informational | — |
@@ -514,10 +513,9 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `ai.action.committed` | Privileged action | critical | `privileged_tool_action`, `data_export`, `human_override` |
 | `ai.action.error` | Privileged action | required | — |
 | `ai.human.approval` | Human oversight | required | `privileged_tool_action`, `data_export`, `human_override` |
-| `ai.override.requested` | Human oversight | critical | — |
 | `ai.job.scheduled` | Background automation | critical | `background_automation` |
 | `ai.job.started` | Background automation | critical | `background_automation` |
-| `ai.job.step` | Background automation | critical | `background_automation` |
+| `ai.job.step` | Background automation | required | `background_automation` |
 | `ai.job.completed` | Background automation | critical | `background_automation` |
 | `data.export.precommit` | Data export | critical | `data_export` |
 | `data.export.executed` | Data export | critical | `data_export` |
@@ -532,5 +530,4 @@ Developer-only types (`dev.session`, `snapshot.build`) are used internally by to
 | `atb.human.override` | Human oversight | required | — |
 | `atb.human.approval` | Human oversight | required | — |
 | `dev.session` | Developer tooling | informational | — |
-| `snapshot.build` | Developer tooling | informational | — |
 | `atb.corroboration.external` | Corroboration | informational | All (contributes to XC) |

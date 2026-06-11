@@ -5,7 +5,6 @@ export const FRIENDLY_EVENT_LABELS: Record<string, string> = {
   "atb.bundle.manifest": "Bundle manifest",
   "atb.bundle.anchor": "Timestamp anchor",
   "atb.bundle.signature": "Signature",
-  "atb.bundle.pushed": "Bundle pushed",
   "atb.snapshot": "Snapshot",
   "atb.corroboration.external": "External corroboration",
   "atb.event.rag_index": "Knowledge index",
@@ -23,7 +22,6 @@ export const FRIENDLY_EVENT_LABELS: Record<string, string> = {
   "ai.action.executed": "Action executed",
   "ai.action.committed": "Action committed",
   "ai.human.approval": "Human approval",
-  "ai.override.requested": "Override requested",
   "ai.job.scheduled": "Job scheduled",
   "ai.job.started": "Job started",
   "ai.job.step": "Job step",
@@ -31,7 +29,6 @@ export const FRIENDLY_EVENT_LABELS: Record<string, string> = {
   "data.export.precommit": "Export precommit",
   "data.export.executed": "Export executed",
   "dev.session": "Developer session",
-  "snapshot.build": "Build snapshot",
   "privacy.reveal": "Privacy reveal",
 };
 
