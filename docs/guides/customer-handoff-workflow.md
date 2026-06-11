@@ -18,7 +18,7 @@ Produce one handoff pack that:
 Sender:
 
 ```bash
-go install -tags noembed github.com/pcguest/atb/cmd/atb@latest
+go install github.com/pcguest/atb/cmd/atb@latest
 
 atb bundle new
 

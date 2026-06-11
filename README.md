@@ -6,7 +6,7 @@
 bundles that anyone can verify offline, with no vendor account and no trust
 in the operator.**
 
-Current release: [`v1.14.1`](CHANGELOG.md)
+Current release: [`v1.14.2`](CHANGELOG.md)
 
 - **Tamper-evident by construction** — every event is RFC 8785-canonicalised
   and SHA-256 chained; one flipped byte breaks verification.
@@ -22,12 +22,11 @@ Current release: [`v1.14.1`](CHANGELOG.md)
 Install the CLI:
 
 ```bash
-go install -tags noembed github.com/pcguest/atb/cmd/atb@latest
+go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-The `noembed` tag is required for `go install`: the default build embeds the
-viewer's generated web assets, which are not published to the module proxy.
-For the full embedded viewer, build from a checkout with `make build`.
+A `go install` build serves a minimal install-guidance page for `atb view`;
+for the full embedded review UI, build from a checkout with `make build`.
 
 Initialise a bundle, capture a workflow, and verify against a profile:
 

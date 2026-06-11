@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- No unreleased changes. -->
 
+## [v1.14.2] - 2026-06-11
+
+### Added
+- `atb intercept --custos` now authenticates auto-pushes: when `ATB_CUSTOS_TOKEN` is set in the environment, every bundle POST to the Custos ingest endpoint carries it as an `Authorization: Bearer` header, so token-guarded `custos-ingestd` deployments work directly (previously the push was always unauthenticated). The token is read from the environment rather than a flag so it never lands in shell history or process listings; startup output states whether auth is attached.
+- EU AI Act Article 12 logging is now enforced across every **automatic capture surface**: the SDK capture wrappers (`wrap_openai`/`wrap_anthropic` in Python, `wrapOpenAI`/`wrapAnthropic` in TypeScript) record the `atb.capture.scope` boundary attestation at wrap time — once per recorder — exactly as the intercept proxy has done at startup. `capture_mode` derives from the privacy mode (`off` → `raw`, `hash`/`redact` → `digest`) and `out_of_scope` states the wrapper's documented blind spots (streaming, non-chat endpoints, out-of-wrapper calls). Auto-capture bundles are now self-describing about what the recorder could and could not see. Completes the "Enforce EU AI Act Article 12 logging in automatic capture path" roadmap item.
+
+### Changed
+- `go install github.com/pcguest/atb/cmd/atb@latest` now works without build tags: a placeholder asset is committed under `web/out/`, so the default embed compiles from the module proxy. Install docs drop the `-tags noembed` workaround; a `go install` build still serves the minimal install-guidance page for `atb view` (build from a checkout with `make build` for the full review UI).
+- `ai.job.step` criticality corrected from `critical` to `required` in the event registry (`schemas/event.v1.json`, generated constants, `docs/spec-ai-traces.md`). The `background_automation` verifier has never required it — `docs/profiles.md` and the spec already documented it as warning-level evidence — so the registry now matches shipped verification behaviour. No verifier behaviour change.
+
+### Removed
+- Three event types that were defined but never emitted by any runtime (Go, Python, or TypeScript) are cut from the event registry, schema catalogue, generated constants, and viewer labels: `atb.bundle.pushed` (its design conflicts with WORM custody — appending after push would change the bundle after the immutable copy; `atb push` has never emitted it), `ai.override.requested` (zero emitters; the human-override workflow records `ai.human.approval`), and `snapshot.build` (tooling marker, never emitted). Old bundles containing these types still chain-verify — event types are an open namespace and unknown types are not rejected; the types simply no longer appear in the documented registry. The overlapping `atb.human.override`/`atb.human.approval` family merge is deferred to a deliberate schema-version bump.
+
 ## [v1.14.1] - 2026-06-10
 
 ### Added

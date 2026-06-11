@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	version         = "1.14.1"
+	version         = "1.14.2"
 	verifyAlgorithm = "SHA-256||RFC8785"
 )
 
