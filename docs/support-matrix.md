@@ -6,7 +6,7 @@ against repository configuration.
 
 | Area | Supported or tested version | Source enforced by CI |
 | --- | --- | --- |
-| Go toolchain | Go 1.26.3 | `go.mod`, `Makefile`, GitHub Actions `setup-go` |
+| Go toolchain | Go 1.26.4 | `go.mod`, `Makefile`, GitHub Actions `setup-go` |
 | Python SDK runtime | Python 3.9-3.12 | `sdk/python/pyproject.toml` classifiers and `requires-python` |
 | Python CI runtime | Python 3.11 | GitHub Actions `setup-python` |
 | TypeScript SDK runtime | Node.js >=18 | `sdk/typescript/package.json` `engines.node` |

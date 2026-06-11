@@ -47,5 +47,20 @@ jobs:
       - name: Cross-language golden vectors
         run: make test-golden
 
+      # The Go suite needs the same preconditions as a maintainer checkout:
+      # generated profile fixture bundles (gitignored, deterministic) and the
+      # exported web viewer (embedded by uiembed.go and asserted by the
+      # installed-binary smoke test).
+      - name: Generate profile fixtures
+        run: go run ./scripts/generate_profile_fixtures.go
+
+      - name: Build web viewer export
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
       - name: Full Go suite
+        env:
+          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
         run: go test ./... -count=1

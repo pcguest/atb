@@ -54,9 +54,9 @@ Scaffolds only today: `discovery`, `onboarding`, `oversight`, `insights` (`regis
 ## Release gates (unchanged)
 
 ```bash
-GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.3 make test-golden
-GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.3 go test ./... -count=1
-GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.3 make hygiene-quick
+GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.4 make test-golden
+GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.4 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.4 make hygiene-quick
 ATB_SKIP_TAG_CHECK=1 bash scripts/check-versions.sh
 bash scripts/check-support-matrix.sh
 ```

@@ -14,13 +14,13 @@ golden parity and must not require a bundle-manifest migration.
 
 ```bash
 cd ~/atb
-GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.3 make test-golden          # cross-language hash vectors
-GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.3 go test ./... -count=1     # full Go suite
+GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.4 make test-golden          # cross-language hash vectors
+GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.4 go test ./... -count=1     # full Go suite
 make hygiene-quick                                                          # profile goldens + web lint/typecheck
 /bin/bash scripts/check-support-matrix.sh                                   # support-matrix agreement
 ATB_SKIP_TAG_CHECK=1 /bin/bash scripts/check-versions.sh                    # 9 version strings agree
-GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.3 go test ./test/custos/... -tags=integration -count=1   # custos conformance
-(cd custos && GOCACHE=$(pwd)/../.gocache/dev GOTOOLCHAIN=go1.26.3 go test ./... -race -count=1)          # custos module (race)
+GOCACHE=$(pwd)/.gocache/dev GOTOOLCHAIN=go1.26.4 go test ./test/custos/... -tags=integration -count=1   # custos conformance
+(cd custos && GOCACHE=$(pwd)/../.gocache/dev GOTOOLCHAIN=go1.26.4 go test ./... -race -count=1)          # custos module (race)
 (cd web && npm test -- --run && npm run lint && npm run typecheck)          # viewer
 ```
 
