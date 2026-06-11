@@ -141,3 +141,7 @@ govulncheck-baseline.json
 test-atb-pypi/
 .tmp*/
 .cursor/
+
+# local artefacts
+bin/
+scratch/

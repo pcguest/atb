@@ -1,12 +1,21 @@
-ATB — tamper-evident audit trails for AI systems.
+# ATB — tamper-evident audit trails for AI systems
 
-[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.3-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE) ![EU AI Act Article 12 logging](https://img.shields.io/badge/EU%20AI%20Act-Article%2012%20logging-blue)
+[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.4-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE) ![EU AI Act Article 12 logging](https://img.shields.io/badge/EU%20AI%20Act-Article%2012%20logging-blue)
 
-Current release: [`v1.14.0`](CHANGELOG.md)
+**Record what your AI agents actually did — into append-only, hash-chained
+bundles that anyone can verify offline, with no vendor account and no trust
+in the operator.**
 
-## What ATB does
+Current release: [`v1.14.1`](CHANGELOG.md)
 
-ATB records AI workflow events into append-only `.atb` bundles whose records are linked by a SHA-256 hash chain. It is local-first: bundles are written to disk and can be verified without a hosted service or vendor account. The CLI and Go, Python, and TypeScript SDKs support capture, signing, verification, export, and profile-scored review. Its current logging model aligns with EU AI Act Article 12 by preserving automatic logs with retention guardrails and independently verifiable custody reports.
+- **Tamper-evident by construction** — every event is RFC 8785-canonicalised
+  and SHA-256 chained; one flipped byte breaks verification.
+- **Verify with zero trust** — `atb verify` runs locally against the bundle
+  alone; Go, Python, and TypeScript verifiers agree byte-for-byte
+  (cross-language golden vectors in CI).
+- **Built for incidents, not dashboards** — capture an agent session, then
+  prove after the fact which privileged action fired, what was approved, and
+  what failed — even when the agent's own logs can't be trusted.
 
 ## Quickstart
 
@@ -49,7 +58,34 @@ even when the agent's own logs can't be trusted. See the
 
 ## How it works
 
-ATB canonicalises each event with RFC 8785 before hashing. Each record hash is SHA-256 over the previous hash and canonical event JSON, with a zero hash genesis sentinel. Bundles can be signed with Ed25519 and anchored through an RFC 3161 timestamp authority. Sensitive bundles can be encrypted with AES-256-GCM before storage or transfer. Verification recomputes the chain and checks signatures, anchors, profile obligations, and CAS output.
+ATB records AI workflow events into append-only `.atb` bundles (NDJSON). Each
+event is canonicalised with RFC 8785 before hashing; each record hash is
+SHA-256 over the previous hash and the canonical event JSON, with a zero-hash
+genesis sentinel. Bundles can be signed with Ed25519 and anchored through an
+RFC 3161 timestamp authority; sensitive bundles can be encrypted with
+AES-256-GCM before storage or transfer. Verification recomputes the chain and
+checks signatures, anchors, profile obligations, and CAS output — entirely
+locally.
+
+```
+agent / app ──► capture (SDK · intercept proxy · OTel import)
+                    │
+                    ▼
+              .atb bundle  (append-only · hash-chained · signed)
+                    │
+        ┌───────────┼───────────────┐
+        ▼           ▼               ▼
+   atb verify   atb incident    atb view
+   (offline)    (forensics)     (local viewer)
+                    │
+                    ▼ optional push
+          Custos (custody · WORM · receipts · transparency log)
+```
+
+Long-term custody — WORM storage, signed receipts, and an RFC 6962
+transparency log with witness cosignatures — lives in the companion product
+[Custos](https://github.com/pcguest/custos-product); the full story is in its
+[end-to-end guide](https://github.com/pcguest/custos-product/blob/main/docs/e2e-atb-custos.md).
 
 ## Obligation profiles
 
@@ -64,18 +100,47 @@ ATB canonicalises each event with RFC 8785 before hashing. Each record hash is S
 
 ## SDKs
 
-Go — `pkg/api/v1`
-Python — `sdk/python`
-TypeScript — `sdk/typescript`
+| Language | Path |
+| --- | --- |
+| Go | [`pkg/api/v1`](./pkg/api/v1) |
+| Python | [`sdk/python`](./sdk/python) |
+| TypeScript | [`sdk/typescript`](./sdk/typescript) |
+
+All three agree byte-for-byte with the Go implementation via shared golden
+vectors (`make test-golden`).
 
 ## EU AI Act
 
-ATB's automatic logging model aligns with EU AI Act Article 12 traceability requirements for recorded high-risk AI workflows. The retention guard prevents configuration below the EU AI Act minimum unless the operator explicitly allows it. CAS scoring exposes residual capture risk, but ATB does not prove universal capture, model correctness, actor identity, or legal compliance by itself.
+ATB's automatic logging model aligns with EU AI Act Article 12 traceability
+requirements for recorded high-risk AI workflows. The retention guard prevents
+configuration below the EU AI Act minimum unless the operator explicitly
+allows it. CAS scoring exposes residual capture risk.
 
-## Roadmap
+**Honest limits:** ATB proves integrity of what was recorded. It does not
+prove universal capture, model correctness, actor identity, or legal
+compliance by itself — and it never certifies compliance.
 
-See [docs/roadmap.md](./docs/roadmap.md).
+## Documentation
+
+| Read | For |
+| --- | --- |
+| [Why ATB](./docs/why-atb.md) | The problem and the trust model |
+| [Spec v1.0](./docs/spec-v1.0.md) | Bundle format, hashing, canonicalisation |
+| [Capture quickstart](./docs/guides/capture-quickstart.md) | First bundle in five minutes |
+| [Profiles guide](./docs/profiles.md) · [CAS guide](./docs/cas-guide.md) | Obligation scoring and completeness signals |
+| [Provability ladder](./docs/provability-ladder.md) | What each evidence layer does and doesn't prove |
+| [Tamper demo](./docs/guides/tamper-demo.md) | See verification fail on a flipped byte |
+| [Security model](./docs/security.md) | Threat model and guarantees |
+| [Roadmap](./docs/roadmap.md) | Planned vs shipped |
+
+## Contributing & security
+
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — local release gates (golden vectors,
+  full test suite, version checks) are the gates of record.
+- [SECURITY.md](./SECURITY.md) — reporting vulnerabilities.
+- [VERSIONING.md](./VERSIONING.md) — SemVer for releases; the canonical hash
+  input is frozen and changes only via a deliberate manifest-version migration.
 
 ## Licence
 
-MIT
+[MIT](./LICENSE)

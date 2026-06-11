@@ -56,8 +56,8 @@ Go is canonical. Python and TypeScript must agree byte-for-byte with Go via
 Before a public release:
 
 ```bash
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.3 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.3 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 go test ./... -count=1
 bash scripts/check-versions.sh
 ```
 
@@ -101,7 +101,7 @@ support an obligation, but must state the operational and legal limits.
 - Phase 1 survey written to `/tmp/atb-md-survey.md` (filtered inventory, drift
   flags, proposed deletions).
 - Phase 2-5 doc cleanup: 6 signed commits on top of provability stack — case
-  study move + `roadmap.md` normalisation, redundant page removal, Go 1.26.3
+  study move + `roadmap.md` normalisation, redundant page removal, Go 1.26.4
   alignment, governance/spec tone pass, README front-door restructure.
 - README quickstart verified end-to-end in `/tmp/atb-readme-quickstart`.
 - Deferred without edit: duplicate CHANGELOG `[v1.6.0]` headings,

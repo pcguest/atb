@@ -13,7 +13,7 @@ test-golden:
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
-GOTOOLCHAIN ?= go1.26.3
+GOTOOLCHAIN ?= go1.26.4
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
@@ -200,5 +200,5 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" ./...; \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.3 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \
+		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \
 	fi
