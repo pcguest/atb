@@ -54,7 +54,7 @@ func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, er
 	var cp *CustosPusher
 	if cfg.CustosEndpoint != "" {
 		var err error
-		cp, err = NewCustosPusher(cfg.CustosEndpoint)
+		cp, err = NewCustosPusher(cfg.CustosEndpoint, cfg.CustosToken)
 		if err != nil {
 			return nil, fmt.Errorf("custos push endpoint: %w", err)
 		}

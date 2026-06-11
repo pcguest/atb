@@ -74,6 +74,13 @@ export function wrapOpenAI<P extends OpenAIChatParams, R extends OpenAIChatRespo
   options: SDKCaptureOptions = {},
 ): Create<P, R> {
   const mw = options.middleware ?? atbMiddleware(options);
+  mw.recordCaptureScope({
+    targets: ["openai"],
+    outOfScope:
+      "Only the wrapped OpenAI chat.completions.create call is recorded; " +
+      "streaming requests, other endpoints, and calls made outside this " +
+      "wrapper are not captured.",
+  });
   return async (params: P): Promise<R> => {
     if (params?.stream) {
       throw new Error(
@@ -155,6 +162,13 @@ export function wrapAnthropic<P extends AnthropicMessagesParams, R extends Anthr
   options: SDKCaptureOptions = {},
 ): Create<P, R> {
   const mw = options.middleware ?? atbMiddleware(options);
+  mw.recordCaptureScope({
+    targets: ["anthropic"],
+    outOfScope:
+      "Only the wrapped Anthropic messages.create call is recorded; " +
+      "streaming requests, other endpoints, and calls made outside this " +
+      "wrapper are not captured.",
+  });
   return async (params: P): Promise<R> => {
     if (params?.stream) {
       throw new Error(

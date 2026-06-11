@@ -101,9 +101,18 @@ export interface ToolEndInput {
   output: unknown;
 }
 
+/** Capture-boundary attestation recorded as `atb.capture.scope`. */
+export interface CaptureScopeInput {
+  /** Provider surfaces this recorder observes (e.g. ["openai"]). */
+  targets: string[];
+  /** Plain statement of what this recorder does not see. */
+  outOfScope: string;
+}
+
 /** Middleware callbacks that emit ATB events for Vercel AI flows. */
 export interface ATBMiddleware {
   readonly bundle: Bundle;
+  recordCaptureScope(input: CaptureScopeInput): void;
   onChainStart(input: ChainStartInput): void;
   onChainEnd(input: ChainEndInput): void;
   onChainError(error: unknown, runId?: string): void;
@@ -141,6 +150,7 @@ class ATBMiddlewareImpl implements ATBMiddleware {
   private readonly framework: string;
   private readonly frameworkVersion: string;
   private readonly runs: Map<string, SpanState>;
+  private captureScopeRecorded = false;
 
   constructor(options: ATBMiddlewareOptions) {
     this.bundle = options.bundle ?? new Bundle();
@@ -157,6 +167,33 @@ class ATBMiddlewareImpl implements ATBMiddleware {
 
     if (!["off", "hash", "redact"].includes(this.privacyMode)) {
       throw new Error("privacyMode must be one of: off, hash, redact");
+    }
+  }
+
+  recordCaptureScope(input: CaptureScopeInput): void {
+    // Article 12 automatic-logging evidence: makes auto-capture bundles
+    // self-describing about the recorder's boundary, mirroring the proxy's
+    // startup attestation. Recorded at most once per middleware instance.
+    if (!this.enabled || this.captureScopeRecorded) return;
+    this.captureScopeRecorded = true;
+    const now = new Date();
+    this.bundle.append(
+      "atb.capture.scope",
+      {
+        targets: [...input.targets],
+        capture_mode: this.privacyMode === "off" ? "raw" : "digest",
+        out_of_scope: input.outOfScope,
+        recorded_at: toIso(now),
+      },
+      {
+        actorId: this.actorId,
+        orgId: this.orgId,
+        workspaceId: this.workspaceId,
+        timestamp: toIso(now),
+      }
+    );
+    if (this.autoSave) {
+      this.bundle.save(this.savePath);
     }
   }
 

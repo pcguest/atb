@@ -9,11 +9,11 @@ RFC 3161 timestamps, and an RFC 6962 transparency log with witness
 cosignatures, a public checkpoint feed, and a fork monitor). Point ingest
 integrations at its `custos-ingestd`, not at the in-repo scaffold. The
 end-to-end flow is documented in `custos-product/docs/e2e-atb-custos.md`.
-Note for `atb intercept --custos <endpoint>`: the auto-push sends **no
-Authorization header**, so it suits no-auth dev daemons or a reverse proxy
-that injects the Bearer key; token-guarded `custos-ingestd` deployments
-should ingest via `curl`/presigned uploads instead. Maintainer handoff and
-Prompt-2 worklist: `custos-product/docs/HANDOFF.md`.
+Note for `atb intercept --custos <endpoint>`: the auto-push authenticates
+with `Authorization: Bearer $ATB_CUSTOS_TOKEN` when that environment
+variable is set, so it works against token-guarded `custos-ingestd`
+deployments directly; leave it unset for no-auth dev daemons. Maintainer
+handoff and Prompt-2 worklist: `custos-product/docs/HANDOFF.md`.
 
 The authoritative statement of what the combined system does and does not do
 — capture/integrity/custody/product boundaries plus the canonical

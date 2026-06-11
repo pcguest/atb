@@ -98,7 +98,10 @@ in the bundle where that tradeoff is acceptable.
 When set, automatically POSTs the closed bundle to the configured Custos ingest
 endpoint on each `atb.session.close` event, using an immutable byte snapshot
 taken under the recorder lock. The endpoint URL is printed on startup.
-Auto-push is disabled when the flag is not set.
+Auto-push is disabled when the flag is not set. If `ATB_CUSTOS_TOKEN` is set
+in the environment, each push carries it as an `Authorization: Bearer`
+header for token-guarded Custos deployments; the token is read from the
+environment (never a flag) so it stays out of shell history.
 
 ## atb incident
 

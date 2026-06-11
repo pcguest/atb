@@ -26,6 +26,7 @@ describe("wrapOpenAI", () => {
 
     const types = userRecords(bundle).map((r) => r.event.type);
     expect(types).toEqual([
+      "atb.capture.scope",
       "ai.llm.call",
       "ai.request.received",
       "ai.model.invoked",
@@ -33,11 +34,15 @@ describe("wrapOpenAI", () => {
       "ai.model.output",
     ]);
 
-    const invoked = userRecords(bundle)[2].event.data as Record<string, unknown>;
+    const scope = userRecords(bundle)[0].event.data as Record<string, unknown>;
+    expect(scope.targets).toEqual(["openai"]);
+    expect(scope.capture_mode).toBe("raw");
+
+    const invoked = userRecords(bundle)[3].event.data as Record<string, unknown>;
     expect(invoked.model_provider).toBe("openai");
     expect(invoked.model_id).toBe("gpt-4o");
 
-    const end = userRecords(bundle)[3].event.data as Record<string, unknown>;
+    const end = userRecords(bundle)[4].event.data as Record<string, unknown>;
     const context = end.context as Record<string, unknown>;
     const completion = context.completion as Record<string, string>;
     expect(completion.text).toBe("hello back");
@@ -96,7 +101,10 @@ describe("wrapOpenAI", () => {
     });
     await create({ model: "gpt-4o", messages: [{ role: "user", content: "secret" }] });
 
-    const start = userRecords(bundle)[0].event.data as Record<string, unknown>;
+    const scope = userRecords(bundle)[0].event.data as Record<string, unknown>;
+    expect(scope.capture_mode).toBe("digest");
+
+    const start = userRecords(bundle)[1].event.data as Record<string, unknown>;
     const context = start.context as Record<string, unknown>;
     const prompt = context.prompt as Record<string, string>;
     expect(prompt.text.startsWith("sha256:")).toBe(true);

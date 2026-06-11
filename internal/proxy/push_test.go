@@ -35,7 +35,7 @@ func TestCustosPusher_Push(t *testing.T) {
 	b.Save(dummyBundlePath)
 
 	t.Run("no push when CustosEndpoint is empty", func(t *testing.T) {
-		_, err := NewCustosPusher("")
+		_, err := NewCustosPusher("", "")
 		if err == nil || !strings.Contains(err.Error(), "custos endpoint is not configured") {
 			t.Errorf("Expected 'custos endpoint is not configured' error, got: %v", err)
 		}
@@ -43,6 +43,38 @@ func TestCustosPusher_Push(t *testing.T) {
 		err = pusher.Push(context.Background(), dummyBundlePath)
 		if err == nil || !strings.Contains(err.Error(), "custos endpoint is not configured") {
 			t.Errorf("Expected 'custos endpoint is not configured' error on Push, got: %v", err)
+		}
+	})
+
+	t.Run("bearer token sent when configured, omitted when empty", func(t *testing.T) {
+		var gotAuth atomic.Value
+		mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotAuth.Store(r.Header.Get("Authorization"))
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(pushReceipt{ReceiptID: "test-receipt-auth"})
+		}))
+		defer mockServer.Close()
+
+		pusher, err := NewCustosPusher(mockServer.URL, "org-token-123")
+		if err != nil {
+			t.Fatalf("NewCustosPusher: %v", err)
+		}
+		if err := pusher.Push(context.Background(), dummyBundlePath); err != nil {
+			t.Fatalf("Push failed: %v", err)
+		}
+		if got := gotAuth.Load(); got != "Bearer org-token-123" {
+			t.Errorf("Expected Authorization 'Bearer org-token-123', got %q", got)
+		}
+
+		pusher, err = NewCustosPusher(mockServer.URL, "")
+		if err != nil {
+			t.Fatalf("NewCustosPusher: %v", err)
+		}
+		if err := pusher.Push(context.Background(), dummyBundlePath); err != nil {
+			t.Fatalf("Push failed: %v", err)
+		}
+		if got := gotAuth.Load(); got != "" {
+			t.Errorf("Expected no Authorization header, got %q", got)
 		}
 	})
 
@@ -63,7 +95,7 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher, err := NewCustosPusher(mockServer.URL)
+		pusher, err := NewCustosPusher(mockServer.URL, "")
 		if err != nil {
 			t.Fatalf("NewCustosPusher: %v", err)
 		}
@@ -84,7 +116,7 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher, err := NewCustosPusher(mockServer.URL)
+		pusher, err := NewCustosPusher(mockServer.URL, "")
 		if err != nil {
 			t.Fatalf("NewCustosPusher: %v", err)
 		}
@@ -117,7 +149,7 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher, err := NewCustosPusher(mockServer.URL)
+		pusher, err := NewCustosPusher(mockServer.URL, "")
 		if err != nil {
 			t.Fatalf("NewCustosPusher: %v", err)
 		}
@@ -144,7 +176,7 @@ func TestCustosPusher_Push(t *testing.T) {
 		}))
 		defer mockServer.Close()
 
-		pusher, err := NewCustosPusher(mockServer.URL)
+		pusher, err := NewCustosPusher(mockServer.URL, "")
 		if err != nil {
 			t.Fatalf("NewCustosPusher: %v", err)
 		}

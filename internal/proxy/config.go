@@ -22,6 +22,9 @@ type ProxyConfig struct {
 	IdentityMap    map[string]string
 	Identity       identity.Resolver
 	CustosEndpoint string // New field
+	// CustosToken authenticates auto-pushes to the Custos ingest endpoint as
+	// an Authorization: Bearer header. Empty means unauthenticated (dev mode).
+	CustosToken string
 	// CaptureBodies retains raw request/response bodies in recorded events.
 	// Default false: only a SHA-256 digest and byte length are recorded, so an
 	// always-on recorder does not persist prompts, completions, or PII. Enable

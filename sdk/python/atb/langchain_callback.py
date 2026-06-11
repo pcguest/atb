@@ -22,6 +22,7 @@ from atb.event_types import (
     AI_MODEL_OUTPUT_EVENT_TYPE,
     AI_REQUEST_RECEIVED_EVENT_TYPE,
 )
+from atb.event_types_generated import CAPTURE_SCOPE
 
 try:
     from langchain_core.callbacks.base import BaseCallbackHandler
@@ -97,6 +98,7 @@ class ATBCallbackHandler(BaseCallbackHandler):
         self.framework = framework
         self.framework_version = framework_version
         self._runs: dict[str, _SpanState] = {}
+        self._capture_scope_recorded = False
 
     # ------------------------------------------------------------------
     # LangChain callbacks
@@ -725,6 +727,40 @@ class ATBCallbackHandler(BaseCallbackHandler):
             trace_id=state.trace_id,
             span_id=state.span_id,
             parent_span_id=state.parent_span_id,
+        )
+        if self.auto_save:
+            self.bundle.save(self.save_path)
+
+    def record_capture_scope(
+        self,
+        *,
+        targets: list[str],
+        out_of_scope: str,
+    ) -> None:
+        """Append the ``atb.capture.scope`` attestation once per handler.
+
+        Makes auto-capture bundles self-describing about the recorder's
+        boundary, mirroring the proxy's startup attestation (EU AI Act
+        Article 12 automatic-logging evidence). ``capture_mode`` derives
+        from the privacy mode: ``off`` retains raw text, anything else
+        records digests/redactions only.
+        """
+        if not self.enabled or self._capture_scope_recorded:
+            return
+        self._capture_scope_recorded = True
+        now = self._now()
+        self.bundle.append(
+            CAPTURE_SCOPE,
+            {
+                "targets": list(targets),
+                "capture_mode": "raw" if self.privacy_mode == "off" else "digest",
+                "out_of_scope": out_of_scope,
+                "recorded_at": self._iso(now),
+            },
+            actor_id=self.actor_id,
+            org_id=self.org_id,
+            workspace_id=self.workspace_id,
+            timestamp=self._iso(now),
         )
         if self.auto_save:
             self.bundle.save(self.save_path)

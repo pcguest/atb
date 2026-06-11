@@ -76,6 +76,14 @@ def wrap_openai(
         workspace_id=workspace_id,
         framework="openai",
     )
+    rec.record_capture_scope(
+        targets=["openai"],
+        out_of_scope=(
+            "Only the wrapped OpenAI chat.completions.create call is recorded; "
+            "streaming requests, other endpoints, and calls made outside this "
+            "wrapper are not captured."
+        ),
+    )
 
     def instrumented(**params: Any) -> Any:
         if params.get("stream"):
@@ -152,6 +160,14 @@ def wrap_anthropic(
         org_id=org_id,
         workspace_id=workspace_id,
         framework="anthropic",
+    )
+    rec.record_capture_scope(
+        targets=["anthropic"],
+        out_of_scope=(
+            "Only the wrapped Anthropic messages.create call is recorded; "
+            "streaming requests, other endpoints, and calls made outside this "
+            "wrapper are not captured."
+        ),
     )
 
     def instrumented(**params: Any) -> Any:

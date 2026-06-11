@@ -52,7 +52,11 @@ func runInterceptCommand(args []string, stdout, stderr io.Writer) int {
 	printInterceptEnvHints(stdout, port)
 
 	if cfg.CustosEndpoint != "" {
-		fmt.Fprintf(stdout, "Auto-push to Custos: %s\n", cfg.CustosEndpoint)
+		if cfg.CustosToken != "" {
+			fmt.Fprintf(stdout, "Auto-push to Custos: %s (Bearer auth from ATB_CUSTOS_TOKEN)\n", cfg.CustosEndpoint)
+		} else {
+			fmt.Fprintf(stdout, "Auto-push to Custos: %s (unauthenticated; set ATB_CUSTOS_TOKEN for Bearer auth)\n", cfg.CustosEndpoint)
+		}
 	} else {
 		fmt.Fprintln(stdout, "Auto-push disabled (--custos not set)")
 	}
@@ -161,7 +165,10 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 		TargetHosts:    proxy.DefaultTargetHosts(targets...),
 		IdentityMap:    identityMap,
 		CustosEndpoint: custosEndpoint,
-		CaptureBodies:  captureBodies,
+		// The token comes from the environment, not a flag, so it never
+		// lands in shell history or process listings.
+		CustosToken:   strings.TrimSpace(os.Getenv("ATB_CUSTOS_TOKEN")),
+		CaptureBodies: captureBodies,
 	}
 	return cfg, cfg.Validate()
 }
@@ -214,6 +221,7 @@ Flags:
   --target <names>           Comma-separated provider shorthand or hostnames (default openai,anthropic)
   --identity-map key=name    Map API keys to display names (repeatable)
   --custos <endpoint>        Custos ingest endpoint for auto-push on session close
+                             (set ATB_CUSTOS_TOKEN to authenticate with a Bearer token)
   --capture-bodies           Record raw request/response bodies (default: digest only)
 
 By default only a SHA-256 digest and byte length of each request/response body

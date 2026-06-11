@@ -40,6 +40,7 @@ def test_wrap_openai_records_request_model_and_output() -> None:
     assert res["choices"][0]["message"]["content"] == "hello back"
 
     assert _types(bundle) == [
+        "atb.capture.scope",
         "ai.llm.call",
         "ai.request.received",
         "ai.model.invoked",
@@ -47,11 +48,15 @@ def test_wrap_openai_records_request_model_and_output() -> None:
         "ai.model.output",
     ]
 
-    invoked = _user_records(bundle)[2].event["data"]
+    scope = _user_records(bundle)[0].event["data"]
+    assert scope["targets"] == ["openai"]
+    assert scope["capture_mode"] == "raw"
+
+    invoked = _user_records(bundle)[3].event["data"]
     assert invoked["model_provider"] == "openai"
     assert invoked["model_id"] == "gpt-4o"
 
-    end = _user_records(bundle)[3].event["data"]
+    end = _user_records(bundle)[4].event["data"]
     assert end["context"]["completion"]["text"] == "hello back"
     assert end["context"]["token_usage"]["total_tokens"] == 7
 
@@ -116,7 +121,10 @@ def test_wrap_openai_hash_privacy_mode() -> None:
     create = wrap_openai(fake_create, bundle=bundle, privacy_mode="hash")
     create(model="gpt-4o", messages=[{"role": "user", "content": "secret"}])
 
-    start = _user_records(bundle)[0].event["data"]
+    scope = _user_records(bundle)[0].event["data"]
+    assert scope["capture_mode"] == "digest"
+
+    start = _user_records(bundle)[1].event["data"]
     assert start["context"]["prompt"]["text"].startswith("sha256:")
     assert "secret" not in start["context"]["prompt"]["text"]
 

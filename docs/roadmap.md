@@ -42,7 +42,11 @@ and review it from a tamper-evident bundle.
   thin adapters that record the chat/messages `create` call (request, response,
   token usage, tool calls, errors) through the existing recorders; streaming and
   non-chat endpoints are documented blind spots (shipped June 2026)
-- Enforce EU AI Act Article 12 logging in automatic capture path
+- ✅ Enforce EU AI Act Article 12 logging in automatic capture path — every
+  automatic capture surface now records the `atb.capture.scope` boundary
+  attestation: the intercept proxy at startup (existing) and the SDK wrappers
+  (`wrap_openai`/`wrap_anthropic`, `wrapOpenAI`/`wrapAnthropic`) at wrap time,
+  with `capture_mode` derived from the privacy mode (shipped June 2026)
 
 ## Medium term — Q4 2026 to Q1 2027
 

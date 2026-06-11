@@ -21,7 +21,10 @@ const (
 // CustosPusher handles pushing bundles to a Custos ingest endpoint.
 type CustosPusher struct {
 	Endpoint string
-	Client   *http.Client // HTTP client for making requests
+	// Token is sent as an Authorization: Bearer header when non-empty.
+	// Custos ingest endpoints reject unauthenticated pushes outside dev mode.
+	Token  string
+	Client *http.Client // HTTP client for making requests
 }
 
 // Fixed: This local response shape avoids importing Custos internals across module boundaries.
@@ -30,14 +33,16 @@ type pushReceipt struct {
 	ReceiptID string `json:"receipt_id"`
 }
 
-// NewCustosPusher creates a new CustosPusher.
-func NewCustosPusher(endpoint string) (*CustosPusher, error) {
+// NewCustosPusher creates a new CustosPusher. token may be empty for
+// dev-mode (unauthenticated) Custos endpoints.
+func NewCustosPusher(endpoint, token string) (*CustosPusher, error) {
 	validated, err := validatePushEndpoint(endpoint)
 	if err != nil {
 		return nil, err
 	}
 	return &CustosPusher{
 		Endpoint: validated,
+		Token:    strings.TrimSpace(token),
 		Client: &http.Client{
 			Timeout: 30 * time.Second, // Reasonable timeout for network operations
 		},
@@ -97,6 +102,9 @@ func (p *CustosPusher) postBundleBytes(ctx context.Context, bundleBytes []byte) 
 			return fmt.Errorf("failed to create HTTP request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/octet-stream") // Or appropriate content type
+		if p.Token != "" {
+			req.Header.Set("Authorization", "Bearer "+p.Token)
+		}
 
 		resp, err := p.Client.Do(req) // #nosec G704 -- endpoint validated in NewCustosPusher to http/https with host
 		if err != nil {
