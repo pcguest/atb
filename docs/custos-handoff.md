@@ -14,6 +14,12 @@ Authorization header**, so it suits no-auth dev daemons or a reverse proxy
 that injects the Bearer key; token-guarded `custos-ingestd` deployments
 should ingest via `curl`/presigned uploads instead.
 
+The authoritative statement of what the combined system does and does not do
+— capture/integrity/custody/product boundaries plus the canonical
+never-claims list — is `custos-product/docs/capability-boundary.md` (the
+"four rings"), backed by the schema liveness audit in
+`custos-product/docs/schema-coverage.md`.
+
 The in-repo reference layer under `custos/` (a separate Go module covering ingestion, receipt store, signing policy, and auth) remains a prototype of the ingest and custody boundary; it is not the product. Everything below is grounded in shipped ATB behaviour, tests, and docs, and predates the product repo — read it as the original handoff brief.
 
 ---

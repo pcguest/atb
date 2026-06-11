@@ -13,8 +13,12 @@ ATB records AI workflow events into append-only `.atb` bundles whose records are
 Install the CLI:
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install -tags noembed github.com/pcguest/atb/cmd/atb@latest
 ```
+
+The `noembed` tag is required for `go install`: the default build embeds the
+viewer's generated web assets, which are not published to the module proxy.
+For the full embedded viewer, build from a checkout with `make build`.
 
 Initialise a bundle, capture a workflow, and verify against a profile:
 

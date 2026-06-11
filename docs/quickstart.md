@@ -8,7 +8,7 @@ the record-and-verify cycle.
 ## 1. Your first bundle in 5 minutes
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install -tags noembed github.com/pcguest/atb/cmd/atb@latest
 atb bundle new
 atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
 atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
@@ -95,8 +95,12 @@ ATB_LOCK_WAIT=10s atb snapshot ci_checkpoint
 ### Go CLI
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install -tags noembed github.com/pcguest/atb/cmd/atb@latest
 ```
+
+The `noembed` tag is required: the default build embeds the viewer's generated
+web assets, which are not published to the module proxy, so a plain
+`go install` fails. Build from a checkout with `make build` for the full viewer.
 
 ### Python SDK
 

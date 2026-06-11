@@ -12,7 +12,7 @@ It keeps the existing ATB model intact:
 ## From saved chatlog to verified bundle in 5 minutes
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install -tags noembed github.com/pcguest/atb/cmd/atb@latest
 atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl --snapshot imported_chatlog
 atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
 atb view --bundle run.atb/bundle.atb
