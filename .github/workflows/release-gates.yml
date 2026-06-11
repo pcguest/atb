@@ -60,7 +60,8 @@ jobs:
           npm ci
           npm run build
 
+      - name: Add venv to PATH
+        run: echo "${GITHUB_WORKSPACE}/.venv/bin" >> "$GITHUB_PATH"
+
       - name: Full Go suite
-        env:
-          PATH: ${{ github.workspace }}/.venv/bin:${{ env.PATH }}
         run: go test ./... -count=1
