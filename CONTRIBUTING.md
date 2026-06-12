@@ -117,3 +117,59 @@ The release tag is the release source of truth. The checked-in version strings m
 
 See [SECURITY.md](SECURITY.md) for the vulnerability disclosure
 policy.
+
+## Maintainer rules
+
+These invariants apply to every change that touches the bundle format, verifier,
+or public CLI contract. Full versioning policy is in [VERSIONING.md](VERSIONING.md).
+
+### Product boundary
+
+ATB is a local-first tamper-evident audit trail. It proves integrity of what was
+recorded; it does not prove capture completeness, model correctness, actor
+identity, or regulatory compliance by itself. Hosted custody, auditor access,
+retention policy, and custodian-of-record work belong in
+[Custos](https://github.com/pcguest/custos-product) or another external product.
+
+### Core invariants
+
+1. Bundles are append-only NDJSON; existing records are never edited.
+2. Record hash: `SHA-256(UTF-8(hex(prev_hash)) || RFC8785(event))`.
+3. Genesis sentinel: 64 zero hex characters.
+4. Canonical hash input is frozen unless a deliberate manifest-version migration is performed.
+5. Default writer manifest version is `1` unless VERSIONING.md says otherwise.
+6. Local-first by default; network activity ties to explicit commands or configured backends.
+7. `LoadVerified` is required for integrity-sensitive reads.
+8. ATB Agent is optional and loopback-only.
+
+### Release gates
+
+Before a public release:
+
+```bash
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 go test ./... -count=1
+/bin/bash scripts/check-versions.sh
+```
+
+Broader preflight when the environment can build web artefacts:
+
+```bash
+/bin/bash scripts/release-check.sh
+```
+
+Go is canonical. Python and TypeScript must match Go byte-for-byte via
+`make test-golden` before release.
+
+### Files requiring extra review
+
+- `internal/bundle/`, `internal/hash/`, `internal/canonicalize/`
+- `schemas/event.v1.json`, `docs/spec-v1.0.md`, `docs/spec-ai-traces.md`
+- `internal/verify/report.go`, `pkg/custody/schema/`
+- `cmd/atb/exit_codes.go`, public CLI help, documented JSON output
+- `sdk/python/`, `sdk/typescript/`
+- `LICENSE`, `SECURITY.md`, `VERSIONING.md`
+
+Schema or canonicalisation changes require docs, tests, and CHANGELOG entries in
+the same release-preparation pass. Do not describe ATB as certifying compliance
+or replacing a custodian.

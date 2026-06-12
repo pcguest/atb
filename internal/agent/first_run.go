@@ -26,7 +26,7 @@ To capture your first bundle:
   2. Instrument a workflow with TypeScript AutomationSession (ATB_AGENT_URL / ATB_AGENT_AUTO)
      or run: atb capture run
 
-See docs/guides/agent.md in the ATB repository for details.
+See docs/guides/capture.md in the ATB repository for details.
 `
 
 // PrepareWorkspace ensures the agent data directory exists and logs first-run guidance

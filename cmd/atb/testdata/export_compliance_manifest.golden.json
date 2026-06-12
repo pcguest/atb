@@ -23,32 +23,8 @@
       "name": "evidence/docs/compliance/eu-ai-act.md"
     },
     {
-      "description": "Documentation reference: export.md.",
-      "name": "evidence/docs/compliance/export.md"
-    },
-    {
-      "description": "Documentation reference: gdpr.md.",
-      "name": "evidence/docs/compliance/gdpr.md"
-    },
-    {
-      "description": "Documentation reference: human-oversight.md.",
-      "name": "evidence/docs/compliance/human-oversight.md"
-    },
-    {
-      "description": "Documentation reference: nist-ai-rmf.md.",
-      "name": "evidence/docs/compliance/nist-ai-rmf.md"
-    },
-    {
       "description": "Documentation reference: pii-fields.json.",
       "name": "evidence/docs/compliance/pii-fields.json"
-    },
-    {
-      "description": "Documentation reference: retention.md.",
-      "name": "evidence/docs/compliance/retention.md"
-    },
-    {
-      "description": "Documentation reference: soc2.md.",
-      "name": "evidence/docs/compliance/soc2.md"
     },
     {
       "description": "Documentation reference: incident-response.md.",
@@ -162,13 +138,13 @@
     "profile_version": 1,
     "provability_gaps": [
       {
-        "closed_when": "SC sub-score \u003e= 0.5 and no policy_signature absent warnings.",
+        "closed_when": "SC sub-score >= 0.5 and no policy_signature absent warnings.",
         "gap": "source_binding",
         "layer": "L3",
         "mitigation": "Add policy_signature and policy_signer_pubkey to ai.policy.decision events."
       },
       {
-        "closed_when": "XC sub-score \u003e= 1.0 with at least one valid corroboration event.",
+        "closed_when": "XC sub-score >= 1.0 with at least one valid corroboration event.",
         "gap": "external_corroboration",
         "layer": "L4",
         "mitigation": "Append atb.corroboration.external via atb corroborate or an adapter."
@@ -180,7 +156,7 @@
         "mitigation": "Run atb anchor after snapshot for RFC 3161 timestamp commitment."
       },
       {
-        "closed_when": "GC sub-score \u003e= 0.85 for gated workflow profiles.",
+        "closed_when": "GC sub-score >= 0.85 for gated workflow profiles.",
         "gap": "gating_completeness",
         "layer": "L5",
         "mitigation": "Record precommit, execute, and commit events through the ACP gate path."
@@ -201,7 +177,7 @@
       "level": "Medium",
       "recommended_next_evidence": [
         "Add RFC 3161 TSA anchoring for exports and privileged actions.",
-        "Ensure precommit-\u003eexecute-\u003ecommit event chain is present for ACP gating.",
+        "Ensure precommit->execute->commit event chain is present for ACP gating.",
         "Add source signatures from policy engine or action gate.",
         "Configure external corroboration: gateway log, DB receipt, or queue dequeue."
       ]

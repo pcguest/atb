@@ -1,5 +1,5 @@
 const agentGuideURL =
-  "https://github.com/pcguest/atb/blob/main/docs/guides/agent.md";
+  "https://github.com/pcguest/atb/blob/main/docs/guides/capture.md";
 
 export function WorkspaceWelcome() {
   return (

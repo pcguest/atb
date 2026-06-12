@@ -41,5 +41,5 @@ ATB never claims to prove:
 `gap`, `layer`, `mitigation`, and `closed_when`. Use these to close layers in
 order rather than treating all limits as permanent.
 
-See also [why-atb.md](./why-atb.md), [security.md](./security.md), and
+See also [security.md](./security.md) and
 [cas-guide.md](./cas-guide.md).

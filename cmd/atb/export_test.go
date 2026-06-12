@@ -254,7 +254,7 @@ func TestExportUsesEmbeddedDocsOutsideRepoCheckout(t *testing.T) {
 		defer zr.Close()
 
 		required := []string{
-			"evidence/docs/compliance/soc2.md",
+			"evidence/docs/compliance/README.md",
 			"evidence/docs/incident-response.md",
 			"evidence/docs/security.md",
 			"evidence/docs/spec-v1.0.md",
@@ -351,7 +351,7 @@ func TestExportComplianceZipStructure(t *testing.T) {
 			"evidence/checksums.chain",
 			"evidence/checksums.sha256",
 			"evidence/config/atb-config.json",
-			"evidence/docs/compliance/export.md",
+			"evidence/docs/compliance/README.md",
 			"evidence/docs/incident-response.md",
 			"evidence/docs/security.md",
 			"evidence/docs/spec-v1.0.md",
@@ -595,7 +595,7 @@ func prepareComplianceDocs(t *testing.T) {
 	mustWrite(t, "docs/spec-v1.0.md", "spec")
 	mustWrite(t, "docs/security.md", "security")
 	mustWrite(t, "docs/incident-response.md", "incident")
-	mustWrite(t, "docs/compliance/export.md", "export")
+	mustWrite(t, "docs/compliance/README.md", "compliance hub")
 }
 
 func preparePhase4Docs(t *testing.T) {
@@ -606,8 +606,7 @@ func preparePhase4Docs(t *testing.T) {
 	mustWrite(t, "docs/spec-v1.0.md", "spec")
 	mustWrite(t, "docs/security.md", "security")
 	mustWrite(t, "docs/incident-response.md", "incident")
-	mustWrite(t, "docs/compliance/soc2.md", "soc2")
-	mustWrite(t, "docs/compliance/gdpr.md", "gdpr")
+	mustWrite(t, "docs/compliance/README.md", "compliance hub")
 }
 
 func writePhase4Bundle(t *testing.T, path string) {

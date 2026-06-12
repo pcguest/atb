@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Changed
+- Consolidated human-facing documentation: single hub at `docs/README.md`, merged capture and incident guides, removed agent-harness and research clutter; maintainer invariants live in `CONTRIBUTING.md`.
+
+<!-- No other unreleased changes. -->
 
 ## [v1.14.4] - 2026-06-13
 

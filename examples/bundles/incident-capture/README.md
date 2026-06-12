@@ -49,4 +49,4 @@ other example bundles. Behaviour (integrity + the `tool_without_approval`
 signal) is covered by `go test ./examples/bundles/incident-capture/`.
 
 For the full capture → discover → review path, see the
-[agent incident forensics walkthrough](../../../docs/guides/agent-incident-forensics.md).
+[incident forensics walkthrough](../../../docs/guides/incident-forensics.md).

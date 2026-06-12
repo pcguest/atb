@@ -54,7 +54,7 @@ The report shows integrity (hash chain), bundle signature provenance, anomaly
 flags such as `tool_without_approval`, and every event hash-addressed to the
 authoritative bundle — so a failed or unapproved privileged action is provable
 even when the agent's own logs can't be trusted. See the
-[agent incident forensics walkthrough](./docs/guides/agent-incident-forensics.md).
+[Incident forensics walkthrough](./docs/guides/incident-forensics.md).
 
 ## How it works
 
@@ -124,10 +124,11 @@ compliance by itself — and it never certifies compliance.
 
 | Read | For |
 | --- | --- |
-| [Documentation hub](./docs/README.md) | Start here and choose the developer, auditor, or operator path |
-| [Five-minute quickstart](./docs/quickstart.md) | Install ATB, create a bundle, and verify it locally |
-| [Developer capture guide](./docs/guides/capture-quickstart.md) | Instrument a workflow and understand capture boundaries |
-| [Auditor acceptance guide](./docs/ciso-acceptance-guide.md) | Review integrity, profile results, CAS, and residual risk |
+| [Documentation hub](./docs/README.md) | Start here — one map for all human-facing docs |
+| [Five-minute quickstart](./docs/quickstart.md) | Install, create a bundle, verify locally |
+| [Capture guide](./docs/guides/capture.md) | Import, intercept, SDK integrations |
+| [Incident forensics](./docs/guides/incident-forensics.md) | Capture → discover → review after an agent incident |
+| [Auditor acceptance guide](./docs/ciso-acceptance-guide.md) | Integrity, profiles, CAS, residual risk |
 | [Operator WORM guide](./docs/integrations/worm-s3.md) | Store bundles under operator-controlled immutable retention |
 | [Bundle specification](./docs/spec-v1.0.md) | Frozen format, hashing, and canonicalisation contract |
 | [Security model](./docs/security.md) | Threat model, guarantees, and explicit limitations |

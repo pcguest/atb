@@ -31,8 +31,7 @@ request, a pending action, and the policy outcome that blocked it. Use an
 explicit `--profile` for first-run verification so the result is stable
 even when a bundle contains events that could match more than one built-in
 profile. For
-the full local review and export path, continue with the [Incident review
-workflow](./guides/incident-review-workflow.md).
+the full local review and export path, continue with [Incident forensics](./guides/incident-forensics.md).
 
 ### What the output means
 
@@ -204,11 +203,8 @@ atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-r
 
 Reference docs:
 
-- [Retention](./compliance/retention.md)
-- [Compliance export overview](./compliance/export.md)
-- [SOC 2 export specification](./compliance/soc2.md)
-- [GDPR export specification](./compliance/gdpr.md)
-- [Incident review workflow](./guides/incident-review-workflow.md)
+- [Compliance hub](./compliance/README.md)
+- [Incident forensics](./guides/incident-forensics.md)
 
 ## 7. AI integrations
 
@@ -220,7 +216,7 @@ handler = ATBCallbackHandler(privacy_mode="hash")
 
 Integration docs:
 
-- [Capture quickstart](./guides/capture-quickstart.md)
+- [Capture guide](./guides/capture.md)
 - [Chatlog import](./integrations/chatlog-import.md)
 - [LangChain integration](./integrations/langchain.md)
 - [Vercel AI SDK integration](./integrations/vercel-ai.md)
@@ -228,11 +224,10 @@ Integration docs:
 ## 8. Next steps
 
 - [Go example](../examples/go/README.md)
-- [Capture quickstart](./guides/capture-quickstart.md)
+- [Capture guide](./guides/capture.md)
 - [Python SDK](../sdk/python/README.md)
 - [TypeScript SDK](../sdk/typescript/README.md)
 - [Documentation hub](./README.md)
-- [Customer handoff workflow](./guides/customer-handoff-workflow.md)
 - [ATB specification v1.0](./spec-v1.0.md)
 - [Security model](./security.md)
 - [Configuration reference](./config.md)

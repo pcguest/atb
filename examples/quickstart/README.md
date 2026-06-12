@@ -132,5 +132,5 @@ Quickstart complete. Bundle is at run.atb/bundle.atb
 
 ## What to do next
 
-- [Incident Review Workflow](../../docs/guides/incident-review-workflow.md)
+- [Incident review workflow](../../docs/guides/incident-forensics.md)
 - [Integrations](../../docs/integrations/README.md)

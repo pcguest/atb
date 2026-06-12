@@ -40,16 +40,16 @@ export default function Footer() {
                   href: "https://github.com/pcguest/atb/blob/main/docs/quickstart.md",
                 },
                 {
-                  label: "Incident review",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/incident-review-workflow.md",
+                  label: "Capture guide",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/capture.md",
                 },
                 {
-                  label: "Customer handoff",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/customer-handoff-workflow.md",
+                  label: "Incident forensics",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/incident-forensics.md",
                 },
                 {
-                  label: "Why ATB",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/why-atb.md",
+                  label: "Documentation hub",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/README.md",
                 },
                 {
                   label: "Security Model",

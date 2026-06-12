@@ -992,7 +992,14 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 	requiredComplianceDoc := path.Join("docs", "compliance", cfg.Format+".md")
 	complianceData, err := readExportDoc(requiredComplianceDoc)
 	if err != nil {
-		return base, fmt.Errorf("read required compliance doc %s: %w", requiredComplianceDoc, err)
+		fallback := path.Join("docs", "compliance", "README.md")
+		complianceData, err = readExportDoc(fallback)
+		if err != nil {
+			return base, fmt.Errorf("read required compliance doc %s: %w", requiredComplianceDoc, err)
+		}
+		requiredComplianceDoc = fallback
+		base.Manifest.Warnings = append(base.Manifest.Warnings,
+			fmt.Sprintf("format-specific doc missing (%s); bundled compliance README instead", cfg.Format+".md"))
 	}
 	complianceZipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(requiredComplianceDoc), "docs/")))
 	base.Files = append(base.Files, exportFileEntry{ZipPath: complianceZipPath, Data: complianceData})

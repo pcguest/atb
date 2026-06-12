@@ -15,11 +15,6 @@ compatibility harness. It is not the supported Custos product. New custody
 features, hosted operations, auditor-product work, and Ring 4 scope belong in
 the separate repository.
 
-Historical in-repo Custos design links now resolve through
-[`custos/ingestion-architecture.md`](./custos/ingestion-architecture.md) and
-[`custos/ui-spec.md`](./custos/ui-spec.md), both of which point readers to the
-supported product repository.
-
 ## Stable contracts
 
 Custos imports ATB's public Go packages and must not independently reimplement

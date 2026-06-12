@@ -73,10 +73,9 @@ new custody product work does not land in ATB.
 
 ## Research and planning material
 
-Pages under `docs/research/` are design notes, not shipped behavior unless a
-page explicitly states otherwise. Pages under `docs/maintenance/` are public
-maintainer records. Completed trackers remain as short historical redirects so
-old links continue to resolve without presenting stale plans as current work.
+Pages under `docs/maintenance/` are operator recovery notes. Shipped behavior is
+defined by the current release tag and specification documents, not by the
+roadmap alone.
 
 ## Legacy public-export tooling
 

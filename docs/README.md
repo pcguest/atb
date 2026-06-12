@@ -1,49 +1,66 @@
 # ATB documentation
 
-ATB has one front door, this hub, and a small set of guided entry points.
-Start with the [five-minute quickstart](./quickstart.md), then choose the path
-that matches your role. Deeper pages are linked from these guides rather than
-listed as an undifferentiated catalogue.
+Start with the [five-minute quickstart](./quickstart.md), then follow the path
+that matches your role. This hub is the only doc map — deeper pages are linked
+from here, not scattered across the tree.
 
-## 1. Use ATB today
+## Use ATB
 
-- [Five-minute quickstart](./quickstart.md) — install the CLI, create a bundle,
-  and verify it offline.
-- [Developer capture guide](./guides/capture-quickstart.md) — instrument an AI
-  or agent workflow without overstating capture coverage.
-- [Auditor acceptance guide](./ciso-acceptance-guide.md) — review integrity,
-  profile obligations, CAS, and residual risk.
-- [Operator WORM guide](./integrations/worm-s3.md) — retain bundles in
-  operator-controlled immutable storage.
+| Doc | For |
+| --- | --- |
+| [Quickstart](./quickstart.md) | Install, create a bundle, verify offline |
+| [Capture guide](./guides/capture.md) | Import, wrapper, intercept, integrations |
+| [Incident forensics](./guides/incident-forensics.md) | Capture → discover → review after an agent incident |
+| [Tamper demo](./guides/tamper-demo.md) | One-byte mutation and verify failure |
+| [WORM / S3](./integrations/worm-s3.md) | Operator-controlled immutable retention |
+| [Custos handoff](./custos-handoff.md) | Companion custody product boundary |
 
-## 2. Understand the contract
+## Review evidence
 
-- [Bundle specification v1.0](./spec-v1.0.md) — append-only NDJSON, RFC 8785
-  canonicalisation, and the SHA-256 chain.
-- [Security model](./security.md) — guarantees, threats, and explicit limits.
-- [Profiles and CAS](./profiles.md) — workflow obligations and evidence
-  completeness signals.
+| Doc | For |
+| --- | --- |
+| [Auditor acceptance guide](./ciso-acceptance-guide.md) | Integrity, profiles, CAS, residual risk |
+| [Security model](./security.md) | Threats, guarantees, explicit limits |
+| [Public surface](./public-surface.md) | Shipped boundary and never-claims |
+| [Provability ladder](./provability-ladder.md) | Integrity vs completeness |
+| [CAS guide](./cas-guide.md) | Completeness scoring detail |
 
-## 3. Integrate
+## Contract
 
-- [SDK index](../sdk/README.md) — Go, Python, and TypeScript integration
-  surfaces with shared golden vectors.
-- [AI integration guide](./ai-integration.md) — capture adapters, imports, and
-  framework integration choices.
-- [Custos companion product](https://github.com/pcguest/custos-product) —
-  separate proprietary custody, receipts, transparency log, and auditor access.
+| Doc | For |
+| --- | --- |
+| [Bundle spec v1.0](./spec-v1.0.md) | NDJSON format, hashing, canonicalisation |
+| [AI traces spec](./spec-ai-traces.md) | Event types and workflow semantics |
+| [Profiles](./profiles.md) | Obligation profiles and evidence rules |
+| [Verify JSON schema](./api/verify-schema.md) | `VerifierReport` contract |
+| [Support matrix](./support-matrix.md) | Supported Go, Python, Node, OS versions |
 
-## 4. Compliance mapping
+## Integrate
 
-- [Compliance mapping hub](./compliance/README.md) — technical evidence
-  mappings only; not legal advice or certification.
-- [Provability ladder](./provability-ladder.md) — what each evidence layer does
-  and does not prove.
+| Doc | For |
+| --- | --- |
+| [SDK index](../sdk/README.md) | Go, Python, TypeScript |
+| [AI integration](./ai-integration.md) | CLI JSON contract, exit codes, CI patterns |
+| [Integrations index](./integrations/README.md) | LangChain, MCP, Vercel AI, SIEM export |
 
-## 5. Maintainer
+## Compliance mapping
 
-- [Contributing](../CONTRIBUTING.md) — development workflow and gates.
-- [Maintenance index](./maintenance/README.md) — current operations,
-  architecture guardrails, and archived programme records.
-- [Submission / evaluation](https://github.com/pcguest/custos-product/blob/main/docs/SUBMISSION.md)
-  — public evaluator path, release references, never-claims, and exclusions.
+Technical evidence mappings only — not legal advice or certification.
+
+| Doc | For |
+| --- | --- |
+| [Compliance hub](./compliance/README.md) | How to use mappings in a review |
+| [EU AI Act mapping](./compliance/eu-ai-act.md) | Article 12 logging alignment |
+
+## Contribute and release
+
+| Doc | For |
+| --- | --- |
+| [Contributing](../CONTRIBUTING.md) | Development workflow and maintainer rules |
+| [Versioning](../VERSIONING.md) | SemVer, manifest version, breaking changes |
+| [Release runbook](./release.md) | Tag, publish, and pipeline gates |
+| [Roadmap](./roadmap.md) | Shipped vs planned (in-repo scope) |
+| [Disaster recovery](./maintenance/disaster-recovery.md) | Source, secrets, and release recovery |
+
+Evaluator path for ATB + Custos:
+[Custos SUBMISSION](https://github.com/pcguest/custos-product/blob/main/docs/SUBMISSION.md).

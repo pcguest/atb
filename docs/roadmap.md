@@ -75,7 +75,7 @@ and review it from a tamper-evident bundle.
 
 Custos is the in-repo reference receipt, custody, and attestation layer for ATB bundles. It lives under `custos/` as a separate Go module and is being scaffolded incrementally: the ingestion boundary, receipt store, the receipt + digest registry (with the `GET /receipts/by-hash` daemon lookup), per-org signing policy, and auth packages have unit tests today, while discovery, onboarding, oversight, and insights are early scaffolds. Custos demonstrates how recorded bundles are ingested, signed, and held under custody — it is reference infrastructure, not a finished product.
 
-Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/RBAC, legal hold, and custodian-of-record operations — remain outside the ATB runtime and outside this repository, per `AGENTS.md`. The roadmap below tracks the in-repo reference layer only.
+Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/RBAC, legal hold, and custodian-of-record operations remain outside the ATB runtime and outside this repository (see [CONTRIBUTING.md](../CONTRIBUTING.md)). The roadmap below tracks the in-repo reference layer only.
 
 ## Custos Enterprise Layer (in-repo reference)
 
@@ -95,36 +95,15 @@ Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/R
 - Phase 12: Org/team management + per-team allow-lists — Q1 2027
 - Phase 12: EU AI Act Article 12 retention enforcement per org — Q1 2027
 
-## Research & design notes (forward-looking — not commitments)
+## Design notes (forward-looking — not commitments)
 
-These notes in [`docs/research/`](./research/) lock a trust model or scope
-*before* code, so the product does not overclaim. They are design direction, not
-shipped features and not hosted-service promises; each maps to in-repo reference
-work only.
+Trust boundaries and never-claims are in [public-surface.md](./public-surface.md).
+Custos custody design and shipped boundary:
+[custos-product capability boundary](https://github.com/pcguest/custos-product/blob/main/docs/capability-boundary.md).
+The items below are historical direction notes, not release commitments:
 
-- **Custos transparency log** ([`transparency-log.md`](./research/transparency-log.md))
-  — reference design for a Merkle-tree inclusion-proof log with C2SP signed-note
-  checkpoints over the existing receipt store, additive to the current
-  `GET /receipts` surface. The note is explicit that a single-operator log is
-  **not** equivocation-resistant on its own: split-view detection requires
-  **witness cosignatures**, so the checkpoint format is witness-cosignable from
-  day one. In-repo direction for the Custos reference layer; the production,
-  multi-operator log service stays out of this repository.
-- **EU AI Act evidence-to-obligation mapping**
-  ([`eu-ai-act-mapping.md`](./research/eu-ai-act-mapping.md)) — an honest mapping
-  of what ATB/Custos evidence *supports* against what specific Articles *require*.
-  Direction: keep Article 12 (logging/traceability) as the defensible core,
-  surface Article 14 (human oversight) and Articles 17–20 (evidence-pack export)
-  as **support, not certification**. Drives the "reviewer identity anchoring" and
-  "compliance evidence pack export" medium-term items above. Not legal advice;
-  no certification language enters the product.
-- **SDK auto-capture decision & Custos scope guardrails**
-  ([`capture-and-custos-scope.md`](./research/capture-and-custos-scope.md)) — the
-  decision record behind the shipped opt-in SDK capture adapters (keep capture
-  thin, profile-bound, with documented blind spots) and the guardrails that keep
-  `discovery`/`onboarding`/`oversight`/`insights` as bounded stubs rather than
-  hosted multi-tenant features in this repo.
-
-The longer-term product thesis is retained in [`vision.md`](./vision.md);
-shipped behavior is defined by the current release and specifications, not by
-that vision document.
+- **Custos transparency log** — Merkle inclusion proofs and witness cosignatures
+  (shipped in Custos v0.5.0; see product repo)
+- **EU AI Act Article 12 mapping** — [compliance/eu-ai-act.md](./compliance/eu-ai-act.md)
+- **Capture and custody scope** — each integration sees only routed traffic;
+  see [public-surface.md](./public-surface.md)
