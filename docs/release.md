@@ -123,6 +123,15 @@ Wait for the `version-gate` workflow to succeed before creating the release.
 gh run list --repo pcguest/atb --workflow version-gate.yml --limit 3
 ```
 
+Tag pushes also trigger `Gold Release Gate` (`make gate-gold-release`, which
+enforces ≥80% statement coverage on `pkg/api/v1`) and `Docker Publish`. Both
+should be green before announcing the release; `Gold Release Gate` can also be
+run on `main` ahead of tagging via `gh workflow run gold-release.yml --ref main`.
+Known accepted gap: the v1.14.1–v1.14.3 tag runs of the gold gate failed on
+`pkg/api/v1` coverage (77.1% < 80%); the gap was closed on `main` after the
+v1.14.3 tag (sessions/verify endpoint tests, coverage now ≈91%), so re-running
+those historical tag runs will still fail — the next tag is the green proof.
+
 ## 7. Create GitHub release
 
 ```bash

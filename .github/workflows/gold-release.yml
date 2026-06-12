@@ -4,6 +4,7 @@ name: Gold Release Gate
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 jobs:
   gate:
