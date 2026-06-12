@@ -196,7 +196,8 @@ order:
 | `atb.policy.decision` | `atb.profile.policy_decision` |
 | `atb.human.override` | `atb.profile.human_override` |
 | `atb.retrieval.*` (any type with prefix `atb.retrieval.`) | `atb.profile.rag_answer` |
-| none of the above | `atb.profile.background_automation` |
+| none of the above (including proxy-only LLM traffic with no matching signals) | *(none inferred)* |
+| `ai.job.*` events present | `atb.profile.background_automation` |
 
 The inferred profile is advisory. It signals which built-in obligation template
 best matches recorded event types; it does not certify compliance or workflow

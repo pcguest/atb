@@ -3,8 +3,9 @@
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.4-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE) ![EU AI Act Article 12 logging](https://img.shields.io/badge/EU%20AI%20Act-Article%2012%20logging-blue)
 
 **Record what your AI agents actually did — into append-only, hash-chained
-bundles that anyone can verify offline, with no vendor account and no trust
-in the operator.**
+bundles that anyone can verify offline, without a vendor account. Local
+bundles prove integrity of what was recorded; they do not prove capture
+completeness or operator honesty before external custody or anchoring.**
 
 Current release: [`v1.14.3`](CHANGELOG.md)
 

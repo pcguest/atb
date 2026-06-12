@@ -382,7 +382,6 @@ func (p *Proxy) ListenAndServe(ctx context.Context) error {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		p.sessions.CloseAll()
 		_ = server.Shutdown(shutdownCtx)
 		return nil
 	case err := <-errCh:

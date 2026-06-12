@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Fixed
+- `atb intercept` shutdown now finalises sessions once: listener graceful shutdown runs before a single `CloseAll`, removing the duplicate close path on Ctrl-C/SIGTERM that could skip `atb.session.close` and Custos auto-push.
+- Session index and `atb incident list` no longer infer `atb.profile.background_automation` for generic proxy-only traffic; background automation is inferred only when `ai.job.*` events are present.
+- Evidence pack Markdown governance section renders as separate lines (fixed variadic `Fprintln` misuse).
+- README and CISO acceptance guide soften operator-trust and CAS-grade claims to match never-claims boundaries.
+- Incident forensics guide example output matches the unsigned shipped fixture unless §2 signing was performed.
+
+<!-- No other unreleased changes. -->
 
 ## [v1.14.3] - 2026-06-13
 

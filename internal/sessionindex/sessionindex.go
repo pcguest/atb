@@ -307,6 +307,7 @@ func inferProfile(events []hash.Event) string {
 	hasPolicyDecision := false
 	hasHumanOverride := false
 	hasRetrieval := false
+	hasBackgroundJob := false
 	for _, event := range events {
 		switch {
 		case event.Type == "atb.tool.call":
@@ -319,6 +320,8 @@ func inferProfile(events []hash.Event) string {
 			hasHumanOverride = true
 		case strings.HasPrefix(event.Type, "ai.retrieval."):
 			hasRetrieval = true
+		case strings.HasPrefix(event.Type, "ai.job."):
+			hasBackgroundJob = true
 		}
 	}
 	switch {
@@ -330,8 +333,10 @@ func inferProfile(events []hash.Event) string {
 		return profileHumanOverride
 	case hasRetrieval:
 		return profileRAG
-	default:
+	case hasBackgroundJob:
 		return profileBackgroundJob
+	default:
+		return ""
 	}
 }
 

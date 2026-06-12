@@ -170,14 +170,20 @@ func renderExclusions(w io.Writer, bundle BundleEvidenceSummary) error {
 }
 
 func renderRegulatoryLens(w io.Writer) error {
-	_, err := fmt.Fprintln(w, "## Notes for AI governance / AI Act Article 12",
+	lines := []string{
+		"## Notes for AI governance / AI Act Article 12",
 		"",
 		"- Integrity PASS + Profile PASS + CAS High generally indicates strong evidential coverage for traceability.",
 		"- Profile FAIL or CAS Low indicates missing evidence against the declared profile; additional logging or integration work is required.",
 		"- Exclusions and residual risk drivers highlight potential blind spots in the evidence trail.",
 		"",
-	)
-	return err
+	}
+	for _, line := range lines {
+		if _, err := fmt.Fprintln(w, line); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func passFail(ok bool) string {

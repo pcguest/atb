@@ -85,6 +85,10 @@ with no recorded human approval.
 
 ## 4. Review one session
 
+The example below matches the **unsigned** shipped fixture (`incident-capture.atb`).
+If you completed §2, the report also shows signature metadata; findings are
+unchanged.
+
 ```bash
 atb incident report \
   --bundle examples/bundles/incident-capture/incident-capture.atb \
@@ -95,7 +99,7 @@ atb incident report \
 # Incident report — session `sess-incident-7731`
 
 - Integrity (hash chain): **PASS**
-- Signature: valid, pubkey +SvycALFZp0L2eCg…, signed 2026-05-31T…, backend local
+- Signature: none
 - Actor: agent-support-bot
 - Anomalies: **tool_without_approval, action_failed**
 

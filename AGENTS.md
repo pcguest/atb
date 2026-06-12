@@ -108,3 +108,11 @@ support an obligation, but must state the operational and legal limits.
   `docs/compliance/{gdpr,soc2,...}` and `docs/spec/bundle-push.md`
   (export/CLI dependencies).
 - All cleanup commits signed `G` by Paddy Guest.
+
+### 2026-06-13 Finalization handoff
+
+- Practitioner review P1 absorbed on `main`: intercept shutdown finalisation,
+  session-index profile inference, evidence-pack Markdown, README/CISO honesty.
+- Release pipeline: Docker `v1.14.3` green; gold gate green on `main`; tag
+  `v1.14.3` Release/npm/PyPI still blocked historically — next green tag advances registries.
+- Maintainer handoff: [`docs/maintenance/agent-handoff.md`](docs/maintenance/agent-handoff.md).

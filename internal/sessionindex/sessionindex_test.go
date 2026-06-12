@@ -135,6 +135,47 @@ func TestBuildIndexFlagsSessionNotClosed(t *testing.T) {
 	assertFlags(t, entries[0].AnomalyFlags, []string{"session_not_closed"})
 }
 
+func TestBuildIndexDoesNotInferBackgroundAutomationForProxyTraffic(t *testing.T) {
+	path := writeSessionBundle(t, []testEvent{
+		{
+			eventType: "atb.llm.request",
+			timestamp: "2026-05-28T12:00:00Z",
+			data: map[string]any{
+				"session_id": "session-proxy",
+				"actor": map[string]any{
+					"display_name": "Reviewer",
+				},
+			},
+		},
+		{
+			eventType: "atb.llm.response",
+			timestamp: "2026-05-28T12:00:01Z",
+			data: map[string]any{
+				"session_id": "session-proxy",
+			},
+		},
+		{
+			eventType: "atb.session.close",
+			timestamp: "2026-05-28T12:05:00Z",
+			data:      map[string]any{"session_id": "session-proxy"},
+		},
+	})
+
+	entries, err := BuildIndex(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("BuildIndex: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entries length = %d, want 1", len(entries))
+	}
+	if entries[0].InferredProfile != "" {
+		t.Fatalf("InferredProfile = %q, want empty for proxy-only traffic", entries[0].InferredProfile)
+	}
+	if entries[0].CASGrade != "" {
+		t.Fatalf("CASGrade = %q, want empty when no profile inferred", entries[0].CASGrade)
+	}
+}
+
 func TestBuildIndexInfersPolicyDecisionProfile(t *testing.T) {
 	path := writeSessionBundle(t, []testEvent{
 		{

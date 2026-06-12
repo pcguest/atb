@@ -67,8 +67,8 @@ Residual risk is the verifier's acceptance summary after integrity checks and pr
 
 - Critical: chain integrity failed; bundle must not be accepted as evidence without investigation.
 - High: chain intact but significant evidence gaps remain; acceptable only with documented compensating controls.
-- Medium: chain intact and the workflow is partially evidenced; acceptable for most internal audit purposes.
-- Low: chain intact with strong evidence coverage; suitable for regulatory submission.
+- Medium: chain intact and the workflow is partially evidenced; use as supporting technical evidence with explicit profile and capture-boundary context.
+- Low: chain intact with strong evidence coverage; still a verifier summary only — regulatory or audit suitability depends on organisational policy, custody, and corroboration outside ATB.
 
 ## 6. Regulatory alignment
 

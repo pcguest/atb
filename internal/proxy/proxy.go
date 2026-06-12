@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pcguest/atb/internal/identity"
 )
@@ -37,6 +38,7 @@ type Proxy struct {
 	started    bool
 	cancel     context.CancelFunc
 	httpServer *http.Server
+	listenWG   sync.WaitGroup
 }
 
 // NewProxy returns a proxy using the stub handler when handler is nil.
@@ -109,7 +111,9 @@ func (p *Proxy) Start(ctx context.Context) error {
 		}
 	}
 
+	p.listenWG.Add(1)
 	go func() {
+		defer p.listenWG.Done()
 		if err := p.ListenAndServe(runCtx); err != nil && p.logger != nil {
 			p.logger.Error("proxy listener stopped", "error", err)
 		}
@@ -157,17 +161,31 @@ func (p *Proxy) Stop() error {
 	if p.cancel != nil {
 		p.cancel()
 	}
+	p.waitForListener(10 * time.Second)
 	if p.sessions != nil {
 		p.sessions.CloseAll()
-	}
-	if p.httpServer != nil {
-		_ = p.httpServer.Close()
 	}
 	p.started = false
 	if p.logger != nil {
 		p.logger.Info("proxy stopped", "listen_addr", p.cfg.ListenAddr)
 	}
 	return nil
+}
+
+func (p *Proxy) waitForListener(timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		p.listenWG.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+		if p.httpServer != nil {
+			_ = p.httpServer.Close()
+		}
+		p.listenWG.Wait()
+	}
 }
 
 // Handler returns the configured capture handler.
