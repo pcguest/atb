@@ -23,6 +23,22 @@ Only hosts named in `--target` are intercepted; CONNECT requests to any other
 host are refused, so unrelated traffic does not silently flow through the
 recorder.
 
+### Daily capture ritual (macOS / Linux)
+
+For routine local use, keep one dated session bundle per work block:
+
+```bash
+export PATH="$HOME/go/bin:$PATH"   # atb from `go install`
+mkdir -p ~/.atb/sessions
+atb intercept --bundle ~/.atb/sessions/$(date +%Y%m%d-%H%M).atb
+```
+
+Session bundles can contain sensitive operational metadata (and raw prompts if
+`--capture-bodies` was used). Keep them out of version control; verify and
+review them locally with `atb verify` and `atb incident list`, and hand off a
+closed bundle to custody (for example a Custos ingest endpoint via `--custos`)
+rather than committing it to a repository.
+
 Every request, response, tool call, and failed tool result is recorded into the
 bundle as it happens. By default **bodies are digested, not stored** (only
 `body_sha256` + `body_bytes`); credential headers are stripped. Pass

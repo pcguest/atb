@@ -21,6 +21,9 @@ const interceptLongDescription = `Start the local HTTPS capture proxy.
 Records AI provider API traffic, tool calls, and failures into a live ATB
 bundle. Completeness is bounded by what flows through the proxy.
 
+Clients route traffic via HTTPS_PROXY plus trust of the local capture CA
+(path printed on first run); provider base-URL overrides are not supported.
+
 Usage:
   atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--custos <endpoint>]
 `
@@ -208,8 +211,15 @@ func extractPort(listenAddr string) int {
 }
 
 func printInterceptEnvHints(w io.Writer, port int) {
-	fmt.Fprintf(w, "export OPENAI_BASE_URL=http://localhost:%d/openai\n", port)
-	fmt.Fprintf(w, "export ANTHROPIC_BASE_URL=http://localhost:%d/anthropic\n", port)
+	caPath := "$HOME/.atb/ca.crt"
+	if certPath, _, err := proxy.DefaultCAPaths(); err == nil {
+		caPath = certPath
+	}
+	fmt.Fprintln(w, "Route provider traffic through the proxy (HTTPS forward proxy):")
+	fmt.Fprintf(w, "  export HTTPS_PROXY=http://127.0.0.1:%d\n", port)
+	fmt.Fprintf(w, "  export SSL_CERT_FILE=%s        # Python (httpx/requests)\n", caPath)
+	fmt.Fprintf(w, "  export NODE_EXTRA_CA_CERTS=%s  # Node.js\n", caPath)
+	fmt.Fprintln(w, "Provider base-URL path overrides are not supported; only hosts in --target are intercepted.")
 }
 
 func printInterceptHelp(w io.Writer) {
