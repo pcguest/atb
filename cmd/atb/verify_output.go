@@ -193,7 +193,15 @@ func (r verifyTextRenderer) renderVerifySummary(w io.Writer, report verifypkg.Re
 			profileColour = ansiRed
 		}
 	}
-	fmt.Fprintf(w, "Profile:   %s\n", r.colourise(profileLabel, profileColour))
+	if len(report.Profiles) > 0 {
+		fmt.Fprintf(w, "Profile:   %s — %s v%d\n", r.colourise(profileLabel, profileColour), report.Profiles[0].ProfileID, report.Profiles[0].Version)
+	} else {
+		fmt.Fprintf(w, "Profile:   %s\n", r.colourise(profileLabel, profileColour))
+	}
+
+	if report.Retrospective {
+		fmt.Fprintf(w, "Provenance: %s\n", r.colourise("retrospective import (evidence recorded after the fact)", ansiYellow))
+	}
 
 	if report.CAS != nil {
 		fmt.Fprintf(w, "CAS:       %.2f (%s)\n", report.CAS.Overall, report.CAS.Grade)
