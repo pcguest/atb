@@ -6,7 +6,7 @@
 bundles that anyone can verify offline, with no vendor account and no trust
 in the operator.**
 
-Current release: [`v1.14.2`](CHANGELOG.md)
+Current release: [`v1.14.3`](CHANGELOG.md)
 
 - **Tamper-evident by construction** — every event is RFC 8785-canonicalised
   and SHA-256 chained; one flipped byte breaks verification.
