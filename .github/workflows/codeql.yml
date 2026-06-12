@@ -38,11 +38,8 @@ jobs:
       - name: Autobuild
         uses: github/codeql-action/autobuild@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
 
-      # upload: never — this repo is private without GitHub Advanced Security.
-      # SARIF upload requires GHAS on private repos. Re-enable when repo goes
-      # public or GHAS is activated.
       - name: Analyse
         uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
           category: "/language:go"
-          upload: never
+          upload: always

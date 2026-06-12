@@ -1,5 +1,5 @@
 name: ATB Go module
-description: Expose this checkout as a local Go module to another private repository.
+description: Expose this checkout as a local Go module to downstream jobs.
 
 outputs:
   module-path:

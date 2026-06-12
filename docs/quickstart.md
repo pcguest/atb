@@ -231,7 +231,7 @@ Integration docs:
 - [Capture quickstart](./guides/capture-quickstart.md)
 - [Python SDK](../sdk/python/README.md)
 - [TypeScript SDK](../sdk/typescript/README.md)
-- [Docs index](../README.md#docs-index)
+- [Documentation hub](./README.md)
 - [Customer handoff workflow](./guides/customer-handoff-workflow.md)
 - [ATB specification v1.0](./spec-v1.0.md)
 - [Security model](./security.md)

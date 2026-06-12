@@ -77,6 +77,9 @@ credentials.json
 *.old
 *.cast
 *.asciinema
+demo-assets/*.mp4
+demo-assets/*.mov
+demo-assets/*.webm
 /dist
 /build
 dist/

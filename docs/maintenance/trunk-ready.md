@@ -36,18 +36,19 @@ grep -Eq "^## \[v${CLI}\]" CHANGELOG.md
 > Note: `scripts/check-versions.sh` does **not** check README's "Current release:"
 > line — only the docs-sync greps and CI do. Always run both.
 
-## 2. Tag and release (when budget returns)
+## 2. Current release
 
-The version is already cut to **1.14.0** on `main` (all nine version strings,
-CHANGELOG `## [v1.14.0]`, README current-release line). The full per-step
-procedure lives in [`docs/release.md`](../release.md); the short form:
+The current public tag is **v1.14.2**. Version strings, the README release
+line, SDK packages, and the web package agree. The full release procedure lives
+in [`docs/release.md`](../release.md); use the next reviewed SemVer version
+rather than reusing the example below.
 
 ```bash
 SKIP_DOCKER=1 scripts/release-check.sh        # release preflight
 git push origin main                          # publish the staged trunk
-git tag -s v1.14.0 -m "ATB v1.14.0"           # signed tag at the release commit
-git push origin v1.14.0
-gh release create v1.14.0 --title v1.14.0 --notes-from-tag   # or from the CHANGELOG section
+git tag -s vNEXT -m "ATB vNEXT"               # signed tag at the release commit
+git push origin vNEXT
+gh release create vNEXT --title vNEXT --notes-from-tag
 ```
 
 `check-versions.sh` (without `ATB_SKIP_TAG_CHECK`) treats the latest git tag as

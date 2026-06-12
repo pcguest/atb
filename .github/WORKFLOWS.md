@@ -11,10 +11,9 @@
 | ops.yml | schedule/push/PR/issues | Docs deploy, registry health, feedback digest, labeling (conditional) |
 | version-gate.yml | push/PR on version files | Cross-file version parity check via `check-versions.sh` |
 
-The private composite action at `.github/actions/go-module` exposes this checkout
-as a local Go module to other private repositories owned by `pcguest`. It exists
-so downstream CI can test the pinned ATB contract without storing a
-cross-repository access token.
+The repository-local composite action at `.github/actions/go-module` exposes
+this checkout as a local Go module to downstream jobs. It lets integration CI
+test the checked-out ATB contract without fetching a second copy.
 
 ## Adding a New Job
 

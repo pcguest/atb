@@ -1,39 +1,27 @@
 # Maintenance index
 
-This directory contains maintainer-facing planning documents for turning ATB into a finalised developer-first automatic audit-capture toolkit.
+This directory is public maintainer documentation. `AGENTS.md` is the canonical
+coding-agent harness; `CONTRIBUTING.md`, `VERSIONING.md`, and the release docs
+remain the operational authorities.
 
-These documents do not replace the product specifications. They translate the current repository state into execution goals, cleanup tracks, and acceptance criteria for maintainers and Codex sessions.
-
-## Core documents
+## Current references
 
 | Document | Purpose |
 | --- | --- |
-| [`repo-cleanup-roadmap.md`](repo-cleanup-roadmap.md) | Repository-wide cleanup plan covering architecture, CI/CD, security, docs, SDKs, release trust, and automatic audit capture. |
-| [`automatic-audit-capture-definition.md`](automatic-audit-capture-definition.md) | Defines what automatic capture means, what ATB can prove, what it cannot prove, and how audit profiles should verify completeness. |
-| [`codex-execution-brief.md`](codex-execution-brief.md) | Implementation brief for Codex or maintainers, including stream ordering, guardrails, and final definition of done. |
-| [`codex-goals.md`](codex-goals.md) | Persistent Codex Goal templates for repo cleanup, trust hardening, automatic capture, release provenance, and docs alignment. |
+| [`automatic-audit-capture-definition.md`](./automatic-audit-capture-definition.md) | Capture-completeness terminology and honesty boundary |
+| [`disaster-recovery.md`](./disaster-recovery.md) | Quarterly source, secret, and release-pipeline recovery test |
+| [`trunk-ready.md`](./trunk-ready.md) | Current release gates and frozen downstream contracts |
 
-## How to use this directory
+## Historical programme records
 
-1. Start with `repo-cleanup-roadmap.md` to understand the full current-to-final path.
-2. Use `automatic-audit-capture-definition.md` before implementing any feature that claims automatic capture, audit coverage, or completeness.
-3. Use `codex-execution-brief.md` when opening an implementation thread or planning a PR stack.
-4. Use `codex-goals.md` to start Codex with a persistent objective rather than a one-off prompt.
+The following pages are retained as redirects so old links and commit history
+remain navigable. Their programmes are complete and they are not active
+backlogs:
 
-## Current final-state thesis
+- [`baseline-handoff.md`](./baseline-handoff.md)
+- [`programme-tracker.md`](./programme-tracker.md)
+- [`repo-cleanup-roadmap.md`](./repo-cleanup-roadmap.md)
+- [`codex-execution-brief.md`](./codex-execution-brief.md)
+- [`codex-goals.md`](./codex-goals.md)
 
-ATB is finalised when it can:
-
-- capture supported workflow activity through documented live intake routes;
-- write that activity through the same append-only bundle boundary;
-- verify bundle integrity and supported signer paths offline;
-- distinguish live capture from retrospective import;
-- report audit-profile completeness separately from tamper evidence;
-- present evidence through CLI, SDK, viewer, and export flows;
-- ship with a release trust story that matches the sensitivity of the product.
-
-## Maintainer warning
-
-Do not let cleanup work blur the product guarantee.
-
-ATB proves the integrity of recorded evidence. Automatic capture and profile verification are the work needed to improve audit coverage. Even when those features are implemented, ATB should still report blind spots explicitly rather than implying omniscient capture.
+Current product direction is described in [`../roadmap.md`](../roadmap.md).

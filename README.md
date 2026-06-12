@@ -123,14 +123,14 @@ compliance by itself — and it never certifies compliance.
 
 | Read | For |
 | --- | --- |
-| [Why ATB](./docs/why-atb.md) | The problem and the trust model |
-| [Spec v1.0](./docs/spec-v1.0.md) | Bundle format, hashing, canonicalisation |
-| [Capture quickstart](./docs/guides/capture-quickstart.md) | First bundle in five minutes |
-| [Profiles guide](./docs/profiles.md) · [CAS guide](./docs/cas-guide.md) | Obligation scoring and completeness signals |
-| [Provability ladder](./docs/provability-ladder.md) | What each evidence layer does and doesn't prove |
-| [Tamper demo](./docs/guides/tamper-demo.md) | See verification fail on a flipped byte |
-| [Security model](./docs/security.md) | Threat model and guarantees |
-| [Roadmap](./docs/roadmap.md) | Planned vs shipped |
+| [Documentation hub](./docs/README.md) | Start here and choose the developer, auditor, or operator path |
+| [Five-minute quickstart](./docs/quickstart.md) | Install ATB, create a bundle, and verify it locally |
+| [Developer capture guide](./docs/guides/capture-quickstart.md) | Instrument a workflow and understand capture boundaries |
+| [Auditor acceptance guide](./docs/ciso-acceptance-guide.md) | Review integrity, profile results, CAS, and residual risk |
+| [Operator WORM guide](./docs/integrations/worm-s3.md) | Store bundles under operator-controlled immutable retention |
+| [Bundle specification](./docs/spec-v1.0.md) | Frozen format, hashing, and canonicalisation contract |
+| [Security model](./docs/security.md) | Threat model, guarantees, and explicit limitations |
+| [Submission / evaluation](https://github.com/pcguest/custos-product/blob/main/docs/SUBMISSION.md) | Versions, evaluator commands, never-claims, and shipped boundary |
 
 ## Contributing & security
 
