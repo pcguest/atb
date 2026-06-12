@@ -7,14 +7,21 @@ walks the full path: **capture → discover → review**.
 
 ## 1. Capture (the recorder)
 
-Run the local capture proxy and point your agent's provider SDK at it:
+Run the local capture proxy and route your agent's provider traffic through it
+as an HTTPS forward proxy:
 
 ```bash
 atb intercept --bundle run.atb/bundle.atb --target anthropic,openai
 # then, in the agent's environment:
-export ANTHROPIC_BASE_URL=http://localhost:8080/anthropic
-export OPENAI_BASE_URL=http://localhost:8080/openai
+export HTTPS_PROXY=http://127.0.0.1:8080
+# trust the proxy's local CA (path printed on first run), e.g.:
+export SSL_CERT_FILE=~/.atb/ca.crt        # Python (httpx/requests honour this)
+export NODE_EXTRA_CA_CERTS=~/.atb/ca.crt  # Node.js
 ```
+
+Only hosts named in `--target` are intercepted; CONNECT requests to any other
+host are refused, so unrelated traffic does not silently flow through the
+recorder.
 
 Every request, response, tool call, and failed tool result is recorded into the
 bundle as it happens. By default **bodies are digested, not stored** (only
