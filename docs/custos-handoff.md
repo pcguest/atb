@@ -3,10 +3,12 @@
 This document is the engineering handoff from **ATB** (local integrity substrate) to **Custos** (hosted custodian-of-record service). It states what is stable today, what Custos must add, and the recommended build order.
 
 **Status update:** the custody product now exists as its own repository —
-[`custos-product`](https://github.com/pcguest/custos-product) (v0.4.0:
-verify-on-ingest, S3 Object Lock WORM, Ed25519 receipts, multi-tenant keys,
-RFC 3161 timestamps, and an RFC 6962 transparency log with witness
-cosignatures, a public checkpoint feed, and a fork monitor). Point ingest
+[`custos-product`](https://github.com/pcguest/custos-product) (v0.5.0:
+verify-on-ingest with embedded profile grading, S3 Object Lock WORM with
+presigned direct-to-bucket ingest, Ed25519 receipts, multi-tenant keys,
+RFC 3161 timestamps, an RFC 6962 transparency log with witness
+cosignatures, a public checkpoint feed and fork monitor, and an org
+custody index + auditor UI with evidence-pack download). Point ingest
 integrations at its `custos-ingestd`, not at the in-repo scaffold. The
 end-to-end flow is documented in `custos-product/docs/e2e-atb-custos.md`.
 Note for `atb intercept --custos <endpoint>`: the auto-push authenticates
