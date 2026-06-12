@@ -199,3 +199,6 @@ If your implementation produces different output, check:
 - Hash algorithm (must be `SHA-256`)
 - AES-GCM tag size (must be `16` bytes)
 - Wire format byte order and field ordering
+
+For downstream operational export rather than capture, see the
+[SIEM and GRC integration guide](./integrations/siem-grc.md).

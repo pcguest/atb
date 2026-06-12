@@ -124,3 +124,7 @@ work only.
   thin, profile-bound, with documented blind spots) and the guardrails that keep
   `discovery`/`onboarding`/`oversight`/`insights` as bounded stubs rather than
   hosted multi-tenant features in this repo.
+
+The longer-term product thesis is retained in [`vision.md`](./vision.md);
+shipped behavior is defined by the current release and specifications, not by
+that vision document.

@@ -25,3 +25,7 @@ Use the mappings like this:
 Treat these mappings as reference guidance, not legal advice. They are a
 technical starting point for explaining what ATB records and how that
 recorded evidence may support a wider audit or compliance process.
+
+Framework-specific references include the
+[human-oversight mapping](./human-oversight.md), which describes supporting
+evidence rather than certifying that an oversight obligation was satisfied.

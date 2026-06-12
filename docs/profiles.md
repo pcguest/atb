@@ -328,6 +328,9 @@ The following capabilities are out of scope for DSL v1:
 - Relation rules (cross-event ID binding checks).
 - `sc_mode` or blind-spot declarations.
 
+The complete YAML contract is documented in the
+[obligation profile DSL specification](./spec-obligation-profile-dsl.md).
+
 ## Completeness assurance score
 
 CAS is a weighted score from 0.0 to 1.0 that measures how well the recorded evidence matches the selected profile. All six built-in profiles support CAS.

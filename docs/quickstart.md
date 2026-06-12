@@ -235,4 +235,5 @@ Integration docs:
 - [Customer handoff workflow](./guides/customer-handoff-workflow.md)
 - [ATB specification v1.0](./spec-v1.0.md)
 - [Security model](./security.md)
+- [Configuration reference](./config.md)
 - [Contributing](../CONTRIBUTING.md)
