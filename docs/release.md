@@ -131,6 +131,9 @@ Known accepted gap: the v1.14.1–v1.14.3 tag runs of the gold gate failed on
 `pkg/api/v1` coverage (77.1% < 80%); the gap was closed on `main` after the
 v1.14.3 tag (sessions/verify endpoint tests, coverage now ≈91%), so re-running
 those historical tag runs will still fail — the next tag is the green proof.
+Note the `Release` workflow only publishes SDK artefacts (npm, PyPI) from a
+green tag run, so the public registries lag at the last green release until
+the next tag is cut.
 
 ## 7. Create GitHub release
 
