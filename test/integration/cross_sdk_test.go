@@ -7,12 +7,20 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
 
-const repoRoot = "/Users/paddyguest/atb"
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve integration test source path")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+}
 
 func TestPythonSDKBundleCompatibility(t *testing.T) {
 	tempDir := t.TempDir()
@@ -25,7 +33,7 @@ b = Bundle()
 b.append('dev.session', {'sdk': 'python', 'test': True})
 b.save(os.path.join(sys.argv[1], 'bundle.atb'))
 `, tempDir)
-	cmd.Dir = repoRoot
+	cmd.Dir = repoRoot(t)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -46,7 +54,8 @@ b.save(os.path.join(sys.argv[1], 'bundle.atb'))
 
 func TestTypeScriptSDKBundleCompatibility(t *testing.T) {
 	tempDir := t.TempDir()
-	tsEntry := filepath.Join(repoRoot, "sdk", "typescript", "dist", "index.js")
+	root := repoRoot(t)
+	tsEntry := filepath.Join(root, "sdk", "typescript", "dist", "index.js")
 	if _, err := os.Stat(tsEntry); err != nil {
 		// The TypeScript package ships a CLI stub only. Without compiled output,
 		// this test would need a checked-in build artifact or a real bundle-write CLI path.
@@ -60,7 +69,7 @@ const b = new Bundle();
 b.append("dev.session", { sdk: "typescript", test: true });
 b.save(path.join(process.argv[1], "bundle.atb"));
 `, tempDir)
-	cmd.Dir = repoRoot
+	cmd.Dir = root
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer

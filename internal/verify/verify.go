@@ -46,7 +46,7 @@ type AnchoringResult struct {
 // CriticalFailure describes a specific critical-obligation failure.
 type CriticalFailure struct {
 	ID     string `json:"id,omitempty"`
-	Kind   string `json:"kind"` // "missing_event" | "missing_field" | "relation_violation" | "temporal_violation"
+	Kind   string `json:"kind"` // "integrity_failure" | "missing_event" | "missing_field" | "relation_violation" | "temporal_violation"
 	Detail string `json:"detail"`
 }
 

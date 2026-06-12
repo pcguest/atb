@@ -67,6 +67,18 @@ func ReportFromVerify(r Report) VerifierReport {
 		report.Signatures = append([]SignatureProvenance(nil), r.Signatures...)
 	}
 
+	if !r.Integrity.ChainValid {
+		detail := strings.TrimSpace(r.Integrity.Error)
+		if detail == "" {
+			detail = "bundle hash chain is invalid"
+		}
+		report.Failures = append(report.Failures, ReportFailure{
+			ID:     "integrity:chain",
+			Kind:   "integrity_failure",
+			Detail: detail,
+		})
+	}
+
 	if r.CAS != nil {
 		report.CASScore = r.CAS.Overall
 		report.CASGrade = r.CAS.Grade
@@ -91,7 +103,6 @@ func ReportFromVerify(r Report) VerifierReport {
 	report.ProfileID = profile.ProfileID
 	report.ProfileVersion = profile.Version
 	report.Pass = report.GateResult.Pass
-	report.Failures = make([]ReportFailure, 0, len(profile.CriticalFailures))
 	for _, failure := range profile.CriticalFailures {
 		report.Failures = append(report.Failures, ReportFailure(failure))
 	}

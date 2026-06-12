@@ -113,6 +113,38 @@ func TestReportFromVerify_IncludesExclusions(t *testing.T) {
 	}
 }
 
+func TestReportFromVerify_IncludesIntegrityFailure(t *testing.T) {
+	report := Report{
+		BundlePath: "tampered.atb",
+		Integrity: IntegrityResult{
+			ChainValid: false,
+			Error:      "record hash mismatch at seq 2",
+		},
+		Profiles: []ProfileResult{{
+			ProfileID: profileIDPrivilegedToolAction,
+			Version:   1,
+			CriticalFailures: []CriticalFailure{{
+				ID:     "required:ai.action.precommit",
+				Kind:   "missing_event",
+				Detail: "ai.action.precommit missing required fields",
+			}},
+		}},
+		ResidualRisk: ResidualRisk{
+			Level: "Critical",
+		},
+	}
+
+	vr := ReportFromVerify(report)
+	if len(vr.Failures) != 2 {
+		t.Fatalf("critical_failures = %+v, want integrity and profile failures", vr.Failures)
+	}
+	if got := vr.Failures[0]; got.ID != "integrity:chain" ||
+		got.Kind != "integrity_failure" ||
+		got.Detail != "record hash mismatch at seq 2" {
+		t.Fatalf("critical_failures[0] = %+v", got)
+	}
+}
+
 func TestReportFromVerify_PropagatesResidualRiskDrivers(t *testing.T) {
 	b := newRAGAnswerBundle(t)
 	filtered := make([]bundle.Record, 0, len(b.Records))

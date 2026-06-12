@@ -2,7 +2,7 @@
 
 Custos is the separate proprietary companion to ATB:
 [github.com/pcguest/custos-product](https://github.com/pcguest/custos-product).
-The current integration baseline is ATB `v1.14.2` and Custos `v0.5.0`.
+The current integration baseline is ATB `v1.14.3` and Custos `v0.5.0`.
 
 Use the Custos
 [end-to-end guide](https://github.com/pcguest/custos-product/blob/main/docs/e2e-atb-custos.md)

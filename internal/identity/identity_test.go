@@ -14,7 +14,7 @@ func TestFileResolver(t *testing.T) {
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "identity-map.yaml")
-	content := "sk-test:\n  display_name: Paddy Guest\n  email: paddy@connective.com\n  org_role: admin\n"
+	content := "sk-test:\n  display_name: Test Operator\n  email: operator@example.com\n  org_role: admin\n"
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatalf("write mapping: %v", err)
 	}
@@ -24,7 +24,7 @@ func TestFileResolver(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if id.DisplayName != "Paddy Guest" || id.Email != "paddy@connective.com" {
+	if id.DisplayName != "Test Operator" || id.Email != "operator@example.com" {
 		t.Fatalf("identity = %#v", id)
 	}
 }
@@ -70,14 +70,14 @@ func TestFallbackDisplayName(t *testing.T) {
 
 func TestWriteMapping(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "identity-map.yaml")
-	if err := identity.WriteMapping(path, "sk-write", "Paddy Guest", "paddy@connective.com", "admin"); err != nil {
+	if err := identity.WriteMapping(path, "sk-write", "Test Operator", "operator@example.com", "admin"); err != nil {
 		t.Fatalf("WriteMapping: %v", err)
 	}
 	id, err := identity.FileResolver{Path: path}.Resolve("sk-write")
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	if id.DisplayName != "Paddy Guest" {
+	if id.DisplayName != "Test Operator" {
 		t.Fatalf("display_name = %q", id.DisplayName)
 	}
 }

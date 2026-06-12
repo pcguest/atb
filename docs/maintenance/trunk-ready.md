@@ -38,7 +38,7 @@ grep -Eq "^## \[v${CLI}\]" CHANGELOG.md
 
 ## 2. Current release
 
-The current public tag is **v1.14.2**. Version strings, the README release
+The current public release is **v1.14.4**. Version strings, the README release
 line, SDK packages, and the web package agree. The full release procedure lives
 in [`docs/release.md`](../release.md); use the next reviewed SemVer version
 rather than reusing the example below.
