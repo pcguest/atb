@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- No unreleased changes. -->
 
+## [v1.14.3] - 2026-06-13
+
+### Fixed
+- `atb intercept` startup hints and help text now describe the working capture flow. The proxy is an HTTPS forward proxy (clients set `HTTPS_PROXY` and trust the local capture CA — `SSL_CERT_FILE` for Python, `NODE_EXTRA_CA_CERTS` for Node.js; the CA path comes from the proxy's default CA location and is printed at startup). The previous hints suggested `OPENAI_BASE_URL`/`ANTHROPIC_BASE_URL` path overrides (`http://localhost:<port>/openai`) that the proxy has never routed — such requests were rejected with `403 host not allowed`. Tests now assert no base-URL claim can return to the hints or help output.
+- `docs/guides/agent-incident-forensics.md` capture section aligned to the same forward-proxy flow, with the target-allowlist boundary stated (only `--target` hosts are intercepted; other CONNECT requests are refused) and a daily capture-ritual subsection covering dated session bundles under `~/.atb/sessions/` and keeping captured bundles out of version control.
+
 ## [v1.14.2] - 2026-06-11
 
 ### Added
