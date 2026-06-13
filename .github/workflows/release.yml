@@ -397,6 +397,31 @@ jobs:
           name: npm-package
           path: artifacts/npm
 
+      - name: Validate release signing key
+        env:
+          ATB_SIGNING_KEY_PEM: ${{ secrets.ATB_SIGNING_KEY_PEM }}
+        run: |
+          if [ -z "$ATB_SIGNING_KEY_PEM" ]; then
+            echo "ATB_SIGNING_KEY_PEM is not configured" >&2
+            exit 1
+          fi
+
+      - name: Snapshot release state
+        run: atb snapshot "release-${{ github.ref_name }}" --bundle "$ATB_CI_BUNDLE_PATH"
+
+      - name: Sign release bundle
+        env:
+          ATB_SIGNING_KEY_PEM: ${{ secrets.ATB_SIGNING_KEY_PEM }}
+        run: |
+          key_path="$(mktemp)"
+          trap 'rm -f "$key_path"' EXIT
+          printf '%s\n' "$ATB_SIGNING_KEY_PEM" > "$key_path"
+          chmod 600 "$key_path"
+          atb sign --bundle "$ATB_CI_BUNDLE_PATH" --key "$key_path"
+
+      - name: Verify signed release bundle
+        run: atb verify --bundle "$ATB_CI_BUNDLE_PATH"
+
       # Layer E: distribution of verified release artifacts to GitHub, PyPI, and npm.
       - name: Create GitHub Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v2
@@ -425,26 +450,23 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          scripts/ci-atb-capture.sh "npm-published" -- bash -c '
+          scripts/ci-atb-capture.sh "npm-publication-verified" -- bash -c '
             set -euo pipefail
             npm whoami
-            npm publish artifacts/npm/*.tgz --access public
+            mapfile -t package_tarballs < <(find artifacts/npm -maxdepth 1 -name "*.tgz" -print)
+            if [ "${#package_tarballs[@]}" -ne 1 ]; then
+              echo "expected exactly one npm package tarball, found ${#package_tarballs[@]}" >&2
+              exit 1
+            fi
+            package_tarball="${package_tarballs[0]}"
+            package_name="$(tar -xOf "$package_tarball" package/package.json | node -e "let data=\"\"; process.stdin.on(\"data\", chunk => data += chunk); process.stdin.on(\"end\", () => process.stdout.write(JSON.parse(data).name))")"
+            package_version="$(tar -xOf "$package_tarball" package/package.json | node -e "let data=\"\"; process.stdin.on(\"data\", chunk => data += chunk); process.stdin.on(\"end\", () => process.stdout.write(JSON.parse(data).version))")"
+            if npm view "${package_name}@${package_version}" version --json >/dev/null 2>&1; then
+              echo "${package_name}@${package_version} is already published"
+            else
+              npm publish "$package_tarball" --access public
+            fi
           '
-
-      - name: Snapshot release state
-        run: atb snapshot "release-${{ github.ref_name }}" --bundle "$ATB_CI_BUNDLE_PATH"
-
-      - name: Sign release bundle
-        run: |
-          # MAINTAINER: Add ATB_SIGNING_KEY_PEM to repo secrets.
-          # Key material injected from GitHub secret; never stored in the repo.
-          echo "${{ secrets.ATB_SIGNING_KEY_PEM }}" > /tmp/atb-ci-signing.pem
-          chmod 600 /tmp/atb-ci-signing.pem
-          atb sign --bundle "$ATB_CI_BUNDLE_PATH" --key /tmp/atb-ci-signing.pem
-          rm -f /tmp/atb-ci-signing.pem
-
-      - name: Verify signed release bundle
-        run: atb verify --bundle "$ATB_CI_BUNDLE_PATH"
 
       - name: Upload ATB release bundle as artefact
         uses: actions/upload-artifact@v4

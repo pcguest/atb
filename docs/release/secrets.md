@@ -11,9 +11,15 @@ file, or in commit history.
   (creating releases, uploading release assets). Scoped to the
   repository; expires per-job.
 
-- `NPM_TOKEN` — Publish access token for the `atb` TypeScript SDK
-  package on npm. Required for `sdk/typescript` publish step in the
-  release workflow.
+- `NPM_TOKEN` — Package-scoped granular publish token for
+  `@pcguest/atb-sdk` on npm. It requires read/write access and bypass
+  2FA because the release workflow is non-interactive.
+
+- `ATB_SIGNING_KEY_PEM` — PKCS#8 Ed25519 private key used to sign the
+  release evidence bundle before external publication. Generate it
+  with `atb keygen`, retain the public key and a protected recovery
+  copy of the private key, and rotate it according to
+  `docs/key-management.md`.
 
 PyPI publishing uses GitHub OIDC trusted publishing. No `PYPI_TOKEN`
 repository secret is required.

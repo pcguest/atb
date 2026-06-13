@@ -83,6 +83,7 @@ These are configured in GitHub repository secrets for publish/notification workf
 | Secret | Used by | Purpose |
 | --- | --- | --- |
 | `NPM_TOKEN` | `.github/workflows/release.yml` | Publish TypeScript SDK |
+| `ATB_SIGNING_KEY_PEM` | `.github/workflows/release.yml` | Sign the release evidence bundle before publication |
 | `DOCKERHUB_USERNAME` | `.github/workflows/docker-publish.yml` | Push Docker images |
 | `DOCKERHUB_TOKEN` | `.github/workflows/docker-publish.yml` | Push Docker images |
 | `DISCORD_WEBHOOK_URL` | `.github/workflows/ci.yml`, `.github/workflows/ops.yml` | Failure and ops notifications |
