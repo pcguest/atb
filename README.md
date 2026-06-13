@@ -7,7 +7,7 @@ bundles that anyone can verify offline, without a vendor account. Local
 bundles prove integrity of what was recorded; they do not prove capture
 completeness or operator honesty before external custody or anchoring.**
 
-Current release: [`v1.14.4`](CHANGELOG.md)
+Current release: [`v1.14.5`](CHANGELOG.md)
 
 - **Tamper-evident by construction** — every event is RFC 8785-canonicalised
   and SHA-256 chained; one flipped byte breaks verification.

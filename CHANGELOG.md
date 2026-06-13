@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- Consolidated human-facing documentation: single hub at `docs/README.md`, merged capture and incident guides, removed agent-harness and research clutter; maintainer invariants live in `CONTRIBUTING.md`.
+<!-- No unreleased changes. -->
 
-<!-- No other unreleased changes. -->
+## [v1.14.5] - 2026-06-13
+
+### Changed
+- Consolidated human-facing documentation around `docs/README.md`, merged capture and incident-forensics guides, moved maintainer invariants into `CONTRIBUTING.md`, and removed stale duplicate guidance.
+- Compliance exports now fall back to the consolidated compliance mapping when a removed format-specific document is unavailable, and record that fallback as a manifest warning.
+
+### Fixed
+- Release publication now validates, signs, and verifies its ATB evidence bundle before publishing externally. npm retries detect an already-published exact package version instead of attempting an immutable-version republish.
+- Pinned transitive esbuild tooling to `0.28.1`, addressing `GHSA-gv7w-rqvm-qjhr` and `GHSA-g7r4-m6w7-qqqr`; the TypeScript SDK audit, build, typecheck, and test suite pass with the patched version.
 
 ## [v1.14.4] - 2026-06-13
 
