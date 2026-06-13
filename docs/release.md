@@ -136,6 +136,16 @@ The Release job initially exposed two missing credential prerequisites:
 `atb keygen`. Keep publication steps retry-safe because registry versions are
 immutable and a later signing or upload failure may require rerunning the job.
 
+Release `v1.14.5` completed Version Gate, tag Gold, Docker Publish, GitHub
+Release, PyPI, and npm successfully. Independent verification then found that
+the retained Actions bundle's pre-publication byte-level signature had been
+invalidated by the later npm capture append, which rewrote prior NDJSON
+serialization. The immutable artifact remains part of the release history; a
+corrected `atb-release-evidence-v1.14.5.atb` asset was created from the unsigned
+build checkpoint, given a publication-verification snapshot, and signed with
+the same release key. The workflow now preflights signing on a temporary copy
+before publication and signs the retained bundle only after all capture steps.
+
 ## 7. Create GitHub release
 
 ```bash

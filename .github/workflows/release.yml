@@ -397,7 +397,10 @@ jobs:
           name: npm-package
           path: artifacts/npm
 
-      - name: Validate release signing key
+      - name: Snapshot release state
+        run: atb snapshot "release-${{ github.ref_name }}" --bundle "$ATB_CI_BUNDLE_PATH"
+
+      - name: Preflight release signing key
         env:
           ATB_SIGNING_KEY_PEM: ${{ secrets.ATB_SIGNING_KEY_PEM }}
         run: |
@@ -405,22 +408,14 @@ jobs:
             echo "ATB_SIGNING_KEY_PEM is not configured" >&2
             exit 1
           fi
-
-      - name: Snapshot release state
-        run: atb snapshot "release-${{ github.ref_name }}" --bundle "$ATB_CI_BUNDLE_PATH"
-
-      - name: Sign release bundle
-        env:
-          ATB_SIGNING_KEY_PEM: ${{ secrets.ATB_SIGNING_KEY_PEM }}
-        run: |
           key_path="$(mktemp)"
-          trap 'rm -f "$key_path"' EXIT
+          bundle_copy="$(mktemp)"
+          trap 'rm -f "$key_path" "$bundle_copy"' EXIT
           printf '%s\n' "$ATB_SIGNING_KEY_PEM" > "$key_path"
           chmod 600 "$key_path"
-          atb sign --bundle "$ATB_CI_BUNDLE_PATH" --key "$key_path"
-
-      - name: Verify signed release bundle
-        run: atb verify --bundle "$ATB_CI_BUNDLE_PATH"
+          cp "$ATB_CI_BUNDLE_PATH" "$bundle_copy"
+          atb sign --bundle "$bundle_copy" --key "$key_path"
+          atb verify --bundle "$bundle_copy"
 
       # Layer E: distribution of verified release artifacts to GitHub, PyPI, and npm.
       - name: Create GitHub Release
@@ -467,6 +462,19 @@ jobs:
               npm publish "$package_tarball" --access public
             fi
           '
+
+      - name: Sign final release bundle
+        env:
+          ATB_SIGNING_KEY_PEM: ${{ secrets.ATB_SIGNING_KEY_PEM }}
+        run: |
+          key_path="$(mktemp)"
+          trap 'rm -f "$key_path"' EXIT
+          printf '%s\n' "$ATB_SIGNING_KEY_PEM" > "$key_path"
+          chmod 600 "$key_path"
+          atb sign --bundle "$ATB_CI_BUNDLE_PATH" --key "$key_path"
+
+      - name: Verify final signed release bundle
+        run: atb verify --bundle "$ATB_CI_BUNDLE_PATH"
 
       - name: Upload ATB release bundle as artefact
         uses: actions/upload-artifact@v4

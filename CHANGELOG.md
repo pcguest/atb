@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Fixed
+- Release publication now preflights signing on a temporary bundle copy, then signs and verifies the retained evidence only after all capture steps. This prevents a post-signature capture append from invalidating the retained byte-level signature.
 
 ## [v1.14.5] - 2026-06-13
 
