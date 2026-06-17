@@ -5,7 +5,10 @@ release was assembled from an inherited 140-file working tree, audited and
 fixed, then grouped by subsystem. Because the inherited work and the fixes share
 files, a few files span two concerns; those are called out so nothing is hidden.
 
-## ATB, branch `release/v1.15.0` (11 commits, oldest first)
+## ATB, branch `release/v1.15.0` (15 commits, oldest first)
+
+Commits 1 to 11 are the product release, grouped by subsystem. Commits 12 to 15
+are the launch documentation, listed in their own section below.
 
 1. `feat(schema): additive reviewer-identity and retention event schema`
    The v1.15.0 schema surface: an optional `identity_evidence` object on
@@ -64,6 +67,30 @@ files, a few files span two concerns; those are called out so nothing is hidden.
     all security-contact surfaces, and corrects the history-rewrite command to
     `--path-glob '.gocache*'` with the dry-run numbers. Contact and maintenance
     docs only.
+
+## ATB launch-documentation commits (12 to 15, oldest first)
+
+These commits add and correct the launch paperwork itself. They touch no product
+code and ship alongside the release for transparency.
+
+12. `docs(release): add launch runbook, per-commit review, and acceptance evidence`
+    The first three launch artefacts: `LAUNCH-RUNBOOK.md`, this review, and
+    `ACCEPTANCE.md`. Documentation only.
+
+13. `style(docs): drop em dash from the Article 12 mapping title`
+    One title punctuation fix in `docs/compliance/article-12-mapping.md`.
+
+14. `docs(runbook): correct the TypeScript SDK publish step`
+    Corrects the npm publish step to `npm ci && npm run build && npm publish`,
+    since the package builds with `tsup` and has no `prepublishOnly` hook.
+
+15. `docs(release): add launch collateral, post-launch verification, and pre-flight checklist`
+    `LAUNCH-COLLATERAL.md` (release notes, PR descriptions, GitHub release body,
+    announcements), `scripts/post-launch-verify.sh` (external verification, the
+    tamper-to-exit-2 path proven locally), and `PRE-FLIGHT-CHECKLIST.md`. This
+    commit also corrects the commit count in `LAUNCH-RUNBOOK.md` from 11 to 15.
+
+The branch is 15 signed commits ahead of `main`, all with good signatures.
 
 ## Custos, branch `site/marketing-front` (2 commits, oldest first)
 

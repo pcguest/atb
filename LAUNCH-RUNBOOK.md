@@ -7,7 +7,7 @@ prefix `GOCACHE=$(pwd)/.gocache/go1.26.4 GOTOOLCHAIN=go1.26.4` for Go.
 
 Two repositories are involved:
 
-- ATB at `~/atb`, branch `release/v1.15.0` (11 signed commits ahead of `main`).
+- ATB at `~/atb`, branch `release/v1.15.0` (15 signed commits ahead of `main`).
 - Custos at `~/custos-product`, branch `site/marketing-front` (2 signed commits).
 
 ## Decision 0 (read first): the history rewrite and signatures
