@@ -136,7 +136,7 @@ gate-gold-release: test-all
 	@$(MAKE) test-e2e || (echo "⚠️  E2E tests failed — checking mock fallback..." && cd web && CYPRESS_MOCK_API=true npm run test:e2e || (echo "❌ E2E tests failed even with mocks"; exit 1))
 	@echo ""
 	@echo "Step 4: Lighthouse audit..."
-	@-cd web && npm run lighthouse 2>/dev/null || echo "⚠️  Lighthouse skipped (env constraint)"
+	@-command -v lighthouse >/dev/null 2>&1 && lighthouse http://localhost:8080/view/ --output=json --output-path=web/lh-report.json --only-categories=accessibility,performance || echo "⚠️  Lighthouse skipped (install lighthouse globally to run this optional local audit)"
 	@echo ""
 	@echo "Step 5: Accessibility audit..."
 	@cd web && npm run test:a11y || (echo "❌ A11y tests failed"; exit 1)

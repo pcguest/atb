@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.15.0] - 2026-06-15
+
+### Added
+- Optional digest-only reviewer identity evidence for policy, action, approval, and override events across Go, Python, and TypeScript. Verify, trust, incident, and compliance reports label it as caller-provided and not independently verified by ATB.
+- Deterministic offline `atb compliance pack` export with the authoritative bundle, `verify.report.v1`, trust reports, CAS and obligation results, incident artifacts, EU AI Act/profile mappings, checksums, and relevant retention operations.
+- Retention audit events for policy set/change, local archive completion, and accepted S3 Object Lock requests, recorded in the separate `.atb/operations.atb` hash chain.
+- Offline Python agent-incident demo covering a denied policy decision, unapproved tool call, failed action, reviewer override, verification, trust reporting, and incident reconstruction.
+
+### Changed
+- The `verify.report.v1` JSON Schema file revision advanced to `.schema.2` for the additive optional `reviewer_identities` field. The consumer contract is unchanged: `report_version` stays `verify.report.v1` and every existing field keeps its name and meaning. See [VERSIONING.md](VERSIONING.md).
+- Viewer event families and labels now surface capture, action failure, human oversight, reviewer identity, and retention events more clearly.
+- Laptop guidance now explains proxy CA scoping, clients that bypass `HTTPS_PROXY`, `capture run` environment behavior, and the complete local incident-review flow.
+- EU AI Act, security, public-surface, profiles, roadmap, and SDK documentation now describe the Article 12, Article 14, retention, and compliance-pack trust boundaries consistently.
+
 ### Fixed
+- Revealing a masked field in `atb view` no longer writes to the authoritative bundle. Reveal audit events are recorded in a separate `<bundle>.reveals` sidecar with its own hash chain, bound to the source bundle by id and chain head. Inspecting evidence no longer changes it. The sidecar verifies independently with `atb verify`.
+- The Custos push path now conforms to the Custos ingest API. `atb intercept --custos` and `atb incident export --custos-endpoint` post the completed bundle to `POST /ingest` and surface the signed receipt; the previous client targeted a non-existent `/bundle` endpoint and pushed per-event or zip payloads that Custos does not accept. `atb compliance pack` is now local-only (`--out`); custody of the bundle is via incident export or intercept.
 - Release publication now preflights signing on a temporary bundle copy, then signs and verifies the retained evidence only after all capture steps. This prevents a post-signature capture append from invalidating the retained byte-level signature.
 - CodeQL continues to run local analysis when the repository is private but skips SARIF upload when GitHub code scanning is unavailable; public repositories continue to upload results.
 
