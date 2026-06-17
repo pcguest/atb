@@ -24,8 +24,9 @@ func repoRoot(t *testing.T) string {
 
 func TestPythonSDKBundleCompatibility(t *testing.T) {
 	tempDir := t.TempDir()
+	root := repoRoot(t)
 
-	cmd := exec.Command("python3", "-c", `
+	cmd := exec.Command(pythonForIntegration(t, root), "-c", `
 import sys, os
 sys.path.insert(0, 'sdk/python')
 from atb import Bundle
@@ -33,7 +34,7 @@ b = Bundle()
 b.append('dev.session', {'sdk': 'python', 'test': True})
 b.save(os.path.join(sys.argv[1], 'bundle.atb'))
 `, tempDir)
-	cmd.Dir = repoRoot(t)
+	cmd.Dir = root
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -50,6 +51,18 @@ b.save(os.path.join(sys.argv[1], 'bundle.atb'))
 	}
 
 	assertBundleHasSessionEvent(t, b)
+}
+
+func pythonForIntegration(t *testing.T, root string) string {
+	t.Helper()
+	if configured := os.Getenv("ATB_PYTHON"); configured != "" {
+		return configured
+	}
+	venvPython := filepath.Join(root, ".venv", "bin", "python")
+	if _, err := os.Stat(venvPython); err == nil {
+		return venvPython
+	}
+	return "python3"
 }
 
 func TestTypeScriptSDKBundleCompatibility(t *testing.T) {
