@@ -147,8 +147,8 @@ ATB provides opt-in, client-side encryption for bundle handoff with
 `atb encrypt` and `atb decrypt`.
 
 ```bash
-ATB_PASSWORD=secret123 atb encrypt run.atb/bundle.atb --output handoff/bundle.atb.enc
-ATB_PASSWORD=secret123 atb decrypt handoff/bundle.atb.enc --output ./bundle.atb
+ATB_PASSWORD='<local-demo-password>' atb encrypt run.atb/bundle.atb --output handoff/bundle.atb.enc
+ATB_PASSWORD='<local-demo-password>' atb decrypt handoff/bundle.atb.enc --output ./bundle.atb
 ```
 
 Encryption uses AES-256-GCM with versioned PBKDF2-SHA256 key derivation:

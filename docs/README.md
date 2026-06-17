@@ -24,6 +24,7 @@ from here, not scattered across the tree.
 | [Public surface](./public-surface.md) | Shipped boundary and never-claims |
 | [Provability ladder](./provability-ladder.md) | Integrity vs completeness |
 | [CAS guide](./cas-guide.md) | Completeness scoring detail |
+| [Compliance hub](./compliance/README.md) | Generate a deterministic profile-aware evidence pack |
 
 ## Contract
 
@@ -50,7 +51,8 @@ Technical evidence mappings only — not legal advice or certification.
 | Doc | For |
 | --- | --- |
 | [Compliance hub](./compliance/README.md) | How to use mappings in a review |
-| [EU AI Act mapping](./compliance/eu-ai-act.md) | Article 12 logging alignment |
+| [Article 12 evidence mapping](./compliance/article-12-mapping.md) | Per-obligation map of Article 12 to ATB primitives |
+| [EU AI Act mapping](./compliance/eu-ai-act.md) | Article 9 to 20 coverage map |
 
 ## Contribute and release
 

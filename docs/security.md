@@ -73,13 +73,47 @@ not prove the values are truthful or that the recorder was authorised to
 assert them. Deployments that require verified identity attribution must
 supply an independent identity layer or signing scheme.
 
+Oversight and action events may also carry an optional `identity_evidence`
+object with an identity-provider name, subject, authentication context,
+assertion type, and assertion digests. This is stronger evidence context than
+a plain actor string because a deployment can retain the original JWT, SAML
+assertion, or certificate separately and later verify it against its IdP,
+JWKS, or PKI. ATB deliberately stores digests rather than bearer assertions.
+
+ATB hash-chains the supplied identity evidence and labels it as
+caller-provided. It does not fetch JWKS, validate certificate chains, operate
+an identity provider, or make a legal claim that the named subject performed
+the action. A reviewer should verify the original assertion independently or
+attach an `atb.corroboration.external` record from the deployment identity
+system.
+
+### Retention evidence
+
+`atb config retention`, non-dry-run `atb archive`, and successful S3 pushes
+that request Object Lock append events to `.atb/operations.atb`. The separate
+operations bundle prevents post-upload mutation of the evidence bundle.
+
+`data.retention.enforced` distinguishes local archive completion from remote
+API acceptance. For S3, `outcome=request_accepted` means the PUT succeeded
+with Object Lock headers; `independently_verified=false` means ATB did not
+inspect bucket policy or prove continuing storage-side enforcement.
+
 ## Local viewer API
 
 The local viewer, `atb view`, binds to `127.0.0.1` by default and is
 intended for single-user local inspection only. All `/api/v1/*`
-endpoints require a per-session token generated at startup, and privacy
-reveal operations require a separate reveal token. Do not expose the
-viewer on a network interface.
+endpoints require authentication.
+
+Authentication can be performed using:
+*   A per-session token generated at startup (for local-only dev mode).
+*   OIDC/JWT tokens, configured via `--oidc-issuer` and `--oidc-audience`.
+
+Roles are extracted from JWT claims (or default to `viewer`) and enforced via RBAC:
+*   `viewer`: Read-only access to view data.
+*   `operator`: Read-write access, including privacy reveal operations and re-running profile verification.
+*   `admin`: Full administrative access (currently implied by session token).
+
+Do not expose the viewer on a network interface without careful consideration of your OIDC provider's security.
 
 If `--host` is used to bind to a non-loopback address, bundle contents
 become accessible to any process that can reach that interface unless an
@@ -164,19 +198,28 @@ Behaviour:
 
 ### Privacy reveal controls
 
+A tamper-evidence tool must not change the evidence when an operator
+inspects it. Revealing a masked field therefore never writes to the
+authoritative bundle. Each reveal is recorded in a separate sidecar,
+`<bundle>.reveals`, which is itself a genesis-rooted ATB hash chain.
+Each reveal entry records `source_bundle_id` and `source_head_hash`, so
+the sidecar proves which bundle and which chain head it annotates without
+mutating that bundle. The sidecar verifies independently with
+`atb verify`.
+
 The `/api/v1/privacy/reveal` endpoint is rate-limited to reduce
 enumeration risk.
 
 Current defaults:
 
 - 10 requests per minute per token.
-- Reveal auditing appended into the loaded bundle before data is revealed.
+- Reveal auditing is written to a separate sidecar, never to the loaded bundle. Viewing a field does not change the authoritative bundle on disk.
 - PII masking rules loaded from `ATB_PII_FIELDS_PATH` when set, otherwise the bundled default rules shipped with ATB.
 
 #### Testing
 
 ```bash
-TOKEN="your-token"
+TOKEN="<local-viewer-token>"
 for i in {1..12}; do
   curl -s -o /dev/null -w "$i:%{http_code} " \
     -X POST http://localhost:8080/api/v1/privacy/reveal \
@@ -189,5 +232,8 @@ The eleventh request should return `429`.
 
 #### Monitoring
 
-Rate-limit hits return `429` with `Retry-After` and are not appended to
-the audit chain. Successful privacy reveals are appended to the loaded bundle.
+Rate-limit hits return `429` with `Retry-After` and are not recorded in
+the audit chain. Successful privacy reveals are recorded in the reveal
+sidecar (`<bundle>.reveals`), a separate hash chain. The authoritative
+bundle is never modified by a reveal. The sidecar is itself a valid ATB
+bundle and verifies independently with `atb verify`.

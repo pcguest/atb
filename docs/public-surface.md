@@ -34,8 +34,51 @@ in `VERSIONING.md` and cross-language parity through `make test-golden`.
 | CLI, Go/Python/TypeScript SDKs, and golden vectors | Shipped | Local-first and independently verifiable |
 | `atb intercept`, SDK wrappers, imports, and OTel JSON | Shipped | Each sees only traffic or calls routed through that integration |
 | `atb incident`, evidence packs, and local viewer | Shipped | Review and export surfaces; not a SIEM or hosted collaboration product |
+| Reviewer identity evidence | Shipped, optional | Hash-chains caller-provided IdP/assertion digests; ATB is not an IdP and does not validate the assertion |
+| Retention operations bundle | Shipped | Records policy changes, local archive outcomes, and accepted Object Lock requests; does not prove continuing remote enforcement |
+| `atb compliance pack` | Shipped | Deterministic offline bundle/profile review package; not a conformity assessment |
 | In-repo `custos/` Go module | Reference scaffold | Kept for contract tests and compatibility; not the Custos product |
+| Managed storage (filesystem, S3-compatible) | In-repo reference | Custos provides managed storage for receipts and bundles, with retention policies |
 | Hosted custody, SSO, billing, legal hold, and managed witnesses | Outside ATB | Belongs in Custos Ring 4 or another external product |
+
+## Role-Based Access Control (RBAC)
+
+ATB and Custos now support optional role-based access control for their HTTP APIs. This allows operators to define granular permissions for different users or services interacting with the systems.
+
+### Roles
+
+The following roles are defined:
+
+*   **`viewer`**: Read-only access to view data and reports.
+*   **`auditor`**: Read-only access to view data and generate reports (same as viewer for now, but can be extended).
+*   **`operator`**: Read-write access to manage data and configurations (e.g., ingest events/bundles, trigger privacy reveals, re-run profile verification).
+*   **`admin`**: Full administrative access.
+
+### Authentication Mechanisms
+
+Both `custosd` and `atb view` support:
+
+*   **Shared Secret Token**: A simple bearer token (e.g., `CUSTOS_AUTH_TOKEN` for `custosd`, `X-ATB-Session-Token` for `atb view`). This grants `admin` privileges.
+*   **OIDC/JWT**: JSON Web Tokens issued by an OpenID Connect provider. Roles are extracted from JWT claims (e.g., `role` or `roles` claims). If no valid role claim is found, a default role (e.g., `viewer`) is applied.
+
+### `custosd` RBAC
+
+`custosd` enforces RBAC on its HTTP endpoints:
+
+*   `POST /ingest`: Requires `operator` or `admin` role.
+*   `GET /receipts`, `GET /receipts/by-hash`, `GET /receipts/:id`, `GET /receipts/:id/verify`, `GET /receipts/:id/attestation`: Require `viewer` or higher role.
+*   `GET /health`, `GET /custody/key`: Publicly accessible (no authentication required).
+
+### `atb view` RBAC
+
+`atb view` enforces RBAC on its API routes (`/api/v1/*`):
+
+*   `GET` endpoints (e.g., `/api/v1/verification`, `/api/v1/bundle/meta`, `/api/v1/bundle/events`, `/api/v1/sessions`, `/api/v1/schema/status`): Require `viewer` or higher role.
+*   `POST /api/v1/bundle/verify`, `POST /api/v1/privacy/reveal`: Require `operator` or `admin` role.
+
+### Configuration
+
+Refer to `docs/custos-storage.md` for `custosd` configuration and `atb view --help` for viewer configuration.
 
 ## atb view
 
@@ -52,10 +95,12 @@ request and response bodies, not raw prompts or completions. Credential and
 session-secret headers are stripped. `--capture-bodies` is an explicit privacy
 tradeoff.
 
-`--custos <url>` pushes a closed immutable bundle snapshot to a configured
-Custos endpoint. `ATB_CUSTOS_TOKEN`, when set, supplies the Bearer token from
-the environment. With neither option configured, interception remains local and
-does not perform network custody operations.
+`--custos-endpoint <url>` lodges the completed bundle with a configured Custos
+endpoint when a session closes. `ATB_CUSTOS_TOKEN`, when set, supplies the Bearer
+token from the environment. With neither option configured, interception remains
+local and does not perform network custody operations. Custos ingests whole
+bundles, verifies them, and returns a signed receipt; it does not accept
+individual events.
 
 ## atb incident
 
@@ -63,6 +108,19 @@ does not perform network custody operations.
 the integrity gate. Reports scope a session for review, but the complete bundle
 remains the authoritative hash-chained evidence object. An unsigned bundle is
 reported as unsigned rather than treated as signed provenance.
+
+## Identity and retention evidence
+
+Oversight events can carry digest-only `identity_evidence`. Trust and incident
+reports surface the provider, subject, assertion type, and digest as
+caller-provided evidence. Deployments remain responsible for IdP/JWKS/PKI
+verification and for retaining the original assertion under their own access
+controls.
+
+Retention events live in `.atb/operations.atb`, separate from the workflow
+bundle. Compliance packs include relevant operations evidence when available.
+An accepted S3 Object Lock request is not represented as independent proof of
+bucket configuration, legal hold, or future object availability.
 
 ## Custos and the in-repo scaffold
 

@@ -9,8 +9,8 @@ Security fixes are shipped on the current release tag only.
 
 | Version | Supported |
 | --- | --- |
-| `v1.14.5` | Yes |
-| `v1.14.4` and older | No |
+| `v1.15.0` | Yes |
+| `v1.14.5` and older | No |
 
 ## Reporting a vulnerability
 

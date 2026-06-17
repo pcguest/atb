@@ -321,6 +321,41 @@ Classification:
 - **canonical (SDK-emittable)** — declared canonical types that SDKs and
   framework integrations MAY emit when the corresponding workflow occurs.
 
+### Reviewer identity evidence
+
+The oversight/action events `ai.policy.decision`, `ai.action.precommit`,
+`ai.action.executed`, `ai.action.committed`, `ai.human.approval`,
+`atb.human.approval`, and `atb.human.override` MAY carry an
+`identity_evidence` object.
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `identity_provider` | yes | IdP, issuer, CA, or deployment identity-system identifier. |
+| `subject` | yes | Subject identifier asserted by the external identity layer. |
+| `assertion_type` | yes | `jwt`, `saml`, `x509`, or `opaque`. |
+| `assertion_digest` | yes | Digest of the separately retained identity assertion. |
+| `auth_context` | no | Authentication method or assurance context, such as MFA. |
+| `raw_evidence_digest` | no | Digest of separately retained raw evidence. |
+
+Writers SHOULD NOT place bearer assertions or private credentials in this
+object. ATB preserves the supplied evidence in the hash chain but does not
+validate the assertion.
+
+### Retention operation events
+
+The following additive, unprofiled event types are normally written to the
+separate `.atb/operations.atb` bundle:
+
+- `data.retention.policy_set` records initial local retention configuration.
+- `data.retention.policy_changed` links replacement and previous policy
+  digests.
+- `data.retention.enforced` records a completed local archive operation or an
+  accepted remote retention request.
+
+`data.retention.enforced.independently_verified` is required. S3 Object Lock
+requests emitted by `atb push` use `false`: a successful PUT proves API
+acceptance of the request, not continuing bucket-side enforcement.
+
 ### Accountability events from capture
 
 Beyond the capture lifecycle types, `atb intercept` derives accountability

@@ -122,6 +122,10 @@ paths:
   /api/v1/privacy/reveal:
     post:
       summary: Reveal one masked field value
+      description: >-
+        Returns the requested field value and records the reveal in a separate
+        sidecar (`<bundle>.reveals`) with its own hash chain. The authoritative
+        bundle is never modified by a reveal.
       operationId: revealField
       tags: [viewer]
       security:
