@@ -95,8 +95,13 @@ func TestPrivacyRevealRateLimited(t *testing.T) {
 	}
 }
 
-func TestPrivacyRevealAuditAppendsToBundleChain(t *testing.T) {
+func TestPrivacyRevealRecordsToSidecarNotBundle(t *testing.T) {
 	bundlePath, b := createTestBundle(t)
+	originalRecords := len(b.Records)
+	originalBytes, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle before reveals: %v", err)
+	}
 	_, handler := buildTestAPIServer(t, APIConfig{
 		BundlePath:      bundlePath,
 		Bundle:          b,
@@ -118,16 +123,29 @@ func TestPrivacyRevealAuditAppendsToBundleChain(t *testing.T) {
 		}
 	}
 
-	loaded, err := bundle.Load(bundlePath)
+	// The authoritative bundle must be byte-for-byte unchanged by reveals.
+	afterBytes, err := os.ReadFile(bundlePath)
 	if err != nil {
-		t.Fatalf("load bundle after reveals: %v", err)
+		t.Fatalf("read bundle after reveals: %v", err)
 	}
-	if len(loaded.Records) != 4 {
-		t.Fatalf("expected 4 records after reveal audit appends, got %d", len(loaded.Records))
+	if !bytes.Equal(originalBytes, afterBytes) {
+		t.Fatalf("authoritative bundle was mutated by reveal")
+	}
+	if len(b.Records) != originalRecords {
+		t.Fatalf("in-memory bundle grew from %d to %d records after reveal", originalRecords, len(b.Records))
 	}
 
-	firstAudit := loaded.Records[2]
-	secondAudit := loaded.Records[3]
+	// The reveals must live in the sidecar, in their own verifiable chain.
+	sidecar, err := bundle.LoadVerified(bundlePath + ".reveals")
+	if err != nil {
+		t.Fatalf("load reveal sidecar: %v", err)
+	}
+	if len(sidecar.Records) != 3 {
+		t.Fatalf("expected sidecar manifest + 2 reveals, got %d records", len(sidecar.Records))
+	}
+
+	firstAudit := sidecar.Records[1]
+	secondAudit := sidecar.Records[2]
 	if firstAudit.Event.Type != "privacy.reveal" || secondAudit.Event.Type != "privacy.reveal" {
 		t.Fatalf("expected reveal audit events, got %q and %q", firstAudit.Event.Type, secondAudit.Event.Type)
 	}

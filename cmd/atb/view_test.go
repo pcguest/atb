@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -105,7 +106,7 @@ func TestBuildViewServerFallbackExposesNoData(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -152,7 +153,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -204,7 +205,7 @@ func TestBuildViewServerTamperModeCatchesAllRoutes(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -340,7 +341,7 @@ func TestIsAddrInUseError(t *testing.T) {
 	}
 }
 
-func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
+func TestPrivacyRevealRecordsToSidecarNotBundle(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
@@ -352,8 +353,12 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
+	bundleBefore, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle before reveal: %v", err)
+	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -388,14 +393,24 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 		t.Fatalf("expected revealed value in response, got %s", rr.Body.String())
 	}
 
-	updated, err := bundle.Load(bundlePath)
+	// The authoritative bundle must be byte-for-byte unchanged by the reveal.
+	bundleAfter, err := os.ReadFile(bundlePath)
 	if err != nil {
-		t.Fatalf("load updated bundle: %v", err)
+		t.Fatalf("read bundle after reveal: %v", err)
 	}
-	if len(updated.Records) != 3 {
-		t.Fatalf("expected reveal audit append to bundle: got %d records", len(updated.Records))
+	if !bytes.Equal(bundleBefore, bundleAfter) {
+		t.Fatalf("authoritative bundle was mutated by reveal")
 	}
-	auditRecord := updated.Records[2]
+
+	// The reveal must be recorded in the sidecar, which verifies independently.
+	sidecar, err := bundle.LoadVerified(bundlePath + ".reveals")
+	if err != nil {
+		t.Fatalf("load reveal sidecar: %v", err)
+	}
+	if len(sidecar.Records) != 2 {
+		t.Fatalf("expected sidecar manifest + 1 reveal, got %d records", len(sidecar.Records))
+	}
+	auditRecord := sidecar.Records[1]
 	if auditRecord.Event.Type != "privacy.reveal" {
 		t.Fatalf("expected privacy.reveal event type, got %q", auditRecord.Event.Type)
 	}
@@ -420,7 +435,7 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -445,7 +460,7 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -477,7 +492,7 @@ func TestBuildViewServerServesViewRoute(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}

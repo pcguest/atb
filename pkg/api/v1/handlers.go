@@ -24,6 +24,7 @@ import (
 	"github.com/pcguest/atb/internal/hash"
 	"github.com/pcguest/atb/internal/sessionindex"
 	verifypkg "github.com/pcguest/atb/internal/verify"
+	atbauth "github.com/pcguest/atb/pkg/auth"
 )
 
 const (
@@ -60,6 +61,7 @@ type APIConfig struct {
 	SessionsByActor  map[string][]sessionindex.SessionEntry
 	SessionIndexErr  error
 	SessionIndexed   bool
+	JWTValidator     *atbauth.JWTValidator
 }
 
 // APIServer serves dashboard data from a verified (or failed-verification) bundle snapshot.
@@ -79,8 +81,74 @@ type APIServer struct {
 	sessionsByActor    map[string][]sessionindex.SessionEntry
 	sessionIndexErr    error
 	sessionIndexed     bool
+	jwtValidator       *atbauth.JWTValidator
 	mu                 sync.Mutex
 	rateMu             sync.Mutex
+}
+
+// authMiddleware enforces authentication and sets the role in the context.
+func (s *APIServer) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var authenticatedRole atbauth.Role = atbauth.RoleViewer // Default to viewer if no auth or OIDC not configured
+		var authenticated bool
+
+		// 1. Try session token authentication (for local-only dev mode)
+		if s.sessionToken != "" {
+			token := strings.TrimSpace(r.Header.Get(sessionAuthHeader))
+			if token == "" {
+				token = strings.TrimSpace(r.URL.Query().Get(sessionAuthParam))
+			}
+			if subtle.ConstantTimeCompare([]byte(token), []byte(s.sessionToken)) == 1 {
+				authenticated = true
+				authenticatedRole = atbauth.RoleAdmin // Session token implies admin access for local viewer
+			}
+		}
+
+		// 2. If not authenticated by session token, try JWT validation
+		if !authenticated && s.jwtValidator != nil {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+				claims, err := s.jwtValidator.Validate(r.Context(), tokenString)
+				if err != nil {
+					writeJSON(w, http.StatusUnauthorized, APIError{Error: "invalid JWT"})
+					return
+				}
+				role, err := s.jwtValidator.ExtractRole(claims)
+				if err != nil || !role.IsValid() {
+					// If no valid role claim, default to viewer
+					authenticatedRole = atbauth.RoleViewer
+				} else {
+					authenticatedRole = role
+				}
+				authenticated = true
+			}
+		}
+
+		// If no authentication mechanism is configured, or if authentication failed
+		if !authenticated && s.sessionToken == "" && s.jwtValidator == nil {
+			// No authentication configured, allow all access (dev mode)
+			authenticatedRole = atbauth.RoleAdmin // Assume admin for unauthenticated dev mode
+		} else if !authenticated {
+			// Authentication configured but failed
+			writeJSON(w, http.StatusUnauthorized, APIError{Error: "unauthorized"})
+			return
+		}
+
+		// Store the authenticated role in context.
+		ctx := atbauth.WithRole(r.Context(), authenticatedRole)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// requireRole is a helper function to check if the authenticated user has the required role.
+func (s *APIServer) requireRole(w http.ResponseWriter, r *http.Request, requiredRole atbauth.Role) bool {
+	role, ok := atbauth.GetRoleFromContext(r.Context())
+	if !ok || !role.HasPermission(requiredRole) {
+		writeJSON(w, http.StatusForbidden, APIError{Error: "forbidden"})
+		return false
+	}
+	return true
 }
 
 type revealRateCounter struct {
@@ -116,22 +184,23 @@ func NewAPIServer(cfg APIConfig) *APIServer {
 		sessionsByActor:    cfg.SessionsByActor,
 		sessionIndexErr:    cfg.SessionIndexErr,
 		sessionIndexed:     cfg.SessionIndexed,
+		jwtValidator:       cfg.JWTValidator,
 	}
 }
 
 // Register mounts dashboard API endpoints on the provided mux.
 func (s *APIServer) Register(mux *http.ServeMux) {
-	mux.HandleFunc("/api/v1/verification", s.handleVerification)
-	mux.HandleFunc("/api/v1/bundle/meta", s.handleBundleMeta)
-	mux.HandleFunc("/api/v1/bundle/events", s.handleBundleEvents)
-	mux.HandleFunc("/api/v1/bundle/graph", s.handleBundleGraph)
-	mux.HandleFunc("/api/v1/bundle/profile", s.handleBundleProfile)
-	mux.HandleFunc("/api/v1/bundle/verify", s.handleBundleVerify)
-	mux.HandleFunc("/api/v1/bundle/verify/report", s.handleBundleVerifyReport)
-	mux.HandleFunc("/api/v1/privacy/reveal", s.handlePrivacyReveal)
-	mux.HandleFunc("/api/v1/sessions", s.handleSessions)
-	mux.HandleFunc("/api/v1/sessions/by-actor", s.handleSessionsByActor)
-	mux.HandleFunc("/api/v1/schema/status", s.handleSchemaStatus)
+	mux.Handle("/api/v1/verification", s.authMiddleware(http.HandlerFunc(s.handleVerification)))
+	mux.Handle("/api/v1/bundle/meta", s.authMiddleware(http.HandlerFunc(s.handleBundleMeta)))
+	mux.Handle("/api/v1/bundle/events", s.authMiddleware(http.HandlerFunc(s.handleBundleEvents)))
+	mux.Handle("/api/v1/bundle/graph", s.authMiddleware(http.HandlerFunc(s.handleBundleGraph)))
+	mux.Handle("/api/v1/bundle/profile", s.authMiddleware(http.HandlerFunc(s.handleBundleProfile)))
+	mux.Handle("/api/v1/bundle/verify", s.authMiddleware(http.HandlerFunc(s.handleBundleVerify)))
+	mux.Handle("/api/v1/bundle/verify/report", s.authMiddleware(http.HandlerFunc(s.handleBundleVerifyReport)))
+	mux.Handle("/api/v1/privacy/reveal", s.authMiddleware(http.HandlerFunc(s.handlePrivacyReveal)))
+	mux.Handle("/api/v1/sessions", s.authMiddleware(http.HandlerFunc(s.handleSessions)))
+	mux.Handle("/api/v1/sessions/by-actor", s.authMiddleware(http.HandlerFunc(s.handleSessionsByActor)))
+	mux.Handle("/api/v1/schema/status", s.authMiddleware(http.HandlerFunc(s.handleSchemaStatus)))
 }
 
 // SessionsResponse is the API response for GET /api/v1/sessions.
@@ -163,7 +232,7 @@ func (s *APIServer) handleSessions(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -193,7 +262,7 @@ func (s *APIServer) handleSessionsByActor(w http.ResponseWriter, r *http.Request
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -312,7 +381,7 @@ func (s *APIServer) handleSchemaStatus(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -487,7 +556,7 @@ func (s *APIServer) handleVerification(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 
@@ -521,7 +590,7 @@ func (s *APIServer) handleBundleMeta(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -587,7 +656,7 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -655,7 +724,7 @@ func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -734,7 +803,7 @@ func (s *APIServer) handleBundleProfile(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -767,7 +836,7 @@ func (s *APIServer) handleBundleVerify(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleOperator) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -799,7 +868,7 @@ func (s *APIServer) handleBundleVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	summary := verifyReportToSummary(*report)
-	fullReport := verifypkg.ReportFromVerify(*report)
+	fullReport := verifypkg.ReportFromVerifyWithBundle(*report, bSnap)
 	s.mu.Lock()
 	s.profileReport = &summary
 	s.verifierReport = &fullReport
@@ -823,7 +892,7 @@ func (s *APIServer) handleBundleVerifyReport(w http.ResponseWriter, r *http.Requ
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
 	if !s.requireVerified(w) {
@@ -921,7 +990,7 @@ func (s *APIServer) handlePrivacyReveal(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
 		return
 	}
-	if !s.requireSessionAuth(w, r) {
+	if !s.requireRole(w, r, atbauth.RoleOperator) {
 		return
 	}
 	if !s.allowPrivacyReveal(r) {
@@ -977,24 +1046,6 @@ func (s *APIServer) handlePrivacyReveal(w http.ResponseWriter, r *http.Request) 
 		FieldPath: req.FieldPath,
 		Value:     value,
 	})
-}
-
-// requireSessionAuth enforces the session token for all read endpoints.
-// When sessionToken is empty the check is skipped (no-auth mode, e.g. unit tests or embedded use).
-// Accepts the token via X-ATB-Session-Token header or ?session_token= query parameter.
-func (s *APIServer) requireSessionAuth(w http.ResponseWriter, r *http.Request) bool {
-	if s.sessionToken == "" {
-		return true
-	}
-	token := strings.TrimSpace(r.Header.Get(sessionAuthHeader))
-	if token == "" {
-		token = strings.TrimSpace(r.URL.Query().Get(sessionAuthParam))
-	}
-	if subtle.ConstantTimeCompare([]byte(token), []byte(s.sessionToken)) == 1 {
-		return true
-	}
-	writeJSON(w, http.StatusUnauthorized, APIError{Error: "missing or invalid session token"})
-	return false
 }
 
 func (s *APIServer) requireVerified(w http.ResponseWriter) bool {
@@ -1093,6 +1144,15 @@ func (s *APIServer) appendRevealAuditEvent(r *http.Request, req PrivacyRevealReq
 		data["reason"] = reason
 	}
 
+	// Bind the reveal to the authoritative bundle without mutating it, so the
+	// sidecar entry proves which bundle and which chain head it annotates.
+	if m := s.b.Manifest(); m != nil {
+		data["source_bundle_id"] = m.BundleID
+	}
+	if n := len(s.b.Records); n > 0 {
+		data["source_head_hash"] = s.b.Records[n-1].Hash
+	}
+
 	actorID := getActorFromContext(r)
 	orgID := getOrgFromContext(r)
 	workspaceID := getWorkspaceFromContext(r)
@@ -1106,15 +1166,45 @@ func (s *APIServer) appendRevealAuditEvent(r *http.Request, req PrivacyRevealReq
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := s.b.AppendWithOptions("privacy.reveal", data, opts); err != nil {
+	return s.appendRevealToSidecar(data, opts)
+}
+
+// revealSidecarPath is the path of the reveal sidecar log. Reveal events are
+// recorded here, in a separate hash chain, so that inspecting a field in the
+// viewer never mutates the authoritative bundle on disk.
+func (s *APIServer) revealSidecarPath() string {
+	return s.bundlePath + ".reveals"
+}
+
+// appendRevealToSidecar appends a privacy.reveal event to a separate sidecar
+// bundle with its own genesis-rooted hash chain. The authoritative bundle is
+// never written. The sidecar is itself a valid ATB bundle and verifies
+// independently with the same machinery (for example, atb verify).
+func (s *APIServer) appendRevealToSidecar(data map[string]interface{}, opts *bundle.AppendOptions) error {
+	path := s.revealSidecarPath()
+
+	var sidecar *bundle.Bundle
+	switch _, statErr := os.Stat(path); {
+	case statErr == nil:
+		loaded, err := bundle.LoadVerified(path)
+		if err != nil {
+			return fmt.Errorf("reveal sidecar load: %w", err)
+		}
+		sidecar = loaded
+	case errors.Is(statErr, os.ErrNotExist):
+		created, err := bundle.New()
+		if err != nil {
+			return fmt.Errorf("reveal sidecar init: %w", err)
+		}
+		sidecar = created
+	default:
+		return fmt.Errorf("reveal sidecar stat: %w", statErr)
+	}
+
+	if err := sidecar.AppendWithOptions("privacy.reveal", data, opts); err != nil {
 		return err
 	}
-	if err := s.b.Save(s.bundlePath); err != nil {
-		// Keep in-memory state aligned with on-disk state when save fails.
-		s.b.Records = s.b.Records[:len(s.b.Records)-1]
-		return err
-	}
-	return nil
+	return sidecar.Save(path)
 }
 
 func optionalRequestID(r *http.Request, headerKeys ...string) *string {

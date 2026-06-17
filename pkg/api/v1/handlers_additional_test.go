@@ -354,7 +354,11 @@ func TestPrivacyRevealFailurePaths(t *testing.T) {
 		t.Fatalf("rate-limit status: got %d want %d body=%s", rr.Code, http.StatusTooManyRequests, rr.Body.String())
 	}
 
-	srv.bundlePath = t.TempDir()
+	// Force a sidecar write failure by pointing the sidecar path at a directory.
+	srv.bundlePath = filepath.Join(t.TempDir(), "blocked")
+	if err := os.Mkdir(srv.revealSidecarPath(), 0o755); err != nil {
+		t.Fatalf("create blocking dir: %v", err)
+	}
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/privacy/reveal", strings.NewReader(`{"seq":1,"field_path":"email"}`))
 	req.Header.Set(revealAuthHeader, "test-token")
 	rr = httptest.NewRecorder()

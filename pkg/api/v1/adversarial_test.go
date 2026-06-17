@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/pcguest/atb/internal/bundle"
 )
 
 func TestPrivacyRevealAuditAndMasking(t *testing.T) {
@@ -50,22 +52,32 @@ func TestPrivacyRevealAuditAndMasking(t *testing.T) {
 		t.Fatalf("unexpected revealed value: %v", revealResp.Value)
 	}
 
-	// 3. Confirm audit record was appended to the bundle
-	if len(b.Records) != 4 {
-		t.Fatalf("expected 4 records (3 original + 1 reveal audit), got %d", len(b.Records))
+	// 3. Confirm the authoritative bundle was NOT mutated by the reveal.
+	if len(b.Records) != 3 {
+		t.Fatalf("expected the authoritative bundle to stay at 3 records, got %d", len(b.Records))
 	}
-	lastRecord := b.Records[3]
+	if err := b.Verify(); err != nil {
+		t.Fatalf("authoritative bundle integrity broken after reveal: %v", err)
+	}
+
+	// 4. Confirm the reveal audit was recorded in the sidecar with its own chain.
+	sidecar, err := bundle.LoadVerified(bundlePath + ".reveals")
+	if err != nil {
+		t.Fatalf("load reveal sidecar: %v", err)
+	}
+	if len(sidecar.Records) != 2 {
+		t.Fatalf("expected sidecar to hold manifest + 1 reveal, got %d records", len(sidecar.Records))
+	}
+	lastRecord := sidecar.Records[1]
 	if lastRecord.Event.Type != "privacy.reveal" {
-		t.Fatalf("expected last record to be privacy.reveal, got %s", lastRecord.Event.Type)
+		t.Fatalf("expected sidecar record to be privacy.reveal, got %s", lastRecord.Event.Type)
 	}
 	auditData := lastRecord.Event.Data.(map[string]any)
 	if auditData["field_path"] != "email" || fmt.Sprintf("%v", auditData["seq"]) != "1" {
 		t.Fatalf("unexpected audit data: %+v", auditData)
 	}
-
-	// 4. Verify bundle integrity remains valid after audit append
-	if err := b.Verify(); err != nil {
-		t.Fatalf("bundle integrity broken after audit append: %v", err)
+	if auditData["source_head_hash"] != b.Records[len(b.Records)-1].Hash {
+		t.Fatalf("reveal not bound to authoritative bundle head: %+v", auditData)
 	}
 }
 
