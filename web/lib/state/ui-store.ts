@@ -7,6 +7,12 @@ import type { DashboardRole } from "@/lib/roles";
 
 export type ThemeMode = "dark" | "light";
 
+type StringStorage = {
+  getItem: (name: string) => string | null;
+  setItem: (name: string, value: string) => void;
+  removeItem: (name: string) => void;
+};
+
 type UIStoreState = {
   role: DashboardRole;
   theme: ThemeMode;
@@ -23,6 +29,26 @@ const defaultState: Pick<UIStoreState, "role" | "theme" | "sidebarOpen"> = {
   sidebarOpen: false,
 };
 
+function createMemoryStorage(): StringStorage {
+  const values = new Map<string, string>();
+  return {
+    getItem: (name) => values.get(name) ?? null,
+    setItem: (name, value) => {
+      values.set(name, value);
+    },
+    removeItem: (name) => {
+      values.delete(name);
+    },
+  };
+}
+
+function resolveUIStorage(): StringStorage {
+  if (typeof window === "undefined") {
+    return createMemoryStorage();
+  }
+  return window.localStorage;
+}
+
 export const useUIStore = create<UIStoreState>()(
   persist(
     (set) => ({
@@ -37,7 +63,7 @@ export const useUIStore = create<UIStoreState>()(
     }),
     {
       name: "atb-ui-store-v1",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(resolveUIStorage),
       partialize: (state) => ({
         role: state.role,
         theme: state.theme,

@@ -14,6 +14,7 @@ describe("eventFamily", () => {
   it("categorises the forensic accountability events", () => {
     expect(eventFamily("ai.action.error")).toBe("action");
     expect(eventFamily("ai.action.executed")).toBe("action");
+    expect(eventFamily("data.retention.enforced")).toBe("retention");
     expect(eventFamily("ai.policy.decision")).toBe("policy");
   });
 
@@ -62,6 +63,19 @@ describe("eventSummary", () => {
       "export=s3://bucket",
     );
     expect(eventSummary("ai.action.precommit", { action_type: "deploy" })).toBe("action=deploy");
+    expect(eventSummary("data.retention.policy_set", { days: 183 })).toBe("retention=183d");
+    expect(
+      eventSummary("data.retention.enforced", { operation: "s3_object_lock_request", outcome: "request_accepted" }),
+    ).toBe("s3_object_lock_request outcome=request_accepted");
+    expect(
+      eventSummary("atb.human.override", {
+        overridden_action_id: "act-1",
+        identity_evidence: {
+          identity_provider: "idp.example",
+          subject: "reviewer-1",
+        },
+      }),
+    ).toBe("override=act-1 reviewer=idp.example/reviewer-1");
     expect(
       eventSummary("ai.action.executed", {
         execution_outcome: "success",

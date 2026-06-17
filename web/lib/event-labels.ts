@@ -21,6 +21,7 @@ export const FRIENDLY_EVENT_LABELS: Record<string, string> = {
   "ai.action.precommit": "Action precommit",
   "ai.action.executed": "Action executed",
   "ai.action.committed": "Action committed",
+  "ai.action.error": "Action error",
   "ai.human.approval": "Human approval",
   "ai.job.scheduled": "Job scheduled",
   "ai.job.started": "Job started",
@@ -28,8 +29,20 @@ export const FRIENDLY_EVENT_LABELS: Record<string, string> = {
   "ai.job.completed": "Job completed",
   "data.export.precommit": "Export precommit",
   "data.export.executed": "Export executed",
+  "data.export.error": "Export error",
+  "data.retention.policy_set": "Retention policy set",
+  "data.retention.policy_changed": "Retention policy changed",
+  "data.retention.enforced": "Retention operation",
   "dev.session": "Developer session",
   "privacy.reveal": "Privacy reveal",
+  "atb.capture.scope": "Capture scope",
+  "atb.llm.request": "Captured LLM request",
+  "atb.llm.response": "Captured LLM response",
+  "atb.tool.call": "Captured tool call",
+  "atb.human.approval": "Operator approval",
+  "atb.human.override": "Operator override",
+  "atb.exchange.complete": "Exchange complete",
+  "atb.session.close": "Session closed",
 };
 
 export function usesFriendlyEventLabels(role: DashboardRole): boolean {
