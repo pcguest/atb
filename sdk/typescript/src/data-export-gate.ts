@@ -8,6 +8,7 @@ import {
   newApprovalId,
   valueDigest,
 } from "./workflow-common.js";
+import { identityEvidencePayload, type IdentityEvidence } from "./identity-evidence.js";
 
 export type DataExportGateMode = "log_only" | "enforce";
 
@@ -28,6 +29,8 @@ export interface DataExportApproval {
   approvalOutcome?: "approved" | "denied";
   justificationDigest?: string;
   approvalId?: string;
+  /** Advanced: digest-only caller-provided reviewer identity evidence. */
+  identityEvidence?: IdentityEvidence;
 }
 
 export interface DataExportGateOptions extends WorkflowContextOptions {
@@ -145,13 +148,18 @@ export class DataExportGate {
             approvalOutcome: "approved" as const,
             justificationDigest: canonicalDigest({ reason: "export approved" }),
           };
-    this.ctx.emit("ai.human.approval", {
+    const payload: Record<string, unknown> = {
       approval_id: newApprovalId(approval.approvalId),
       approver_id_hash: approval.approverIdHash,
       approval_outcome: approval.approvalOutcome ?? "approved",
       justification_digest:
         approval.justificationDigest ?? canonicalDigest({ reason: "export approved" }),
       action_id: actionId,
-    });
+    };
+    const identityEvidence = identityEvidencePayload(approval.identityEvidence);
+    if (identityEvidence) {
+      payload.identity_evidence = identityEvidence;
+    }
+    this.ctx.emit("ai.human.approval", payload);
   }
 }

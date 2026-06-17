@@ -53,6 +53,31 @@ console.log(result.signatures);
 
 To verify a bundle against a profile, use the Go CLI: `atb verify --bundle <path> --profile <profile-id>`. The TypeScript SDK does not include a verifier.
 
+## Optional reviewer identity evidence
+
+Oversight gates accept advanced, digest-only identity context:
+
+```ts
+import type { ActionGateInput } from "@pcguest/atb-sdk";
+
+const action: ActionGateInput = {
+  actionType: "deploy",
+  targetResourceId: "production/api",
+  intendedEffect: "release candidate",
+  actionParameters: { version: "2026.06" },
+  identityEvidence: {
+    identityProvider: "https://idp.example",
+    subject: "reviewer@example",
+    authContext: "mfa",
+    assertionType: "jwt",
+    assertionDigest: "sha256:...",
+  },
+};
+```
+
+Retain and verify the original assertion in your IdP/JWKS/PKI workflow. ATB
+hash-chains the supplied digest but does not authenticate the subject.
+
 ## Vercel AI SDK integration
 
 For Vercel AI SDK middleware guidance, see [docs/integrations/](../../docs/integrations/README.md).

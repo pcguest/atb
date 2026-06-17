@@ -79,10 +79,24 @@ describe("oversight emitters", () => {
       approvedActionId: "action-42",
       approverId: "bob",
       note: "LGTM",
+      identityEvidence: {
+        identityProvider: "https://idp.example",
+        subject: "bob",
+        authContext: "mfa",
+        assertionType: "jwt",
+        assertionDigest: "sha256:assertion",
+      },
     });
     expect(stub.events[0].type).toBe(HUMAN_APPROVAL);
     expect(stub.events[0].payload.approved_action_id).toBe("action-42");
     expect(stub.events[0].payload.approver_id).toBe("bob");
+    expect(stub.events[0].payload.identity_evidence).toEqual({
+      identity_provider: "https://idp.example",
+      subject: "bob",
+      auth_context: "mfa",
+      assertion_type: "jwt",
+      assertion_digest: "sha256:assertion",
+    });
   });
 
   it("sessionId propagated from context into payload", () => {

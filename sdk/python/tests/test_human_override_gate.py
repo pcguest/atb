@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from atb import Bundle
+from atb import Bundle, IdentityEvidence
 from atb.human_override_gate import (
     HumanOverrideActionInput,
     HumanOverrideApprovalInput,
@@ -65,3 +65,32 @@ def test_human_override_gate_records_principal_on_precommit() -> None:
         if record.event["type"] == "ai.action.precommit"
     )
     assert precommit["principal"] == {"type": "human", "id_hash": "sha256:op-1"}
+
+
+def test_human_override_gate_records_reviewer_identity_evidence() -> None:
+    bundle = Bundle()
+    gate = HumanOverrideGate(bundle=bundle, actor_id="actor-1")
+    action = HumanOverrideActionInput(
+        action_type="override_action",
+        target_resource_id="svc-1",
+        intended_effect="run override",
+        action_parameters={"x": 1},
+    )
+    approval = HumanOverrideApprovalInput(
+        approver_id_hash="sha256:approver",
+        identity_evidence=IdentityEvidence(
+            identity_provider="https://idp.example",
+            subject="reviewer-1",
+            assertion_type="jwt",
+            assertion_digest="sha256:assertion",
+        ),
+    )
+
+    gate.run(action, approval, lambda: "ok")
+
+    approval_event = next(
+        record.event["data"]
+        for record in bundle.records
+        if record.event["type"] == "ai.human.approval"
+    )
+    assert approval_event["identity_evidence"]["subject"] == "reviewer-1"

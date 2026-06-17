@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
 from atb.exceptions import ATBError
+from atb.identity_evidence import IdentityEvidence, identity_evidence_payload
 from atb.workflow_common import (
     WorkflowContext,
     actor_id_hash,
@@ -35,6 +36,15 @@ class DataExportInput:
     request_id: str | None = None
 
 
+@dataclass(frozen=True)
+class DataExportApproval:
+    approver_id_hash: str
+    approval_outcome: Literal["approved", "denied"] = "approved"
+    justification_digest: str | None = None
+    approval_id: str | None = None
+    identity_evidence: IdentityEvidence | None = None
+
+
 class DataExportGate:
     def __init__(
         self,
@@ -42,7 +52,7 @@ class DataExportGate:
         *,
         mode: Literal["log_only", "enforce"] = "log_only",
         policy: Callable[[DataExportInput], Mapping[str, Any]] | None = None,
-        record_approval: bool = True,
+        record_approval: bool | Callable[[DataExportInput], DataExportApproval] = True,
         auto_save: bool = False,
         save_path: str | None = None,
         actor_id: str | None = None,
@@ -77,7 +87,9 @@ class DataExportGate:
             {
                 "action_id": action_id,
                 "action_type": export_action.action_type,
-                "action_parameters_digest": canonical_digest(dict(export_action.action_parameters)),
+                "action_parameters_digest": canonical_digest(
+                    dict(export_action.action_parameters)
+                ),
                 "target_resource_id": export_action.target_resource_id,
                 "intended_effect": export_action.intended_effect,
             },
@@ -89,7 +101,9 @@ class DataExportGate:
             self.ctx.policy_payload(action_id, decision, export_action.subject_id),
         )
         if decision.get("decision") == "deny" and self.mode == "enforce":
-            raise DataExportDeniedError(f"data export denied by policy for action_id {action_id}")
+            raise DataExportDeniedError(
+                f"data export denied by policy for action_id {action_id}"
+            )
 
         started = time.perf_counter()
         try:
@@ -100,10 +114,12 @@ class DataExportGate:
                     "action_id": action_id,
                     "execution_outcome": "success",
                     "tool_receipt_digest": value_digest(result),
-                    "execution_duration_ms": max(0, int((time.perf_counter() - started) * 1000)),
+                    "execution_duration_ms": max(
+                        0, int((time.perf_counter() - started) * 1000)
+                    ),
                 },
             )
-            self._maybe_record_approval(action_id)
+            self._maybe_record_approval(action_id, export_action)
             return result
         except Exception as exc:
             # A data export that raised did not complete: record the forensic
@@ -116,19 +132,31 @@ class DataExportGate:
                     "error_detail_digest": value_digest(exc),
                 },
             )
-            self._maybe_record_approval(action_id)
+            self._maybe_record_approval(action_id, export_action)
             raise
 
-    def _maybe_record_approval(self, action_id: str) -> None:
+    def _maybe_record_approval(
+        self, action_id: str, export_action: DataExportInput | None = None
+    ) -> None:
         if not self.record_approval:
             return
-        self.ctx.emit(
-            "ai.human.approval",
-            {
-                "approval_id": new_approval_id(),
-                "approver_id_hash": actor_id_hash(self.actor_id),
-                "approval_outcome": "approved",
-                "justification_digest": canonical_digest({"reason": "export approved"}),
-                "action_id": action_id,
-            },
+        approval = (
+            self.record_approval(export_action)
+            if callable(self.record_approval) and export_action is not None
+            else DataExportApproval(
+                approver_id_hash=actor_id_hash(self.actor_id),
+                justification_digest=canonical_digest({"reason": "export approved"}),
+            )
         )
+        payload: dict[str, Any] = {
+            "approval_id": new_approval_id(approval.approval_id),
+            "approver_id_hash": approval.approver_id_hash,
+            "approval_outcome": approval.approval_outcome,
+            "justification_digest": approval.justification_digest
+            or canonical_digest({"reason": "export approved"}),
+            "action_id": action_id,
+        }
+        identity_evidence = identity_evidence_payload(approval.identity_evidence)
+        if identity_evidence is not None:
+            payload["identity_evidence"] = identity_evidence
+        self.ctx.emit("ai.human.approval", payload)

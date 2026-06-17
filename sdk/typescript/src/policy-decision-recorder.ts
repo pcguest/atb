@@ -15,7 +15,7 @@ export interface PolicyDecisionActionInput {
   requestId?: string;
 }
 
-export interface PolicyDecisionRecorderOptions extends WorkflowContextOptions {}
+export type PolicyDecisionRecorderOptions = WorkflowContextOptions;
 
 /** Records policy-decision profile events without executing an action. */
 export class PolicyDecisionRecorder {

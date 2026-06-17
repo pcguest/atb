@@ -19,14 +19,13 @@ import pytest
 
 from atb.canonicalize import canonicalize
 from atb.hash import compute_hash
+from atb.workflow_common import WorkflowContext
 
-VECTORS_PATH = (
-    Path(__file__).resolve().parents[3]
-    / "internal"
-    / "hash"
-    / "testdata"
-    / "canonical_vectors.json"
+TESTDATA_DIR = (
+    Path(__file__).resolve().parents[3] / "internal" / "hash" / "testdata"
 )
+VECTORS_PATH = TESTDATA_DIR / "canonical_vectors.json"
+POLICY_DEFAULTS_PATH = TESTDATA_DIR / "policy_decision_defaults.json"
 
 
 def _load_vectors() -> list[dict]:
@@ -69,3 +68,12 @@ def test_canonical_vector(vector: dict) -> None:
         f"  expected: {expected_hash}\n"
         f"  got:      {got_hash}"
     )
+
+
+def test_policy_decision_defaults_match_shared_fixture() -> None:
+    """A policy decision with only the required field must resolve to the
+    shared default payload. The TypeScript SDK asserts the same fixture, so
+    drift in either SDK's defaults fails the golden gate."""
+    fixture = json.loads(POLICY_DEFAULTS_PATH.read_text(encoding="utf-8"))
+    payload = WorkflowContext().policy_payload(fixture["action_id"], fixture["input"])
+    assert payload == fixture["expected_payload"]

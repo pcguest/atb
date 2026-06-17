@@ -3,6 +3,7 @@ import { Bundle } from "./bundle.js";
 import { canonicalize } from "./canonicalize.js";
 import { normalizeOptionalIdentity } from "./event.js";
 import type { WorkflowEventSink } from "./workflow-common.js";
+import { identityEvidencePayload, type IdentityEvidence } from "./identity-evidence.js";
 
 const DEFAULT_SAVE_PATH = "run.atb/bundle.atb";
 
@@ -28,6 +29,8 @@ export interface ActionGateInput {
   principal?: ActionPrincipal;
   /** Permission scope, role, or grant the action runs under (recorded on executed). */
   effectiveScope?: string;
+  /** Advanced: digest-only caller-provided identity evidence. */
+  identityEvidence?: IdentityEvidence;
 }
 
 /** Serialise an ActionPrincipal to the snake_case event payload shape. */
@@ -148,6 +151,10 @@ export class ActionGate {
     if (principal) {
       precommit.principal = principal;
     }
+    const identityEvidence = identityEvidencePayload(action.identityEvidence);
+    if (identityEvidence) {
+      precommit.identity_evidence = identityEvidence;
+    }
     this.emit("ai.action.precommit", precommit);
 
     const rawDecision = await this.policy(action);
@@ -216,6 +223,10 @@ export class ActionGate {
     if (subjectIdHash !== undefined) {
       payload.subject_id_hash = subjectIdHash;
     }
+    const identityEvidence = identityEvidencePayload(action.identityEvidence);
+    if (identityEvidence) {
+      payload.identity_evidence = identityEvidence;
+    }
     return payload;
   }
 
@@ -234,6 +245,10 @@ export class ActionGate {
     };
     if (action.effectiveScope && action.effectiveScope.trim() !== "") {
       payload.effective_scope = action.effectiveScope.trim();
+    }
+    const identityEvidence = identityEvidencePayload(action.identityEvidence);
+    if (identityEvidence) {
+      payload.identity_evidence = identityEvidence;
     }
     return payload;
   }

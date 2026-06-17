@@ -36,4 +36,33 @@ describe("DataExportGate", () => {
     expect(error.error_class).toBe("exception");
     expect(String(error.error_detail_digest)).toMatch(/^sha256:/);
   });
+
+  it("records reviewer identity evidence on generated approval", async () => {
+    const bundle = new Bundle();
+    const gate = new DataExportGate({
+      bundle,
+      actorId: "actor-1",
+      recordApproval: () => ({
+        approverIdHash: "sha256:reviewer",
+        identityEvidence: {
+          identityProvider: "https://idp.example",
+          subject: "reviewer-1",
+          assertionType: "x509",
+          assertionDigest: "sha256:certificate",
+        },
+      }),
+    });
+
+    await gate.run(action, async () => "ok");
+
+    const approval = bundle.records.find(
+      (record) => record.event.type === "ai.human.approval",
+    )!.event.data as Record<string, unknown>;
+    expect(approval.identity_evidence).toEqual({
+      identity_provider: "https://idp.example",
+      subject: "reviewer-1",
+      assertion_type: "x509",
+      assertion_digest: "sha256:certificate",
+    });
+  });
 });

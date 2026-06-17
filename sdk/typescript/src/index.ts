@@ -33,7 +33,7 @@
  */
 
 /** Current SDK package version. */
-export const SDK_VERSION = "1.12.0";
+export const SDK_VERSION = "1.15.0";
 
 /**
  * @returns SDK version and hash-chain algorithm metadata.
@@ -75,6 +75,8 @@ export type {
   AnthropicMessagesResponse,
 } from "./sdk-capture.js";
 export { normalizeOptionalIdentity, prepareForCanonical } from "./event.js";
+export { identityEvidencePayload } from "./identity-evidence.js";
+export type { IdentityEvidence } from "./identity-evidence.js";
 export type {
   ActionGateDecision,
   ActionGateInput,

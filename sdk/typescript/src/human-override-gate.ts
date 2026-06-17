@@ -7,6 +7,7 @@ import {
   newApprovalId,
   valueDigest,
 } from "./workflow-common.js";
+import { identityEvidencePayload, type IdentityEvidence } from "./identity-evidence.js";
 
 export type HumanOverrideGateMode = "log_only" | "enforce";
 
@@ -25,6 +26,8 @@ export interface HumanOverrideApprovalInput {
   approvalOutcome?: "approved" | "denied";
   justificationDigest?: string;
   approvalId?: string;
+  /** Advanced: digest-only caller-provided reviewer identity evidence. */
+  identityEvidence?: IdentityEvidence;
 }
 
 export interface HumanOverrideGateOptions extends WorkflowContextOptions {
@@ -64,14 +67,19 @@ export class HumanOverrideGate {
     const actionId = newActionId(action.actionId);
     const outcome = approval.approvalOutcome ?? "approved";
 
-    this.ctx.emit("ai.human.approval", {
+    const approvalPayload: Record<string, unknown> = {
       approval_id: newApprovalId(approval.approvalId),
       approver_id_hash: approval.approverIdHash,
       approval_outcome: outcome,
       justification_digest:
         approval.justificationDigest ?? canonicalDigest({ reason: "human override" }),
       action_id: actionId,
-    });
+    };
+    const identityEvidence = identityEvidencePayload(approval.identityEvidence);
+    if (identityEvidence) {
+      approvalPayload.identity_evidence = identityEvidence;
+    }
+    this.ctx.emit("ai.human.approval", approvalPayload);
 
     const precommit: Record<string, unknown> = {
       action_id: actionId,
