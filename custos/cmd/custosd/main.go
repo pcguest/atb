@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
@@ -9,6 +10,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -16,6 +18,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pcguest/atb/pkg/custody"
 	"github.com/pcguest/custos/internal/auth"
@@ -27,37 +30,75 @@ import (
 )
 
 func main() {
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(args []string, stdout, stderr io.Writer) int {
 	// Added: Filesystem stores are the default for real custody daemon runs.
-	wormDir := flag.String("worm-dir", "~/.atb/custos/worm", "directory for immutable ATB bundle storage")
+	flagSet := flag.NewFlagSet("custosd", flag.ContinueOnError)
+	flagSet.SetOutput(stderr)
+
+	wormDir := flagSet.String("worm-dir", "~/.atb/custos/worm", "directory for immutable ATB bundle storage")
 	// Added: Receipt JSON storage is configurable independently from WORM bundle storage.
-	receiptDir := flag.String("receipt-dir", "~/.atb/custos/receipts", "directory for receipt JSON storage")
+	receiptDir := flagSet.String("receipt-dir", "~/.atb/custos/receipts", "directory for receipt JSON storage")
+	receiptMaxAgeDays := flagSet.Int("receipt-max-age-days", 0, "maximum age in days for receipts (0 for no limit)")
+	receiptMaxCount := flagSet.Int("receipt-max-count", 0, "maximum number of receipts to keep (0 for no limit)")
+
+	s3Bucket := flagSet.String("s3-bucket", "", "S3 bucket name for storage")
+	s3Region := flagSet.String("s3-region", "", "S3 region (e.g., us-east-1)")
+	s3Endpoint := flagSet.String("s3-endpoint", "", "S3 endpoint URL (optional, for S3-compatible services)")
+	cleanupInterval := flagSet.Duration("cleanup-interval", 1*time.Hour, "interval for running retention policy cleanup (e.g., 1h, 30m, 0 to disable)")
+
+	oidcIssuer := flagSet.String("oidc-issuer", "", "OIDC issuer URL (e.g., https://accounts.google.com)")
+	oidcAudience := flagSet.String("oidc-audience", "", "OIDC audience for JWT validation")
+	defaultRole := flagSet.String("default-role", string(auth.RoleViewer), "Default role for authenticated users without explicit role claims")
+
 	// Added: Default bind interface is loopback so a fresh daemon is not reachable from the network.
-	host := flag.String("host", "127.0.0.1", "listen interface (use 0.0.0.0 to bind all interfaces; review auth before exposing)")
+	host := flagSet.String("host", "127.0.0.1", "listen interface (use 0.0.0.0 to bind all interfaces; review auth before exposing)")
 	// Added: Port is a separate flag so operators can rebind without rewriting --host semantics.
-	port := flag.Int("port", 9090, "listen port")
+	port := flagSet.Int("port", 9090, "listen port")
 	// Added: Bounding the ingest body keeps a large or malicious upload from
 	// being buffered fully into memory before verification.
-	maxIngestBytes := flag.Int64("max-ingest-bytes", defaultMaxIngestBytes, "maximum accepted /ingest body size in bytes")
+	maxIngestBytes := flagSet.Int64("max-ingest-bytes", defaultMaxIngestBytes, "maximum accepted /ingest body size in bytes")
 	// Added: Parsing early ensures store selection reflects explicit CLI configuration.
-	flag.Parse()
+	if err := flagSet.Parse(args); err != nil {
+		return 1
+	}
 
-	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+	logger := slog.New(slog.NewTextHandler(stderr, nil))
 
 	// Added: Store construction centralises filesystem defaults and test-only in-memory fallback.
-	wormStore, receiptStore, err := buildStores(*wormDir, *receiptDir)
+	wormStore, receiptStore, err := buildStores(*wormDir, *receiptDir, *receiptMaxAgeDays, *receiptMaxCount, *s3Bucket, *s3Region, *s3Endpoint)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "custosd: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "custosd: %v\n", err)
+		return 1
 	}
 	signer, err := loadOrCreateReceiptSigner(*receiptDir, logger)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "custosd: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "custosd: %v\n", err)
+		return 1
 	}
 	ingestHandler := ingest.IngestHandler{
 		WORMStore:    wormStore,
 		ReceiptStore: receiptStore,
 		Signer:       signer,
+	}
+
+	// Start periodic cleanup if enabled
+	if *cleanupInterval > 0 {
+		logger.Info("starting periodic cleanup", "interval", *cleanupInterval)
+		go func() {
+			ticker := time.NewTicker(*cleanupInterval)
+			defer ticker.Stop()
+			for range ticker.C {
+				logger.Info("running retention policy cleanup")
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute) // Give cleanup a timeout
+				if err := receiptStore.CleanUp(ctx); err != nil {
+					logger.Error("retention policy cleanup failed", "err", err)
+				}
+				cancel()
+			}
+		}()
 	}
 
 	mux := newMux(ingestHandler, wormStore, receiptStore, *maxIngestBytes, logger)
@@ -67,34 +108,63 @@ func main() {
 	// route except GET /health.
 	authToken := os.Getenv("CUSTOS_AUTH_TOKEN")
 
+	var jwtValidator *auth.JWTValidator
+	if *oidcIssuer != "" && *oidcAudience != "" {
+		var err error
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		jwtValidator, err = auth.NewJWTValidator(ctx, *oidcIssuer, *oidcAudience)
+		cancel()
+		if err != nil {
+			fmt.Fprintf(stderr, "custosd: failed to create JWT validator: %v\n", err)
+			return 1
+		}
+		logger.Info("OIDC/JWT authentication enabled", "issuer", *oidcIssuer, "audience", *oidcAudience)
+	}
+
 	// Added: An unauthenticated daemon must never bind a non-loopback
 	// interface. Loopback + empty token stays convenient for local dev; any
 	// other interface without a token is rejected at startup.
 	if err := validateBindConfig(*host, authToken); err != nil {
-		fmt.Fprintf(os.Stderr, "custosd: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "custosd: %v\n", err)
+		return 1
 	}
-	var handler http.Handler = mux
-	if authToken != "" {
-		handler = auth.Middleware(authToken, mux)
-		logger.Info("Custos auth enabled", "source", "CUSTOS_AUTH_TOKEN")
+	var handler http.Handler
+	if authToken != "" || jwtValidator != nil {
+		handler = auth.Middleware(authToken, jwtValidator, auth.Role(*defaultRole), mux)
+		if authToken != "" {
+			logger.Info("Custos auth enabled", "source", "CUSTOS_AUTH_TOKEN")
+		}
 	} else {
-		logger.Warn("CUSTOS_AUTH_TOKEN not set; daemon is unauthenticated — do not expose to untrusted networks")
+		handler = auth.Middleware("", nil, auth.RoleAdmin, mux)
+		logger.Warn("CUSTOS_AUTH_TOKEN and OIDC not set; daemon is unauthenticated — do not expose to untrusted networks")
 	}
 
 	// Added: Compose the bind address from --host and --port via net.JoinHostPort
 	// so the listener does not silently bind every interface.
 	addr := net.JoinHostPort(*host, strconv.Itoa(*port))
 	logger.Info("custosd listening", "addr", addr)
-	if err := http.ListenAndServe(addr, handler); err != nil { // #nosec G114 -- intentional bare HTTP; loopback-by-default and operator-controlled TLS termination
-		fmt.Fprintf(os.Stderr, "custosd: %v\n", err)
-		os.Exit(1)
+	if err := newHTTPServer(addr, handler).ListenAndServe(); err != nil {
+		fmt.Fprintf(stderr, "custosd: %v\n", err)
+		return 1
 	}
+	return 0
 }
 
 // defaultMaxIngestBytes bounds the /ingest request body (32 MiB) unless an
 // operator overrides it with --max-ingest-bytes.
 const defaultMaxIngestBytes = 32 << 20
+
+func newHTTPServer(addr string, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    1 << 20,
+	}
+}
 
 // newMux builds the custosd HTTP routes. Extracted from main so handler
 // behaviour (size limits, status codes) is testable without a live listener.
@@ -116,6 +186,9 @@ func newMux(
 	mux.HandleFunc("/ingest", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkRole(w, r, auth.RoleOperator) {
 			return
 		}
 
@@ -173,6 +246,9 @@ func newMux(
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !checkRole(w, r, auth.RoleViewer) {
+			return
+		}
 		handleListReceipts(w, r, receiptStore, logger)
 	})
 
@@ -183,12 +259,18 @@ func newMux(
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		if !checkRole(w, r, auth.RoleViewer) {
+			return
+		}
 		handleFindReceiptsByHash(w, r, receiptStore, logger)
 	})
 
 	mux.HandleFunc("/receipts/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !checkRole(w, r, auth.RoleViewer) {
 			return
 		}
 
@@ -213,6 +295,16 @@ func newMux(
 	})
 
 	return mux
+}
+
+// checkRole is a helper function to check if the authenticated user has the required role.
+func checkRole(w http.ResponseWriter, r *http.Request, requiredRole auth.Role) bool {
+	role, ok := auth.GetRoleFromContext(r.Context())
+	if !ok || !role.HasPermission(requiredRole) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 // validateBindConfig rejects an unauthenticated daemon bound to a non-loopback
@@ -464,26 +556,68 @@ func loadOrCreateReceiptSigner(receiptDir string, logger *slog.Logger) (*receipt
 	return receipt.NewSigner(priv)
 }
 
-func buildStores(wormDir string, receiptDir string) (receipt.WORMStore, receipt.ReceiptStore, error) {
+func buildStores(wormDir string, receiptDir string, receiptMaxAgeDays int, receiptMaxCount int, s3Bucket, s3Region, s3Endpoint string) (receipt.WORMStore, receipt.ReceiptStore, error) {
 	// Added: Empty flags are reserved for test harnesses that need ephemeral in-memory state.
-	if wormDir == "" && receiptDir == "" {
+	if wormDir == "" && receiptDir == "" && s3Bucket == "" {
 		return receipt.NewInMemoryWORMStore(), receipt.NewInMemoryReceiptStore(), nil
 	}
-	// Added: A half-configured daemon would lose either bundles or receipts, so reject it.
-	if wormDir == "" || receiptDir == "" {
-		return nil, nil, errors.New("worm-dir and receipt-dir must both be set or both be empty")
+
+	// Determine storage type
+	useS3 := s3Bucket != ""
+	useFilesystem := wormDir != "" || receiptDir != ""
+
+	if useS3 && useFilesystem {
+		return nil, nil, errors.New("cannot configure both filesystem and S3 storage simultaneously")
 	}
-	// Added: Tilde expansion keeps defaults local-first without third-party path helpers.
-	expandedWORMDir, err := expandHome(wormDir)
-	if err != nil {
-		return nil, nil, fmt.Errorf("expand worm-dir: %w", err)
+	if !useS3 && !useFilesystem {
+		return nil, nil, errors.New("no storage backend configured")
 	}
-	// Added: Tilde expansion keeps receipt storage under the user's local home by default.
-	expandedReceiptDir, err := expandHome(receiptDir)
-	if err != nil {
-		return nil, nil, fmt.Errorf("expand receipt-dir: %w", err)
+
+	if useFilesystem {
+		// Added: A half-configured daemon would lose either bundles or receipts, so reject it.
+		if wormDir == "" || receiptDir == "" {
+			return nil, nil, fmt.Errorf("worm-dir and receipt-dir must both be set or both be empty for filesystem storage")
+		}
+		// Added: Tilde expansion keeps defaults local-first without third-party path helpers.
+		expandedWORMDir, err := expandHome(wormDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("expand worm-dir: %w", err)
+		}
+		// Added: Tilde expansion keeps receipt storage under the user's local home by default.
+		expandedReceiptDir, err := expandHome(receiptDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("expand receipt-dir: %w", err)
+		}
+		policy := receipt.RetentionPolicy{
+			MaxAgeDays: receiptMaxAgeDays,
+			MaxCount:   receiptMaxCount,
+		}
+		return receipt.NewFileSystemWORMStore(expandedWORMDir), receipt.NewFileSystemReceiptStore(expandedReceiptDir, policy), nil
 	}
-	return receipt.NewFileSystemWORMStore(expandedWORMDir), receipt.NewFileSystemReceiptStore(expandedReceiptDir), nil
+
+	// S3 storage
+	if useS3 {
+		if s3Bucket == "" {
+			return nil, nil, errors.New("s3-bucket must be specified for S3 storage")
+		}
+		if s3Region == "" {
+			return nil, nil, errors.New("s3-region must be specified for S3 storage")
+		}
+
+		s3WORMStore, err := receipt.NewS3WORMStore(context.Background(), s3Bucket, s3Region, s3Endpoint)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create S3 WORM store: %w", err)
+		}
+		s3ReceiptStore, err := receipt.NewS3ReceiptStore(context.Background(), s3Bucket, s3Region, s3Endpoint, receipt.RetentionPolicy{
+			MaxAgeDays: receiptMaxAgeDays,
+			MaxCount:   receiptMaxCount,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to create S3 Receipt store: %w", err)
+		}
+		return s3WORMStore, s3ReceiptStore, nil
+	}
+	return nil, nil, errors.New("unreachable")
 }
 
 // expandHome expands a leading ~/ path using the current user's home directory.

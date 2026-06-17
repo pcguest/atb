@@ -22,7 +22,7 @@ func (e *echoOK) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 func TestAuthMiddleware_NoToken(t *testing.T) {
 	t.Parallel()
 	next := &echoOK{}
-	mw := Middleware("", next)
+	mw := Middleware("", nil, RoleViewer, next)
 
 	req := httptest.NewRequest(http.MethodGet, "/any-route", nil)
 	rec := httptest.NewRecorder()
@@ -39,7 +39,7 @@ func TestAuthMiddleware_NoToken(t *testing.T) {
 func TestAuthMiddleware_WrongToken(t *testing.T) {
 	t.Parallel()
 	next := &echoOK{}
-	mw := Middleware("correct-token", next)
+	mw := Middleware("correct-token", nil, RoleViewer, next)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/bundles", nil)
 	req.Header.Set("Authorization", "Bearer wrong")
@@ -69,7 +69,7 @@ func TestAuthMiddleware_WrongToken(t *testing.T) {
 func TestAuthMiddleware_CorrectToken(t *testing.T) {
 	t.Parallel()
 	next := &echoOK{}
-	mw := Middleware("correct-token", next)
+	mw := Middleware("correct-token", nil, RoleViewer, next)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/bundles", nil)
 	req.Header.Set("Authorization", "Bearer correct-token")
@@ -87,7 +87,7 @@ func TestAuthMiddleware_CorrectToken(t *testing.T) {
 func TestAuthMiddleware_HealthBypass(t *testing.T) {
 	t.Parallel()
 	next := &echoOK{}
-	mw := Middleware("correct-token", next)
+	mw := Middleware("correct-token", nil, RoleViewer, next)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
@@ -107,7 +107,7 @@ func TestAuthMiddleware_CustodyKeyBypass(t *testing.T) {
 	// token, even when auth is enabled — it is not secret and a holder needs it
 	// to verify an attestation out-of-band.
 	next := &echoOK{}
-	mw := Middleware("correct-token", next)
+	mw := Middleware("correct-token", nil, RoleViewer, next)
 
 	req := httptest.NewRequest(http.MethodGet, "/custody/key", nil)
 	rec := httptest.NewRecorder()
@@ -125,7 +125,7 @@ func TestAuthMiddleware_CustodyKeyNonGetStillGuarded(t *testing.T) {
 	t.Parallel()
 	// The bypass is GET-only; a non-GET to the same path must still require auth.
 	next := &echoOK{}
-	mw := Middleware("correct-token", next)
+	mw := Middleware("correct-token", nil, RoleViewer, next)
 
 	req := httptest.NewRequest(http.MethodPost, "/custody/key", nil)
 	rec := httptest.NewRecorder()

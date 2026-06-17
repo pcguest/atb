@@ -26,7 +26,7 @@ import (
 func TestIngestRoundTripsThroughFilesystemStores(t *testing.T) {
 	dir := t.TempDir()
 	wormStore := receipt.NewFileSystemWORMStore(filepath.Join(dir, "worm"))
-	receiptStore := receipt.NewFileSystemReceiptStore(filepath.Join(dir, "receipts"))
+	receiptStore := receipt.NewFileSystemReceiptStore(filepath.Join(dir, "receipts"), receipt.RetentionPolicy{})
 
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

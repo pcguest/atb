@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pcguest/custos/internal/auth"
 	"github.com/pcguest/custos/internal/ingest"
 	"github.com/pcguest/custos/internal/receipt"
 )
@@ -20,7 +21,7 @@ import (
 // newSeededMux builds a mux over in-memory stores and returns the mux plus the
 // receipt store and a signer, so a test can seed attested receipts directly
 // without ingesting a full bundle.
-func newSeededMux(t *testing.T) (*http.ServeMux, receipt.ReceiptStore, *receipt.Signer) {
+func newSeededMux(t *testing.T) (http.Handler, receipt.ReceiptStore, *receipt.Signer) {
 	t.Helper()
 	worm := receipt.NewInMemoryWORMStore()
 	rcpt := receipt.NewInMemoryReceiptStore()
@@ -34,7 +35,8 @@ func newSeededMux(t *testing.T) (*http.ServeMux, receipt.ReceiptStore, *receipt.
 	}
 	handler := ingest.IngestHandler{WORMStore: worm, ReceiptStore: rcpt, Signer: signer}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return newMux(handler, worm, rcpt, defaultMaxIngestBytes, logger), rcpt, signer
+	mux := newMux(handler, worm, rcpt, defaultMaxIngestBytes, logger)
+	return auth.Middleware("", nil, auth.RoleAdmin, mux), rcpt, signer
 }
 
 func seedAttestedReceipt(t *testing.T, store receipt.ReceiptStore, signer *receipt.Signer, id, bundleHash string) receipt.Receipt {
@@ -43,7 +45,7 @@ func seedAttestedReceipt(t *testing.T, store receipt.ReceiptStore, signer *recei
 		ExportVersion: "verify.report.v1",
 		ReceiptID:     id,
 		BundleHash:    bundleHash,
-		SubmittedAt:   time.Now().UTC().Format(time.RFC3339),
+		SubmittedAt:   time.Now().UTC(),
 		VerifyReport:  json.RawMessage(`{}`),
 	}
 	att := signer.Attest(rec, time.Now())

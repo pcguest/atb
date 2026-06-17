@@ -6,16 +6,18 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/pcguest/custos/internal/receipt"
 )
 
 func rec(id, hash, submittedAt string) receipt.Receipt {
+	t, _ := time.Parse(time.RFC3339, submittedAt)
 	return receipt.Receipt{
 		ExportVersion: "custos.receipt.v1",
 		ReceiptID:     id,
 		BundleHash:    hash,
-		SubmittedAt:   submittedAt,
+		SubmittedAt:   t,
 	}
 }
 

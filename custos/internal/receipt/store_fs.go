@@ -10,17 +10,26 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
+
+// FileSystemReceiptStore stores receipt JSON documents below BaseDir.
+// RetentionPolicy defines how old receipts are cleaned up.
+type RetentionPolicy struct {
+	MaxAgeDays int // Maximum age in days for receipts. 0 means no age limit.
+	MaxCount   int // Maximum number of receipts to keep. 0 means no count limit.
+}
 
 // FileSystemReceiptStore stores receipt JSON documents below BaseDir.
 type FileSystemReceiptStore struct {
 	BaseDir string
+	Version string // New: Storage layout version
+	Policy  RetentionPolicy
 }
 
 // NewFileSystemReceiptStore creates a filesystem-backed receipt store.
-func NewFileSystemReceiptStore(baseDir string) *FileSystemReceiptStore {
-	// Added: The constructor keeps daemon wiring compact while exposing only the configured base path.
-	return &FileSystemReceiptStore{BaseDir: baseDir}
+func NewFileSystemReceiptStore(baseDir string, policy RetentionPolicy) *FileSystemReceiptStore {
+	return &FileSystemReceiptStore{BaseDir: baseDir, Version: "v1", Policy: policy}
 }
 
 // StoreReceipt stores a receipt using the compatibility method name.
@@ -40,7 +49,8 @@ func (s *FileSystemReceiptStore) Save(ctx context.Context, receipt Receipt) erro
 		return errors.New("receipt store: receipt id required")
 	}
 	// Added: The store creates its private base directory lazily with owner-only permissions.
-	if err := os.MkdirAll(s.BaseDir, 0o700); err != nil {
+	receiptDir := filepath.Join(s.BaseDir, s.Version)
+	if err := os.MkdirAll(receiptDir, 0o700); err != nil {
 		return fmt.Errorf("receipt store: create base directory: %w", err)
 	}
 	// Added: The receipt path is validated before any file is opened.
@@ -86,7 +96,7 @@ func (s *FileSystemReceiptStore) Save(ctx context.Context, receipt Receipt) erro
 	}
 	cleanupTemp = false
 	// Added: Directory fsync makes the rename durable before success is reported.
-	if err := fsyncDir(s.BaseDir); err != nil {
+	if err := fsyncDir(receiptDir); err != nil {
 		return fmt.Errorf("receipt store: fsync base directory: %w", err)
 	}
 	return nil
@@ -136,7 +146,7 @@ func (s *FileSystemReceiptStore) List(ctx context.Context) ([]Receipt, error) {
 		return nil, fmt.Errorf("receipt store: stat base directory: %w", err)
 	}
 	// Added: Glob limits listing to receipt JSON files without walking unrelated artefacts.
-	paths, err := filepath.Glob(filepath.Join(s.BaseDir, "*.json"))
+	paths, err := filepath.Glob(filepath.Join(s.BaseDir, s.Version, "*.json"))
 	if err != nil {
 		return nil, fmt.Errorf("receipt store: glob receipts: %w", err)
 	}
@@ -157,9 +167,65 @@ func (s *FileSystemReceiptStore) List(ctx context.Context) ([]Receipt, error) {
 	}
 	// Added: Sorting by SubmittedAt fulfils the current receipt schema's issued-time ordering.
 	sort.Slice(receipts, func(i, j int) bool {
-		return receipts[i].SubmittedAt < receipts[j].SubmittedAt
+		return receipts[i].SubmittedAt.Before(receipts[j].SubmittedAt)
 	})
 	return receipts, nil
+}
+
+// CleanUp applies the configured retention policy to the stored receipts.
+func (s *FileSystemReceiptStore) CleanUp(ctx context.Context) error {
+	if s.Policy.MaxAgeDays == 0 && s.Policy.MaxCount == 0 {
+		return nil // No retention policy configured
+	}
+
+	receipts, err := s.List(ctx)
+	if err != nil {
+		return fmt.Errorf("receipt store: cleanup list receipts: %w", err)
+	}
+
+	// Apply MaxAgeDays policy
+	if s.Policy.MaxAgeDays > 0 {
+		cutoff := time.Now().Add(time.Duration(-s.Policy.MaxAgeDays) * 24 * time.Hour)
+		for _, receipt := range receipts {
+			if receipt.SubmittedAt.Before(cutoff) {
+				if err := s.deleteReceipt(ctx, receipt.ReceiptID); err != nil {
+					log.Printf("receipt store: cleanup failed to delete old receipt %s: %v", receipt.ReceiptID, err)
+				}
+			}
+		}
+		// Re-list after age-based deletion to ensure accurate count for MaxCount policy
+		receipts, err = s.List(ctx)
+		if err != nil {
+			return fmt.Errorf("receipt store: cleanup re-list receipts after age cleanup: %w", err)
+		}
+	}
+
+	// Apply MaxCount policy
+	if s.Policy.MaxCount > 0 && len(receipts) > s.Policy.MaxCount {
+		// Receipts are already sorted by SubmittedAt ascending from List()
+		toDelete := len(receipts) - s.Policy.MaxCount
+		for i := 0; i < toDelete; i++ {
+			if err := s.deleteReceipt(ctx, receipts[i].ReceiptID); err != nil {
+				log.Printf("receipt store: cleanup failed to delete excess receipt %s: %v", receipts[i].ReceiptID, err)
+			}
+		}
+	}
+	return nil
+}
+
+// deleteReceipt removes a receipt file from the store.
+func (s *FileSystemReceiptStore) deleteReceipt(ctx context.Context, receiptID string) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	path, err := s.receiptPath(receiptID)
+	if err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil {
+		return fmt.Errorf("receipt store: remove receipt file %s: %w", path, err)
+	}
+	return nil
 }
 
 // receiptPath resolves a receipt ID to a JSON file within BaseDir.
@@ -173,5 +239,5 @@ func (s *FileSystemReceiptStore) receiptPath(receiptID string) (string, error) {
 	if strings.ContainsAny(receiptID, `/\`) || filepath.Clean(receiptID) != receiptID {
 		return "", errors.New("receipt store: invalid receipt id")
 	}
-	return filepath.Join(s.BaseDir, receiptID+".json"), nil
+	return filepath.Join(s.BaseDir, s.Version, receiptID+".json"), nil
 }

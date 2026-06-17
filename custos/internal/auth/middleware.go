@@ -10,48 +10,95 @@ import (
 	"crypto/subtle"
 	"net/http"
 	"strings"
+
+	atbauth "github.com/pcguest/atb/pkg/auth"
 )
 
-// unauthorisedResponseBody is the exact JSON body returned for failed
-// authentication. Kept as a package-level constant so callers and tests can
-// pin the byte-for-byte response contract.
-const unauthorisedResponseBody = `{"error":"unauthorised","code":401}`
+const (
+	// unauthorisedResponseBody is the exact JSON body returned for failed
+	// authentication. Kept as a package-level constant so callers and tests can
+	// pin the byte-for-byte response contract.
+	unauthorisedResponseBody = `{"error":"unauthorised","code":401}`
+)
 
 // Middleware returns an http.Handler that enforces shared-secret bearer-token
-// authentication around next.
+// authentication and/or OIDC/JWT validation with RBAC around next.
 //
 // Behaviour:
-//   - When token is empty, every request is forwarded to next unchanged.
-//   - When token is non-empty, every request except GET /health and
-//     GET /custody/key must carry Authorization: Bearer <token>. Mismatched or
-//     absent tokens receive a 401 application/json response with the body
-//     {"error":"unauthorised","code":401}.
-//   - Token comparison uses crypto/subtle.ConstantTimeCompare to avoid
-//     timing-based discrimination between near-correct and wholly-wrong
-//     tokens.
-//
-// The bypasses are intentionally limited to GET so non-idempotent methods
-// cannot be used to smuggle requests past the guard. GET /custody/key is open
-// because it serves only the receipt-signing public key — a value that is not
-// secret (it is embedded in every receipt) and must be fetchable out-of-band by
-// a holder who wants to verify an attestation without the operator's token.
-func Middleware(token string, next http.Handler) http.Handler {
+//   - When token is empty and jwtValidator is nil, every request is forwarded to next with defaultRole.
+//   - When token is non-empty, every request except GET /health and GET /custody/key must carry
+//     Authorization: Bearer <token>. Mismatched or absent tokens receive a 401.
+//   - When jwtValidator is non-nil, it attempts to validate a JWT from the Authorization header.
+//     If valid, the role is extracted from claims or defaults to defaultRole.
+//   - If both token and jwtValidator are provided, the shared secret takes precedence.
+//   - Token comparison uses crypto/subtle.ConstantTimeCompare to avoid timing-based
+//     discrimination between near-correct and wholly-wrong tokens.
+//   - The authenticated user's role is stored in the request context.
+func Middleware(sharedSecretToken string, jwtValidator *JWTValidator, defaultRole Role, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if token == "" {
-			next.ServeHTTP(w, r)
-			return
-		}
+		// Bypass for /health and /custody/key GET requests
 		if r.Method == http.MethodGet && (r.URL.Path == "/health" || r.URL.Path == "/custody/key") {
 			next.ServeHTTP(w, r)
 			return
 		}
-		if !hasValidBearerToken(r, token) {
+
+		var authenticatedRole Role = ""
+		var authenticated bool
+
+		// 1. Try shared secret token authentication
+		if sharedSecretToken != "" {
+			if hasValidBearerToken(r, sharedSecretToken) {
+				authenticated = true
+				authenticatedRole = RoleAdmin // Shared secret token implies admin access
+			} else {
+				writeUnauthorised(w)
+				return
+			}
+		}
+
+		// 2. If not authenticated by shared secret, try JWT validation
+		if !authenticated && jwtValidator != nil {
+			authHeader := r.Header.Get("Authorization")
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+				claims, err := jwtValidator.Validate(r.Context(), tokenString)
+				if err != nil {
+					writeUnauthorised(w)
+					return
+				}
+				role, err := jwtValidator.ExtractRole(claims)
+				if err != nil || !role.IsValid() {
+					authenticatedRole = defaultRole // Use default role if no valid role claim
+				} else {
+					authenticatedRole = role
+				}
+				authenticated = true
+			} else {
+				writeUnauthorised(w)
+				return
+			}
+		}
+
+		// 3. If no authentication mechanism is configured, or if authentication failed
+		if !authenticated && sharedSecretToken == "" && jwtValidator == nil {
+			// No authentication configured, allow all access (dev mode)
+			ctx := atbauth.WithRole(r.Context(), defaultRole)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return
+		} else if !authenticated {
+			// Authentication configured but failed
 			writeUnauthorised(w)
 			return
 		}
-		next.ServeHTTP(w, r)
+
+		// Store the authenticated role in context
+		ctx := atbauth.WithRole(r.Context(), authenticatedRole)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
+
+// GetRoleFromContext retrieves the authenticated role from the request context.
+var GetRoleFromContext = atbauth.GetRoleFromContext
 
 // hasValidBearerToken returns true when the request carries an exact
 // Authorization: Bearer <token> header.

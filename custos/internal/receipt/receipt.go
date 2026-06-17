@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 )
 
 // Added: ErrReceiptNotFound lets callers map missing receipts to a stable 404.
@@ -17,7 +18,7 @@ type Receipt struct {
 	ExportVersion string          `json:"export_version"`
 	ReceiptID     string          `json:"receipt_id"`
 	BundleHash    string          `json:"bundle_hash"`
-	SubmittedAt   string          `json:"submitted_at"`
+	SubmittedAt   time.Time       `json:"submitted_at"`
 	ProfileID     string          `json:"profile_id,omitempty"`
 	SubmitterRef  string          `json:"submitter_ref,omitempty"`
 	VerifyReport  json.RawMessage `json:"verify_report"` // Raw JSON from verify.report.v1
@@ -39,6 +40,7 @@ type ReceiptStore interface {
 	Get(ctx context.Context, receiptID string) (Receipt, error)
 	// Added: List returns receipts in stable submitted-at order for custody index views.
 	List(ctx context.Context) ([]Receipt, error)
+	CleanUp(ctx context.Context) error
 	StoreReceipt(ctx context.Context, receipt Receipt) error
 	GetReceipt(ctx context.Context, receiptID string) (Receipt, error)
 }
@@ -110,7 +112,12 @@ func (s *InMemoryReceiptStore) List(ctx context.Context) ([]Receipt, error) {
 	}
 	// Added: Sorting by SubmittedAt gives deterministic custody receipt listings.
 	sort.Slice(receipts, func(i, j int) bool {
-		return receipts[i].SubmittedAt < receipts[j].SubmittedAt
+		return receipts[i].SubmittedAt.Before(receipts[j].SubmittedAt)
 	})
 	return receipts, nil
+}
+
+// CleanUp is a no-op for the in-memory test store.
+func (s *InMemoryReceiptStore) CleanUp(ctx context.Context) error {
+	return ctx.Err()
 }

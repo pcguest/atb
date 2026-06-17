@@ -48,10 +48,14 @@ func attestationMessage(bundleHash, receiptID, submittedAt, signedAt string) []b
 	return []byte(bundleHash + "\n" + receiptID + "\n" + submittedAt + "\n" + signedAt)
 }
 
+func receiptSubmittedAtString(t time.Time) string {
+	return t.UTC().Format(time.RFC3339)
+}
+
 // Attest returns a signed attestation over the receipt's custody facts.
 func (s *Signer) Attest(r Receipt, signedAt time.Time) Attestation {
 	at := signedAt.UTC().Format(time.RFC3339)
-	msg := attestationMessage(r.BundleHash, r.ReceiptID, r.SubmittedAt, at)
+	msg := attestationMessage(r.BundleHash, r.ReceiptID, receiptSubmittedAtString(r.SubmittedAt), at)
 	sig := ed25519.Sign(s.priv, msg)
 	pub := s.priv.Public().(ed25519.PublicKey)
 	return Attestation{
@@ -80,7 +84,7 @@ func VerifyAttestation(r Receipt) error {
 	if err != nil {
 		return errors.New("custos: invalid attestation signature encoding")
 	}
-	msg := attestationMessage(r.BundleHash, r.ReceiptID, r.SubmittedAt, a.SignedAt)
+	msg := attestationMessage(r.BundleHash, r.ReceiptID, receiptSubmittedAtString(r.SubmittedAt), a.SignedAt)
 	if !ed25519.Verify(ed25519.PublicKey(pub), msg, sig) {
 		return errors.New("custos: attestation signature does not verify")
 	}

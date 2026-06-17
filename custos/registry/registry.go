@@ -184,8 +184,8 @@ func (r *InMemoryRegistry) unindexHashLocked(hash, id string) {
 // and digest lookups are deterministic.
 func sortReceipts(receipts []receipt.Receipt) {
 	sort.Slice(receipts, func(i, j int) bool {
-		if receipts[i].SubmittedAt != receipts[j].SubmittedAt {
-			return receipts[i].SubmittedAt < receipts[j].SubmittedAt
+		if !receipts[i].SubmittedAt.Equal(receipts[j].SubmittedAt) {
+			return receipts[i].SubmittedAt.Before(receipts[j].SubmittedAt)
 		}
 		return receipts[i].ReceiptID < receipts[j].ReceiptID
 	})

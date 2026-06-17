@@ -5,12 +5,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json" // New import for json.RawMessage
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"time" // New import for time.Now()
+	"time"
 
 	"github.com/pcguest/atb/pkg/custody"
 	// Fixed: The receipt package is internal to the Custos module, not the ATB module.
@@ -98,7 +98,7 @@ func (h IngestHandler) Handle(ctx context.Context, r io.Reader) (*receipt.Receip
 		ExportVersion: "atb.custody.bundle_export.v1", // As per docs/custos-handoff.md
 		ReceiptID:     receiptID,
 		BundleHash:    export.BundleHash,
-		SubmittedAt:   time.Now().UTC().Format(time.RFC3339),
+		SubmittedAt:   time.Now().UTC(),
 		ProfileID:     export.ProfileID,
 		VerifyReport:  verifierReportJSON,
 	}

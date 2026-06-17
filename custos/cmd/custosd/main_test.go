@@ -9,20 +9,21 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pcguest/custos/internal/auth"
 	"github.com/pcguest/custos/internal/ingest"
 	"github.com/pcguest/custos/internal/receipt"
 )
 
-func newTestMux(t *testing.T, maxIngestBytes int64) *http.ServeMux {
+func newTestMux(t *testing.T, maxIngestBytes int64) http.Handler {
 	t.Helper()
 	worm := receipt.NewInMemoryWORMStore()
 	rcpt := receipt.NewInMemoryReceiptStore()
 	handler := ingest.IngestHandler{WORMStore: worm, ReceiptStore: rcpt}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	return newMux(handler, worm, rcpt, maxIngestBytes, logger)
+	return auth.Middleware("", nil, auth.RoleAdmin, newMux(handler, worm, rcpt, maxIngestBytes, logger))
 }
 
-func postIngest(t *testing.T, mux *http.ServeMux, body string) *httptest.ResponseRecorder {
+func postIngest(t *testing.T, mux http.Handler, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodPost, "/ingest", strings.NewReader(body))
 	rec := httptest.NewRecorder()
@@ -89,5 +90,24 @@ func TestValidateBindConfig(t *testing.T) {
 				t.Fatalf("validateBindConfig(%q, %q) err=%v, wantErr=%v", tc.host, tc.token, err, tc.wantErr)
 			}
 		})
+	}
+}
+
+func TestNewHTTPServerHasBoundedTimeouts(t *testing.T) {
+	srv := newHTTPServer("127.0.0.1:0", http.NewServeMux())
+	if srv.ReadHeaderTimeout <= 0 {
+		t.Fatal("ReadHeaderTimeout must be set")
+	}
+	if srv.ReadTimeout <= 0 {
+		t.Fatal("ReadTimeout must be set")
+	}
+	if srv.WriteTimeout <= 0 {
+		t.Fatal("WriteTimeout must be set")
+	}
+	if srv.IdleTimeout <= 0 {
+		t.Fatal("IdleTimeout must be set")
+	}
+	if srv.MaxHeaderBytes <= 0 {
+		t.Fatal("MaxHeaderBytes must be set")
 	}
 }

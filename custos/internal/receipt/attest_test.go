@@ -12,7 +12,7 @@ func newTestReceipt() Receipt {
 	return Receipt{
 		ReceiptID:   "sha256-abc",
 		BundleHash:  "abc123",
-		SubmittedAt: "2026-05-28T09:00:00Z",
+		SubmittedAt: time.Date(2026, time.May, 28, 9, 0, 0, 0, time.UTC),
 	}
 }
 
