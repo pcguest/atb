@@ -1,4 +1,4 @@
-# EU AI Act Article 12 — ATB evidence mapping
+# EU AI Act Article 12: ATB evidence mapping
 
 Regulation (EU) 2024/1689, Article 12, requires high-risk AI systems to allow
 the automatic recording of events over the system lifetime, with traceability
