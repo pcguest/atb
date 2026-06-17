@@ -9,6 +9,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/internal/retentionaudit"
 )
 
 func TestConfigParseArgs(t *testing.T) {
@@ -176,7 +180,39 @@ func TestConfigRetentionMinimum(t *testing.T) {
 			if loaded.Retention.Days != tc.wantDays {
 				t.Fatalf("unexpected saved days: got %d want %d", loaded.Retention.Days, tc.wantDays)
 			}
+			audit, err := bundle.LoadVerified(retentionaudit.DefaultPath())
+			if err != nil {
+				t.Fatalf("load retention audit: %v", err)
+			}
+			if got := audit.Records[len(audit.Records)-1].Event.Type; got != event.TypeDataRetentionPolicySet {
+				t.Fatalf("audit event type = %q, want %q", got, event.TypeDataRetentionPolicySet)
+			}
 		})
+	}
+}
+
+func TestConfigRetentionChangeLinksPreviousPolicyDigest(t *testing.T) {
+	t.Chdir(t.TempDir())
+	var stdout, stderr bytes.Buffer
+	if code := runConfig([]string{"retention", "--days", "183"}, &stdout, &stderr); code != exitSuccess {
+		t.Fatalf("initial config code = %d, stderr=%q", code, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := runConfig([]string{"retention", "--days", "365"}, &stdout, &stderr); code != exitSuccess {
+		t.Fatalf("changed config code = %d, stderr=%q", code, stderr.String())
+	}
+	audit, err := bundle.LoadVerified(retentionaudit.DefaultPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := audit.Records[len(audit.Records)-1].Event
+	if last.Type != event.TypeDataRetentionPolicyChanged {
+		t.Fatalf("last event = %q", last.Type)
+	}
+	data, _ := last.Data.(map[string]any)
+	if data["previous_config_digest"] == "" || data["config_digest"] == data["previous_config_digest"] {
+		t.Fatalf("policy change digests not linked correctly: %#v", data)
 	}
 }
 

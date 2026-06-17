@@ -409,7 +409,7 @@ func buildComplianceJSONManifest(now time.Time, cfg exportConfig, result exportB
 		return exportpkg.ComplianceManifest{}, exitSystemError, fmt.Errorf("load bundle %s for manifest verification: %w", bundlePath, err)
 	}
 
-	report := verifypkg.ReportFromVerify(verifypkg.Verify(b, bundlePath, ""))
+	report := verifypkg.ReportFromVerifyWithBundle(verifypkg.Verify(b, bundlePath, ""), b)
 	manifest.VerifyResult = &report
 	if report.Pass {
 		return manifest, exitSuccess, nil

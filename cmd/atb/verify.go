@@ -216,7 +216,7 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 	}
 
 	if verifyWantsStructuredJSON(cfg) {
-		verifierReport := verifypkg.ReportFromVerify(verifyReport)
+		verifierReport := verifypkg.ReportFromVerifyWithBundle(verifyReport, b)
 		if err := writeVerifierReportJSON(stdout, verifierReport); err != nil {
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
@@ -731,7 +731,7 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 	}
 
 	// Emit output.
-	verifierReport := verifypkg.ReportFromVerify(verifyReport)
+	verifierReport := verifypkg.ReportFromVerifyWithBundle(verifyReport, b)
 
 	if verifyWantsStructuredJSON(cfg) || cfg.JSON {
 		wrapped := remoteVerifyReport{

@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/pcguest/atb/internal/custos"
 	"github.com/pcguest/atb/internal/incident"
 )
 
@@ -96,7 +98,7 @@ func runIncidentReport(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 	if sessionID == "" {
-		fmt.Fprintln(stderr, "atb incident report: --session is required")
+		fmt.Fprintln(stderr, "atb incident report: --session is required; run `atb incident list --bundle <path>` to discover session IDs")
 		return exitUserError
 	}
 	if format != "markdown" && format != "json" && format != "ndjson" {
@@ -200,6 +202,9 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 	bundlePath := ""
 	sessionID := ""
 	out := ""
+	custosEndpoint := ""
+	custosAuthToken := ""
+
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		next := func() (string, bool) {
@@ -240,6 +245,24 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 			out = strings.TrimSpace(v)
 		case strings.HasPrefix(arg, "--out="):
 			out = strings.TrimSpace(strings.TrimPrefix(arg, "--out="))
+		case arg == "--custos-endpoint":
+			v, ok := next()
+			if !ok {
+				fmt.Fprintln(stderr, "atb incident export: missing value for --custos-endpoint")
+				return exitUserError
+			}
+			custosEndpoint = strings.TrimSpace(v)
+		case strings.HasPrefix(arg, "--custos-endpoint="):
+			custosEndpoint = strings.TrimSpace(strings.TrimPrefix(arg, "--custos-endpoint="))
+		case arg == "--custos-auth-token":
+			v, ok := next()
+			if !ok {
+				fmt.Fprintln(stderr, "atb incident export: missing value for --custos-auth-token")
+				return exitUserError
+			}
+			custosAuthToken = strings.TrimSpace(v)
+		case strings.HasPrefix(arg, "--custos-auth-token="):
+			custosAuthToken = strings.TrimSpace(strings.TrimPrefix(arg, "--custos-auth-token="))
 		default:
 			fmt.Fprintf(stderr, "atb incident export: unknown argument %q\n", arg)
 			return exitUserError
@@ -250,11 +273,15 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 	if sessionID == "" {
-		fmt.Fprintln(stderr, "atb incident export: --session is required")
+		fmt.Fprintln(stderr, "atb incident export: --session is required; run `atb incident list --bundle <path>` to discover session IDs")
 		return exitUserError
 	}
-	if out == "" {
-		fmt.Fprintln(stderr, "atb incident export: --out is required")
+	if out == "" && custosEndpoint == "" {
+		fmt.Fprintln(stderr, "atb incident export: --out or --custos-endpoint is required")
+		return exitUserError
+	}
+	if out != "" && custosEndpoint != "" {
+		fmt.Fprintln(stderr, "atb incident export: cannot use both --out and --custos-endpoint")
 		return exitUserError
 	}
 
@@ -263,11 +290,33 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "atb incident export: %v\n", err)
 		return exitSystemError
 	}
-	if err := writeIncidentPack(out, files); err != nil {
-		fmt.Fprintf(stderr, "atb incident export: %v\n", err)
-		return exitSystemError
+
+	if custosEndpoint != "" {
+		// Custos takes custody of the authoritative bundle, which it verifies
+		// before persisting and returns a signed receipt for. It ingests
+		// bundles, not derived evidence-pack archives.
+		if custosAuthToken == "" {
+			custosAuthToken = os.Getenv("ATB_CUSTOS_TOKEN")
+		}
+		bundleBytes, err := os.ReadFile(filepath.Clean(bundlePath))
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: read bundle: %v\n", err)
+			return exitSystemError
+		}
+		client := custos.NewHTTPClient(custosEndpoint, custosAuthToken)
+		receipt, err := client.SendBundle(context.Background(), bundleBytes)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: push to Custos: %v\n", err)
+			return exitSystemError
+		}
+		fmt.Fprintf(stdout, "lodged bundle with Custos %s: receipt %s (bundle hash %s)\n", custosEndpoint, receipt.ReceiptID, receipt.BundleHash)
+	} else {
+		if err := writeIncidentPack(out, files); err != nil {
+			fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+			return exitSystemError
+		}
+		fmt.Fprintf(stdout, "wrote incident evidence package %s (%d files)\n", out, len(files))
 	}
-	fmt.Fprintf(stdout, "wrote incident evidence package %s (%d files)\n", out, len(files))
 	return exitSuccess
 }
 
@@ -299,7 +348,7 @@ func writeIncidentPack(out string, files []incident.PackFile) error {
 func printIncidentUsage(w io.Writer) {
 	fmt.Fprint(w, `atb incident list   --bundle <path> [--format markdown|json]
 atb incident report --bundle <path> --session <id> [--format markdown|json|ndjson]
-atb incident export --bundle <path> --session <id> --out <pack.zip>
+atb incident export --bundle <path> --session <id> (--out <pack.zip> | --custos-endpoint <url>)
 
 Discover, review, and package agent sessions captured in an ATB bundle.
 
@@ -319,6 +368,8 @@ report flags:
 export flags:
   --bundle <path>            Bundle to read (required)
   --session <id>             Session identifier to package (required)
-  --out <pack.zip>           Output evidence package path (required)
+  --out <pack.zip>           Write a local offline evidence package (this or --custos-endpoint)
+  --custos-endpoint <url>    Lodge the bundle with a Custos custody endpoint; prints the signed receipt
+  --custos-auth-token <tok>  Bearer token for Custos (or set ATB_CUSTOS_TOKEN)
 `)
 }

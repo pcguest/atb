@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	version         = "1.14.5"
+	version         = "1.15.0"
 	verifyAlgorithm = "SHA-256||RFC8785"
 )
 
@@ -227,6 +227,13 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "compliance",
+				Usage:       "atb compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip> [--custos-endpoint <url>] [--custos-auth-token <token>]",
+				Description: "Build a deterministic, profile-aware offline compliance evidence pack, optionally pushing it to a Custos endpoint.",
+				Flags:       []string{"--bundle", "--profile", "--regime", "--out", "--custos-endpoint", "--custos-auth-token"},
+				Mutating:    false,
+			},
+			{
 				Name:        "config",
 				Usage:       "atb config retention --days <n>",
 				Description: "Set local ATB configuration values.",
@@ -242,9 +249,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "view",
-				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>]",
+				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>]",
 				Description: "Open the local review UI. Requires building from source to include the embedded UI.",
-				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--profile", "--session-token"},
+				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--profile", "--session-token", "--sessions", "--oidc-issuer", "--oidc-audience"},
 				Mutating:    false,
 			},
 			{
@@ -255,9 +262,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "intercept",
-				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]...",
-				Description: "Start the local HTTPS capture proxy that records AI API traffic, tool calls, and failures into a live ATB bundle.",
-				Flags:       []string{"--port", "--bundle", "--target", "--identity-map"},
+				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--custos-endpoint <url>] [--custos-auth-token <token>]",
+				Description: "Start the local HTTPS capture proxy that records AI API traffic, tool calls, and failures into a live ATB bundle or sends them to a Custos endpoint.",
+				Flags:       []string{"--port", "--bundle", "--target", "--identity-map", "--custos-endpoint", "--custos-auth-token"},
 				Mutating:    false,
 			},
 			{
@@ -282,9 +289,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "incident",
-				Usage:       "atb incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>]",
-				Description: "Discover (list), review (report), and package (export) agent sessions captured in a bundle for forensic review.",
-				Flags:       []string{"--bundle", "--session", "--format", "--out"},
+				Usage:       "atb incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>] [--custos-endpoint <url>] [--custos-auth-token <token>]",
+				Description: "Discover (list), review (report), and package (export) agent sessions captured in a bundle for forensic review, optionally pushing the exported package to a Custos endpoint.",
+				Flags:       []string{"--bundle", "--session", "--format", "--out", "--custos-endpoint", "--custos-auth-token"},
 				Mutating:    false,
 			},
 			{
@@ -374,6 +381,8 @@ func main() {
 		cmdPush()
 	case "export":
 		cmdExport()
+	case "compliance":
+		cmdCompliance()
 	case "config":
 		cmdConfig()
 	case "trust-report":
@@ -443,9 +452,10 @@ Commands:
   archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
   push <s3://bucket/prefix> [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry-run] [--format text|json]  Push a sealed bundle to an S3 or S3-compatible WORM target
   export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]  Export auditor-friendly local evidence bundle
+  compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip>  Build a deterministic, profile-aware offline compliance evidence pack
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
-  view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>]  Open the local review UI
+  view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>] [--sessions <glob-or-dir>]  Open the local review UI
   mcp serve         Start the MCP stdio server
   agent run         Start the local ATB Agent HTTP service
   corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]  Fetch external corroboration receipt and append atb.corroboration.external event
@@ -509,14 +519,15 @@ Examples:
   atb events
   atb events --json
   atb events --profile atb.profile.rag_answer
-  ATB_PASSWORD=test123 atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
-  ATB_PASSWORD=test123 atb decrypt handoff/acme-review.atb.enc --output review/acme-review.atb
+  ATB_PASSWORD='<local-demo-password>' atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
+  ATB_PASSWORD='<local-demo-password>' atb decrypt handoff/acme-review.atb.enc --output review/acme-review.atb
   atb archive --before 2025-01-01 --dry-run
   atb export --format compliance --output evidence.zip --dry-run
   atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
   atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
   atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
-  atb config retention --days 90
+  atb compliance pack --bundle run.atb/bundle.atb --profile atb.profile.policy_decision --regime eu-ai-act --out eu-ai-act-pack.zip
+  atb config retention --days 183
   atb trust-report --format markdown
   atb trust-report --format json
   atb trust-report --format json --profile atb.profile.privileged_tool_action

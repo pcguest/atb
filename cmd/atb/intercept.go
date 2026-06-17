@@ -45,7 +45,8 @@ func runInterceptCommand(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
-	p, err := proxy.NewProxy(cfg, nil, logger)
+
+	p, err := proxy.NewProxy(cfg, nil, logger) // Pass nil for handler
 	if err != nil {
 		fmt.Fprintf(stderr, "atb intercept: %v\n", err)
 		return exitUserError
@@ -86,7 +87,7 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 	bundlePath := ""
 	targets := []string{"openai", "anthropic"}
 	identityMap := map[string]string{}
-	custosEndpoint := "" // New field
+	custosEndpoint := ""
 	captureBodies := false
 
 	for i := 0; i < len(args); i++ {
@@ -143,13 +144,13 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 				return proxy.ProxyConfig{}, err
 			}
 			identityMap[key] = name
-		case arg == "--custos": // New case for --custos flag
+		case arg == "--custos":
 			if i+1 >= len(args) {
 				return proxy.ProxyConfig{}, fmt.Errorf("missing value for --custos")
 			}
 			custosEndpoint = strings.TrimSpace(args[i+1])
 			i++
-		case strings.HasPrefix(arg, "--custos="): // New case for --custos=value
+		case strings.HasPrefix(arg, "--custos="):
 			custosEndpoint = strings.TrimSpace(strings.TrimPrefix(arg, "--custos="))
 		case arg == "--capture-bodies":
 			captureBodies = true
@@ -218,8 +219,10 @@ func printInterceptEnvHints(w io.Writer, port int) {
 	fmt.Fprintln(w, "Route provider traffic through the proxy (HTTPS forward proxy):")
 	fmt.Fprintf(w, "  export HTTPS_PROXY=http://127.0.0.1:%d\n", port)
 	fmt.Fprintf(w, "  export SSL_CERT_FILE=%s        # Python (httpx/requests)\n", caPath)
+	fmt.Fprintf(w, "  export CURL_CA_BUNDLE=%s       # curl and compatible clients\n", caPath)
 	fmt.Fprintf(w, "  export NODE_EXTRA_CA_CERTS=%s  # Node.js\n", caPath)
 	fmt.Fprintln(w, "Provider base-URL path overrides are not supported; only hosts in --target are intercepted.")
+	fmt.Fprintln(w, "Clients that ignore HTTPS_PROXY or use certificate pinning will bypass or reject interception; use an SDK wrapper for those calls.")
 }
 
 func printInterceptHelp(w io.Writer) {
@@ -237,5 +240,7 @@ Flags:
 By default only a SHA-256 digest and byte length of each request/response body
 are recorded, so the bundle never persists prompts, completions, or PII.
 Pass --capture-bodies to retain raw bodies where that tradeoff is acceptable.
+The generated CA is local to the current user. Configure trust only for the
+captured process where possible; do not install it as a shared production root.
 `)
 }

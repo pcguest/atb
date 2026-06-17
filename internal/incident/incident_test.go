@@ -207,6 +207,40 @@ func TestBuildSummarisesPrincipal(t *testing.T) {
 	}
 }
 
+func TestBuildSurfacesReviewerIdentityEvidence(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new bundle: %v", err)
+	}
+	if err := b.AppendWithOptions(event.TypeHumanOverride, map[string]any{
+		"session_id":      "sess-I",
+		"override_reason": "manual review",
+		"identity_evidence": map[string]any{
+			"identity_provider": "https://idp.example",
+			"subject":           "reviewer-1",
+			"assertion_type":    "jwt",
+			"assertion_digest":  "sha256:assertion",
+		},
+	}, &bundle.AppendOptions{Timestamp: "2026-06-15T00:00:00Z"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "identity.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	rep, err := incident.Build(context.Background(), path, "sess-I")
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if len(rep.ReviewerIdentities) != 1 {
+		t.Fatalf("reviewer identities = %+v", rep.ReviewerIdentities)
+	}
+	if md := rep.Markdown(); !strings.Contains(md, "caller-provided identity evidence") ||
+		!strings.Contains(md, "reviewer-1") {
+		t.Errorf("markdown missing bounded identity evidence statement:\n%s", md)
+	}
+}
+
 func TestReportNDJSON(t *testing.T) {
 	path := writeBundle(t) // sess-A has 4 events incl. a tool call
 	rep, err := incident.Build(context.Background(), path, "sess-A")

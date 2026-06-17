@@ -21,7 +21,7 @@ type ProxyConfig struct {
 	BundlePath     string
 	IdentityMap    map[string]string
 	Identity       identity.Resolver
-	CustosEndpoint string // New field
+	CustosEndpoint string
 	// CustosToken authenticates auto-pushes to the Custos ingest endpoint as
 	// an Authorization: Bearer header. Empty means unauthenticated (dev mode).
 	CustosToken string

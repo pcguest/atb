@@ -132,7 +132,7 @@ func (ca *LocalCA) generate() error {
 	}
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 
-	if err := os.WriteFile(ca.CertPath, certPEM, 0o644); err != nil {
+	if err := os.WriteFile(ca.CertPath, certPEM, 0o600); err != nil {
 		return fmt.Errorf("proxy: write ca cert: %w", err)
 	}
 	if err := os.WriteFile(ca.KeyPath, keyPEM, 0o600); err != nil {

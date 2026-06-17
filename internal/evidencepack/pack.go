@@ -101,7 +101,7 @@ func packOne(ctx context.Context, rawPath string) (BundleEvidenceSummary, error)
 		return summary, err
 	}
 
-	verifierReport := verify.ReportFromVerify(*report)
+	verifierReport := verify.ReportFromVerifyWithBundle(*report, b)
 	summary.IntegrityPass = verifierReport.GateResult.ChainValid
 	summary.ProfilePass = verifierReport.GateResult.ProfilePass
 	summary.ProfileID = verifierReport.ProfileID

@@ -212,6 +212,21 @@ func renderTrustReportMarkdown(w io.Writer, report trust.Report, includeRAGDetai
 		}
 		fmt.Fprintln(w)
 	}
+	if len(report.ReviewerIdentities) > 0 {
+		fmt.Fprintln(w, "## Reviewer identity evidence")
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Caller-provided identity evidence preserved by ATB; ATB did not independently verify the asserted identity.")
+		for _, evidence := range report.ReviewerIdentities {
+			fmt.Fprintf(w, "- Seq %d: provider=`%s` subject=`%s` assertion=`%s` digest=`%s`\n",
+				evidence.Sequence,
+				evidence.IdentityProvider,
+				evidence.Subject,
+				evidence.AssertionType,
+				evidence.AssertionDigest,
+			)
+		}
+		fmt.Fprintln(w)
+	}
 	if includeRAGDetails {
 		fmt.Fprintln(w, "## Model invocation")
 		fmt.Fprintln(w)
@@ -387,33 +402,44 @@ func renderTrustReportText(w io.Writer, report trust.Report) {
 		}
 	}
 
-	if report.CAS == nil {
-		return
+	if report.CAS != nil {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "CAS:")
+		fmt.Fprintf(w, "  Profile:   %s\n", report.CAS.ProfileID)
+		fmt.Fprintf(w, "  Class:     %s\n", report.CAS.WorkflowClass)
+		fmt.Fprintf(w, "  Grade:     %s  (%.2f)\n", report.CAS.Grade, report.CAS.Overall)
+		fmt.Fprintf(w, "  Anchor:    %s  (XC=%.2f AC=%.2f)\n", report.CAS.AnchorQuality.Label, report.CAS.AnchorQuality.XC, report.CAS.AnchorQuality.AC)
+		fmt.Fprintln(w, "  Sub-scores:")
+		fmt.Fprintf(
+			w,
+			"    EC  %.2f   FC  %.2f   RC  %.2f   TC  %.2f\n",
+			report.CAS.SubScores["EC"],
+			report.CAS.SubScores["FC"],
+			report.CAS.SubScores["RC"],
+			report.CAS.SubScores["TC"],
+		)
+		fmt.Fprintf(
+			w,
+			"    SC  %.2f   XC  %.2f   AC  %.2f   GC  %.2f\n",
+			report.CAS.SubScores["SC"],
+			report.CAS.SubScores["XC"],
+			report.CAS.SubScores["AC"],
+			report.CAS.SubScores["GC"],
+		)
 	}
-
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "CAS:")
-	fmt.Fprintf(w, "  Profile:   %s\n", report.CAS.ProfileID)
-	fmt.Fprintf(w, "  Class:     %s\n", report.CAS.WorkflowClass)
-	fmt.Fprintf(w, "  Grade:     %s  (%.2f)\n", report.CAS.Grade, report.CAS.Overall)
-	fmt.Fprintf(w, "  Anchor:    %s  (XC=%.2f AC=%.2f)\n", report.CAS.AnchorQuality.Label, report.CAS.AnchorQuality.XC, report.CAS.AnchorQuality.AC)
-	fmt.Fprintln(w, "  Sub-scores:")
-	fmt.Fprintf(
-		w,
-		"    EC  %.2f   FC  %.2f   RC  %.2f   TC  %.2f\n",
-		report.CAS.SubScores["EC"],
-		report.CAS.SubScores["FC"],
-		report.CAS.SubScores["RC"],
-		report.CAS.SubScores["TC"],
-	)
-	fmt.Fprintf(
-		w,
-		"    SC  %.2f   XC  %.2f   AC  %.2f   GC  %.2f\n",
-		report.CAS.SubScores["SC"],
-		report.CAS.SubScores["XC"],
-		report.CAS.SubScores["AC"],
-		report.CAS.SubScores["GC"],
-	)
+	if len(report.ReviewerIdentities) > 0 {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "Reviewer identity evidence (caller-provided; not independently verified by ATB):")
+		for _, evidence := range report.ReviewerIdentities {
+			fmt.Fprintf(w, "  seq=%d provider=%s subject=%s assertion=%s digest=%s\n",
+				evidence.Sequence,
+				evidence.IdentityProvider,
+				evidence.Subject,
+				evidence.AssertionType,
+				evidence.AssertionDigest,
+			)
+		}
+	}
 }
 
 type trustCheckDetail struct {

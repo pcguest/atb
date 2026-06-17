@@ -16,12 +16,12 @@ import (
 // BundleRecorder appends capture events to a local ATB bundle.
 type BundleRecorder struct {
 	path         string
-	custosPusher *CustosPusher // New field
+	custosPusher CustosPusherInterface
 	mu           sync.Mutex
 }
 
 // NewBundleRecorder returns a recorder for the given bundle path.
-func NewBundleRecorder(path string, custosPusher *CustosPusher) *BundleRecorder {
+func NewBundleRecorder(path string, custosPusher CustosPusherInterface) *BundleRecorder {
 	return &BundleRecorder{path: path, custosPusher: custosPusher}
 }
 
@@ -38,7 +38,17 @@ func (r *BundleRecorder) AppendEventHash(ev *event.Event) (string, error) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.appendEventLocked(ev)
+
+	// Append to local bundle
+	recordHash, err := r.appendEventLocked(ev)
+	if err != nil {
+		return "", err
+	}
+
+	// Custos ingests whole bundles, not individual events. The completed
+	// bundle is pushed once on session close (see sessionCloseCallback).
+
+	return recordHash, nil
 }
 
 // AppendSessionClose writes an atb.session.close summary event.
@@ -84,16 +94,21 @@ func (r *BundleRecorder) sessionCloseCallback(sess *Session) error {
 		return err
 	}
 
-	if r.custosPusher != nil && r.custosPusher.Endpoint != "" {
-		// Fixed: Capture session ID before the goroutine so logging does not depend on session mutation.
+	if r.custosPusher != nil {
+		// Capture the session ID before the goroutine so logging does not
+		// depend on later session mutation. The locked snapshot is pushed,
+		// not a re-read of a changing bundle file.
 		sessionID := sess.ID
-		// Asynchronously push the bundle to Custos
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Timeout for push
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
-			// Fixed: PushBytes sends the locked snapshot instead of re-reading a changing bundle file.
-			if err := r.custosPusher.PushBytes(ctx, snapshot); err != nil {
+			receipt, err := r.custosPusher.PushBundle(ctx, snapshot)
+			if err != nil {
 				fmt.Fprintf(os.Stderr, "Error pushing bundle %s to Custos for session %s: %v\n", r.path, sessionID, err)
+				return
+			}
+			if receipt != nil {
+				fmt.Fprintf(os.Stderr, "Custos receipt %s for session %s (bundle hash %s)\n", receipt.ReceiptID, sessionID, receipt.BundleHash)
 			}
 		}()
 	}

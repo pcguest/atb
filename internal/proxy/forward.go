@@ -370,6 +370,7 @@ func (p *Proxy) ListenAndServe(ctx context.Context) error {
 		BaseContext: func(net.Listener) context.Context {
 			return ctx
 		},
+		ReadHeaderTimeout: 5 * time.Second, // Mitigate Slowloris attacks
 	}
 	p.httpServer = server
 
