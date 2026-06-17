@@ -13,11 +13,10 @@ history and bloat every clone.
 | Path | Largest object | Notes |
 | --- | --- | --- |
 | `.atb-agent/bin/gosec` | 46.8 MB | Security scanner binary committed in v1.1.0 prep, later deleted. |
-| `.gocache/` | many 5 to 16 MB blobs | Go build cache committed by mistake. |
-| `.gocache-docs/` | many 5 to 12 MB blobs, includes a built `atb` binary | Docs build cache committed by mistake. |
+| `.gocache*` | many 5 to 16 MB blobs | Go build and test caches committed by mistake. Covers `.gocache`, `.gocache-docs`, `.gocache-go-build`, and `.gocache-go-test`; one variant holds a built `atb` binary. |
 
-None of these paths are tracked now, and `git check-ignore` confirms all three
-are ignored, so a rewrite will not re-introduce them.
+None of these paths are tracked now, and `git check-ignore` confirms they are
+ignored, so a rewrite will not re-introduce them.
 
 ## Pre-flight
 
@@ -30,13 +29,31 @@ are ignored, so a rewrite will not re-introduce them.
 ```bash
 git filter-repo \
   --path .atb-agent \
-  --path .gocache \
-  --path .gocache-docs \
+  --path-glob '.gocache*' \
   --invert-paths
 ```
 
-This removes those paths from every commit. `git filter-repo` refuses to run on
-a non-fresh clone by default; use `--force` only after the backup above exists.
+The `.gocache*` glob is required: history contains `.gocache`, `.gocache-docs`,
+`.gocache-go-build`, and `.gocache-go-test`. Naming only `.gocache` and
+`.gocache-docs` leaves thousands of cache objects behind. `git filter-repo`
+refuses to run on a non-fresh clone by default; use `--force` only after the
+backup above exists.
+
+This was dry-run on a mirror clone of the current repo. Expected results, which
+you can confirm after running it for real:
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Pack size | 121.45 MiB | 4.13 MiB |
+| `gosec` objects in history | 1 | 0 |
+| `.gocache*` objects in history | many | 0 |
+| `.atb-agent` objects in history | present | 0 |
+| Branches (`refs/heads`) | 36 | 36 |
+| Tags | 25 | 25 |
+
+Only stale `refs/remotes/origin/*` are pruned (filter-repo removes the origin
+remote); they are rebuilt on the next fetch. The rewritten tree builds, and
+`gitleaks detect --log-opts=--all` reported no leaks over 886 commits.
 
 ## Secret scan before going public
 

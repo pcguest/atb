@@ -14,9 +14,13 @@ Security fixes are shipped on the current release tag only.
 
 ## Reporting a vulnerability
 
-Report security issues by email to **patrickcguest@proton.me** with the subject line
+Report security issues by email to **security@replace-me.example** with the subject line
 `[ATB Security] <brief description>`. Do not open a public GitHub issue for an unpatched
 vulnerability.
+
+> Maintainer note: `security@replace-me.example` is a placeholder. Set a real
+> role mailbox before this repository is public. It is the single security
+> contact token across this tree (`grep -rl security@replace-me.example`).
 
 Include:
 

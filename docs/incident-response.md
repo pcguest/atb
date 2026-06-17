@@ -6,7 +6,7 @@ This runbook is intentionally lightweight so it remains usable by a solo maintai
 
 Trigger conditions:
 
-- Report received through `patrickcguest@proton.me`
+- Report received through `security@replace-me.example`
 - Suspicious release artefact behaviour
 - Integrity mismatch or unexpected production workflow failures
 - Credential leak signal (logs, GitHub alert, third-party report)
@@ -54,5 +54,5 @@ Immediate actions:
 
 ## Contacts
 
-- Security intake: [patrickcguest@proton.me](mailto:patrickcguest@proton.me)
-- Maintainer: [patrickcguest@proton.me](mailto:patrickcguest@proton.me)
+- Security intake: [security@replace-me.example](mailto:security@replace-me.example)
+- Maintainer: [security@replace-me.example](mailto:security@replace-me.example)

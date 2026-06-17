@@ -30,7 +30,7 @@ This Code of Conduct applies within all project spaces and when an individual is
 
 ## Reporting
 
-Report unacceptable behaviour to [patrickcguest@proton.me](mailto:patrickcguest@proton.me).
+Report unacceptable behaviour to [security@replace-me.example](mailto:security@replace-me.example).
 
 All complaints will be reviewed and investigated promptly and fairly.
 
