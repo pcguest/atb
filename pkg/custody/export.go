@@ -80,7 +80,7 @@ func NewBundleExport(bundlePath string, opts ExportOptions) (BundleExport, error
 		SubmittedAt:   submittedAt.UTC().Format(time.RFC3339),
 		ProfileID:     opts.ProfileID,
 		SubmitterRef:  opts.SubmitterRef,
-		VerifyReport:  verify.ReportFromVerify(report),
+		VerifyReport:  verify.ReportFromVerifyWithBundle(report, verified),
 		Bundle:        raw,
 	}, nil
 }

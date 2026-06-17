@@ -8,7 +8,7 @@ import (
 	"github.com/pcguest/atb/pkg/custody"
 )
 
-const wantVerifyReportSchemaSHA256 = "3ff359ef2230c54ec52b6e68cbe41f9649e8212203ef475bc99ec4b26a260a06"
+const wantVerifyReportSchemaSHA256 = "ed25fdbcaa7e811b13fb1d365530f1e2b460ffb3585a0053aea3e8b162d6d5af"
 
 func TestVerifyReportSchemaFrozen(t *testing.T) {
 	raw := custody.VerifyReportSchemaJSON()

@@ -169,3 +169,29 @@ func TestReportFromVerify_PropagatesResidualRiskDrivers(t *testing.T) {
 		t.Errorf("profile_version = %d, want > 0", vr.ProfileVersion)
 	}
 }
+
+func TestReportFromVerifyWithBundle_IncludesReviewerIdentityEvidence(t *testing.T) {
+	b := newPrivilegedToolActionBundle(t)
+	if err := b.AppendWithOptions(event.TypeAIHumanApproval, map[string]any{
+		"approval_id": "approval-1",
+		"action_id":   "action-1",
+		"identity_evidence": map[string]any{
+			"identity_provider": "https://idp.example",
+			"subject":           "reviewer-1",
+			"assertion_type":    "jwt",
+			"assertion_digest":  "sha256:assertion",
+		},
+	}, &bundle.AppendOptions{Timestamp: "2026-06-15T00:00:00Z"}); err != nil {
+		t.Fatalf("append identity evidence: %v", err)
+	}
+
+	report := Verify(b, "bundle.atb", profileIDPrivilegedToolAction)
+	vr := ReportFromVerifyWithBundle(report, b)
+	if len(vr.ReviewerIdentities) != 1 {
+		t.Fatalf("reviewer identities = %+v", vr.ReviewerIdentities)
+	}
+	if got := vr.ReviewerIdentities[0]; got.Subject != "reviewer-1" ||
+		got.Verification != "caller_provided_unverified" {
+		t.Fatalf("reviewer identity = %+v", got)
+	}
+}

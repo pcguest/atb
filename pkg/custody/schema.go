@@ -8,7 +8,7 @@ import (
 )
 
 // VerifyReportSchemaVersion identifies the frozen JSON Schema for verify.report.v1.
-const VerifyReportSchemaVersion = "verify.report.v1.schema.1"
+const VerifyReportSchemaVersion = "verify.report.v1.schema.2"
 
 //go:embed schema/verify.report.v1.schema.json
 var verifyReportSchemaJSON []byte

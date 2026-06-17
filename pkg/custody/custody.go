@@ -64,7 +64,7 @@ func Evaluate(data []byte, profileID, bundlePath string) (EvalResult, error) {
 		bundlePath = "custos://ingest"
 	}
 	report := verify.Verify(b, bundlePath, profileID)
-	vr := verify.ReportFromVerify(report)
+	vr := verify.ReportFromVerifyWithBundle(report, b)
 	return EvalResult{
 		HeadHash: HeadHash(b),
 		Report:   vr,
