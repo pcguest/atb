@@ -124,15 +124,18 @@ restore from `/tmp/atb-backup.git`.
 Registries are at 1.14.5; in-repo markers are 1.15.0 (verified). Publish 1.15.0:
 
 ```bash
-# Python
+# Python (atb-sdk, setuptools backend; needs the build front-end installed)
 cd ~/atb/sdk/python && python -m build && twine upload dist/atb_sdk-1.15.0*
-# TypeScript
-cd ~/atb/sdk/typescript && npm publish --access public
+# TypeScript (@pcguest/atb-sdk, built with tsup; there is no prepublishOnly
+# hook, so build explicitly before publish)
+cd ~/atb/sdk/typescript && npm ci && npm run build && npm publish --access public
 ```
 
 A published version is immutable. If a package is wrong, publish a patch
 version; do not attempt to republish 1.15.0. The release workflow already
-detects an already-published exact version and does not retry it.
+detects an already-published exact version and does not retry it. The canonical
+path is the tag-triggered release workflow; the commands above are the manual
+fallback.
 
 ## 8. Deploy the Custos site (reversible)
 
