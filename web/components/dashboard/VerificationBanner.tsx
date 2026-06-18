@@ -14,6 +14,7 @@ type VerificationBannerProps = {
   chainLength?: number;
   headHash?: string | null;
   bundlePath?: string | null;
+  message?: string | null;
 };
 
 const BASE =
@@ -24,6 +25,7 @@ export function VerificationBanner({
   chainLength,
   headHash,
   bundlePath,
+  message,
 }: VerificationBannerProps) {
   useEffect(() => {
     if (status === "invalid") {
@@ -74,17 +76,42 @@ export function VerificationBanner({
     );
   }
 
+  const diagnosis = message?.trim() || "hash chain verification failed";
+  const recheckPath = bundlePath ? displayBundlePath(bundlePath) : null;
+
   return (
     <div
       role="alert"
       aria-live="assertive"
-      aria-label="Bundle tamper detected — interaction restricted"
-      className={`${BASE} border-red-500 bg-red-950`}
+      aria-label={`Bundle tamper detected. Interaction restricted. ${diagnosis}`}
+      className="fixed inset-x-0 top-0 z-50 flex min-h-[var(--banner-h)] w-full flex-col justify-center gap-0.5 border-b border-red-500 bg-red-950 px-4 py-1.5"
     >
-      <ShieldOff className="h-3.5 w-3.5 shrink-0 animate-pulse text-red-400" aria-hidden="true" />
-      <span className="font-mono text-xs font-bold uppercase tracking-widest text-red-300">
-        ⚠ TAMPER DETECTED
-      </span>
+      <div className="flex items-center gap-2">
+        <ShieldOff
+          className="h-3.5 w-3.5 shrink-0 animate-pulse text-red-400"
+          aria-hidden="true"
+        />
+        <span className="font-mono text-xs font-bold uppercase tracking-widest text-red-300">
+          ⚠ TAMPER DETECTED
+        </span>
+        <span className="font-mono text-xs text-red-300">chain: {chainLength ?? 0} events</span>
+        {recheckPath && (
+          <span
+            className="ml-auto min-w-0 flex-1 truncate text-right font-mono text-xs text-red-200"
+            title={recheckPath}
+          >
+            {recheckPath}
+          </span>
+        )}
+      </div>
+      <p className="truncate font-mono text-xs text-red-200" title={diagnosis}>
+        {diagnosis}
+      </p>
+      {recheckPath && (
+        <p className="truncate font-mono text-xs text-red-300/90">
+          re-check: <span className="select-all text-red-200">atb verify {recheckPath}</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -102,12 +129,18 @@ export function VerificationBannerConnected() {
 
   const status = verificationQuery.data?.status ?? null;
 
+  // The meta query only runs once verification is valid, so on a FAIL fall back
+  // to the bundle path the verification response itself always carries.
+  const bundlePath =
+    metaQuery.data?.bundle_path ?? verificationQuery.data?.bundle_path ?? null;
+
   return (
     <VerificationBanner
       status={status}
       chainLength={verificationQuery.data?.chain_length}
       headHash={verificationQuery.data?.head_hash ?? null}
-      bundlePath={metaQuery.data?.bundle_path ?? null}
+      bundlePath={bundlePath}
+      message={verificationQuery.data?.message ?? null}
     />
   );
 }
