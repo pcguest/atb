@@ -38,7 +38,7 @@ describe("StatsOverview", () => {
     );
 
     expect(screen.getByTestId("event-count-value")).toHaveTextContent("7");
-    expect(screen.getByTestId("verification-status-value")).toHaveTextContent("valid");
+    expect(screen.getByTestId("verification-status-value")).toHaveTextContent("Valid");
     expect(screen.getByTestId("event-family-counts-value")).toHaveTextContent(
       "llm 3 · tool 2 · chain 1 · other 1",
     );

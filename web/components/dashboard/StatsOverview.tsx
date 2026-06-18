@@ -1,5 +1,7 @@
 "use client";
 
+import { Lock, ShieldOff } from "lucide-react";
+
 import { eventFamily } from "@/lib/event-family";
 import type { DashboardRole } from "@/lib/roles";
 import { dashboardRoleLabel } from "@/lib/roles";
@@ -33,6 +35,26 @@ function Stat({
       </span>
     </div>
   );
+}
+
+function VerificationStat({ status }: { status: "valid" | "invalid" | undefined }) {
+  if (status === "valid") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-green-400">
+        <Lock className="h-3 w-3 shrink-0" aria-hidden="true" />
+        Valid
+      </span>
+    );
+  }
+  if (status === "invalid") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-red-400">
+        <ShieldOff className="h-3 w-3 shrink-0" aria-hidden="true" />
+        Invalid
+      </span>
+    );
+  }
+  return <>—</>;
 }
 
 function eventFamilyCounts(meta: BundleMetaResponse | null): string {
@@ -72,7 +94,7 @@ export function StatsOverview({
       />
       <Stat
         label="verification"
-        value={verification?.status ?? "—"}
+        value={<VerificationStat status={verification?.status} />}
         testId="verification-status-value"
       />
       <Stat label="chain" value={verification?.chain_length ?? "—"} testId="chain-length-value" />
