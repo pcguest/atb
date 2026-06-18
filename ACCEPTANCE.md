@@ -88,6 +88,51 @@ paragraph, and two buttons. Below: the problem, what Custos does, the
 open-core boundary table, the honest-limits panel, and the design-partner
 contact.
 
+## UI and UX heuristic audit: closed
+
+The full audit is in `UI-HEURISTIC-AUDIT.md`. Every finding is closed in code, or
+judged by description and recorded as residue. Findings closed at these commits:
+
+| Finding | Closed at | Evidence |
+| --- | --- | --- |
+| A1 reveal copy contradicted the sidecar fix | 18049fe | Tooltip and caption now say reveals write to the independent `.reveals` sidecar; the authoritative bundle is byte-unchanged, proven above. |
+| A2 dead DashboardShell with a duplicate landmark | b243d69 | File deleted; the orphaned sidebar state it was the only consumer of is pruned. |
+| A3 tamper banner gave no locus | eb80049 | The FAIL banner now shows the failing record, the chain length, the bundle path, and the `atb verify` re-check command, taken from the verification response. |
+| A4 inspector used hardcoded slate utilities | 18049fe | Every `slate-*` is replaced by a semantic token (`bg-card`, `border-border`, `text-foreground`, `text-muted-foreground`, `bg-muted`, `hover:border-ring`); zero `slate-*` remain, so the inspector tracks the theme in both modes. |
+| A5 duplicate Inspector heading | 18049fe | The inner heading is removed; the rail header is the single one. |
+| A7 raw-data rails read as broken for non-engineer roles | 9006425 | The timeline, the graph, and the inspector state they are available in the Engineer role; the layout structure is unchanged across roles. |
+| A8 raw lowercase verification value | f2780d5 | Shown as Valid or Invalid with the banner lock and shield icons. |
+| A9 Viewer Health read as a third integrity verdict | f2780d5 | A caption states it is a composite of verification and recency, not the integrity result. |
+| B1 first-person-plural CTA | fc316cb | Reworded to "Discuss a design partnership". |
+| B2 no main landmark or skip link | fc316cb | Content wrapped in `<main id="main">` with a skip-to-content link. |
+| B3 tick glyphs without a text alternative | fc316cb | Glyphs marked `aria-hidden`; meaning is in the adjacent text. |
+| B4 table headers without scope | fc316cb | `scope="col"` added to both headers. |
+
+Contrast was judged on the real compiled colours, not by eye. In the FAIL banner the
+text red-300 (rgb 252 165 165) on red-950 (rgb 69 10 10) is 8.5 to 1, and red-200
+(rgb 254 202 202) on the same ground is 11.2 to 1. Both exceed WCAG 2.1 AA, which
+is 4.5 to 1 for normal text and 3 to 1 for large text. The light-theme question
+(A4) was settled the same way: a `grep` confirms no `slate-*` remains in the
+inspector, so every surface resolves through the semantic tokens that flip with
+the theme.
+
+### Residue judged by description, still wanting a human glance
+
+These three are cosmetic on a localhost tool, or a single Custos-fold judgement.
+None bears on trust. Each was assessed from the CSS and the runtime, not fixed
+blind.
+
+- A6 narrow-window layout: there are no responsive breakpoints, so below roughly
+  768px the centre column is squeezed and `overflow-hidden` clips. Rule 4 as
+  written holds, because the layout is one structure across all roles. Whether a
+  responsive stack is worth adding wants a glance.
+- TraceGraph label legibility: nine nodes on a fixed three-column grid at 260px
+  spacing, labels 18 to 26 characters, `fitView` on. Overlap is unlikely because
+  the spacing exceeds the node width, but it cannot be measured without a render.
+- Custos above-the-fold hierarchy: the hero leads with a four-sentence paragraph
+  and carries no artefact; the first artefact is the verify table further down.
+  Whether that reads as too much at the real fold wants a glance.
+
 ## Honest limits (verbatim, unchanged)
 
 From the ATB README:
