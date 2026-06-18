@@ -2,7 +2,7 @@
 
 This guide provides practical steps to configure Role-Based Access Control (RBAC) for `custosd` and `atb view` using shared secret tokens or OIDC/JWT.
 
-## Custos Daemon (`custosd`) RBAC Configuration
+## Mortise Daemon (`custosd`) RBAC Configuration
 
 `custosd` supports authentication via a shared secret bearer token or OIDC/JWT.
 

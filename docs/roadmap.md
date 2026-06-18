@@ -24,7 +24,7 @@ and review it from a tamper-evident bundle.
 - ✅ `/view` dashboard surfaces session anomaly flags (e.g. `tool_without_approval`)
 - ✅ Capture-coverage attestation (`atb.capture.scope`) — the recorder states what it can and cannot see
 - ✅ `atb incident export` — self-contained, independently verifiable incident evidence package (bundle + reports + chain-of-custody manifest)
-- ✅ Custos signs custody receipts (Ed25519 attestation of receipt, verifiable against the embedded key)
+- ✅ Mortise signs custody receipts (Ed25519 attestation of receipt, verifiable against the embedded key)
 - ✅ Detection: `policy_denied_executed` and `action_failed` anomalies over the `ai.*` gate/proxy events
 - ✅ Explained findings: the incident report turns each raised anomaly flag into a located finding (severity, plain-English meaning, triggering event sequence numbers) in markdown and JSON, with per-event `triggered_flags` in the NDJSON for SIEM record-level alerting
 - ✅ Streamed (SSE) tool-call extraction for OpenAI and Anthropic
@@ -38,7 +38,7 @@ and review it from a tamper-evident bundle.
 ## Near term — Q3 2026
 
 - ✅ Phase 10: Transparent Proxy Capture (`atb intercept`) — local HTTPS MITM/reverse proxy that records AI API traffic, tool calls, and failures into a live bundle (shipped May–June 2026)
-- ✅ Proxy auto-push to Custos on session close (added 28 May 2026 — completed out of roadmap order)
+- ✅ Proxy auto-push to Mortise on session close (added 28 May 2026 — completed out of roadmap order)
 - ✅ Formalise obligation-profile DSL v1 (completed 29 May 2026)
 - ✅ Produce verifier report v1 structured output (completed 29 May 2026)
 - ✅ Wire automatic capture to Claude and OpenAI SDK clients — opt-in
@@ -81,13 +81,13 @@ and review it from a tamper-evident bundle.
 - Universal completeness guarantees — `atb intercept` captures provider API traffic, but an agent that bypasses the proxy (or a direct in-process SDK call) is not seen; completeness is bounded by what flows through the recorder
 - Training data governance (Articles 10–11)
 
-## Custos
+## Mortise
 
-Custos is the in-repo reference receipt, custody, and attestation layer for ATB bundles. It lives under `custos/` as a separate Go module and is being scaffolded incrementally: the ingestion boundary, receipt store, the receipt + digest registry (with the `GET /receipts/by-hash` daemon lookup), per-org signing policy, and auth packages have unit tests today, while discovery, onboarding, oversight, and insights are early scaffolds. Custos demonstrates how recorded bundles are ingested, signed, and held under custody — it is reference infrastructure, not a finished product.
+Mortise is the in-repo reference receipt, custody, and attestation layer for ATB bundles. It lives under `custos/` as a separate Go module and is being scaffolded incrementally: the ingestion boundary, receipt store, the receipt + digest registry (with the `GET /receipts/by-hash` daemon lookup), per-org signing policy, and auth packages have unit tests today, while discovery, onboarding, oversight, and insights are early scaffolds. Mortise demonstrates how recorded bundles are ingested, signed, and held under custody — it is reference infrastructure, not a finished product.
 
 Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/RBAC, legal hold, and custodian-of-record operations remain outside the ATB runtime and outside this repository (see [CONTRIBUTING.md](../CONTRIBUTING.md)). The roadmap below tracks the in-repo reference layer only.
 
-## Custos Enterprise Layer (in-repo reference)
+## Mortise Enterprise Layer (in-repo reference)
 
 - ✅ Phase 10: Ingestion engine scaffold (custos/ package tree) — Q3 2026 (completed 28 May 2026)
 - ✅ Custody log made auditable: content-addressed ingest fixed (filesystem stores now accept real bundles), `GET /receipts` enumerates the log, `GET /receipts/:id/attestation` verifies the Ed25519 custody attestation server-side, and `GET /custody/key` publishes the signing key for independent (operator-token-free) attestation verification and rotation detection (June 2026)
@@ -95,7 +95,7 @@ Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/R
   persists per-org policy (key source/reference, RFC 3161 TSA toggle, cron
   rotation schedule) via `InMemoryPolicyStore` and an owner-only
   `FileSystemPolicyStore`, with `SigningPolicy.Validate()` guarding org ID, key
-  reference, key source, and the cron schedule. Custos records the policy; ATB
+  reference, key source, and the cron schedule. Mortise records the policy; ATB
   core performs the signing (completed June 2026)
 - ✅ Phase 10: Managed storage & hosted custody (single-org, self-hostable) — Filesystem and S3-compatible storage for receipts and bundles, with retention policies and ATB CLI integration for `intercept`, `incident export`, and `compliance pack` (June 2026)
 - Phase 10: AI tool discovery + registry — Q3 2026
@@ -109,12 +109,12 @@ Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/R
 ## Design notes (forward-looking — not commitments)
 
 Trust boundaries and never-claims are in [public-surface.md](./public-surface.md).
-Custos custody design and shipped boundary:
+Mortise custody design and shipped boundary:
 [custos-product capability boundary](https://github.com/pcguest/custos-product/blob/main/docs/capability-boundary.md).
 The items below are historical direction notes, not release commitments:
 
-- **Custos transparency log** — Merkle inclusion proofs and witness cosignatures
-  (shipped in Custos v0.5.0; see product repo)
+- **Mortise transparency log** — Merkle inclusion proofs and witness cosignatures
+  (shipped in Mortise v0.5.0; see product repo)
 - **EU AI Act Article 12 mapping** — [compliance/eu-ai-act.md](./compliance/eu-ai-act.md)
 - **Capture and custody scope** — each integration sees only routed traffic;
   see [public-surface.md](./public-surface.md)

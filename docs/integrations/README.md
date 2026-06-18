@@ -13,4 +13,4 @@ an explicit capture boundary — see [Public surface](../public-surface.md).
 | SIEM / GRC export | [siem-grc.md](./siem-grc.md) |
 
 Custody, receipts, and transparency-log operations live in
-[Custos](https://github.com/pcguest/custos-product), not in ATB.
+[Mortise](https://github.com/pcguest/custos-product), not in ATB.

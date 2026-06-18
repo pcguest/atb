@@ -5,16 +5,17 @@ specifications, SDKs, tests, fixtures, examples, local viewer, release tooling,
 and maintainer documentation are world-readable and should be written on that
 basis.
 
-Custos is a separate proprietary companion product published for evaluation and
+Mortise is a separate proprietary companion product published for evaluation and
 audit at [github.com/pcguest/custos-product](https://github.com/pcguest/custos-product).
 ATB owns local capture, the `.atb` format, integrity verification, profiles,
-CAS, and offline review. Custos owns durable custody, signed receipts,
-transparency-log evidence, and auditor access. Neither product certifies
-compliance or proves capture completeness.
+CAS, and offline review. Mortise owns durable custody, signed receipts,
+transparency-log evidence, and auditor access. Tenon is the umbrella name for
+both: ATB the open core, Mortise the commercial framework. Neither product
+certifies compliance or proves capture completeness.
 
 ## Compatibility-sensitive public contracts
 
-The following surfaces require extra review because external users and Custos
+The following surfaces require extra review because external users and Mortise
 depend on them:
 
 - `docs/spec-v1.0.md`, `schemas/event.v1.json`, and canonical hash golden vectors
@@ -37,13 +38,13 @@ in `VERSIONING.md` and cross-language parity through `make test-golden`.
 | Reviewer identity evidence | Shipped, optional | Hash-chains caller-provided IdP/assertion digests; ATB is not an IdP and does not validate the assertion |
 | Retention operations bundle | Shipped | Records policy changes, local archive outcomes, and accepted Object Lock requests; does not prove continuing remote enforcement |
 | `atb compliance pack` | Shipped | Deterministic offline bundle/profile review package; not a conformity assessment |
-| In-repo `custos/` Go module | Reference scaffold | Kept for contract tests and compatibility; not the Custos product |
-| Managed storage (filesystem, S3-compatible) | In-repo reference | Custos provides managed storage for receipts and bundles, with retention policies |
-| Hosted custody, SSO, billing, legal hold, and managed witnesses | Outside ATB | Belongs in Custos Ring 4 or another external product |
+| In-repo `custos/` Go module | Reference scaffold | Kept for contract tests and compatibility; not the Mortise product |
+| Managed storage (filesystem, S3-compatible) | In-repo reference | Mortise provides managed storage for receipts and bundles, with retention policies |
+| Hosted custody, SSO, billing, legal hold, and managed witnesses | Outside ATB | Belongs in Mortise Ring 4 or another external product |
 
 ## Role-Based Access Control (RBAC)
 
-ATB and Custos now support optional role-based access control for their HTTP APIs. This allows operators to define granular permissions for different users or services interacting with the systems.
+ATB and Mortise now support optional role-based access control for their HTTP APIs. This allows operators to define granular permissions for different users or services interacting with the systems.
 
 ### Roles
 
@@ -95,10 +96,10 @@ request and response bodies, not raw prompts or completions. Credential and
 session-secret headers are stripped. `--capture-bodies` is an explicit privacy
 tradeoff.
 
-`--custos-endpoint <url>` lodges the completed bundle with a configured Custos
+`--custos-endpoint <url>` lodges the completed bundle with a configured Mortise
 endpoint when a session closes. `ATB_CUSTOS_TOKEN`, when set, supplies the Bearer
 token from the environment. With neither option configured, interception remains
-local and does not perform network custody operations. Custos ingests whole
+local and does not perform network custody operations. Mortise ingests whole
 bundles, verifies them, and returns a signed receipt; it does not accept
 individual events.
 
@@ -122,10 +123,10 @@ bundle. Compliance packs include relevant operations evidence when available.
 An accepted S3 Object Lock request is not represented as independent proof of
 bucket configuration, legal hold, or future object availability.
 
-## Custos and the in-repo scaffold
+## Mortise and the in-repo scaffold
 
 The supported companion product and evaluator path live in the
-[Custos repository](https://github.com/pcguest/custos-product). The in-repo
+[Mortise repository](https://github.com/pcguest/custos-product). The in-repo
 `custos/` module remains a reference implementation and compatibility harness;
 new custody product work does not land in ATB.
 

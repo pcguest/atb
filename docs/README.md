@@ -4,6 +4,9 @@ Start with the [five-minute quickstart](./quickstart.md), then follow the path
 that matches your role. This hub is the only doc map — deeper pages are linked
 from here, not scattered across the tree.
 
+ATB is the open, MIT-licensed evidence core of Tenon. Mortise is the separate
+commercial framework for long-term custody; ATB works fully without it.
+
 ## Use ATB
 
 | Doc | For |
@@ -13,7 +16,7 @@ from here, not scattered across the tree.
 | [Incident forensics](./guides/incident-forensics.md) | Capture → discover → review after an agent incident |
 | [Tamper demo](./guides/tamper-demo.md) | One-byte mutation and verify failure |
 | [WORM / S3](./integrations/worm-s3.md) | Operator-controlled immutable retention |
-| [Custos handoff](./custos-handoff.md) | Companion custody product boundary |
+| [Mortise handoff](./custos-handoff.md) | Companion custody product boundary |
 
 ## Review evidence
 

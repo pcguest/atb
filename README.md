@@ -9,6 +9,11 @@ completeness or operator honesty before external custody or anchoring.**
 
 Current release: [`v1.15.0`](CHANGELOG.md)
 
+**Tenon** is the umbrella name for this work. ATB is the open, MIT-licensed
+evidence core beneath it: the bundle format, CLI, SDKs, profiles, and offline
+verification. Mortise is the commercial framework that fits onto that core for
+long-term custody. ATB stands alone and stays fully useful without Mortise.
+
 - **Tamper-evident by construction.** Every event is RFC 8785-canonicalised
   and SHA-256 chained; one flipped byte breaks verification.
 - **Verify with zero trust.** `atb verify` runs locally against the bundle
@@ -79,24 +84,24 @@ agent / app ──► capture (SDK · intercept proxy · OTel import)
    (offline)    (forensics)     (local viewer)
                     │
                     ▼ optional push
-          Custos (custody · WORM · receipts · transparency log)
+         Mortise (custody · WORM · receipts · transparency log)
 ```
 
 Long-term custody (WORM storage, signed receipts, and an RFC 6962
 transparency log with witness cosignatures) lives in the companion product
-[Custos](https://github.com/pcguest/custos-product); the full story is in its
+[Mortise](https://github.com/pcguest/custos-product); the full story is in its
 [end-to-end guide](https://github.com/pcguest/custos-product/blob/main/docs/e2e-atb-custos.md).
 ATB remains the MIT-licensed local evidence core: bundle format, CLI, SDKs,
-profiles, CAS, incident forensics, and offline compliance packs. Custos is a
+profiles, CAS, incident forensics, and offline compliance packs. Mortise is a
 separate product boundary, not a required hosted dependency for normal ATB use.
 
-## Open core and Custos
+## Open core and Mortise
 
-ATB is free forever under MIT. Custos is the commercial custodian-of-record
+ATB is free forever under MIT. Mortise is the commercial custodian-of-record
 that builds on it. The line is fixed: nothing listed as free is later moved
-behind Custos, and no Custos feature breaks offline verification.
+behind Mortise, and no Mortise feature breaks offline verification.
 
-| Free forever in ATB (MIT) | Added by Custos (commercial) |
+| Free forever in ATB (MIT) | Added by Mortise (commercial) |
 | --- | --- |
 | Bundle format (`.atb`, hash-chained NDJSON) | Custody of record and WORM retention |
 | CLI: `verify`, `view`, `capture`, `incident`, `compliance pack` | Signed Ed25519 custody receipts |
@@ -106,7 +111,7 @@ behind Custos, and no Custos feature breaks offline verification.
 | Incident forensics | SSO and RBAC |
 | Offline compliance and evidence packs | SLAs and support |
 
-ATB stays fully useful with no Custos account. Capture, verify, view, and
+ATB stays fully useful with no Mortise account. Capture, verify, view, and
 incident forensics all run offline.
 
 ## Obligation profiles

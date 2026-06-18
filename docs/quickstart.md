@@ -211,7 +211,7 @@ atb incident export --bundle run.atb/bundle.atb --session <session-id> --out inc
 For incident review, prefer `atb incident export`: it packages the verified
 bundle, session-scoped reports, chain-of-custody manifest, checksums, and
 hash-addressed event evidence. It stays local unless you explicitly pass a
-Custos endpoint.
+Mortise endpoint.
 
 For a profile-aware EU AI Act review pack:
 
