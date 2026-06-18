@@ -25,6 +25,14 @@ import { useUIStore } from "@/lib/state/ui-store";
 import { calculateViewerHealthScore } from "@/lib/trust-score";
 import { displayBundlePath } from "@/lib/display-path";
 
+function RoleRestrictedNote({ surface }: { surface: string }) {
+  return (
+    <div className="flex h-full items-center justify-center p-4 text-center text-sm text-muted-foreground">
+      {surface} is available in the Engineer role.
+    </div>
+  );
+}
+
 export default function ViewPage() {
   const role = useUIStore((state) => state.role);
   const [selectedSeq, setSelectedSeq] = useState<number | null>(null);
@@ -33,6 +41,7 @@ export default function ViewPage() {
   const verificationQuery = useVerificationQuery();
   const verification = verificationQuery.data ?? null;
   const verificationValid = verification?.status === "valid";
+  const rawDataVisible = canViewRawData(role);
 
   const metaQuery = useBundleMetaQuery(verificationValid);
   const shouldLoadRawEventData = verificationValid && canViewRawData(role);
@@ -117,7 +126,9 @@ export default function ViewPage() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {eventsQuery.isLoading && shouldLoadRawEventData ? (
+          {!rawDataVisible ? (
+            <RoleRestrictedNote surface="The event timeline" />
+          ) : eventsQuery.isLoading && shouldLoadRawEventData ? (
             <div className="space-y-2 p-2">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
@@ -156,7 +167,9 @@ export default function ViewPage() {
 
         {/* DAG graph */}
         <section className="h-[340px] shrink-0 border-b border-border bg-grid">
-          {graphQuery.isLoading ? (
+          {!rawDataVisible ? (
+            <RoleRestrictedNote surface="The event graph" />
+          ) : graphQuery.isLoading ? (
             <div className="flex h-full items-center justify-center">
               <Skeleton className="h-full w-full rounded-none" />
             </div>
@@ -212,11 +225,15 @@ export default function ViewPage() {
             Inspector
           </p>
         </div>
-        <EventInspector
-          event={selectedEvent}
-          disabled={!verificationValid || revealFieldMutation.isPending}
-          onReveal={handleReveal}
-        />
+        {!rawDataVisible ? (
+          <RoleRestrictedNote surface="The inspector" />
+        ) : (
+          <EventInspector
+            event={selectedEvent}
+            disabled={!verificationValid || revealFieldMutation.isPending}
+            onReveal={handleReveal}
+          />
+        )}
       </aside>
     </div>
   );

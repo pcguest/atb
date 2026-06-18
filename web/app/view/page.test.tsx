@@ -92,4 +92,10 @@ describe("ViewPage role selector", () => {
     expect(screen.queryByTestId("auditor-panel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("executive-panel")).not.toBeInTheDocument();
   });
+
+  it("explains the raw-data rails are Engineer-only for non-engineer roles", () => {
+    useUIStore.setState({ role: "auditor" });
+    render(<ViewPage />);
+    expect(screen.getAllByText(/available in the Engineer role/i).length).toBeGreaterThan(0);
+  });
 });
