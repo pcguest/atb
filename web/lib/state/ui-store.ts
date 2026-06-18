@@ -16,17 +16,14 @@ type StringStorage = {
 type UIStoreState = {
   role: DashboardRole;
   theme: ThemeMode;
-  sidebarOpen: boolean;
   setRole: (role: DashboardRole) => void;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
-  setSidebarOpen: (open: boolean) => void;
 };
 
-const defaultState: Pick<UIStoreState, "role" | "theme" | "sidebarOpen"> = {
+const defaultState: Pick<UIStoreState, "role" | "theme"> = {
   role: "engineer",
   theme: "dark",
-  sidebarOpen: false,
 };
 
 function createMemoryStorage(): StringStorage {
@@ -59,7 +56,6 @@ export const useUIStore = create<UIStoreState>()(
         set((state) => ({
           theme: state.theme === "dark" ? "light" : "dark",
         })),
-      setSidebarOpen: (open) => set({ sidebarOpen: open }),
     }),
     {
       name: "atb-ui-store-v1",
