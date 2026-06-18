@@ -20,16 +20,16 @@ Note: although the GitHub token could technically push, release, and flip
 visibility from here, all of those are on the irreversible list and will not run
 without your explicit "go".
 
-## Decision still open (blocks runbook section 2)
+## Decision resolved: GitHub private vulnerability reporting
 
-- **Security and site contact mailbox is unfilled.** The brief left it as
-  `[FILL THIS IN]`. The placeholder token `security@replace-me.example` still
-  appears in: ATB `SECURITY.md`, `CODE_OF_CONDUCT.md`, `docs/incident-response.md`,
-  `.github/ISSUE_TEMPLATE/security_report.yml`; Custos `SECURITY.md`,
-  `site/index.html`. The personal `proton.me` address remains only in
-  `sdk/python/pyproject.toml` and `sdk/typescript/package.json` author metadata,
-  by design. No domain has been invented. Give the mailbox, then runbook
-  section 2 is one find-replace per repo.
+- Security disclosure on both repos points to GitHub's private vulnerability
+  reporting (the Security tab). No email is exposed on a security surface.
+- The conduct report uses the same private channel. The Custos site sales CTA
+  uses the proton stopgap (it is a procurement contact, not a vuln report).
+- New prerequisite before going public: enable Private vulnerability reporting
+  in each repository's Settings (runbook section 5).
+- The personal `proton.me` address otherwise stays only in SDK author metadata,
+  by design.
 
 ## Proven, with evidence
 

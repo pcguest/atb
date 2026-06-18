@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v1.15.0] - 2026-06-15
+## [v1.15.0] - 2026-06-17
 
 ### Added
 - Optional digest-only reviewer identity evidence for policy, action, approval, and override events across Go, Python, and TypeScript. Verify, trust, incident, and compliance reports label it as caller-provided and not independently verified by ATB.

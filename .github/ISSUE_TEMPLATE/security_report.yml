@@ -1,5 +1,5 @@
 name: Security Report
-description: Report a potential security vulnerability (private email path preferred).
+description: Report a potential security vulnerability (private GitHub reporting preferred).
 title: "[Security]: "
 labels: ["security", "needs-triage"]
 assignees: []
@@ -9,7 +9,7 @@ body:
     attributes:
       value: |
         Please do not disclose exploitable details publicly.
-        Preferred channel: security@replace-me.example (response target: 5 business days).
+        Preferred channel: GitHub private vulnerability reporting on the Security tab (response target: 5 business days).
 
   - type: dropdown
     id: affected_component

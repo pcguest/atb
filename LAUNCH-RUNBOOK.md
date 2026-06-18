@@ -56,24 +56,27 @@ d=$(mktemp -d); git clone --no-local --branch release/v1.15.0 ~/atb "$d/c"
 cd "$d/c" && GOCACHE=$(pwd)/.gocache/go1.26.4 GOTOOLCHAIN=go1.26.4 go build ./cmd/atb && echo OK
 ```
 
-## 2. Set the security contact (one decision, one command per repo)
+## 2. Set the security contact (done: GitHub private vulnerability reporting)
 
-Pick one role mailbox, then replace the placeholder token. Abort the launch if
-`security@replace-me.example` still appears anywhere after this.
+Resolved. Security disclosure on both repos now points to GitHub's private
+vulnerability reporting (the **Security** tab, **Report a vulnerability**), so no
+email address is exposed on a security surface. The placeholder token is gone
+from every contact surface; `grep -rn 'replace-me.example'` returns only this
+runbook and the acceptance notes, which describe the change.
 
-```bash
-cd ~/atb
-grep -rl 'security@replace-me.example' . | grep -v node_modules | \
-  xargs sed -i '' 's/security@replace-me.example/security@YOURDOMAIN/g'
-cd ~/custos-product
-grep -rl 'security@replace-me.example' . | grep -v node_modules | \
-  xargs sed -i '' 's/security@replace-me.example/security@YOURDOMAIN/g'
-```
+Two surfaces are not security disclosure and were treated separately:
 
-Commit the result (signed) on each branch. Note: package author metadata in
-`sdk/typescript/package.json` and `sdk/python/pyproject.toml` still carries the
-maintainer's personal address by design; change it only if you want a
-non-personal author.
+- `CODE_OF_CONDUCT.md` reporting routes to the same GitHub private channel,
+  since it is the only private maintainer channel without an email.
+- The Custos site "Start a conversation" CTA is a design-partner contact, not a
+  vulnerability report, so it uses the maintainer proton address as an explicit
+  stopgap. Swap it for a role inbox when one exists.
+
+Prerequisite for going public (section 5): enable **Private vulnerability
+reporting** in each repository's Settings before the visibility flip, or the
+Security-tab links have nothing to point at. Package author metadata in
+`sdk/typescript/package.json` and `sdk/python/pyproject.toml` keeps the personal
+address by design.
 
 ## 3. Push the branches (reversible up to merge)
 
@@ -100,6 +103,10 @@ force-move `v1.15.0`. There is no rollback for a pushed tag other than a new
 tag.
 
 ## 5. Make the repositories public (irreversible in practice)
+
+Before the flip, enable **Private vulnerability reporting** in each repository's
+Settings (Code security and analysis), so the SECURITY.md Security-tab links
+resolve the moment the repo is public.
 
 Flip visibility for `pcguest/atb` and `pcguest/custos-product` in the GitHub
 settings. Do this only after sections 1 to 4 are clean. Once public, the current

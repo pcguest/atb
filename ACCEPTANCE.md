@@ -70,7 +70,7 @@ Honest limit on this item: there is no JSON-schema instance validator in-tree (n
 | --- | --- | --- |
 | No secrets in history | `gitleaks detect --log-opts=--all` on a rewritten clone | "no leaks found", 886 commits. |
 | History rewrite is safe | `git filter-repo --path .atb-agent --path-glob '.gocache*' --invert-paths` on a mirror | 121.45 MiB to 4.13 MiB; gosec, `.gocache*`, `.atb-agent` gone; 36 branches and 25 tags survive; rewritten tree builds. Not run on the real repo. |
-| Disclosure contact is parameterised | `grep -rl security@replace-me.example` | One placeholder token across all security-contact surfaces in both repos; the personal address remains only in package author metadata, by design. |
+| Disclosure contact is resolved | `grep -rn 'replace-me.example'` | Security disclosure on both repos points to GitHub private vulnerability reporting; no email is exposed on a security surface. The conduct report uses the same private channel; the Custos site sales CTA uses the proton stopgap. The placeholder remains only in this runbook and these notes, which describe the change. The personal address otherwise stays only in package author metadata, by design. |
 
 ## Custos site static audit
 

@@ -6,7 +6,7 @@ This runbook is intentionally lightweight so it remains usable by a solo maintai
 
 Trigger conditions:
 
-- Report received through `security@replace-me.example`
+- Report received through GitHub private vulnerability reporting (the Security tab)
 - Suspicious release artefact behaviour
 - Integrity mismatch or unexpected production workflow failures
 - Credential leak signal (logs, GitHub alert, third-party report)
@@ -54,5 +54,5 @@ Immediate actions:
 
 ## Contacts
 
-- Security intake: [security@replace-me.example](mailto:security@replace-me.example)
-- Maintainer: [security@replace-me.example](mailto:security@replace-me.example)
+- Security intake: GitHub private vulnerability reporting ([Security tab](https://github.com/pcguest/atb/security/advisories/new))
+- Maintainer: reached through the same private report
