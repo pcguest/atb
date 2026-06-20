@@ -99,7 +99,7 @@ PyPI trusted publishing is keyed to:
 - GitHub repository: `atb`.
 - Workflow filename: `release.yml`.
 - Workflow path in the repository: `.github/workflows/release.yml`.
-- GitHub environment: none in the current workflow.
+- GitHub environment: any. The current workflow sets no environment.
 
 The public PyPI project page shows past provenance, not the full authenticated
 publisher-settings table. The current publisher settings must be checked by
@@ -109,11 +109,12 @@ Manual PyPI step before the release workflow runs:
 
 1. Open PyPI project `atb-sdk`.
 2. Go to `Publishing`.
-3. Remove any stale GitHub Actions trusted publisher for the old repository
-   binding.
-4. Add the GitHub Actions trusted publisher for the fresh launch repo:
-   owner `pcguest`, repository `atb`, workflow `release.yml`.
-5. Leave environment blank unless the workflow is changed to use one.
+3. Verify the existing GitHub Actions trusted publisher still lists:
+   owner `pcguest`, repository `atb`, workflow `release.yml`, environment `Any`.
+4. Leave it untouched if those fields match.
+5. If the first release publish fails as an untrusted publisher, remove the stale
+   entry and re-add: owner `pcguest`, repository `atb`, workflow `release.yml`,
+   environment `Any`.
 
 Expected result: the `release.yml` workflow in `pcguest/atb` can mint a
 short-lived PyPI token for `atb-sdk`.
@@ -125,10 +126,10 @@ workflow. Update PyPI first.
 
 Reference: PyPI docs say GitHub trusted publishers require the repository owner,
 repository name, and workflow filename, with an optional environment. PyPI also
-checks the GitHub repository owner's immutable id. The docs do not say that PyPI
-checks the repository id, but this launch still removes and re-adds the
-publisher after the fresh `pcguest/atb` exists so the release does not depend on
-stale publisher state.
+checks the GitHub repository owner's immutable id. The docs identify the repo
+claim as the owner/name string and do not say PyPI checks GitHub's internal
+repository id. A fresh `pcguest/atb` owned by the same GitHub account should
+continue to match the existing publisher entry.
 
 ## Dependabot Inert Policy
 
@@ -444,7 +445,7 @@ Abort: do not tag or run release workflows until `NPM_TOKEN` and
 `ATB_SIGNING_KEY_PEM` exist. Do not run Docker publish without Docker Hub
 secrets.
 
-### 10. Update PyPI Trusted Publisher
+### 10. Verify PyPI Trusted Publisher
 
 Owner: Patrick.
 
@@ -452,16 +453,20 @@ Manual step:
 
 - PyPI project `atb-sdk`.
 - Publishing.
-- Remove any stale GitHub Actions publisher entry for the old repository binding.
-- GitHub Actions trusted publisher:
-  owner `pcguest`, repository `atb`, workflow `release.yml`, no environment.
+- Confirm the existing GitHub Actions trusted publisher lists:
+  owner `pcguest`, repository `atb`, workflow `release.yml`, environment `Any`.
+- Do not remove and re-add when those fields match.
 
 Expected result: PyPI trusts `.github/workflows/release.yml` in `pcguest/atb`.
 
 Reversible: yes. Edit or remove trusted publisher.
 
-Abort: if PyPI still points at an old repo, do not run the release workflow.
+Abort: if PyPI points at any other owner, repository, workflow, or environment,
+do not run the release workflow.
 If the PyPI UI cannot show the final publisher entry clearly, stop.
+Fallback: if the first release publish fails as an untrusted publisher, remove
+the publisher entry and re-add: owner `pcguest`, repository `atb`, workflow
+`release.yml`, environment `Any`.
 
 ### 11. Enable Private Vulnerability Reporting
 
