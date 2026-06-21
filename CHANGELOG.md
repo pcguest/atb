@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.15.1] - 2026-06-21
+
+### Fixed
+- Dashboard muted text now meets the WCAG colour-contrast threshold. v1.15.1 supersedes the gated v1.15.0, which the Gold Release Gate held back over this accessibility defect; the canonical event contract is unchanged.
+
 ## [v1.15.0] - 2026-06-17
 
 ### Added
