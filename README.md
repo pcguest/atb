@@ -89,8 +89,8 @@ agent / app ──► capture (SDK · intercept proxy · OTel import)
 
 Long-term custody (WORM storage, signed receipts, and an RFC 6962
 transparency log with witness cosignatures) lives in the companion product
-[Mortise](https://github.com/pcguest/custos-product); the full story is in its
-[end-to-end guide](https://github.com/pcguest/custos-product/blob/main/docs/e2e-atb-custos.md).
+[Mortise](https://github.com/pcguest/mortise); the full story is in its
+[end-to-end guide](https://github.com/pcguest/mortise/blob/main/docs/e2e-atb-custos.md).
 ATB remains the MIT-licensed local evidence core: bundle format, CLI, SDKs,
 profiles, CAS, incident forensics, and offline compliance packs. Mortise is a
 separate product boundary, not a required hosted dependency for normal ATB use.
@@ -162,7 +162,7 @@ compliance by itself, and it never certifies compliance.
 | [Operator WORM guide](./docs/integrations/worm-s3.md) | Store bundles under operator-controlled immutable retention |
 | [Bundle specification](./docs/spec-v1.0.md) | Frozen format, hashing, and canonicalisation contract |
 | [Security model](./docs/security.md) | Threat model, guarantees, and explicit limitations |
-| [Submission / evaluation](https://github.com/pcguest/custos-product/blob/main/docs/SUBMISSION.md) | Versions, evaluator commands, never-claims, and shipped boundary |
+| [Submission / evaluation](https://github.com/pcguest/mortise/blob/main/docs/SUBMISSION.md) | Versions, evaluator commands, never-claims, and shipped boundary |
 
 ## Contributing and security
 

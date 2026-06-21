@@ -67,5 +67,5 @@ Technical evidence mappings only — not legal advice or certification.
 | [Roadmap](./roadmap.md) | Shipped vs planned (in-repo scope) |
 | [Disaster recovery](./maintenance/disaster-recovery.md) | Source, secrets, and release recovery |
 
-Evaluator path for ATB + Custos:
-[Custos SUBMISSION](https://github.com/pcguest/custos-product/blob/main/docs/SUBMISSION.md).
+Evaluator path for ATB + Mortise:
+[Mortise SUBMISSION](https://github.com/pcguest/mortise/blob/main/docs/SUBMISSION.md).

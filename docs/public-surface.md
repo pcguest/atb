@@ -6,7 +6,7 @@ and maintainer documentation are world-readable and should be written on that
 basis.
 
 Mortise is a separate proprietary companion product published for evaluation and
-audit at [github.com/pcguest/custos-product](https://github.com/pcguest/custos-product).
+audit at [github.com/pcguest/mortise](https://github.com/pcguest/mortise).
 ATB owns local capture, the `.atb` format, integrity verification, profiles,
 CAS, and offline review. Mortise owns durable custody, signed receipts,
 transparency-log evidence, and auditor access. Tenon is the umbrella name for
@@ -126,7 +126,7 @@ bucket configuration, legal hold, or future object availability.
 ## Mortise and the in-repo scaffold
 
 The supported companion product and evaluator path live in the
-[Mortise repository](https://github.com/pcguest/custos-product). The in-repo
+[Mortise repository](https://github.com/pcguest/mortise). The in-repo
 `custos/` module remains a reference implementation and compatibility harness;
 new custody product work does not land in ATB.
 

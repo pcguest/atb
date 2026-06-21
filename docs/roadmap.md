@@ -110,7 +110,7 @@ Hosted, multi-tenant concerns — central auditor portal hosting, billing, SSO/R
 
 Trust boundaries and never-claims are in [public-surface.md](./public-surface.md).
 Mortise custody design and shipped boundary:
-[custos-product capability boundary](https://github.com/pcguest/custos-product/blob/main/docs/capability-boundary.md).
+[Mortise capability boundary](https://github.com/pcguest/mortise/blob/main/docs/capability-boundary.md).
 The items below are historical direction notes, not release commitments:
 
 - **Mortise transparency log** — Merkle inclusion proofs and witness cosignatures

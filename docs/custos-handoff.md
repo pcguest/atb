@@ -1,15 +1,15 @@
 # Mortise integration handoff
 
 Mortise is the separate proprietary companion to ATB:
-[github.com/pcguest/custos-product](https://github.com/pcguest/custos-product).
+[github.com/pcguest/mortise](https://github.com/pcguest/mortise).
 Both sit under the Tenon umbrella: ATB the open MIT core, Mortise the commercial
 custody framework that fits onto it.
 The current integration baseline is ATB `v1.14.3` and Mortise `v0.5.0`.
 
 Use the Mortise
-[end-to-end guide](https://github.com/pcguest/custos-product/blob/main/docs/e2e-atb-custos.md)
+[end-to-end guide](https://github.com/pcguest/mortise/blob/main/docs/e2e-atb-custos.md)
 for the evaluator path and its
-[capability boundary](https://github.com/pcguest/custos-product/blob/main/docs/capability-boundary.md)
+[capability boundary](https://github.com/pcguest/mortise/blob/main/docs/capability-boundary.md)
 for the canonical four rings and never-claims.
 
 The `custos/` module in this repository is a reference scaffold and
@@ -60,4 +60,4 @@ it is used outside a local compatibility test, the operator must provide:
   completeness
 
 For supported production deployment, use the
-[Mortise deployment guide](https://github.com/pcguest/custos-product/blob/main/docs/deploy-production.md).
+[Mortise deployment guide](https://github.com/pcguest/mortise/blob/main/docs/deploy-production.md).
