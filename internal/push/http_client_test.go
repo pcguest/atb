@@ -3,8 +3,11 @@ package push
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -137,5 +140,170 @@ func TestNewHTTPClientWithConfig_UnsupportedCredentialsSource(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unsupported credentials source") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestHTTPS3ClientGetObjectAndNotFound(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+	t.Setenv("AWS_SESSION_TOKEN", "session-token")
+
+	requests := 0
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			requests++
+			if r.Method != http.MethodGet {
+				t.Fatalf("method = %q, want GET", r.Method)
+			}
+			if !strings.Contains(r.Header.Get("Authorization"), "AWS4-HMAC-SHA256") {
+				t.Fatalf("missing SigV4 Authorization: %q", r.Header.Get("Authorization"))
+			}
+			if r.Header.Get("x-amz-security-token") != "session-token" {
+				t.Fatalf("session token = %q", r.Header.Get("x-amz-security-token"))
+			}
+			status := http.StatusOK
+			body := "bundle"
+			if strings.Contains(r.URL.Path, "missing") {
+				status = http.StatusNotFound
+				body = "NoSuchKey"
+			}
+			return &http.Response{
+				StatusCode: status,
+				Header:     http.Header{},
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Request:    r,
+			}, nil
+		}),
+	}
+	client, err := NewHTTPClientWithConfig(ClientConfig{
+		EndpointURL: "https://storage.example.test/base/",
+		HTTPClient:  httpClient,
+	})
+	if err != nil {
+		t.Fatalf("NewHTTPClientWithConfig: %v", err)
+	}
+	out, err := client.GetObject(context.Background(), GetObjectInput{Bucket: "bucket", Key: "/path/bundle.atb"})
+	if err != nil {
+		t.Fatalf("GetObject: %v", err)
+	}
+	data, err := io.ReadAll(out.Body)
+	if err != nil {
+		t.Fatalf("read object: %v", err)
+	}
+	out.Body.Close()
+	if string(data) != "bundle" {
+		t.Fatalf("body = %q", data)
+	}
+
+	_, err = client.GetObject(context.Background(), GetObjectInput{Bucket: "bucket", Key: "missing"})
+	if err == nil || !IsNotFound(err) || IsAuthError(err) {
+		t.Fatalf("missing object error = %v", err)
+	}
+	if requests != 2 {
+		t.Fatalf("requests = %d, want 2", requests)
+	}
+}
+
+func TestHTTPS3ClientTransportErrors(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+	transportErr := errors.New("transport unavailable")
+	client, err := NewHTTPClientWithConfig(ClientConfig{
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, transportErr
+		})},
+	})
+	if err != nil {
+		t.Fatalf("NewHTTPClientWithConfig: %v", err)
+	}
+	if _, err := client.PutObject(context.Background(), PutObjectInput{Bucket: "bucket", Key: "key"}); !errors.Is(err, transportErr) {
+		t.Fatalf("PutObject error = %v", err)
+	}
+	if _, err := client.GetObject(context.Background(), GetObjectInput{Bucket: "bucket", Key: "key"}); !errors.Is(err, transportErr) {
+		t.Fatalf("GetObject error = %v", err)
+	}
+}
+
+func TestCredentialEndpointAndRegionResolution(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("HOME", t.TempDir())
+	if _, err := ResolveCredentials(); err == nil {
+		t.Fatal("ResolveCredentials unexpectedly succeeded without credentials")
+	}
+
+	for _, endpoint := range []string{"ftp://example.com", "https://", "relative/path"} {
+		if _, err := normalizeEndpointURL(endpoint); err == nil {
+			t.Errorf("normalizeEndpointURL(%q) unexpectedly succeeded", endpoint)
+		}
+	}
+	if got, err := normalizeEndpointURL(" https://example.com/base/ "); err != nil || got != "https://example.com/base" {
+		t.Fatalf("normalize endpoint = %q, %v", got, err)
+	}
+	if got, err := normalizeEndpointURL(""); err != nil || got != "" {
+		t.Fatalf("normalize empty endpoint = %q, %v", got, err)
+	}
+
+	t.Setenv("AWS_DEFAULT_REGION", "")
+	t.Setenv("AWS_REGION", "")
+	if got := ResolveRegion(); got != "us-east-1" {
+		t.Fatalf("default region = %q", got)
+	}
+	t.Setenv("AWS_REGION", "ap-southeast-1")
+	if got := ResolveRegion(); got != "ap-southeast-1" {
+		t.Fatalf("environment region = %q", got)
+	}
+	if got := resolveRegion(" eu-west-1 "); got != "eu-west-1" {
+		t.Fatalf("explicit region = %q", got)
+	}
+}
+
+func TestSharedCredentialProfileResolution(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	t.Setenv("AWS_PROFILE", "audit")
+	awsDir := filepath.Join(home, ".aws")
+	if err := os.MkdirAll(awsDir, 0o700); err != nil {
+		t.Fatalf("mkdir .aws: %v", err)
+	}
+	content := strings.Join([]string{
+		"# ignored",
+		"[default]",
+		"aws_access_key_id = default",
+		"[audit]",
+		"invalid-line",
+		"aws_access_key_id = audit-access",
+		"aws_secret_access_key = audit-secret",
+		"aws_session_token = audit-session",
+	}, "\n")
+	if err := os.WriteFile(filepath.Join(awsDir, "credentials"), []byte(content), 0o600); err != nil {
+		t.Fatalf("write credentials: %v", err)
+	}
+	got, err := ResolveCredentials()
+	if err != nil {
+		t.Fatalf("ResolveCredentials: %v", err)
+	}
+	if got.AccessKeyID != "audit-access" || got.SecretAccessKey != "audit-secret" || got.SessionToken != "audit-session" {
+		t.Fatalf("credentials = %+v", got)
+	}
+
+	t.Setenv("AWS_PROFILE", "missing")
+	if _, err := ResolveCredentials(); err == nil {
+		t.Fatal("missing profile unexpectedly resolved")
+	}
+}
+
+func TestS3ErrorClassification(t *testing.T) {
+	if got := (&S3Error{StatusCode: http.StatusForbidden, Body: " denied "}).Error(); got != "S3 HTTP 403: denied" {
+		t.Fatalf("error string = %q", got)
+	}
+	if IsAuthError(errors.New("other")) || IsNotFound(errors.New("other")) {
+		t.Fatal("ordinary error classified as S3 status")
+	}
+	if !IsAuthError(&S3Error{StatusCode: http.StatusUnauthorized}) {
+		t.Fatal("401 not classified as auth error")
 	}
 }

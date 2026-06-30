@@ -59,10 +59,52 @@ func TestParseViewArgs(t *testing.T) {
 			want: viewConfig{BundlePath: "run.atb", Host: defaultViewHost, Port: 7070, PortSet: true},
 		},
 		{
+			name: "all equals options",
+			args: []string{
+				"--host=localhost",
+				"--port=6060",
+				"--bundle=bundle.atb",
+				"--profile=atb.profile.rag_answer",
+				"--session-token=token",
+				"--oidc-issuer=https://issuer.example",
+				"--oidc-audience=atb-viewer",
+				"--no-open",
+				"--log-reveals",
+			},
+			want: viewConfig{
+				BundlePath:   "bundle.atb",
+				Host:         "localhost",
+				Port:         6060,
+				PortSet:      true,
+				NoOpen:       true,
+				LogReveals:   true,
+				ProfilePath:  "atb.profile.rag_answer",
+				SessionToken: "token",
+				OIDCIssuer:   "https://issuer.example",
+				OIDCAudience: "atb-viewer",
+			},
+		},
+		{
 			name:    "invalid port",
 			args:    []string{"--port", "abc"},
 			wantErr: true,
 		},
+		{name: "help", args: []string{"--help"}, wantErr: true},
+		{name: "missing host", args: []string{"--host"}, wantErr: true},
+		{name: "empty host", args: []string{"--host="}, wantErr: true},
+		{name: "missing port", args: []string{"--port"}, wantErr: true},
+		{name: "port too low", args: []string{"--port=0"}, wantErr: true},
+		{name: "port too high", args: []string{"--port=65536"}, wantErr: true},
+		{name: "missing bundle", args: []string{"--bundle"}, wantErr: true},
+		{name: "duplicate bundle flags", args: []string{"--bundle=one", "--bundle=two"}, wantErr: true},
+		{name: "duplicate positional bundle", args: []string{"one", "two"}, wantErr: true},
+		{name: "missing profile", args: []string{"--profile"}, wantErr: true},
+		{name: "missing token", args: []string{"--session-token"}, wantErr: true},
+		{name: "missing sessions", args: []string{"--sessions"}, wantErr: true},
+		{name: "empty sessions", args: []string{"--sessions="}, wantErr: true},
+		{name: "invalid sessions glob", args: []string{"--sessions=["}, wantErr: true},
+		{name: "missing OIDC issuer", args: []string{"--oidc-issuer"}, wantErr: true},
+		{name: "missing OIDC audience", args: []string{"--oidc-audience"}, wantErr: true},
 		{
 			// The removed --ui-experimental flag must now be rejected as unknown.
 			name:    "unknown flag rejected",
@@ -87,6 +129,57 @@ func TestParseViewArgs(t *testing.T) {
 				t.Fatalf("unexpected config: got %+v want %+v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestViewSessionPathHelpers(t *testing.T) {
+	root := t.TempDir()
+	nested := filepath.Join(root, "nested")
+	if err := os.MkdirAll(nested, 0o700); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	first := filepath.Join(root, "first.atb")
+	second := filepath.Join(nested, "second.atb")
+	ignored := filepath.Join(nested, "ignored.txt")
+	for path, content := range map[string]string{first: "one", second: "two", ignored: "ignored"} {
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	paths, err := resolveSessionPaths(root)
+	if err != nil {
+		t.Fatalf("resolve directory: %v", err)
+	}
+	if !reflect.DeepEqual(paths, []string{first, second}) {
+		t.Fatalf("directory paths = %v", paths)
+	}
+	globbed, err := resolveSessionPaths(filepath.Join(root, "*.atb"))
+	if err != nil || !reflect.DeepEqual(globbed, []string{first}) {
+		t.Fatalf("glob paths = %v, %v", globbed, err)
+	}
+	if _, err := resolveSessionPaths(""); err == nil {
+		t.Fatal("empty session path unexpectedly resolved")
+	}
+	if _, err := resolveSessionPaths("["); err == nil {
+		t.Fatal("invalid glob unexpectedly resolved")
+	}
+
+	indexed := sessionIndexPaths(first, []string{first, second, second})
+	if !reflect.DeepEqual(indexed, []string{first, second}) {
+		t.Fatalf("indexed paths = %v", indexed)
+	}
+	if got := describeSessionSource(nil); got != "" {
+		t.Fatalf("empty source = %q", got)
+	}
+	if got := describeSessionSource([]string{root}); got != root {
+		t.Fatalf("directory source = %q", got)
+	}
+	if got := describeSessionSource([]string{first}); got != filepath.Dir(first) {
+		t.Fatalf("file source = %q", got)
+	}
+	if got := describeSessionSource([]string{first, second}); got != "2 bundle paths" {
+		t.Fatalf("multi source = %q", got)
 	}
 }
 

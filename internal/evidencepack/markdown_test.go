@@ -72,3 +72,33 @@ func TestRenderMarkdownPassAndErrorBundles(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderMarkdownMinimalBundleAndTopLevelRecommendation(t *testing.T) {
+	pack := Pack{Bundles: []BundleEvidenceSummary{
+		{
+			BundlePath:              "/tmp/minimal.atb",
+			IntegrityPass:           false,
+			ProfilePass:             false,
+			RecommendedNextEvidence: []string{"capture a policy decision"},
+		},
+	}}
+	var buf bytes.Buffer
+	if err := RenderMarkdown(pack, &buf, time.Unix(0, 0), "v1.15.1"); err != nil {
+		t.Fatalf("RenderMarkdown: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"ATB version: v1.15.1",
+		"- Integrity: FAIL",
+		"- Profile obligations: FAIL",
+		"### Residual risk",
+		"capture a policy decision",
+	} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("output missing %q:\n%s", want, out)
+		}
+	}
+	if got := formatATBVersion(" "); got != "" {
+		t.Fatalf("empty formatted version = %q", got)
+	}
+}

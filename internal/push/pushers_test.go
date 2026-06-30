@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -144,5 +145,72 @@ func TestQueuePusherPush_SendsEnvelopeAndSignature(t *testing.T) {
 	wantSignature := hex.EncodeToString(mac.Sum(nil))
 	if gotSignature != wantSignature {
 		t.Fatalf("signature: got %q want %q", gotSignature, wantSignature)
+	}
+}
+
+func TestQueuePusherValidationAndHTTPFailures(t *testing.T) {
+	meta := PushMeta{SealTimestamp: time.Unix(0, 0)}
+	for _, pusher := range []QueuePusher{
+		{},
+		{EndpointURL: "https://queue.example"},
+		{EndpointURL: "https://queue.example", HMACKey: []byte("key")},
+	} {
+		if err := pusher.Push(context.Background(), nil, meta); err == nil {
+			t.Errorf("QueuePusher %+v unexpectedly succeeded", pusher)
+		}
+	}
+
+	transportErr := errors.New("queue unavailable")
+	pusher := QueuePusher{
+		EndpointURL: "https://queue.example",
+		HMACKey:     []byte("key"),
+		ATBVersion:  "1.15.1",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, transportErr
+		})},
+	}
+	if err := pusher.Push(context.Background(), nil, meta); !errors.Is(err, transportErr) {
+		t.Fatalf("transport error = %v", err)
+	}
+
+	pusher.HTTPClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusBadGateway,
+			Body:       io.NopCloser(strings.NewReader("upstream failed")),
+			Header:     http.Header{},
+			Request:    r,
+		}, nil
+	})}
+	if err := pusher.Push(context.Background(), nil, meta); err == nil || !strings.Contains(err.Error(), "502") {
+		t.Fatalf("HTTP error = %v", err)
+	}
+}
+
+type failingUploader struct {
+	err error
+}
+
+func (u failingUploader) PutObject(context.Context, PutObjectInput) (PutObjectOutput, error) {
+	return PutObjectOutput{}, u.err
+}
+
+func (u failingUploader) GetObject(context.Context, GetObjectInput) (GetObjectOutput, error) {
+	return GetObjectOutput{}, u.err
+}
+
+func TestS3PusherValidationAndUploadFailure(t *testing.T) {
+	for _, pusher := range []S3Pusher{
+		{},
+		{Uploader: failingUploader{}},
+		{Uploader: failingUploader{}, Bucket: "bucket"},
+	} {
+		if err := pusher.Push(context.Background(), nil, PushMeta{}); err == nil {
+			t.Errorf("S3Pusher %+v unexpectedly succeeded", pusher)
+		}
+	}
+	wantErr := errors.New("upload failed")
+	pusher := S3Pusher{Uploader: failingUploader{err: wantErr}, Bucket: "bucket", Key: "key"}
+	if err := pusher.Push(context.Background(), nil, PushMeta{}); !errors.Is(err, wantErr) {
+		t.Fatalf("upload error = %v", err)
 	}
 }
