@@ -935,15 +935,14 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 	args, outputFormat, dryRun, err := parseMutationFlags(args)
 	if err != nil {
 		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "corroborate",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    err.Error(),
 				ExitCode: exitUserError,
-			}, "corroborate")
-			return exitUserError
+			}, stderr, "corroborate")
 		}
 		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
 		return exitUserError
@@ -1022,15 +1021,14 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 	rec, err := adapter.Fetch(context.Background(), ref)
 	if err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "corroborate",
 				DryRun:   dryRun,
 				Path:     resolvedPath,
 				Error:    err.Error(),
 				ExitCode: exitSystemError,
-			}, "corroborate")
-			return exitSystemError
+			}, stderr, "corroborate")
 		}
 		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
 		return exitSystemError
@@ -1047,7 +1045,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			exitCode = classifyBundleLoadError(err)
 		}
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "corroborate",
 				DryRun:    dryRun,
@@ -1055,8 +1053,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 				EventType: event.TypeCorroborationExternal,
 				Error:     err.Error(),
 				ExitCode:  exitCode,
-			}, "corroborate")
-			return exitCode
+			}, stderr, "corroborate")
 		}
 		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
 		return exitCode
@@ -1069,7 +1066,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			action = "preview_corroborate"
 			message = "corroboration event would be appended"
 		}
-		printMutationJSON(mutationResult{
+		return writeMutationJSON(stdout, mutationResult{
 			Status:    "ok",
 			Action:    action,
 			DryRun:    dryRun,
@@ -1078,8 +1075,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			EventType: last.Event.Type,
 			Hash:      last.Hash,
 			Message:   message,
-		}, "corroborate")
-		return exitSuccess
+		}, stderr, "corroborate")
 	}
 	if dryRun {
 		fmt.Fprintf(stdout, "~ Dry run: would append event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
