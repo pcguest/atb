@@ -276,6 +276,9 @@ func TestListenViewPortFallsBackWhenBusy(t *testing.T) {
 	defer baseListener.Close()
 
 	basePort := baseListener.Addr().(*net.TCPAddr).Port
+	if basePort > 65533 {
+		t.Skipf("ephemeral port %d leaves no complete two-port fallback range", basePort)
+	}
 
 	ln, gotPort, err := listenViewPort(defaultViewHost, basePort, false)
 	if err != nil {
