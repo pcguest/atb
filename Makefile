@@ -1,4 +1,4 @@
-.PHONY: hygiene-quick hygiene-full profile-fixtures goldens check-generated test-go test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: hygiene-quick hygiene-full profile-fixtures goldens check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -68,12 +68,20 @@ hygiene-full: hygiene-quick
 	@echo "🔍 Running full hygiene gate..."
 	$(GOENV) go test $(GO_PACKAGES) -race
 	$(GOENV) go test $(GO_COVER_PACKAGES) -coverprofile=coverage.out
-	@$(GOENV) go test ./pkg/api/v1 -cover | awk '/coverage:/{gsub("%","",$$5); if ($$5+0 < 80) {print "❌ Coverage below 80%"; exit 1}}'
+	@$(MAKE) coverage-check
 	cd web && npm run build
 	@echo "⚡ Running performance tests..."
 	@$(GOENV) go test ./test/performance -run=^$$ -bench=. -benchmem > /tmp/atb-performance-bench.txt
 	@awk '/Benchmark/ {for (i=1; i<=NF; i++) if ($$i == "ns\\/op" && $$(i-1)+0 > 2000000000) {print "❌ Performance regression: >2s load time"; exit 1}}' /tmp/atb-performance-bench.txt
 	@echo "✅ Hygiene gate passed"
+
+coverage-check:
+	@test -f coverage.out || { echo "❌ coverage.out missing; run 'make hygiene-full'"; exit 1; }
+	@set -eu; \
+		total="$$( $(GOENV) go tool cover -func=coverage.out | awk '/^total:/ {gsub("%","",$$3); print $$3}' )"; \
+		test -n "$$total" || { echo "❌ could not determine total coverage"; exit 1; }; \
+		awk -v total="$$total" 'BEGIN { if (total + 0 < 80) { printf "❌ Total Go coverage %.1f%% is below 80%%\n", total; exit 1 } }'; \
+		printf "✅ Total Go coverage %s%%\n" "$$total"
 
 test-embed: hygiene-full
 	@echo "🔗 Testing embed flow..."
@@ -89,15 +97,15 @@ test-embed: hygiene-full
 
 test-e2e:
 	@echo "🧪 Running E2E tests..."
-	cd web && npm install
+	cd web && npm ci
 	cd web && npm run build
 	$(GOENV) go build -o /tmp/atb-e2e ./cmd/atb
-	@/tmp/atb-e2e view --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
+	@/tmp/atb-e2e view --bundle examples/quickstart/run.atb/bundle.atb --session-token 0000000000000000000000000000000000000000000000000000000000000001 --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
 	@sleep 3
-	@cd web && CYPRESS_BASE_URL=http://127.0.0.1:18888 npm run test:e2e || (echo "❌ E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
+	@cd web && CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-dashboard.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
 	@kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true
 	@rm -f /tmp/atb-e2e.pid
-	@echo "✅ E2E tests passed"
+	@echo "✅ Live E2E tests passed"
 
 test-performance:
 	@echo "⚡ Running performance tests..."
@@ -126,19 +134,15 @@ gate-gold-release: test-all
 	@echo "🏆 Running gold release gate..."
 	@echo ""
 	@echo "Step 1: Security scan..."
-	@-make security-scan || echo "⚠️  Security scan warning (non-blocking)"
+	@$(MAKE) security-scan
 	@echo ""
 	@echo "Step 2: Test coverage..."
-	@$(GOENV) go test ./pkg/api/v1 -cover | awk '/coverage:/{gsub("%","",$$5); if ($$5+0 < 80) {print "❌ Coverage below 80%"; exit 1}}'
-	@echo "✅ Coverage OK"
+	@$(MAKE) coverage-check
 	@echo ""
 	@echo "Step 3: E2E tests..."
-	@$(MAKE) test-e2e || (echo "⚠️  E2E tests failed — checking mock fallback..." && cd web && CYPRESS_MOCK_API=true npm run test:e2e || (echo "❌ E2E tests failed even with mocks"; exit 1))
+	@$(MAKE) test-e2e
 	@echo ""
-	@echo "Step 4: Lighthouse audit..."
-	@-command -v lighthouse >/dev/null 2>&1 && lighthouse http://localhost:8080/view/ --output=json --output-path=web/lh-report.json --only-categories=accessibility,performance || echo "⚠️  Lighthouse skipped (install lighthouse globally to run this optional local audit)"
-	@echo ""
-	@echo "Step 5: Accessibility audit..."
+	@echo "Step 4: Accessibility audit..."
 	@cd web && npm run test:a11y || (echo "❌ A11y tests failed"; exit 1)
 	@echo ""
 	@echo "✅ All gold release gates passed"
@@ -161,7 +165,7 @@ deps-audit-go:
 	@if command -v govulncheck >/dev/null; then \
 		$(GOENV) govulncheck ./...; \
 	else \
-		echo "⚠️ govulncheck not installed. Install with: go install golang.org/x/vuln/cmd/govulncheck@latest"; \
+		echo "⚠️ govulncheck not installed. Install with: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0"; \
 		$(GOENV) go list -m -u all | grep -v "github.com/pcguest/atb"; \
 	fi
 
@@ -187,10 +191,10 @@ install-hooks:
 security-scan:
 	@echo "🔐 Running security scans..."
 	@if command -v trivy >/dev/null 2>&1; then \
-		trivy fs --scanners vuln --severity CRITICAL,HIGH --format json --output trivy-report.json .; \
+		trivy fs --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ trivy not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.61.0 fs --scanners vuln --severity CRITICAL,HIGH --format json --output /work/trivy-report.json /work; \
+		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.61.0 fs --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
 	fi
 	@GOSEC_BIN="$$(command -v gosec || true)"; \
 	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
@@ -200,5 +204,7 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" ./...; \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@latest && /go/bin/gosec ./...'; \
+		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec ./...'; \
 	fi
+	cd web && npm audit --audit-level=high
+	cd sdk/typescript && npm audit --audit-level=high

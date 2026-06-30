@@ -1,0 +1,126 @@
+package release_test
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+func repositoryRoot(t *testing.T) string {
+	t.Helper()
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("resolve test file path")
+	}
+	return filepath.Clean(filepath.Join(filepath.Dir(filename), "..", ".."))
+}
+
+func readRepositoryFile(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(repositoryRoot(t), filepath.FromSlash(name)))
+	if err != nil {
+		t.Fatalf("read %s: %v", name, err)
+	}
+	return string(data)
+}
+
+func makeTarget(t *testing.T, makefile, target, nextTarget string) string {
+	t.Helper()
+	startMarker := "\n" + target + ":"
+	start := strings.Index(makefile, startMarker)
+	if start < 0 {
+		t.Fatalf("Makefile target %s not found", target)
+	}
+	end := strings.Index(makefile[start+len(startMarker):], "\n"+nextTarget+":")
+	if end < 0 {
+		t.Fatalf("Makefile target %s after %s not found", nextTarget, target)
+	}
+	return makefile[start : start+len(startMarker)+end]
+}
+
+func TestEventV1SchemaMatchesFrozenDigest(t *testing.T) {
+	root := repositoryRoot(t)
+	schema, err := os.ReadFile(filepath.Join(root, "schemas", "event.v1.json"))
+	if err != nil {
+		t.Fatalf("read frozen event schema: %v", err)
+	}
+	manifest := strings.TrimSpace(readRepositoryFile(t, "schemas/event.v1.sha256"))
+	got := fmt.Sprintf("%x  event.v1.json", sha256.Sum256(schema))
+	if manifest != got {
+		t.Fatalf("event.v1 schema digest mismatch\nmanifest: %s\nactual:   %s", manifest, got)
+	}
+}
+
+func TestGoldReleaseGateHasNoSoftFailurePaths(t *testing.T) {
+	makefile := "\n" + readRepositoryFile(t, "Makefile")
+	goldGate := makeTarget(t, makefile, "gate-gold-release", "deps-update")
+
+	for _, forbidden := range []string{
+		"@-make security-scan",
+		"Security scan warning (non-blocking)",
+		"CYPRESS_MOCK_API",
+		"Lighthouse skipped",
+	} {
+		if strings.Contains(goldGate, forbidden) {
+			t.Errorf("gold release gate contains soft-failure path %q", forbidden)
+		}
+	}
+	for _, required := range []string{
+		"$(MAKE) security-scan",
+		"$(MAKE) test-e2e",
+		"npm run test:a11y",
+	} {
+		if !strings.Contains(goldGate, required) {
+			t.Errorf("gold release gate does not require %q", required)
+		}
+	}
+
+	e2e := makeTarget(t, makefile, "test-e2e", "test-performance")
+	if strings.Contains(e2e, "npm install") {
+		t.Error("test-e2e uses npm install instead of reproducible npm ci")
+	}
+	if !strings.Contains(e2e, "npm ci") {
+		t.Error("test-e2e does not install dependencies with npm ci")
+	}
+
+	coverage := makeTarget(t, makefile, "coverage-check", "test-embed")
+	if !strings.Contains(coverage, "set -eu;") {
+		t.Error("coverage-check does not fail fast when the threshold command fails")
+	}
+}
+
+func TestReleaseWorkflowPublishesCompleteCanonicalAssets(t *testing.T) {
+	workflow := readRepositoryFile(t, ".github/workflows/release.yml")
+	required := []string{
+		"artifacts/cli/atb-linux-amd64",
+		"artifacts/cli/atb-windows-amd64.exe",
+		"artifacts/python/*",
+		"artifacts/npm/*",
+		"artifacts/web/*",
+		"artifacts/sbom/*",
+		"artifacts/provenance/*",
+		"draft: true",
+		"gh release edit \"${GITHUB_REF_NAME}\" --draft=false",
+	}
+	for _, value := range required {
+		if !strings.Contains(workflow, value) {
+			t.Errorf("release workflow does not publish required canonical asset or transition %q", value)
+		}
+	}
+}
+
+func TestReleaseSecurityToolsAreVersionPinned(t *testing.T) {
+	for _, name := range []string{
+		"Makefile",
+		".github/workflows/ci.yml",
+		".github/workflows/security.yml",
+	} {
+		if strings.Contains(readRepositoryFile(t, name), "@latest") {
+			t.Errorf("%s installs an unpinned security tool with @latest", name)
+		}
+	}
+}

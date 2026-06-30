@@ -107,7 +107,9 @@ beforeEach(() => {
 
 Cypress.Commands.add("waitForDashboard", () => {
   cy.clearLocalStorage("atb-ui-store-v1");
-  cy.visit("/view");
+  const sessionToken = String(Cypress.env("SESSION_TOKEN") ?? "");
+  const path = !isMockMode && sessionToken ? `/view/#session=${sessionToken}` : "/view";
+  cy.visit(path);
   if (isMockMode) {
     cy.wait(["@getVerification", "@getBundleMeta", "@getBundleEvents", "@getBundleGraph"]);
   }

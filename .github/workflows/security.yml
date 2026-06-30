@@ -28,7 +28,7 @@ jobs:
           node-version: "22"
 
       - name: Install gosec
-        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
 
       - name: Remove node_modules (Windows)
         if: runner.os == 'Windows'
