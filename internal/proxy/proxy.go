@@ -46,6 +46,7 @@ func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, er
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
+	cfg = cfg.normalised()
 	if cfg.Identity == nil {
 		cfg.Identity = identity.DefaultChain()
 	}

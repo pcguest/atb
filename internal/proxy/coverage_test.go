@@ -91,7 +91,7 @@ type errorReadCloser struct {
 }
 
 func (r errorReadCloser) Read([]byte) (int, error) { return 0, r.err }
-func (r errorReadCloser) Close() error              { return nil }
+func (r errorReadCloser) Close() error             { return nil }
 
 func TestHTTPBodyThreadAndHeaderHelpers(t *testing.T) {
 	if body, err := ReadRequestBody(nil); err != nil || body != nil {

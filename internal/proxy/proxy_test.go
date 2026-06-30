@@ -78,6 +78,33 @@ func TestProxyConfigValidate(t *testing.T) {
 	}
 }
 
+func TestProxyConfigValidationIsImmutableAndConstructionNormalises(t *testing.T) {
+	t.Parallel()
+
+	cfg := proxy.ProxyConfig{
+		ListenAddr:  "127.0.0.1:8080",
+		BundlePath:  "run.atb/bundle.atb",
+		TargetHosts: []string{" API.OpenAI.com "},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if got := cfg.TargetHosts[0]; got != " API.OpenAI.com " {
+		t.Fatalf("Validate mutated target host to %q", got)
+	}
+
+	p, err := proxy.NewProxy(cfg, nil, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	if got := p.Config().TargetHosts[0]; got != "api.openai.com" {
+		t.Fatalf("normalised target host = %q", got)
+	}
+	if got := cfg.TargetHosts[0]; got != " API.OpenAI.com " {
+		t.Fatalf("NewProxy mutated caller target host to %q", got)
+	}
+}
+
 func TestRequestRecordToEvent(t *testing.T) {
 	t.Parallel()
 

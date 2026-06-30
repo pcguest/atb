@@ -32,7 +32,7 @@ type ProxyConfig struct {
 	CaptureBodies bool
 }
 
-// Validate checks required fields and normalises host entries.
+// Validate checks required fields without mutating the configuration.
 func (c *ProxyConfig) Validate() error {
 	if c == nil {
 		return fmt.Errorf("%w: nil config", ErrInvalidConfig)
@@ -46,22 +46,31 @@ func (c *ProxyConfig) Validate() error {
 	if len(c.TargetHosts) == 0 {
 		return fmt.Errorf("%w: at least one target host is required", ErrInvalidConfig)
 	}
-	normalised := make([]string, 0, len(c.TargetHosts))
-	for _, host := range c.TargetHosts {
+	normalised := normalisedTargetHosts(c.TargetHosts)
+	if len(normalised) == 0 {
+		return fmt.Errorf("%w: at least one target host is required", ErrInvalidConfig)
+	}
+	return nil
+}
+
+func (c ProxyConfig) normalised() ProxyConfig {
+	c.TargetHosts = normalisedTargetHosts(c.TargetHosts)
+	if c.IdentityMap == nil {
+		c.IdentityMap = map[string]string{}
+	}
+	return c
+}
+
+func normalisedTargetHosts(hosts []string) []string {
+	normalised := make([]string, 0, len(hosts))
+	for _, host := range hosts {
 		host = strings.TrimSpace(strings.ToLower(host))
 		if host == "" {
 			continue
 		}
 		normalised = append(normalised, host)
 	}
-	if len(normalised) == 0 {
-		return fmt.Errorf("%w: at least one target host is required", ErrInvalidConfig)
-	}
-	c.TargetHosts = normalised
-	if c.IdentityMap == nil {
-		c.IdentityMap = map[string]string{}
-	}
-	return nil
+	return normalised
 }
 
 // ResolveIdentity returns the display name for an API key when configured.
