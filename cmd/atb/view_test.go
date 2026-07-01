@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 func TestParseViewArgs(t *testing.T) {
@@ -129,6 +130,110 @@ func TestParseViewArgs(t *testing.T) {
 				t.Fatalf("unexpected config: got %+v want %+v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestResolveBundlePathContracts(t *testing.T) {
+	if got, err := resolveBundlePath(""); err != nil || got != bundle.DefaultPath() {
+		t.Fatalf("empty path = %q, %v", got, err)
+	}
+
+	dir := t.TempDir()
+	if got, err := resolveBundlePath(dir); err != nil || got != filepath.Join(dir, bundle.BundleFile) {
+		t.Fatalf("directory path = %q, %v", got, err)
+	}
+	file := filepath.Join(dir, "custom.atb")
+	if err := os.WriteFile(file, []byte("bundle"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := resolveBundlePath(file); err != nil || got != file {
+		t.Fatalf("file path = %q, %v", got, err)
+	}
+	missing := filepath.Join(dir, "missing.atb")
+	if got, err := resolveBundlePath(missing); err != nil || got != missing {
+		t.Fatalf("missing file path = %q, %v", got, err)
+	}
+	missingDir := filepath.Join(dir, "missing") + string(os.PathSeparator)
+	if got, err := resolveBundlePath(missingDir); err != nil || got != filepath.Join(missingDir, bundle.BundleFile) {
+		t.Fatalf("missing directory path = %q, %v", got, err)
+	}
+}
+
+func TestInstallFallbackHandler(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	newInstallFallbackHandler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("content type = %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "go build -o atb") {
+		t.Fatalf("fallback body = %q", rec.Body.String())
+	}
+}
+
+func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
+	report := verifypkg.Report{
+		Integrity: verifypkg.IntegrityResult{ChainValid: true},
+		Anchoring: verifypkg.AnchoringResult{Status: "verified"},
+		CAS: &verifypkg.CASResult{
+			Overall:            0.88,
+			Grade:              "High",
+			CorroborationBonus: 0.05,
+			EffectiveScore:     0.93,
+			SubScores:          map[string]float64{"EC": 0.9},
+		},
+		Profiles: []verifypkg.ProfileResult{{
+			ProfileID:        "atb.profile.policy_decision",
+			Version:          1,
+			Pass:             false,
+			RequiredWarnings: []string{"anchor recommended"},
+			CriticalFailures: []verifypkg.CriticalFailure{{
+				Kind: "missing_event", Detail: "policy decision missing",
+			}},
+		}},
+		Exclusions:   []string{"network side effects"},
+		ResidualRisk: verifypkg.ResidualRisk{Level: "High"},
+		ProvabilityGaps: []verifypkg.ProvabilityGap{{
+			Gap: "event_coverage", Layer: "L2", Mitigation: "emit events", ClosedWhen: "profile passes",
+		}},
+	}
+	summary := startupProfileSummary(report)
+	if summary.ProfileID != "atb.profile.policy_decision" || summary.Pass {
+		t.Fatalf("profile summary = %+v", summary)
+	}
+	if summary.CASGrade != "High" || summary.EffectiveScore != 0.93 || summary.AnchorStatus != "verified" {
+		t.Fatalf("CAS summary = %+v", summary)
+	}
+	if len(summary.CriticalFailures) != 1 || len(summary.ProvabilityGaps) != 1 ||
+		len(summary.Exclusions) != 1 || summary.ResidualRiskLevel != "High" {
+		t.Fatalf("detail summary = %+v", summary)
+	}
+
+	empty := startupProfileSummary(verifypkg.Report{})
+	if empty.Pass || empty.CASGrade != "" || empty.CriticalFailures == nil || empty.Warnings == nil {
+		t.Fatalf("empty summary = %+v", empty)
+	}
+}
+
+func TestBuildStartupProfileReports(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	summary, report := buildStartupProfileReports(b, path, "atb.profile.policy_decision")
+	if summary == nil || report == nil || summary.ProfileID != "atb.profile.policy_decision" {
+		t.Fatalf("summary=%+v report=%+v", summary, report)
+	}
+	summary, report = buildStartupProfileReports(b, path, "does-not-exist")
+	if summary != nil || report != nil {
+		t.Fatalf("invalid profile returned summary=%+v report=%+v", summary, report)
 	}
 }
 
