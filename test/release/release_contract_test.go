@@ -170,6 +170,7 @@ func TestGoldGateChecksPreparedVersionMarkers(t *testing.T) {
 		"sdk/typescript/src/index.ts",
 		"README.md",
 		"SECURITY.md",
+		"CHANGELOG.md",
 	} {
 		if !strings.Contains(script, marker) {
 			t.Errorf("version check does not cover %s", marker)

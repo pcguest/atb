@@ -7,10 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v1.15.1] - 2026-06-21
+## [v1.15.1] - 2026-07-01
+
+### Changed
+- The Gold Release Gate is now reproducible and blocking: generated Go/Python/TypeScript event bindings, the frozen `event.v1` contract hash, race detection, 80% aggregate Go coverage, production viewer builds, live authenticated Firefox E2E, accessibility, Trivy, gosec, and npm audits must all pass.
+- Release publication now keeps the GitHub Release in draft until verified CLI, Python, npm, web, SBOM, checksums, and signed provenance evidence are attached and registry publication succeeds.
+- CLI, Python, TypeScript, web, package-lock, runtime, README, and supported-security-release markers are aligned to `1.15.1` and checked by the local hygiene gate.
 
 ### Fixed
-- Dashboard muted text now meets the WCAG colour-contrast threshold. v1.15.1 supersedes the gated v1.15.0, which the Gold Release Gate held back over this accessibility defect; the canonical event contract is unchanged.
+- Dashboard muted text now meets the WCAG colour-contrast threshold. v1.15.1 supersedes the signed v1.15.0 gated baseline; the canonical event contract is unchanged.
+- Proxy shutdown and session finalisation no longer race, and mutation commands return JSON through their configured writers rather than bypassing callers.
+- OIDC key refresh stops with its lifecycle context; TSA and browser-launch URLs are validated; sensitive generated files use private permissions; and S3 response-close failures are propagated without losing the HTTP error classification.
 
 ## [v1.15.0] - 2026-06-17
 
