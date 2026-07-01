@@ -55,10 +55,13 @@ check-generated:
 	if [ $$ok -ne 1 ]; then echo "   Run 'go generate ./internal/event/...' and commit the result."; exit 1; fi
 	@echo "✅ Generated bindings in sync with schema"
 
+check-versions:
+	@ATB_SKIP_TAG_CHECK=1 /bin/bash scripts/check-versions.sh
+
 test-go: profile-fixtures
 	$(GOENV) go test $(GO_PACKAGES) -count=1
 
-hygiene-quick: check-generated
+hygiene-quick: check-generated check-versions
 	@echo "🧹 Running quick hygiene gate..."
 	$(GOENV) go fmt $(GO_PACKAGES) && $(GOENV) go vet $(GO_PACKAGES)
 	$(GOENV) $(STATICCHECK) $(GO_PACKAGES)

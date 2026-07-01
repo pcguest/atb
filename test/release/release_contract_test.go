@@ -155,3 +155,24 @@ func TestSecurityScanExcludesRepositoryBuildCaches(t *testing.T) {
 		t.Error("Docker gosec scan does not derive the module package directories")
 	}
 }
+
+func TestGoldGateChecksPreparedVersionMarkers(t *testing.T) {
+	makefile := readRepositoryFile(t, "Makefile")
+	if !strings.Contains(makefile, "check-versions:\n") {
+		t.Fatal("Makefile has no local version-consistency target")
+	}
+	if !strings.Contains(makefile, "hygiene-quick: check-generated check-versions") {
+		t.Fatal("hygiene-quick does not enforce version consistency")
+	}
+
+	script := readRepositoryFile(t, "scripts/check-versions.sh")
+	for _, marker := range []string{
+		"sdk/typescript/src/index.ts",
+		"README.md",
+		"SECURITY.md",
+	} {
+		if !strings.Contains(script, marker) {
+			t.Errorf("version check does not cover %s", marker)
+		}
+	}
+}
