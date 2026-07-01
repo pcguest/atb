@@ -589,30 +589,28 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		joinedArgs := strings.Join(rawArgs, " ")
 		if strings.Contains(joinedArgs, "--format json") || strings.Contains(joinedArgs, "--format=json") {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    err.Error(),
 				ExitCode: exitUserError,
-			}, "init")
-			return exitUserError
+			}, stderr, "init")
 		}
 		fmt.Fprintf(stderr, "atb init: %v\n", err)
 		return exitUserError
 	}
 	if len(args) > 0 {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    "usage: atb init [--dry-run] [--format text|json]",
 				ExitCode: exitUserError,
-			}, "init")
-			return exitUserError
+			}, stderr, "init")
 		}
 		fmt.Fprintln(stderr, "Usage: atb init [--dry-run] [--format text|json] [--manifest-version 1|2]")
 		return exitUserError
@@ -774,30 +772,28 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	maybeWarnWindowsBundleLock(stderr)
 	if err != nil {
 		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "append",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    err.Error(),
 				ExitCode: exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitUserError
 	}
 	if len(args) < 2 {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "append",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    "usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]",
 				ExitCode: exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintln(stderr, "Usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]")
 		return exitUserError
@@ -806,7 +802,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	appendInput, err := parseAppendCommandArgs(args[1:])
 	if err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -814,8 +810,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitUserError
@@ -825,7 +820,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	var data interface{}
 	if err := json.Unmarshal([]byte(rawJSON), &data); err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -833,8 +828,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     fmt.Sprintf("invalid JSON: %v", err),
 				ExitCode:  exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: invalid JSON: %v\n", err)
 		return exitUserError
@@ -842,7 +836,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 
 	if err := maybePolicyDocEmbed(eventType, data, appendInput.PolicyDocPath, appendInput.SignPolicyKeyPath, stderr); err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -850,8 +844,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitUserError
@@ -860,7 +853,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	if err := maybeSignPolicyDecisionEvent(eventType, data, appendInput.SignPolicyKeyPath, stderr); err != nil {
 		exitCode := classifyAppendPolicySignError(err)
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -868,8 +861,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitCode,
-			}, "append")
-			return exitCode
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitCode
@@ -885,7 +877,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 			exitCode = classifyBundleLoadError(err)
 		}
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -893,8 +885,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitCode,
-			}, "append")
-			return exitCode
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitCode
@@ -906,7 +897,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 			action = "preview_append"
 			message = "event would be appended"
 		}
-		printMutationJSON(mutationResult{
+		return writeMutationJSON(stdout, mutationResult{
 			Status:    "ok",
 			Action:    action,
 			DryRun:    dryRun,
@@ -915,8 +906,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 			EventType: last.Event.Type,
 			Hash:      last.Hash,
 			Message:   message,
-		}, "append")
-		return exitSuccess
+		}, stderr, "append")
 	}
 	if dryRun {
 		fmt.Fprintf(stdout, "~ Dry run: would append event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
@@ -1337,12 +1327,6 @@ func (e mutationLoadError) Error() string {
 
 func (e mutationLoadError) Unwrap() error {
 	return e.err
-}
-
-func printMutationJSON(result mutationResult, command string) {
-	if exitCode := writeMutationJSON(os.Stdout, result, os.Stderr, command); exitCode != exitSuccess {
-		os.Exit(exitCode)
-	}
 }
 
 func writeMutationJSON(stdout io.Writer, result mutationResult, stderr io.Writer, command string) int {
