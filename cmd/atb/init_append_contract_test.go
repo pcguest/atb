@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -255,5 +256,77 @@ func TestMutationFlagValidation(t *testing.T) {
 	)
 	if err != nil || format != formatText || lockWait != 2_000_000_000 {
 		t.Fatalf("last-value-wins format=%q lock=%v err=%v", format, lockWait, err)
+	}
+}
+
+func TestParseAppendCommandArgumentBoundaries(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "data missing", args: []string{"--data"}, want: "missing JSON"},
+		{name: "data equals empty", args: []string{"--data="}, want: "missing JSON"},
+		{name: "duplicate data", args: []string{`{"a":1}`, "--data", `{"b":2}`}, want: "expected <json>"},
+		{name: "duplicate positional", args: []string{`{"a":1}`, `{"b":2}`}, want: "expected <json>"},
+		{name: "actor missing", args: []string{`{}`, "--actor-id"}, want: "missing value"},
+		{name: "actor empty", args: []string{`{}`, "--actor-id="}, want: "cannot be empty"},
+		{name: "org missing", args: []string{`{}`, "--org-id"}, want: "missing value"},
+		{name: "org empty", args: []string{`{}`, "--org-id="}, want: "cannot be empty"},
+		{name: "workspace missing", args: []string{`{}`, "--workspace-id"}, want: "missing value"},
+		{name: "workspace empty", args: []string{`{}`, "--workspace-id="}, want: "cannot be empty"},
+		{name: "sign missing", args: []string{`{}`, "--sign-policy"}, want: "missing value"},
+		{name: "sign empty", args: []string{`{}`, "--sign-policy="}, want: "cannot be empty"},
+		{name: "policy doc missing", args: []string{`{}`, "--policy-doc"}, want: "missing value"},
+		{name: "policy doc empty", args: []string{`{}`, "--policy-doc="}, want: "cannot be empty"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := parseAppendCommandArgs(tc.args)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("error=%v want=%q", err, tc.want)
+			}
+		})
+	}
+
+	got, err := parseAppendCommandArgs([]string{
+		"--data={}",
+		"--actor-id=actor",
+		"--org-id=org",
+		"--workspace-id=workspace",
+		"--sign-policy=keys/key.pem",
+		"--policy-doc=policy.md",
+	})
+	if err != nil || got.RawJSON != `{}` || got.SignPolicyKeyPath == "" || got.PolicyDocPath == "" ||
+		got.Options.ActorID == nil || got.Options.OrgID == nil || got.Options.WorkspaceID == nil {
+		t.Fatalf("parsed=%+v err=%v", got, err)
+	}
+}
+
+func TestVersionMutationWriterAndVerifyResultBoundaries(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := runVersion(nil, &stdout, &stderr); code != exitSuccess || !strings.Contains(stdout.String(), "atb ") {
+		t.Fatalf("text version exit=%d stdout=%q", code, stdout.String())
+	}
+	stdout.Reset()
+	if code := runVersion([]string{"--wat"}, &stdout, &stderr); code != exitUserError {
+		t.Fatalf("unknown version flag exit=%d", code)
+	}
+	stderr.Reset()
+	if code := runVersion([]string{"--json"}, verifyErrorWriter{err: errors.New("encode failed")}, &stderr); code != exitSystemError {
+		t.Fatalf("version writer exit=%d", code)
+	}
+	if code := writeMutationJSON(verifyErrorWriter{err: errors.New("encode failed")}, mutationResult{}, &stderr, "test"); code != exitSystemError {
+		t.Fatalf("mutation writer exit=%d", code)
+	}
+
+	nilResult := newVerifyResult("bundle.atb", nil, "fail")
+	if nilResult.ChainLength != 0 || nilResult.HeadHash != "" {
+		t.Fatalf("nil verify result=%+v", nilResult)
+	}
+	b := newTestBundle(t)
+	result := newVerifyResult("bundle.atb", b, "ok")
+	if result.ChainLength != len(b.Records) || result.HeadHash == "" || result.Status != "ok" {
+		t.Fatalf("verify result=%+v", result)
 	}
 }

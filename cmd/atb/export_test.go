@@ -3,7 +3,9 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -231,6 +233,96 @@ func TestRunExportHelp(t *testing.T) {
 	if !strings.Contains(stdout.String(), "--with-verify    write <output>.verify.json sidecar with full verify report") {
 		t.Fatalf("expected --with-verify help line, got %q", stdout.String())
 	}
+}
+
+func TestRunExportTextJSONAndWriteModes(t *testing.T) {
+	withTempCWD(t, func(tmp string) {
+		writeValidBundle(t, bundle.DefaultPath())
+		prepareComplianceDocs(t)
+
+		var stdout, stderr bytes.Buffer
+		code := runExport([]string{
+			"--format", "soc2",
+			"--output", "soc2-dry.zip",
+			"--dry-run",
+		}, &stdout, &stderr)
+		if code != exitSuccess || !strings.Contains(stdout.String(), "Dry run") {
+			t.Fatalf("text dry-run exit=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+		}
+
+		stdout.Reset()
+		stderr.Reset()
+		code = runExport([]string{
+			"--format=soc2",
+			"--output=soc2-json-dry.zip",
+			"--dry-run",
+			"--json",
+		}, &stdout, &stderr)
+		if code != exitSuccess {
+			t.Fatalf("JSON dry-run exit=%d stderr=%q", code, stderr.String())
+		}
+		var dry exportCommandResult
+		if err := json.Unmarshal(stdout.Bytes(), &dry); err != nil || dry.Status != "dry_run" {
+			t.Fatalf("dry result=%+v err=%v output=%q", dry, err, stdout.String())
+		}
+
+		stdout.Reset()
+		stderr.Reset()
+		code = runExport([]string{
+			"--format", "soc2",
+			"--output", "soc2-written.zip",
+			"--json",
+		}, &stdout, &stderr)
+		if code != exitSuccess {
+			t.Fatalf("JSON write exit=%d stderr=%q", code, stderr.String())
+		}
+		var written exportCommandResult
+		if err := json.Unmarshal(stdout.Bytes(), &written); err != nil || written.Status != "written" {
+			t.Fatalf("written result=%+v err=%v output=%q", written, err, stdout.String())
+		}
+		if _, err := os.Stat(filepath.Join(tmp, "soc2-written.zip")); err != nil {
+			t.Fatalf("written zip: %v", err)
+		}
+
+		stdout.Reset()
+		stderr.Reset()
+		code = runExport([]string{
+			"--format", "compliance",
+			"--output", "compliance-written.zip",
+		}, &stdout, &stderr)
+		if code != exitSuccess || !strings.Contains(stdout.String(), "Exported compliance evidence") {
+			t.Fatalf("text write exit=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
+		}
+	})
+}
+
+func TestRunExportWriterFailures(t *testing.T) {
+	withTempCWD(t, func(_ string) {
+		writeValidBundle(t, bundle.DefaultPath())
+		prepareComplianceDocs(t)
+
+		var stderr bytes.Buffer
+		code := runExport([]string{
+			"--format", "soc2",
+			"--output", "dry.zip",
+			"--dry-run",
+			"--json",
+		}, verifyErrorWriter{err: errors.New("encode failed")}, &stderr)
+		if code != exitSystemError || !strings.Contains(stderr.String(), "encode json output") {
+			t.Fatalf("dry writer exit=%d stderr=%q", code, stderr.String())
+		}
+
+		stderr.Reset()
+		code = runExport([]string{
+			"--format", "compliance",
+			"--output", "manifest.zip",
+			"--dry-run",
+			"--json",
+		}, verifyErrorWriter{err: errors.New("write failed")}, &stderr)
+		if code != exitSystemError || !strings.Contains(stderr.String(), "write json output") {
+			t.Fatalf("manifest writer exit=%d stderr=%q", code, stderr.String())
+		}
+	})
 }
 
 func TestExportUsesEmbeddedDocsOutsideRepoCheckout(t *testing.T) {
