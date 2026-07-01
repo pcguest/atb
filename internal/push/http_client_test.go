@@ -18,6 +18,15 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
+type closeErrorBody struct {
+	io.Reader
+	err error
+}
+
+func (b closeErrorBody) Close() error {
+	return b.err
+}
+
 func TestHTTPS3ClientPutObject_CustomEndpoint(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-access-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
@@ -201,6 +210,30 @@ func TestHTTPS3ClientGetObjectAndNotFound(t *testing.T) {
 	}
 	if requests != 2 {
 		t.Fatalf("requests = %d, want 2", requests)
+	}
+}
+
+func TestHTTPS3ClientGetObjectReportsNon2xxBodyCloseFailure(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+	closeErr := errors.New("close failed")
+	client, err := NewHTTPClientWithConfig(ClientConfig{
+		EndpointURL: "https://storage.example.test",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Header:     http.Header{},
+				Body:       closeErrorBody{Reader: strings.NewReader("NoSuchKey"), err: closeErr},
+				Request:    r,
+			}, nil
+		})},
+	})
+	if err != nil {
+		t.Fatalf("NewHTTPClientWithConfig: %v", err)
+	}
+	_, err = client.GetObject(context.Background(), GetObjectInput{Bucket: "bucket", Key: "missing"})
+	if err == nil || !IsNotFound(err) || !errors.Is(err, closeErr) {
+		t.Fatalf("GetObject error=%v, want S3 not-found wrapping close failure", err)
 	}
 }
 

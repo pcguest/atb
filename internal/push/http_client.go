@@ -8,6 +8,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -151,8 +152,11 @@ func (c *HTTPS3Client) GetObject(ctx context.Context, in GetObjectInput) (GetObj
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		resp.Body.Close()
-		return GetObjectOutput{}, &S3Error{StatusCode: resp.StatusCode, Body: string(body)}
+		responseErr := &S3Error{StatusCode: resp.StatusCode, Body: string(body)}
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			return GetObjectOutput{}, errors.Join(responseErr, fmt.Errorf("s3 get-object: close response body: %w", closeErr))
+		}
+		return GetObjectOutput{}, responseErr
 	}
 	return GetObjectOutput{Body: resp.Body}, nil
 }

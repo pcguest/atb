@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -304,16 +305,40 @@ func isAddrInUseError(err error) bool {
 }
 
 func openBrowser(url string) error {
+	if err := validateBrowserURL(url); err != nil {
+		return err
+	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", url) // #nosec G204 -- validateBrowserURL restricts the argument to a loopback HTTP(S) URL.
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) // #nosec G204 -- validateBrowserURL restricts the argument to a loopback HTTP(S) URL.
 	default:
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", url) // #nosec G204 -- validateBrowserURL restricts the argument to a loopback HTTP(S) URL.
 	}
 	return cmd.Start()
+}
+
+func validateBrowserURL(rawURL string) error {
+	parsed, err := url.ParseRequestURI(rawURL)
+	if err != nil || parsed.Host == "" {
+		return fmt.Errorf("invalid browser URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("invalid browser URL scheme")
+	}
+	if parsed.User != nil {
+		return fmt.Errorf("browser URL must not contain credentials")
+	}
+	host := parsed.Hostname()
+	if !strings.EqualFold(host, "localhost") {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return fmt.Errorf("browser URL must use a loopback host")
+		}
+	}
+	return nil
 }
 
 func buildStartupProfileReports(b *bundle.Bundle, bundlePath string, profilePath string) (*apiv1.ProfileReportSummary, *verifypkg.VerifierReport) {
@@ -398,11 +423,12 @@ func withSecurityHeaders(next http.Handler, revealAuthToken string) http.Handler
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 		if revealAuthToken != "" {
-			http.SetCookie(w, &http.Cookie{
+			http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure tracks r.TLS so the loopback HTTP viewer remains usable; HttpOnly and SameSite are strict.
 				Name:     "atb_reveal_token",
 				Value:    revealAuthToken,
 				Path:     "/",
 				HttpOnly: true,
+				Secure:   r.TLS != nil,
 				SameSite: http.SameSiteStrictMode,
 			})
 		}

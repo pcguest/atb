@@ -48,14 +48,14 @@ func writeSessionMeta(dataDir string, meta BundleMetadata) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
 		return fmt.Errorf("agent: mkdir session meta: %w", err)
 	}
-	if err := os.WriteFile(path, payload, 0640); err != nil {
+	if err := os.WriteFile(path, payload, 0600); err != nil {
 		return fmt.Errorf("agent: write session meta: %w", err)
 	}
 	return nil
 }
 
 func readSessionMeta(path string) (sessionMetaFile, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- path is constructed from the configured workspace and validated session directory entries.
 	if err != nil {
 		return sessionMetaFile{}, fmt.Errorf("agent: read session meta: %w", err)
 	}

@@ -20,7 +20,7 @@ func main() {
 		fatal(err)
 	}
 	outDir := filepath.Join(root, "examples", "bundles", "profiles")
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		fatal(err)
 	}
 

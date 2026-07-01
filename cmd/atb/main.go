@@ -1291,7 +1291,7 @@ func maybePolicyDocEmbed(eventType string, data interface{}, docPath, keyPath st
 	if !ok {
 		return fmt.Errorf("ai.policy.decision payload must be a JSON object when --policy-doc is set")
 	}
-	contents, err := os.ReadFile(docPath) // #nosec G703 -- filepath.Clean-sanitised at parse time
+	contents, err := os.ReadFile(docPath) // #nosec G304 -- operator explicitly selects the cleaned policy document via CLI.
 	if err != nil {
 		return fmt.Errorf("policy-doc: read %s: %w", docPath, err)
 	}

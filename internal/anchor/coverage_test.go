@@ -40,8 +40,17 @@ func TestRequestAndHashBundleBoundaries(t *testing.T) {
 	if _, err := Request(statusServer.URL, []byte("hash")); err == nil || !strings.Contains(err.Error(), "returned 503") {
 		t.Fatalf("status error=%v", err)
 	}
-	if _, err := Request("://bad-url", []byte("hash")); err == nil || !strings.Contains(err.Error(), "http post") {
+	if _, err := Request("://bad-url", []byte("hash")); err == nil || !strings.Contains(err.Error(), "invalid TSA URL") {
 		t.Fatalf("URL error=%v", err)
+	}
+	for _, rawURL := range []string{
+		"file:///tmp/tsa",
+		"https://user:password@tsa.example.test",
+		"https://",
+	} {
+		if _, err := Request(rawURL, []byte("hash")); err == nil || !strings.Contains(err.Error(), "invalid TSA URL") {
+			t.Fatalf("Request(%q) error=%v, want invalid TSA URL", rawURL, err)
+		}
 	}
 
 	path := filepath.Join(t.TempDir(), "bundle.atb")

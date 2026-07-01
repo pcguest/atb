@@ -51,7 +51,7 @@ func PrepareWorkspace(dataDir string, logger *slog.Logger) error {
 
 	readmePath := filepath.Join(dataDir, workspaceReadmeName)
 	if _, err := os.Stat(readmePath); errors.Is(err, os.ErrNotExist) {
-		if err := os.WriteFile(readmePath, []byte(workspaceReadmeContent), 0640); err != nil {
+		if err := os.WriteFile(readmePath, []byte(workspaceReadmeContent), 0600); err != nil {
 			return fmt.Errorf("agent: write workspace readme: %w", err)
 		}
 	}

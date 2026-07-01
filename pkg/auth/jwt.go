@@ -39,23 +39,34 @@ func NewJWTValidator(ctx context.Context, issuer, audience string) (*JWTValidato
 		logger:   slog.Default(),
 	}
 
-	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			newJwks, err := jwk.Fetch(context.Background(), jwksURL)
-			if err != nil {
-				validator.logger.Error("failed to refresh JWKS", "error", err)
-				continue
-			}
-			validator.mu.Lock()
-			validator.jwks = newJwks
-			validator.mu.Unlock()
-			validator.logger.Debug("JWKS refreshed successfully")
-		}
-	}()
+	validator.startRefresh(ctx, 5*time.Minute, func(refreshCtx context.Context) (jwk.Set, error) {
+		return jwk.Fetch(refreshCtx, jwksURL)
+	})
 
 	return validator, nil
+}
+
+func (v *JWTValidator) startRefresh(ctx context.Context, interval time.Duration, fetch func(context.Context) (jwk.Set, error)) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				newJwks, err := fetch(ctx)
+				if err != nil {
+					v.logger.Error("failed to refresh JWKS", "error", err)
+					continue
+				}
+				v.mu.Lock()
+				v.jwks = newJwks
+				v.mu.Unlock()
+				v.logger.Debug("JWKS refreshed successfully")
+			}
+		}
+	}()
 }
 
 // Validate validates a JWT token string and returns the claims.

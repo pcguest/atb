@@ -624,6 +624,57 @@ func TestPrivacyRevealRecordsToSidecarNotBundle(t *testing.T) {
 	}
 }
 
+func TestValidateBrowserURLRestrictsLaunchesToLocalHTTP(t *testing.T) {
+	for _, rawURL := range []string{
+		"http://127.0.0.1:8080/view/",
+		"http://localhost:8080/view/",
+		"https://[::1]:8080/view/",
+	} {
+		if err := validateBrowserURL(rawURL); err != nil {
+			t.Errorf("validateBrowserURL(%q): %v", rawURL, err)
+		}
+	}
+	for _, rawURL := range []string{
+		"https://example.com/",
+		"file:///tmp/bundle",
+		"https://user:password@localhost/view/",
+		"://bad",
+	} {
+		if err := validateBrowserURL(rawURL); err == nil {
+			t.Errorf("validateBrowserURL(%q) unexpectedly succeeded", rawURL)
+		}
+	}
+}
+
+func TestSecurityHeadersCookieUsesTransportSecurity(t *testing.T) {
+	handler := withSecurityHeaders(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "token")
+	for _, tc := range []struct {
+		name   string
+		target string
+		secure bool
+	}{
+		{name: "http", target: "http://localhost/", secure: false},
+		{name: "https", target: "https://localhost/", secure: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.target, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			cookies := rr.Result().Cookies()
+			if len(cookies) != 1 {
+				t.Fatalf("cookies=%d, want 1", len(cookies))
+			}
+			cookie := cookies[0]
+			if cookie.Secure != tc.secure {
+				t.Fatalf("Secure=%v, want %v", cookie.Secure, tc.secure)
+			}
+			if !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
+				t.Fatalf("cookie security attributes: %#v", cookie)
+			}
+		})
+	}
+}
+
 func TestPrivacyRevealRequiresAuth(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")

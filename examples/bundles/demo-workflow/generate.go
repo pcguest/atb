@@ -17,7 +17,7 @@ import (
 
 const (
 	actionRefund = "act-refund-1042"
-	actionCredit = "act-credit-1042"
+	actionCredit = "act-credit-1042" // #nosec G101 -- stable demo action identifier, not a credential.
 	requestID    = "req-support-1042"
 	actorHash    = "sha256:agent-support-01"
 	approverHash = "sha256:supervisor-07"
@@ -29,7 +29,7 @@ func main() {
 		fatal(err)
 	}
 	outDir := filepath.Join(root, "examples", "bundles", "demo-workflow")
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		fatal(err)
 	}
 

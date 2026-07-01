@@ -27,6 +27,13 @@ func TestPrepareWorkspaceFirstRun(t *testing.T) {
 	if !strings.Contains(string(raw), "AutomationSession") {
 		t.Fatalf("README missing AutomationSession guidance: %q", raw)
 	}
+	info, err := os.Stat(readmePath)
+	if err != nil {
+		t.Fatalf("stat workspace README: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("workspace README mode=%#o, want 0600", got)
+	}
 
 	logOutput := logBuf.String()
 	if !strings.Contains(logOutput, "first run") {

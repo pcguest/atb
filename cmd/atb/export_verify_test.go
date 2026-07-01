@@ -154,6 +154,13 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 					if err != nil {
 						t.Fatalf("read sidecar: %v", err)
 					}
+					info, err := os.Stat(sidecarAbsPath)
+					if err != nil {
+						t.Fatalf("stat sidecar: %v", err)
+					}
+					if got := info.Mode().Perm(); got != 0o600 {
+						t.Fatalf("sidecar mode=%#o, want 0600", got)
+					}
 
 					var sidecar verifypkg.ExportVerificationSidecar
 					if err := json.Unmarshal(sidecarBytes, &sidecar); err != nil {

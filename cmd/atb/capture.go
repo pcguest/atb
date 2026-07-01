@@ -103,7 +103,7 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 		fmt.Fprintln(stderr, "atb capture run: warning: --env-prefix=ATB duplicates the canonical prefix")
 	}
 
-	cmd := exec.Command(cfg.Command[0], cfg.Command[1:]...)
+	cmd := exec.Command(cfg.Command[0], cfg.Command[1:]...) // #nosec G204 -- executing the operator-supplied command is the explicit purpose of `atb capture run`.
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr

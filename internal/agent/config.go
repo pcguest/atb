@@ -115,7 +115,7 @@ func agentConfigFilePaths(homeDir string) []string {
 }
 
 func readAgentSettingsFile(path string) (*agentSettingsFile, error) {
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- path is selected from the fixed user/worktree ATB config locations.
 	if err != nil {
 		return nil, err
 	}

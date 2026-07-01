@@ -13,7 +13,9 @@ import (
 	"io"
 	"math/big"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -78,11 +80,16 @@ type issuerAndSerialNumber struct {
 // Request sends an RFC 3161 timestamp request for the given hash to tsaURL.
 // Returns the raw DER-encoded TimeStampResponse bytes.
 func Request(tsaURL string, hash []byte) ([]byte, error) {
+	validatedURL, err := validateTSAURL(tsaURL)
+	if err != nil {
+		return nil, err
+	}
 	req, err := buildTSReq(hash)
 	if err != nil {
 		return nil, fmt.Errorf("anchor: build request: %w", err)
 	}
-	resp, err := http.Post(tsaURL, "application/timestamp-query", bytes.NewReader(req))
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Post(validatedURL, "application/timestamp-query", bytes.NewReader(req)) // #nosec G107 -- URL is restricted to credential-free HTTP(S) endpoints by validateTSAURL.
 	if err != nil {
 		return nil, fmt.Errorf("anchor: http post: %w", err)
 	}
@@ -91,6 +98,20 @@ func Request(tsaURL string, hash []byte) ([]byte, error) {
 		return nil, fmt.Errorf("anchor: TSA returned %d", resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
+}
+
+func validateTSAURL(rawURL string) (string, error) {
+	parsed, err := url.ParseRequestURI(strings.TrimSpace(rawURL))
+	if err != nil || parsed.Host == "" {
+		return "", fmt.Errorf("anchor: invalid TSA URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("anchor: invalid TSA URL: scheme must be http or https")
+	}
+	if parsed.User != nil {
+		return "", fmt.Errorf("anchor: invalid TSA URL: embedded credentials are not allowed")
+	}
+	return parsed.String(), nil
 }
 
 // ParseGenTime extracts the genTime field from a DER-encoded TimeStampResponse.
