@@ -124,3 +124,34 @@ func TestReleaseSecurityToolsAreVersionPinned(t *testing.T) {
 		}
 	}
 }
+
+func TestSecurityScanExcludesRepositoryBuildCaches(t *testing.T) {
+	makefile := readRepositoryFile(t, "Makefile")
+	start := strings.Index(makefile, "\nsecurity-scan:")
+	if start < 0 {
+		t.Fatal("Makefile security-scan target not found")
+	}
+	securityTarget := makefile[start:]
+	for _, dir := range []string{".gocache", ".tmp"} {
+		flag := "--skip-dirs " + dir
+		if count := strings.Count(securityTarget, flag); count != 2 {
+			t.Errorf("security-scan must apply %q to native and Docker Trivy commands; found %d", flag, count)
+		}
+	}
+	if strings.Contains(securityTarget, "gosec ./...") {
+		t.Error("security-scan recursively scans build caches with gosec ./...")
+	}
+	if !strings.Contains(makefile, "GOSEC_DIRS =") ||
+		!strings.Contains(makefile, `go list -f '{{.Dir}}' ./...`) {
+		t.Error("Makefile does not derive filesystem directories for gosec")
+	}
+	if !strings.Contains(makefile, `grep -v '/node_modules/'`) {
+		t.Error("Makefile does not exclude dependency directories from gosec")
+	}
+	if !strings.Contains(securityTarget, `"$$GOSEC_BIN" $(GOSEC_DIRS)`) {
+		t.Error("native gosec scan does not use the module package directories")
+	}
+	if !strings.Contains(securityTarget, `/go/bin/gosec $$(go list -f "{{.Dir}}" ./...`) {
+		t.Error("Docker gosec scan does not derive the module package directories")
+	}
+}

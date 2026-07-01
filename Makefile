@@ -19,6 +19,7 @@ GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
 GO_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list ./... | grep -v '/web/node_modules/')
 GO_COVER_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/web/node_modules/')
+GOSEC_DIRS = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{.Dir}}' ./... | grep -v '/node_modules/')
 STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)")
 
 profile-fixtures:
@@ -191,20 +192,20 @@ install-hooks:
 security-scan:
 	@echo "🔐 Running security scans..."
 	@if command -v trivy >/dev/null 2>&1; then \
-		trivy fs --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
+		trivy fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ trivy not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.61.0 fs --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
+		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.61.0 fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
 	fi
 	@GOSEC_BIN="$$(command -v gosec || true)"; \
 	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
 		GOSEC_BIN="$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec"; \
 	fi; \
 	if [ -n "$$GOSEC_BIN" ]; then \
-		$(GOENV) "$$GOSEC_BIN" ./...; \
+		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec ./...'; \
+		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
 	cd web && npm audit --audit-level=high
 	cd sdk/typescript && npm audit --audit-level=high
