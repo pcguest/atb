@@ -15,14 +15,14 @@ import (
 
 // BundleRecorder appends capture events to a local ATB bundle.
 type BundleRecorder struct {
-	path         string
-	custosPusher CustosPusherInterface
-	mu           sync.Mutex
+	path          string
+	mortisePusher MortisePusherInterface
+	mu            sync.Mutex
 }
 
 // NewBundleRecorder returns a recorder for the given bundle path.
-func NewBundleRecorder(path string, custosPusher CustosPusherInterface) *BundleRecorder {
-	return &BundleRecorder{path: path, custosPusher: custosPusher}
+func NewBundleRecorder(path string, mortisePusher MortisePusherInterface) *BundleRecorder {
+	return &BundleRecorder{path: path, mortisePusher: mortisePusher}
 }
 
 // AppendEvent appends a canonical event to the configured bundle.
@@ -45,7 +45,7 @@ func (r *BundleRecorder) AppendEventHash(ev *event.Event) (string, error) {
 		return "", err
 	}
 
-	// Custos ingests whole bundles, not individual events. The completed
+	// Mortise ingests whole bundles, not individual events. The completed
 	// bundle is pushed once on session close (see sessionCloseCallback).
 
 	return recordHash, nil
@@ -76,7 +76,7 @@ func (r *BundleRecorder) appendSessionCloseAndSnapshot(sess *Session) ([]byte, e
 	// Fixed: The snapshot is read while no other recorder append can change the bundle file.
 	snapshot, err := os.ReadFile(r.path)
 	if err != nil {
-		return nil, fmt.Errorf("proxy: read bundle snapshot for Custos push: %w", err)
+		return nil, fmt.Errorf("proxy: read bundle snapshot for Mortise push: %w", err)
 	}
 	return snapshot, nil
 }
@@ -94,7 +94,7 @@ func (r *BundleRecorder) sessionCloseCallback(sess *Session) error {
 		return err
 	}
 
-	if r.custosPusher != nil {
+	if r.mortisePusher != nil {
 		// Capture the session ID before the goroutine so logging does not
 		// depend on later session mutation. The locked snapshot is pushed,
 		// not a re-read of a changing bundle file.
@@ -102,13 +102,13 @@ func (r *BundleRecorder) sessionCloseCallback(sess *Session) error {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
-			receipt, err := r.custosPusher.PushBundle(ctx, snapshot)
+			receipt, err := r.mortisePusher.PushBundle(ctx, snapshot)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Error pushing bundle %s to Custos for session %s: %v\n", r.path, sessionID, err)
+				fmt.Fprintf(os.Stderr, "Error pushing bundle %s to Mortise for session %s: %v\n", r.path, sessionID, err)
 				return
 			}
 			if receipt != nil {
-				fmt.Fprintf(os.Stderr, "Custos receipt %s for session %s (bundle hash %s)\n", receipt.ReceiptID, sessionID, receipt.BundleHash)
+				fmt.Fprintf(os.Stderr, "Mortise receipt %s for session %s (bundle hash %s)\n", receipt.ReceiptID, sessionID, receipt.BundleHash)
 			}
 		}()
 	}

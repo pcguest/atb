@@ -12,15 +12,17 @@ import (
 	"strings"
 
 	"github.com/pcguest/atb/internal/compliancepack"
+	"github.com/pcguest/atb/internal/mortise"
 )
 
 var errComplianceHelp = errors.New("compliance help requested")
 
 type compliancePackConfig struct {
-	BundlePath string
-	Profile    string
-	Regime     string
-	Output     string
+	BundlePath      string
+	Profile         string
+	Regime          string
+	Output          string
+	MortiseEndpoint string
 }
 
 func cmdCompliance() {
@@ -49,6 +51,36 @@ func runCompliance(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "atb compliance pack: %v\n", err)
 		return exitUserError
 	}
+	if cfg.MortiseEndpoint != "" {
+		var bundleBytes []byte
+		for _, artifact := range pack.Files {
+			if artifact.Name == "bundle.atb" {
+				bundleBytes = append([]byte(nil), artifact.Content...)
+				break
+			}
+		}
+		token, _ := mortiseTokenFromEnv()
+		client, clientErr := mortise.NewHTTPClient(cfg.MortiseEndpoint, token)
+		if clientErr != nil {
+			fmt.Fprintf(stderr, "atb compliance pack: Mortise endpoint: %v\n", clientErr)
+			return exitUserError
+		}
+		receipt, sendErr := client.SendBundle(context.Background(), bundleBytes)
+		if sendErr != nil {
+			fmt.Fprintf(stderr, "atb compliance pack: push to Mortise: %v\n", sendErr)
+			return exitSystemError
+		}
+		pack, err = compliancepack.AddArtifact(pack, compliancepack.File{
+			Name:    "mortise/receipt.json",
+			Content: receipt.Raw,
+		})
+		if err != nil {
+			fmt.Fprintf(stderr, "atb compliance pack: %v\n", err)
+			return exitSystemError
+		}
+		fmt.Fprintf(stdout, "lodged bundle with Mortise %s: receipt %s (bundle hash %s)\n",
+			cfg.MortiseEndpoint, receipt.ReceiptID, receipt.BundleHash)
+	}
 	if strings.EqualFold(filepath.Ext(cfg.Output), ".zip") {
 		err = writeComplianceZip(cfg.Output, pack)
 	} else {
@@ -64,6 +96,15 @@ func runCompliance(args []string, stdout, stderr io.Writer) int {
 
 func parseComplianceArgs(args []string) (compliancePackConfig, error) {
 	cfg := compliancePackConfig{Regime: compliancepack.RegimeEUAIAct}
+	mortiseEndpointFlag := ""
+	setMortiseEndpoint := func(flag, value string) error {
+		if mortiseEndpointFlag != "" {
+			return fmt.Errorf("cannot combine %s with %s", mortiseEndpointFlag, flag)
+		}
+		mortiseEndpointFlag = flag
+		cfg.MortiseEndpoint = strings.TrimSpace(value)
+		return nil
+	}
 	if len(args) == 0 || strings.ToLower(strings.TrimSpace(args[0])) != "pack" {
 		return cfg, fmt.Errorf("expected subcommand pack")
 	}
@@ -111,6 +152,22 @@ func parseComplianceArgs(args []string) (compliancePackConfig, error) {
 			cfg.Output = filepath.Clean(value)
 		case strings.HasPrefix(arg, "--out="):
 			cfg.Output = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--out=")))
+		case arg == "--mortise-endpoint" || arg == "--custos-endpoint":
+			value, err := next()
+			if err != nil {
+				return cfg, err
+			}
+			if err := setMortiseEndpoint(arg, value); err != nil {
+				return cfg, err
+			}
+		case strings.HasPrefix(arg, "--mortise-endpoint="):
+			if err := setMortiseEndpoint("--mortise-endpoint", strings.TrimPrefix(arg, "--mortise-endpoint=")); err != nil {
+				return cfg, err
+			}
+		case strings.HasPrefix(arg, "--custos-endpoint="):
+			if err := setMortiseEndpoint("--custos-endpoint", strings.TrimPrefix(arg, "--custos-endpoint=")); err != nil {
+				return cfg, err
+			}
 		default:
 			return cfg, fmt.Errorf("unknown argument %q", arg)
 		}
@@ -188,5 +245,5 @@ func writeComplianceZip(output string, pack compliancepack.Pack) error {
 }
 
 func printComplianceUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip>")
+	fmt.Fprintln(w, "Usage: atb compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip> [--mortise-endpoint <url>]")
 }

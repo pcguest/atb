@@ -1,4 +1,4 @@
-# ATB and Custos acceptance evidence (v1.15.0)
+# ATB and Mortise acceptance evidence (v1.15.0)
 
 Every load-bearing claim, the command that proves it, and the result observed on
 this machine. Toolchain: `GOCACHE=$(pwd)/.gocache/go1.26.4 GOTOOLCHAIN=go1.26.4`
@@ -10,7 +10,7 @@ evidence, not certification. The honest limits at the end are part of the claim.
 | Claim | Command | Result |
 | --- | --- | --- |
 | Cross-language verifiers agree | `make test-golden` | Go, Python (8 tests), TypeScript (8 tests) all pass; "Golden vectors verified across Go, Python, and TypeScript". |
-| Full Go suite passes | `go test ./...` (ATB), then in `custos/` | ATB: 40 packages ok, 0 fail. Custos: 9 ok, 0 fail. |
+| Full Go suite passes | `go test ./...` (ATB), then in the separate Mortise repository | ATB: 40 packages ok, 0 fail. Mortise: 9 ok, 0 fail. |
 | Hygiene gate passes | `make hygiene-quick` | fmt, vet, staticcheck, full test-go, web lint and typecheck, govulncheck: exit 0. |
 | Version markers agree | `ATB_SKIP_TAG_CHECK=1 bash scripts/check-versions.sh` | "ok: all version strings agree (1.15.0)", exit 0. The nine markers (Go, Python x2, TypeScript x2, web x2) are all 1.15.0. Registries are still 1.14.5 until publish. |
 
@@ -55,13 +55,13 @@ evidence, not certification. The honest limits at the end are part of the claim.
 
 Honest limit on this item: there is no JSON-schema instance validator in-tree (no `jsonschema` dependency, not added in an acceptance pass). Coverage of both shapes is at the producing layer (with-field via `ReportFromVerifyWithBundle`, without-field via `ReportFromVerify` plus `omitempty`), and the schema document is hash-frozen.
 
-## Custos conformance and the end-to-end path
+## Mortise conformance and the end-to-end path
 
 | Claim | Command | Result |
 | --- | --- | --- |
-| Custos verifies bundles against the contract | `go test ./internal/verifyingest/...` | ok. |
-| Full custody path works | `scripts/e2e-atb-custos.sh` | PASS: ATB verify, ingest, Ed25519 receipt, RFC 6962 inclusion proof, witness cosignature, offline verify-inclusion (six checks), credential-free monitor. |
-| Conforming CLI push (live) | `atb incident export --custos-endpoint` against a real `custos-ingestd` | "lodged bundle with Custos: receipt sha256-... (bundle hash ...)", daemon logged `POST /ingest 201`. |
+| Mortise verifies bundles against the contract | `go test ./internal/verifyingest/...` | ok. |
+| Full custody path works | `scripts/e2e-atb-mortise.sh` | PASS: ATB verify, ingest, Ed25519 receipt, RFC 6962 inclusion proof, witness cosignature, offline verify-inclusion (six checks), credential-free monitor. |
+| Conforming CLI push (live) | `atb incident export --mortise-endpoint` against a real `mortise-ingestd` | "lodged bundle with Mortise: receipt sha256-... (bundle hash ...)", daemon logged `POST /ingest 201`. |
 | Article 12 evidence pack exports | `atb compliance pack --regime eu-ai-act` | Wrote a 16-file pack with `verify.report.json`, `MANIFEST.json`, `SHA256SUMS`. |
 
 ## Repository and history hygiene
@@ -70,9 +70,9 @@ Honest limit on this item: there is no JSON-schema instance validator in-tree (n
 | --- | --- | --- |
 | No secrets in history | `gitleaks detect --log-opts=--all` on a rewritten clone | "no leaks found", 886 commits. |
 | History rewrite is safe | `git filter-repo --path .atb-agent --path-glob '.gocache*' --invert-paths` on a mirror | 121.45 MiB to 4.13 MiB; gosec, `.gocache*`, `.atb-agent` gone; 36 branches and 25 tags survive; rewritten tree builds. Not run on the real repo. |
-| Disclosure contact is resolved | `grep -rn 'replace-me.example'` | Security disclosure on both repos points to GitHub private vulnerability reporting; no email is exposed on a security surface. The conduct report uses the same private channel; the Custos site sales CTA uses the proton stopgap. The placeholder remains only in this runbook and these notes, which describe the change. The personal address otherwise stays only in package author metadata, by design. |
+| Disclosure contact is resolved | `grep -rn 'replace-me.example'` | Security disclosure on both repos points to GitHub private vulnerability reporting; no email is exposed on a security surface. The conduct report uses the same private channel; the Mortise site sales CTA uses the proton stopgap. The placeholder remains only in this runbook and these notes, which describe the change. The personal address otherwise stays only in package author metadata, by design. |
 
-## Custos site static audit
+## Mortise site static audit
 
 Self-contained `site/index.html`: 0 em dashes, no ampersand glyphs, no external
 assets or JavaScript (`grep` for `<script`, `src=`, CDN, fonts: none), `lang="en-GB"`,
@@ -83,8 +83,8 @@ link; the verification ticks rely on adjacent text for meaning. No headless
 browser was available to screenshot. Preview with
 `python3 -m http.server --directory site 8000`. Above the fold: the Article 12
 pill, the headline "Provable evidence of what your AI agents did", the lead
-paragraph, and two buttons. Below: the problem, what Custos does, the
-"what a third party can verify without trusting Custos" table, how it fits, the
+paragraph, and two buttons. Below: the problem, what Mortise does, the
+"what a third party can verify without trusting Mortise" table, how it fits, the
 open-core boundary table, the honest-limits panel, and the design-partner
 contact.
 
@@ -118,7 +118,7 @@ the theme.
 
 ### Residue judged by description, still wanting a human glance
 
-These three are cosmetic on a localhost tool, or a single Custos-fold judgement.
+These three are cosmetic on a localhost tool, or a single Mortise-fold judgement.
 None bears on trust. Each was assessed from the CSS and the runtime, not fixed
 blind.
 
@@ -129,7 +129,7 @@ blind.
 - TraceGraph label legibility: nine nodes on a fixed three-column grid at 260px
   spacing, labels 18 to 26 characters, `fitView` on. Overlap is unlikely because
   the spacing exceeds the node width, but it cannot be measured without a render.
-- Custos above-the-fold hierarchy: the hero leads with a four-sentence paragraph
+- Mortise above-the-fold hierarchy: the hero leads with a four-sentence paragraph
   and carries no artefact; the first artefact is the verify table further down.
   Whether that reads as too much at the real fold wants a glance.
 
@@ -141,9 +141,9 @@ From the ATB README:
 > capture, model correctness, actor identity, or legal compliance by itself, and
 > it never certifies compliance.
 
-From the Custos site:
+From the Mortise site:
 
-> Custos produces evidence. It does not issue certificates, and nothing here is
+> Mortise produces evidence. It does not issue certificates, and nothing here is
 > a certification or a legal opinion.
 
 > Equivocation resistance is bounded by the number and independence of the

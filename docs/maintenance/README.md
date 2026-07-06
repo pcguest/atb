@@ -7,7 +7,7 @@ and invariants live in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 | --- | --- |
 | [disaster-recovery.md](./disaster-recovery.md) | Quarterly source, secret, and release-pipeline recovery |
 | [automatic-audit-capture-definition.md](./automatic-audit-capture-definition.md) | Capture-completeness terminology |
-| [manual-test-playbook.md](./manual-test-playbook.md) | Local operator commands for ATB, Custos, and UI smoke testing |
+| [manual-test-playbook.md](./manual-test-playbook.md) | Local operator commands for ATB, Mortise, and UI smoke testing |
 | [public-mit-extraction-checklist.md](./public-mit-extraction-checklist.md) | Manual allowlist, exclusion, and validation steps for public ATB extraction |
 
 Release gates and versioning: [release.md](../release.md), [VERSIONING.md](../../VERSIONING.md).

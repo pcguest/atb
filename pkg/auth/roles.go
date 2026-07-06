@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 package auth
 
-// Role represents a user's role within local ATB/Custos HTTP APIs.
+// Role represents a user's role within local ATB/Mortise HTTP APIs.
 type Role string
 
 const (

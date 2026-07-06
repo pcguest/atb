@@ -44,6 +44,12 @@ export function version(): { version: string; algorithm: string } {
 
 export { Bundle, ATBVerificationError } from "./bundle.js";
 export type { SignatureEvidence, VerifyResult } from "./bundle.js";
+export { MortiseClient, MortiseError } from "./mortise-client.js";
+export type {
+  MortiseClientOptions,
+  MortiseJSON,
+  MortiseReceipt,
+} from "./mortise-client.js";
 export * from "./eventTypes.js";
 export { ActionGate, ActionGateDeniedError, principalPayload } from "./action-gate.js";
 export {

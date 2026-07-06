@@ -9,10 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.15.1] - 2026-07-01
 
+### Added
+- Python and TypeScript SDKs now provide optional, authenticated Mortise clients for non-persisting bundle verification, custody ingest, pinned-key receipt verification, and reverse lookup.
+- `atb compliance pack --mortise-endpoint` lodges the authoritative bundle and includes the complete signed receipt at `mortise/receipt.json` under manifest and checksum coverage.
+
 ### Changed
 - The Gold Release Gate is now reproducible and blocking: generated Go/Python/TypeScript event bindings, the frozen `event.v1` contract hash, race detection, 80% aggregate Go coverage, production viewer builds, live authenticated Firefox E2E, accessibility, Trivy, gosec, and npm audits must all pass.
 - Release publication now keeps the GitHub Release in draft until verified CLI, Python, npm, web, SBOM, checksums, and signed provenance evidence are attached and registry publication succeeds.
 - CLI, Python, TypeScript, web, package-lock, runtime, README, and supported-security-release markers are aligned to `1.15.1` and checked by the local hygiene gate.
+- Mortise is now an explicit separate-repository boundary: the obsolete in-repo custody daemon scaffold is removed, internal client/conformance paths use Mortise naming, and `--mortise`, `--mortise-endpoint`, and `ATB_MORTISE_TOKEN` are canonical. Custos spellings remain deprecated compatibility aliases; `custos.receipt.v1` remains the frozen historical wire identifier.
 
 ### Fixed
 - Dashboard muted text now meets the WCAG colour-contrast threshold. v1.15.1 supersedes the signed v1.15.0 gated baseline; the canonical event contract is unchanged.

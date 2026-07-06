@@ -38,7 +38,7 @@ type ExportOptions struct {
 	SubmittedAt time.Time
 }
 
-// BundleExport is the ATB-to-custody wire object described in docs/custos-handoff.md.
+// BundleExport is the ATB-to-custody wire object described in docs/mortise-handoff.md.
 type BundleExport struct {
 	ExportVersion string         `json:"export_version"`
 	ReceiptID     string         `json:"receipt_id"`

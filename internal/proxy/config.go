@@ -16,15 +16,15 @@ var (
 
 // ProxyConfig configures the local HTTPS capture proxy.
 type ProxyConfig struct {
-	ListenAddr     string
-	TargetHosts    []string
-	BundlePath     string
-	IdentityMap    map[string]string
-	Identity       identity.Resolver
-	CustosEndpoint string
-	// CustosToken authenticates auto-pushes to the Custos ingest endpoint as
+	ListenAddr      string
+	TargetHosts     []string
+	BundlePath      string
+	IdentityMap     map[string]string
+	Identity        identity.Resolver
+	MortiseEndpoint string
+	// MortiseToken authenticates auto-pushes to the Mortise ingest endpoint as
 	// an Authorization: Bearer header. Empty means unauthenticated (dev mode).
-	CustosToken string
+	MortiseToken string
 	// CaptureBodies retains raw request/response bodies in recorded events.
 	// Default false: only a SHA-256 digest and byte length are recorded, so an
 	// always-on recorder does not persist prompts, completions, or PII. Enable

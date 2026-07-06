@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- Added the optional `MortiseClient` for authenticated bundle verification,
+  custody ingest, receipt verification, and reverse lookup.
+
 ## [0.1.0] — 2026-04-27
 
 ### Added

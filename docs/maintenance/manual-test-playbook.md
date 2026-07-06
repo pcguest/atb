@@ -1,8 +1,8 @@
-# Manual ATB/Custos test playbook
+# Manual ATB/Mortise test playbook
 
 Use this playbook from a source checkout when you want to verify that the
 private trunk works end-to-end before extraction, demo, or release work. It
-does not require a hosted service. Custos is optional and runs on loopback.
+does not require a hosted service. Mortise is optional and runs on loopback.
 
 ## 1. Build and run the core ATB checks
 
@@ -91,35 +91,33 @@ Expected UI:
 - `/workspace`: read-only index of closed session bundles when served by the ATB Agent; in single-bundle mode it explains that no workspace index is exposed.
 - `/`: the documentation/marketing site with hero, code demo, feature list, scope boundary, and footer. It positions ATB as the MIT local evidence core.
 
-## 5. Exercise Custos locally
+## 5. Exercise Mortise locally
 
 Terminal 1:
 
 ```bash
-export CUSTOS_AUTH_TOKEN="$(openssl rand -hex 32)"
-cd custos
-go run ./cmd/custosd \
-  --host 127.0.0.1 \
-  --port 9090 \
-  --worm-dir /tmp/atb-custos-worm \
-  --receipt-dir /tmp/atb-custos-receipts \
-  --cleanup-interval 0
+export MORTISE_AUTH_TOKEN="$(openssl rand -hex 32)"
+cd ~/mortise
+go run ./cmd/mortise-ingestd \
+  --addr 127.0.0.1:9090 \
+  --worm-dir /tmp/atb-mortise-worm \
+  --receipt-dir /tmp/atb-mortise-receipts
 ```
 
 Terminal 2:
 
 ```bash
-export CUSTOS_AUTH_TOKEN="<copy-from-terminal-1>"
+export MORTISE_AUTH_TOKEN="<copy-from-terminal-1>"
 curl -fsS -X POST \
-  -H "Authorization: Bearer ${CUSTOS_AUTH_TOKEN}" \
+  -H "Authorization: Bearer ${MORTISE_AUTH_TOKEN}" \
   --data-binary @run.atb/agent-incident-demo.atb \
   http://127.0.0.1:9090/ingest
 
 curl -fsS \
-  -H "Authorization: Bearer ${CUSTOS_AUTH_TOKEN}" \
+  -H "Authorization: Bearer ${MORTISE_AUTH_TOKEN}" \
   http://127.0.0.1:9090/receipts
 
-curl -fsS http://127.0.0.1:9090/health
+curl -fsS http://127.0.0.1:9090/healthz
 curl -fsS http://127.0.0.1:9090/custody/key
 ```
 
@@ -127,7 +125,7 @@ Expected result:
 
 - `/ingest` returns a signed receipt for the bundle.
 - `/receipts` lists retained receipts.
-- `/health` remains unauthenticated and returns `ok`.
+- `/healthz` remains unauthenticated and returns `ok`.
 - `/custody/key` publishes the receipt signing public key so receipt holders can verify attestations out of band.
 
 ## Current product fit
@@ -137,8 +135,8 @@ format is frozen, CLI/SDK verification is cross-language tested, incident
 forensics and compliance packs are cohesive, and the viewer now gives distinct
 engineer/auditor/executive review modes without requiring a hosted service.
 
-Custos is useful as the private companion layer: custody, WORM/S3 storage,
-signed receipts, retention cleanup, and RBAC/JWT hooks. Keep it separate from
+Mortise is useful as the private companion layer: custody, WORM/S3 storage,
+signed receipts, retention policy, and organisation-scoped API keys. Keep it separate from
 the public MIT repo. The public story should remain: ATB proves local evidence
-integrity offline; Custos improves custody and operational assurance when an
+integrity offline; Mortise improves custody and operational assurance when an
 operator chooses to run it.

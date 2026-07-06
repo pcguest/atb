@@ -1,8 +1,8 @@
 # UI/UX heuristic audit (v1.15.0 bedrock)
 
 From code and markup alone, before any screenshot round. Two surfaces: the ATB
-local viewer (`web/`, the `/view` dashboard) and the Custos marketing site
-(`custos-product/site/index.html`). Findings are tagged blocker, major, minor,
+local viewer (`web/`, the `/view` dashboard) and the Mortise marketing site
+(`mortise/site/index.html`). Findings are tagged blocker, major, minor,
 or polish, with the Nielsen heuristic and the concrete fix. The
 screenshot-dependent items are isolated at the end so one visual round is
 decisive.
@@ -34,7 +34,7 @@ hash is shown truncated with a full-value `title`; `RoleSelector` is a proper
 labelled Radix select with focus rings; the reveal flow already carries an
 honest "tamper-evident" caption (it just names the wrong file — see A1).
 
-## Surface B — Custos marketing site
+## Surface B — Mortise marketing site
 
 `site/index.html`, self-contained, no external assets (verified), `lang="en-GB"`.
 
@@ -46,7 +46,7 @@ honest "tamper-evident" caption (it just names the wrong file — see A1).
 | B4 | polish | Table headers lack `scope="col"`. | Accessibility and standards | Add `scope="col"` to the two `<th>`. |
 
 Strengths worth keeping: single restrained accent, honest-limits panel intact,
-the "what a third party can verify without trusting Custos" table is the
+the "what a third party can verify without trusting Mortise" table is the
 strongest trust artefact on the page, the Article 12 line is the approved honest
 wording, and the open-core boundary matches the ATB README.
 
@@ -65,7 +65,7 @@ These cannot be judged from code; target the one visual round at exactly these:
    on a real bundle.
 5. **EventInspector in light theme** (A4) — confirm the slate hardcoding looks
    wrong, and that the token fix reads correctly in both themes.
-6. **Custos site rendered hierarchy** — hero pill/headline/lead spacing and
+6. **Mortise site rendered hierarchy** — hero pill/headline/lead spacing and
    whether the two-column open-core boundary reads clearly at desktop and at the
    720px breakpoint.
 

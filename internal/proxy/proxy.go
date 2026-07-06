@@ -26,13 +26,13 @@ var _ Runner = (*Proxy)(nil)
 
 // Proxy is a local HTTPS capture proxy that records LLM API traffic into a bundle.
 type Proxy struct {
-	cfg          ProxyConfig
-	handler      Handler
-	logger       *slog.Logger
-	ca           *LocalCA
-	recorder     *BundleRecorder
-	sessions     *SessionManager
-	custosPusher *CustosPusher
+	cfg           ProxyConfig
+	handler       Handler
+	logger        *slog.Logger
+	ca            *LocalCA
+	recorder      *BundleRecorder
+	sessions      *SessionManager
+	mortisePusher *MortisePusher
 
 	mu         sync.Mutex
 	started    bool
@@ -54,12 +54,12 @@ func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, er
 		handler = StubHandler{Logger: logger}
 	}
 
-	var cp *CustosPusher
-	if cfg.CustosEndpoint != "" {
+	var cp *MortisePusher
+	if cfg.MortiseEndpoint != "" {
 		var err error
-		cp, err = NewCustosPusher(cfg.CustosEndpoint, cfg.CustosToken, logger)
+		cp, err = NewMortisePusher(cfg.MortiseEndpoint, cfg.MortiseToken, logger)
 		if err != nil {
-			return nil, fmt.Errorf("custos push endpoint: %w", err)
+			return nil, fmt.Errorf("mortise push endpoint: %w", err)
 		}
 	}
 
@@ -67,12 +67,12 @@ func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, er
 	sessions := NewSessionManager(recorder.sessionCloseCallback)
 
 	return &Proxy{
-		cfg:          cfg,
-		handler:      handler,
-		logger:       logger,
-		recorder:     recorder,
-		sessions:     sessions,
-		custosPusher: cp,
+		cfg:           cfg,
+		handler:       handler,
+		logger:        logger,
+		recorder:      recorder,
+		sessions:      sessions,
+		mortisePusher: cp,
 	}, nil
 }
 
@@ -128,7 +128,7 @@ func (p *Proxy) Start(ctx context.Context) error {
 		"listen_addr", p.cfg.ListenAddr,
 		"bundle_path", p.cfg.BundlePath,
 		"targets", p.cfg.TargetHosts,
-		"custos_endpoint", p.cfg.CustosEndpoint, // Log Custos endpoint
+		"mortise_endpoint", p.cfg.MortiseEndpoint,
 	)
 	return nil
 }

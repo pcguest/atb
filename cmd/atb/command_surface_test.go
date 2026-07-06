@@ -90,13 +90,14 @@ func TestAnchorArgumentParsing(t *testing.T) {
 }
 
 func TestInterceptArgumentParsing(t *testing.T) {
-	t.Setenv("ATB_CUSTOS_TOKEN", "test-token")
+	t.Setenv("ATB_MORTISE_TOKEN", "test-token")
+	t.Setenv("ATB_CUSTOS_TOKEN", "legacy-token")
 	cfg, err := parseInterceptArgs([]string{
 		"--port", "8443",
 		"--bundle", "run.atb/bundle.atb",
 		"--target", "openai, api.example.com",
 		"--identity-map", "key-1=Patrick",
-		"--custos", "https://mortise.example",
+		"--mortise", "https://mortise.example",
 		"--capture-bodies",
 	})
 	if err != nil {
@@ -104,8 +105,8 @@ func TestInterceptArgumentParsing(t *testing.T) {
 	}
 	if cfg.ListenAddr != "127.0.0.1:8443" ||
 		cfg.BundlePath != "run.atb/bundle.atb" ||
-		cfg.CustosEndpoint != "https://mortise.example" ||
-		cfg.CustosToken != "test-token" ||
+		cfg.MortiseEndpoint != "https://mortise.example" ||
+		cfg.MortiseToken != "test-token" ||
 		!cfg.CaptureBodies ||
 		cfg.IdentityMap["key-1"] != "Patrick" ||
 		len(cfg.TargetHosts) == 0 {
@@ -125,6 +126,9 @@ func TestInterceptArgumentParsing(t *testing.T) {
 	if extractPort(cfg.ListenAddr) != 9443 || cfg.IdentityMap["key-2"] != "Operator" {
 		t.Fatalf("equals config = %+v", cfg)
 	}
+	if cfg.MortiseEndpoint != "https://custody.example" {
+		t.Fatalf("legacy alias endpoint = %q", cfg.MortiseEndpoint)
+	}
 
 	errorCases := [][]string{
 		nil,
@@ -136,7 +140,9 @@ func TestInterceptArgumentParsing(t *testing.T) {
 		{"--target"},
 		{"--identity-map"},
 		{"--identity-map", "invalid", "--bundle", "x"},
+		{"--mortise"},
 		{"--custos"},
+		{"--bundle", "x", "--mortise", "https://one.example", "--custos", "https://two.example"},
 		{"--unknown"},
 	}
 	for _, args := range errorCases {

@@ -78,6 +78,28 @@ const action: ActionGateInput = {
 Retain and verify the original assertion in your IdP/JWKS/PKI workflow. ATB
 hash-chains the supplied digest but does not authenticate the subject.
 
+## Optional Mortise custody
+
+Mortise is a separate service; the SDK remains fully local without it:
+
+```ts
+import { readFile } from "node:fs/promises";
+import { MortiseClient } from "@pcguest/atb-sdk";
+
+const client = new MortiseClient("https://mortise.example", {
+  token: process.env.ATB_MORTISE_TOKEN,
+});
+const bundle = new Uint8Array(await readFile("run.atb/bundle.atb"));
+const verification = await client.verifyBundle(bundle); // does not persist
+const receipt = await client.ingestBundle(bundle);       // custody + receipt
+await client.verifyReceipt(receipt);
+await client.receiptsByHash(receipt.bundle_hash);
+```
+
+The client rejects credential-bearing or non-HTTP(S) URLs, disables redirects,
+caps responses at 1 MiB, and validates the frozen `custos.receipt.v1` wire
+identifier.
+
 ## Vercel AI SDK integration
 
 For Vercel AI SDK middleware guidance, see [docs/integrations/](../../docs/integrations/README.md).

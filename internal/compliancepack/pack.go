@@ -409,6 +409,8 @@ func describe(name string) string {
 		return "Session-scoped incident-forensics artifact."
 	case strings.HasPrefix(name, "retention/"):
 		return "Retention policy or enforcement audit evidence."
+	case name == "mortise/receipt.json":
+		return "Signed Mortise custody receipt for the authoritative bundle."
 	case strings.HasPrefix(name, "docs/"):
 		return "Reference documentation included for reviewer context."
 	default:

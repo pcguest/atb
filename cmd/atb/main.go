@@ -228,9 +228,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "compliance",
-				Usage:       "atb compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip> [--custos-endpoint <url>] [--custos-auth-token <token>]",
-				Description: "Build a deterministic, profile-aware offline compliance evidence pack, optionally pushing it to a Custos endpoint.",
-				Flags:       []string{"--bundle", "--profile", "--regime", "--out", "--custos-endpoint", "--custos-auth-token"},
+				Usage:       "atb compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip> [--mortise-endpoint <url>]",
+				Description: "Build a deterministic, profile-aware offline compliance evidence pack, optionally lodging its authoritative bundle with Mortise.",
+				Flags:       []string{"--bundle", "--profile", "--regime", "--out", "--mortise-endpoint"},
 				Mutating:    false,
 			},
 			{
@@ -262,9 +262,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "intercept",
-				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--custos-endpoint <url>] [--custos-auth-token <token>]",
-				Description: "Start the local HTTPS capture proxy that records AI API traffic, tool calls, and failures into a live ATB bundle or sends them to a Custos endpoint.",
-				Flags:       []string{"--port", "--bundle", "--target", "--identity-map", "--custos-endpoint", "--custos-auth-token"},
+				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--mortise <url>]",
+				Description: "Start the local HTTPS capture proxy and optionally lodge closed bundles with Mortise.",
+				Flags:       []string{"--port", "--bundle", "--target", "--identity-map", "--mortise"},
 				Mutating:    false,
 			},
 			{
@@ -289,9 +289,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "incident",
-				Usage:       "atb incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>] [--custos-endpoint <url>] [--custos-auth-token <token>]",
-				Description: "Discover (list), review (report), and package (export) agent sessions captured in a bundle for forensic review, optionally pushing the exported package to a Custos endpoint.",
-				Flags:       []string{"--bundle", "--session", "--format", "--out", "--custos-endpoint", "--custos-auth-token"},
+				Usage:       "atb incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>] [--mortise-endpoint <url>]",
+				Description: "Discover, review, and package agent sessions, optionally lodging the authoritative bundle with Mortise.",
+				Flags:       []string{"--bundle", "--session", "--format", "--out", "--mortise-endpoint"},
 				Mutating:    false,
 			},
 			{

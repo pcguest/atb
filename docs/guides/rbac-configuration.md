@@ -1,103 +1,39 @@
-# RBAC Configuration Guide
+# Authentication and role boundaries
 
-This guide provides practical steps to configure Role-Based Access Control (RBAC) for `custosd` and `atb view` using shared secret tokens or OIDC/JWT.
+ATB and Mortise are separate systems with separate authentication models.
 
-## Mortise Daemon (`custosd`) RBAC Configuration
+## ATB viewer
 
-`custosd` supports authentication via a shared secret bearer token or OIDC/JWT.
+`atb view` is loopback-first and protects its API with a generated session
+token. It can also validate OIDC/JWT when `--oidc-issuer` and
+`--oidc-audience` are configured. See `atb view --help` for the current flags.
 
-### Shared Secret Token
+Viewer roles are:
 
-To enable authentication using a shared secret token, set the `CUSTOS_AUTH_TOKEN` environment variable when starting `custosd`. This token grants `admin` privileges. Generate it outside the repo and store it in your shell, process manager, or secret manager; do not commit it to source control.
+- `viewer` and `auditor`: read-only review APIs.
+- `operator` and `admin`: mutating actions such as privacy reveal.
 
-```bash
-export CUSTOS_AUTH_TOKEN="<random-operator-token>"
-custosd --host 0.0.0.0 --port 9090
-```
+ATB remains a local evidence tool; it is not an identity provider or hosted
+multi-tenant access-control service.
 
-Clients can then authenticate by including an `Authorization: Bearer <random-operator-token>` header in their requests.
+## Mortise
 
-### OIDC/JWT Authentication
+Mortise authentication is configured in the separate Mortise repository.
+Current supported modes are:
 
-To enable OIDC/JWT authentication, configure the OIDC issuer and audience when starting `custosd`.
+- `MORTISE_AUTH_TOKEN` for a single deployment token.
+- `--api-keys-file` for hashed API-key lookup, organisation isolation,
+  retention policy, and `admin` versus read-only `auditor` roles.
 
-```bash
-custosd \
-  --host 0.0.0.0 \
-  --port 9090 \
-  --oidc-issuer "https://accounts.google.com" \
-  --oidc-audience "your-client-id.apps.googleusercontent.com" \
-  --default-role "viewer" # Default role for authenticated users without explicit role claims
-```
+The daemon rejects unauthenticated non-loopback binds. Production deployments
+must still terminate TLS at a reverse proxy, rotate credentials, enforce
+tenant-specific quotas, and preferably add short-lived OIDC or mTLS identity at
+that edge.
 
-`custosd` will fetch the JWKS from the OIDC issuer's `.well-known/jwks.json` endpoint and validate incoming JWTs. Roles are extracted from the `role` or `roles` claims in the JWT. If no valid role claim is found, the `--default-role` is applied.
+ATB clients authenticate to Mortise with `ATB_MORTISE_TOKEN`. The token is read
+from the environment rather than a CLI flag.
 
-Clients should obtain a JWT from the configured OIDC provider and include it in the `Authorization: Bearer <JWT>` header.
-
-### Endpoint Permissions
-
-`custosd` enforces the following role requirements for its endpoints:
-
-| Endpoint                               | Method | Required Role      |
-| :------------------------------------- | :----- | :----------------- |
-| `/ingest`                              | `POST` | `operator` or `admin` |
-| `/receipts`                            | `GET`  | `viewer` or higher |
-| `/receipts/by-hash`                    | `GET`  | `viewer` or higher |
-| `/receipts/:id`                        | `GET`  | `viewer` or higher |
-| `/receipts/:id/verify`                 | `GET`  | `viewer` or higher |
-| `/receipts/:id/attestation`            | `GET`  | `viewer` or higher |
-| `/health`                              | `GET`  | Publicly accessible |
-| `/custody/key`                         | `GET`  | Publicly accessible |
-
-## ATB Viewer (`atb view`) RBAC Configuration
-
-The `atb view` command also supports authentication via a session token or OIDC/JWT for its API routes (`/api/v1/*`).
-
-### Session Token
-
-By default, `atb view` generates a random session token at startup. This token is printed to the console and can be used to authenticate requests to the viewer's API. This token grants `admin` privileges.
-
-```bash
-atb view --bundle my-bundle.atb
-# Output will include: "Serving ... at http://127.0.0.1:8080/view/#session=your-session-token"
-```
-
-You can also specify a session token manually:
-
-```bash
-atb view --bundle my-bundle.atb --session-token "<random-viewer-token>"
-```
-
-Clients can authenticate by including an `X-ATB-Session-Token: <random-viewer-token>` header or `session_token=<random-viewer-token>` query parameter.
-
-### OIDC/JWT Authentication
-
-To enable OIDC/JWT authentication for `atb view`, provide the OIDC issuer and audience:
-
-```bash
-atb view --bundle my-bundle.atb \
-  --oidc-issuer "https://accounts.google.com" \
-  --oidc-audience "your-client-id.apps.googleusercontent.com"
-```
-
-Roles are extracted from the JWT claims (`role` or `roles`). If no valid role claim is found, the default role (`viewer`) is applied.
-
-Clients should obtain a JWT from the configured OIDC provider and include it in the `Authorization: Bearer <JWT>` header.
-
-### Endpoint Permissions
-
-`atb view` enforces the following role requirements for its API routes:
-
-| Endpoint                               | Method | Required Role      |
-| :------------------------------------- | :----- | :----------------- |
-| `/api/v1/verification`                 | `GET`  | `viewer` or higher |
-| `/api/v1/bundle/meta`                  | `GET`  | `viewer` or higher |
-| `/api/v1/bundle/events`                | `GET`  | `viewer` or higher |
-| `/api/v1/bundle/graph`                 | `GET`  | `viewer` or higher |
-| `/api/v1/bundle/profile`               | `GET`  | `viewer` or higher |
-| `/api/v1/bundle/verify/report`         | `GET`  | `viewer` or higher |
-| `/api/v1/sessions`                     | `GET`  | `viewer` or higher |
-| `/api/v1/sessions/by-actor`            | `GET`  | `viewer` or higher |
-| `/api/v1/schema/status`                | `GET`  | `viewer` or higher |
-| `/api/v1/bundle/verify`                | `POST` | `operator` or `admin` |
-| `/api/v1/privacy/reveal`               | `POST` | `operator` or `admin` |
+See the Mortise
+[runbook](https://github.com/pcguest/mortise/blob/main/docs/runbook.md) and
+[threat model](https://github.com/pcguest/mortise/blob/main/docs/mortise-threat-model.md)
+for the authoritative production controls.

@@ -129,7 +129,7 @@ ATB is a local-first tamper-evident audit trail. It proves integrity of what was
 recorded; it does not prove capture completeness, model correctness, actor
 identity, or regulatory compliance by itself. Hosted custody, auditor access,
 retention policy, and custodian-of-record work belong in
-[Custos](https://github.com/pcguest/custos-product) or another external product.
+[Mortise](https://github.com/pcguest/mortise) or another external product.
 
 ### Core invariants
 

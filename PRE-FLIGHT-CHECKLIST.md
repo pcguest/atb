@@ -14,7 +14,7 @@ below has been pushed, published, deployed, or made public.
 | Cut a GitHub release | `repo` scope allows it | Gated |
 | Publish to PyPI | `twine` and `build` not installed; no credentials proven | HUMAN |
 | Publish to npm | `npm whoami` returns 401, not logged in | HUMAN |
-| Deploy Custos site | No deploy target configured (only `ci.yml`); static files only | HUMAN |
+| Deploy Mortise site | No deploy target configured (only `ci.yml`); static files only | HUMAN |
 
 Note: although the GitHub token could technically push, release, and flip
 visibility from here, all of those are on the irreversible list and will not run
@@ -24,7 +24,7 @@ without your explicit "go".
 
 - Security disclosure on both repos points to GitHub's private vulnerability
   reporting (the Security tab). No email is exposed on a security surface.
-- The conduct report uses the same private channel. The Custos site sales CTA
+- The conduct report uses the same private channel. The Mortise site sales CTA
   uses the proton stopgap (it is a procurement contact, not a vuln report).
 - New prerequisite before going public: enable Private vulnerability reporting
   in each repository's Settings (runbook section 5).
@@ -36,7 +36,7 @@ without your explicit "go".
 | Brief requirement | Proven where |
 | --- | --- |
 | Cross-language verifiers agree | ACCEPTANCE.md, `make test-golden` (Go, Python 8, TypeScript 8) |
-| Full Go suite green (ATB and custos) | ACCEPTANCE.md, 40 and 9 packages, 0 fail |
+| Full Go suite green (ATB and Mortise) | ACCEPTANCE.md, 40 and 9 packages, 0 fail |
 | Hygiene gate green | ACCEPTANCE.md, `make hygiene-quick` exit 0 |
 | Version markers all 1.15.0 | ACCEPTANCE.md; the built binary prints `atb 1.15.0` |
 | Clean clone builds (embed fix) | ACCEPTANCE.md; the regression is closed and re-proven |
@@ -45,10 +45,10 @@ without your explicit "go".
 | Tamper gives verify exit 2, intact exit 0 | ACCEPTANCE.md and re-proven this pass (SDK-built 3-record bundle) |
 | Default-drift guard fires | ACCEPTANCE.md; drifting the Python default fails the golden test |
 | `reviewer_identities` earned, additive, frozen | ACCEPTANCE.md; strict-additive vs v1.14.5, SHA-256 pinned |
-| Custos conforms and end-to-end works | ACCEPTANCE.md; e2e script, live `POST /ingest 201` receipt |
+| Mortise conforms and end-to-end works | ACCEPTANCE.md; e2e script, live `POST /ingest 201` receipt |
 | History rewrite safe on a clone | `docs/maintenance/history-rewrite-plan.md`; 121 to 4 MiB, gitleaks clean |
 | Article 12 mapping honest, no certification | `docs/compliance/article-12-mapping.md` |
-| Custos site self-contained, links resolve | Audited this pass: 0 external assets, 0 em dashes, all anchors resolve |
+| Mortise site self-contained, links resolve | Audited this pass: 0 external assets, 0 em dashes, all anchors resolve |
 
 ## Launch collateral ready (no live button)
 
@@ -71,4 +71,4 @@ without your explicit "go".
 
 Path A: push branches, review and fast-forward `main`, tag `v1.15.0` once, make
 repos public, publish the SDKs (HUMAN: install `build`/`twine`, `npm login`),
-deploy the Custos site, then run `scripts/post-launch-verify.sh`.
+deploy the Mortise site, then run `scripts/post-launch-verify.sh`.

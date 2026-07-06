@@ -90,10 +90,22 @@ agent / app ──► capture (SDK · intercept proxy · OTel import)
 Long-term custody (WORM storage, signed receipts, and an RFC 6962
 transparency log with witness cosignatures) lives in the companion product
 [Mortise](https://github.com/pcguest/mortise); the full story is in its
-[end-to-end guide](https://github.com/pcguest/mortise/blob/main/docs/e2e-atb-custos.md).
+[end-to-end guide](https://github.com/pcguest/mortise/blob/main/docs/e2e-atb-mortise.md).
 ATB remains the MIT-licensed local evidence core: bundle format, CLI, SDKs,
 profiles, CAS, incident forensics, and offline compliance packs. Mortise is a
 separate product boundary, not a required hosted dependency for normal ATB use.
+
+Optional custody uses `ATB_MORTISE_TOKEN` and one of:
+
+```bash
+atb intercept --bundle run.atb/bundle.atb --mortise https://mortise.example
+atb incident export --bundle run.atb/bundle.atb --session <id> --mortise-endpoint https://mortise.example
+atb compliance pack --bundle run.atb/bundle.atb --profile atb.profile.policy_decision \
+  --regime eu-ai-act --out compliance.zip --mortise-endpoint https://mortise.example
+```
+
+The compliance pack includes the returned signed receipt at
+`mortise/receipt.json` under manifest and checksum coverage.
 
 ## Open core and Mortise
 

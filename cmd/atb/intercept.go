@@ -25,7 +25,7 @@ Clients route traffic via HTTPS_PROXY plus trust of the local capture CA
 (path printed on first run); provider base-URL overrides are not supported.
 
 Usage:
-  atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--custos <endpoint>]
+  atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--mortise <endpoint>]
 `
 
 func cmdIntercept() {
@@ -55,14 +55,15 @@ func runInterceptCommand(args []string, stdout, stderr io.Writer) int {
 	port := extractPort(cfg.ListenAddr)
 	printInterceptEnvHints(stdout, port)
 
-	if cfg.CustosEndpoint != "" {
-		if cfg.CustosToken != "" {
-			fmt.Fprintf(stdout, "Auto-push to Custos: %s (Bearer auth from ATB_CUSTOS_TOKEN)\n", cfg.CustosEndpoint)
+	if cfg.MortiseEndpoint != "" {
+		if cfg.MortiseToken != "" {
+			_, source := mortiseTokenFromEnv()
+			fmt.Fprintf(stdout, "Auto-push to Mortise: %s (Bearer auth from %s)\n", cfg.MortiseEndpoint, source)
 		} else {
-			fmt.Fprintf(stdout, "Auto-push to Custos: %s (unauthenticated; set ATB_CUSTOS_TOKEN for Bearer auth)\n", cfg.CustosEndpoint)
+			fmt.Fprintf(stdout, "Auto-push to Mortise: %s (unauthenticated; set ATB_MORTISE_TOKEN for Bearer auth)\n", cfg.MortiseEndpoint)
 		}
 	} else {
-		fmt.Fprintln(stdout, "Auto-push disabled (--custos not set)")
+		fmt.Fprintln(stdout, "Auto-push disabled (--mortise not set)")
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -87,8 +88,17 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 	bundlePath := ""
 	targets := []string{"openai", "anthropic"}
 	identityMap := map[string]string{}
-	custosEndpoint := ""
+	mortiseEndpoint := ""
+	mortiseEndpointFlag := ""
 	captureBodies := false
+	setMortiseEndpoint := func(flag, value string) error {
+		if mortiseEndpointFlag != "" {
+			return fmt.Errorf("cannot combine %s with %s", mortiseEndpointFlag, flag)
+		}
+		mortiseEndpointFlag = flag
+		mortiseEndpoint = strings.TrimSpace(value)
+		return nil
+	}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -144,14 +154,22 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 				return proxy.ProxyConfig{}, err
 			}
 			identityMap[key] = name
-		case arg == "--custos":
+		case arg == "--mortise" || arg == "--custos":
 			if i+1 >= len(args) {
-				return proxy.ProxyConfig{}, fmt.Errorf("missing value for --custos")
+				return proxy.ProxyConfig{}, fmt.Errorf("missing value for %s", arg)
 			}
-			custosEndpoint = strings.TrimSpace(args[i+1])
+			if err := setMortiseEndpoint(arg, args[i+1]); err != nil {
+				return proxy.ProxyConfig{}, err
+			}
 			i++
+		case strings.HasPrefix(arg, "--mortise="):
+			if err := setMortiseEndpoint("--mortise", strings.TrimPrefix(arg, "--mortise=")); err != nil {
+				return proxy.ProxyConfig{}, err
+			}
 		case strings.HasPrefix(arg, "--custos="):
-			custosEndpoint = strings.TrimSpace(strings.TrimPrefix(arg, "--custos="))
+			if err := setMortiseEndpoint("--custos", strings.TrimPrefix(arg, "--custos=")); err != nil {
+				return proxy.ProxyConfig{}, err
+			}
 		case arg == "--capture-bodies":
 			captureBodies = true
 		default:
@@ -163,15 +181,16 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 		return proxy.ProxyConfig{}, fmt.Errorf("--bundle is required")
 	}
 
+	mortiseToken, _ := mortiseTokenFromEnv()
 	cfg := proxy.ProxyConfig{
-		ListenAddr:     fmt.Sprintf("127.0.0.1:%d", port),
-		BundlePath:     bundlePath,
-		TargetHosts:    proxy.DefaultTargetHosts(targets...),
-		IdentityMap:    identityMap,
-		CustosEndpoint: custosEndpoint,
+		ListenAddr:      fmt.Sprintf("127.0.0.1:%d", port),
+		BundlePath:      bundlePath,
+		TargetHosts:     proxy.DefaultTargetHosts(targets...),
+		IdentityMap:     identityMap,
+		MortiseEndpoint: mortiseEndpoint,
 		// The token comes from the environment, not a flag, so it never
 		// lands in shell history or process listings.
-		CustosToken:   strings.TrimSpace(os.Getenv("ATB_CUSTOS_TOKEN")),
+		MortiseToken:  mortiseToken,
 		CaptureBodies: captureBodies,
 	}
 	return cfg, cfg.Validate()
@@ -233,8 +252,9 @@ Flags:
   --bundle <path>            Target ATB bundle path (required)
   --target <names>           Comma-separated provider shorthand or hostnames (default openai,anthropic)
   --identity-map key=name    Map API keys to display names (repeatable)
-  --custos <endpoint>        Custos ingest endpoint for auto-push on session close
-                             (set ATB_CUSTOS_TOKEN to authenticate with a Bearer token)
+  --mortise <endpoint>       Mortise ingest endpoint for auto-push on session close
+                             (set ATB_MORTISE_TOKEN to authenticate with a Bearer token)
+  --custos <endpoint>        Deprecated compatibility alias for --mortise
   --capture-bodies           Record raw request/response bodies (default: digest only)
 
 By default only a SHA-256 digest and byte length of each request/response body

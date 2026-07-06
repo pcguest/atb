@@ -14,7 +14,7 @@ All ATB commits must be signed by Patrick Guest `<patrickcguest@proton.me>`.
 
 - ATB local checkout: `/Users/paddyguest/atb`, branch `release/v1.15.0`.
 - ATB local Tenon framing commit: `dafed1a`, committed locally, unpushed.
-- Mortise local checkout: `/Users/paddyguest/custos-product`, branch
+- Mortise local checkout: `/Users/paddyguest/mortise`, branch
   `site/marketing-front`.
 - Mortise prose rename commit: `38c365e`, committed locally, unpushed.
 - Current staging remote `pcguest/tenon` is private but has nine Dependabot PR
@@ -497,13 +497,13 @@ approval.
 Command option:
 
 ```bash
-cd /Users/paddyguest/custos-product
-/bin/bash -lc 'gh repo rename mortise --repo pcguest/custos-product'
+cd /Users/paddyguest/mortise
+/bin/bash -lc 'gh repo rename mortise --repo pcguest/mortise'
 ```
 
 Expected result:
 
-- `pcguest/custos-product` becomes `pcguest/mortise`.
+- `pcguest/mortise` becomes `pcguest/mortise`.
 - Repo remains private.
 
 Reversible: yes until another repo takes the old name or public references are
@@ -518,7 +518,7 @@ Owner: Codex, on Patrick's word.
 Commands:
 
 ```bash
-cd /Users/paddyguest/custos-product
+cd /Users/paddyguest/mortise
 /bin/bash -lc 'git status --short --branch'
 /bin/bash -lc 'git remote set-url origin https://github.com/pcguest/mortise.git'
 /bin/bash -lc 'git push -u origin site/marketing-front'
@@ -541,7 +541,7 @@ Command shape:
 
 ```bash
 cd /tmp/atb-launch-work
-/bin/bash -lc 'rg -n "custos-product|Custos|Mortise" README.md docs'
+/bin/bash -lc 'rg -n "mortise|Mortise|Mortise" README.md docs'
 ```
 
 Then edit prose links only in `/tmp/atb-launch-work`, run the ATB hygiene
@@ -736,7 +736,7 @@ approval.
 Local preview command:
 
 ```bash
-cd /Users/paddyguest/custos-product
+cd /Users/paddyguest/mortise
 /bin/bash -lc 'python3 -m http.server --directory site 8000'
 ```
 
@@ -747,7 +747,7 @@ running it.
 
 Reversible: yes if the host keeps prior artefacts or supports rollback.
 
-Abort: if local preview shows old Custos branding, broken links, or unsupported
+Abort: if local preview shows old Mortise branding, broken links, or unsupported
 claims, stop.
 
 ### 23. Post-Launch Verification
@@ -822,7 +822,7 @@ Before each irreversible step, repeat:
 ```bash
 cd /Users/paddyguest/atb
 /bin/bash -lc 'git status --short --branch'
-cd /Users/paddyguest/custos-product
+cd /Users/paddyguest/mortise
 /bin/bash -lc 'git status --short --branch'
 ```
 

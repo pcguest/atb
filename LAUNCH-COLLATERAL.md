@@ -1,4 +1,4 @@
-# Launch collateral: v1.15.0 and the Custos front
+# Launch collateral: v1.15.0 and the Mortise front
 
 Ready-to-use text for the launch. Nothing here has been posted, pushed, or
 published. House rules apply throughout: British English, restrained, no
@@ -12,7 +12,7 @@ tag date.
 
 > ATB v1.15.0
 >
-> This release makes inspecting evidence safe, makes the Custos custody path
+> This release makes inspecting evidence safe, makes the Mortise custody path
 > conform to the ingest contract, and adds an offline compliance pack export. It
 > records reviewer identity as caller-provided evidence without claiming to
 > verify it.
@@ -23,8 +23,8 @@ tag date.
 >   bundle. Reveal audit events go to a separate `<bundle>.reveals` sidecar with
 >   its own hash chain, bound to the source bundle by id and chain head.
 >   Inspecting evidence no longer changes it. The sidecar verifies independently.
-> - The Custos push path now conforms to the ingest API. `atb intercept --custos`
->   and `atb incident export --custos-endpoint` post the completed bundle to
+> - The Mortise push path now conforms to the ingest API. `atb intercept --mortise`
+>   and `atb incident export --mortise-endpoint` post the completed bundle to
 >   `POST /ingest` and surface the signed receipt.
 > - New deterministic offline `atb compliance pack` export: the authoritative
 >   bundle, `verify.report.v1`, trust reports, CAS and obligation results,
@@ -65,7 +65,7 @@ tag date.
 >   in the viewer wrote `privacy.reveal` into the authoritative bundle and
 >   re-saved it, so inspecting evidence changed its bytes. Reveals now write to a
 >   `<bundle>.reveals` sidecar with its own chain. Proven byte-unchanged.
-> - **Custos push conforms.** The old client posted to a non-existent `/bundle`
+> - **Mortise push conforms.** The old client posted to a non-existent `/bundle`
 >   endpoint. It now posts the whole bundle to `POST /ingest` and returns the
 >   signed receipt. Verified live against a running ingest daemon.
 > - **Offline `atb compliance pack`.** Deterministic evidence export, local only.
@@ -78,20 +78,20 @@ tag date.
 >   remains only in package author metadata by design.
 >
 > Gates green: `make test-golden` (Go, Python, TypeScript), full `go test ./...`
-> (ATB and the custos module), `make hygiene-quick`, version markers all 1.15.0.
+> (ATB and the separate Mortise repository), `make hygiene-quick`, version markers all 1.15.0.
 > Some files span two concerns; the honest list is in the review document.
 
 ---
 
-## 3. Pull request description: Custos (site/marketing-front into main)
+## 3. Pull request description: Mortise (site/marketing-front into main)
 
 > ### Public marketing front
 >
 > A self-contained static `site/index.html` and `site/README.md`. No build step,
 > no JavaScript, no external assets, `lang="en-GB"`. The open-core boundary table
-> matches the ATB README content exactly (seven free, seven Custos). The contact
+> matches the ATB README content exactly (seven free, seven Mortise). The contact
 > path is a design-partner mailto, not a pricing table. Honest limits stated:
-> Custos produces evidence, it does not issue certificates, and equivocation
+> Mortise produces evidence, it does not issue certificates, and equivocation
 > resistance is bounded by the witnesses actually deployed.
 >
 > Preview: `python3 -m http.server --directory site 8000`. Audited: no external
@@ -108,7 +108,7 @@ tag date.
 > This release fixes the one thing that would stop a careful reviewer adopting
 > it: inspecting evidence no longer changes it. Revealing a masked field now
 > writes to a separate sidecar with its own chain, never the authoritative
-> bundle. The custody path to Custos conforms to the ingest contract and returns
+> bundle. The custody path to Mortise conforms to the ingest contract and returns
 > a signed receipt. A new offline compliance pack exports the bundle, the
 > machine-readable verify report, and the reference mappings in one deterministic
 > archive.
@@ -127,4 +127,4 @@ tag date.
 > ATB v1.15.0: an open evidence core for AI agent activity. Tamper-evident
 > bundles, offline verification, honest Article 12 mapping.
 > Inspecting evidence no longer mutates it; reveals go to a verifiable sidecar.
-> Open and MIT. Custos adds custody, WORM, and a transparency log on top.
+> Open and MIT. Mortise adds custody, WORM, and a transparency log on top.

@@ -38,48 +38,17 @@ in `VERSIONING.md` and cross-language parity through `make test-golden`.
 | Reviewer identity evidence | Shipped, optional | Hash-chains caller-provided IdP/assertion digests; ATB is not an IdP and does not validate the assertion |
 | Retention operations bundle | Shipped | Records policy changes, local archive outcomes, and accepted Object Lock requests; does not prove continuing remote enforcement |
 | `atb compliance pack` | Shipped | Deterministic offline bundle/profile review package; not a conformity assessment |
-| In-repo `custos/` Go module | Reference scaffold | Kept for contract tests and compatibility; not the Mortise product |
-| Managed storage (filesystem, S3-compatible) | In-repo reference | Mortise provides managed storage for receipts and bundles, with retention policies |
+| Mortise client and conformance boundary | Shipped, optional | ATB can lodge bundles and preserve receipts; Mortise runtime remains separate |
+| Managed storage and custody operations | Outside ATB | Implemented by the separate Mortise repository |
 | Hosted custody, SSO, billing, legal hold, and managed witnesses | Outside ATB | Belongs in Mortise Ring 4 or another external product |
 
-## Role-Based Access Control (RBAC)
+## Authentication boundaries
 
-ATB and Mortise now support optional role-based access control for their HTTP APIs. This allows operators to define granular permissions for different users or services interacting with the systems.
-
-### Roles
-
-The following roles are defined:
-
-*   **`viewer`**: Read-only access to view data and reports.
-*   **`auditor`**: Read-only access to view data and generate reports (same as viewer for now, but can be extended).
-*   **`operator`**: Read-write access to manage data and configurations (e.g., ingest events/bundles, trigger privacy reveals, re-run profile verification).
-*   **`admin`**: Full administrative access.
-
-### Authentication Mechanisms
-
-Both `custosd` and `atb view` support:
-
-*   **Shared Secret Token**: A simple bearer token (e.g., `CUSTOS_AUTH_TOKEN` for `custosd`, `X-ATB-Session-Token` for `atb view`). This grants `admin` privileges.
-*   **OIDC/JWT**: JSON Web Tokens issued by an OpenID Connect provider. Roles are extracted from JWT claims (e.g., `role` or `roles` claims). If no valid role claim is found, a default role (e.g., `viewer`) is applied.
-
-### `custosd` RBAC
-
-`custosd` enforces RBAC on its HTTP endpoints:
-
-*   `POST /ingest`: Requires `operator` or `admin` role.
-*   `GET /receipts`, `GET /receipts/by-hash`, `GET /receipts/:id`, `GET /receipts/:id/verify`, `GET /receipts/:id/attestation`: Require `viewer` or higher role.
-*   `GET /health`, `GET /custody/key`: Publicly accessible (no authentication required).
-
-### `atb view` RBAC
-
-`atb view` enforces RBAC on its API routes (`/api/v1/*`):
-
-*   `GET` endpoints (e.g., `/api/v1/verification`, `/api/v1/bundle/meta`, `/api/v1/bundle/events`, `/api/v1/sessions`, `/api/v1/schema/status`): Require `viewer` or higher role.
-*   `POST /api/v1/bundle/verify`, `POST /api/v1/privacy/reveal`: Require `operator` or `admin` role.
-
-### Configuration
-
-Refer to `docs/custos-storage.md` for `custosd` configuration and `atb view --help` for viewer configuration.
+`atb view` is loopback-first and uses a generated session token, with optional
+OIDC/JWT validation. Mortise has its own token and organisation-scoped API-key
+model. ATB sends Mortise credentials only from `ATB_MORTISE_TOKEN`; it does not
+share viewer sessions or identity state with Mortise. See
+[`guides/rbac-configuration.md`](./guides/rbac-configuration.md).
 
 ## atb view
 
@@ -96,8 +65,8 @@ request and response bodies, not raw prompts or completions. Credential and
 session-secret headers are stripped. `--capture-bodies` is an explicit privacy
 tradeoff.
 
-`--custos-endpoint <url>` lodges the completed bundle with a configured Mortise
-endpoint when a session closes. `ATB_CUSTOS_TOKEN`, when set, supplies the Bearer
+`--mortise <url>` lodges the completed bundle with a configured Mortise
+endpoint when a session closes. `ATB_MORTISE_TOKEN`, when set, supplies the Bearer
 token from the environment. With neither option configured, interception remains
 local and does not perform network custody operations. Mortise ingests whole
 bundles, verifies them, and returns a signed receipt; it does not accept
@@ -123,12 +92,12 @@ bundle. Compliance packs include relevant operations evidence when available.
 An accepted S3 Object Lock request is not represented as independent proof of
 bucket configuration, legal hold, or future object availability.
 
-## Mortise and the in-repo scaffold
+## Mortise
 
 The supported companion product and evaluator path live in the
-[Mortise repository](https://github.com/pcguest/mortise). The in-repo
-`custos/` module remains a reference implementation and compatibility harness;
-new custody product work does not land in ATB.
+[Mortise repository](https://github.com/pcguest/mortise). ATB contains only
+the optional client, frozen public contracts, and conformance tests; custody
+runtime and product work do not land in ATB.
 
 ## Research and planning material
 

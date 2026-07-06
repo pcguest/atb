@@ -375,7 +375,7 @@ events from the traffic it observes:
 ### `atb.session.close`
 
 Classification: proxy-internal. Emitted by `atb intercept` on session
-teardown; triggers Custos auto-push when `CustosEndpoint` is configured (see
+teardown; triggers Mortise auto-push when `MortiseEndpoint` is configured (see
 `internal/proxy/recorder.go`).
 
 **Required fields:**

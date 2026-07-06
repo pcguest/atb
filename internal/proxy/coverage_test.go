@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/custos"
+	"github.com/pcguest/atb/internal/mortise"
 )
 
 func TestLocalCALifecycleAndInstructions(t *testing.T) {
@@ -259,14 +259,14 @@ func TestProxyLifecycleAndNilBoundaries(t *testing.T) {
 	p.waitForListener(time.Millisecond)
 }
 
-func TestCustosPusherValidation(t *testing.T) {
-	if _, err := NewCustosPusher("", "", nil); err == nil {
+func TestMortisePusherValidation(t *testing.T) {
+	if _, err := NewMortisePusher("", "", nil); err == nil {
 		t.Fatal("empty endpoint unexpectedly accepted")
 	}
-	if pusher, err := NewCustosPusher("https://custody.example", "token", nil); err != nil || pusher.client == nil {
+	if pusher, err := NewMortisePusher("https://custody.example", "token", nil); err != nil || pusher.client == nil {
 		t.Fatalf("valid pusher = %+v, %v", pusher, err)
 	}
-	if _, err := (&CustosPusher{}).PushBundle(context.Background(), []byte("bundle")); err == nil {
+	if _, err := (&MortisePusher{}).PushBundle(context.Background(), []byte("bundle")); err == nil {
 		t.Fatal("uninitialized pusher unexpectedly succeeded")
 	}
 }
@@ -409,23 +409,23 @@ func TestBundleRecorderAndSessionLifecycle(t *testing.T) {
 	}
 }
 
-type recordingCustosPusher struct {
+type recordingMortisePusher struct {
 	bundles chan []byte
 	err     error
 }
 
-func (p recordingCustosPusher) PushBundle(_ context.Context, bundleBytes []byte) (*custos.Receipt, error) {
+func (p recordingMortisePusher) PushBundle(_ context.Context, bundleBytes []byte) (*mortise.Receipt, error) {
 	p.bundles <- append([]byte(nil), bundleBytes...)
 	if p.err != nil {
 		return nil, p.err
 	}
-	return &custos.Receipt{ReceiptID: "receipt-1", BundleHash: "hash-1"}, nil
+	return &mortise.Receipt{ReceiptID: "receipt-1", BundleHash: "hash-1"}, nil
 }
 
 func TestBundleRecorderPushesImmutableSessionSnapshot(t *testing.T) {
 	bundles := make(chan []byte, 1)
 	path := filepath.Join(t.TempDir(), "bundle.atb")
-	recorder := NewBundleRecorder(path, recordingCustosPusher{bundles: bundles})
+	recorder := NewBundleRecorder(path, recordingMortisePusher{bundles: bundles})
 	session := &Session{ID: "session-push", ThreadKey: "thread-push", ActorID: "actor"}
 	if err := recorder.sessionCloseCallback(session); err != nil {
 		t.Fatalf("sessionCloseCallback: %v", err)
@@ -443,13 +443,13 @@ func TestBundleRecorderPushesImmutableSessionSnapshot(t *testing.T) {
 			t.Fatal("pushed bytes differ from the locked on-disk session-close snapshot")
 		}
 	case <-time.After(time.Second):
-		t.Fatal("Custos push was not invoked")
+		t.Fatal("Mortise push was not invoked")
 	}
 
 	failedBundles := make(chan []byte, 1)
 	failedRecorder := NewBundleRecorder(
 		filepath.Join(t.TempDir(), "failed.atb"),
-		recordingCustosPusher{bundles: failedBundles, err: errors.New("push failed")},
+		recordingMortisePusher{bundles: failedBundles, err: errors.New("push failed")},
 	)
 	if err := failedRecorder.sessionCloseCallback(&Session{ID: "session-failed"}); err != nil {
 		t.Fatalf("failed-push callback append: %v", err)
@@ -457,6 +457,6 @@ func TestBundleRecorderPushesImmutableSessionSnapshot(t *testing.T) {
 	select {
 	case <-failedBundles:
 	case <-time.After(time.Second):
-		t.Fatal("failing Custos pusher was not invoked")
+		t.Fatal("failing Mortise pusher was not invoked")
 	}
 }

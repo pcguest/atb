@@ -1,7 +1,7 @@
 # Public MIT extraction checklist
 
 This checklist is for creating a polished public ATB repository from the private
-trunk while keeping proprietary Custos product material private.
+trunk while keeping proprietary Mortise product material private.
 
 ## Include in public ATB
 
@@ -12,8 +12,9 @@ trunk while keeping proprietary Custos product material private.
 
 ## Exclude from public ATB
 
-- Proprietary Custos product implementation, roadmap, customer/evaluator material, hosted custody operations, billing, SSO, legal-hold, managed witness, and private scoring/evaluation logic.
-- Any files under `custos/` that are not intentionally kept as the ATB reference harness. If the public repo should not ship the harness, exclude `custos/` entirely and keep only public boundary docs.
+- Proprietary Mortise product implementation, roadmap, customer/evaluator material, hosted custody operations, billing, SSO, legal-hold, managed witness, and private scoring/evaluation logic.
+- Any Mortise runtime or product implementation. ATB keeps only its internal
+  HTTP client, public custody contracts, conformance tests, and boundary docs.
 - Local/generated artefacts: `.atb/`, `run.atb/`, `*.atb`, `*.atb.enc`, `coverage.out`, `trivy-report.json`, `web/.next/`, `web/out/`, `node_modules/`, SDK build outputs, caches, and local keys.
 - Any real secrets or environment files: `.env*`, `*.pem`, `*.key`, `credentials.json`, cloud credential files, signing keys, and operator tokens.
 
@@ -24,7 +25,7 @@ trunk while keeping proprietary Custos product material private.
 3. Remove private or generated paths from the extraction directory using the exclude list above; inspect with `find` and `rg` before initializing the public repository.
 4. Re-run secret checks in the extraction directory:
    `rg -n "sk-|api[_-]?key|SECRET|TOKEN|PASSWORD|PRIVATE_KEY|AKIA|github_pat_|ghp_" .`.
-5. Verify public messaging: README and docs must describe ATB as the MIT local-first evidence core; Custos must be described only as a separate companion product, not as required infrastructure.
+5. Verify public messaging: README and docs must describe ATB as the MIT local-first evidence core; Mortise must be described only as a separate companion product, not as required infrastructure.
 6. Confirm `LICENSE` is MIT, update `NOTICE` or third-party notices if added, and keep package manifests scoped to ATB only.
 7. Run the public-tree validation commands: `go test ./...`, `make check-generated`, `make test-golden`, Python SDK tests, TypeScript SDK tests/typecheck, web tests/typecheck/build, and `npm audit --audit-level=high` for web and TypeScript packages.
 8. Only after validation, initialize or update the public repository and review `git status --short` for accidental private files before any commit or publication.

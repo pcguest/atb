@@ -98,6 +98,32 @@ hash-chains the supplied digest but does not authenticate the subject.
 See [`examples/python/agent_incident_demo.py`](../../examples/python/agent_incident_demo.py)
 for an offline incident-forensics flow.
 
+## Optional Mortise custody
+
+Mortise is a separate service; the SDK remains fully local without it. To lodge
+or remotely verify a completed bundle:
+
+```python
+import os
+from pathlib import Path
+
+from atb import MortiseClient
+
+client = MortiseClient(
+    "https://mortise.example",
+    token=os.environ["ATB_MORTISE_TOKEN"],
+)
+bundle = Path("run.atb/bundle.atb").read_bytes()
+verification = client.verify_bundle(bundle)  # does not persist
+receipt = client.ingest_bundle(bundle)       # WORM custody + signed receipt
+assert client.verify_receipt(receipt)["verified"] is True
+matches = client.receipts_by_hash(receipt["bundle_hash"])
+```
+
+The client rejects credential-bearing or non-HTTP(S) URLs, does not follow
+redirects, caps responses at 1 MiB, and validates the frozen
+`custos.receipt.v1` wire identifier.
+
 ## LangChain integration
 
 For LangChain middleware guidance, see [docs/integrations/](../../docs/integrations/README.md).

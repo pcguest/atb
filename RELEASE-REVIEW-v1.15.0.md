@@ -1,4 +1,4 @@
-# Per-commit review: v1.15.0 and the Custos site
+# Per-commit review: v1.15.0 and the Mortise site
 
 Read this before you push. Every commit is GPG-signed (verified good). The
 release was assembled from an inherited 140-file working tree, audited and
@@ -31,15 +31,15 @@ are the launch documentation, listed in their own section below.
    with its own chain. Shared-file note: `pkg/api/v1/handlers.go` also carries
    the inherited viewer RBAC and JWT additions; the commit message says so.
 
-4. `feat(cli): compliance pack, identity evidence, and conforming Custos push`
+4. `feat(cli): compliance pack, identity evidence, and conforming Mortise push`
    The `atb compliance pack` command, identity evidence in reports, and the
-   Custos push fix (post the bundle to `/ingest`, return the receipt; the old
+   Mortise push fix (post the bundle to `/ingest`, return the receipt; the old
    client hit a non-existent `/bundle`). Also bumps the CLI version constant to
    1.15.0. Shared-file note: `cmd/atb/main.go` holds both command wiring and the
    version constant.
 
 5. `feat(custos): RBAC, JWT auth, and S3 Object Lock WORM store`
-   The in-repo `custos/` reference module. Self-contained under `custos/`.
+   Historical in-repo custody scaffold; removed before v1.15.1 after Mortise became the separate supported repository.
 
 6. `feat(web): viewer event families, labels, and reveal-sidecar contract note`
    Viewer event families and the API contract note that a reveal writes to the
@@ -48,8 +48,8 @@ are the launch documentation, listed in their own section below.
 7. `test(integration): cover v1.15.0 cross-SDK and phase 9 surfaces`
    Integration coverage for the new surfaces. Test-only.
 
-8. `docs: v1.15.0 docs, Article 12 mapping, reveal and Custos push corrections`
-   The Article 12 one-pager, reveal-sidecar and Custos-push doc corrections, the
+8. `docs: v1.15.0 docs, Article 12 mapping, reveal and Mortise push corrections`
+   The Article 12 one-pager, reveal-sidecar and Mortise-push doc corrections, the
    open-core boundary table, forward-looking-copy removal, and the README
    copy-hygiene pass. Docs only.
 
@@ -92,16 +92,16 @@ code and ship alongside the release for transparency.
 
 The branch is 15 signed commits ahead of `main`, all with good signatures.
 
-## Custos, branch `site/marketing-front` (2 commits, oldest first)
+## Mortise, branch `site/marketing-front` (2 commits, oldest first)
 
-1. `docs(site): add the public Custos marketing front`
+1. `docs(site): add the public Mortise marketing front`
    The self-contained static `site/index.html` and `site/README.md`. No build
    step, no JavaScript, no external assets.
 
 2. `chore(site): parameterise contact and align the open-core table to the ATB README`
    Unifies the disclosure contact to the placeholder token and makes the
    open-core table match the ATB README content exactly (seven free, seven
-   Custos, same wording).
+   Mortise, same wording).
 
 ## Files that span two concerns (the honest list)
 

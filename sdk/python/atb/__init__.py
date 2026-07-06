@@ -41,6 +41,7 @@ from atb.human_override_gate import (
 )
 from atb.identity_evidence import IdentityEvidence
 from atb.langchain_gate import gate_langchain_tool
+from atb.mortise import MortiseClient, MortiseError
 from atb.pageindex import ATBAppendError, ATBPageIndexRetriever, PageIndexRetrievalError
 from atb.policy_decision_recorder import (
     PolicyDecisionActionInput,
@@ -155,6 +156,8 @@ __all__ = [
     "ATBPageIndexRetriever",
     "ATBAppendError",
     "PageIndexRetrievalError",
+    "MortiseClient",
+    "MortiseError",
     "ATBEncryptionError",
     "ATBDecryptionError",
     "encrypt_bundle",

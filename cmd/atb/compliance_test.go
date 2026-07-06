@@ -5,6 +5,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,6 +47,14 @@ func TestRunCompliancePackWritesZip(t *testing.T) {
 		t.Fatal(err)
 	}
 	output := filepath.Join(t.TempDir(), "pack.zip")
+	t.Setenv("ATB_MORTISE_TOKEN", "secret")
+	var authorization string
+	mortiseServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authorization = r.Header.Get("Authorization")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = io.WriteString(w, `{"receipt_version":"custos.receipt.v1","receipt_id":"receipt-1","bundle_hash":"bundle-hash","attestation":{"algorithm":"ed25519"}}`)
+	}))
+	t.Cleanup(mortiseServer.Close)
 	var stdout, stderr bytes.Buffer
 	code := runCompliance([]string{
 		"pack",
@@ -51,6 +62,7 @@ func TestRunCompliancePackWritesZip(t *testing.T) {
 		"--profile", "atb.profile.policy_decision",
 		"--regime", "eu-ai-act",
 		"--out", output,
+		"--mortise-endpoint", mortiseServer.URL,
 	}, &stdout, &stderr)
 	if code != exitSuccess {
 		t.Fatalf("runCompliance exit=%d stderr=%s", code, stderr.String())
@@ -64,9 +76,26 @@ func TestRunCompliancePackWritesZip(t *testing.T) {
 	for _, file := range reader.File {
 		seen[file.Name] = true
 	}
-	for _, name := range []string{"bundle.atb", "MANIFEST.json", "reports/verify.report.json"} {
+	for _, name := range []string{"bundle.atb", "MANIFEST.json", "reports/verify.report.json", "mortise/receipt.json"} {
 		if !seen[name] {
 			t.Errorf("zip missing %q", name)
+		}
+	}
+	if authorization != "Bearer secret" || !strings.Contains(stdout.String(), "lodged bundle with Mortise") {
+		t.Fatalf("authorization=%q stdout=%q", authorization, stdout.String())
+	}
+	for _, file := range reader.File {
+		if file.Name != "mortise/receipt.json" {
+			continue
+		}
+		body, err := file.Open()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := io.ReadAll(body)
+		body.Close()
+		if err != nil || !bytes.Contains(data, []byte(`"attestation"`)) {
+			t.Fatalf("receipt artifact=%s err=%v", data, err)
 		}
 	}
 }
@@ -115,11 +144,12 @@ func TestParseComplianceArgsContracts(t *testing.T) {
 		"--profile=atb.profile.policy_decision",
 		"--regime=EU-AI-ACT",
 		"--out=pack",
+		"--mortise-endpoint=https://mortise.example",
 	})
 	if err != nil {
 		t.Fatalf("parse valid equals args: %v", err)
 	}
-	if valid.Regime != compliancepack.RegimeEUAIAct || valid.Output != "pack" {
+	if valid.Regime != compliancepack.RegimeEUAIAct || valid.Output != "pack" || valid.MortiseEndpoint != "https://mortise.example" {
 		t.Fatalf("config = %+v", valid)
 	}
 
@@ -133,11 +163,13 @@ func TestParseComplianceArgsContracts(t *testing.T) {
 		{name: "profile value", args: []string{"pack", "--profile"}, want: "missing value"},
 		{name: "regime value", args: []string{"pack", "--regime"}, want: "missing value"},
 		{name: "out value", args: []string{"pack", "--out"}, want: "missing value"},
+		{name: "mortise value", args: []string{"pack", "--mortise-endpoint"}, want: "missing value"},
 		{name: "unknown", args: []string{"pack", "--wat"}, want: "unknown argument"},
 		{name: "bundle required", args: []string{"pack", "--profile", "p", "--out", "o"}, want: "--bundle is required"},
 		{name: "profile required", args: []string{"pack", "--bundle", "b", "--out", "o"}, want: "--profile is required"},
 		{name: "out required", args: []string{"pack", "--bundle", "b", "--profile", "p"}, want: "--out is required"},
 		{name: "regime", args: []string{"pack", "--bundle", "b", "--profile", "p", "--out", "o", "--regime", "nist"}, want: "unsupported"},
+		{name: "aliases", args: []string{"pack", "--bundle", "b", "--profile", "p", "--out", "o", "--mortise-endpoint", "https://one", "--custos-endpoint", "https://two"}, want: "cannot combine"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

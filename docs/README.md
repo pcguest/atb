@@ -16,7 +16,7 @@ commercial framework for long-term custody; ATB works fully without it.
 | [Incident forensics](./guides/incident-forensics.md) | Capture → discover → review after an agent incident |
 | [Tamper demo](./guides/tamper-demo.md) | One-byte mutation and verify failure |
 | [WORM / S3](./integrations/worm-s3.md) | Operator-controlled immutable retention |
-| [Mortise handoff](./custos-handoff.md) | Companion custody product boundary |
+| [Mortise handoff](./mortise-handoff.md) | Companion custody product boundary |
 
 ## Review evidence
 
