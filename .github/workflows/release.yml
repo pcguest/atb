@@ -101,6 +101,8 @@ jobs:
           npm run build
 
       - name: Check version parity across all artefacts
+        env:
+          ATB_SKIP_TAG_CHECK: ${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}
         run: bash scripts/check-versions.sh
 
       - name: Validate tag version parity
