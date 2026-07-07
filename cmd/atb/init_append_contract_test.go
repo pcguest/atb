@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -160,7 +161,14 @@ func TestRunInitWithOptionsSystemErrors(t *testing.T) {
 		if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
 			t.Fatalf("decode system error %q: %v", stdout.String(), err)
 		}
-		if result.Status != "error" || !strings.Contains(result.Error, "stat") {
+		// On Unix, stat through the blocking file fails with ENOTDIR and the
+		// error carries "stat". Windows reports the blocked parent as
+		// not-found, so the failure surfaces at lock creation ("mkdir").
+		wantErr := "stat"
+		if runtime.GOOS == "windows" {
+			wantErr = "mkdir"
+		}
+		if result.Status != "error" || !strings.Contains(result.Error, wantErr) {
 			t.Fatalf("result = %+v", result)
 		}
 	})

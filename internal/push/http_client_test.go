@@ -261,7 +261,9 @@ func TestCredentialEndpointAndRegionResolution(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
 	t.Setenv("AWS_SESSION_TOKEN", "")
-	t.Setenv("HOME", t.TempDir())
+	emptyHome := t.TempDir()
+	t.Setenv("HOME", emptyHome)
+	t.Setenv("USERPROFILE", emptyHome) // os.UserHomeDir reads USERPROFILE on Windows
 	if _, err := ResolveCredentials(); err == nil {
 		t.Fatal("ResolveCredentials unexpectedly succeeded without credentials")
 	}
@@ -295,6 +297,7 @@ func TestCredentialEndpointAndRegionResolution(t *testing.T) {
 func TestSharedCredentialProfileResolution(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir reads USERPROFILE on Windows
 	t.Setenv("AWS_ACCESS_KEY_ID", "")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
 	t.Setenv("AWS_PROFILE", "audit")

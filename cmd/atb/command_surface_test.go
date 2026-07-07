@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -510,7 +511,9 @@ func TestIdentityCommandSurface(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("HOME", t.TempDir())
+			tempHome := t.TempDir()
+			t.Setenv("HOME", tempHome)
+			t.Setenv("USERPROFILE", tempHome) // os.UserHomeDir reads USERPROFILE on Windows
 			var stdout, stderr bytes.Buffer
 			code := runIdentityCommand(tc.args, &stdout, &stderr)
 			if code != tc.wantCode {
@@ -526,6 +529,7 @@ func TestIdentityCommandSurface(t *testing.T) {
 func TestIdentitySetPersistsResolvableMapping(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir reads USERPROFILE on Windows
 
 	var stdout, stderr bytes.Buffer
 	code := runIdentityCommand(
@@ -542,7 +546,7 @@ func TestIdentitySetPersistsResolvableMapping(t *testing.T) {
 	if err != nil {
 		t.Fatalf("stat identity map: %v", err)
 	}
-	if info.Mode().Perm() != 0o600 {
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 { // Unix permission bits are not enforced on Windows file modes
 		t.Fatalf("identity map mode = %o, want 600", info.Mode().Perm())
 	}
 	got, err := (identity.FileResolver{Path: path}).Resolve("secret-key")

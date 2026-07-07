@@ -25,7 +25,8 @@ func readRepositoryFile(t *testing.T, name string) string {
 	if err != nil {
 		t.Fatalf("read %s: %v", name, err)
 	}
-	return string(data)
+	// Windows checkouts may have CRLF endings; contract checks match on "\n".
+	return strings.ReplaceAll(string(data), "\r\n", "\n")
 }
 
 func makeTarget(t *testing.T, makefile, target, nextTarget string) string {

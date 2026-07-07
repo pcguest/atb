@@ -937,11 +937,13 @@ func TestRunVerify_SchemaOutput(t *testing.T) {
 	if _, err := os.Stat(outPath); err != nil {
 		t.Fatalf("schema file missing: %v", err)
 	}
-	info, err := os.Stat(outPath)
-	if err != nil {
-		t.Fatalf("stat schema file: %v", err)
-	}
-	if got := info.Mode().Perm(); got != 0o600 {
-		t.Fatalf("schema file mode=%#o, want 0600", got)
+	if runtime.GOOS != "windows" { // Unix permission bits are not enforced on Windows file modes
+		info, err := os.Stat(outPath)
+		if err != nil {
+			t.Fatalf("stat schema file: %v", err)
+		}
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("schema file mode=%#o, want 0600", got)
+		}
 	}
 }
