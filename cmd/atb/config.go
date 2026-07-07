@@ -283,7 +283,7 @@ func rollbackConfig(path string, previousRaw []byte, existed bool) error {
 	if !existed {
 		return os.Remove(path)
 	}
-	return os.WriteFile(path, previousRaw, 0600)
+	return os.WriteFile(path, previousRaw, 0600) // #nosec G306 G703 -- restores the project-local config file this command just overwrote
 }
 
 func printConfigUsage(stdout io.Writer) {
