@@ -106,6 +106,8 @@ func TestParseViewArgs(t *testing.T) {
 		{name: "invalid sessions glob", args: []string{"--sessions=["}, wantErr: true},
 		{name: "missing OIDC issuer", args: []string{"--oidc-issuer"}, wantErr: true},
 		{name: "missing OIDC audience", args: []string{"--oidc-audience"}, wantErr: true},
+		{name: "OIDC issuer without audience", args: []string{"--oidc-issuer=https://issuer.example"}, wantErr: true},
+		{name: "OIDC audience without issuer", args: []string{"--oidc-audience=atb-viewer"}, wantErr: true},
 		{
 			// The removed --ui-experimental flag must now be rejected as unknown.
 			name:    "unknown flag rejected",

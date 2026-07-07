@@ -608,6 +608,9 @@ func parseViewArgs(args []string) (viewConfig, error) {
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return cfg, fmt.Errorf("--port must be between 1 and 65535")
 	}
+	if (cfg.OIDCIssuer == "") != (cfg.OIDCAudience == "") {
+		return cfg, fmt.Errorf("--oidc-issuer and --oidc-audience must be set together")
+	}
 	return cfg, nil
 }
 
