@@ -66,7 +66,9 @@ describe("Bundle", () => {
     expect(report.signatures[0].valid).toBe(true);
   });
 
-  it("verify returns local signature evidence for a Go-signed bundle", () => {
+  // Compiles the CLI from scratch (empty GOCACHE), which can blow the 60s
+  // default timeout on cold Windows CI runners.
+  it("verify returns local signature evidence for a Go-signed bundle", { timeout: 180_000 }, () => {
     const path = tempBundlePath();
     const keyPath = join(dirname(path), "atb-key.pem");
     const bundle = new Bundle({ path });
