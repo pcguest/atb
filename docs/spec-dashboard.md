@@ -263,13 +263,13 @@ Clicking a session row opens the existing single-bundle viewer for
 - event family counts
 - verification status
 
-### Session list `[API only, no bundled UI]`
+### Session list
 - virtualised table fed by `GET /api/v1/sessions`
 - columns: actor (`display_name`), `started_at`, model (from session events),
   `exchange_count`, inferred profile badge, CAS grade chip, anomaly flag icons
 - row click opens the single-bundle viewer for `bundle_path`
 
-### Actor sessions `[API only, no bundled UI]`
+### Actor sessions
 - grouped list fed by `GET /api/v1/sessions/by-actor`
 - each actor row expands to show that actor's sessions (sorted by `started_at`
   descending within the group)
@@ -282,7 +282,7 @@ Clicking a session row opens the existing single-bundle viewer for
 - `unresolved_identity` → grey person icon
 - `session_not_closed` → red clock icon
 
-### Contract status `[API only, no bundled UI]`
+### Contract status
 - fed by `GET /api/v1/schema/status`
 - summary cards: declared types, observed types, total events, incomplete events
   (incomplete count emphasised when non-zero)

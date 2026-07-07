@@ -34,7 +34,7 @@ closed session. The workflow outcome is bad; the evidence should still verify.
 
 ```bash
 ./atb verify --bundle run.atb/agent-incident-demo.atb --profile atb.profile.policy_decision --format json
-./atb trust-report --bundle run.atb/agent-incident-demo.atb --profile atb.profile.policy_decision --format markdown
+./atb trust-report run.atb/agent-incident-demo.atb --profile atb.profile.policy_decision --format markdown
 ./atb incident list --bundle run.atb/agent-incident-demo.atb
 ./atb incident report --bundle run.atb/agent-incident-demo.atb --session sess-laptop-demo --format markdown
 ./atb incident export --bundle run.atb/agent-incident-demo.atb --session sess-laptop-demo --out /tmp/atb-incident-evidence.zip

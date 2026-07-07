@@ -489,27 +489,24 @@ published security intake path.
 
 Abort: do not flip public until PVR is enabled.
 
-### 12. Rename Mortise Repository
+### 12. Confirm Mortise Repository Name
 
-Owner: Patrick presses the GitHub button, or Codex runs it only after explicit
-approval.
+Owner: Patrick, or Codex on explicit approval.
+
+The rename to `pcguest/mortise` has already happened; this step is now a
+verification, not a mutation.
 
 Command option:
 
 ```bash
-cd /Users/paddyguest/mortise
-/bin/bash -lc 'gh repo rename mortise --repo pcguest/mortise'
+gh repo view pcguest/mortise --json name,visibility
 ```
 
 Expected result:
 
-- `pcguest/mortise` becomes `pcguest/mortise`.
-- Repo remains private.
+- Name is `mortise`; repo remains private.
 
-Reversible: yes until another repo takes the old name or public references are
-published.
-
-Abort: if GitHub changes visibility or reports a name conflict, stop.
+Abort: if the repo is missing, renamed elsewhere, or visibility changed, stop.
 
 ### 13. Push Mortise Prose Rename
 
