@@ -22,6 +22,11 @@ type BundleRecorder struct {
 
 // NewBundleRecorder returns a recorder for the given bundle path.
 func NewBundleRecorder(path string, mortisePusher MortisePusherInterface) *BundleRecorder {
+	// A disabled Mortise config passes a typed-nil *MortisePusher; normalize it
+	// to a nil interface so the session-close push path stays off.
+	if mp, ok := mortisePusher.(*MortisePusher); ok && mp == nil {
+		mortisePusher = nil
+	}
 	return &BundleRecorder{path: path, mortisePusher: mortisePusher}
 }
 
