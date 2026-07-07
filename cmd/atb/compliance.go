@@ -125,9 +125,16 @@ func parseComplianceArgs(args []string) (compliancePackConfig, error) {
 			if err != nil {
 				return cfg, err
 			}
+			if value == "" {
+				return cfg, fmt.Errorf("missing value for --bundle")
+			}
 			cfg.BundlePath = normalizeBundlePath(value)
 		case strings.HasPrefix(arg, "--bundle="):
-			cfg.BundlePath = normalizeBundlePath(strings.TrimPrefix(arg, "--bundle="))
+			value := strings.TrimSpace(strings.TrimPrefix(arg, "--bundle="))
+			if value == "" {
+				return cfg, fmt.Errorf("missing value for --bundle")
+			}
+			cfg.BundlePath = normalizeBundlePath(value)
 		case arg == "--profile":
 			value, err := next()
 			if err != nil {

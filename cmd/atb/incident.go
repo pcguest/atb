@@ -303,16 +303,20 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
-	files, err := incident.BuildPack(context.Background(), bundlePath, sessionID, version)
-	if err != nil {
-		fmt.Fprintf(stderr, "atb incident export: %v\n", err)
-		return exitSystemError
-	}
-
 	if mortiseEndpoint != "" {
 		// Mortise takes custody of the authoritative bundle, which it verifies
 		// before persisting and returns a signed receipt for. It ingests
-		// bundles, not derived evidence-pack archives.
+		// bundles, not derived evidence-pack archives, so the full pack is
+		// never built here — only the session's presence is validated.
+		report, err := incident.Build(context.Background(), bundlePath, sessionID)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+			return exitSystemError
+		}
+		if !report.Found {
+			fmt.Fprintf(stderr, "atb incident export: incident: no events found for session %q\n", sessionID)
+			return exitSystemError
+		}
 		if mortiseAuthToken == "" {
 			mortiseAuthToken, _ = mortiseTokenFromEnv()
 		}
@@ -333,6 +337,11 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintf(stdout, "lodged bundle with Mortise %s: receipt %s (bundle hash %s)\n", mortiseEndpoint, receipt.ReceiptID, receipt.BundleHash)
 	} else {
+		files, err := incident.BuildPack(context.Background(), bundlePath, sessionID, version)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+			return exitSystemError
+		}
 		if err := writeIncidentPack(out, files); err != nil {
 			fmt.Fprintf(stderr, "atb incident export: %v\n", err)
 			return exitSystemError

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -48,9 +49,12 @@ func TestRunCompliancePackWritesZip(t *testing.T) {
 	}
 	output := filepath.Join(t.TempDir(), "pack.zip")
 	t.Setenv("ATB_MORTISE_TOKEN", "secret")
+	var mu sync.Mutex
 	var authorization string
 	mortiseServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
 		authorization = r.Header.Get("Authorization")
+		mu.Unlock()
 		w.WriteHeader(http.StatusCreated)
 		_, _ = io.WriteString(w, `{"receipt_version":"custos.receipt.v1","receipt_id":"receipt-1","bundle_hash":"bundle-hash","attestation":{"algorithm":"ed25519"}}`)
 	}))
@@ -81,8 +85,11 @@ func TestRunCompliancePackWritesZip(t *testing.T) {
 			t.Errorf("zip missing %q", name)
 		}
 	}
-	if authorization != "Bearer secret" || !strings.Contains(stdout.String(), "lodged bundle with Mortise") {
-		t.Fatalf("authorization=%q stdout=%q", authorization, stdout.String())
+	mu.Lock()
+	gotAuthorization := authorization
+	mu.Unlock()
+	if gotAuthorization != "Bearer secret" || !strings.Contains(stdout.String(), "lodged bundle with Mortise") {
+		t.Fatalf("authorization=%q stdout=%q", gotAuthorization, stdout.String())
 	}
 	for _, file := range reader.File {
 		if file.Name != "mortise/receipt.json" {

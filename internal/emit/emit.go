@@ -236,6 +236,13 @@ func identityEvidenceData(evidence *IdentityEvidence) (map[string]any, error) {
 	if provider == "" || subject == "" || assertionType == "" || assertionDigest == "" {
 		return nil, fmt.Errorf("atb: identity evidence requires provider, subject, assertion type, and assertion digest")
 	}
+	switch assertionType {
+	case "jwt", "x509", "saml", "opaque":
+	default:
+		// event.v1 constrains identity_evidence.assertion_type; reject early
+		// so schema-validating readers never see an out-of-enum value.
+		return nil, fmt.Errorf("atb: identity evidence assertion_type must be one of jwt, x509, saml, opaque")
+	}
 	data := map[string]any{
 		"identity_provider": provider,
 		"subject":           subject,

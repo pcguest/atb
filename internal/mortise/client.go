@@ -51,7 +51,9 @@ func NewHTTPClient(endpoint, token string) (*HTTPClient, error) {
 	}
 	return &HTTPClient{
 		endpoint: strings.TrimRight(endpoint, "/"),
-		token:    token,
+		// Trim once so tokens copied with stray whitespace do not 401; the
+		// Python and TypeScript clients already do this.
+		token: strings.TrimSpace(token),
 		client: &http.Client{
 			Timeout: 30 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error {

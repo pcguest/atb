@@ -219,10 +219,10 @@ func renderTrustReportMarkdown(w io.Writer, report trust.Report, includeRAGDetai
 		for _, evidence := range report.ReviewerIdentities {
 			fmt.Fprintf(w, "- Seq %d: provider=`%s` subject=`%s` assertion=`%s` digest=`%s`\n",
 				evidence.Sequence,
-				evidence.IdentityProvider,
-				evidence.Subject,
-				evidence.AssertionType,
-				evidence.AssertionDigest,
+				sanitizeReportField(evidence.IdentityProvider),
+				sanitizeReportField(evidence.Subject),
+				sanitizeReportField(evidence.AssertionType),
+				sanitizeReportField(evidence.AssertionDigest),
 			)
 		}
 		fmt.Fprintln(w)
@@ -258,6 +258,25 @@ func renderTrustReportMarkdown(w io.Writer, report trust.Report, includeRAGDetai
 		}
 		fmt.Fprintln(w)
 	}
+}
+
+// sanitizeReportField neutralises caller-provided identity evidence before it
+// is rendered into markdown or text reports: newlines and other control
+// characters could forge report structure, and backticks escape the inline
+// code spans the markdown renderer wraps these fields in.
+func sanitizeReportField(value string) string {
+	var b strings.Builder
+	for _, r := range value {
+		switch {
+		case r == '`':
+			b.WriteRune('\'')
+		case r < 0x20 || r == 0x7f:
+			b.WriteRune(' ')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func resolveTrustReportProfile(bundlePath string, profileSpec string) (verifypkg.Profile, string, error) {
@@ -433,10 +452,10 @@ func renderTrustReportText(w io.Writer, report trust.Report) {
 		for _, evidence := range report.ReviewerIdentities {
 			fmt.Fprintf(w, "  seq=%d provider=%s subject=%s assertion=%s digest=%s\n",
 				evidence.Sequence,
-				evidence.IdentityProvider,
-				evidence.Subject,
-				evidence.AssertionType,
-				evidence.AssertionDigest,
+				sanitizeReportField(evidence.IdentityProvider),
+				sanitizeReportField(evidence.Subject),
+				sanitizeReportField(evidence.AssertionType),
+				sanitizeReportField(evidence.AssertionDigest),
 			)
 		}
 	}

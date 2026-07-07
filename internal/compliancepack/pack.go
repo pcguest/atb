@@ -261,7 +261,7 @@ func appendIncidentFiles(ctx context.Context, files []File, bundlePath string) (
 		if marshalErr != nil {
 			return nil, marshalErr
 		}
-		base := "incidents/" + safeName(session.SessionID)
+		base := "incidents/" + incidentFileBase(session.SessionID)
 		files = append(files,
 			File{Name: base + ".md", Content: []byte(report.Markdown())},
 			File{Name: base + ".json", Content: reportJSON},
@@ -308,6 +308,19 @@ func appendRetentionFiles(files []File, bundlePath, bundleHash string) ([]File, 
 		File{Name: "retention/operations.atb", Content: raw},
 		File{Name: "retention/events.json", Content: relevantJSON},
 	), nil
+}
+
+// incidentFileBase returns a filesystem-safe, collision-free base name for a
+// session's incident artifacts. Sanitization can map distinct session IDs to
+// the same name, silently overwriting evidence in the pack; any sanitized ID
+// therefore carries a deterministic short hash of the raw value.
+func incidentFileBase(sessionID string) string {
+	name := safeName(sessionID)
+	if name == sessionID {
+		return name
+	}
+	digest := sha256.Sum256([]byte(sessionID))
+	return name + "-" + hex.EncodeToString(digest[:4])
 }
 
 func safeName(value string) string {
