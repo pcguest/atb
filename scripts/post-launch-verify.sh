@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 #
-# Post-launch external verification for ATB v1.15.0.
+# Post-launch external verification for ATB v1.15.1.
 #
 # Run this AFTER launch, from a machine with no special access, to prove the
 # release works from the outside: the CLI installs from the public repo at
-# 1.15.0, both SDKs publish at 1.15.0 (not the previous 1.14.5), the quickstart
-# runs, and verify exits 0 on an intact bundle and 2 on a tampered one.
+# 1.15.1, both SDKs publish at 1.15.1 (not the previous published 1.14.5),
+# the quickstart runs, and verify exits 0 on an intact bundle and 2 on a
+# tampered one.
 #
 # It fails loudly if any artefact is stale at 1.14.5, missing, or unreachable.
 # It makes no changes to any repository, registry, or remote. It only reads
@@ -17,11 +18,13 @@
 #   scripts/post-launch-verify.sh
 #
 # Override the expected version if you are verifying a later release:
-#   EXPECT=1.15.1 scripts/post-launch-verify.sh
+#   EXPECT=1.15.2 scripts/post-launch-verify.sh
 
 set -u
 
-EXPECT="${EXPECT:-1.15.0}"
+EXPECT="${EXPECT:-1.15.1}"
+# 1.14.5 is the newest version ever published to the registries; the gated
+# v1.15.0 baseline was never released, so a stale mirror serves 1.14.5.
 STALE="1.14.5"
 MODULE="github.com/pcguest/atb/cmd/atb"
 PYPKG="atb-sdk"
@@ -75,9 +78,9 @@ fi
 # ---------------------------------------------------------------------------
 head "3. Python SDK ($PYPKG) publishes at $EXPECT and interoperates with the CLI"
 # ---------------------------------------------------------------------------
-python3 -m venv "$WORK/venv" 2>/dev/null
-. "$WORK/venv/bin/activate"
-if pip install -q "$PYPKG==$EXPECT" 2>"$WORK/pip.log"; then
+if ! python3 -m venv "$WORK/venv" 2>/dev/null || ! . "$WORK/venv/bin/activate" 2>/dev/null; then
+  bad "python venv setup failed; skipping Python SDK checks (pip must not run against the host)"
+elif pip install -q "$PYPKG==$EXPECT" 2>"$WORK/pip.log"; then
   pyver="$(python3 -c 'import importlib.metadata as m; print(m.version("atb-sdk"))' 2>/dev/null)"
   if [ "$pyver" = "$EXPECT" ]; then
     ok "pip install $PYPKG==$EXPECT -> $pyver"

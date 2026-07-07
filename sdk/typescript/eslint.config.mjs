@@ -1,5 +1,11 @@
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+
+// import.meta.dirname requires Node 20.11+; package.json supports >=18.
+const configDir = dirname(fileURLToPath(import.meta.url));
 
 export default [
   {
@@ -11,7 +17,7 @@ export default [
       parser: tsParser,
       parserOptions: {
         project: "./tsconfig.typecheck.json",
-        tsconfigRootDir: import.meta.dirname,
+        tsconfigRootDir: configDir,
       },
     },
     plugins: {

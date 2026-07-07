@@ -392,7 +392,42 @@ jobs:
         run: |
           tar -tzf artifacts/web/*.tar.gz >/dev/null
           jq -e '.spdxVersion and .packages' artifacts/sbom/*.json >/dev/null
-          python -c 'import json, pathlib; data=json.loads(next(pathlib.Path("artifacts/provenance").glob("*.json")).read_text()); assert data["schema"] == "atb.release.provenance.v1"; assert data["files"]'
+          # Recompute artifact hashes against the manifest: structural checks
+          # alone would pass even if the shipped files did not match it.
+          python - <<'PY'
+          import hashlib, json, pathlib, sys
+
+          manifest_path = next(pathlib.Path("artifacts/provenance").glob("*.json"))
+          data = json.loads(manifest_path.read_text())
+          assert data["schema"] == "atb.release.provenance.v1", data.get("schema")
+          assert data["files"], "provenance manifest lists no files"
+
+          expected = {pathlib.PurePosixPath(f["path"]).name: f for f in data["files"]}
+          actual = {
+              p.name: p
+              for d in ("cli", "python", "npm", "web", "sbom")
+              for p in pathlib.Path("artifacts", d).glob("*")
+              if p.is_file()
+          }
+
+          problems = []
+          for name, entry in sorted(expected.items()):
+              path = actual.get(name)
+              if path is None:
+                  problems.append(f"manifest entry {name} has no downloaded artifact")
+                  continue
+              blob = path.read_bytes()
+              if hashlib.sha256(blob).hexdigest() != entry["sha256"]:
+                  problems.append(f"sha256 mismatch for {name}")
+              elif len(blob) != entry["size"]:
+                  problems.append(f"size mismatch for {name}")
+          for name in sorted(actual):
+              if name not in expected:
+                  problems.append(f"artifact {name} is not covered by the provenance manifest")
+          if problems:
+              sys.exit("provenance verification failed:\n  " + "\n  ".join(problems))
+          print(f"provenance verified: {len(expected)} files match the manifest")
+          PY
 
   # Layer C: Gold release gate — must pass before any publication step.
   gate-gold:
