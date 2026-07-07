@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -158,6 +159,124 @@ func TestJWTValidatorRejectsInvalidTokens(t *testing.T) {
 				t.Fatalf("Validate error=%v, want substring %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestJWTValidatorResolvesJWKSFromDiscovery(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate RSA key: %v", err)
+	}
+	key, err := jwk.FromRaw(&privateKey.PublicKey)
+	if err != nil {
+		t.Fatalf("create JWK: %v", err)
+	}
+	if err := key.Set(jwk.KeyIDKey, "discovery-kid"); err != nil {
+		t.Fatalf("set JWK key ID: %v", err)
+	}
+	set := jwk.NewSet()
+	if err := set.AddKey(key); err != nil {
+		t.Fatalf("add JWK: %v", err)
+	}
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/.well-known/openid-configuration":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]string{"jwks_uri": server.URL + "/custom/keys"})
+		case "/custom/keys":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(set)
+		default:
+			// No /.well-known/jwks.json: resolution must come from discovery.
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	validator, err := NewJWTValidator(ctx, server.URL, "test-audience")
+	if err != nil {
+		t.Fatalf("NewJWTValidator with discovery metadata: %v", err)
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iss": server.URL, "aud": "test-audience",
+		"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Add(-time.Minute).Unix(),
+	})
+	token.Header["kid"] = "discovery-kid"
+	signed, err := token.SignedString(privateKey)
+	if err != nil {
+		t.Fatalf("sign JWT: %v", err)
+	}
+	if _, err := validator.Validate(context.Background(), signed); err != nil {
+		t.Fatalf("Validate with discovery-resolved JWKS: %v", err)
+	}
+}
+
+func TestJWTValidatorRefetchesJWKSOnKidMiss(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate RSA key: %v", err)
+	}
+	newKey := func(kid string) jwk.Key {
+		k, err := jwk.FromRaw(&privateKey.PublicKey)
+		if err != nil {
+			t.Fatalf("create JWK: %v", err)
+		}
+		if err := k.Set(jwk.KeyIDKey, kid); err != nil {
+			t.Fatalf("set JWK key ID: %v", err)
+		}
+		return k
+	}
+
+	var mu sync.Mutex
+	served := jwk.NewSet()
+	if err := served.AddKey(newKey("old-kid")); err != nil {
+		t.Fatalf("add JWK: %v", err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/.well-known/jwks.json" {
+			http.NotFound(w, r)
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(served)
+	}))
+	t.Cleanup(server.Close)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	validator, err := NewJWTValidator(ctx, server.URL, "test-audience")
+	if err != nil {
+		t.Fatalf("NewJWTValidator: %v", err)
+	}
+
+	// Rotate: the provider now serves a key the validator has not cached.
+	mu.Lock()
+	rotated := jwk.NewSet()
+	if err := rotated.AddKey(newKey("rotated-kid")); err != nil {
+		mu.Unlock()
+		t.Fatalf("add rotated JWK: %v", err)
+	}
+	served = rotated
+	mu.Unlock()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iss": server.URL, "aud": "test-audience",
+		"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Add(-time.Minute).Unix(),
+	})
+	token.Header["kid"] = "rotated-kid"
+	signed, err := token.SignedString(privateKey)
+	if err != nil {
+		t.Fatalf("sign JWT: %v", err)
+	}
+	if _, err := validator.Validate(context.Background(), signed); err != nil {
+		t.Fatalf("Validate after rotation should refetch JWKS: %v", err)
 	}
 }
 

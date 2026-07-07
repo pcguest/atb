@@ -3,8 +3,12 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -23,9 +27,41 @@ type JWTValidator struct {
 	logger   *slog.Logger
 }
 
+// resolveJWKSURL resolves the issuer's JWKS endpoint from its OIDC discovery
+// document (/.well-known/openid-configuration -> jwks_uri). Providers that do
+// not serve discovery metadata fall back to the conventional
+// /.well-known/jwks.json location.
+func resolveJWKSURL(ctx context.Context, issuer string) string {
+	base := strings.TrimSuffix(issuer, "/")
+	fallback := base + "/.well-known/jwks.json"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/.well-known/openid-configuration", nil)
+	if err != nil {
+		return fallback
+	}
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fallback
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fallback
+	}
+	var doc struct {
+		JWKSURI string `json:"jwks_uri"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&doc); err != nil || doc.JWKSURI == "" {
+		return fallback
+	}
+	if u, err := url.Parse(doc.JWKSURI); err != nil || (u.Scheme != "https" && u.Scheme != "http") {
+		return fallback
+	}
+	return doc.JWKSURI
+}
+
 // NewJWTValidator creates a new JWTValidator.
 func NewJWTValidator(ctx context.Context, issuer, audience string) (*JWTValidator, error) {
-	jwksURL := strings.TrimSuffix(issuer, "/") + "/.well-known/jwks.json"
+	jwksURL := resolveJWKSURL(ctx, issuer)
 	jwks, err := jwk.Fetch(ctx, jwksURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JWKS from %s: %w", jwksURL, err)
@@ -69,6 +105,21 @@ func (v *JWTValidator) startRefresh(ctx context.Context, interval time.Duration,
 	}()
 }
 
+// refetchKeyID fetches the JWKS once more and looks up kid, swapping in the
+// fresh set on success. Used when a token presents a kid missing from the
+// cached set (mid-rotation).
+func (v *JWTValidator) refetchKeyID(ctx context.Context, kid string) (jwk.Key, bool) {
+	fresh, err := jwk.Fetch(ctx, v.jwksURL)
+	if err != nil {
+		v.logger.Error("failed to refetch JWKS on kid miss", "error", err)
+		return nil, false
+	}
+	v.mu.Lock()
+	v.jwks = fresh
+	v.mu.Unlock()
+	return fresh.LookupKeyID(kid)
+}
+
 // Validate validates a JWT token string and returns the claims.
 func (v *JWTValidator) Validate(ctx context.Context, tokenString string) (jwt.MapClaims, error) {
 	if err := ctx.Err(); err != nil {
@@ -84,8 +135,13 @@ func (v *JWTValidator) Validate(ctx context.Context, tokenString string) (jwt.Ma
 			return nil, fmt.Errorf("kid header not found in token")
 		}
 		v.mu.RLock()
-		defer v.mu.RUnlock()
 		key, found := v.jwks.LookupKeyID(kid)
+		v.mu.RUnlock()
+		if !found {
+			// The signing key may have rotated since the last refresh; refetch
+			// once before rejecting so rotation windows don't 401 valid tokens.
+			key, found = v.refetchKeyID(ctx, kid)
+		}
 		if !found {
 			return nil, fmt.Errorf("JWK with kid %s not found", kid)
 		}
