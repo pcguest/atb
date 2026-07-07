@@ -15,6 +15,9 @@ import (
 
 func TestPackPathsProfileFixtures(t *testing.T) {
 	root := filepath.Join("..", "..", "examples", "bundles", "profiles")
+	if _, err := os.Stat(filepath.Join(root, "rag_answer-pass.atb")); os.IsNotExist(err) {
+		t.Skip("profile fixtures not generated (*.atb is gitignored); run make test-go or go run ./scripts/generate_profile_fixtures.go")
+	}
 	tests := []struct {
 		name        string
 		wantPass    bool
