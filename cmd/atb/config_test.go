@@ -216,6 +216,54 @@ func TestConfigRetentionChangeLinksPreviousPolicyDigest(t *testing.T) {
 	}
 }
 
+func TestConfigRetentionRollsBackWhenAuditAppendFails(t *testing.T) {
+	corruptAudit := func(t *testing.T) {
+		t.Helper()
+		auditPath := retentionaudit.DefaultPath()
+		if err := os.MkdirAll(filepath.Dir(auditPath), 0750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(auditPath, []byte("not a bundle"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("existing config is restored", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		var stdout, stderr bytes.Buffer
+		if code := runConfig([]string{"retention", "--days", "183"}, &stdout, &stderr); code != exitSuccess {
+			t.Fatalf("initial config code = %d, stderr=%q", code, stderr.String())
+		}
+		corruptAudit(t)
+		stderr.Reset()
+		if code := runConfig([]string{"retention", "--days", "365"}, &stdout, &stderr); code != exitSystemError {
+			t.Fatalf("code = %d, want %d; stderr=%q", code, exitSystemError, stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "previous config restored") {
+			t.Fatalf("stderr missing rollback notice: %q", stderr.String())
+		}
+		loaded, err := loadATBConfig(defaultConfigPath())
+		if err != nil {
+			t.Fatalf("load config after rollback: %v", err)
+		}
+		if loaded.Retention == nil || loaded.Retention.Days != 183 {
+			t.Fatalf("config not rolled back: %+v", loaded.Retention)
+		}
+	})
+
+	t.Run("fresh config is removed", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		corruptAudit(t)
+		var stdout, stderr bytes.Buffer
+		if code := runConfig([]string{"retention", "--days", "183"}, &stdout, &stderr); code != exitSystemError {
+			t.Fatalf("code = %d, want %d; stderr=%q", code, exitSystemError, stderr.String())
+		}
+		if _, err := os.Stat(defaultConfigPath()); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected config removed after rollback, stat err = %v", err)
+		}
+	})
+}
+
 func TestConfigRoundTrip(t *testing.T) {
 	now := time.Date(2026, 3, 5, 10, 0, 0, 0, time.UTC)
 	policy := defaultRetentionPolicy(90, now)

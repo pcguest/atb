@@ -124,12 +124,20 @@ func runConfig(args []string, stdout, stderr io.Writer) int {
 	}
 	existing.Retention = nextPolicy
 
+	previousRaw, readErr := os.ReadFile(configPath) // #nosec G304 -- config path is project-local and controlled by the CLI
+	configExisted := readErr == nil
+
 	if err := saveATBConfig(configPath, existing); err != nil {
 		fmt.Fprintf(stderr, "atb config: save config: %v\n", err)
 		return exitSystemError
 	}
 	if err := retentionaudit.Append(retentionaudit.DefaultPath(), eventType, auditData, now); err != nil {
-		fmt.Fprintf(stderr, "atb config: retention policy was saved but audit logging failed: %v\n", err)
+		fmt.Fprintf(stderr, "atb config: retention audit logging failed: %v\n", err)
+		if rollbackErr := rollbackConfig(configPath, previousRaw, configExisted); rollbackErr != nil {
+			fmt.Fprintf(stderr, "atb config: rollback failed: %v; retention policy in %s is saved without an audit event\n", rollbackErr, configPath)
+		} else {
+			fmt.Fprintf(stderr, "atb config: previous config restored; retention policy was not applied\n")
+		}
 		return exitSystemError
 	}
 
@@ -267,6 +275,15 @@ func saveATBConfig(path string, cfg atbConfig) error {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
+}
+
+// rollbackConfig undoes a config save whose paired audit append failed, so a
+// retention policy is never committed without its audit event.
+func rollbackConfig(path string, previousRaw []byte, existed bool) error {
+	if !existed {
+		return os.Remove(path)
+	}
+	return os.WriteFile(path, previousRaw, 0600)
 }
 
 func printConfigUsage(stdout io.Writer) {
