@@ -61,8 +61,6 @@ without your explicit "go".
 
 ## Honesty flags to clear before you ship
 
-- The CHANGELOG dates v1.15.0 as `2026-06-15`, two days before today and before
-  it has shipped. Set it to the actual tag date.
 - Decide Path A or Path B on the history rewrite (LAUNCH-RUNBOOK.md, Decision 0).
   Path A ships with signatures intact and defers the rewrite; recommended,
   because gitleaks is clean and the bloat is not a secret.
