@@ -109,6 +109,11 @@ export class DataExportGate {
       );
     }
 
+    // Resolve the approval record before executing the export: a malformed
+    // approval (or throwing recordApproval callback) rejects the action up
+    // front instead of masking the export outcome after fn() has run.
+    const approvalPayload = this.buildApprovalPayload(exportAction, actionId);
+
     const startedAt = Date.now();
     try {
       const result = await fn();
@@ -118,7 +123,7 @@ export class DataExportGate {
         tool_receipt_digest: valueDigest(result),
         execution_duration_ms: Math.max(0, Date.now() - startedAt),
       });
-      this.maybeRecordApproval(exportAction, actionId);
+      this.emitApprovalPayload(approvalPayload);
       return result;
     } catch (error) {
       // A data export that threw did not complete: record the forensic
@@ -128,17 +133,17 @@ export class DataExportGate {
         error_class: "exception",
         error_detail_digest: valueDigest(error),
       });
-      this.maybeRecordApproval(exportAction, actionId);
+      this.emitApprovalPayload(approvalPayload);
       throw error;
     }
   }
 
-  private maybeRecordApproval(
+  private buildApprovalPayload(
     exportAction: DataExportInput,
     actionId: string
-  ): void {
+  ): Record<string, unknown> | undefined {
     if (this.recordApproval === false) {
-      return;
+      return undefined;
     }
     const approval =
       typeof this.recordApproval === "function"
@@ -160,6 +165,12 @@ export class DataExportGate {
     if (identityEvidence) {
       payload.identity_evidence = identityEvidence;
     }
-    this.ctx.emit("ai.human.approval", payload);
+    return payload;
+  }
+
+  private emitApprovalPayload(payload: Record<string, unknown> | undefined): void {
+    if (payload) {
+      this.ctx.emit("ai.human.approval", payload);
+    }
   }
 }

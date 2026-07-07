@@ -37,6 +37,36 @@ describe("DataExportGate", () => {
     expect(String(error.error_detail_digest)).toMatch(/^sha256:/);
   });
 
+  it("rejects malformed approval identity evidence before executing the export", async () => {
+    const bundle = new Bundle();
+    const gate = new DataExportGate({
+      bundle,
+      actorId: "actor-1",
+      recordApproval: () => ({
+        approverIdHash: "sha256:reviewer",
+        identityEvidence: {
+          identityProvider: "https://idp.example",
+          subject: " ",
+          assertionType: "x509",
+          assertionDigest: "sha256:certificate",
+        },
+      }),
+    });
+
+    let executed = false;
+    await expect(
+      gate.run(action, async () => {
+        executed = true;
+        return "ok";
+      })
+    ).rejects.toThrow("identity evidence requires");
+
+    expect(executed).toBe(false);
+    const types = userTypes(bundle);
+    expect(types).not.toContain("data.export.executed");
+    expect(types).not.toContain("ai.human.approval");
+  });
+
   it("records reviewer identity evidence on generated approval", async () => {
     const bundle = new Bundle();
     const gate = new DataExportGate({
