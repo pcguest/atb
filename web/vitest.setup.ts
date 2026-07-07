@@ -28,4 +28,5 @@ Object.defineProperty(globalThis, "localStorage", {
 // across `it` blocks and queries collide ("found multiple elements").
 afterEach(() => {
   cleanup();
+  values.clear();
 });
