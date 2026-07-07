@@ -107,9 +107,11 @@ export function VerificationBanner({
       <p className="truncate font-mono text-xs text-red-200" title={diagnosis}>
         {diagnosis}
       </p>
-      {recheckPath && (
+      {bundlePath && (
         <p className="truncate font-mono text-xs text-red-300/90">
-          re-check: <span className="select-all text-red-200">atb verify {recheckPath}</span>
+          {/* The copyable command needs the real path; the shortened display
+              form may not resolve when pasted into a shell. */}
+          re-check: <span className="select-all text-red-200">atb verify {bundlePath}</span>
         </p>
       )}
     </div>
@@ -129,10 +131,13 @@ export function VerificationBannerConnected() {
 
   const status = verificationQuery.data?.status ?? null;
 
-  // The meta query only runs once verification is valid, so on a FAIL fall back
-  // to the bundle path the verification response itself always carries.
+  // The meta query only runs once verification is valid; on an invalid result
+  // its cached data can be stale, so the failing verification response's own
+  // bundle path takes precedence there.
   const bundlePath =
-    metaQuery.data?.bundle_path ?? verificationQuery.data?.bundle_path ?? null;
+    status === "invalid"
+      ? (verificationQuery.data?.bundle_path ?? metaQuery.data?.bundle_path ?? null)
+      : (metaQuery.data?.bundle_path ?? verificationQuery.data?.bundle_path ?? null);
 
   return (
     <VerificationBanner
