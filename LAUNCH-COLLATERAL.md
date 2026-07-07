@@ -1,16 +1,19 @@
-# Launch collateral: v1.15.0 and the Mortise front
+# Launch collateral: v1.15.1 and the Mortise front
 
 Ready-to-use text for the launch. Nothing here has been posted, pushed, or
 published. House rules apply throughout: British English, restrained, no
 certification language. Adjust the security mailbox and the release date before
-use. The CHANGELOG currently dates v1.15.0 as 2026-06-15; set it to the actual
+use. The CHANGELOG currently dates v1.15.1 as 2026-07-01; set it to the actual
 tag date.
 
 ---
 
-## 1. GitHub release body (tag v1.15.0, repo pcguest/atb)
+## 1. GitHub release body (tag v1.15.1, repo pcguest/atb)
 
-> ATB v1.15.0
+> ATB v1.15.1
+>
+> v1.15.1 supersedes the gated, unpublished v1.15.0 baseline; the canonical
+> event contract is unchanged.
 >
 > This release makes inspecting evidence safe, makes the Mortise custody path
 > conform to the ingest contract, and adds an offline compliance pack export. It
@@ -47,17 +50,18 @@ tag date.
 > capture, model correctness, actor identity, or legal compliance by itself, and
 > it never certifies compliance.
 >
-> SDKs: `atb-sdk` on PyPI and `@pcguest/atb-sdk` on npm, both 1.15.0.
+> SDKs: `atb-sdk` on PyPI and `@pcguest/atb-sdk` on npm, both 1.15.1.
 > Full notes in CHANGELOG.md.
 
 ---
 
-## 2. Pull request description: ATB (release/v1.15.0 into main)
+## 2. Pull request description: ATB (release/v1.15.1 into main)
 
-> ### v1.15.0
+> ### v1.15.1
 >
-> Eleven signed commits, grouped by subsystem. Per-commit walkthrough in
-> RELEASE-REVIEW-v1.15.0.md; re-proved claims in ACCEPTANCE.md.
+> Signed commits, grouped by subsystem. Per-commit walkthrough of the original
+> release series in RELEASE-REVIEW-v1.15.0.md; the v1.15.1 additions are in the
+> CHANGELOG entry; re-proved claims in ACCEPTANCE.md.
 >
 > What changed and why it matters to a reviewer:
 >
@@ -78,7 +82,7 @@ tag date.
 >   remains only in package author metadata by design.
 >
 > Gates green: `make test-golden` (Go, Python, TypeScript), full `go test ./...`
-> (ATB and the separate Mortise repository), `make hygiene-quick`, version markers all 1.15.0.
+> (ATB and the separate Mortise repository), `make hygiene-quick`, version markers all 1.15.1.
 > Some files span two concerns; the honest list is in the review document.
 
 ---
@@ -101,7 +105,7 @@ tag date.
 
 ## 4. Launch announcement (short plain-text post)
 
-> ATB v1.15.0 is out. ATB is an open, MIT-licensed evidence core for AI agent
+> ATB v1.15.1 is out. ATB is an open, MIT-licensed evidence core for AI agent
 > activity: tamper-evident bundles, a SHA-256 hash chain over canonical JSON, and
 > offline verification with one CLI.
 >
@@ -124,7 +128,7 @@ tag date.
 
 ## 5. Launch announcement (three-line summary)
 
-> ATB v1.15.0: an open evidence core for AI agent activity. Tamper-evident
+> ATB v1.15.1: an open evidence core for AI agent activity. Tamper-evident
 > bundles, offline verification, honest Article 12 mapping.
 > Inspecting evidence no longer mutates it; reveals go to a verifiable sidecar.
 > Open and MIT. Mortise adds custody, WORM, and a transparency log on top.
