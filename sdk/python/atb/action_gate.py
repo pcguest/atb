@@ -258,6 +258,9 @@ class ActionGate:
         principal = _principal_payload(action.principal)
         if principal is not None:
             precommit["principal"] = principal
+        identity_evidence = identity_evidence_payload(action.identity_evidence)
+        if identity_evidence is not None:
+            precommit["identity_evidence"] = identity_evidence
         self._emit("ai.action.precommit", precommit)
 
         decision = self.policy(action)

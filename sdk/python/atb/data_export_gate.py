@@ -105,6 +105,11 @@ class DataExportGate:
                 f"data export denied by policy for action_id {action_id}"
             )
 
+        # Resolve the approval record before executing the export: a raising
+        # record_approval callback (or malformed identity evidence) rejects the
+        # action up front instead of masking the export outcome after fn() ran.
+        approval_payload = self._build_approval_payload(action_id, export_action)
+
         started = time.perf_counter()
         try:
             result = fn()
@@ -119,7 +124,7 @@ class DataExportGate:
                     ),
                 },
             )
-            self._maybe_record_approval(action_id, export_action)
+            self._emit_approval_payload(approval_payload)
             return result
         except Exception as exc:
             # A data export that raised did not complete: record the forensic
@@ -132,14 +137,14 @@ class DataExportGate:
                     "error_detail_digest": value_digest(exc),
                 },
             )
-            self._maybe_record_approval(action_id, export_action)
+            self._emit_approval_payload(approval_payload)
             raise
 
-    def _maybe_record_approval(
+    def _build_approval_payload(
         self, action_id: str, export_action: DataExportInput | None = None
-    ) -> None:
+    ) -> dict[str, Any] | None:
         if not self.record_approval:
-            return
+            return None
         approval = (
             self.record_approval(export_action)
             if callable(self.record_approval) and export_action is not None
@@ -159,4 +164,8 @@ class DataExportGate:
         identity_evidence = identity_evidence_payload(approval.identity_evidence)
         if identity_evidence is not None:
             payload["identity_evidence"] = identity_evidence
-        self.ctx.emit("ai.human.approval", payload)
+        return payload
+
+    def _emit_approval_payload(self, payload: dict[str, Any] | None) -> None:
+        if payload is not None:
+            self.ctx.emit("ai.human.approval", payload)

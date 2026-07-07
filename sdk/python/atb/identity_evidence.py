@@ -18,32 +18,46 @@ class IdentityEvidence:
     raw_evidence_digest: str | None = None
 
 
+_ASSERTION_TYPES = ("jwt", "x509", "saml", "opaque")
+
+
+def _stripped_string(value: Any, field: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"atb: identity evidence {field} must be a string")
+    return value.strip()
+
+
 def identity_evidence_payload(
     evidence: IdentityEvidence | None,
 ) -> dict[str, Any] | None:
     if evidence is None:
         return None
-    provider = evidence.identity_provider.strip()
-    subject = evidence.subject.strip()
-    assertion_digest = evidence.assertion_digest.strip()
-    if (
-        not provider
-        or not subject
-        or not evidence.assertion_type
-        or not assertion_digest
-    ):
+    provider = _stripped_string(evidence.identity_provider, "identity_provider")
+    subject = _stripped_string(evidence.subject, "subject")
+    assertion_type = _stripped_string(evidence.assertion_type, "assertion_type")
+    assertion_digest = _stripped_string(evidence.assertion_digest, "assertion_digest")
+    if not provider or not subject or not assertion_type or not assertion_digest:
         raise ValueError(
             "atb: identity evidence requires provider, subject, assertion type, "
             "and assertion digest"
         )
+    if assertion_type not in _ASSERTION_TYPES:
+        raise ValueError(
+            "atb: identity evidence assertion_type must be one of "
+            + ", ".join(_ASSERTION_TYPES)
+        )
     payload: dict[str, Any] = {
         "identity_provider": provider,
         "subject": subject,
-        "assertion_type": evidence.assertion_type,
+        "assertion_type": assertion_type,
         "assertion_digest": assertion_digest,
     }
-    if evidence.auth_context and evidence.auth_context.strip():
-        payload["auth_context"] = evidence.auth_context.strip()
-    if evidence.raw_evidence_digest and evidence.raw_evidence_digest.strip():
-        payload["raw_evidence_digest"] = evidence.raw_evidence_digest.strip()
+    if evidence.auth_context is not None:
+        auth_context = _stripped_string(evidence.auth_context, "auth_context")
+        if auth_context:
+            payload["auth_context"] = auth_context
+    if evidence.raw_evidence_digest is not None:
+        raw_digest = _stripped_string(evidence.raw_evidence_digest, "raw_evidence_digest")
+        if raw_digest:
+            payload["raw_evidence_digest"] = raw_digest
     return payload
