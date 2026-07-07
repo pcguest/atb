@@ -27,6 +27,11 @@ type JWTValidator struct {
 	logger   *slog.Logger
 }
 
+// jwksFetchTimeout bounds each JWKS fetch so validator startup and the
+// background refresh loop cannot hang on an unresponsive issuer. Variable so
+// tests can shorten it.
+var jwksFetchTimeout = 10 * time.Second
+
 // resolveJWKSURL resolves the issuer's JWKS endpoint from its OIDC discovery
 // document (/.well-known/openid-configuration -> jwks_uri). Providers that do
 // not serve discovery metadata fall back to the conventional
@@ -61,8 +66,12 @@ func resolveJWKSURL(ctx context.Context, issuer string) string {
 
 // NewJWTValidator creates a new JWTValidator.
 func NewJWTValidator(ctx context.Context, issuer, audience string) (*JWTValidator, error) {
-	jwksURL := resolveJWKSURL(ctx, issuer)
-	jwks, err := jwk.Fetch(ctx, jwksURL)
+	// Bound the startup discovery and fetch; ctx itself stays alive so it can
+	// scope the background refresh loop below.
+	fetchCtx, cancel := context.WithTimeout(ctx, jwksFetchTimeout)
+	defer cancel()
+	jwksURL := resolveJWKSURL(fetchCtx, issuer)
+	jwks, err := jwk.Fetch(fetchCtx, jwksURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JWKS from %s: %w", jwksURL, err)
 	}
@@ -76,7 +85,9 @@ func NewJWTValidator(ctx context.Context, issuer, audience string) (*JWTValidato
 	}
 
 	validator.startRefresh(ctx, 5*time.Minute, func(refreshCtx context.Context) (jwk.Set, error) {
-		return jwk.Fetch(refreshCtx, jwksURL)
+		bounded, cancel := context.WithTimeout(refreshCtx, jwksFetchTimeout)
+		defer cancel()
+		return jwk.Fetch(bounded, jwksURL)
 	})
 
 	return validator, nil

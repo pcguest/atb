@@ -124,6 +124,33 @@ func TestJWTValidatorValidatesRS256AndExtractsRoles(t *testing.T) {
 	}
 }
 
+func TestNewJWTValidatorBoundsStartupJWKSFetch(t *testing.T) {
+	previous := jwksFetchTimeout
+	jwksFetchTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { jwksFetchTimeout = previous })
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/openid-configuration" {
+			http.NotFound(w, r)
+			return
+		}
+		// Stall the JWKS endpoint well past the shortened fetch timeout, but
+		// finish eventually so httptest's Close is not left waiting on us.
+		time.Sleep(1500 * time.Millisecond)
+		http.NotFound(w, r)
+	}))
+	t.Cleanup(server.Close)
+
+	start := time.Now()
+	_, err := NewJWTValidator(context.Background(), server.URL, "test-audience")
+	if err == nil {
+		t.Fatal("NewJWTValidator succeeded against a hanging JWKS endpoint")
+	}
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Fatalf("NewJWTValidator hung for %s despite fetch timeout", elapsed)
+	}
+}
+
 func TestJWTValidatorRejectsInvalidTokens(t *testing.T) {
 	fixture := newJWTFixture(t)
 	canceled, cancel := context.WithCancel(context.Background())
