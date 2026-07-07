@@ -197,6 +197,14 @@ func Build(ctx context.Context, bundlePath, profileSpec, regime, toolVersion str
 		CASScore:      verifierReport.CASScore,
 		CASGrade:      verifierReport.CASGrade,
 	}
+	return finalizePack(generatedAt, manifest, files)
+}
+
+// finalizePack regenerates MANIFEST.json and SHA256SUMS over files so that
+// every pack producer (Build, AddArtifact) derives the inventory the same way.
+func finalizePack(generatedAt time.Time, manifest Manifest, files []File) (Pack, error) {
+	sort.Slice(files, func(i, j int) bool { return files[i].Name < files[j].Name })
+	manifest.Files = make([]FileEntry, 0, len(files))
 	for _, file := range files {
 		sum := sha256.Sum256(file.Content)
 		manifest.Files = append(manifest.Files, FileEntry{

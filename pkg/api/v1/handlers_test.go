@@ -160,8 +160,15 @@ func TestPrivacyRevealRecordsToSidecarNotBundle(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected first audit event data map, got %T", firstAudit.Event.Data)
 	}
-	if firstData["field_path"] != "email" {
-		t.Fatalf("unexpected field_path in first audit event: %v", firstData["field_path"])
+	if firstData["field_path"] != "email" || firstData["reason"] != "first" {
+		t.Fatalf("unexpected first audit event data: %v", firstData)
+	}
+	secondData, ok := secondAudit.Event.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected second audit event data map, got %T", secondAudit.Event.Data)
+	}
+	if secondData["field_path"] != "user_id" || secondData["reason"] != "second" {
+		t.Fatalf("unexpected second audit event data: %v", secondData)
 	}
 }
 

@@ -132,6 +132,9 @@ func TestTranslatorAttributeCoercionsAndChainContext(t *testing.T) {
 	if got := fmt.Sprint(ctx["output_keys"]); got != "[decision reason]" {
 		t.Fatalf("output keys=%s", got)
 	}
+	if got := fmt.Sprint(ctx["input_keys"]); got != "[prompt policy]" {
+		t.Fatalf("input keys=%s", got)
+	}
 }
 
 func TestTextDigestBranches(t *testing.T) {

@@ -9,6 +9,7 @@ and invariants live in [CONTRIBUTING.md](../../CONTRIBUTING.md).
 | [automatic-audit-capture-definition.md](./automatic-audit-capture-definition.md) | Capture-completeness terminology |
 | [manual-test-playbook.md](./manual-test-playbook.md) | Local operator commands for ATB, Mortise, and UI smoke testing |
 | [public-mit-extraction-checklist.md](./public-mit-extraction-checklist.md) | Manual allowlist, exclusion, and validation steps for public ATB extraction |
+| [history-rewrite-plan.md](./history-rewrite-plan.md) | Provenance-preserving history rewrite procedure and decision record |
 
 Release gates and versioning: [release.md](../release.md), [VERSIONING.md](../../VERSIONING.md).
 

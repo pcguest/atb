@@ -112,7 +112,8 @@ def main() -> None:
             "session_id": SESSION_ID,
             "actor_id": "agent:release-bot",
             "model": "",
-            "exchange_count": 1,
+            # The gated action was denied before any LLM exchange happened.
+            "exchange_count": 0,
             "total_tokens": 0,
             "closed_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         },
