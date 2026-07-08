@@ -208,7 +208,7 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -lc 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
+		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
 	cd web && npm audit --audit-level=high
 	cd sdk/typescript && npm audit --audit-level=high
