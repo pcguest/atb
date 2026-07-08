@@ -1,0 +1,331 @@
+openapi: 3.0.3
+info:
+  title: ATB Viewer API
+  version: 1.12.0
+  description: Local-first read API used by `atb view`.
+servers:
+  - url: http://127.0.0.1:8080
+    description: Local viewer server
+paths:
+  /api/v1/verification:
+    get:
+      summary: Get bundle verification status
+      operationId: getVerification
+      tags: [viewer]
+      responses:
+        '200':
+          description: Verification status payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerificationResponse'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+  /api/v1/bundle/meta:
+    get:
+      summary: Get aggregate bundle metadata
+      operationId: getBundleMeta
+      tags: [viewer]
+      responses:
+        '200':
+          description: Bundle metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleMetaResponse'
+        '403':
+          description: Bundle is not verified (tamper detected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+  /api/v1/bundle/events:
+    get:
+      summary: Get paginated event records
+      operationId: getBundleEvents
+      tags: [viewer]
+      parameters:
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 200
+      responses:
+        '200':
+          description: Paginated events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleEventsResponse'
+        '400':
+          description: Invalid pagination query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '403':
+          description: Bundle is not verified (tamper detected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+  /api/v1/bundle/graph:
+    get:
+      summary: Get trace/span graph model
+      operationId: getBundleGraph
+      tags: [viewer]
+      responses:
+        '200':
+          description: Graph model for visualization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BundleGraphResponse'
+        '403':
+          description: Bundle is not verified (tamper detected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+  /api/v1/privacy/reveal:
+    post:
+      summary: Reveal one masked field value
+      description: >-
+        Returns the requested field value and records the reveal in a separate
+        sidecar (`<bundle>.reveals`) with its own hash chain. The authoritative
+        bundle is never modified by a reveal.
+      operationId: revealField
+      tags: [viewer]
+      security:
+        - RevealCookieAuth: []
+        - RevealBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PrivacyRevealRequest'
+      responses:
+        '200':
+          description: Field value revealed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyRevealResponse'
+        '400':
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '401':
+          description: Missing or invalid reveal auth token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '403':
+          description: Bundle is not verified (tamper detected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '404':
+          description: Sequence or field path not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '429':
+          description: Privacy reveal rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '500':
+          description: Reveal audit logging failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+components:
+  securitySchemes:
+    RevealCookieAuth:
+      type: apiKey
+      in: cookie
+      name: atb_reveal_token
+    RevealBearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    VerificationResponse:
+      type: object
+      required: [status, message, bundle_path, chain_length]
+      properties:
+        status:
+          type: string
+          enum: [valid, invalid]
+        message:
+          type: string
+        bundle_path:
+          type: string
+        chain_length:
+          type: integer
+        head_hash:
+          type: string
+    BundleMetaResponse:
+      type: object
+      required: [bundle_path, event_count, type_counts, verified, verification_message]
+      properties:
+        bundle_path:
+          type: string
+        event_count:
+          type: integer
+        type_counts:
+          type: object
+          additionalProperties:
+            type: integer
+        first_timestamp:
+          type: string
+        last_timestamp:
+          type: string
+        verified:
+          type: boolean
+        verification_message:
+          type: string
+    EventRecordDTO:
+      type: object
+      required: [seq, type, hash, prev_hash, data]
+      properties:
+        seq:
+          type: integer
+        type:
+          type: string
+        hash:
+          type: string
+        prev_hash:
+          type: string
+        timestamp:
+          type: string
+        trace_id:
+          type: string
+        span_id:
+          type: string
+        parent_span_id:
+          type: string
+        data:
+          type: object
+          additionalProperties: true
+    BundleEventsResponse:
+      type: object
+      required: [offset, limit, total, events]
+      properties:
+        offset:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventRecordDTO'
+    GraphNodeDTO:
+      type: object
+      required: [id, label, type]
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        type:
+          type: string
+    GraphEdgeDTO:
+      type: object
+      required: [id, source, target]
+      properties:
+        id:
+          type: string
+        source:
+          type: string
+        target:
+          type: string
+        label:
+          type: string
+    BundleGraphResponse:
+      type: object
+      required: [nodes, edges]
+      properties:
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/GraphNodeDTO'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/GraphEdgeDTO'
+    PrivacyRevealRequest:
+      type: object
+      required: [seq, field_path]
+      properties:
+        seq:
+          type: integer
+          minimum: 1
+        field_path:
+          type: string
+        reason:
+          type: string
+    PrivacyRevealResponse:
+      type: object
+      required: [seq, field_path, value]
+      properties:
+        seq:
+          type: integer
+        field_path:
+          type: string
+        value:
+          nullable: true
+    APIError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
