@@ -33,7 +33,7 @@
  */
 
 /** Current SDK package version. */
-export const SDK_VERSION = "1.12.0";
+export const SDK_VERSION = "1.15.1";
 
 /**
  * @returns SDK version and hash-chain algorithm metadata.
@@ -44,6 +44,12 @@ export function version(): { version: string; algorithm: string } {
 
 export { Bundle, ATBVerificationError } from "./bundle.js";
 export type { SignatureEvidence, VerifyResult } from "./bundle.js";
+export { MortiseClient, MortiseError } from "./mortise-client.js";
+export type {
+  MortiseClientOptions,
+  MortiseJSON,
+  MortiseReceipt,
+} from "./mortise-client.js";
 export * from "./eventTypes.js";
 export { ActionGate, ActionGateDeniedError, principalPayload } from "./action-gate.js";
 export {
@@ -75,6 +81,8 @@ export type {
   AnthropicMessagesResponse,
 } from "./sdk-capture.js";
 export { normalizeOptionalIdentity, prepareForCanonical } from "./event.js";
+export { identityEvidencePayload } from "./identity-evidence.js";
+export type { IdentityEvidence } from "./identity-evidence.js";
 export type {
   ActionGateDecision,
   ActionGateInput,

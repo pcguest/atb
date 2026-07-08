@@ -15,6 +15,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { canonicalize } from "./canonicalize.js";
+import { WorkflowContext } from "./workflow-common.js";
+import type { WorkflowPolicyDecision } from "./workflow-common.js";
 
 interface CanonicalVector {
   description: string;
@@ -82,5 +84,34 @@ describe("canonical hash golden vectors", () => {
       .digest("hex");
 
     expect(gotHash).toBe(vector.expected_hash);
+  });
+});
+
+interface PolicyDefaultsFixture {
+  action_id: string;
+  input: WorkflowPolicyDecision;
+  expected_payload: Record<string, unknown>;
+}
+
+describe("policy decision defaults", () => {
+  it("match the shared cross-SDK fixture", () => {
+    const fixturePath = resolve(
+      __dirname,
+      "..",
+      "..",
+      "..",
+      "internal",
+      "hash",
+      "testdata",
+      "policy_decision_defaults.json"
+    );
+    const fixture = JSON.parse(
+      readFileSync(fixturePath, "utf8")
+    ) as PolicyDefaultsFixture;
+    const payload = new WorkflowContext().policyPayload(
+      fixture.action_id,
+      fixture.input
+    );
+    expect(payload).toEqual(fixture.expected_payload);
   });
 });

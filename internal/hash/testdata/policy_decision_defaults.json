@@ -1,0 +1,13 @@
+{
+  "description": "PolicyDecisionRecorder defaults must agree across the Python and TypeScript SDKs. A decision carrying only the required 'decision' field must resolve to policy_id 'local.workflow', policy_version 'v1', and an empty decision_reason_codes list. If one SDK changes a default, its golden test fails against this shared fixture.",
+  "action_id": "act_policy_defaults_fixture",
+  "input": { "decision": "allow" },
+  "expected_payload": {
+    "decision_id": "act_policy_defaults_fixture",
+    "action_id": "act_policy_defaults_fixture",
+    "policy_id": "local.workflow",
+    "policy_version": "v1",
+    "decision": "allow",
+    "decision_reason_codes": []
+  }
+}

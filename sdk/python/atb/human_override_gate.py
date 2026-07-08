@@ -9,6 +9,7 @@ from typing import Any, Literal, TypeVar
 
 from atb.action_gate import ActionPrincipal, _principal_payload
 from atb.exceptions import ATBError
+from atb.identity_evidence import IdentityEvidence, identity_evidence_payload
 from atb.workflow_common import (
     WorkflowContext,
     canonical_digest,
@@ -41,6 +42,7 @@ class HumanOverrideApprovalInput:
     approval_outcome: Literal["approved", "denied"] = "approved"
     justification_digest: str | None = None
     approval_id: str | None = None
+    identity_evidence: IdentityEvidence | None = None
 
 
 class HumanOverrideGate:
@@ -80,21 +82,24 @@ class HumanOverrideGate:
         self.ctx.bootstrap_request("human_override", action.request_id)
         action_id = new_action_id(action.action_id)
 
-        self.ctx.emit(
-            "ai.human.approval",
-            {
-                "approval_id": new_approval_id(approval.approval_id),
-                "approver_id_hash": approval.approver_id_hash,
-                "approval_outcome": approval.approval_outcome,
-                "justification_digest": approval.justification_digest
-                or canonical_digest({"reason": "human override"}),
-                "action_id": action_id,
-            },
-        )
+        approval_payload: dict[str, Any] = {
+            "approval_id": new_approval_id(approval.approval_id),
+            "approver_id_hash": approval.approver_id_hash,
+            "approval_outcome": approval.approval_outcome,
+            "justification_digest": approval.justification_digest
+            or canonical_digest({"reason": "human override"}),
+            "action_id": action_id,
+        }
+        identity_evidence = identity_evidence_payload(approval.identity_evidence)
+        if identity_evidence is not None:
+            approval_payload["identity_evidence"] = identity_evidence
+        self.ctx.emit("ai.human.approval", approval_payload)
         precommit: dict[str, Any] = {
             "action_id": action_id,
             "action_type": action.action_type,
-            "action_parameters_digest": canonical_digest(dict(action.action_parameters)),
+            "action_parameters_digest": canonical_digest(
+                dict(action.action_parameters)
+            ),
             "target_resource_id": action.target_resource_id,
             "intended_effect": action.intended_effect,
         }
@@ -104,7 +109,9 @@ class HumanOverrideGate:
         self.ctx.emit("ai.action.precommit", precommit)
 
         if approval.approval_outcome == "denied" and self.mode == "enforce":
-            raise HumanOverrideDeniedError(f"human override denied for action_id {action_id}")
+            raise HumanOverrideDeniedError(
+                f"human override denied for action_id {action_id}"
+            )
 
         started = time.perf_counter()
         try:
@@ -115,7 +122,9 @@ class HumanOverrideGate:
                     "action_id": action_id,
                     "execution_outcome": "success",
                     "tool_receipt_digest": value_digest(result),
-                    "execution_duration_ms": max(0, int((time.perf_counter() - started) * 1000)),
+                    "execution_duration_ms": max(
+                        0, int((time.perf_counter() - started) * 1000)
+                    ),
                 },
             )
             return result

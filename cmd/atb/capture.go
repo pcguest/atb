@@ -60,6 +60,7 @@ func runCapture(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 
 func printCaptureCommandUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: atb capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]")
+	fmt.Fprintln(w, "The child receives ATB_BUNDLE_PATH, ATB_CAPTURE_RUN_ID, and ATB_CAPTURE_MODE=run. The child or an ATB SDK integration must emit workflow events; capture run does not inspect arbitrary process traffic.")
 }
 
 func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
@@ -102,7 +103,7 @@ func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int
 		fmt.Fprintln(stderr, "atb capture run: warning: --env-prefix=ATB duplicates the canonical prefix")
 	}
 
-	cmd := exec.Command(cfg.Command[0], cfg.Command[1:]...)
+	cmd := exec.Command(cfg.Command[0], cfg.Command[1:]...) // #nosec G204 -- executing the operator-supplied command is the explicit purpose of `atb capture run`.
 	cmd.Stdin = stdin
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr

@@ -1,6 +1,6 @@
 {
   "name": "@pcguest/atb-sdk",
-  "version": "1.14.5",
+  "version": "1.15.1",
   "description": "ATB bundle reader and verifier SDK",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -49,6 +49,9 @@
   },
   "devDependencies": {
     "@types/node": "25.9.2",
+    "@typescript-eslint/eslint-plugin": "8.63.0",
+    "@typescript-eslint/parser": "8.63.0",
+    "eslint": "9.39.4",
     "tsup": "^8.5.1",
     "typescript": "6.0.3",
     "vitest": "^4.1.8"

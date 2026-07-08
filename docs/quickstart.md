@@ -21,6 +21,27 @@ atb trust-report --profile atb.profile.policy_decision --format markdown
 The Go CLI is the primary install path. The Python and TypeScript
 packages are SDKs that write the same `.atb` format.
 
+### Reproduce the incident-forensics wedge locally
+
+From a source checkout with the Python SDK dependencies installed:
+
+```bash
+make build
+PYTHONPATH=sdk/python ATB_BIN=./atb python examples/python/agent_incident_demo.py
+```
+
+The script creates an offline bundle containing a denied policy decision, an
+unapproved tool call, a failed action, a human override with reviewer identity
+evidence, and a closed session. It then runs `verify`, `trust-report`,
+`incident list`, and `incident report`. Open the same bundle in the local
+viewer:
+
+```bash
+./atb view \
+  --bundle run.atb/agent-incident-demo.atb \
+  --profile atb.profile.policy_decision
+```
+
 This is the canonical ATB workflow: the AI workflow itself can fail
 while the audit evidence still verifies cleanly. Use the snapshot name
 to label workflow state. `atb verify` checks the hash chain and any
@@ -182,17 +203,34 @@ Dashboard details:
 ## 5. Incident evidence export
 
 ```bash
-atb export --format compliance --output incident-review-evidence.zip
+atb incident list --bundle run.atb/bundle.atb
+atb incident report --bundle run.atb/bundle.atb --session <session-id> --format markdown
+atb incident export --bundle run.atb/bundle.atb --session <session-id> --out incident-review-evidence.zip
 ```
 
-The compliance evidence export is the strongest default incident review
-pack because it includes the verified bundle, trust report,
-verification report, checksums, and core reference docs.
+For incident review, prefer `atb incident export`: it packages the verified
+bundle, session-scoped reports, chain-of-custody manifest, checksums, and
+hash-addressed event evidence. It stays local unless you explicitly pass a
+Mortise endpoint.
+
+For a profile-aware EU AI Act review pack:
+
+```bash
+atb compliance pack \
+  --bundle run.atb/bundle.atb \
+  --profile atb.profile.policy_decision \
+  --regime eu-ai-act \
+  --out eu-ai-act-pack.zip
+```
+
+Compliance packs are deterministic offline review artefacts. They include the
+selected profile/CAS result, obligation mapping, relevant incident reports, and
+retention evidence when `.atb/operations.atb` is present.
 
 ## 6. Compliance exports
 
 ```bash
-atb config retention --days 90
+atb config retention --days 183
 atb archive
 atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
 atb export --format soc2 --output soc2-evidence.zip --with-verify

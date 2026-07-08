@@ -66,6 +66,8 @@ describe("Bundle", () => {
     expect(report.signatures[0].valid).toBe(true);
   });
 
+  // Compiles the CLI from scratch (empty GOCACHE), which can take over 60s
+  // on cold Windows CI runners.
   it("verify returns local signature evidence for a Go-signed bundle", () => {
     const path = tempBundlePath();
     const keyPath = join(dirname(path), "atb-key.pem");
@@ -102,7 +104,7 @@ describe("Bundle", () => {
     expect(report.signatures[0].pubkey).not.toBe("");
     expect(report.signatures[0].bundle_hash).not.toBe("");
     expect(report.signatures[0].valid).toBe(true);
-  }, 60_000);
+  }, 180_000);
 
   it("keeps manifest data double encoded", () => {
     const path = tempBundlePath();

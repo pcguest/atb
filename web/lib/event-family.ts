@@ -13,6 +13,7 @@ export type EventFamily =
   | "job"
   | "corroboration"
   | "export"
+  | "retention"
   | "other";
 
 /**
@@ -36,6 +37,7 @@ export function eventFamily(eventType: string): EventFamily {
     t.startsWith("atb.data.export")
   )
     return "export";
+  if (t.startsWith("data.retention")) return "retention";
   return "other";
 }
 
@@ -49,6 +51,7 @@ const familyClass: Record<EventFamily, string> = {
   job: "ev-default",
   corroboration: "ev-export",
   export: "ev-export",
+  retention: "ev-export",
   other: "ev-default",
 };
 
@@ -66,6 +69,14 @@ export function eventSummary(eventType: string, data: unknown): string {
   const d = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
   const s = (k: string): string => (typeof d[k] === "string" ? (d[k] as string).trim() : "");
   const num = (k: string): number | null => (typeof d[k] === "number" ? (d[k] as number) : null);
+  const identity = (): string => {
+    const raw = d["identity_evidence"];
+    if (!raw || typeof raw !== "object") return "";
+    const evidence = raw as Record<string, unknown>;
+    const provider = typeof evidence.identity_provider === "string" ? evidence.identity_provider : "";
+    const subject = typeof evidence.subject === "string" ? evidence.subject : "";
+    return provider && subject ? ` reviewer=${provider}/${subject}` : "";
+  };
 
   switch (eventType) {
     case "ai.action.precommit": {
@@ -104,12 +115,18 @@ export function eventSummary(eventType: string, data: unknown): string {
     }
     case "ai.policy.decision": {
       const decision = s("decision");
-      return decision ? `decision=${decision}` : "";
+      return decision ? `decision=${decision}${identity()}` : "";
     }
     case "ai.human.approval": {
       const outcome = s("approval_outcome");
-      return outcome ? `approval=${outcome}` : "";
+      return outcome ? `approval=${outcome}${identity()}` : "";
     }
+    case "atb.human.approval":
+      return `approved=${s("approved_action_id")}${identity()}`;
+    case "atb.human.override":
+      return `override=${s("overridden_action_id")}${identity()}`;
+    case "atb.capture.scope":
+      return `capture=${s("capture_mode")}`;
     case "data.export.executed": {
       const outcome = s("execution_outcome");
       return outcome ? `export outcome=${outcome}` : "export";
@@ -121,6 +138,14 @@ export function eventSummary(eventType: string, data: unknown): string {
     case "atb.data.export": {
       const target = s("export_target");
       return target ? `export=${target}` : "export";
+    }
+    case "data.retention.policy_set":
+    case "data.retention.policy_changed":
+      return `retention=${String(d["days"] ?? "")}d`;
+    case "data.retention.enforced": {
+      const operation = s("operation");
+      const outcome = s("outcome");
+      return operation ? `${operation} outcome=${outcome}` : "";
     }
     default:
       return "";

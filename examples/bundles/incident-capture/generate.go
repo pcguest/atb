@@ -41,7 +41,7 @@ func main() {
 		fatal(err)
 	}
 	outDir := filepath.Join(root, "examples", "bundles", "incident-capture")
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+	if err := os.MkdirAll(outDir, 0o750); err != nil {
 		fatal(err)
 	}
 
@@ -109,16 +109,27 @@ func buildIncidentBundle() (*bundle.Bundle, error) {
 		"session_id": sessionID, "action_id": toolUseID, "error_class": "failed",
 		"error_detail_digest": digest("refused: production guard"),
 	}, step(4))
+	add(event.TypeHumanOverride, map[string]any{
+		"session_id": sessionID, "override_reason": "operator confirmed production guard should remain active",
+		"actor_id": "reviewer-42", "overridden_action_id": toolUseID,
+		"identity_evidence": map[string]any{
+			"identity_provider": "https://login.example.test",
+			"subject":           "reviewer-42",
+			"auth_context":      "mfa",
+			"assertion_type":    "jwt",
+			"assertion_digest":  "sha256:" + digest("fixture-reviewer-assertion"),
+		},
+	}, step(5))
 
 	add(event.TypeExchangeComplete, map[string]any{
 		"session_id": sessionID, "exchange_id": "1", "request_event_id": digest("req-1"),
-		"actor_id": actorID, "completed_at": step(5), "tool_calls_count": 1,
+		"actor_id": actorID, "completed_at": step(6), "tool_calls_count": 1,
 		"model": model, "input_tokens": 24, "output_tokens": 18,
-	}, step(5))
+	}, step(6))
 	add(event.TypeSessionClose, map[string]any{
 		"session_id": sessionID, "actor_id": actorID, "model": model,
-		"exchange_count": 1, "total_tokens": 42, "closed_at": step(6),
-	}, step(6))
+		"exchange_count": 1, "total_tokens": 42, "closed_at": step(7),
+	}, step(7))
 
 	if err != nil {
 		return nil, err

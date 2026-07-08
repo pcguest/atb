@@ -5,16 +5,17 @@ specifications, SDKs, tests, fixtures, examples, local viewer, release tooling,
 and maintainer documentation are world-readable and should be written on that
 basis.
 
-Custos is a separate proprietary companion product published for evaluation and
-audit at [github.com/pcguest/custos-product](https://github.com/pcguest/custos-product).
+Mortise is a separate proprietary companion product published for evaluation and
+audit at [github.com/pcguest/mortise](https://github.com/pcguest/mortise).
 ATB owns local capture, the `.atb` format, integrity verification, profiles,
-CAS, and offline review. Custos owns durable custody, signed receipts,
-transparency-log evidence, and auditor access. Neither product certifies
-compliance or proves capture completeness.
+CAS, and offline review. Mortise owns durable custody, signed receipts,
+transparency-log evidence, and auditor access. Tenon is the umbrella name for
+both: ATB the open core, Mortise the commercial framework. Neither product
+certifies compliance or proves capture completeness.
 
 ## Compatibility-sensitive public contracts
 
-The following surfaces require extra review because external users and Custos
+The following surfaces require extra review because external users and Mortise
 depend on them:
 
 - `docs/spec-v1.0.md`, `schemas/event.v1.json`, and canonical hash golden vectors
@@ -34,8 +35,20 @@ in `VERSIONING.md` and cross-language parity through `make test-golden`.
 | CLI, Go/Python/TypeScript SDKs, and golden vectors | Shipped | Local-first and independently verifiable |
 | `atb intercept`, SDK wrappers, imports, and OTel JSON | Shipped | Each sees only traffic or calls routed through that integration |
 | `atb incident`, evidence packs, and local viewer | Shipped | Review and export surfaces; not a SIEM or hosted collaboration product |
-| In-repo `custos/` Go module | Reference scaffold | Kept for contract tests and compatibility; not the Custos product |
-| Hosted custody, SSO, billing, legal hold, and managed witnesses | Outside ATB | Belongs in Custos Ring 4 or another external product |
+| Reviewer identity evidence | Shipped, optional | Hash-chains caller-provided IdP/assertion digests; ATB is not an IdP and does not validate the assertion |
+| Retention operations bundle | Shipped | Records policy changes, local archive outcomes, and accepted Object Lock requests; does not prove continuing remote enforcement |
+| `atb compliance pack` | Shipped | Deterministic offline bundle/profile review package; not a conformity assessment |
+| Mortise client and conformance boundary | Shipped, optional | ATB can lodge bundles and preserve receipts; Mortise runtime remains separate |
+| Managed storage and custody operations | Outside ATB | Implemented by the separate Mortise repository |
+| Hosted custody, SSO, billing, legal hold, and managed witnesses | Outside ATB | Belongs in Mortise Ring 4 or another external product |
+
+## Authentication boundaries
+
+`atb view` is loopback-first and uses a generated session token, with optional
+OIDC/JWT validation. Mortise has its own token and organisation-scoped API-key
+model. ATB sends Mortise credentials only from `ATB_MORTISE_TOKEN`; it does not
+share viewer sessions or identity state with Mortise. See
+[`guides/rbac-configuration.md`](./guides/rbac-configuration.md).
 
 ## atb view
 
@@ -52,10 +65,12 @@ request and response bodies, not raw prompts or completions. Credential and
 session-secret headers are stripped. `--capture-bodies` is an explicit privacy
 tradeoff.
 
-`--custos <url>` pushes a closed immutable bundle snapshot to a configured
-Custos endpoint. `ATB_CUSTOS_TOKEN`, when set, supplies the Bearer token from
-the environment. With neither option configured, interception remains local and
-does not perform network custody operations.
+`--mortise <url>` lodges the completed bundle with a configured Mortise
+endpoint when a session closes. `ATB_MORTISE_TOKEN`, when set, supplies the Bearer
+token from the environment. With neither option configured, interception remains
+local and does not perform network custody operations. Mortise ingests whole
+bundles, verifies them, and returns a signed receipt; it does not accept
+individual events.
 
 ## atb incident
 
@@ -64,12 +79,25 @@ the integrity gate. Reports scope a session for review, but the complete bundle
 remains the authoritative hash-chained evidence object. An unsigned bundle is
 reported as unsigned rather than treated as signed provenance.
 
-## Custos and the in-repo scaffold
+## Identity and retention evidence
+
+Oversight events can carry digest-only `identity_evidence`. Trust and incident
+reports surface the provider, subject, assertion type, and digest as
+caller-provided evidence. Deployments remain responsible for IdP/JWKS/PKI
+verification and for retaining the original assertion under their own access
+controls.
+
+Retention events live in `.atb/operations.atb`, separate from the workflow
+bundle. Compliance packs include relevant operations evidence when available.
+An accepted S3 Object Lock request is not represented as independent proof of
+bucket configuration, legal hold, or future object availability.
+
+## Mortise
 
 The supported companion product and evaluator path live in the
-[Custos repository](https://github.com/pcguest/custos-product). The in-repo
-`custos/` module remains a reference implementation and compatibility harness;
-new custody product work does not land in ATB.
+[Mortise repository](https://github.com/pcguest/mortise). ATB contains only
+the optional client, frozen public contracts, and conformance tests; custody
+runtime and product work do not land in ATB.
 
 ## Research and planning material
 

@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/push"
+	"github.com/pcguest/atb/internal/retentionaudit"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
@@ -263,6 +265,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 	}
 
 	var remoteURI string
+	effectiveLockMode := ""
 	if strings.TrimSpace(cfg.Target) != "" {
 		if uploader == nil {
 			uploader, err = push.NewHTTPClientWithConfig(push.ClientConfig{
@@ -288,6 +291,7 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 				lockMode = "COMPLIANCE"
 			}
 		}
+		effectiveLockMode = lockMode
 
 		s3Pusher := push.S3Pusher{
 			Uploader:  uploader,
@@ -308,6 +312,28 @@ func runPushWithUploader(args []string, stdout, stderr io.Writer, uploader push.
 		}
 
 		remoteURI = "s3://" + bucket + "/" + key
+		if cfg.LockUntil != "" {
+			auditPath := retentionaudit.PathForBundle(cfg.BundlePath)
+			if err := retentionaudit.Append(auditPath, event.TypeDataRetentionEnforced, map[string]any{
+				"operation":              "s3_object_lock_request",
+				"enforcement_system":     "s3",
+				"outcome":                "request_accepted",
+				"evidence_level":         "remote_api_acceptance",
+				"independently_verified": false,
+				"bundle_hash":            headHash,
+				"target":                 remoteURI,
+				"lock_mode":              effectiveLockMode,
+				"lock_until":             lockUntil,
+			}, time.Now().UTC()); err != nil {
+				msg := "remote upload succeeded but retention audit logging failed: " + err.Error()
+				if cfg.Format == formatJSON {
+					writePushError(stdout, stderr, cfg, msg, exitSystemError)
+					return exitSystemError
+				}
+				fmt.Fprintf(stderr, "atb push: %s\n", msg)
+				return exitSystemError
+			}
+		}
 	}
 
 	if queueRequested {

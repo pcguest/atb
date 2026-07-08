@@ -107,6 +107,12 @@ func TestGoEmittersHonourSchemaContract(t *testing.T) {
 		OverrideReason:     "manual review",
 		ActorID:            "actor-1",
 		OverriddenActionID: "action-9",
+		IdentityEvidence: &emit.IdentityEvidence{
+			IdentityProvider: "https://idp.example",
+			Subject:          "reviewer-1",
+			AssertionType:    "jwt",
+			AssertionDigest:  "sha256:assertion",
+		},
 	}); err != nil {
 		t.Fatalf("HumanOverride: %v", err)
 	}
@@ -115,6 +121,12 @@ func TestGoEmittersHonourSchemaContract(t *testing.T) {
 		ActorID:          "actor-1",
 		ApproverID:       "approver-2",
 		Note:             "looks fine",
+		IdentityEvidence: &emit.IdentityEvidence{
+			IdentityProvider: "https://idp.example",
+			Subject:          "reviewer-1",
+			AssertionType:    "jwt",
+			AssertionDigest:  "sha256:assertion",
+		},
 	}); err != nil {
 		t.Fatalf("HumanApproval: %v", err)
 	}

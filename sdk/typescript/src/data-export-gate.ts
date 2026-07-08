@@ -8,6 +8,7 @@ import {
   newApprovalId,
   valueDigest,
 } from "./workflow-common.js";
+import { identityEvidencePayload, type IdentityEvidence } from "./identity-evidence.js";
 
 export type DataExportGateMode = "log_only" | "enforce";
 
@@ -28,6 +29,8 @@ export interface DataExportApproval {
   approvalOutcome?: "approved" | "denied";
   justificationDigest?: string;
   approvalId?: string;
+  /** Advanced: digest-only caller-provided reviewer identity evidence. */
+  identityEvidence?: IdentityEvidence;
 }
 
 export interface DataExportGateOptions extends WorkflowContextOptions {
@@ -106,6 +109,11 @@ export class DataExportGate {
       );
     }
 
+    // Resolve the approval record before executing the export: a malformed
+    // approval (or throwing recordApproval callback) rejects the action up
+    // front instead of masking the export outcome after fn() has run.
+    const approvalPayload = this.buildApprovalPayload(exportAction, actionId);
+
     const startedAt = Date.now();
     try {
       const result = await fn();
@@ -115,7 +123,7 @@ export class DataExportGate {
         tool_receipt_digest: valueDigest(result),
         execution_duration_ms: Math.max(0, Date.now() - startedAt),
       });
-      this.maybeRecordApproval(exportAction, actionId);
+      this.emitApprovalPayload(approvalPayload);
       return result;
     } catch (error) {
       // A data export that threw did not complete: record the forensic
@@ -125,17 +133,17 @@ export class DataExportGate {
         error_class: "exception",
         error_detail_digest: valueDigest(error),
       });
-      this.maybeRecordApproval(exportAction, actionId);
+      this.emitApprovalPayload(approvalPayload);
       throw error;
     }
   }
 
-  private maybeRecordApproval(
+  private buildApprovalPayload(
     exportAction: DataExportInput,
     actionId: string
-  ): void {
+  ): Record<string, unknown> | undefined {
     if (this.recordApproval === false) {
-      return;
+      return undefined;
     }
     const approval =
       typeof this.recordApproval === "function"
@@ -145,13 +153,24 @@ export class DataExportGate {
             approvalOutcome: "approved" as const,
             justificationDigest: canonicalDigest({ reason: "export approved" }),
           };
-    this.ctx.emit("ai.human.approval", {
+    const payload: Record<string, unknown> = {
       approval_id: newApprovalId(approval.approvalId),
       approver_id_hash: approval.approverIdHash,
       approval_outcome: approval.approvalOutcome ?? "approved",
       justification_digest:
         approval.justificationDigest ?? canonicalDigest({ reason: "export approved" }),
       action_id: actionId,
-    });
+    };
+    const identityEvidence = identityEvidencePayload(approval.identityEvidence);
+    if (identityEvidence) {
+      payload.identity_evidence = identityEvidence;
+    }
+    return payload;
+  }
+
+  private emitApprovalPayload(payload: Record<string, unknown> | undefined): void {
+    if (payload) {
+      this.ctx.emit("ai.human.approval", payload);
+    }
   }
 }

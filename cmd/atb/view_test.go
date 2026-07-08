@@ -8,12 +8,14 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
 func TestParseViewArgs(t *testing.T) {
@@ -58,10 +60,54 @@ func TestParseViewArgs(t *testing.T) {
 			want: viewConfig{BundlePath: "run.atb", Host: defaultViewHost, Port: 7070, PortSet: true},
 		},
 		{
+			name: "all equals options",
+			args: []string{
+				"--host=localhost",
+				"--port=6060",
+				"--bundle=bundle.atb",
+				"--profile=atb.profile.rag_answer",
+				"--session-token=token",
+				"--oidc-issuer=https://issuer.example",
+				"--oidc-audience=atb-viewer",
+				"--no-open",
+				"--log-reveals",
+			},
+			want: viewConfig{
+				BundlePath:   "bundle.atb",
+				Host:         "localhost",
+				Port:         6060,
+				PortSet:      true,
+				NoOpen:       true,
+				LogReveals:   true,
+				ProfilePath:  "atb.profile.rag_answer",
+				SessionToken: "token",
+				OIDCIssuer:   "https://issuer.example",
+				OIDCAudience: "atb-viewer",
+			},
+		},
+		{
 			name:    "invalid port",
 			args:    []string{"--port", "abc"},
 			wantErr: true,
 		},
+		{name: "help", args: []string{"--help"}, wantErr: true},
+		{name: "missing host", args: []string{"--host"}, wantErr: true},
+		{name: "empty host", args: []string{"--host="}, wantErr: true},
+		{name: "missing port", args: []string{"--port"}, wantErr: true},
+		{name: "port too low", args: []string{"--port=0"}, wantErr: true},
+		{name: "port too high", args: []string{"--port=65536"}, wantErr: true},
+		{name: "missing bundle", args: []string{"--bundle"}, wantErr: true},
+		{name: "duplicate bundle flags", args: []string{"--bundle=one", "--bundle=two"}, wantErr: true},
+		{name: "duplicate positional bundle", args: []string{"one", "two"}, wantErr: true},
+		{name: "missing profile", args: []string{"--profile"}, wantErr: true},
+		{name: "missing token", args: []string{"--session-token"}, wantErr: true},
+		{name: "missing sessions", args: []string{"--sessions"}, wantErr: true},
+		{name: "empty sessions", args: []string{"--sessions="}, wantErr: true},
+		{name: "invalid sessions glob", args: []string{"--sessions=["}, wantErr: true},
+		{name: "missing OIDC issuer", args: []string{"--oidc-issuer"}, wantErr: true},
+		{name: "missing OIDC audience", args: []string{"--oidc-audience"}, wantErr: true},
+		{name: "OIDC issuer without audience", args: []string{"--oidc-issuer=https://issuer.example"}, wantErr: true},
+		{name: "OIDC audience without issuer", args: []string{"--oidc-audience=atb-viewer"}, wantErr: true},
 		{
 			// The removed --ui-experimental flag must now be rejected as unknown.
 			name:    "unknown flag rejected",
@@ -89,6 +135,161 @@ func TestParseViewArgs(t *testing.T) {
 	}
 }
 
+func TestResolveBundlePathContracts(t *testing.T) {
+	if got, err := resolveBundlePath(""); err != nil || got != bundle.DefaultPath() {
+		t.Fatalf("empty path = %q, %v", got, err)
+	}
+
+	dir := t.TempDir()
+	if got, err := resolveBundlePath(dir); err != nil || got != filepath.Join(dir, bundle.BundleFile) {
+		t.Fatalf("directory path = %q, %v", got, err)
+	}
+	file := filepath.Join(dir, "custom.atb")
+	if err := os.WriteFile(file, []byte("bundle"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := resolveBundlePath(file); err != nil || got != file {
+		t.Fatalf("file path = %q, %v", got, err)
+	}
+	missing := filepath.Join(dir, "missing.atb")
+	if got, err := resolveBundlePath(missing); err != nil || got != missing {
+		t.Fatalf("missing file path = %q, %v", got, err)
+	}
+	missingDir := filepath.Join(dir, "missing") + string(os.PathSeparator)
+	if got, err := resolveBundlePath(missingDir); err != nil || got != filepath.Join(missingDir, bundle.BundleFile) {
+		t.Fatalf("missing directory path = %q, %v", got, err)
+	}
+}
+
+func TestInstallFallbackHandler(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	newInstallFallbackHandler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("content type = %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "go build -o atb") {
+		t.Fatalf("fallback body = %q", rec.Body.String())
+	}
+}
+
+func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
+	report := verifypkg.Report{
+		Integrity: verifypkg.IntegrityResult{ChainValid: true},
+		Anchoring: verifypkg.AnchoringResult{Status: "verified"},
+		CAS: &verifypkg.CASResult{
+			Overall:            0.88,
+			Grade:              "High",
+			CorroborationBonus: 0.05,
+			EffectiveScore:     0.93,
+			SubScores:          map[string]float64{"EC": 0.9},
+		},
+		Profiles: []verifypkg.ProfileResult{{
+			ProfileID:        "atb.profile.policy_decision",
+			Version:          1,
+			Pass:             false,
+			RequiredWarnings: []string{"anchor recommended"},
+			CriticalFailures: []verifypkg.CriticalFailure{{
+				Kind: "missing_event", Detail: "policy decision missing",
+			}},
+		}},
+		Exclusions:   []string{"network side effects"},
+		ResidualRisk: verifypkg.ResidualRisk{Level: "High"},
+		ProvabilityGaps: []verifypkg.ProvabilityGap{{
+			Gap: "event_coverage", Layer: "L2", Mitigation: "emit events", ClosedWhen: "profile passes",
+		}},
+	}
+	summary := startupProfileSummary(report)
+	if summary.ProfileID != "atb.profile.policy_decision" || summary.Pass {
+		t.Fatalf("profile summary = %+v", summary)
+	}
+	if summary.CASGrade != "High" || summary.EffectiveScore != 0.93 || summary.AnchorStatus != "verified" {
+		t.Fatalf("CAS summary = %+v", summary)
+	}
+	if len(summary.CriticalFailures) != 1 || len(summary.ProvabilityGaps) != 1 ||
+		len(summary.Exclusions) != 1 || summary.ResidualRiskLevel != "High" {
+		t.Fatalf("detail summary = %+v", summary)
+	}
+
+	empty := startupProfileSummary(verifypkg.Report{})
+	if empty.Pass || empty.CASGrade != "" || empty.CriticalFailures == nil || empty.Warnings == nil {
+		t.Fatalf("empty summary = %+v", empty)
+	}
+}
+
+func TestBuildStartupProfileReports(t *testing.T) {
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "bundle.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	summary, report := buildStartupProfileReports(b, path, "atb.profile.policy_decision")
+	if summary == nil || report == nil || summary.ProfileID != "atb.profile.policy_decision" {
+		t.Fatalf("summary=%+v report=%+v", summary, report)
+	}
+	summary, report = buildStartupProfileReports(b, path, "does-not-exist")
+	if summary != nil || report != nil {
+		t.Fatalf("invalid profile returned summary=%+v report=%+v", summary, report)
+	}
+}
+
+func TestViewSessionPathHelpers(t *testing.T) {
+	root := t.TempDir()
+	nested := filepath.Join(root, "nested")
+	if err := os.MkdirAll(nested, 0o700); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	first := filepath.Join(root, "first.atb")
+	second := filepath.Join(nested, "second.atb")
+	ignored := filepath.Join(nested, "ignored.txt")
+	for path, content := range map[string]string{first: "one", second: "two", ignored: "ignored"} {
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+
+	paths, err := resolveSessionPaths(root)
+	if err != nil {
+		t.Fatalf("resolve directory: %v", err)
+	}
+	if !reflect.DeepEqual(paths, []string{first, second}) {
+		t.Fatalf("directory paths = %v", paths)
+	}
+	globbed, err := resolveSessionPaths(filepath.Join(root, "*.atb"))
+	if err != nil || !reflect.DeepEqual(globbed, []string{first}) {
+		t.Fatalf("glob paths = %v, %v", globbed, err)
+	}
+	if _, err := resolveSessionPaths(""); err == nil {
+		t.Fatal("empty session path unexpectedly resolved")
+	}
+	if _, err := resolveSessionPaths("["); err == nil {
+		t.Fatal("invalid glob unexpectedly resolved")
+	}
+
+	indexed := sessionIndexPaths(first, []string{first, second, second})
+	if !reflect.DeepEqual(indexed, []string{first, second}) {
+		t.Fatalf("indexed paths = %v", indexed)
+	}
+	if got := describeSessionSource(nil); got != "" {
+		t.Fatalf("empty source = %q", got)
+	}
+	if got := describeSessionSource([]string{root}); got != root {
+		t.Fatalf("directory source = %q", got)
+	}
+	if got := describeSessionSource([]string{first}); got != filepath.Dir(first) {
+		t.Fatalf("file source = %q", got)
+	}
+	if got := describeSessionSource([]string{first, second}); got != "2 bundle paths" {
+		t.Fatalf("multi source = %q", got)
+	}
+}
+
 // TestBuildViewServerFallbackExposesNoData verifies that when the embedded dashboard
 // is absent (the typical case in test builds), GET / returns a minimal guidance page
 // that does not expose any bundle event data.
@@ -105,7 +306,7 @@ func TestBuildViewServerFallbackExposesNoData(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -152,7 +353,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -204,7 +405,7 @@ func TestBuildViewServerTamperModeCatchesAllRoutes(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -275,6 +476,9 @@ func TestListenViewPortFallsBackWhenBusy(t *testing.T) {
 	defer baseListener.Close()
 
 	basePort := baseListener.Addr().(*net.TCPAddr).Port
+	if basePort > 65533 {
+		t.Skipf("ephemeral port %d leaves no complete two-port fallback range", basePort)
+	}
 
 	ln, gotPort, err := listenViewPort(defaultViewHost, basePort, false)
 	if err != nil {
@@ -340,7 +544,7 @@ func TestIsAddrInUseError(t *testing.T) {
 	}
 }
 
-func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
+func TestPrivacyRevealRecordsToSidecarNotBundle(t *testing.T) {
 	tmp := t.TempDir()
 	bundlePath := filepath.Join(tmp, "bundle.atb")
 
@@ -352,8 +556,12 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 	if err := b.Save(bundlePath); err != nil {
 		t.Fatalf("save bundle: %v", err)
 	}
+	bundleBefore, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle before reveal: %v", err)
+	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -388,14 +596,24 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 		t.Fatalf("expected revealed value in response, got %s", rr.Body.String())
 	}
 
-	updated, err := bundle.Load(bundlePath)
+	// The authoritative bundle must be byte-for-byte unchanged by the reveal.
+	bundleAfter, err := os.ReadFile(bundlePath)
 	if err != nil {
-		t.Fatalf("load updated bundle: %v", err)
+		t.Fatalf("read bundle after reveal: %v", err)
 	}
-	if len(updated.Records) != 3 {
-		t.Fatalf("expected reveal audit append to bundle: got %d records", len(updated.Records))
+	if !bytes.Equal(bundleBefore, bundleAfter) {
+		t.Fatalf("authoritative bundle was mutated by reveal")
 	}
-	auditRecord := updated.Records[2]
+
+	// The reveal must be recorded in the sidecar, which verifies independently.
+	sidecar, err := bundle.LoadVerified(bundlePath + ".reveals")
+	if err != nil {
+		t.Fatalf("load reveal sidecar: %v", err)
+	}
+	if len(sidecar.Records) != 2 {
+		t.Fatalf("expected sidecar manifest + 1 reveal, got %d records", len(sidecar.Records))
+	}
+	auditRecord := sidecar.Records[1]
 	if auditRecord.Event.Type != "privacy.reveal" {
 		t.Fatalf("expected privacy.reveal event type, got %q", auditRecord.Event.Type)
 	}
@@ -405,6 +623,57 @@ func TestPrivacyRevealAppendsAuditEventToBundle(t *testing.T) {
 	}
 	if auditData["field_path"] != "email" {
 		t.Fatalf("expected field path in audit event, got %v", auditData["field_path"])
+	}
+}
+
+func TestValidateBrowserURLRestrictsLaunchesToLocalHTTP(t *testing.T) {
+	for _, rawURL := range []string{
+		"http://127.0.0.1:8080/view/",
+		"http://localhost:8080/view/",
+		"https://[::1]:8080/view/",
+	} {
+		if err := validateBrowserURL(rawURL); err != nil {
+			t.Errorf("validateBrowserURL(%q): %v", rawURL, err)
+		}
+	}
+	for _, rawURL := range []string{
+		"https://example.com/",
+		"file:///tmp/bundle",
+		"https://user:password@localhost/view/",
+		"://bad",
+	} {
+		if err := validateBrowserURL(rawURL); err == nil {
+			t.Errorf("validateBrowserURL(%q) unexpectedly succeeded", rawURL)
+		}
+	}
+}
+
+func TestSecurityHeadersCookieUsesTransportSecurity(t *testing.T) {
+	handler := withSecurityHeaders(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), "token")
+	for _, tc := range []struct {
+		name   string
+		target string
+		secure bool
+	}{
+		{name: "http", target: "http://localhost/", secure: false},
+		{name: "https", target: "https://localhost/", secure: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.target, nil)
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			cookies := rr.Result().Cookies()
+			if len(cookies) != 1 {
+				t.Fatalf("cookies=%d, want 1", len(cookies))
+			}
+			cookie := cookies[0]
+			if cookie.Secure != tc.secure {
+				t.Fatalf("Secure=%v, want %v", cookie.Secure, tc.secure)
+			}
+			if !cookie.HttpOnly || cookie.SameSite != http.SameSiteStrictMode {
+				t.Fatalf("cookie security attributes: %#v", cookie)
+			}
+		})
 	}
 }
 
@@ -420,7 +689,7 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -445,7 +714,7 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -477,7 +746,7 @@ func TestBuildViewServerServesViewRoute(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "", "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}

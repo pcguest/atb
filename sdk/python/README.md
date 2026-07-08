@@ -70,6 +70,60 @@ print(path)
 
 To verify a bundle against a profile, use the Go CLI: `atb verify --bundle <path> --profile <profile-id>`. The Python SDK does not include a verifier.
 
+## Optional reviewer identity evidence
+
+Oversight gates accept advanced, digest-only identity context:
+
+```python
+from atb import ActionGateInput, IdentityEvidence
+
+action = ActionGateInput(
+    "deploy",
+    "production/api",
+    "release candidate",
+    {"version": "2026.06"},
+    identity_evidence=IdentityEvidence(
+        identity_provider="https://idp.example",
+        subject="reviewer@example",
+        auth_context="mfa",
+        assertion_type="jwt",
+        assertion_digest="sha256:...",
+    ),
+)
+```
+
+Retain and verify the original assertion in your IdP/JWKS/PKI workflow. ATB
+hash-chains the supplied digest but does not authenticate the subject.
+
+See [`examples/python/agent_incident_demo.py`](../../examples/python/agent_incident_demo.py)
+for an offline incident-forensics flow.
+
+## Optional Mortise custody
+
+Mortise is a separate service; the SDK remains fully local without it. To lodge
+or remotely verify a completed bundle:
+
+```python
+import os
+from pathlib import Path
+
+from atb import MortiseClient
+
+client = MortiseClient(
+    "https://mortise.example",
+    token=os.environ["ATB_MORTISE_TOKEN"],
+)
+bundle = Path("run.atb/bundle.atb").read_bytes()
+verification = client.verify_bundle(bundle)  # does not persist
+receipt = client.ingest_bundle(bundle)       # WORM custody + signed receipt
+assert client.verify_receipt(receipt)["verified"] is True
+matches = client.receipts_by_hash(receipt["bundle_hash"])
+```
+
+The client rejects credential-bearing or non-HTTP(S) URLs, does not follow
+redirects, caps responses at 1 MiB, and validates the frozen
+`custos.receipt.v1` wire identifier.
+
 ## LangChain integration
 
 For LangChain middleware guidance, see [docs/integrations/](../../docs/integrations/README.md).

@@ -35,6 +35,9 @@ export function ExecutiveSummaryPanel({ verification, meta, viewerHealth }: Prop
         <div className="rounded-md border border-border bg-background/70 p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Viewer Health</p>
           <p className="mt-1 text-sm font-medium text-foreground">{viewerHealth.total} / 100</p>
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+            Composite of verification and recency. Not the integrity result.
+          </p>
         </div>
         <div className="rounded-md border border-border bg-background/70 p-3 md:col-span-2">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Trend Summary</p>

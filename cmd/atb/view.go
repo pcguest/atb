@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -26,6 +27,7 @@ import (
 	"github.com/pcguest/atb/internal/sessionindex"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 	apiv1 "github.com/pcguest/atb/pkg/api/v1"
+	atbauth "github.com/pcguest/atb/pkg/auth"
 )
 
 var errViewHelp = errors.New("view help requested")
@@ -40,6 +42,8 @@ type viewConfig struct {
 	ProfilePath  string
 	SessionToken string
 	SessionPaths []string
+	OIDCIssuer   string
+	OIDCAudience string
 }
 
 const defaultViewHost = "127.0.0.1"
@@ -71,7 +75,7 @@ func cmdView() {
 		}
 	}
 
-	handler, eventCount, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.ProfilePath, sessionToken, cfg.SessionPaths)
+	handler, eventCount, tamperDetected, openPath, err := buildViewServer(bundlePath, cfg.LogReveals, cfg.ProfilePath, sessionToken, cfg.OIDCIssuer, cfg.OIDCAudience, cfg.SessionPaths)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "atb view: %v\n", err)
 		os.Exit(classifyBundleLoadError(err))
@@ -130,7 +134,7 @@ func cmdView() {
 // suggested open path, and any error.
 // When the embedded review UI is absent (e.g. a go install build), a minimal install-guidance
 // page is served at / instead; it exposes no bundle data.
-func buildViewServer(bundlePath string, logReveals bool, profilePath string, sessionToken string, sessionPathSets ...[]string) (http.Handler, int, bool, string, error) {
+func buildViewServer(bundlePath string, logReveals bool, profilePath string, sessionToken string, oidcIssuer, oidcAudience string, sessionPathSets ...[]string) (http.Handler, int, bool, string, error) {
 	_ = logReveals // Privacy reveal auditing is always on; flag retained for CLI compatibility.
 	var sessionPaths []string
 	if len(sessionPathSets) > 0 {
@@ -169,6 +173,15 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 		fmt.Fprintf(os.Stderr, "Session index built: %d sessions from %s\n", len(sessions), describeSessionSource(sessionPaths))
 	}
 
+	var jwtValidator *atbauth.JWTValidator
+	if oidcIssuer != "" && oidcAudience != "" {
+		jwtValidator, err = atbauth.NewJWTValidator(context.Background(), oidcIssuer, oidcAudience)
+		if err != nil {
+			return nil, 0, false, "/", fmt.Errorf("failed to create OIDC JWT validator: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "atb view: OIDC/JWT authentication enabled for API routes\n")
+	}
+
 	eventCount := len(b.Records)
 	mux := http.NewServeMux()
 	api := apiv1.NewAPIServer(apiv1.APIConfig{
@@ -184,6 +197,7 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 		SessionsByActor: sessionsByActor,
 		SessionIndexErr: sessionIndexErr,
 		SessionIndexed:  len(sessionPaths) > 0,
+		JWTValidator:    jwtValidator, // Pass the JWT validator
 	})
 	api.Register(mux)
 
@@ -291,16 +305,40 @@ func isAddrInUseError(err error) bool {
 }
 
 func openBrowser(url string) error {
+	if err := validateBrowserURL(url); err != nil {
+		return err
+	}
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", url) // #nosec G204 -- validateBrowserURL restricts the argument to a loopback HTTP(S) URL.
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) // #nosec G204 -- validateBrowserURL restricts the argument to a loopback HTTP(S) URL.
 	default:
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", url) // #nosec G204 -- validateBrowserURL restricts the argument to a loopback HTTP(S) URL.
 	}
 	return cmd.Start()
+}
+
+func validateBrowserURL(rawURL string) error {
+	parsed, err := url.ParseRequestURI(rawURL)
+	if err != nil || parsed.Host == "" {
+		return fmt.Errorf("invalid browser URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("invalid browser URL scheme")
+	}
+	if parsed.User != nil {
+		return fmt.Errorf("browser URL must not contain credentials")
+	}
+	host := parsed.Hostname()
+	if !strings.EqualFold(host, "localhost") {
+		ip := net.ParseIP(host)
+		if ip == nil || !ip.IsLoopback() {
+			return fmt.Errorf("browser URL must use a loopback host")
+		}
+	}
+	return nil
 }
 
 func buildStartupProfileReports(b *bundle.Bundle, bundlePath string, profilePath string) (*apiv1.ProfileReportSummary, *verifypkg.VerifierReport) {
@@ -320,7 +358,7 @@ func buildStartupProfileReports(b *bundle.Bundle, bundlePath string, profilePath
 		return nil, nil
 	}
 	summary := startupProfileSummary(*report)
-	verifierReport := verifypkg.ReportFromVerify(*report)
+	verifierReport := verifypkg.ReportFromVerifyWithBundle(*report, b)
 	return &summary, &verifierReport
 }
 
@@ -385,11 +423,12 @@ func withSecurityHeaders(next http.Handler, revealAuthToken string) http.Handler
 		w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
 		w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
 		if revealAuthToken != "" {
-			http.SetCookie(w, &http.Cookie{
+			http.SetCookie(w, &http.Cookie{ // #nosec G124 -- Secure tracks r.TLS so the loopback HTTP viewer remains usable; HttpOnly and SameSite are strict.
 				Name:     "atb_reveal_token",
 				Value:    revealAuthToken,
 				Path:     "/",
 				HttpOnly: true,
+				Secure:   r.TLS != nil,
 				SameSite: http.SameSiteStrictMode,
 			})
 		}
@@ -443,7 +482,7 @@ func newInstallFallbackHandler() http.Handler {
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>] [--sessions <glob-or-dir>]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -540,6 +579,22 @@ func parseViewArgs(args []string) (viewConfig, error) {
 				return cfg, fmt.Errorf("failed to resolve session paths for %q: %w", pattern, err)
 			}
 			cfg.SessionPaths = append(cfg.SessionPaths, paths...)
+		case arg == "--oidc-issuer":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --oidc-issuer")
+			}
+			i++
+			cfg.OIDCIssuer = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--oidc-issuer="):
+			cfg.OIDCIssuer = strings.TrimSpace(strings.TrimPrefix(arg, "--oidc-issuer="))
+		case arg == "--oidc-audience":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --oidc-audience")
+			}
+			i++
+			cfg.OIDCAudience = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--oidc-audience="):
+			cfg.OIDCAudience = strings.TrimSpace(strings.TrimPrefix(arg, "--oidc-audience="))
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -552,6 +607,9 @@ func parseViewArgs(args []string) (viewConfig, error) {
 
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return cfg, fmt.Errorf("--port must be between 1 and 65535")
+	}
+	if (cfg.OIDCIssuer == "") != (cfg.OIDCAudience == "") {
+		return cfg, fmt.Errorf("--oidc-issuer and --oidc-audience must be set together")
 	}
 	return cfg, nil
 }

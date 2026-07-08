@@ -9,6 +9,10 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/internal/retentionaudit"
 )
 
 func TestConfigParseArgs(t *testing.T) {
@@ -176,8 +180,88 @@ func TestConfigRetentionMinimum(t *testing.T) {
 			if loaded.Retention.Days != tc.wantDays {
 				t.Fatalf("unexpected saved days: got %d want %d", loaded.Retention.Days, tc.wantDays)
 			}
+			audit, err := bundle.LoadVerified(retentionaudit.DefaultPath())
+			if err != nil {
+				t.Fatalf("load retention audit: %v", err)
+			}
+			if got := audit.Records[len(audit.Records)-1].Event.Type; got != event.TypeDataRetentionPolicySet {
+				t.Fatalf("audit event type = %q, want %q", got, event.TypeDataRetentionPolicySet)
+			}
 		})
 	}
+}
+
+func TestConfigRetentionChangeLinksPreviousPolicyDigest(t *testing.T) {
+	t.Chdir(t.TempDir())
+	var stdout, stderr bytes.Buffer
+	if code := runConfig([]string{"retention", "--days", "183"}, &stdout, &stderr); code != exitSuccess {
+		t.Fatalf("initial config code = %d, stderr=%q", code, stderr.String())
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if code := runConfig([]string{"retention", "--days", "365"}, &stdout, &stderr); code != exitSuccess {
+		t.Fatalf("changed config code = %d, stderr=%q", code, stderr.String())
+	}
+	audit, err := bundle.LoadVerified(retentionaudit.DefaultPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	last := audit.Records[len(audit.Records)-1].Event
+	if last.Type != event.TypeDataRetentionPolicyChanged {
+		t.Fatalf("last event = %q", last.Type)
+	}
+	data, _ := last.Data.(map[string]any)
+	if data["previous_config_digest"] == "" || data["config_digest"] == data["previous_config_digest"] {
+		t.Fatalf("policy change digests not linked correctly: %#v", data)
+	}
+}
+
+func TestConfigRetentionRollsBackWhenAuditAppendFails(t *testing.T) {
+	corruptAudit := func(t *testing.T) {
+		t.Helper()
+		auditPath := retentionaudit.DefaultPath()
+		if err := os.MkdirAll(filepath.Dir(auditPath), 0750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(auditPath, []byte("not a bundle"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("existing config is restored", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		var stdout, stderr bytes.Buffer
+		if code := runConfig([]string{"retention", "--days", "183"}, &stdout, &stderr); code != exitSuccess {
+			t.Fatalf("initial config code = %d, stderr=%q", code, stderr.String())
+		}
+		corruptAudit(t)
+		stderr.Reset()
+		if code := runConfig([]string{"retention", "--days", "365"}, &stdout, &stderr); code != exitSystemError {
+			t.Fatalf("code = %d, want %d; stderr=%q", code, exitSystemError, stderr.String())
+		}
+		if !strings.Contains(stderr.String(), "previous config restored") {
+			t.Fatalf("stderr missing rollback notice: %q", stderr.String())
+		}
+		loaded, err := loadATBConfig(defaultConfigPath())
+		if err != nil {
+			t.Fatalf("load config after rollback: %v", err)
+		}
+		if loaded.Retention == nil || loaded.Retention.Days != 183 {
+			t.Fatalf("config not rolled back: %+v", loaded.Retention)
+		}
+	})
+
+	t.Run("fresh config is removed", func(t *testing.T) {
+		t.Chdir(t.TempDir())
+		corruptAudit(t)
+		var stdout, stderr bytes.Buffer
+		if code := runConfig([]string{"retention", "--days", "183"}, &stdout, &stderr); code != exitSystemError {
+			t.Fatalf("code = %d, want %d; stderr=%q", code, exitSystemError, stderr.String())
+		}
+		if _, err := os.Stat(defaultConfigPath()); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("expected config removed after rollback, stat err = %v", err)
+		}
+	})
 }
 
 func TestConfigRoundTrip(t *testing.T) {

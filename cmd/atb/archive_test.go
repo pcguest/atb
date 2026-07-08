@@ -11,7 +11,9 @@ import (
 
 	archiveledger "github.com/pcguest/atb/internal/archive"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/internal/retentionaudit"
 )
 
 func TestArchiveParseArgs(t *testing.T) {
@@ -228,6 +230,18 @@ func TestArchiveRecreatesDefaultBundleAndNormalizesLedgerPaths(t *testing.T) {
 		}
 		if head == hash.GenesisHash {
 			t.Fatalf("expected non-genesis ledger head hash")
+		}
+		audit, err := bundle.LoadVerified(retentionaudit.DefaultPath())
+		if err != nil {
+			t.Fatalf("load retention audit: %v", err)
+		}
+		last := audit.Records[len(audit.Records)-1].Event
+		if last.Type != event.TypeDataRetentionEnforced {
+			t.Fatalf("audit event type = %q", last.Type)
+		}
+		data, _ := last.Data.(map[string]any)
+		if data["operation"] != "local_archive" || data["affected_count"] != float64(1) {
+			t.Fatalf("archive audit data = %#v", data)
 		}
 	})
 }

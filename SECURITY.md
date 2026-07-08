@@ -9,14 +9,15 @@ Security fixes are shipped on the current release tag only.
 
 | Version | Supported |
 | --- | --- |
-| `v1.14.5` | Yes |
-| `v1.14.4` and older | No |
+| `v1.15.1` | Yes |
+| `v1.15.0` and older | No |
 
 ## Reporting a vulnerability
 
-Report security issues by email to **patrickcguest@proton.me** with the subject line
-`[ATB Security] <brief description>`. Do not open a public GitHub issue for an unpatched
-vulnerability.
+Report security issues privately through GitHub's private vulnerability
+reporting. Open the repository's **Security** tab and choose **Report a
+vulnerability** (<https://github.com/pcguest/atb/security/advisories/new>). Do
+not open a public GitHub issue for an unpatched vulnerability.
 
 Include:
 

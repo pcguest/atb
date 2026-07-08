@@ -4,6 +4,9 @@ Start with the [five-minute quickstart](./quickstart.md), then follow the path
 that matches your role. This hub is the only doc map — deeper pages are linked
 from here, not scattered across the tree.
 
+ATB is the open, MIT-licensed evidence core of Tenon. Mortise is the separate
+commercial framework for long-term custody; ATB works fully without it.
+
 ## Use ATB
 
 | Doc | For |
@@ -13,7 +16,7 @@ from here, not scattered across the tree.
 | [Incident forensics](./guides/incident-forensics.md) | Capture → discover → review after an agent incident |
 | [Tamper demo](./guides/tamper-demo.md) | One-byte mutation and verify failure |
 | [WORM / S3](./integrations/worm-s3.md) | Operator-controlled immutable retention |
-| [Custos handoff](./custos-handoff.md) | Companion custody product boundary |
+| [Mortise handoff](./mortise-handoff.md) | Companion custody product boundary |
 
 ## Review evidence
 
@@ -24,6 +27,7 @@ from here, not scattered across the tree.
 | [Public surface](./public-surface.md) | Shipped boundary and never-claims |
 | [Provability ladder](./provability-ladder.md) | Integrity vs completeness |
 | [CAS guide](./cas-guide.md) | Completeness scoring detail |
+| [Compliance hub](./compliance/README.md) | Generate a deterministic profile-aware evidence pack |
 
 ## Contract
 
@@ -50,7 +54,8 @@ Technical evidence mappings only — not legal advice or certification.
 | Doc | For |
 | --- | --- |
 | [Compliance hub](./compliance/README.md) | How to use mappings in a review |
-| [EU AI Act mapping](./compliance/eu-ai-act.md) | Article 12 logging alignment |
+| [Article 12 evidence mapping](./compliance/article-12-mapping.md) | Per-obligation map of Article 12 to ATB primitives |
+| [EU AI Act mapping](./compliance/eu-ai-act.md) | Article 9 to 20 coverage map |
 
 ## Contribute and release
 
@@ -61,6 +66,9 @@ Technical evidence mappings only — not legal advice or certification.
 | [Release runbook](./release.md) | Tag, publish, and pipeline gates |
 | [Roadmap](./roadmap.md) | Shipped vs planned (in-repo scope) |
 | [Disaster recovery](./maintenance/disaster-recovery.md) | Source, secrets, and release recovery |
+| [Manual test playbook](./maintenance/manual-test-playbook.md) | Local operator commands for ATB, Mortise, and UI smoke testing |
+| [Public MIT extraction checklist](./maintenance/public-mit-extraction-checklist.md) | Manual allowlist, exclusion, and validation steps for public ATB extraction |
+| [History rewrite plan](./maintenance/history-rewrite-plan.md) | Provenance-preserving history rewrite procedure and decision record |
 
-Evaluator path for ATB + Custos:
-[Custos SUBMISSION](https://github.com/pcguest/custos-product/blob/main/docs/SUBMISSION.md).
+Evaluator path for ATB + Mortise:
+[Mortise SUBMISSION](https://github.com/pcguest/mortise/blob/main/docs/SUBMISSION.md).

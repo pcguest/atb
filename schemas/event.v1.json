@@ -191,7 +191,10 @@
       "description": "Chain or step lifecycle event used by orchestration integrations such as LangChain."
     },
     "ai.policy.decision": {
-      "description": "Policy engine decision (allow or deny) over a candidate action or response. May carry policy_signature, policy_signer_pubkey, policy_doc_hash, and policy_doc_signature fields when the decision is signed."
+      "description": "Policy engine decision (allow or deny) over a candidate action or response. May carry policy_signature, policy_signer_pubkey, policy_doc_hash, and policy_doc_signature fields when the decision is signed.",
+      "properties": {
+        "identity_evidence": { "$ref": "#/$defs/identity_evidence" }
+      }
     },
     "ai.retrieval.executed": {
       "description": "Retrieval step executed during a RAG pipeline."
@@ -233,7 +236,8 @@
             "on_behalf_of": { "type": "string", "description": "Hashed identifier of the principal this action is taken for, when delegated." }
           },
           "required": ["type", "id_hash"]
-        }
+        },
+        "identity_evidence": { "$ref": "#/$defs/identity_evidence" }
       },
       "required": ["action_id", "action_type", "action_parameters_digest", "target_resource_id", "intended_effect"]
     },
@@ -246,12 +250,16 @@
         "effective_scope": {
           "type": "string",
           "description": "Optional permission scope, role, or grant the action actually ran under. Records the access context behind privileged-action incidents (e.g. an agent executing with broader-than-expected operator permissions)."
-        }
+        },
+        "identity_evidence": { "$ref": "#/$defs/identity_evidence" }
       },
       "required": ["action_id", "execution_outcome", "tool_receipt_digest"]
     },
     "ai.action.committed": {
-      "description": "Privileged action committed to its downstream sink."
+      "description": "Privileged action committed to its downstream sink.",
+      "properties": {
+        "identity_evidence": { "$ref": "#/$defs/identity_evidence" }
+      }
     },
     "ai.action.error": {
       "description": "Privileged action attempted but did not succeed (failed, blocked, timed out, or denied at the sink). Forensic counterpart to the success-shaped ai.action.executed.",
@@ -266,7 +274,10 @@
       "required": ["action_id", "error_class"]
     },
     "ai.human.approval": {
-      "description": "Human approval of an action or override."
+      "description": "Human approval of an action or override.",
+      "properties": {
+        "identity_evidence": { "$ref": "#/$defs/identity_evidence" }
+      }
     },
     "ai.job.scheduled": {
       "description": "Background job scheduled for asynchronous execution."
@@ -297,6 +308,51 @@
         "error_detail_digest": { "type": "string" }
       },
       "required": ["action_id", "error_class"]
+    },
+    "data.retention.policy_set": {
+      "description": "A deployment retention policy was configured for the first time. ATB records the operator-visible policy but does not enforce storage-system retention by itself.",
+      "properties": {
+        "policy_id": { "type": "string" },
+        "days": { "type": "integer", "minimum": 1 },
+        "archive_dir": { "type": "string" },
+        "scope": { "type": "array", "items": { "type": "string" } },
+        "cutoff_basis": { "type": "string" },
+        "config_digest": { "type": "string" },
+        "accepted_below_eu_minimum": { "type": "boolean" }
+      },
+      "required": ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest"]
+    },
+    "data.retention.policy_changed": {
+      "description": "An existing deployment retention policy was changed. Digests link the previous and replacement configurations without embedding unrelated local configuration.",
+      "properties": {
+        "policy_id": { "type": "string" },
+        "days": { "type": "integer", "minimum": 1 },
+        "archive_dir": { "type": "string" },
+        "scope": { "type": "array", "items": { "type": "string" } },
+        "cutoff_basis": { "type": "string" },
+        "config_digest": { "type": "string" },
+        "previous_config_digest": { "type": "string" },
+        "accepted_below_eu_minimum": { "type": "boolean" }
+      },
+      "required": ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest", "previous_config_digest"]
+    },
+    "data.retention.enforced": {
+      "description": "Evidence that a retention-relevant operation completed or a remote retention request was accepted. The independently_verified field prevents API acceptance from being represented as proof of storage-side enforcement.",
+      "properties": {
+        "operation": { "type": "string" },
+        "enforcement_system": { "type": "string" },
+        "outcome": { "type": "string" },
+        "evidence_level": { "type": "string" },
+        "independently_verified": { "type": "boolean" },
+        "bundle_hash": { "type": "string" },
+        "target": { "type": "string" },
+        "lock_mode": { "type": "string" },
+        "lock_until": { "type": "string" },
+        "cutoff": { "type": "string", "format": "date-time" },
+        "affected_count": { "type": "integer", "minimum": 0 },
+        "ledger_head_hash": { "type": "string" }
+      },
+      "required": ["operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"]
     },
     "atb.corroboration.external": {
       "description": "External corroboration record retrieved by an adapter from a third-party system."
@@ -338,7 +394,8 @@
         "session_id": { "type": "string", "description": "Session identifier the override belongs to." },
         "override_reason": { "type": "string", "description": "Short rationale for the override." },
         "actor_id": { "type": "string", "description": "Optional canonical identifier of the human operator." },
-        "overridden_action_id": { "type": "string", "description": "Optional identifier of the overridden action." }
+        "overridden_action_id": { "type": "string", "description": "Optional identifier of the overridden action." },
+        "identity_evidence": { "$ref": "#/$defs/identity_evidence" }
       },
       "required": ["session_id", "override_reason"]
     },
@@ -349,7 +406,8 @@
         "approved_action_id": { "type": "string", "description": "Identifier of the action being approved." },
         "actor_id": { "type": "string", "description": "Optional canonical identifier of the approving operator." },
         "approver_id": { "type": "string", "description": "Optional approver reference." },
-        "note": { "type": "string", "description": "Optional free-text approval note." }
+        "note": { "type": "string", "description": "Optional free-text approval note." },
+        "identity_evidence": { "$ref": "#/$defs/identity_evidence" }
       },
       "required": ["session_id", "approved_action_id"]
     },
@@ -427,6 +485,25 @@
         "body": { "type": "string", "description": "Raw response body; present only under --capture-bodies." }
       },
       "required": ["session_id", "host", "method", "path", "status_code"]
+    }
+  },
+  "$defs": {
+    "identity_evidence": {
+      "type": "object",
+      "description": "Caller-provided reviewer or operator identity evidence. ATB preserves this object in the hash chain but does not independently verify the asserted identity.",
+      "required": ["identity_provider", "subject", "assertion_type", "assertion_digest"],
+      "properties": {
+        "identity_provider": { "type": "string", "minLength": 1 },
+        "subject": { "type": "string", "minLength": 1 },
+        "auth_context": { "type": "string" },
+        "assertion_type": {
+          "type": "string",
+          "enum": ["jwt", "x509", "saml", "opaque"]
+        },
+        "assertion_digest": { "type": "string", "minLength": 1 },
+        "raw_evidence_digest": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
     }
   },
   "event_types": [
@@ -607,6 +684,27 @@
       "criticality": "required",
       "required_fields": ["action_id", "error_class"],
       "$comment": "Forensic counterpart to data.export.executed, mirroring ai.action.error. error_class is one of: failed, blocked, timeout, exception, denied_at_sink. Optional error_detail_digest carries a privacy-safe hash of the failure detail. Not bound to an obligation profile; emitted by the data-export gate on failure."
+    },
+    {
+      "type": "data.retention.policy_set",
+      "description": "Deployment retention policy configured",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest"]
+    },
+    {
+      "type": "data.retention.policy_changed",
+      "description": "Deployment retention policy changed",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest", "previous_config_digest"]
+    },
+    {
+      "type": "data.retention.enforced",
+      "description": "Retention-relevant local operation completed or remote retention request accepted",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"]
     },
     {
       "type": "dev.session",

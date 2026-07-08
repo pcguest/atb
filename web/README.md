@@ -3,7 +3,7 @@
 ## Static Export and Security Headers
 
 The web app is configured for static export (`output: "export"` in `next.config.js`).
-Next.js warns that `headers()` rules are not applied to static exports. This is expected in ATB.
+Do not add Next.js `headers()` rules for this app: static export ignores them and prints noisy build warnings.
 
 Runtime security headers (including CSP) are enforced by the Go viewer server in `cmd/atb/view.go`.
 Source builds of the Go CLI embed whatever is present under `web/out/`, so run a fresh web build before testing `atb view` from a checkout:
@@ -38,7 +38,7 @@ The dashboard avoids runtime Google Fonts fetches in layout code to keep CI and 
 - [x] React Query + Zustand state management
 - [x] WCAG 2.1 AA accessibility (0 axe violations in mock-mode E2E)
 - [x] E2E tests (4/4 passing with mock API)
-- [x] Lighthouse targets documented (A11y >= 100, Perf >= 90)
+- [x] Optional Lighthouse targets documented for local operator runs (A11y >= 100, Perf >= 90)
 
 ### Test Commands
 
@@ -54,6 +54,9 @@ npm run test:a11y
 
 # Build validation
 npm run build
+
+# Optional local Lighthouse audit, if installed globally
+lighthouse http://localhost:8080/view/ --output=json --output-path=./lh-report.json --only-categories=accessibility,performance
 ```
 
 See [docs/roadmap.md](../docs/roadmap.md) for tracked follow-on work.

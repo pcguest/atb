@@ -20,6 +20,7 @@ import (
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/internal/identityevidence"
 	"github.com/pcguest/atb/internal/sessionindex"
 	"github.com/pcguest/atb/internal/verify"
 )
@@ -42,16 +43,17 @@ type CaptureScope struct {
 
 // Report is a session-scoped incident report over a single bundle.
 type Report struct {
-	BundlePath     string                       `json:"bundle_path"`
-	SessionID      string                       `json:"session_id"`
-	Found          bool                         `json:"found"`
-	IntegrityValid bool                         `json:"integrity_valid"`
-	ChainHeadHash  string                       `json:"chain_head_hash"`
-	Signatures     []verify.SignatureProvenance `json:"signatures,omitempty"`
-	CaptureScope   *CaptureScope                `json:"capture_scope,omitempty"`
-	Session        *sessionindex.SessionEntry   `json:"session,omitempty"`
-	Findings       []Finding                    `json:"findings,omitempty"`
-	Events         []EventRow                   `json:"events"`
+	BundlePath         string                       `json:"bundle_path"`
+	SessionID          string                       `json:"session_id"`
+	Found              bool                         `json:"found"`
+	IntegrityValid     bool                         `json:"integrity_valid"`
+	ChainHeadHash      string                       `json:"chain_head_hash"`
+	Signatures         []verify.SignatureProvenance `json:"signatures,omitempty"`
+	CaptureScope       *CaptureScope                `json:"capture_scope,omitempty"`
+	Session            *sessionindex.SessionEntry   `json:"session,omitempty"`
+	Findings           []Finding                    `json:"findings,omitempty"`
+	ReviewerIdentities []identityevidence.Evidence  `json:"reviewer_identities,omitempty"`
+	Events             []EventRow                   `json:"events"`
 }
 
 // Build loads bundlePath, verifies its integrity, and assembles the report for
@@ -107,6 +109,7 @@ func Build(ctx context.Context, bundlePath, sessionID string) (Report, error) {
 			rep.CaptureScope = captureScopeFrom(rec.Event)
 		}
 	}
+	rep.ReviewerIdentities = identityEvidenceForSession(b, sessionID)
 
 	var scoped []scopedEvent
 	for _, rec := range b.Records {
@@ -180,6 +183,26 @@ func (r Report) NDJSON() ([]byte, error) {
 		buf.WriteByte('\n')
 	}
 	return buf.Bytes(), nil
+}
+
+func identityEvidenceForSession(b *bundle.Bundle, sessionID string) []identityevidence.Evidence {
+	all := identityevidence.Extract(b)
+	if len(all) == 0 {
+		return nil
+	}
+	seqs := make(map[int]struct{})
+	for _, record := range b.Records {
+		if eventSessionID(record.Event) == sessionID {
+			seqs[record.Event.Sequence] = struct{}{}
+		}
+	}
+	out := make([]identityevidence.Evidence, 0, len(all))
+	for _, evidence := range all {
+		if _, ok := seqs[evidence.Sequence]; ok {
+			out = append(out, evidence)
+		}
+	}
+	return out
 }
 
 // ListSessions returns the sessions found in a bundle, so a reviewer can
@@ -259,6 +282,13 @@ func (r Report) Markdown() string {
 			}
 			fmt.Fprintf(&b, "| %s | %s | %s | %s |\n",
 				strings.ToUpper(f.Severity), f.Title, at, f.Detail)
+		}
+	}
+	if len(r.ReviewerIdentities) > 0 {
+		b.WriteString("\n## Reviewer identity evidence\n\n")
+		b.WriteString("These values were supplied by the caller and preserved by the ATB hash chain; ATB did not independently verify the identity assertion.\n\n")
+		for _, evidence := range r.ReviewerIdentities {
+			fmt.Fprintf(&b, "- Seq %d: %s\n", evidence.Sequence, identityevidence.Summary(evidence))
 		}
 	}
 
@@ -342,6 +372,15 @@ func summarise(ev event.Event) string {
 		return "decision=" + get("decision")
 	case event.TypeAIHumanApproval:
 		return "approval=" + get("approval_outcome")
+	case event.TypeHumanApproval:
+		return "approved=" + get("approved_action_id")
+	case event.TypeHumanOverride:
+		if actionID := get("overridden_action_id"); actionID != "" {
+			return "override=" + actionID
+		}
+		return "human override"
+	case event.TypeCaptureScope:
+		return "capture=" + get("capture_mode")
 	case event.TypeDataExportExecuted:
 		if outcome := get("execution_outcome"); outcome != "" {
 			return "export outcome=" + outcome
@@ -357,6 +396,13 @@ func summarise(ev event.Event) string {
 			return "export=" + target
 		}
 		return "export"
+	case event.TypeDataRetentionPolicySet, event.TypeDataRetentionPolicyChanged:
+		if days, ok := intField(data, "days"); ok {
+			return fmt.Sprintf("retention=%dd", days)
+		}
+		return "retention policy"
+	case event.TypeDataRetentionEnforced:
+		return strings.TrimSpace(get("operation") + " outcome=" + get("outcome"))
 	default:
 		return ""
 	}

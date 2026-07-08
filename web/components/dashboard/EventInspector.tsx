@@ -50,7 +50,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
 
   if (!event) {
     return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-sm text-slate-200">
+      <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
         Select an event to inspect details.
       </div>
     );
@@ -76,37 +76,34 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
   }
 
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950">
-      <div className="border-b border-slate-800 px-3 py-2 text-xs uppercase tracking-wide text-slate-200">
-        Inspector
-      </div>
+    <div className="rounded-lg border border-border bg-card">
       <div className="space-y-3 p-3">
-        <div className="grid gap-2 text-xs text-slate-200">
+        <div className="grid gap-2 text-xs text-foreground">
           <div>
-            <span className="text-slate-300">type:</span>{" "}
+            <span className="text-muted-foreground">type:</span>{" "}
             <span className={`font-medium ${eventFamilyClass(event.type)}`}>{event.type}</span>
           </div>
           {eventSummary(event.type, event.data) && (
             <div data-testid="event-summary">
-              <span className="text-slate-300">summary:</span>{" "}
+              <span className="text-muted-foreground">summary:</span>{" "}
               <span className={`font-medium ${eventFamilyClass(event.type)}`}>
                 {eventSummary(event.type, event.data)}
               </span>
             </div>
           )}
           <div>
-            <span className="text-slate-300">seq:</span>{" "}
-            <span className="text-slate-200">{event.seq}</span>
+            <span className="text-muted-foreground">seq:</span>{" "}
+            <span className="text-foreground">{event.seq}</span>
           </div>
           <div className="break-all">
-            <span className="text-slate-300">hash:</span>{" "}
-            <HashValue hash={event.hash} className="text-slate-200" />
+            <span className="text-muted-foreground">hash:</span>{" "}
+            <HashValue hash={event.hash} className="text-foreground" />
           </div>
         </div>
 
         {maskedPaths.length > 0 && (
-          <div className="rounded border border-slate-800 bg-slate-900 p-2">
-            <div className="mb-2 text-xs uppercase tracking-wide text-slate-200">Masked Fields</div>
+          <div className="rounded border border-border bg-muted p-2">
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Masked Fields</div>
             <TooltipProvider>
               <div className="space-y-2">
                 {maskedPaths.map((path) => (
@@ -117,7 +114,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
                           type="button"
                           disabled={disabled || pending === path}
                           onClick={() => handleReveal(path)}
-                          className="w-full rounded border border-slate-700 bg-slate-800 px-2 py-1 text-left text-xs text-slate-100 hover:border-slate-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="w-full rounded border border-border bg-muted px-2 py-1 text-left text-xs text-foreground hover:border-ring disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {pending === path ? "Revealing..." : `Click to Reveal: ${path}`}
                         </button>
@@ -125,12 +122,13 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
                       <TooltipContent side="left" className="max-w-xs">
                         <p>
                           Revealing writes a <span className="font-mono">privacy.reveal</span> event
-                          to the bundle on disk. This action is permanent and tamper-evident.
+                          to the independent <span className="font-mono">.reveals</span> sidecar,
+                          which has its own hash chain. The authoritative bundle is never modified.
                         </p>
                       </TooltipContent>
                     </Tooltip>
                     <p className="px-0.5 font-mono text-[10px] text-amber-400/90">
-                      writes privacy.reveal event to bundle
+                      writes privacy.reveal event to the .reveals sidecar
                     </p>
                   </div>
                 ))}
@@ -141,7 +139,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
 
         {error && <div className="text-xs text-red-300">{error}</div>}
 
-        <pre className="max-h-[380px] overflow-auto rounded bg-slate-900 p-3 text-xs text-slate-200">
+        <pre className="max-h-[380px] overflow-auto rounded bg-muted p-3 text-xs text-foreground">
           {JSON.stringify(renderedData, null, 2)}
         </pre>
       </div>

@@ -2,7 +2,6 @@ import {
   WorkflowContext,
   type WorkflowContextOptions,
   newJobId,
-  valueDigest,
 } from "./workflow-common.js";
 
 /** Metadata for scheduling a background job. */
@@ -13,7 +12,7 @@ export interface BackgroundJobScheduleInput {
   jobId?: string;
 }
 
-export interface BackgroundJobTrackerOptions extends WorkflowContextOptions {}
+export type BackgroundJobTrackerOptions = WorkflowContextOptions;
 
 /** Records background-automation profile job lifecycle events. */
 export class BackgroundJobTracker {

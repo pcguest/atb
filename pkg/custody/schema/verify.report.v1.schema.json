@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://atb.dev/schemas/verify.report.v1.schema.1.json",
+  "$id": "https://atb.dev/schemas/verify.report.v1.schema.2.json",
   "title": "ATB VerifierReport",
   "description": "Stable automation contract for atb verify --format json (verify.report.v1).",
   "type": "object",
@@ -91,6 +91,36 @@
     },
     "signatures": { "type": "array" },
     "provability_gaps": { "type": "array" },
+    "reviewer_identities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "event_type",
+          "sequence",
+          "identity_provider",
+          "subject",
+          "assertion_type",
+          "assertion_digest",
+          "verification"
+        ],
+        "properties": {
+          "event_type": { "type": "string" },
+          "sequence": { "type": "integer", "minimum": 0 },
+          "identity_provider": { "type": "string" },
+          "subject": { "type": "string" },
+          "auth_context": { "type": "string" },
+          "assertion_type": { "type": "string" },
+          "assertion_digest": { "type": "string" },
+          "raw_evidence_digest": { "type": "string" },
+          "verification": {
+            "type": "string",
+            "const": "caller_provided_unverified"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "residual_risk": {
       "type": "object",
       "required": ["level"],

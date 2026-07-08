@@ -44,8 +44,8 @@ const FEATURES = [
     ),
     title: "Evidence Export",
     description:
-      "ATB can package verified bundles and reports into deterministic `soc2` and `gdpr` archives for repeatable review workflows.",
-    tag: "atb export",
+      "ATB packages verified bundles, incident reports, CAS output, checksums, and EU AI Act mappings into deterministic evidence packs for repeatable review.",
+    tag: "atb compliance pack",
   },
   {
     icon: (

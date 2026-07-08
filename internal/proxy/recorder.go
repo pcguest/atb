@@ -15,14 +15,19 @@ import (
 
 // BundleRecorder appends capture events to a local ATB bundle.
 type BundleRecorder struct {
-	path         string
-	custosPusher *CustosPusher // New field
-	mu           sync.Mutex
+	path          string
+	mortisePusher MortisePusherInterface
+	mu            sync.Mutex
 }
 
 // NewBundleRecorder returns a recorder for the given bundle path.
-func NewBundleRecorder(path string, custosPusher *CustosPusher) *BundleRecorder {
-	return &BundleRecorder{path: path, custosPusher: custosPusher}
+func NewBundleRecorder(path string, mortisePusher MortisePusherInterface) *BundleRecorder {
+	// A disabled Mortise config passes a typed-nil *MortisePusher; normalize it
+	// to a nil interface so the session-close push path stays off.
+	if mp, ok := mortisePusher.(*MortisePusher); ok && mp == nil {
+		mortisePusher = nil
+	}
+	return &BundleRecorder{path: path, mortisePusher: mortisePusher}
 }
 
 // AppendEvent appends a canonical event to the configured bundle.
@@ -38,7 +43,17 @@ func (r *BundleRecorder) AppendEventHash(ev *event.Event) (string, error) {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.appendEventLocked(ev)
+
+	// Append to local bundle
+	recordHash, err := r.appendEventLocked(ev)
+	if err != nil {
+		return "", err
+	}
+
+	// Mortise ingests whole bundles, not individual events. The completed
+	// bundle is pushed once on session close (see sessionCloseCallback).
+
+	return recordHash, nil
 }
 
 // AppendSessionClose writes an atb.session.close summary event.
@@ -66,7 +81,7 @@ func (r *BundleRecorder) appendSessionCloseAndSnapshot(sess *Session) ([]byte, e
 	// Fixed: The snapshot is read while no other recorder append can change the bundle file.
 	snapshot, err := os.ReadFile(r.path)
 	if err != nil {
-		return nil, fmt.Errorf("proxy: read bundle snapshot for Custos push: %w", err)
+		return nil, fmt.Errorf("proxy: read bundle snapshot for Mortise push: %w", err)
 	}
 	return snapshot, nil
 }
@@ -84,16 +99,21 @@ func (r *BundleRecorder) sessionCloseCallback(sess *Session) error {
 		return err
 	}
 
-	if r.custosPusher != nil && r.custosPusher.Endpoint != "" {
-		// Fixed: Capture session ID before the goroutine so logging does not depend on session mutation.
+	if r.mortisePusher != nil {
+		// Capture the session ID before the goroutine so logging does not
+		// depend on later session mutation. The locked snapshot is pushed,
+		// not a re-read of a changing bundle file.
 		sessionID := sess.ID
-		// Asynchronously push the bundle to Custos
 		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Timeout for push
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
-			// Fixed: PushBytes sends the locked snapshot instead of re-reading a changing bundle file.
-			if err := r.custosPusher.PushBytes(ctx, snapshot); err != nil {
-				fmt.Fprintf(os.Stderr, "Error pushing bundle %s to Custos for session %s: %v\n", r.path, sessionID, err)
+			receipt, err := r.mortisePusher.PushBundle(ctx, snapshot)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error pushing bundle %s to Mortise for session %s: %v\n", r.path, sessionID, err)
+				return
+			}
+			if receipt != nil {
+				fmt.Fprintf(os.Stderr, "Mortise receipt %s for session %s (bundle hash %s)\n", receipt.ReceiptID, sessionID, receipt.BundleHash)
 			}
 		}()
 	}

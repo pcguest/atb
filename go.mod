@@ -8,8 +8,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.24
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.23
 	github.com/aws/aws-sdk-go-v2/service/kms v1.53.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/googleapis/gax-go/v2 v2.22.0
 	github.com/hashicorp/vault/api v1.23.0
+	github.com/lestrrat-go/jwx/v2 v2.1.6
 	golang.org/x/crypto v0.53.0
 	golang.org/x/sys v0.46.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -35,10 +37,12 @@ require (
 	github.com/aws/smithy-go v1.27.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -50,9 +54,15 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.7 // indirect
 	github.com/hashicorp/hcl v1.0.1-vault-7 // indirect
+	github.com/lestrrat-go/blackmagic v1.0.3 // indirect
+	github.com/lestrrat-go/httpcc v1.0.1 // indirect
+	github.com/lestrrat-go/httprc v1.0.6 // indirect
+	github.com/lestrrat-go/iter v1.0.2 // indirect
+	github.com/lestrrat-go/option v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
+	github.com/segmentio/asm v1.2.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.61.0 // indirect

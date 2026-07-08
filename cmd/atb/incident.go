@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/pcguest/atb/internal/incident"
+	"github.com/pcguest/atb/internal/mortise"
 )
 
 func cmdIncident() {
@@ -96,7 +98,7 @@ func runIncidentReport(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 	if sessionID == "" {
-		fmt.Fprintln(stderr, "atb incident report: --session is required")
+		fmt.Fprintln(stderr, "atb incident report: --session is required; run `atb incident list --bundle <path>` to discover session IDs")
 		return exitUserError
 	}
 	if format != "markdown" && format != "json" && format != "ndjson" {
@@ -200,6 +202,19 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 	bundlePath := ""
 	sessionID := ""
 	out := ""
+	mortiseEndpoint := ""
+	mortiseAuthToken := ""
+	mortiseEndpointFlag := ""
+	setMortiseEndpoint := func(flag, value string) bool {
+		if mortiseEndpointFlag != "" {
+			fmt.Fprintf(stderr, "atb incident export: cannot combine %s with %s\n", mortiseEndpointFlag, flag)
+			return false
+		}
+		mortiseEndpointFlag = flag
+		mortiseEndpoint = strings.TrimSpace(value)
+		return true
+	}
+
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		next := func() (string, bool) {
@@ -240,6 +255,32 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 			out = strings.TrimSpace(v)
 		case strings.HasPrefix(arg, "--out="):
 			out = strings.TrimSpace(strings.TrimPrefix(arg, "--out="))
+		case arg == "--mortise-endpoint" || arg == "--custos-endpoint":
+			v, ok := next()
+			if !ok {
+				fmt.Fprintf(stderr, "atb incident export: missing value for %s\n", arg)
+				return exitUserError
+			}
+			if !setMortiseEndpoint(arg, v) {
+				return exitUserError
+			}
+		case strings.HasPrefix(arg, "--mortise-endpoint="):
+			if !setMortiseEndpoint("--mortise-endpoint", strings.TrimPrefix(arg, "--mortise-endpoint=")) {
+				return exitUserError
+			}
+		case strings.HasPrefix(arg, "--custos-endpoint="):
+			if !setMortiseEndpoint("--custos-endpoint", strings.TrimPrefix(arg, "--custos-endpoint=")) {
+				return exitUserError
+			}
+		case arg == "--custos-auth-token":
+			v, ok := next()
+			if !ok {
+				fmt.Fprintln(stderr, "atb incident export: missing value for --custos-auth-token")
+				return exitUserError
+			}
+			mortiseAuthToken = strings.TrimSpace(v)
+		case strings.HasPrefix(arg, "--custos-auth-token="):
+			mortiseAuthToken = strings.TrimSpace(strings.TrimPrefix(arg, "--custos-auth-token="))
 		default:
 			fmt.Fprintf(stderr, "atb incident export: unknown argument %q\n", arg)
 			return exitUserError
@@ -250,24 +291,63 @@ func runIncidentExport(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 	if sessionID == "" {
-		fmt.Fprintln(stderr, "atb incident export: --session is required")
+		fmt.Fprintln(stderr, "atb incident export: --session is required; run `atb incident list --bundle <path>` to discover session IDs")
 		return exitUserError
 	}
-	if out == "" {
-		fmt.Fprintln(stderr, "atb incident export: --out is required")
+	if out == "" && mortiseEndpoint == "" {
+		fmt.Fprintln(stderr, "atb incident export: --out or --mortise-endpoint is required")
+		return exitUserError
+	}
+	if out != "" && mortiseEndpoint != "" {
+		fmt.Fprintln(stderr, "atb incident export: cannot use both --out and --mortise-endpoint")
 		return exitUserError
 	}
 
-	files, err := incident.BuildPack(context.Background(), bundlePath, sessionID, version)
-	if err != nil {
-		fmt.Fprintf(stderr, "atb incident export: %v\n", err)
-		return exitSystemError
+	if mortiseEndpoint != "" {
+		// Mortise takes custody of the authoritative bundle, which it verifies
+		// before persisting and returns a signed receipt for. It ingests
+		// bundles, not derived evidence-pack archives, so the full pack is
+		// never built here — only the session's presence is validated.
+		report, err := incident.Build(context.Background(), bundlePath, sessionID)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+			return exitSystemError
+		}
+		if !report.Found {
+			fmt.Fprintf(stderr, "atb incident export: incident: no events found for session %q\n", sessionID)
+			return exitSystemError
+		}
+		if mortiseAuthToken == "" {
+			mortiseAuthToken, _ = mortiseTokenFromEnv()
+		}
+		bundleBytes, err := os.ReadFile(filepath.Clean(bundlePath))
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: read bundle: %v\n", err)
+			return exitSystemError
+		}
+		client, err := mortise.NewHTTPClient(mortiseEndpoint, mortiseAuthToken)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: Mortise endpoint: %v\n", err)
+			return exitUserError
+		}
+		receipt, err := client.SendBundle(context.Background(), bundleBytes)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: push to Mortise: %v\n", err)
+			return exitSystemError
+		}
+		fmt.Fprintf(stdout, "lodged bundle with Mortise %s: receipt %s (bundle hash %s)\n", mortiseEndpoint, receipt.ReceiptID, receipt.BundleHash)
+	} else {
+		files, err := incident.BuildPack(context.Background(), bundlePath, sessionID, version)
+		if err != nil {
+			fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+			return exitSystemError
+		}
+		if err := writeIncidentPack(out, files); err != nil {
+			fmt.Fprintf(stderr, "atb incident export: %v\n", err)
+			return exitSystemError
+		}
+		fmt.Fprintf(stdout, "wrote incident evidence package %s (%d files)\n", out, len(files))
 	}
-	if err := writeIncidentPack(out, files); err != nil {
-		fmt.Fprintf(stderr, "atb incident export: %v\n", err)
-		return exitSystemError
-	}
-	fmt.Fprintf(stdout, "wrote incident evidence package %s (%d files)\n", out, len(files))
 	return exitSuccess
 }
 
@@ -299,7 +379,7 @@ func writeIncidentPack(out string, files []incident.PackFile) error {
 func printIncidentUsage(w io.Writer) {
 	fmt.Fprint(w, `atb incident list   --bundle <path> [--format markdown|json]
 atb incident report --bundle <path> --session <id> [--format markdown|json|ndjson]
-atb incident export --bundle <path> --session <id> --out <pack.zip>
+atb incident export --bundle <path> --session <id> (--out <pack.zip> | --mortise-endpoint <url>)
 
 Discover, review, and package agent sessions captured in an ATB bundle.
 
@@ -319,6 +399,9 @@ report flags:
 export flags:
   --bundle <path>            Bundle to read (required)
   --session <id>             Session identifier to package (required)
-  --out <pack.zip>           Output evidence package path (required)
+  --out <pack.zip>           Write a local offline evidence package (this or --mortise-endpoint)
+  --mortise-endpoint <url>   Lodge the bundle with Mortise; prints the signed receipt
+                             (set ATB_MORTISE_TOKEN for Bearer authentication)
+  --custos-endpoint <url>    Deprecated compatibility alias for --mortise-endpoint
 `)
 }

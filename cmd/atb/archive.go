@@ -14,7 +14,9 @@ import (
 
 	archiveledger "github.com/pcguest/atb/internal/archive"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/internal/retentionaudit"
 )
 
 type archiveConfig struct {
@@ -249,6 +251,24 @@ func runArchive(now time.Time, cfg archiveConfig, out io.Writer) (archiveSummary
 		}
 		summary.ArchivedDefault = true
 		fmt.Fprintln(out, "✓ recreated empty default bundle at run.atb/bundle.atb")
+	}
+
+	if !cfg.DryRun {
+		if err := retentionaudit.Append(retentionaudit.DefaultPath(), event.TypeDataRetentionEnforced, map[string]any{
+			"operation":              "local_archive",
+			"enforcement_system":     "atb_archive",
+			"outcome":                "completed",
+			"evidence_level":         "local_operation_and_ledger",
+			"independently_verified": false,
+			"cutoff":                 settings.Cutoff.UTC().Format(time.RFC3339),
+			"affected_count":         summary.Archived,
+			"ledger_head_hash":       summary.LedgerHeadHash,
+			"archive_dir":            settings.ArchiveDir,
+			"scope":                  settings.Scope,
+		}, now); err != nil {
+			return summary, fmt.Errorf("archive completed but retention audit logging failed: %w", err)
+		}
+		fmt.Fprintf(out, "✓ retention audit: %s\n", retentionaudit.DefaultPath())
 	}
 
 	fmt.Fprintf(

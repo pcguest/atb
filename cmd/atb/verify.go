@@ -216,7 +216,7 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 	}
 
 	if verifyWantsStructuredJSON(cfg) {
-		verifierReport := verifypkg.ReportFromVerify(verifyReport)
+		verifierReport := verifypkg.ReportFromVerifyWithBundle(verifyReport, b)
 		if err := writeVerifierReportJSON(stdout, verifierReport); err != nil {
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
@@ -425,7 +425,7 @@ func printVerifyUsage(w io.Writer) {
 func writeVerifySchema(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 	schema := custodypkg.VerifyReportSchemaJSON()
 	if cfg.SchemaOut != "" {
-		if err := os.WriteFile(cfg.SchemaOut, schema, 0o644); err != nil {
+		if err := os.WriteFile(cfg.SchemaOut, schema, 0o600); err != nil {
 			fmt.Fprintf(stderr, "atb verify: write schema: %v\n", err)
 			return exitSystemError
 		}
@@ -595,7 +595,7 @@ func buildCorroborationOption(cfg verifyCLIConfig) (verifypkg.EvaluateOption, er
 	if strings.TrimSpace(cfg.CorroborationPolicyPath) == "" {
 		return verifypkg.WithCorroborationPolicy(verifypkg.DefaultCorroborationPolicy()), nil
 	}
-	data, err := os.ReadFile(cfg.CorroborationPolicyPath) // #nosec G703 -- filepath.Clean-sanitised at parse time
+	data, err := os.ReadFile(cfg.CorroborationPolicyPath) // #nosec G304 -- operator explicitly selects the cleaned policy file via CLI.
 	if err != nil {
 		return nil, fmt.Errorf("corroboration-policy: read %s: %w", cfg.CorroborationPolicyPath, err)
 	}
@@ -614,7 +614,7 @@ func loadVerifyRoots(path string) (*x509.CertPool, error) {
 		return nil, nil
 	}
 
-	pemBytes, err := os.ReadFile(path) // #nosec G703 -- path is filepath.Clean-sanitised at parse time; supplied by operator via --roots CLI flag
+	pemBytes, err := os.ReadFile(path) // #nosec G304 -- operator explicitly selects the cleaned trust-roots file via --roots.
 	if err != nil {
 		return nil, fmt.Errorf("roots: read %s: %w", path, err)
 	}
@@ -731,7 +731,7 @@ func runVerifyRemote(cfg verifyCLIConfig, stdout, stderr io.Writer) int {
 	}
 
 	// Emit output.
-	verifierReport := verifypkg.ReportFromVerify(verifyReport)
+	verifierReport := verifypkg.ReportFromVerifyWithBundle(verifyReport, b)
 
 	if verifyWantsStructuredJSON(cfg) || cfg.JSON {
 		wrapped := remoteVerifyReport{

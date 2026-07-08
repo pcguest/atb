@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Package custody exposes a minimal, stable ingest surface for Custos and other
+// Package custody exposes a minimal, stable ingest surface for Mortise and other
 // hosted custody services. It wraps ATB's verifier without reimplementing
 // bundle parsing, hashing, or profile evaluation.
 //
@@ -7,7 +7,7 @@
 //   - Raw .atb bundle bytes (content-addressed by head hash)
 //   - verify.report.v1 JSON produced by ReportFromVerify
 //
-// Custos Phase 1 stores both artefacts immutably and must not mutate or
+// Mortise Phase 1 stores both artefacts immutably and must not mutate or
 // re-score the report.
 package custody
 
@@ -54,17 +54,17 @@ func LoadBundle(data []byte) (*bundle.Bundle, error) {
 
 // Evaluate loads bundle bytes, runs ATB verification for profileID, and returns
 // the head hash plus verify.report.v1 output. bundlePath is recorded in the
-// report only; use a synthetic path such as "custos://ingest" when none exists.
+// report only; use a synthetic path such as "mortise://ingest" when none exists.
 func Evaluate(data []byte, profileID, bundlePath string) (EvalResult, error) {
 	b, err := LoadBundle(data)
 	if err != nil {
 		return EvalResult{}, err
 	}
 	if bundlePath == "" {
-		bundlePath = "custos://ingest"
+		bundlePath = "mortise://ingest"
 	}
 	report := verify.Verify(b, bundlePath, profileID)
-	vr := verify.ReportFromVerify(report)
+	vr := verify.ReportFromVerifyWithBundle(report, b)
 	return EvalResult{
 		HeadHash: HeadHash(b),
 		Report:   vr,

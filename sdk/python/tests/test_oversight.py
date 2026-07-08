@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from atb import event_types
+from atb import IdentityEvidence, event_types
 from atb.oversight import (
     ActionErrorEmitter,
     DataExportEmitter,
@@ -71,11 +71,29 @@ def test_human_approval_emitter_missing_required() -> None:
 def test_human_approval_emitter_valid_emits_correct_type() -> None:
     sink = _StubSink()
     emitter = HumanApprovalEmitter(sink)
-    emitter.emit("action-42", approver_id="bob", note="LGTM")
+    emitter.emit(
+        "action-42",
+        approver_id="bob",
+        note="LGTM",
+        identity_evidence=IdentityEvidence(
+            identity_provider="https://idp.example",
+            subject="bob",
+            auth_context="mfa",
+            assertion_type="jwt",
+            assertion_digest="sha256:assertion",
+        ),
+    )
     event_type, payload = sink.events[0]
     assert event_type == event_types.HUMAN_APPROVAL
     assert payload["approved_action_id"] == "action-42"
     assert payload["approver_id"] == "bob"
+    assert payload["identity_evidence"] == {
+        "identity_provider": "https://idp.example",
+        "subject": "bob",
+        "auth_context": "mfa",
+        "assertion_type": "jwt",
+        "assertion_digest": "sha256:assertion",
+    }
 
 
 def test_empty_session_id_propagated() -> None:

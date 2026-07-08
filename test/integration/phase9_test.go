@@ -4,14 +4,14 @@
 package integration_test
 
 import (
-	"io"
-	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/pkg/corroborate"
 	corrobgithub "github.com/pcguest/atb/pkg/corroborate/github"
 	"github.com/pcguest/atb/pkg/otel"
 )
@@ -58,60 +58,38 @@ func TestPhase9OTelTranslationAppendsVerifiableBundleEvent(t *testing.T) {
 	}
 }
 
-func TestPhase9GitHubCorroboratorParsesAuditLogResponse(t *testing.T) {
-	client := &http.Client{Transport: phase9RoundTripFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Path != "/orgs/pcguest/audit-log" {
-			t.Fatalf("path = %q", r.URL.Path)
-		}
-		if got := r.URL.Query().Get("phrase"); got != "doc-123" {
-			t.Fatalf("phrase = %q, want doc-123", got)
-		}
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Header: http.Header{
-				"X-Ratelimit-Limit":     []string{"5000"},
-				"X-Ratelimit-Remaining": []string{"4998"},
-			},
-			Body: io.NopCloser(strings.NewReader(`[
-			{
-				"_document_id": "doc-123",
-				"action": "repo.destroy",
-				"actor": "octocat",
-				"repo": "pcguest/atb",
-				"created_at": 1779930123000
-			}
-		]`)),
-		}, nil
-	})}
+func TestPhase9GitHubCorroboratorConstructsAuditLogQuery(t *testing.T) {
+	c := corrobgithub.NewGitHubCorroborator("https://github.test", "pcguest")
+	occurredAt := time.Date(2026, 5, 28, 9, 2, 3, 0, time.UTC)
 
-	c := corrobgithub.NewGitHubCorroborator(
-		"token-ref",
-		corrobgithub.WithOrganisation("pcguest"),
-		corrobgithub.WithBaseURL("https://github.test"),
-		corrobgithub.WithHTTPClient(client),
-	)
-	got, err := c.Verify(&event.Event{
-		Type: event.TypeAIActionExecuted,
-		Data: map[string]any{
-			"document_id": "doc-123",
+	got, err := c.Verify(&corroborate.Event{
+		Type:       event.TypeToolCall,
+		OccurredAt: occurredAt,
+		Actor: corroborate.Actor{
+			Email:       "octocat@example.com",
+			DisplayName: "octocat",
 		},
 	})
 	if err != nil {
 		t.Fatalf("Verify() error = %v", err)
 	}
-	if !got.Matched {
-		t.Fatal("Matched = false, want true")
+	if got.Matched {
+		t.Fatal("Matched = true, want false for deferred live lookup")
 	}
-	if got.DocumentID != "doc-123" || got.Action != "repo.destroy" {
-		t.Fatalf("result = %+v", got)
+	if got.Source != "github" {
+		t.Fatalf("Source = %q, want github", got.Source)
 	}
-	if got.RateLimitRemaining != 4998 {
-		t.Fatalf("RateLimitRemaining = %d, want 4998", got.RateLimitRemaining)
+	parsed, err := url.Parse(got.QueryURL)
+	if err != nil {
+		t.Fatalf("parse query URL: %v", err)
 	}
-}
-
-type phase9RoundTripFunc func(*http.Request) (*http.Response, error)
-
-func (f phase9RoundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) {
-	return f(r)
+	if parsed.Path != "/enterprises/pcguest/audit-log" {
+		t.Fatalf("path = %q, want /enterprises/pcguest/audit-log", parsed.Path)
+	}
+	if phrase := parsed.Query().Get("phrase"); !strings.Contains(phrase, "actor:octocat@example.com") {
+		t.Fatalf("phrase = %q, want actor email", phrase)
+	}
+	if created := parsed.Query().Get("created"); created != "2026-05-28" {
+		t.Fatalf("created = %q, want 2026-05-28", created)
+	}
 }

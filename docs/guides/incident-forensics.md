@@ -33,7 +33,7 @@ atb intercept --bundle ~/.atb/sessions/$(date +%Y%m%d-%H%M).atb
 
 Session bundles can contain sensitive metadata (and raw prompts if
 `--capture-bodies` was used). Keep them out of version control; verify locally,
-then hand off a closed bundle to custody (for example Custos via `--custos`)
+then hand off a closed bundle to custody (for example Mortise via `--mortise`)
 rather than committing it to a repository.
 
 By default **bodies are digested, not stored** (`body_sha256` + `body_bytes`);
@@ -43,6 +43,13 @@ credential headers are stripped. See [`docs/public-surface.md`](../public-surfac
 >
 > ```bash
 > go run ./examples/bundles/incident-capture/
+> ```
+
+> **No provider credentials?** Run the complete SDK oversight demo:
+>
+> ```bash
+> make build
+> PYTHONPATH=sdk/python ATB_BIN=./atb python examples/python/agent_incident_demo.py
 > ```
 
 ## 2. Seal it (optional)
@@ -74,6 +81,17 @@ atb incident report \
 
 Add `--format json` or `--format ndjson` for machine-readable output.
 
+Open the same evidence in the local viewer:
+
+```bash
+atb view \
+  --bundle examples/bundles/incident-capture/incident-capture.atb \
+  --profile atb.profile.privileged_tool_action
+```
+
+The sessions page exposes the session list, actor grouping, anomaly badges,
+capture/action event families, and schema status.
+
 ## 5. SDK append path (without intercept)
 
 When events are appended directly instead of captured via the proxy:
@@ -84,16 +102,25 @@ atb append ai.request.received --data='{"request_id":"req-1042",…}'
 atb append ai.policy.decision --data='{"decision":"deny",…}'
 atb snapshot incident_review_failed
 atb verify --profile atb.profile.policy_decision --format json
-atb export --format compliance --output incident-review-evidence.zip
+atb compliance pack \
+  --bundle run.atb/bundle.atb \
+  --profile atb.profile.policy_decision \
+  --regime eu-ai-act \
+  --out incident-review-evidence.zip
 ```
 
 See [Quickstart](../quickstart.md) for a full policy-decision example.
+For live SDK calls, use `wrap_openai`/`wrap_anthropic` in Python or
+`wrapOpenAI`/`wrapAnthropic` in TypeScript. Each wrapper emits an
+`atb.capture.scope` event that states its capture boundary.
 
 ## What the report proves (and what it doesn't)
 
 - **Integrity PASS** — the recorded sequence was not altered after capture.
 - **Signature valid** — attributes the bundle to a signing key (when signed).
 - **`tool_without_approval`** — a control was *missing* in the record, not proof of tampering.
+- **Reviewer identity evidence present** — an IdP assertion digest was recorded
+  without alteration; ATB did not validate the assertion.
 
 A session report scopes review; the **full signed bundle** remains the authoritative
 evidence object. Every event row's record hash is checkable against that bundle.

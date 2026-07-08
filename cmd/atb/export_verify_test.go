@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -153,6 +154,15 @@ func TestRunExportWithVerifyScenarios(t *testing.T) {
 					sidecarBytes, err := os.ReadFile(sidecarAbsPath)
 					if err != nil {
 						t.Fatalf("read sidecar: %v", err)
+					}
+					if runtime.GOOS != "windows" { // Unix permission bits are not enforced on Windows file modes
+						info, err := os.Stat(sidecarAbsPath)
+						if err != nil {
+							t.Fatalf("stat sidecar: %v", err)
+						}
+						if got := info.Mode().Perm(); got != 0o600 {
+							t.Fatalf("sidecar mode=%#o, want 0600", got)
+						}
 					}
 
 					var sidecar verifypkg.ExportVerificationSidecar

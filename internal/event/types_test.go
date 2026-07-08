@@ -134,6 +134,39 @@ func TestActionErrorEventRegistered(t *testing.T) {
 	}
 }
 
+func TestRetentionEventsRegisteredWithoutProfileObligations(t *testing.T) {
+	want := map[string][]string{
+		event.TypeDataRetentionPolicySet: {
+			"policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest",
+		},
+		event.TypeDataRetentionPolicyChanged: {
+			"policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest", "previous_config_digest",
+		},
+		event.TypeDataRetentionEnforced: {
+			"operation", "enforcement_system", "outcome", "evidence_level", "independently_verified",
+		},
+	}
+	for eventType, fields := range want {
+		var spec *event.EventTypeSpecGenerated
+		for i := range event.EventTypesGenerated {
+			if event.EventTypesGenerated[i].Type == eventType {
+				spec = &event.EventTypesGenerated[i]
+				break
+			}
+		}
+		if spec == nil {
+			t.Fatalf("%s missing from EventTypesGenerated", eventType)
+		}
+		if len(spec.Profiles) != 0 {
+			t.Errorf("%s must remain additive and unprofiled, got %v", eventType, spec.Profiles)
+		}
+		got := event.RequiredFieldsGenerated[eventType]
+		if strings.Join(got, ",") != strings.Join(fields, ",") {
+			t.Errorf("%s required_fields = %v, want %v", eventType, got, fields)
+		}
+	}
+}
+
 func TestRegistryProfileAnnotationsCoverEmbeddedTemplates(t *testing.T) {
 	registryByType := make(map[string]event.EventInfo, len(event.Registry))
 	for _, entry := range event.Registry {

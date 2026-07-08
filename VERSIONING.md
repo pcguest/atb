@@ -18,7 +18,19 @@ The relationship between them:
 - A **CLI MAJOR** bump may but need not change the manifest version.
 - A **manifest version** bump always implies a CLI MINOR bump at minimum (and often MAJOR if existing bundles cease to verify).
 - A **JSON schema filename** bump (`event.v1.json` → `event.v2.json`) implies a manifest version bump and is a CLI MAJOR.
-- A **canonicalisation profile** change is the most contagious of all — it invalidates every existing bundle's hash chain and is treated as a CLI MAJOR plus a manifest version bump plus a fresh golden-vector regeneration plus a synchronised SDK release.
+- A **canonicalisation profile** change is the most contagious of all. It invalidates every existing bundle's hash chain and is treated as a CLI MAJOR plus a manifest version bump plus a fresh golden-vector regeneration plus a synchronised SDK release.
+
+### The verify.report.v1 automation contract
+
+`atb verify --format json` emits `report_version: "verify.report.v1"`. This is a
+stable consumer contract: existing fields keep their name and meaning. New
+optional fields may be added within `v1`, exactly like additive optional fields
+on `event.v1.json`. When that happens, the JSON Schema file revision
+(`pkg/custody/schema/verify.report.v1.schema.N.json`, tracked by
+`VerifyReportSchemaVersion`) increments so a strict validator can tell which
+revision produced a report, while `report_version` stays `verify.report.v1`.
+Removing or renaming a field, or changing the meaning of one, is a contract break
+and requires `verify.report.v2`.
 
 ## Breaking vs non-breaking changes
 

@@ -61,4 +61,33 @@ describe("HumanOverrideGate", () => {
       .find((event) => event.type === "ai.action.precommit")!.data as Record<string, unknown>;
     expect(precommit.principal).toEqual({ type: "human", id_hash: "sha256:op-1" });
   });
+
+  it("records digest-only reviewer identity evidence on approval", async () => {
+    const bundle = new Bundle();
+    const gate = new HumanOverrideGate({ bundle, actorId: "actor-1" });
+
+    await gate.run(
+      action,
+      {
+        ...approval,
+        identityEvidence: {
+          identityProvider: "https://idp.example",
+          subject: "reviewer-1",
+          assertionType: "jwt",
+          assertionDigest: "sha256:assertion",
+        },
+      },
+      async () => "ok",
+    );
+
+    const event = bundle.records
+      .map((record) => record.event)
+      .find((candidate) => candidate.type === "ai.human.approval")!;
+    expect((event.data as Record<string, unknown>).identity_evidence).toEqual({
+      identity_provider: "https://idp.example",
+      subject: "reviewer-1",
+      assertion_type: "jwt",
+      assertion_digest: "sha256:assertion",
+    });
+  });
 });

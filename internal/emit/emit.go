@@ -19,6 +19,17 @@ type Emitter struct {
 	appendFn  func(event.Event) (string, error)
 }
 
+// IdentityEvidence carries digest-only caller-provided reviewer identity
+// context. ATB preserves it but does not verify the asserted identity.
+type IdentityEvidence struct {
+	IdentityProvider  string
+	Subject           string
+	AuthContext       string
+	AssertionType     string
+	AssertionDigest   string
+	RawEvidenceDigest string
+}
+
 // NewEmitter constructs an Emitter. sessionID is required. appendFn is the
 // caller-supplied function that appends a raw event to the destination bundle
 // and returns the record hash.
@@ -99,6 +110,7 @@ type HumanOverrideOptions struct {
 	OverrideReason     string // required
 	ActorID            string
 	OverriddenActionID string
+	IdentityEvidence   *IdentityEvidence
 }
 
 // HumanOverride emits an atb.human.override event. opts.OverrideReason is required.
@@ -116,6 +128,11 @@ func (e *Emitter) HumanOverride(opts HumanOverrideOptions) error {
 	if v := strings.TrimSpace(opts.OverriddenActionID); v != "" {
 		data["overridden_action_id"] = v
 	}
+	if evidence, err := identityEvidenceData(opts.IdentityEvidence); err != nil {
+		return err
+	} else if evidence != nil {
+		data["identity_evidence"] = evidence
+	}
 	return e.append(event.TypeHumanOverride, data)
 }
 
@@ -125,6 +142,7 @@ type HumanApprovalOptions struct {
 	ActorID          string
 	ApproverID       string
 	Note             string
+	IdentityEvidence *IdentityEvidence
 }
 
 // HumanApproval emits an atb.human.approval event. opts.ApprovedActionID is required.
@@ -144,6 +162,11 @@ func (e *Emitter) HumanApproval(opts HumanApprovalOptions) error {
 	}
 	if v := strings.TrimSpace(opts.Note); v != "" {
 		data["note"] = v
+	}
+	if evidence, err := identityEvidenceData(opts.IdentityEvidence); err != nil {
+		return err
+	} else if evidence != nil {
+		data["identity_evidence"] = evidence
 	}
 	return e.append(event.TypeHumanApproval, data)
 }
@@ -200,4 +223,37 @@ func (e *Emitter) append(eventType string, data map[string]any) error {
 		Data:      data,
 	})
 	return err
+}
+
+func identityEvidenceData(evidence *IdentityEvidence) (map[string]any, error) {
+	if evidence == nil {
+		return nil, nil
+	}
+	provider := strings.TrimSpace(evidence.IdentityProvider)
+	subject := strings.TrimSpace(evidence.Subject)
+	assertionType := strings.TrimSpace(evidence.AssertionType)
+	assertionDigest := strings.TrimSpace(evidence.AssertionDigest)
+	if provider == "" || subject == "" || assertionType == "" || assertionDigest == "" {
+		return nil, fmt.Errorf("atb: identity evidence requires provider, subject, assertion type, and assertion digest")
+	}
+	switch assertionType {
+	case "jwt", "x509", "saml", "opaque":
+	default:
+		// event.v1 constrains identity_evidence.assertion_type; reject early
+		// so schema-validating readers never see an out-of-enum value.
+		return nil, fmt.Errorf("atb: identity evidence assertion_type must be one of jwt, x509, saml, opaque")
+	}
+	data := map[string]any{
+		"identity_provider": provider,
+		"subject":           subject,
+		"assertion_type":    assertionType,
+		"assertion_digest":  assertionDigest,
+	}
+	if value := strings.TrimSpace(evidence.AuthContext); value != "" {
+		data["auth_context"] = value
+	}
+	if value := strings.TrimSpace(evidence.RawEvidenceDigest); value != "" {
+		data["raw_evidence_digest"] = value
+	}
+	return data, nil
 }

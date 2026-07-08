@@ -31,10 +31,11 @@ func TestIncidentBundleIntegrityAndOversight(t *testing.T) {
 
 	// The bundle must contain the capture + accountability events.
 	want := map[string]bool{
-		"atb.llm.request":  false,
-		"atb.llm.response": false,
-		"atb.tool.call":    false,
-		"ai.action.error":  false,
+		"atb.llm.request":    false,
+		"atb.llm.response":   false,
+		"atb.tool.call":      false,
+		"ai.action.error":    false,
+		"atb.human.override": false,
 	}
 	for _, rec := range b.Records {
 		if _, ok := want[rec.Event.Type]; ok {

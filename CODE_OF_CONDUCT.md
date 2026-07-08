@@ -30,7 +30,7 @@ This Code of Conduct applies within all project spaces and when an individual is
 
 ## Reporting
 
-Report unacceptable behaviour to [patrickcguest@proton.me](mailto:patrickcguest@proton.me).
+Report unacceptable behaviour privately to the maintainers through GitHub's private vulnerability reporting, on the repository's **Security** tab under **Report a vulnerability**. It is the project's private channel to the maintainers; use it for conduct reports as well as security issues.
 
 All complaints will be reviewed and investigated promptly and fairly.
 

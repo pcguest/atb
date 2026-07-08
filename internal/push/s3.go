@@ -7,6 +7,7 @@ package push
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -73,19 +74,7 @@ func IsNotFound(err error) bool {
 
 // asS3Error is a minimal errors.As substitute that avoids an import cycle.
 func asS3Error(err error, target **S3Error) bool {
-	if err == nil {
-		return false
-	}
-	if e, ok := err.(*S3Error); ok {
-		*target = e
-		return true
-	}
-	// Unwrap one level (covers fmt.Errorf("%w", ...) wrappers).
-	type unwrapper interface{ Unwrap() error }
-	if u, ok := err.(unwrapper); ok {
-		return asS3Error(u.Unwrap(), target)
-	}
-	return false
+	return errors.As(err, target)
 }
 
 // ParseS3URI splits an S3 URI such as "s3://bucket/prefix" into bucket and prefix.

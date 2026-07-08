@@ -24,6 +24,7 @@ from typing import Any, Literal, TypeVar
 from atb.bundle import Bundle
 from atb.canonicalize import canonicalize
 from atb.exceptions import ATBError
+from atb.identity_evidence import IdentityEvidence, identity_evidence_payload
 from atb.workflow_common import WorkflowEventSink
 
 T = TypeVar("T")
@@ -72,6 +73,7 @@ class ActionGateInput:
     policy_context: Mapping[str, Any] | None = None
     principal: "ActionPrincipal | None" = None
     effective_scope: str | None = None
+    identity_evidence: IdentityEvidence | None = None
 
 
 @dataclass(frozen=True)
@@ -190,19 +192,28 @@ class ActionGate:
         precommit: dict[str, Any] = {
             "action_id": action_id,
             "action_type": action.action_type,
-            "action_parameters_digest": _canonical_digest(dict(action.action_parameters)),
+            "action_parameters_digest": _canonical_digest(
+                dict(action.action_parameters)
+            ),
             "target_resource_id": action.target_resource_id,
             "intended_effect": action.intended_effect,
         }
         principal = _principal_payload(action.principal)
         if principal is not None:
             precommit["principal"] = principal
+        identity_evidence = identity_evidence_payload(action.identity_evidence)
+        if identity_evidence is not None:
+            precommit["identity_evidence"] = identity_evidence
         self._emit("ai.action.precommit", precommit)
 
         decision = self.policy(action)
-        self._emit("ai.policy.decision", self._policy_payload(action, action_id, decision))
+        self._emit(
+            "ai.policy.decision", self._policy_payload(action, action_id, decision)
+        )
         if decision.decision == "deny" and self.mode == "enforce":
-            raise ActionGateDeniedError(f"action denied by policy for action_id {action_id}")
+            raise ActionGateDeniedError(
+                f"action denied by policy for action_id {action_id}"
+            )
 
         started_at = time.perf_counter()
         try:
@@ -214,7 +225,10 @@ class ActionGate:
             self._emit("ai.action.error", self._error_payload(action, action_id, exc))
             raise
 
-        self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, result))
+        self._emit(
+            "ai.action.executed",
+            self._executed_payload(action, action_id, started_at, result),
+        )
         return result
 
     async def arun(self, action: ActionGateInput, fn: Callable[[], Awaitable[T]]) -> T:
@@ -235,19 +249,28 @@ class ActionGate:
         precommit: dict[str, Any] = {
             "action_id": action_id,
             "action_type": action.action_type,
-            "action_parameters_digest": _canonical_digest(dict(action.action_parameters)),
+            "action_parameters_digest": _canonical_digest(
+                dict(action.action_parameters)
+            ),
             "target_resource_id": action.target_resource_id,
             "intended_effect": action.intended_effect,
         }
         principal = _principal_payload(action.principal)
         if principal is not None:
             precommit["principal"] = principal
+        identity_evidence = identity_evidence_payload(action.identity_evidence)
+        if identity_evidence is not None:
+            precommit["identity_evidence"] = identity_evidence
         self._emit("ai.action.precommit", precommit)
 
         decision = self.policy(action)
-        self._emit("ai.policy.decision", self._policy_payload(action, action_id, decision))
+        self._emit(
+            "ai.policy.decision", self._policy_payload(action, action_id, decision)
+        )
         if decision.decision == "deny" and self.mode == "enforce":
-            raise ActionGateDeniedError(f"action denied by policy for action_id {action_id}")
+            raise ActionGateDeniedError(
+                f"action denied by policy for action_id {action_id}"
+            )
 
         started_at = time.perf_counter()
         try:
@@ -259,7 +282,10 @@ class ActionGate:
             self._emit("ai.action.error", self._error_payload(action, action_id, exc))
             raise
 
-        self._emit("ai.action.executed", self._executed_payload(action, action_id, started_at, result))
+        self._emit(
+            "ai.action.executed",
+            self._executed_payload(action, action_id, started_at, result),
+        )
         return result
 
     def _action_id(self, action: ActionGateInput) -> str:
@@ -299,6 +325,9 @@ class ActionGate:
         subject_id_hash = _subject_hash(action.subject_id, self.actor_id)
         if subject_id_hash is not None:
             payload["subject_id_hash"] = subject_id_hash
+        identity_evidence = identity_evidence_payload(action.identity_evidence)
+        if identity_evidence is not None:
+            payload["identity_evidence"] = identity_evidence
         return payload
 
     def _executed_payload(
@@ -312,11 +341,16 @@ class ActionGate:
             "action_id": action_id,
             "action_type": action.action_type,
             "tool_receipt_digest": _value_digest(receipt),
-            "execution_duration_ms": max(0, int((time.perf_counter() - started_at) * 1000)),
+            "execution_duration_ms": max(
+                0, int((time.perf_counter() - started_at) * 1000)
+            ),
             "execution_outcome": "success",
         }
         if action.effective_scope and action.effective_scope.strip():
             payload["effective_scope"] = action.effective_scope.strip()
+        identity_evidence = identity_evidence_payload(action.identity_evidence)
+        if identity_evidence is not None:
+            payload["identity_evidence"] = identity_evidence
         return payload
 
     def _error_payload(

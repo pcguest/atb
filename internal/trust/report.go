@@ -11,6 +11,7 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/identityevidence"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
@@ -59,15 +60,16 @@ type Summary struct {
 
 // Report is the machine-readable trust report envelope.
 type Report struct {
-	Status      string      `json:"status"`
-	GeneratedAt string      `json:"generated_at"`
-	BundlePath  string      `json:"bundle_path"`
-	ChainLength int         `json:"chain_length"`
-	HeadHash    string      `json:"head_hash,omitempty"`
-	Gate        Gate        `json:"gate"`
-	Summary     Summary     `json:"summary"`
-	Categories  []Category  `json:"categories"`
-	CAS         *CASSection `json:"cas,omitempty"`
+	Status             string                      `json:"status"`
+	GeneratedAt        string                      `json:"generated_at"`
+	BundlePath         string                      `json:"bundle_path"`
+	ChainLength        int                         `json:"chain_length"`
+	HeadHash           string                      `json:"head_hash,omitempty"`
+	Gate               Gate                        `json:"gate"`
+	Summary            Summary                     `json:"summary"`
+	Categories         []Category                  `json:"categories"`
+	CAS                *CASSection                 `json:"cas,omitempty"`
+	ReviewerIdentities []identityevidence.Evidence `json:"reviewer_identities,omitempty"`
 }
 
 // BuildReport creates a trust report for the bundle path, preferring workspace
@@ -110,6 +112,9 @@ func BuildReport(repoRoot string, bundlePath string, profileID string) Report {
 				}
 			}
 		}
+	}
+	if b, err := bundle.Load(bundlePath); err == nil {
+		report.ReviewerIdentities = identityevidence.Extract(b)
 	}
 	return report
 }

@@ -409,7 +409,7 @@ func buildComplianceJSONManifest(now time.Time, cfg exportConfig, result exportB
 		return exportpkg.ComplianceManifest{}, exitSystemError, fmt.Errorf("load bundle %s for manifest verification: %w", bundlePath, err)
 	}
 
-	report := verifypkg.ReportFromVerify(verifypkg.Verify(b, bundlePath, ""))
+	report := verifypkg.ReportFromVerifyWithBundle(verifypkg.Verify(b, bundlePath, ""), b)
 	manifest.VerifyResult = &report
 	if report.Pass {
 		return manifest, exitSuccess, nil
@@ -1867,7 +1867,7 @@ func writeExportVerificationSidecar(cfg exportConfig, result exportBuildResult, 
 	if err != nil {
 		return verifypkg.Report{}, nil, fmt.Errorf("marshal verification sidecar: %w", err)
 	}
-	if err := os.WriteFile(sidecarPath, data, 0o644); err != nil { // #nosec G703 — sidecarPath is derived from the cleaned --output path plus a fixed ".verify.json" suffix
+	if err := os.WriteFile(sidecarPath, data, 0o600); err != nil {
 		return verifypkg.Report{}, nil, fmt.Errorf("write verification sidecar: %w", err)
 	}
 

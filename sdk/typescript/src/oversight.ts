@@ -4,6 +4,7 @@ import {
   HUMAN_OVERRIDE,
   TOOL_CALL,
 } from "./eventTypes.js";
+import { identityEvidencePayload, type IdentityEvidence } from "./identity-evidence.js";
 
 /** Compatible event sink for oversight emitters. */
 export interface OversightEventSink {
@@ -38,6 +39,7 @@ export interface HumanOverrideOptions {
   overrideReason: string;
   actorId?: string;
   overriddenActionId?: string;
+  identityEvidence?: IdentityEvidence;
 }
 
 /** Options for {@link HumanApprovalEmitter.emit}. */
@@ -47,6 +49,7 @@ export interface HumanApprovalOptions {
   actorId?: string;
   approverId?: string;
   note?: string;
+  identityEvidence?: IdentityEvidence;
 }
 
 function requireNonEmpty(value: string, field: string): string {
@@ -150,6 +153,10 @@ export class HumanOverrideEmitter {
     payload.override_reason = requireNonEmpty(opts.overrideReason, "overrideReason");
     optionalStr(payload, "actor_id", opts.actorId);
     optionalStr(payload, "overridden_action_id", opts.overriddenActionId);
+    const identityEvidence = identityEvidencePayload(opts.identityEvidence);
+    if (identityEvidence) {
+      payload.identity_evidence = identityEvidence;
+    }
     this.ctx.emit(HUMAN_OVERRIDE, payload);
   }
 }
@@ -176,6 +183,10 @@ export class HumanApprovalEmitter {
     optionalStr(payload, "actor_id", opts.actorId);
     optionalStr(payload, "approver_id", opts.approverId);
     optionalStr(payload, "note", opts.note);
+    const identityEvidence = identityEvidencePayload(opts.identityEvidence);
+    if (identityEvidence) {
+      payload.identity_evidence = identityEvidence;
+    }
     this.ctx.emit(HUMAN_APPROVAL, payload);
   }
 }

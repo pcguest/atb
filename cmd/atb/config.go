@@ -11,6 +11,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/internal/retentionaudit"
 )
 
 const (
@@ -91,14 +94,55 @@ func runConfig(args []string, stdout, stderr io.Writer) int {
 	if existing.Version == 0 {
 		existing.Version = configVersion
 	}
-	existing.Retention = defaultRetentionPolicy(cfg.Days, time.Now().UTC())
+	now := time.Now().UTC()
+	previousPolicy := existing.Retention
+	nextPolicy := defaultRetentionPolicy(cfg.Days, now)
+	nextDigest, err := retentionaudit.Digest(nextPolicy)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb config: prepare retention audit: %v\n", err)
+		return exitSystemError
+	}
+	eventType := event.TypeDataRetentionPolicySet
+	auditData := map[string]any{
+		"policy_id":                   "local.default",
+		"days":                        nextPolicy.Days,
+		"archive_dir":                 nextPolicy.ArchiveDir,
+		"scope":                       nextPolicy.Scope,
+		"cutoff_basis":                nextPolicy.CutoffBasis,
+		"config_digest":               nextDigest,
+		"accepted_below_eu_minimum":   cfg.Days < EUAIActRetentionMinDays,
+		"atb_enforces_storage_policy": false,
+	}
+	if previousPolicy != nil {
+		previousDigest, digestErr := retentionaudit.Digest(previousPolicy)
+		if digestErr != nil {
+			fmt.Fprintf(stderr, "atb config: prepare previous retention audit: %v\n", digestErr)
+			return exitSystemError
+		}
+		eventType = event.TypeDataRetentionPolicyChanged
+		auditData["previous_config_digest"] = previousDigest
+	}
+	existing.Retention = nextPolicy
+
+	previousRaw, readErr := os.ReadFile(configPath) // #nosec G304 -- config path is project-local and controlled by the CLI
+	configExisted := readErr == nil
 
 	if err := saveATBConfig(configPath, existing); err != nil {
 		fmt.Fprintf(stderr, "atb config: save config: %v\n", err)
 		return exitSystemError
 	}
+	if err := retentionaudit.Append(retentionaudit.DefaultPath(), eventType, auditData, now); err != nil {
+		fmt.Fprintf(stderr, "atb config: retention audit logging failed: %v\n", err)
+		if rollbackErr := rollbackConfig(configPath, previousRaw, configExisted); rollbackErr != nil {
+			fmt.Fprintf(stderr, "atb config: rollback failed: %v; retention policy in %s is saved without an audit event\n", rollbackErr, configPath)
+		} else {
+			fmt.Fprintf(stderr, "atb config: previous config restored; retention policy was not applied\n")
+		}
+		return exitSystemError
+	}
 
 	fmt.Fprintf(stdout, "✓ Retention set: %d day(s) in %s\n", cfg.Days, configPath)
+	fmt.Fprintf(stdout, "✓ Retention audit: %s\n", retentionaudit.DefaultPath())
 	return exitSuccess
 }
 
@@ -231,6 +275,15 @@ func saveATBConfig(path string, cfg atbConfig) error {
 		return fmt.Errorf("write config: %w", err)
 	}
 	return nil
+}
+
+// rollbackConfig undoes a config save whose paired audit append failed, so a
+// retention policy is never committed without its audit event.
+func rollbackConfig(path string, previousRaw []byte, existed bool) error {
+	if !existed {
+		return os.Remove(path)
+	}
+	return os.WriteFile(path, previousRaw, 0600) // #nosec G306 G703 -- restores the project-local config file this command just overwrote
 }
 
 func printConfigUsage(stdout io.Writer) {

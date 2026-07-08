@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	version         = "1.14.5"
+	version         = "1.15.1"
 	verifyAlgorithm = "SHA-256||RFC8785"
 )
 
@@ -227,6 +227,13 @@ func usageJSON() helpOutput {
 				Mutating:    false,
 			},
 			{
+				Name:        "compliance",
+				Usage:       "atb compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip> [--mortise-endpoint <url>]",
+				Description: "Build a deterministic, profile-aware offline compliance evidence pack, optionally lodging its authoritative bundle with Mortise.",
+				Flags:       []string{"--bundle", "--profile", "--regime", "--out", "--mortise-endpoint"},
+				Mutating:    false,
+			},
+			{
 				Name:        "config",
 				Usage:       "atb config retention --days <n>",
 				Description: "Set local ATB configuration values.",
@@ -242,9 +249,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "view",
-				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>]",
+				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>]",
 				Description: "Open the local review UI. Requires building from source to include the embedded UI.",
-				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--profile", "--session-token"},
+				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--profile", "--session-token", "--sessions", "--oidc-issuer", "--oidc-audience"},
 				Mutating:    false,
 			},
 			{
@@ -255,9 +262,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "intercept",
-				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]...",
-				Description: "Start the local HTTPS capture proxy that records AI API traffic, tool calls, and failures into a live ATB bundle.",
-				Flags:       []string{"--port", "--bundle", "--target", "--identity-map"},
+				Usage:       "atb intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--mortise <url>]",
+				Description: "Start the local HTTPS capture proxy and optionally lodge closed bundles with Mortise.",
+				Flags:       []string{"--port", "--bundle", "--target", "--identity-map", "--mortise"},
 				Mutating:    false,
 			},
 			{
@@ -282,9 +289,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "incident",
-				Usage:       "atb incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>]",
-				Description: "Discover (list), review (report), and package (export) agent sessions captured in a bundle for forensic review.",
-				Flags:       []string{"--bundle", "--session", "--format", "--out"},
+				Usage:       "atb incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>] [--mortise-endpoint <url>]",
+				Description: "Discover, review, and package agent sessions, optionally lodging the authoritative bundle with Mortise.",
+				Flags:       []string{"--bundle", "--session", "--format", "--out", "--mortise-endpoint"},
 				Mutating:    false,
 			},
 			{
@@ -374,6 +381,8 @@ func main() {
 		cmdPush()
 	case "export":
 		cmdExport()
+	case "compliance":
+		cmdCompliance()
 	case "config":
 		cmdConfig()
 	case "trust-report":
@@ -443,9 +452,10 @@ Commands:
   archive [--before YYYY-MM-DD] [--dry-run]  Archive old bundles into ./archive.atb/ with ledger entries
   push <s3://bucket/prefix> [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry-run] [--format text|json]  Push a sealed bundle to an S3 or S3-compatible WORM target
   export --format <compliance|soc2|gdpr> --output <path.zip> [--bundle <path>] [--type dsr|ropa] [--subject-id <id>] [--dry-run] [--json] [--with-verify]  Export auditor-friendly local evidence bundle
+  compliance pack --bundle <path> --profile <id-or-path> --regime eu-ai-act --out <directory-or-pack.zip> [--mortise-endpoint <url>]  Build a deterministic, profile-aware offline compliance evidence pack; optionally lodge the bundle with Mortise
   config retention --days <n>  Set local retention policy config in ./.atb/config.json
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
-  view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>]  Open the local review UI
+  view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>]  Open the local review UI
   mcp serve         Start the MCP stdio server
   agent run         Start the local ATB Agent HTTP service
   corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]  Fetch external corroboration receipt and append atb.corroboration.external event
@@ -509,14 +519,15 @@ Examples:
   atb events
   atb events --json
   atb events --profile atb.profile.rag_answer
-  ATB_PASSWORD=test123 atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
-  ATB_PASSWORD=test123 atb decrypt handoff/acme-review.atb.enc --output review/acme-review.atb
+  ATB_PASSWORD='<local-demo-password>' atb encrypt run.atb/bundle.atb --output handoff/acme-review.atb.enc
+  ATB_PASSWORD='<local-demo-password>' atb decrypt handoff/acme-review.atb.enc --output review/acme-review.atb
   atb archive --before 2025-01-01 --dry-run
   atb export --format compliance --output evidence.zip --dry-run
   atb export --format soc2 --bundle run.atb/bundle.atb --output soc2-evidence.zip
   atb export --format gdpr --type dsr --subject-id usr_123 --bundle run.atb/bundle.atb --output gdpr-dsr.zip
   atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-ropa.zip
-  atb config retention --days 90
+  atb compliance pack --bundle run.atb/bundle.atb --profile atb.profile.policy_decision --regime eu-ai-act --out eu-ai-act-pack.zip
+  atb config retention --days 183
   atb trust-report --format markdown
   atb trust-report --format json
   atb trust-report --format json --profile atb.profile.privileged_tool_action
@@ -578,30 +589,28 @@ func runInit(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		joinedArgs := strings.Join(rawArgs, " ")
 		if strings.Contains(joinedArgs, "--format json") || strings.Contains(joinedArgs, "--format=json") {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    err.Error(),
 				ExitCode: exitUserError,
-			}, "init")
-			return exitUserError
+			}, stderr, "init")
 		}
 		fmt.Fprintf(stderr, "atb init: %v\n", err)
 		return exitUserError
 	}
 	if len(args) > 0 {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "init",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    "usage: atb init [--dry-run] [--format text|json]",
 				ExitCode: exitUserError,
-			}, "init")
-			return exitUserError
+			}, stderr, "init")
 		}
 		fmt.Fprintln(stderr, "Usage: atb init [--dry-run] [--format text|json] [--manifest-version 1|2]")
 		return exitUserError
@@ -763,30 +772,28 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	maybeWarnWindowsBundleLock(stderr)
 	if err != nil {
 		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "append",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    err.Error(),
 				ExitCode: exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitUserError
 	}
 	if len(args) < 2 {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "append",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    "usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]",
 				ExitCode: exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintln(stderr, "Usage: atb append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]")
 		return exitUserError
@@ -795,7 +802,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	appendInput, err := parseAppendCommandArgs(args[1:])
 	if err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -803,8 +810,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitUserError
@@ -814,7 +820,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	var data interface{}
 	if err := json.Unmarshal([]byte(rawJSON), &data); err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -822,8 +828,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     fmt.Sprintf("invalid JSON: %v", err),
 				ExitCode:  exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: invalid JSON: %v\n", err)
 		return exitUserError
@@ -831,7 +836,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 
 	if err := maybePolicyDocEmbed(eventType, data, appendInput.PolicyDocPath, appendInput.SignPolicyKeyPath, stderr); err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -839,8 +844,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitUserError,
-			}, "append")
-			return exitUserError
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitUserError
@@ -849,7 +853,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 	if err := maybeSignPolicyDecisionEvent(eventType, data, appendInput.SignPolicyKeyPath, stderr); err != nil {
 		exitCode := classifyAppendPolicySignError(err)
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -857,8 +861,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitCode,
-			}, "append")
-			return exitCode
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitCode
@@ -874,7 +877,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 			exitCode = classifyBundleLoadError(err)
 		}
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "append",
 				DryRun:    dryRun,
@@ -882,8 +885,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 				EventType: eventType,
 				Error:     err.Error(),
 				ExitCode:  exitCode,
-			}, "append")
-			return exitCode
+			}, stderr, "append")
 		}
 		fmt.Fprintf(stderr, "atb append: %v\n", err)
 		return exitCode
@@ -895,7 +897,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 			action = "preview_append"
 			message = "event would be appended"
 		}
-		printMutationJSON(mutationResult{
+		return writeMutationJSON(stdout, mutationResult{
 			Status:    "ok",
 			Action:    action,
 			DryRun:    dryRun,
@@ -904,8 +906,7 @@ func runAppend(args []string, stdout, stderr io.Writer) int {
 			EventType: last.Event.Type,
 			Hash:      last.Hash,
 			Message:   message,
-		}, "append")
-		return exitSuccess
+		}, stderr, "append")
 	}
 	if dryRun {
 		fmt.Fprintf(stdout, "~ Dry run: would append event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
@@ -924,15 +925,14 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 	args, outputFormat, dryRun, err := parseMutationFlags(args)
 	if err != nil {
 		if strings.Contains(strings.Join(rawArgs, " "), "--format json") || strings.Contains(strings.Join(rawArgs, " "), "--format=json") {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "corroborate",
 				DryRun:   dryRun,
 				Path:     bundle.DefaultPath(),
 				Error:    err.Error(),
 				ExitCode: exitUserError,
-			}, "corroborate")
-			return exitUserError
+			}, stderr, "corroborate")
 		}
 		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
 		return exitUserError
@@ -1011,15 +1011,14 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 	rec, err := adapter.Fetch(context.Background(), ref)
 	if err != nil {
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:   "error",
 				Action:   "corroborate",
 				DryRun:   dryRun,
 				Path:     resolvedPath,
 				Error:    err.Error(),
 				ExitCode: exitSystemError,
-			}, "corroborate")
-			return exitSystemError
+			}, stderr, "corroborate")
 		}
 		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
 		return exitSystemError
@@ -1036,7 +1035,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			exitCode = classifyBundleLoadError(err)
 		}
 		if outputFormat == formatJSON {
-			printMutationJSON(mutationResult{
+			return writeMutationJSON(stdout, mutationResult{
 				Status:    "error",
 				Action:    "corroborate",
 				DryRun:    dryRun,
@@ -1044,8 +1043,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 				EventType: event.TypeCorroborationExternal,
 				Error:     err.Error(),
 				ExitCode:  exitCode,
-			}, "corroborate")
-			return exitCode
+			}, stderr, "corroborate")
 		}
 		fmt.Fprintf(stderr, "atb corroborate: %v\n", err)
 		return exitCode
@@ -1058,7 +1056,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			action = "preview_corroborate"
 			message = "corroboration event would be appended"
 		}
-		printMutationJSON(mutationResult{
+		return writeMutationJSON(stdout, mutationResult{
 			Status:    "ok",
 			Action:    action,
 			DryRun:    dryRun,
@@ -1067,8 +1065,7 @@ func runCorroborate(args []string, stdout, stderr io.Writer) int {
 			EventType: last.Event.Type,
 			Hash:      last.Hash,
 			Message:   message,
-		}, "corroborate")
-		return exitSuccess
+		}, stderr, "corroborate")
 	}
 	if dryRun {
 		fmt.Fprintf(stdout, "~ Dry run: would append event #%d [%s] hash=%s\n", last.Event.Sequence, last.Event.Type, last.Hash[:16]+"...")
@@ -1294,7 +1291,7 @@ func maybePolicyDocEmbed(eventType string, data interface{}, docPath, keyPath st
 	if !ok {
 		return fmt.Errorf("ai.policy.decision payload must be a JSON object when --policy-doc is set")
 	}
-	contents, err := os.ReadFile(docPath) // #nosec G703 -- filepath.Clean-sanitised at parse time
+	contents, err := os.ReadFile(docPath) // #nosec G304 -- operator explicitly selects the cleaned policy document via CLI.
 	if err != nil {
 		return fmt.Errorf("policy-doc: read %s: %w", docPath, err)
 	}
@@ -1330,12 +1327,6 @@ func (e mutationLoadError) Error() string {
 
 func (e mutationLoadError) Unwrap() error {
 	return e.err
-}
-
-func printMutationJSON(result mutationResult, command string) {
-	if exitCode := writeMutationJSON(os.Stdout, result, os.Stderr, command); exitCode != exitSuccess {
-		os.Exit(exitCode)
-	}
 }
 
 func writeMutationJSON(stdout io.Writer, result mutationResult, stderr io.Writer, command string) int {

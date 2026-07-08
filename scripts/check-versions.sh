@@ -16,9 +16,13 @@ PY_INIT="$(grep -E '__version__\s*=' "$ROOT_DIR/sdk/python/atb/__init__.py" | gr
 TS_VERSION="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package.json'))['version'])")"
 TS_LOCK_ROOT="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package-lock.json'))['version'])")"
 TS_LOCK_PKG="$(python3 -c "import json; d=json.load(open('$ROOT_DIR/sdk/typescript/package-lock.json')); print(d['packages']['']['version'])")"
+TS_RUNTIME="$(grep -E '^export const SDK_VERSION = ' "$ROOT_DIR/sdk/typescript/src/index.ts" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 WEB_VERSION="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/web/package.json'))['version'])")"
 WEB_LOCK_ROOT="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/web/package-lock.json'))['version'])")"
 WEB_LOCK_PKG="$(python3 -c "import json; d=json.load(open('$ROOT_DIR/web/package-lock.json')); print(d['packages']['']['version'])")"
+README_VERSION="$(grep -E '^Current release: ' "$ROOT_DIR/README.md" | head -1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/^v//')"
+SECURITY_VERSION="$(grep -E '^\| `v[0-9]+\.[0-9]+\.[0-9]+` \| Yes \|$' "$ROOT_DIR/SECURITY.md" | head -1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')"
+CHANGELOG_VERSION="$(grep -E '^## \[v[0-9]+\.[0-9]+\.[0-9]+\]' "$ROOT_DIR/CHANGELOG.md" | head -1 | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/^v//')"
 
 if [ "${ATB_SKIP_TAG_CHECK:-0}" = "1" ]; then
   REF_VERSION="$MAIN_GO_VERSION"
@@ -47,9 +51,13 @@ check "sdk/python/atb/__init__.py"                         "$PY_INIT"
 check "sdk/typescript/package.json"                        "$TS_VERSION"
 check "sdk/typescript/package-lock.json (root)"            "$TS_LOCK_ROOT"
 check "sdk/typescript/package-lock.json (packages[\"\"])" "$TS_LOCK_PKG"
+check "sdk/typescript/src/index.ts"                        "$TS_RUNTIME"
 check "web/package.json"                                   "$WEB_VERSION"
 check "web/package-lock.json (root)"                       "$WEB_LOCK_ROOT"
 check "web/package-lock.json (packages[\"\"])"             "$WEB_LOCK_PKG"
+check "README.md current release"                           "$README_VERSION"
+check "SECURITY.md supported version"                       "$SECURITY_VERSION"
+check "CHANGELOG.md latest release"                          "$CHANGELOG_VERSION"
 
 if [ "$FAIL" -eq 0 ]; then
   printf "ok: all version strings agree (%s)\n" "$REF_VERSION"

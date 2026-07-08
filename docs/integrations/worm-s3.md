@@ -1,5 +1,3 @@
-<!-- TODO: consolidate into docs/spec/bundle-push.md -->
-
 # WORM/S3 export
 
 `atb push` uploads a bundle to an S3 or S3-compatible endpoint and can request object-lock retention when configured.

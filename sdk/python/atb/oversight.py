@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from atb import event_types
+from atb.identity_evidence import IdentityEvidence, identity_evidence_payload
 
 __all__ = [
     "ToolCallEmitter",
@@ -67,7 +68,10 @@ class ToolCallEmitter:
     """
 
     def __init__(self, ctx: Any) -> None:
-        if not (callable(getattr(ctx, "emit", None)) or callable(getattr(ctx, "append", None))):
+        if not (
+            callable(getattr(ctx, "emit", None))
+            or callable(getattr(ctx, "append", None))
+        ):
             raise ValueError("atb: context must provide emit or append")
         self._ctx = ctx
 
@@ -95,7 +99,10 @@ class DataExportEmitter:
     """Emits atb.data.export events for outbound data movements."""
 
     def __init__(self, ctx: Any) -> None:
-        if not (callable(getattr(ctx, "emit", None)) or callable(getattr(ctx, "append", None))):
+        if not (
+            callable(getattr(ctx, "emit", None))
+            or callable(getattr(ctx, "append", None))
+        ):
             raise ValueError("atb: context must provide emit or append")
         self._ctx = ctx
 
@@ -123,7 +130,10 @@ class HumanOverrideEmitter:
     """Emits atb.human.override events when a human overrides an AI recommendation."""
 
     def __init__(self, ctx: Any) -> None:
-        if not (callable(getattr(ctx, "emit", None)) or callable(getattr(ctx, "append", None))):
+        if not (
+            callable(getattr(ctx, "emit", None))
+            or callable(getattr(ctx, "append", None))
+        ):
             raise ValueError("atb: context must provide emit or append")
         self._ctx = ctx
 
@@ -138,17 +148,28 @@ class HumanOverrideEmitter:
             ValueError: If override_reason is empty or not provided.
         """
         payload = _base_payload(self._ctx, kwargs)
-        payload["override_reason"] = _require_non_empty(override_reason, "override_reason")
+        payload["override_reason"] = _require_non_empty(
+            override_reason, "override_reason"
+        )
         _optional_str(payload, kwargs, "actor_id")
         _optional_str(payload, kwargs, "overridden_action_id")
+        evidence = kwargs.get("identity_evidence")
+        if evidence is not None and not isinstance(evidence, IdentityEvidence):
+            raise ValueError("atb: identity_evidence must be IdentityEvidence")
+        identity_payload = identity_evidence_payload(evidence)
+        if identity_payload is not None:
+            payload["identity_evidence"] = identity_payload
         _dispatch(self._ctx, event_types.HUMAN_OVERRIDE, payload)
 
 
 class HumanApprovalEmitter:
-    """Emits atb.human.approval events when a human explicitly approves a pending action."""
+    """Emits atb.human.approval for an explicit human approval."""
 
     def __init__(self, ctx: Any) -> None:
-        if not (callable(getattr(ctx, "emit", None)) or callable(getattr(ctx, "append", None))):
+        if not (
+            callable(getattr(ctx, "emit", None))
+            or callable(getattr(ctx, "append", None))
+        ):
             raise ValueError("atb: context must provide emit or append")
         self._ctx = ctx
 
@@ -170,6 +191,12 @@ class HumanApprovalEmitter:
         _optional_str(payload, kwargs, "actor_id")
         _optional_str(payload, kwargs, "approver_id")
         _optional_str(payload, kwargs, "note")
+        evidence = kwargs.get("identity_evidence")
+        if evidence is not None and not isinstance(evidence, IdentityEvidence):
+            raise ValueError("atb: identity_evidence must be IdentityEvidence")
+        identity_payload = identity_evidence_payload(evidence)
+        if identity_payload is not None:
+            payload["identity_evidence"] = identity_payload
         _dispatch(self._ctx, event_types.HUMAN_APPROVAL, payload)
 
 
@@ -177,7 +204,10 @@ class ActionErrorEmitter:
     """Emits ai.action.error events for privileged actions that did not succeed."""
 
     def __init__(self, ctx: Any) -> None:
-        if not (callable(getattr(ctx, "emit", None)) or callable(getattr(ctx, "append", None))):
+        if not (
+            callable(getattr(ctx, "emit", None))
+            or callable(getattr(ctx, "append", None))
+        ):
             raise ValueError("atb: context must provide emit or append")
         self._ctx = ctx
 

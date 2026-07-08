@@ -55,6 +55,8 @@ This document mirrors the current backend payloads used by the Trust Dashboard s
   - `reason?`: `string`
 - Response fields:
   - `seq`, `field_path`, `value`
+- Side effect:
+  - The reveal is recorded in the `<bundle>.reveals` sidecar, not in the authoritative bundle.
 - UI dependency:
   - Engineer-only reveal action in event inspector
 

@@ -72,7 +72,7 @@ func (r FileResolver) Resolve(apiKey string) (Identity, error) {
 			return Identity{}, err
 		}
 	}
-	raw, err := os.ReadFile(path)
+	raw, err := os.ReadFile(path) // #nosec G304 -- FileResolver intentionally reads the caller-configured identity mapping path.
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Identity{}, ErrNotFound
@@ -180,7 +180,7 @@ func WriteMapping(path, apiKey, displayName, email, orgRole string) error {
 		return fmt.Errorf("%w: key and display name are required", ErrInvalidMapping)
 	}
 	doc := map[string]fileEntry{}
-	if raw, err := os.ReadFile(path); err == nil {
+	if raw, err := os.ReadFile(path); err == nil { // #nosec G304 -- WriteMapping intentionally updates the caller-selected mapping path.
 		_ = yaml.Unmarshal(raw, &doc)
 	} else if !os.IsNotExist(err) {
 		return err

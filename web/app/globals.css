@@ -29,6 +29,8 @@
 
     /* Fixed status-bar height consumed by layout for top offset */
     --banner-h: 2.25rem;
+    /* Taller offset when the tamper banner expands to show diagnosis */
+    --banner-fail-h: 5rem;
 
     /* Event family colour tokens — light surface */
     --ev-llm:     210 100% 56%;
@@ -53,7 +55,7 @@
     --secondary: 220 12% 17%;
     --secondary-foreground: 210 16% 88%;
     --muted: 220 10% 18%;
-    --muted-foreground: 210 12% 50%;
+    --muted-foreground: 210 14% 68%;
     --accent: 32 95% 57%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 79% 52%;
@@ -64,6 +66,8 @@
 
     /* Fixed status-bar height consumed by layout for top offset */
     --banner-h: 2.25rem;
+    /* Taller offset when the tamper banner expands to show diagnosis */
+    --banner-fail-h: 5rem;
 
     /* Event family colour tokens — dark surface */
     --ev-llm:     210 100% 65%;
@@ -121,6 +125,14 @@
     content: "█";
     color: hsl(var(--primary));
     animation: cursor-blink 1s step-end infinite;
+  }
+
+  /* Content offset for the fixed status banner; grows when tamper is shown */
+  .view-shell {
+    padding-top: var(--banner-h);
+  }
+  html[data-tamper="true"] .view-shell {
+    padding-top: var(--banner-fail-h);
   }
 }
 

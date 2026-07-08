@@ -8,10 +8,7 @@ export default function ViewLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <VerificationBannerConnected />
-      <div
-        style={{ paddingTop: "var(--banner-h)" }}
-        className="flex h-screen overflow-hidden bg-background"
-      >
+      <div className="view-shell flex h-screen overflow-hidden bg-background">
         {children}
       </div>
     </>

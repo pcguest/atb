@@ -14,7 +14,9 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/push"
+	"github.com/pcguest/atb/internal/retentionaudit"
 )
 
 // ── fake S3 uploader ─────────────────────────────────────────────────────────
@@ -439,6 +441,18 @@ func TestRunPushWithLockUntil(t *testing.T) {
 	}
 	if call.LockUntil != "2028-01-01T00:00:00Z" {
 		t.Fatalf("lock until: got %q want 2028-01-01T00:00:00Z", call.LockUntil)
+	}
+	audit, err := bundle.LoadVerified(retentionaudit.PathForBundle(bundlePath))
+	if err != nil {
+		t.Fatalf("load retention audit: %v", err)
+	}
+	last := audit.Records[len(audit.Records)-1].Event
+	if last.Type != event.TypeDataRetentionEnforced {
+		t.Fatalf("audit type = %q", last.Type)
+	}
+	data, _ := last.Data.(map[string]any)
+	if data["outcome"] != "request_accepted" || data["independently_verified"] != false {
+		t.Fatalf("push audit data = %#v", data)
 	}
 }
 

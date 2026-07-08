@@ -89,6 +89,15 @@ DATA_EXPORT_EXECUTED_EVENT_TYPE: Final = DATA_EXPORT_EXECUTED
 DATA_EXPORT_ERROR: Final = "data.export.error"
 DATA_EXPORT_ERROR_EVENT_TYPE: Final = DATA_EXPORT_ERROR
 
+DATA_RETENTION_POLICY_SET: Final = "data.retention.policy_set"
+DATA_RETENTION_POLICY_SET_EVENT_TYPE: Final = DATA_RETENTION_POLICY_SET
+
+DATA_RETENTION_POLICY_CHANGED: Final = "data.retention.policy_changed"
+DATA_RETENTION_POLICY_CHANGED_EVENT_TYPE: Final = DATA_RETENTION_POLICY_CHANGED
+
+DATA_RETENTION_ENFORCED: Final = "data.retention.enforced"
+DATA_RETENTION_ENFORCED_EVENT_TYPE: Final = DATA_RETENTION_ENFORCED
+
 DEV_SESSION: Final = "dev.session"
 DEV_SESSION_EVENT_TYPE: Final = DEV_SESSION
 
@@ -305,6 +314,27 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "required_fields": ["action_id", "error_class"],
     },
     {
+        "type": DATA_RETENTION_POLICY_SET,
+        "description": "Deployment retention policy configured",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest"],
+    },
+    {
+        "type": DATA_RETENTION_POLICY_CHANGED,
+        "description": "Deployment retention policy changed",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest", "previous_config_digest"],
+    },
+    {
+        "type": DATA_RETENTION_ENFORCED,
+        "description": "Retention-relevant local operation completed or remote retention request accepted",
+        "profiles": [],
+        "criticality": "required",
+        "required_fields": ["operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"],
+    },
+    {
         "type": DEV_SESSION,
         "description": "Developer session marker (tooling use)",
         "profiles": [],
@@ -423,6 +453,9 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     DATA_EXPORT_PRECOMMIT: [],
     DATA_EXPORT_EXECUTED: [],
     DATA_EXPORT_ERROR: ["action_id", "error_class"],
+    DATA_RETENTION_POLICY_SET: ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest"],
+    DATA_RETENTION_POLICY_CHANGED: ["policy_id", "days", "archive_dir", "scope", "cutoff_basis", "config_digest", "previous_config_digest"],
+    DATA_RETENTION_ENFORCED: ["operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"],
     DEV_SESSION: [],
     CORROBORATION_EXTERNAL: [],
     RAG_INDEX: [],
@@ -492,6 +525,12 @@ __all__ = [
     "DATA_EXPORT_EXECUTED_EVENT_TYPE",
     "DATA_EXPORT_ERROR",
     "DATA_EXPORT_ERROR_EVENT_TYPE",
+    "DATA_RETENTION_POLICY_SET",
+    "DATA_RETENTION_POLICY_SET_EVENT_TYPE",
+    "DATA_RETENTION_POLICY_CHANGED",
+    "DATA_RETENTION_POLICY_CHANGED_EVENT_TYPE",
+    "DATA_RETENTION_ENFORCED",
+    "DATA_RETENTION_ENFORCED_EVENT_TYPE",
     "DEV_SESSION",
     "DEV_SESSION_EVENT_TYPE",
     "CORROBORATION_EXTERNAL",

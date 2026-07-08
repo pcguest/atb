@@ -88,6 +88,3 @@ Ed25519 bundle signing is optional, but it is strongly recommended for regulator
 - CAS scoring reflects evidence completeness, not correctness of the AI decision.
 - TSA anchoring depends on the availability and trustworthiness of the chosen TSA; DigiCert and Sectigo are tested.
 - The local viewer (`atb view`) consumes the same session-gated API as the CLI. For audit evidence, use CLI outputs or `atb export` rather than viewer screenshots.
-
-For a worked review narrative, see the
-[remediation audit case study](./case-studies/remediation-audit.md).

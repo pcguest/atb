@@ -211,7 +211,9 @@ Relation checks:
 
 Blind spots / out of scope:
 
-- Approver identity is caller-asserted only.
+- Plain approver IDs remain caller-asserted. Optional `identity_evidence` can
+  bind the event to a digest of an external IdP assertion, but ATB does not
+  validate the assertion or operate the identity system.
 - Justification quality is not assessed.
 - XC credit requires corroboration events.
 

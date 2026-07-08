@@ -112,11 +112,11 @@ func (m *SessionManager) Resolve(threadKey string) *Session {
 		return &Session{ID: newSessionID()}
 	}
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	if threadKey == "" {
 		threadKey = newSessionID()
 	}
 	if sess, ok := m.sessions[threadKey]; ok {
+		m.mu.Unlock()
 		sess.touch(m.idleTimeout, m.closeSession)
 		return sess
 	}
@@ -125,10 +125,9 @@ func (m *SessionManager) Resolve(threadKey string) *Session {
 		ThreadKey:    threadKey,
 		lastActivity: time.Now().UTC(),
 	}
-	sess.idleTimer = time.AfterFunc(m.idleTimeout, func() {
-		m.closeSession(sess)
-	})
 	m.sessions[threadKey] = sess
+	m.mu.Unlock()
+	sess.touch(m.idleTimeout, m.closeSession)
 	return sess
 }
 
