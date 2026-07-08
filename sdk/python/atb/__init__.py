@@ -125,7 +125,7 @@ except ModuleNotFoundError as exc:
         ) from _encrypt_import_error
 
 
-__version__ = "1.15.1"
+__version__ = "1.15.2"
 __all__ = [
     "Bundle",
     "event_types",
