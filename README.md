@@ -168,6 +168,7 @@ compliance by itself, and it never certifies compliance.
 | --- | --- |
 | [Documentation hub](./docs/README.md) | Start here. One map for all human-facing docs |
 | [Five-minute quickstart](./docs/quickstart.md) | Install, create a bundle, verify locally |
+| [Tenon pilot walkthrough](./docs/guides/tenon-pilot.md) | Synthetic approved/anomalous agent session, local verify, incident report, optional custody handoff |
 | [Capture guide](./docs/guides/capture.md) | Import, intercept, SDK integrations |
 | [Incident forensics](./docs/guides/incident-forensics.md) | Capture, discover, and review after an agent incident |
 | [Auditor acceptance guide](./docs/ciso-acceptance-guide.md) | Integrity, profiles, CAS, residual risk |

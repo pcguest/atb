@@ -12,6 +12,7 @@ commercial framework for long-term custody; ATB works fully without it.
 | Doc | For |
 | --- | --- |
 | [Quickstart](./quickstart.md) | Install, create a bundle, verify offline |
+| [Tenon pilot walkthrough](./guides/tenon-pilot.md) | Synthetic approved/anomalous agent session, local verify, incident report, optional custody handoff |
 | [Capture guide](./guides/capture.md) | Import, wrapper, intercept, integrations |
 | [Incident forensics](./guides/incident-forensics.md) | Capture → discover → review after an agent incident |
 | [Tamper demo](./guides/tamper-demo.md) | One-byte mutation and verify failure |

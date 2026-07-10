@@ -36,7 +36,8 @@ goldens:
 	ATB_BIN=$(CURDIR)/atb bash examples/bundles/generate.sh
 	ATB_BIN=$(CURDIR)/atb bash examples/bundles/demo-workflow/generate.sh
 	$(GOENV) go run ./examples/bundles/incident-capture/
-	@echo "✅ Regenerated examples/bundles/{profiles,project-bootstrap,demo-workflow,incident-capture}"
+	$(GOENV) go run ./examples/bundles/tenon-pilot/
+	@echo "✅ Regenerated examples/bundles/{profiles,project-bootstrap,demo-workflow,incident-capture,tenon-pilot}"
 
 # check-generated regenerates the schema-driven bindings and fails if any of
 # them drift from the committed output. Comparing against a pre-regen snapshot

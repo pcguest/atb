@@ -45,6 +45,16 @@ credential headers are stripped. See [`docs/public-surface.md`](../public-surfac
 > go run ./examples/bundles/incident-capture/
 > ```
 
+> **Need the full Tenon pilot path?** Generate the approved + anomalous
+> synthetic session:
+>
+> ```bash
+> go run ./examples/bundles/tenon-pilot/
+> ```
+>
+> Then follow [Tenon pilot walkthrough](./tenon-pilot.md) for verify, incident
+> report, viewer, and optional Mortise handoff commands.
+
 > **No provider credentials?** Run the complete SDK oversight demo:
 >
 > ```bash

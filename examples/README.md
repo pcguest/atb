@@ -26,6 +26,10 @@ Support-escalation narrative bundle for dashboard demos: [examples/bundles/demo-
 
 Capture-shaped agent-incident bundle (privileged tool call with no approval, plus a failed tool execution) that verifies clean yet raises the `tool_without_approval` oversight anomaly: [examples/bundles/incident-capture/](./bundles/incident-capture/)
 
+## Tenon pilot fixture
+
+Credential-free pilot fixture with one approved privileged action, one anomalous privileged tool call, local verification, incident reporting, viewer inspection, and optional Mortise handoff: [examples/bundles/tenon-pilot/](./bundles/tenon-pilot/)
+
 ## Quickstart variants
 
 - [README quickstart](../README.md#quickstart) — `atb.profile.policy_decision` (support triage deny)
@@ -45,7 +49,7 @@ The `.atb` files under `examples/bundles/` are **generated artefacts and are git
 
 ```bash
 make build     # builds ./atb with the embedded viewer
-make goldens   # regenerates profiles/, project-bootstrap, and demo-workflow
+make goldens   # regenerates profiles/, project-bootstrap, demo-workflow, incident-capture, and tenon-pilot
 ```
 
 Each generator asserts its bundle's expected verify outcome (pass or fail), so `make goldens` doubles as a smoke test of the demo path.
