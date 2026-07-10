@@ -39,6 +39,15 @@ jobs:
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
 
+      # The Makefile's security-scan falls back to Docker when the scanners
+      # are missing; install them natively so the gate runs the same way it
+      # does on a maintainer machine.
+      - name: Install security scanners
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.72.0/contrib/install.sh \
+            | sh -s -- -b "$(go env GOPATH)/bin" v0.72.0
+
       - name: Run Gold Gate
         run: make gate-gold-release
 
