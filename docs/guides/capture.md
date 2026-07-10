@@ -7,10 +7,23 @@ everything an agent might do.
 ## Chatlog import
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+git clone https://github.com/pcguest/atb.git
+cd atb
+git checkout v1.15.2
+make build
+./atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl --snapshot imported_chatlog
+./atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
+./atb view --bundle run.atb/bundle.atb
+```
+
+For a viewer-minimal CLI from the currently published Go module, use the
+version listed in the
+[Tenon compatibility matrix](https://github.com/pcguest/tenon/blob/main/docs/compatibility.md):
+
+```bash
+go install github.com/pcguest/atb/cmd/atb@v1.15.1
 atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl --snapshot imported_chatlog
 atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
-atb view --bundle run.atb/bundle.atb
 ```
 
 Example input: [`testdata/chatlog.jsonl`](../../testdata/chatlog.jsonl). Schema:

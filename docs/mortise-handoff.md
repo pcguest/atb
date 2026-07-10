@@ -6,9 +6,12 @@ under the Tenon umbrella: ATB is the open MIT evidence core; Mortise provides
 commercial custody, WORM storage, signed receipts, timestamps, transparency,
 and auditor operations.
 
-The integration baseline is ATB `v1.15.1` and the next Mortise release after
-`v0.5.0`. ATB contains only the client boundary and conformance tests. Mortise
-runtime code lives exclusively in its own repository.
+The current ATB source/tag baseline is `v1.15.2`. Mortise `v0.5.0` currently
+pins an older ATB module dependency and must be checked against the
+[Tenon compatibility matrix](https://github.com/pcguest/tenon/blob/main/docs/compatibility.md)
+before presenting any ATB/Mortise pair as the supported current combination.
+ATB contains only the client boundary and conformance tests. Mortise runtime
+code lives exclusively in its own repository.
 
 Use Mortise's
 [end-to-end guide](https://github.com/pcguest/mortise/blob/main/docs/e2e-atb-mortise.md),

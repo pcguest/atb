@@ -134,6 +134,7 @@ jobs:
           grep -Fq "atb bundle new" docs/quickstart.md
           grep -Fq -- "--profile atb.profile.privileged_tool_action" docs/quickstart.md
           grep -Fq "atb view" docs/quickstart.md
+          bash scripts/check-install-docs.sh
           ! grep -Eq "forthcoming|planned extension" docs/spec-v1.0.md
 
       - name: Web E2E (mock API)

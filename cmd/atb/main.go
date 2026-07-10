@@ -457,6 +457,7 @@ Commands:
   trust-report [bundle_path] [--format markdown|json|text] [--profile <id>]  Build a trust report for AI + human audit
   view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>]  Open the local review UI
   mcp serve         Start the MCP stdio server
+  intercept --bundle <path> [--port 8080] [--target openai,anthropic] [--identity-map key=name]... [--mortise <url>]  Start the local HTTPS capture proxy
   agent run         Start the local ATB Agent HTTP service
   corroborate --source http-gateway --url <url> --ref <event-hash> [--bundle <path>] [--dry-run] [--format text|json]  Fetch external corroboration receipt and append atb.corroboration.external event
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts

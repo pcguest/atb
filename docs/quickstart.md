@@ -8,18 +8,22 @@ the record-and-verify cycle.
 ## 1. Your first bundle in 5 minutes
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
-atb bundle new
-atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
-atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
-atb append ai.policy.decision --data='{"policy_id":"pol-severity-routing","policy_version":"2026-04","decision":"deny","decision_reason_codes":["sev2_requires_manual_review"],"subject_id_hash":"sha256-user-1042","action_id":"act-1042"}'
-atb snapshot incident_review_failed
-atb verify --profile atb.profile.policy_decision --format json
-atb trust-report --profile atb.profile.policy_decision --format markdown
+git clone https://github.com/pcguest/atb.git
+cd atb
+git checkout v1.15.2
+make build
+./atb bundle new
+./atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
+./atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
+./atb append ai.policy.decision --data='{"policy_id":"pol-severity-routing","policy_version":"2026-04","decision":"deny","decision_reason_codes":["sev2_requires_manual_review"],"subject_id_hash":"sha256-user-1042","action_id":"act-1042"}'
+./atb snapshot incident_review_failed
+./atb verify --profile atb.profile.policy_decision --format json
+./atb trust-report --profile atb.profile.policy_decision --format markdown
 ```
 
-The Go CLI is the primary install path. The Python and TypeScript
-packages are SDKs that write the same `.atb` format.
+The source build is the recommended evaluator path because it includes the
+complete CLI and embedded local viewer. The Python and TypeScript packages are
+SDKs that write the same `.atb` format.
 
 ### Reproduce the incident-forensics wedge locally
 
@@ -114,24 +118,46 @@ ATB_LOCK_WAIT=10s atb snapshot ci_checkpoint
 
 ### Go CLI
 
+Complete source build, including the embedded local viewer:
+
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+git clone https://github.com/pcguest/atb.git
+cd atb
+git checkout v1.15.2
+make build
+./atb version
 ```
 
-A `go install` build serves a minimal install-guidance page for `atb view`;
-for the full embedded review UI, build from a checkout with `make build`.
+Viewer-minimal CLI from the currently published Go module:
+
+```bash
+go install github.com/pcguest/atb/cmd/atb@v1.15.1
+```
+
+`go install` builds do not include the embedded review UI. `atb view` serves a
+minimal install-guidance page with no bundle data. Build from source when you
+need the embedded review UI.
+
+`make build` is tested on Linux, macOS, and Windows through CI. Remove the
+checkout and generated `./atb` binary to uninstall a source build. Remove the
+binary installed by `go install` from `$(go env GOPATH)/bin` to uninstall the
+viewer-minimal CLI.
+
+The current source/tag version is `v1.15.2`. Published package and release
+artefact state is tracked in the
+[Tenon compatibility matrix](https://github.com/pcguest/tenon/blob/main/docs/compatibility.md);
+do not infer PyPI, npm, Go module proxy, or GitHub Release availability from
+the source tag alone.
 
 ### Python SDK
 
-```bash
-pip install atb-sdk
-```
+Install the version listed as published in the Tenon compatibility matrix. If
+no current publication is listed, use a source checkout for SDK evaluation.
 
 ### TypeScript SDK
 
-```bash
-npm install @pcguest/atb-sdk
-```
+Install the version listed as published in the Tenon compatibility matrix. If
+no current publication is listed, use a source checkout for SDK evaluation.
 
 The Python and TypeScript packages are SDKs only. Their installed `atb`
 command is a compatibility stub that prints Go CLI install guidance and

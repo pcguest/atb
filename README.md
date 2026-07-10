@@ -9,6 +9,12 @@ completeness or operator honesty before external custody or anchoring.**
 
 Current release: [`v1.15.2`](CHANGELOG.md)
 
+This is the current ATB source/tag version. Published package and release
+artefact state is tracked in the
+[Tenon compatibility matrix](https://github.com/pcguest/tenon/blob/main/docs/compatibility.md);
+do not infer PyPI, npm, Go module proxy, or GitHub Release availability from
+the source tag alone.
+
 **Tenon** is the umbrella name for this work. ATB is the open, MIT-licensed
 evidence core beneath it: the bundle format, CLI, SDKs, profiles, and offline
 verification. Mortise is the commercial framework that fits onto that core for
@@ -25,14 +31,26 @@ long-term custody. ATB stands alone and stays fully useful without Mortise.
 
 ## Quickstart
 
-Install the CLI:
+Install the complete evaluator build, including the embedded local viewer:
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+git clone https://github.com/pcguest/atb.git
+cd atb
+git checkout v1.15.2
+make build
+./atb version
 ```
 
-A `go install` build serves a minimal install-guidance page for `atb view`;
-for the full embedded review UI, build from a checkout with `make build`.
+For a viewer-minimal CLI from the currently published Go module, use the
+version listed in the Tenon compatibility matrix:
+
+```bash
+go install github.com/pcguest/atb/cmd/atb@v1.15.1
+```
+
+`go install` builds do not include the embedded review UI; `atb view` serves
+minimal install guidance. Use the source build above for the complete
+experience.
 
 Initialise a bundle, capture a workflow, and verify against a profile:
 

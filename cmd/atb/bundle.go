@@ -20,6 +20,13 @@ func runBundle(args []string, stdout, stderr io.Writer) int {
 
 	switch args[0] {
 	case "new":
+		if len(args) > 1 {
+			switch args[1] {
+			case "-h", "--help", "help":
+				printBundleCommandUsage(stdout)
+				return exitSuccess
+			}
+		}
 		return runInit(args[1:], stdout, stderr)
 	case "-h", "--help", "help":
 		printBundleCommandUsage(stdout)

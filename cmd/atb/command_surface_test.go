@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,6 +14,35 @@ import (
 
 	"github.com/pcguest/atb/internal/identity"
 )
+
+func TestPlainUsageListsStructuredCommands(t *testing.T) {
+	text := captureStdout(t, printUsage)
+	for _, cmd := range usageJSON().Commands {
+		if !strings.Contains(text, cmd.Name) {
+			t.Fatalf("plain help missing structured command %q", cmd.Name)
+		}
+	}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe stdout: %v", err)
+	}
+	defer func() { os.Stdout = old }()
+	os.Stdout = w
+	fn()
+	if err := w.Close(); err != nil {
+		t.Fatalf("close stdout writer: %v", err)
+	}
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read stdout: %v", err)
+	}
+	return string(out)
+}
 
 func TestBundleAndCaptureCommandRouting(t *testing.T) {
 	t.Run("bundle", func(t *testing.T) {
@@ -24,7 +54,7 @@ func TestBundleAndCaptureCommandRouting(t *testing.T) {
 			{wantCode: exitUserError, want: "missing sub-command"},
 			{args: []string{"help"}, wantCode: exitSuccess, want: "bundle new"},
 			{args: []string{"unknown"}, wantCode: exitUserError, want: "unknown sub-command"},
-			{args: []string{"new", "--help"}, wantCode: exitUserError, want: "Usage: atb init"},
+			{args: []string{"new", "--help"}, wantCode: exitSuccess, want: "Usage: atb bundle new"},
 		} {
 			var stdout, stderr bytes.Buffer
 			code := runBundle(tc.args, &stdout, &stderr)
