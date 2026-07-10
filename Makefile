@@ -104,6 +104,7 @@ test-e2e:
 	cd web && npm ci
 	cd web && npm run build
 	$(GOENV) go build -o /tmp/atb-e2e ./cmd/atb
+	@test -f examples/quickstart/run.atb/bundle.atb || { echo "📦 Generating quickstart bundle (gitignored, absent on fresh checkouts)..."; ATB_BIN=/tmp/atb-e2e bash examples/quickstart/run.sh > /dev/null; }
 	@/tmp/atb-e2e view --bundle examples/quickstart/run.atb/bundle.atb --session-token 0000000000000000000000000000000000000000000000000000000000000001 --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
 	@sleep 3
 	@cd web && CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-dashboard.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
