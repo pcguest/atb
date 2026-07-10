@@ -649,6 +649,96 @@ func TestManifestUnknownVersionWrapsErrMalformed(t *testing.T) {
 	}
 }
 
+func TestLegacyCompatibilityRefusesWithoutRewriting(t *testing.T) {
+	t.Parallel()
+
+	createdAt := "2026-04-01T00:00:00Z"
+	futureManifestData := map[string]any{
+		"version":    bundle.ManifestVersionMax + 1,
+		"created_at": createdAt,
+		"bundle_id":  "00112233445566778899aabbccddeeff",
+	}
+	futureManifestEvent := map[string]any{
+		"seq":       0,
+		"prev_hash": hash.GenesisHash,
+		"type":      bundle.ManifestEventType,
+		"hash_algo": "sha256",
+		"timestamp": createdAt,
+		"data":      futureManifestData,
+	}
+	futureRecord, err := json.Marshal(map[string]any{
+		"event": futureManifestEvent,
+		"hash":  strings.Repeat("0", 64),
+	})
+	if err != nil {
+		t.Fatalf("marshal future manifest: %v", err)
+	}
+
+	cases := []struct {
+		name        string
+		contents    []byte
+		want        error
+		wantMessage string
+	}{
+		{
+			name:        "future manifest version",
+			contents:    append(futureRecord, '\n'),
+			want:        bundle.ErrMalformed,
+			wantMessage: "unsupported manifest version",
+		},
+		{
+			name:        "truncated JSON record",
+			contents:    []byte(`{"event":{"seq":0,"type":"atb.bundle.manifest"}`),
+			want:        bundle.ErrMalformed,
+			wantMessage: "unmarshal",
+		},
+		{
+			name:        "legacy JSON array is not NDJSON",
+			contents:    []byte(`[{"event":{"seq":0}}]` + "\n"),
+			want:        bundle.ErrMalformed,
+			wantMessage: "unmarshal",
+		},
+		{
+			name:        "pre-manifest event is not verified as current evidence",
+			contents:    []byte(`{"event":{"seq":1,"prev_hash":"0000000000000000000000000000000000000000000000000000000000000000","type":"ai.tool.exec","hash_algo":"sha256","data":{"step":1}},"hash":"0000000000000000000000000000000000000000000000000000000000000000"}` + "\n"),
+			want:        bundle.ErrNotABundle,
+			wantMessage: "record 0 type",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), "legacy.atb")
+			if err := os.WriteFile(path, tc.contents, 0o600); err != nil {
+				t.Fatalf("write fixture: %v", err)
+			}
+			before, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read before: %v", err)
+			}
+
+			_, err = bundle.LoadVerified(path)
+			if !errors.Is(err, tc.want) {
+				t.Fatalf("LoadVerified error = %v, want errors.Is(..., %v)", err, tc.want)
+			}
+			if tc.wantMessage != "" && !strings.Contains(err.Error(), tc.wantMessage) {
+				t.Fatalf("LoadVerified error = %v, want message containing %q", err, tc.wantMessage)
+			}
+
+			after, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read after: %v", err)
+			}
+			if string(after) != string(before) {
+				t.Fatalf("legacy refusal rewrote source evidence")
+			}
+		})
+	}
+}
+
 func TestManifestEValidBundle(t *testing.T) {
 	b := newTestBundle(t)
 

@@ -38,6 +38,7 @@ commercial framework for long-term custody; ATB works fully without it.
 | [Profiles](./profiles.md) | Obligation profiles and evidence rules |
 | [Verify JSON schema](./api/verify-schema.md) | `VerifierReport` contract |
 | [Support matrix](./support-matrix.md) | Supported Go, Python, Node, OS versions |
+| [Legacy bundle compatibility](./legacy-compatibility.md) | Historical breaks, refusal modes, and migration evidence |
 
 ## Integrate
 

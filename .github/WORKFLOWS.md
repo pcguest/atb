@@ -10,6 +10,7 @@
 | release-gates.yml | push/PR to main, manual | Exact cross-language golden-vector and full Go release gates |
 | ops.yml | schedule/push/PR/issues | Docs deploy, registry health, feedback digest, labeling (conditional) |
 | version-gate.yml | push/PR on version files | Cross-file version parity check via `check-versions.sh` |
+| nightly-fuzz.yml | schedule, manual | Bounded parser and canonicalizer fuzzing with corpus/crash artifact retention |
 
 The repository-local composite action at `.github/actions/go-module` exposes
 this checkout as a local Go module to downstream jobs. It lets integration CI

@@ -14,6 +14,7 @@ test-golden:
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
 GOTOOLCHAIN ?= go1.26.4
+FUZZTIME ?= 30s
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
@@ -124,8 +125,8 @@ test-integration:
 	$(GOENV) go test -tags=integration -count=1 -v ./test/integration/...
 
 fuzz:
-	go test ./internal/canonicalize/... -fuzz=FuzzMarshal -fuzztime=30s
-	go test ./internal/bundle/... -fuzz=FuzzLoad -fuzztime=30s
+	$(GOENV) go test ./internal/canonicalize/... -run=^$$ -fuzz=FuzzMarshal -fuzztime=$(FUZZTIME)
+	$(GOENV) go test ./internal/bundle/... -run=^$$ -fuzz=FuzzLoad -fuzztime=$(FUZZTIME)
 
 test-all: hygiene-full
 	@echo "✅ All tests passed"
