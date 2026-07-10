@@ -93,7 +93,9 @@ Rationale:
 - sensitive fields are masked by default in event payload API responses
 - reveal requires explicit `POST /api/v1/privacy/reveal`
 - reveal response returns only requested field
-- reveal actions are append-logged to the `<bundle>.reveals` sidecar, not to the authoritative bundle
+- reveal actions are append-logged as derived evidence to the `<bundle>.reveals`
+  sidecar, not to the authoritative bundle; see
+  [Privacy reveal sidecars](./reveal-sidecars.md)
 
 ## API DTO summary
 

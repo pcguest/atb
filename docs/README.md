@@ -27,6 +27,7 @@ commercial framework for long-term custody; ATB works fully without it.
 | [Public surface](./public-surface.md) | Shipped boundary and never-claims |
 | [Provability ladder](./provability-ladder.md) | Integrity vs completeness |
 | [CAS guide](./cas-guide.md) | Completeness scoring detail |
+| [Privacy reveal sidecars](./reveal-sidecars.md) | Derived reveal evidence, source-head binding, custody and retention contract |
 | [Compliance hub](./compliance/README.md) | Generate a deterministic profile-aware evidence pack |
 
 ## Contract

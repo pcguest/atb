@@ -76,6 +76,9 @@ func TestPrivacyRevealAuditAndMasking(t *testing.T) {
 	if auditData["field_path"] != "email" || fmt.Sprintf("%v", auditData["seq"]) != "1" {
 		t.Fatalf("unexpected audit data: %+v", auditData)
 	}
+	if auditData["schema_version"] != "atb.reveal.sidecar.v1" {
+		t.Fatalf("reveal sidecar schema version missing: %+v", auditData)
+	}
 	if auditData["source_head_hash"] != b.Records[len(b.Records)-1].Hash {
 		t.Fatalf("reveal not bound to authoritative bundle head: %+v", auditData)
 	}

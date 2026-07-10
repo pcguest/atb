@@ -42,6 +42,9 @@ Requires `atb` on PATH, or a built `./atb` at repo root (auto-detected). Set `AT
 
 ## Caveats
 
-⚠ The viewer's privacy reveal feature appends `privacy.reveal` events to the bundle on disk. For read-only demos, work on a copy or regenerate from `generate.sh`. This behavior is auditable by design but extends the chain on what would otherwise be a read action — flagged for v1.13.0 design review.
+Privacy reveal operations write `privacy.reveal` events to the separate
+`<bundle>.reveals` sidecar, not to this authoritative bundle. Delete or retain
+the sidecar according to the demo's evidence-handling needs; regenerate the
+bundle with `generate.sh` when you need a fresh source fixture.
 
 See [DEMO.md](./DEMO.md) for the live narration script and tamper walkthrough.

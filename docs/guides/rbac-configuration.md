@@ -11,7 +11,9 @@ token. It can also validate OIDC/JWT when `--oidc-issuer` and
 Viewer roles are:
 
 - `viewer` and `auditor`: read-only review APIs.
-- `operator` and `admin`: mutating actions such as privacy reveal.
+- `operator` and `admin`: sidecar-writing actions such as privacy reveal. A
+  reveal writes derived evidence to `<bundle>.reveals`; it does not mutate the
+  authoritative source bundle.
 
 ATB remains a local evidence tool; it is not an identity provider or hosted
 multi-tenant access-control service.

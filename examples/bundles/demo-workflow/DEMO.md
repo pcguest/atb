@@ -147,4 +147,6 @@ Compare with `screenshots/dashboard-overview.png` (green) vs `screenshots/dashbo
 | Tampered screenshot | `examples/bundles/demo-workflow/screenshots/dashboard-tampered.png` |
 | SDK demo scripts | `examples/demo/profile_workflows_demo.{py,ts}` |
 
-**Caveat:** The viewer's privacy Reveal feature appends `privacy.reveal` events to the bundle on disk. Regenerate with `./generate.sh` before a read-only demo, or work on a copy.
+**Caveat:** The viewer's privacy Reveal feature writes `privacy.reveal` events
+to a separate `<bundle>.reveals` sidecar. The authoritative demo bundle is not
+mutated, but the sidecar may contain sensitive reveal audit metadata.

@@ -205,7 +205,10 @@ authoritative bundle. Each reveal is recorded in a separate sidecar,
 Each reveal entry records `source_bundle_id` and `source_head_hash`, so
 the sidecar proves which bundle and which chain head it annotates without
 mutating that bundle. The sidecar verifies independently with
-`atb verify`.
+`atb verify`. New reveal records include
+`schema_version: atb.reveal.sidecar.v1`; see
+[Privacy reveal sidecars](./reveal-sidecars.md) for the custody and retention
+contract.
 
 The `/api/v1/privacy/reveal` endpoint is rate-limited to reduce
 enumeration risk.

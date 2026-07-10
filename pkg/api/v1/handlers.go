@@ -41,6 +41,7 @@ const (
 	defaultRevealRateLimit  = 10
 	defaultRevealRateWindow = time.Minute
 	revealRetryAfterSeconds = 60
+	revealSidecarSchemaV1   = "atb.reveal.sidecar.v1"
 	piiFieldsPathEnv        = "ATB_PII_FIELDS_PATH"
 	piiFieldsRelativePath   = "docs/compliance/pii-fields.json"
 )
@@ -1131,11 +1132,12 @@ func (s *APIServer) appendRevealAuditEvent(r *http.Request, req PrivacyRevealReq
 	revealedAt := time.Now().UTC().Format(time.RFC3339)
 
 	data := map[string]interface{}{
-		"seq":         req.Sequence,
-		"field_path":  req.FieldPath,
-		"revealed_at": revealedAt,
-		"user":        user,
-		"ip":          ipAddr,
+		"schema_version": revealSidecarSchemaV1,
+		"seq":            req.Sequence,
+		"field_path":     req.FieldPath,
+		"revealed_at":    revealedAt,
+		"user":           user,
+		"ip":             ipAddr,
 	}
 	if resolvedPath != req.FieldPath {
 		data["field_path_resolved"] = resolvedPath
