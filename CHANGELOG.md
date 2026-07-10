@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.15.2] - 2026-07-08
+
+### Fixed
+- The gosec Docker fallback in `make security-scan` now uses a non-login shell, so the Gold Release Gate passes on runners without gosec installed (`sh -lc` sourced `/etc/profile` inside `golang:1.26.4` and dropped `/usr/local/go/bin` from PATH). This blocked the v1.15.1 release pipeline at its gate stage; v1.15.1 remains tagged but unpublished, superseded by this release. The canonical event contract is unchanged.
+
 ## [v1.15.1] - 2026-07-01
 
 ### Added

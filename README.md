@@ -7,7 +7,7 @@ bundles that anyone can verify offline, without a vendor account. Local
 bundles prove integrity of what was recorded; they do not prove capture
 completeness or operator honesty before external custody or anchoring.**
 
-Current release: [`v1.15.1`](CHANGELOG.md)
+Current release: [`v1.15.2`](CHANGELOG.md)
 
 **Tenon** is the umbrella name for this work. ATB is the open, MIT-licensed
 evidence core beneath it: the bundle format, CLI, SDKs, profiles, and offline
