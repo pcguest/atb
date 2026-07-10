@@ -5,6 +5,7 @@ an explicit capture boundary — see [Public surface](../public-surface.md).
 
 | Integration | Doc |
 | --- | --- |
+| Reference agent paths | [reference-agent-integrations.md](./reference-agent-integrations.md) |
 | LangChain (Python / TS) | [langchain.md](./langchain.md) |
 | Vercel AI SDK | [vercel-ai.md](./vercel-ai.md) |
 | MCP | [mcp.md](./mcp.md) |
