@@ -82,8 +82,8 @@ If GitHub Actions is unavailable (for example, a billing or spending-limit
 block), run the release gates locally before merging to `main`:
 
 ```sh
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 go test ./... -count=1
 bash scripts/check-versions.sh
 ```
 
@@ -147,8 +147,8 @@ retention policy, and custodian-of-record work belong in
 Before a public release:
 
 ```bash
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.4 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 go test ./... -count=1
 /bin/bash scripts/check-versions.sh
 ```
 

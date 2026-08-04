@@ -26,7 +26,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.5"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -52,7 +52,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ./sdk/python[dev]
+          python -m pip install -r ./sdk/python/requirements-dev.txt
+          python -m pip install -e ./sdk/python[dev] --no-deps
 
       - name: Validate TypeScript lockfile
         working-directory: sdk/typescript
@@ -151,7 +152,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.5"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -209,9 +210,8 @@ jobs:
       - name: Build Python artifacts
         working-directory: sdk/python
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build twine
-          python -m build
+          python -m pip install -r requirements-release.txt
+          python -m build --no-isolation
           twine check dist/*
 
       - name: Remove node_modules (Windows)
@@ -439,7 +439,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.5"
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -466,14 +466,14 @@ jobs:
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
 
-      # The Makefile's security-scan falls back to Docker when the scanners
-      # are missing; install them natively so the gate runs the same way it
-      # does on a maintainer machine.
-      - name: Install security scanners
-        run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.72.0/contrib/install.sh \
-            | sh -s -- -b "$(go env GOPATH)/bin" v0.72.0
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.73.0
+          cache: true
 
       - name: Run gold release gate
         run: make gate-gold-release
@@ -502,7 +502,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.5"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -571,6 +571,30 @@ jobs:
           atb sign --bundle "$bundle_copy" --key "$key_path"
           atb verify --bundle "$bundle_copy"
 
+      - name: Refuse to overwrite published package versions
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${VERSION#v}"
+          check_absent() {
+            local label="$1" url="$2" status
+            status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+            case "$status" in
+              404) ;;
+              200)
+                echo "$label@$VERSION already exists; refusing an unverifiable overwrite or skip" >&2
+                exit 1
+                ;;
+              *)
+                echo "could not establish whether $label@$VERSION exists (HTTP $status)" >&2
+                exit 1
+                ;;
+            esac
+          }
+          check_absent "atb-sdk" "https://pypi.org/pypi/atb-sdk/${VERSION}/json"
+          check_absent "@pcguest/atb-sdk" "https://registry.npmjs.org/@pcguest%2Fatb-sdk/${VERSION}"
+
       # Layer E: distribution of verified release artifacts to GitHub, PyPI, and npm.
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v2
@@ -595,7 +619,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           packages-dir: artifacts/python
-          skip-existing: true
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -616,13 +639,7 @@ jobs:
               exit 1
             fi
             package_tarball="${package_tarballs[0]}"
-            package_name="$(tar -xOf "$package_tarball" package/package.json | node -e "let data=\"\"; process.stdin.on(\"data\", chunk => data += chunk); process.stdin.on(\"end\", () => process.stdout.write(JSON.parse(data).name))")"
-            package_version="$(tar -xOf "$package_tarball" package/package.json | node -e "let data=\"\"; process.stdin.on(\"data\", chunk => data += chunk); process.stdin.on(\"end\", () => process.stdout.write(JSON.parse(data).version))")"
-            if npm view "${package_name}@${package_version}" version --json >/dev/null 2>&1; then
-              echo "${package_name}@${package_version} is already published"
-            else
-              npm publish "$package_tarball" --access public
-            fi
+            npm publish "$package_tarball" --access public
           '
 
       - name: Sign final release bundle

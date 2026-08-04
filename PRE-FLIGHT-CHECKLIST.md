@@ -1,4 +1,8 @@
-# Final pre-flight checklist (v1.15.0)
+# Archived pre-flight checklist (v1.15.0 evidence)
+
+> **Retired historical record — do not execute.** This checklist records the
+> original v1.15.0 launch evidence. `v1.15.2` already exists on `main`; a future
+> release requires fresh acceptance evidence and a new checklist.
 
 The last page to read before authorising live execution. Every item is either
 proven here, or flagged as a decision or a gated step that is yours. Nothing
@@ -67,6 +71,6 @@ without your explicit "go".
 
 ## Gated execution order (each waits for your "go")
 
-Path A: push branches, review and fast-forward `main`, tag `v1.15.0` once, make
+Historical Path A: push branches, review and fast-forward `main`, tag `v1.15.0` once, make
 repos public, publish the SDKs (HUMAN: install `build`/`twine`, `npm login`),
 deploy the Mortise site, then run `scripts/post-launch-verify.sh`.

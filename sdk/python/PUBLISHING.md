@@ -5,13 +5,13 @@ These commands prepare and publish the Python SDK to PyPI from `sdk/python/`.
 ## Prerequisites
 
 ```bash
-python3 -m pip install --upgrade build twine
+python3 -m pip install -r requirements-release.txt
 ```
 
 ## Build and verify
 
 ```bash
-python3 -m build
+python3 -m build --no-isolation
 python3 -m twine check dist/*
 ```
 

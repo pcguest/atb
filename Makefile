@@ -13,7 +13,7 @@ test-golden:
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
-GOTOOLCHAIN ?= go1.26.4
+GOTOOLCHAIN ?= go1.26.5
 GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
 GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
@@ -63,7 +63,9 @@ test-go: profile-fixtures
 
 hygiene-quick: check-generated check-versions
 	@echo "🧹 Running quick hygiene gate..."
-	$(GOENV) go fmt $(GO_PACKAGES) && $(GOENV) go vet $(GO_PACKAGES)
+	@unformatted="$$(gofmt -l $$(git ls-files '*.go'))"; \
+		test -z "$$unformatted" || { printf '❌ Go files require gofmt:\n%s\n' "$$unformatted"; exit 1; }
+	$(GOENV) go vet $(GO_PACKAGES)
 	$(GOENV) $(STATICCHECK) $(GO_PACKAGES)
 	$(MAKE) test-go
 	cd web && npm run lint && npm run typecheck
@@ -107,7 +109,8 @@ test-e2e:
 	@test -f examples/quickstart/run.atb/bundle.atb || { echo "📦 Generating quickstart bundle (gitignored, absent on fresh checkouts)..."; ATB_BIN=/tmp/atb-e2e bash examples/quickstart/run.sh > /dev/null; }
 	@/tmp/atb-e2e view --bundle examples/quickstart/run.atb/bundle.atb --session-token 0000000000000000000000000000000000000000000000000000000000000001 --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
 	@sleep 3
-	@cd web && CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-dashboard.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
+	@# ELECTRON_RUN_AS_NODE breaks the Cypress/Electron launcher when set by IDEs.
+	@cd web && env -u ELECTRON_RUN_AS_NODE CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-dashboard.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
 	@kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true
 	@rm -f /tmp/atb-e2e.pid
 	@echo "✅ Live E2E tests passed"
@@ -148,7 +151,7 @@ gate-gold-release: test-all
 	@$(MAKE) test-e2e
 	@echo ""
 	@echo "Step 4: Accessibility audit..."
-	@cd web && npm run test:a11y || (echo "❌ A11y tests failed"; exit 1)
+	@cd web && env -u ELECTRON_RUN_AS_NODE npm run test:a11y || (echo "❌ A11y tests failed"; exit 1)
 	@echo ""
 	@echo "✅ All gold release gates passed"
 	@echo "Ready to tag the current gold release"
@@ -199,7 +202,7 @@ security-scan:
 		trivy fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ trivy not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.61.0 fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
+		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
 	fi
 	@GOSEC_BIN="$$(command -v gosec || true)"; \
 	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
@@ -209,7 +212,7 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
 		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.4 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
+		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.5@sha256:3aff6657219a4d9c14e27fb1d8976c49c29fddb70ba835014f477e1c70636647 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
 	cd web && npm audit --audit-level=high
 	cd sdk/typescript && npm audit --audit-level=high

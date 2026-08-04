@@ -1,8 +1,8 @@
 # ATB and Mortise acceptance evidence (v1.15.0)
 
 Every load-bearing claim, the command that proves it, and the result observed on
-this machine. Toolchain: `GOCACHE=$(pwd)/.gocache/go1.26.4 GOTOOLCHAIN=go1.26.4`
-(go.mod requires go 1.26.4; the older 1.26.3 in earlier notes is stale). This is
+this machine. Toolchain: `GOCACHE=$(pwd)/.gocache/go1.26.5 GOTOOLCHAIN=go1.26.5`
+(go.mod requires go 1.26.5; the older 1.26.3 in earlier notes is stale). This is
 evidence, not certification. The honest limits at the end are part of the claim.
 
 ## Gates

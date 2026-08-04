@@ -1,5 +1,11 @@
 # Tenon and Mortise Launch Runbook
 
+> **Retired historical record — do not execute.** The public ATB launch is
+> complete, `v1.15.2` already exists on `main`, and the branch, tag, repository
+> migration, and publication commands below describe a superseded one-time
+> process. Use `docs/release.md` plus a newly reviewed release plan for any
+> later release; never recreate or move `v1.15.2` from this runbook.
+
 This is a review artefact. Do not run any step until Patrick gives the
 step-specific word.
 
@@ -7,12 +13,12 @@ Hard stop: no public flip, repository rename, fresh repository create, push,
 tag, release, SDK publish, Docker publish, or site deploy happens from this file
 without explicit approval.
 
-All shell commands use `/bin/bash` explicitly. Go validation uses `go1.26.4`.
+All shell commands use `/bin/bash` explicitly. Go validation uses `go1.26.5`.
 All ATB commits must be signed by Patrick Guest `<patrickcguest@proton.me>`.
 
-## Current State
+## Historical State at Launch Planning
 
-- ATB local checkout: `/Users/paddyguest/atb`, branch `release/v1.15.0`.
+- ATB local checkout was `/Users/paddyguest/atb`, branch `release/v1.15.0`.
 - ATB local Tenon framing commit: `dafed1a`, committed locally, unpushed.
 - Mortise local checkout: `/Users/paddyguest/mortise`, branch
   `site/marketing-front`.
@@ -196,7 +202,7 @@ This is a hard launch gate.
 
 Expected result after the fresh public repo exists and `v1.15.0` is tagged:
 an unauthenticated external
-`GOTOOLCHAIN=go1.26.4 go install github.com/pcguest/atb/cmd/atb@v1.15.0`
+`GOTOOLCHAIN=go1.26.5 go install github.com/pcguest/atb/cmd/atb@v1.15.0`
 resolves to the fresh public launch history, builds, and the binary reports
 `1.15.0`.
 
@@ -215,14 +221,14 @@ Commands:
 cd /Users/paddyguest/atb
 /bin/bash -lc 'git status --short --branch'
 /bin/bash -lc 'go version'
-/bin/bash -lc 'GOCACHE=/tmp/atb-gocache-launch GOTOOLCHAIN=go1.26.4 make test-golden'
-/bin/bash -lc 'GOCACHE=/tmp/atb-gocache-launch GOTOOLCHAIN=go1.26.4 make hygiene-quick'
+/bin/bash -lc 'GOCACHE=/tmp/atb-gocache-launch GOTOOLCHAIN=go1.26.5 make test-golden'
+/bin/bash -lc 'GOCACHE=/tmp/atb-gocache-launch GOTOOLCHAIN=go1.26.5 make hygiene-quick'
 ```
 
 Expected result:
 
 - Branch is `release/v1.15.0`.
-- Go reports `go1.26.4`.
+- Go reports `go1.26.5`.
 - `make test-golden` passes.
 - `make hygiene-quick` passes.
 - Working tree remains clean.
@@ -242,7 +248,7 @@ Commands:
 cd /Users/paddyguest/atb
 /bin/bash -lc 'gh repo view pcguest/atb --json nameWithOwner,visibility,isPrivate,defaultBranchRef,pushedAt'
 /bin/bash -lc 'git ls-remote https://github.com/pcguest/atb.git HEAD'
-/bin/bash -lc 'tmp="$(mktemp -d)"; GOBIN="$tmp/bin" GOMODCACHE="$tmp/mod" GOCACHE="$tmp/cache" GOTOOLCHAIN=go1.26.4 GIT_TERMINAL_PROMPT=0 go install github.com/pcguest/atb/cmd/atb@latest'
+/bin/bash -lc 'tmp="$(mktemp -d)"; GOBIN="$tmp/bin" GOMODCACHE="$tmp/mod" GOCACHE="$tmp/cache" GOTOOLCHAIN=go1.26.5 GIT_TERMINAL_PROMPT=0 go install github.com/pcguest/atb/cmd/atb@latest'
 ```
 
 Expected result:
@@ -665,7 +671,7 @@ This is the first public module-resolution check after the tag exists.
 Commands:
 
 ```bash
-/bin/bash -lc 'tmp="$(mktemp -d)"; GOBIN="$tmp/bin" GOMODCACHE="$tmp/mod" GOCACHE="$tmp/cache" GOTOOLCHAIN=go1.26.4 GIT_TERMINAL_PROMPT=0 go install github.com/pcguest/atb/cmd/atb@v1.15.0; "$tmp/bin/atb" version'
+/bin/bash -lc 'tmp="$(mktemp -d)"; GOBIN="$tmp/bin" GOMODCACHE="$tmp/mod" GOCACHE="$tmp/cache" GOTOOLCHAIN=go1.26.5 GIT_TERMINAL_PROMPT=0 go install github.com/pcguest/atb/cmd/atb@v1.15.0; "$tmp/bin/atb" version'
 ```
 
 Expected result:
@@ -756,7 +762,7 @@ Commands:
 ```bash
 /bin/bash -lc 'rm -rf /tmp/atb-post-launch-verify'
 /bin/bash -lc 'mkdir -p /tmp/atb-post-launch-verify'
-/bin/bash -lc 'cd /tmp/atb-post-launch-verify; GOBIN=/tmp/atb-post-launch-verify/bin GOTOOLCHAIN=go1.26.4 go install github.com/pcguest/atb/cmd/atb@v1.15.0'
+/bin/bash -lc 'cd /tmp/atb-post-launch-verify; GOBIN=/tmp/atb-post-launch-verify/bin GOTOOLCHAIN=go1.26.5 go install github.com/pcguest/atb/cmd/atb@v1.15.0'
 /bin/bash -lc 'npm view @pcguest/atb-sdk@1.15.0 version'
 /bin/bash -lc 'python3 -m pip index versions atb-sdk'
 /bin/bash -lc 'cd /tmp/atb-post-launch-verify; python3 -m venv venv'

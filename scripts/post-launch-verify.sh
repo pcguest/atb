@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Post-launch external verification for ATB v1.15.1.
+# Post-launch external verification for an explicit ATB release.
 #
 # Run this AFTER launch, from a machine with no special access, to prove the
-# release works from the outside: the CLI installs from the public repo at
-# 1.15.1, both SDKs publish at 1.15.1 (not the previous published 1.14.5),
+# release works from the outside: the CLI and both SDKs resolve at the
+# requested version,
 # the quickstart runs, and verify exits 0 on an intact bundle and 2 on a
 # tampered one.
 #
@@ -15,14 +15,25 @@
 # Requirements on the runner: go, python3 (with venv), npm. No credentials.
 #
 # Usage:
-#   scripts/post-launch-verify.sh
-#
-# Override the expected version if you are verifying a later release:
-#   EXPECT=1.15.2 scripts/post-launch-verify.sh
+#   EXPECT=1.16.0 scripts/post-launch-verify.sh
 
 set -u
 
-EXPECT="${EXPECT:-1.15.1}"
+EXPECT="${EXPECT:-}"
+if [ -z "$EXPECT" ]; then
+  printf 'EXPECT is required (for example: EXPECT=1.16.0 %s)\n' "$0" >&2
+  exit 2
+fi
+case "$EXPECT" in
+  v*)
+    printf 'EXPECT must not include a leading v; got %s\n' "$EXPECT" >&2
+    exit 2
+    ;;
+esac
+if ! printf '%s\n' "$EXPECT" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+  printf 'EXPECT must be stable SemVer (MAJOR.MINOR.PATCH); got %s\n' "$EXPECT" >&2
+  exit 2
+fi
 # 1.14.5 is the newest version ever published to the registries; the gated
 # v1.15.0 baseline was never released, so a stale mirror serves 1.14.5.
 STALE="1.14.5"

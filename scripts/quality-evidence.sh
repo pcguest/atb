@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.4}"
+GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.5}"
 GOVERSION="$(GOTOOLCHAIN="$GOTOOLCHAIN" go env GOVERSION 2>/dev/null | tr ' ' '_' || true)"
 GOCACHE="${GOCACHE:-$ROOT/.gocache/${GOVERSION:-default}}"
 GOENV=(env "GOCACHE=$GOCACHE" "GOTOOLCHAIN=$GOTOOLCHAIN")

@@ -16,6 +16,9 @@ on:
       - scripts/check-support-matrix.sh
       - web/package.json
 
+permissions:
+  contents: read
+
 jobs:
   check-versions:
     runs-on: ubuntu-latest

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v0.9.0-beta)"
+        description: "Stable release tag (e.g. v1.16.0)"
         required: true
         type: string
   push:
@@ -41,24 +41,23 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
           fi
 
-          case "${TAG}" in
-            v*.*.*) ;;
-            *)
-              echo "Release tag must match v*.*.*; got ${TAG}"
-              exit 1
-              ;;
-          esac
+          if [[ ! "${TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Release tag must be stable SemVer (vMAJOR.MINOR.PATCH); got ${TAG}" >&2
+            exit 1
+          fi
 
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
 
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           ref: refs/tags/${{ steps.release-tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Validate tag and source version parity
+        run: bash scripts/check-versions.sh
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-        with:
-          driver-opts: image=moby/buildkit:latest
 
       - name: Log in to Docker Hub
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -75,11 +74,11 @@ jobs:
           TAG: ${{ steps.release-tag.outputs.tag }}
         run: |
           set -euo pipefail
-          VERSION="${TAG#v}"
           IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
           PLATFORM_SAFE="${PLATFORM//\//-}"
 
           docker buildx build \
+            --build-arg "ATB_VERSION=${TAG}" \
             --platform "${PLATFORM}" \
             --output "type=image,name=${IMAGE},push-by-digest=true,name-canonical=true,push=true" \
             --metadata-file "/tmp/meta-${PLATFORM_SAFE}.json" \
@@ -87,6 +86,21 @@ jobs:
 
           DIGEST=$(jq -r '."containerimage.digest"' "/tmp/meta-${PLATFORM_SAFE}.json")
           echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+
+          docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"
+          LABEL_VERSION=$(docker image inspect \
+            --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
+            "${IMAGE}@${DIGEST}")
+          BINARY_VERSION=$(docker run --rm --platform "${PLATFORM}" \
+            "${IMAGE}@${DIGEST}" version | awk '{print $NF}')
+          if [ "${LABEL_VERSION}" != "${TAG}" ]; then
+            echo "OCI version label ${LABEL_VERSION} does not match ${TAG}" >&2
+            exit 1
+          fi
+          if [ "${BINARY_VERSION}" != "${TAG#v}" ]; then
+            echo "atb binary version ${BINARY_VERSION} does not match ${TAG#v}" >&2
+            exit 1
+          fi
 
       - name: Upload digest
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -113,13 +127,10 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
           fi
 
-          case "${TAG}" in
-            v*.*.*) ;;
-            *)
-              echo "Release tag must match v*.*.*; got ${TAG}"
-              exit 1
-              ;;
-          esac
+          if [[ ! "${TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Release tag must be stable SemVer (vMAJOR.MINOR.PATCH); got ${TAG}" >&2
+            exit 1
+          fi
 
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
 

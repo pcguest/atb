@@ -8,6 +8,17 @@ The ATB Python SDK writes tamper-evident audit bundles in the same format as the
 pip install atb-sdk
 ```
 
+For a reproducible contributor checkout (CI uses the same pin file):
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .[dev] --no-deps
+```
+
+Release tooling is intentionally separate in `requirements-release.txt`; it is
+not required for normal SDK development. CI-only Bandit dependencies are kept
+in `requirements-security.txt`.
+
 ## Quick example
 
 ```python

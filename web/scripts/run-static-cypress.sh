@@ -32,4 +32,6 @@ until curl -fsI "${BASE_URL%/}/view/" >/dev/null 2>&1; do
   sleep 1
 done
 
-cypress run --spec "$SPEC" --browser firefox --env MOCK_API=true
+# ELECTRON_RUN_AS_NODE (sometimes set by IDEs) makes Cypress treat its binary as
+# Node and reject Electron smoke-test flags. Clear it for the browser launch.
+env -u ELECTRON_RUN_AS_NODE cypress run --spec "$SPEC" --browser firefox --env MOCK_API=true

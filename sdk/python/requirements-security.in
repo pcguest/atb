@@ -1,0 +1,3 @@
+# Python-only CI security tooling. Keep separate from SDK runtime, contributor,
+# and release dependencies.
+bandit==1.9.4

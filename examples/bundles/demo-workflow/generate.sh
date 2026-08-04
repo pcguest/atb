@@ -13,7 +13,7 @@ BUNDLE="$OUT_DIR/demo-workflow.atb"
 KEY="$OUT_DIR/demo-signing-key.pem"
 
 cd "$ROOT"
-GOCACHE="${GOCACHE:-$ROOT/.gocache/dev}" GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.4}" \
+GOCACHE="${GOCACHE:-$ROOT/.gocache/dev}" GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.5}" \
   go run ./examples/bundles/demo-workflow/
 
 if [[ ! -f "$KEY" ]]; then

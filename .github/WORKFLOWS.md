@@ -3,7 +3,7 @@
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | ci.yml | push/PR to main | Test matrix + golden parity + docs smoke |
-| security.yml | push/PR to main, schedule, manual | gosec, bandit, npm audit, and scheduled Trivy security gates |
+| security.yml | push/PR to main, schedule, manual | full-history Gitleaks, gosec, pinned Bandit, both npm audits, and Trivy filesystem/image gates |
 | release.yml | tag push | Build CLI + publish to PyPI/npm + GitHub Release |
 | docker-publish.yml | tag push, manual | Build and publish Docker image |
 | gold-release.yml | tag push | Gold release validation gate |
