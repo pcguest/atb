@@ -75,7 +75,11 @@ export function AuditorCompliancePanel({ verification, meta, viewerHealth }: Pro
             Composite of verification and recency. Not the integrity result.
           </p>
         </div>
-        <div className="md:col-span-3">
+        <div className="space-y-2 md:col-span-3">
+          <p className="text-xs text-muted-foreground">
+            Compliance packs, incident exports and trust reports are CLI-only. This viewer downloads
+            a review summary.
+          </p>
           <Button
             type="button"
             variant="outline"
@@ -83,10 +87,10 @@ export function AuditorCompliancePanel({ verification, meta, viewerHealth }: Pro
             className="inline-flex items-center gap-2"
             onClick={handleDownload}
             disabled={!reviewSummaryEnabled || !verification || !meta}
-            aria-label="Download review summary"
+            aria-label="Download viewer review summary"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
-            Download review summary
+            Download viewer review summary
           </Button>
         </div>
       </CardContent>
