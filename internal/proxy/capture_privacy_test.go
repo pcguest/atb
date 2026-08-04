@@ -85,12 +85,16 @@ func TestScanHeadersRedactsSecrets(t *testing.T) {
 	h.Set("X-Api-Key", "sk-secret-2")
 	h.Set("Proxy-Authorization", "Basic abc")
 	h.Set("Cookie", "session=secret")
+	h.Set("Api-Key", "provider-secret")
+	h.Set("X-Goog-Api-Key", "google-secret")
+	h.Set("Baggage", "account_email=person@example.com")
 	h.Set("Content-Type", "application/json")
 	h.Set("OpenAI-Organization", "org-public")
+	h.Set("X-Request-Id", "request-123")
 
 	got := proxy.ScanHeaders(h)
 
-	for _, secret := range []string{"Authorization", "X-Api-Key", "Proxy-Authorization", "Cookie"} {
+	for _, secret := range []string{"Authorization", "X-Api-Key", "Proxy-Authorization", "Cookie", "Api-Key", "X-Goog-Api-Key", "Baggage", "OpenAI-Organization"} {
 		if _, ok := got[secret]; ok {
 			t.Errorf("sensitive header %q must be redacted", secret)
 		}
@@ -98,8 +102,8 @@ func TestScanHeadersRedactsSecrets(t *testing.T) {
 	if got["Content-Type"] != "application/json" {
 		t.Errorf("Content-Type = %q, want application/json", got["Content-Type"])
 	}
-	if got["Openai-Organization"] != "org-public" && got["OpenAI-Organization"] != "org-public" {
-		t.Errorf("non-sensitive header should pass through, got %v", got)
+	if got["X-Request-Id"] != "request-123" {
+		t.Errorf("allowlisted request id should pass through, got %v", got)
 	}
 }
 
@@ -120,8 +124,11 @@ func TestCaptureScopeEvent(t *testing.T) {
 	if targets, _ := data["targets"].([]string); len(targets) != 2 {
 		t.Errorf("targets = %v, want 2", data["targets"])
 	}
-	if rh, _ := data["redacted_headers"].([]string); len(rh) == 0 {
-		t.Error("redacted_headers should list the stripped headers")
+	if data["header_policy"] != "allowlist" {
+		t.Errorf("header_policy = %v, want allowlist", data["header_policy"])
+	}
+	if rh, _ := data["recorded_headers"].([]string); len(rh) == 0 {
+		t.Error("recorded_headers should list the allowlisted headers")
 	}
 	if oos, _ := data["out_of_scope"].(string); oos == "" {
 		t.Error("out_of_scope must state the bypass gap")

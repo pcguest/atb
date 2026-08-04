@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/pcguest/atb/internal/identity"
+	"golang.org/x/sync/semaphore"
 )
 
 // Runner controls proxy lifecycle.
@@ -33,6 +34,7 @@ type Proxy struct {
 	recorder      *BundleRecorder
 	sessions      *SessionManager
 	mortisePusher *MortisePusher
+	bodyBudget    *semaphore.Weighted
 
 	mu         sync.Mutex
 	started    bool
@@ -73,6 +75,7 @@ func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, er
 		recorder:      recorder,
 		sessions:      sessions,
 		mortisePusher: cp,
+		bodyBudget:    semaphore.NewWeighted(DefaultMaxInFlightBodyBytes),
 	}, nil
 }
 

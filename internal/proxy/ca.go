@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -71,6 +72,16 @@ func LoadOrCreateLocalCA() (*LocalCA, error) {
 }
 
 func (ca *LocalCA) load() error {
+	keyInfo, err := os.Stat(ca.KeyPath)
+	if err != nil {
+		return fmt.Errorf("proxy: stat ca key: %w", err)
+	}
+	// Windows reports synthesized POSIX permission bits; ACL validation is not
+	// expressible through os.FileMode. Enforce the invariant where FileMode is
+	// authoritative and rely on the current-user profile ACL on Windows.
+	if runtime.GOOS != "windows" && keyInfo.Mode().Perm()&0o077 != 0 {
+		return fmt.Errorf("proxy: ca key %s permissions are %04o; require 0600 or stricter", ca.KeyPath, keyInfo.Mode().Perm())
+	}
 	certPEM, err := os.ReadFile(ca.CertPath)
 	if err != nil {
 		return fmt.Errorf("proxy: read ca cert: %w", err)
@@ -198,10 +209,11 @@ func (ca *LocalCA) LeafCertificate(host string) (certPEM, keyPEM []byte, err err
 
 // PrintInstallInstructions writes first-run CA trust instructions for common platforms.
 func PrintInstallInstructions(w io.Writer, certPath string) {
-	fmt.Fprintf(w, "ATB generated a local capture CA. Install %s as a trusted root once:\n", certPath)
-	fmt.Fprintf(w, "  macOS:   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s\n", certPath)
-	fmt.Fprintf(w, "  Linux:   sudo cp %s /usr/local/share/ca-certificates/atb-local-ca.crt && sudo update-ca-certificates\n", certPath)
-	fmt.Fprintf(w, "  Windows: certutil -addstore Root %s\n", certPath)
+	fmt.Fprintf(w, "ATB generated a local capture CA at %s. Trust it only in the captured process:\n", certPath)
+	fmt.Fprintf(w, "  export SSL_CERT_FILE=%s\n", certPath)
+	fmt.Fprintf(w, "  export CURL_CA_BUNDLE=%s\n", certPath)
+	fmt.Fprintf(w, "  export NODE_EXTRA_CA_CERTS=%s\n", certPath)
+	fmt.Fprintln(w, "Do not install this CA as a machine-wide root. Clear these variables when capture ends.")
 }
 
 func stripPort(host string) string {

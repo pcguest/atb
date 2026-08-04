@@ -100,6 +100,7 @@ func TestInterceptArgumentParsing(t *testing.T) {
 		"--identity-map", "key-1=Patrick",
 		"--mortise", "https://mortise.example",
 		"--capture-bodies",
+		"--max-body-bytes", "1048576",
 	})
 	if err != nil {
 		t.Fatalf("parse full config: %v", err)
@@ -109,6 +110,7 @@ func TestInterceptArgumentParsing(t *testing.T) {
 		cfg.MortiseEndpoint != "https://mortise.example" ||
 		cfg.MortiseToken != "test-token" ||
 		!cfg.CaptureBodies ||
+		cfg.MaxBodyBytes != 1048576 ||
 		cfg.IdentityMap["key-1"] != "Patrick" ||
 		len(cfg.TargetHosts) == 0 {
 		t.Fatalf("full config = %+v", cfg)
@@ -144,6 +146,9 @@ func TestInterceptArgumentParsing(t *testing.T) {
 		{"--mortise"},
 		{"--custos"},
 		{"--bundle", "x", "--mortise", "https://one.example", "--custos", "https://two.example"},
+		{"--bundle", "x", "--max-body-bytes"},
+		{"--bundle", "x", "--max-body-bytes", "-1"},
+		{"--bundle", "x", "--max-body-bytes", "268435457"},
 		{"--unknown"},
 	}
 	for _, args := range errorCases {

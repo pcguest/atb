@@ -91,6 +91,7 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 	mortiseEndpoint := ""
 	mortiseEndpointFlag := ""
 	captureBodies := false
+	maxBodyBytes := int64(0)
 	setMortiseEndpoint := func(flag, value string) error {
 		if mortiseEndpointFlag != "" {
 			return fmt.Errorf("cannot combine %s with %s", mortiseEndpointFlag, flag)
@@ -172,6 +173,23 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 			}
 		case arg == "--capture-bodies":
 			captureBodies = true
+		case arg == "--max-body-bytes":
+			if i+1 >= len(args) {
+				return proxy.ProxyConfig{}, fmt.Errorf("missing value for --max-body-bytes")
+			}
+			parsed, err := strconv.ParseInt(strings.TrimSpace(args[i+1]), 10, 64)
+			if err != nil || parsed < 0 {
+				return proxy.ProxyConfig{}, fmt.Errorf("invalid --max-body-bytes value %q", args[i+1])
+			}
+			maxBodyBytes = parsed
+			i++
+		case strings.HasPrefix(arg, "--max-body-bytes="):
+			value := strings.TrimSpace(strings.TrimPrefix(arg, "--max-body-bytes="))
+			parsed, err := strconv.ParseInt(value, 10, 64)
+			if err != nil || parsed < 0 {
+				return proxy.ProxyConfig{}, fmt.Errorf("invalid --max-body-bytes value %q", value)
+			}
+			maxBodyBytes = parsed
 		default:
 			return proxy.ProxyConfig{}, fmt.Errorf("unknown argument %q", arg)
 		}
@@ -192,6 +210,7 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 		// lands in shell history or process listings.
 		MortiseToken:  mortiseToken,
 		CaptureBodies: captureBodies,
+		MaxBodyBytes:  maxBodyBytes,
 	}
 	return cfg, cfg.Validate()
 }
@@ -256,11 +275,24 @@ Flags:
                              (set ATB_MORTISE_TOKEN to authenticate with a Bearer token)
   --custos <endpoint>        Deprecated compatibility alias for --mortise
   --capture-bodies           Record raw request/response bodies (default: digest only)
+  --max-body-bytes <n>       Max request/response body buffered in memory
+                             (default 33554432, maximum 268435456)
 
 By default only a SHA-256 digest and byte length of each request/response body
 are recorded, so the bundle never persists prompts, completions, or PII.
 Pass --capture-bodies to retain raw bodies where that tradeoff is acceptable.
-The generated CA is local to the current user. Configure trust only for the
-captured process where possible; do not install it as a shared production root.
+Bodies larger than --max-body-bytes are rejected and recorded as privacy-safe
+atb.capture.rejected evidence, so the proxy never buffers unbounded payloads or
+silently omits the affected exchange. Raise the limit only when multimodal or
+large tool payloads require it.
+
+Local MITM CA (first run creates ~/.atb/ca.crt and ~/.atb/ca.key):
+  - Trust the CA only in the agent process environment (SSL_CERT_FILE /
+    NODE_EXTRA_CA_CERTS / CURL_CA_BUNDLE), not as a machine-wide root.
+  - Protect ca.key with owner-only access (mode 0600 on Unix); anyone with the
+    key can intercept TLS for hosts you route through this proxy.
+  - Rotate by deleting ~/.atb/ca.crt and ~/.atb/ca.key, restarting intercept,
+    and updating process trust env vars to the new certificate.
+  - Remove trust env vars when capture ends; do not share ca.key.
 `)
 }

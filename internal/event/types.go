@@ -33,8 +33,8 @@ type EventInfo struct {
 // Registry is the legacy ordered list of all canonical event types.
 //
 // Deprecated: schemas/event.v1.json event_types is the source of truth. Use
-// RegistryGenerated for generated metadata. Registry remains unchanged for one
-// minor release to preserve existing callers.
+// RegistryGenerated for generated metadata. Registry remains synchronized for
+// callers that have not yet migrated to the generated registry.
 var Registry = []EventInfo{
 	{TypeBundleManifest, "Bundle manifest (seq 0, always first in a new bundle)", "atb.profile.privileged_tool_action,atb.profile.rag_answer,atb.profile.data_export,atb.profile.policy_decision,atb.profile.human_override,atb.profile.background_automation", "critical"},
 	{TypeBundleAnchor, "RFC 3161 TSA timestamp anchor", "all", "required"},
@@ -73,6 +73,7 @@ var Registry = []EventInfo{
 	{TypeHumanOverride, "Human operator overrode an AI-recommended action", "", "required"},
 	{TypeHumanApproval, "Human operator approved a pending action", "", "required"},
 	{TypeCaptureScope, "Capture-coverage attestation written by atb intercept at startup: what the recorder can and cannot see", "", "required"},
+	{TypeCaptureRejected, "Capture rejection or incomplete exchange (proxy-internal)", "", "required"},
 	{TypeLLMRequest, "Captured upstream LLM API request (proxy-internal)", "", "informational"},
 	{TypeLLMResponse, "Captured upstream LLM API response (proxy-internal)", "", "informational"},
 	{TypeSessionClose, "Capture session closed (proxy-internal lifecycle marker)", "", "informational"},

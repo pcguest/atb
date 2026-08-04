@@ -12,6 +12,38 @@ import (
 var (
 	// ErrInvalidConfig indicates ProxyConfig failed validation.
 	ErrInvalidConfig = errors.New("proxy: invalid configuration")
+	// ErrBodyTooLarge indicates a request or response body exceeded MaxBodyBytes.
+	ErrBodyTooLarge = errors.New("proxy: body exceeds MaxBodyBytes")
+)
+
+// BodyTooLargeError reports the configured limit and the number of bytes
+// observed before the proxy rejected a body. Observed is a lower bound for
+// streamed bodies because the reader stops at limit+1.
+type BodyTooLargeError struct {
+	Limit    int64
+	Observed int64
+}
+
+func (e *BodyTooLargeError) Error() string {
+	return fmt.Sprintf("%v (limit %d bytes, observed at least %d bytes)", ErrBodyTooLarge, e.Limit, e.Observed)
+}
+
+// Unwrap lets callers classify the error with errors.Is.
+func (e *BodyTooLargeError) Unwrap() error { return ErrBodyTooLarge }
+
+const (
+	// DefaultMaxBodyBytes is the default per-message body cap for capture and
+	// in-memory buffering (32 MiB). Large multimodal payloads need an explicit
+	// --max-body-bytes increase; unbounded buffering is never the default.
+	DefaultMaxBodyBytes int64 = 32 << 20
+	// MaxBodyBytesLimit is the largest per-message cap accepted from the CLI.
+	// Keeping the value comfortably below MaxInt64 prevents limit arithmetic
+	// from overflowing and bounds the blast radius of an accidental setting.
+	MaxBodyBytesLimit int64 = 256 << 20
+	// DefaultMaxInFlightBodyBytes bounds aggregate request/response buffering.
+	// Each exchange reserves twice its per-message cap because a request body
+	// can remain live while its response is read.
+	DefaultMaxInFlightBodyBytes int64 = 512 << 20
 )
 
 // ProxyConfig configures the local HTTPS capture proxy.
@@ -30,6 +62,10 @@ type ProxyConfig struct {
 	// always-on recorder does not persist prompts, completions, or PII. Enable
 	// only in environments that accept storing raw content in the bundle.
 	CaptureBodies bool
+	// MaxBodyBytes caps how much of each request/response body is read into
+	// memory for capture and forwarding. Zero means DefaultMaxBodyBytes.
+	// Negative values are invalid.
+	MaxBodyBytes int64
 }
 
 // Validate checks required fields without mutating the configuration.
@@ -50,13 +86,28 @@ func (c *ProxyConfig) Validate() error {
 	if len(normalised) == 0 {
 		return fmt.Errorf("%w: at least one target host is required", ErrInvalidConfig)
 	}
+	if c.MaxBodyBytes < 0 || c.MaxBodyBytes > MaxBodyBytesLimit {
+		return fmt.Errorf("%w: MaxBodyBytes must be between 0 and %d", ErrInvalidConfig, MaxBodyBytesLimit)
+	}
 	return nil
+}
+
+// EffectiveMaxBodyBytes returns the configured body cap, applying the default
+// when MaxBodyBytes is zero.
+func (c ProxyConfig) EffectiveMaxBodyBytes() int64 {
+	if c.MaxBodyBytes == 0 {
+		return DefaultMaxBodyBytes
+	}
+	return c.MaxBodyBytes
 }
 
 func (c ProxyConfig) normalised() ProxyConfig {
 	c.TargetHosts = normalisedTargetHosts(c.TargetHosts)
 	if c.IdentityMap == nil {
 		c.IdentityMap = map[string]string{}
+	}
+	if c.MaxBodyBytes == 0 {
+		c.MaxBodyBytes = DefaultMaxBodyBytes
 	}
 	return c
 }
