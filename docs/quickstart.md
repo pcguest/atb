@@ -192,9 +192,9 @@ status, and any critical obligation failures.
 If you install with `go install`, `atb view` serves a minimal install-guidance page with no
 bundle data. Build from source when you need the embedded review UI.
 
-Security note: `atb view` binds to `127.0.0.1` by default. All API endpoints require a
-session token generated at startup and delivered in the browser URL fragment. Do not expose
-the viewer on a non-loopback interface.
+Security note: `atb view` accepts loopback hosts only. All API endpoints require a
+session token generated at startup and delivered in the browser URL fragment. It is not a
+network-hosted viewer.
 
 Dashboard details:
 

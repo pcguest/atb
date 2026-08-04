@@ -36,8 +36,29 @@ Session bundles can contain sensitive metadata (and raw prompts if
 then hand off a closed bundle to custody (for example Mortise via `--mortise`)
 rather than committing it to a repository.
 
-By default **bodies are digested, not stored** (`body_sha256` + `body_bytes`);
-credential headers are stripped. See [`docs/public-surface.md`](../public-surface.md#atb-intercept).
+By default **bodies are digested, not stored** (`body_sha256` + `body_bytes`).
+Only a conservative allowlist of non-secret operational headers is eligible
+for capture; all other headers are omitted. See [`docs/public-surface.md`](../public-surface.md#atb-intercept).
+Request and response bodies are buffered up to **32 MiB** by default
+(`--max-body-bytes`); larger payloads are rejected so the proxy cannot be used
+as an unbounded memory sink. The configured per-message limit cannot exceed
+256 MiB, aggregate in-flight buffering is bounded, and rejected/incomplete
+exchanges emit `atb.capture.rejected` without retaining body or header content.
+
+### Local MITM CA operations
+
+On first run, `atb intercept` writes a user-local CA to `~/.atb/ca.crt` and
+`~/.atb/ca.key` (owner-only access; mode `0600` on Unix). This CA is powerful:
+any process that trusts it and whose traffic is routed through the proxy can
+have TLS intercepted for allowlisted targets.
+
+- Prefer process-scoped trust (`SSL_CERT_FILE`, `NODE_EXTRA_CA_CERTS`,
+  `CURL_CA_BUNDLE`) over installing the CA as a shared system root.
+- Never commit or share `ca.key`.
+- Rotate by deleting both CA files, restarting `atb intercept`, and pointing
+  trust env vars at the newly generated certificate.
+- When the capture session ends, clear the trust env vars so later processes do
+  not keep trusting the intercept CA.
 
 > **No live traffic?** Generate a fixture bundle:
 >

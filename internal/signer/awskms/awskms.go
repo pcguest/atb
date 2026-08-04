@@ -24,11 +24,9 @@ import (
 //
 // NOTE: AWS KMS does not natively support Ed25519 as of 2026. AWSKMSSigner
 // therefore signs with ECDSA_SHA_256 (P-256) by default and records
-// algorithm="ecdsa-p256" in the signature record. The ATB verifier must be
-// extended to support ECDSA verification before this signer is usable in
-// production. For now the signer is implemented and tested against a mock KMS
-// client; the CLI wires it in and warns that ecdsa-p256 verification is not yet
-// implemented.
+// algorithm="ecdsa-p256" in the signature record. The ATB verifier supports
+// ECDSA P-256 verification using the public key embedded in that record, so
+// verification does not require AWS credentials or a live KMS call.
 type AWSKMSSigner struct {
 	client *kms.Client
 	keyID  string

@@ -422,11 +422,14 @@ The Vault backend reads the Transit key type from `/v1/transit/keys/<name>` and 
 
 These backends sign the 32-byte SHA-256 pre-signature bundle digest and embed
 the returned public verification key in the bundle signature record, so
-verification should not require a live KMS call. Current KMS scaffolding records
-`algorithm="ecdsa-p256"` because native Ed25519 is not uniformly available
-across the target KMS services. ECDSA-P256 verification is tracked follow-up
-work; bundles produced by these tagged signers are expected to fail signature
-verification until that verifier extension is implemented.
+verification does not require a live KMS call. The Go verifier supports
+`algorithm="ecdsa-p256"` as well as Ed25519, including the DER and uncompressed
+P-256 public-key encodings emitted by the supported backends. AWS KMS and GCP
+KMS use ECDSA P-256 because native Ed25519 is not uniformly available across
+the target services. Signing remains operationally dependent on a build that
+includes the relevant backend tag, provider credentials and network access,
+and a compatible asymmetric signing key; those dependencies do not apply when
+verifying a bundle whose signature record embeds its public key.
 
 ---
 

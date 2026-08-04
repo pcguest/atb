@@ -49,9 +49,9 @@ Builds produced by `go install` from the module proxy do not include the embedde
 Running `atb view` in that case shows a minimal install-guidance page. Build from source to
 use the visual interface.
 
-Security note: `atb view` binds to `127.0.0.1` by default. All API endpoints require a
-session token generated at startup and delivered to the browser in the URL fragment. Do not
-expose the viewer on a non-loopback interface.
+Security note: `atb view` accepts loopback hosts only. All API endpoints require a
+session token generated at startup and delivered to the browser in the URL fragment. It is
+not a network-hosted viewer.
 
 ## Architecture
 

@@ -40,7 +40,7 @@ storage, identity verification, or hosted control-plane governance.
 - Layer A, integrity: ATB bundles, SHA-256 hash chaining, RFC 8785 canonical JSON, and optional RFC 3161 TSA anchors.
 - Layer B, profiles and CAS: schema-backed obligation profiles and profile-scoped completeness signals for recorded workflow evidence. CAS is a local scoring model over the events ATB can evaluate, not an external audit opinion or independent attestation.
 - Layer C, ACP: control-plane gating for high-impact actions, with the invariant that no gated action should execute without an ATB precommit.
-- Layer D, security scanning: `gosec`, Bandit, and `npm audit` on the repository, plus scheduled or manually requested Trivy filesystem and Docker image scans.
+- Layer D, security scanning: full-history Gitleaks, `gosec`, pinned Bandit, both npm audits, and Trivy filesystem and Docker image scans.
 - Layer E, distribution and operations: Git tags, GitHub releases, checksums, PyPI, npm, and Docker image publication.
 
 Docker images are published by a separate `Docker Publish` workflow on tag pushes or manual dispatch. They are part of Layer E distribution rather than the Layer A-C assurance boundary.
@@ -105,19 +105,20 @@ intended for single-user local inspection only. All `/api/v1/*`
 endpoints require authentication.
 
 Authentication can be performed using:
-*   A per-session token generated at startup (for local-only dev mode).
+*   A per-session token generated at startup (the normal `atb view` path).
 *   OIDC/JWT tokens, configured via `--oidc-issuer` and `--oidc-audience`.
+
+If neither a session token nor a JWT validator is configured, the API server
+fails closed with HTTP 401. There is no unauthenticated constructor mode.
+`atb view` always generates a session token.
 
 Roles are extracted from JWT claims (or default to `viewer`) and enforced via RBAC:
 *   `viewer`: Read-only access to view data.
 *   `operator`: Read-write access, including privacy reveal operations and re-running profile verification.
 *   `admin`: Full administrative access (currently implied by session token).
 
-Do not expose the viewer on a network interface without careful consideration of your OIDC provider's security.
-
-If `--host` is used to bind to a non-loopback address, bundle contents
-become accessible to any process that can reach that interface unless an
-independent network control blocks access.
+`--host` accepts only `localhost` or a loopback IP address. ATB deliberately
+does not provide a network-hosted or multi-tenant viewer mode.
 
 ## Threat model
 
@@ -189,12 +190,11 @@ make security-scan
 
 Behaviour:
 
-- `make security-scan` runs the local Trivy filesystem scan and the Go `gosec` repository scan.
+- `make security-scan` runs Trivy, `gosec`, and high-severity npm audits for the web UI and TypeScript SDK.
 - For local development only, it may fall back to Docker-based execution for those two tools when local binaries are missing.
 - CI does not use Docker for the Go code scan. The security workflow installs `gosec` with `go install` and invokes the binary directly.
-- CI also runs Bandit on `sdk/python/atb` and `npm audit` in `sdk/typescript`.
-- CI runs Trivy filesystem scans only on scheduled or manually dispatched security sweeps.
-- CI runs Trivy image scans only on scheduled or manually dispatched runs, building a local Docker image first and then scanning it.
+- CI also scans full Git history with Gitleaks, runs pinned Bandit on `sdk/python/atb`, and audits both npm lockfiles.
+- CI runs Trivy filesystem and image scans on pushes, pull requests, schedules, and manual dispatches; the image scan builds a local image first.
 
 ### Privacy reveal controls
 

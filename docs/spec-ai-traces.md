@@ -556,6 +556,7 @@ Developer-only types (`dev.session`) are used internally by tooling and tests an
 | `data.export.executed` | Data export | critical | `data_export` |
 | `data.export.error` | Data export | required | — |
 | `atb.capture.scope` | Capture (proxy-internal) | required | — |
+| `atb.capture.rejected` | Capture (proxy-internal) | required | — |
 | `atb.llm.request` | Capture (proxy-internal) | informational | — |
 | `atb.llm.response` | Capture (proxy-internal) | informational | — |
 | `atb.session.close` | Session lifecycle | informational | — |

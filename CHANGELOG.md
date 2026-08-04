@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The local intercept proxy now enforces configurable per-body and aggregate memory limits. Rejected or incomplete exchanges emit privacy-safe `atb.capture.rejected` evidence; the additive event is registered in the checked, generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
+
+### Changed
+- CI, release, Docker, Python, npm, and security-scanner inputs are reproducibly pinned; release workflows validate source/tag/image version parity and refuse registry publication states that could appear falsely green.
+- The local viewer now scopes query caches by bundle and a non-secret session-token fingerprint, removes prior-scope data on credential changes, and uses accessible session controls and semantic theme tokens.
+- Go builds and workflows require Go 1.26.5, which fixes the reachable standard-library TLS vulnerability GO-2026-5856. High-severity Go, web, and TypeScript dependency advisories are remediated, and Trivy is pinned to 0.73.0.
+
+### Security
+- Viewer API authentication fails closed when neither a valid session token nor configured JWT authorizes the request, and `atb view` refuses non-loopback binds.
+- Proxy header evidence uses a conservative allowlist instead of a secret-header denylist. Local MITM CA keys must be owner-only on Unix, and guidance limits CA trust to the captured process.
+
 ## [v1.15.2] - 2026-07-08
 
 ### Fixed

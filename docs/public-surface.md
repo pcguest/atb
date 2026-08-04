@@ -56,14 +56,17 @@ share viewer sessions or identity state with Mortise. See
 loopback by default and protects API routes with a generated session token.
 With `--sessions`, the `/sessions` surface exposes the authenticated session
 index, actor grouping, schema status, anomaly summaries, and role-aware panels.
-It does not provide hosted multi-tenant review.
+It does not provide hosted multi-tenant review. Incident exports, compliance
+packs, and trust reports remain CLI-only workflows.
 
 ## atb intercept
 
 By default the capture proxy records a SHA-256 digest and byte length for
-request and response bodies, not raw prompts or completions. Credential and
-session-secret headers are stripped. `--capture-bodies` is an explicit privacy
-tradeoff.
+request and response bodies, not raw prompts or completions. It records only a
+small allowlist of non-secret operational headers and omits every other header.
+`--capture-bodies` is an explicit privacy tradeoff. Oversized or unreadable
+exchange bodies are rejected and represented by privacy-safe
+`atb.capture.rejected` evidence rather than silently disappearing.
 
 `--mortise <url>` lodges the completed bundle with a configured Mortise
 endpoint when a session closes. `ATB_MORTISE_TOKEN`, when set, supplies the Bearer

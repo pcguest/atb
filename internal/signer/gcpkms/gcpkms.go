@@ -27,8 +27,8 @@ type cloudKMSClient interface {
 // GCPKMSSigner implements internal/signer.Signer using GCP Cloud KMS.
 //
 // NOTE: ATB records GCP KMS signatures as algorithm="ecdsa-p256". The ATB
-// verifier must be extended to support ECDSA verification before this signer is
-// usable in production.
+// verifier supports ECDSA P-256 using the public key embedded in the signature
+// record, so verification remains offline and does not require GCP credentials.
 type GCPKMSSigner struct {
 	client cloudKMSClient
 	keyID  string
