@@ -608,10 +608,21 @@ func parseViewArgs(args []string) (viewConfig, error) {
 	if cfg.Port < 1 || cfg.Port > 65535 {
 		return cfg, fmt.Errorf("--port must be between 1 and 65535")
 	}
+	if !isLoopbackViewHost(cfg.Host) {
+		return cfg, fmt.Errorf("--host must be localhost or a loopback IP address")
+	}
 	if (cfg.OIDCIssuer == "") != (cfg.OIDCAudience == "") {
 		return cfg, fmt.Errorf("--oidc-issuer and --oidc-audience must be set together")
 	}
 	return cfg, nil
+}
+
+func isLoopbackViewHost(host string) bool {
+	if strings.EqualFold(strings.TrimSpace(host), "localhost") {
+		return true
+	}
+	ip := net.ParseIP(strings.TrimSpace(host))
+	return ip != nil && ip.IsLoopback()
 }
 
 func resolveSessionPaths(pattern string) ([]string, error) {

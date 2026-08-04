@@ -649,6 +649,11 @@ func TestSessionTokenEnforcesReadEndpoints(t *testing.T) {
 		{http.MethodGet, "/api/v1/bundle/events"},
 		{http.MethodGet, "/api/v1/bundle/graph"},
 		{http.MethodGet, "/api/v1/bundle/profile"},
+		{http.MethodPost, "/api/v1/bundle/verify"},
+		{http.MethodGet, "/api/v1/bundle/verify/report"},
+		{http.MethodGet, "/api/v1/sessions"},
+		{http.MethodGet, "/api/v1/sessions/by-actor"},
+		{http.MethodGet, "/api/v1/schema/status"},
 	}
 
 	for _, ep := range readEndpoints {
@@ -693,22 +698,6 @@ func TestSessionTokenEnforcesReadEndpoints(t *testing.T) {
 					ep.method, ep.path, rr.Body.String())
 			}
 		})
-	}
-}
-
-func TestSessionTokenSkippedWhenEmpty(t *testing.T) {
-	bundlePath, b := createRichTestBundle(t)
-	_, handler := buildTestAPIServer(t, APIConfig{
-		BundlePath:      bundlePath,
-		Bundle:          b,
-		RevealAuthToken: "reveal-token",
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected session check to be skipped when token is empty: got %d want %d", rr.Code, http.StatusOK)
 	}
 }
 

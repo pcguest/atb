@@ -50,7 +50,7 @@ type APIConfig struct {
 	BundlePath       string
 	Bundle           *bundle.Bundle
 	VerifyErr        error
-	SessionToken     string // optional; if non-empty all read endpoints require X-ATB-Session-Token
+	SessionToken     string // optional only when JWTValidator is set; otherwise the API fails closed
 	RevealAuthToken  string
 	RevealRateLimit  int
 	RevealRateWindow time.Duration
@@ -89,10 +89,10 @@ type APIServer struct {
 // authMiddleware enforces authentication and sets the role in the context.
 func (s *APIServer) authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var authenticatedRole atbauth.Role = atbauth.RoleViewer // Default to viewer if no auth or OIDC not configured
+		var authenticatedRole atbauth.Role = atbauth.RoleViewer
 		var authenticated bool
 
-		// 1. Try session token authentication (for local-only dev mode)
+		// 1. Try the local viewer's per-session token.
 		if s.sessionToken != "" {
 			token := strings.TrimSpace(r.Header.Get(sessionAuthHeader))
 			if token == "" {
@@ -125,12 +125,7 @@ func (s *APIServer) authMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
-		// If no authentication mechanism is configured, or if authentication failed
-		if !authenticated && s.sessionToken == "" && s.jwtValidator == nil {
-			// No authentication configured, allow all access (dev mode)
-			authenticatedRole = atbauth.RoleAdmin // Assume admin for unauthenticated dev mode
-		} else if !authenticated {
-			// Authentication configured but failed
+		if !authenticated {
 			writeJSON(w, http.StatusUnauthorized, APIError{Error: "unauthorized"})
 			return
 		}
