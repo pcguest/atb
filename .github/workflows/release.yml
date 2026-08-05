@@ -445,6 +445,10 @@ jobs:
         with:
           node-version: "22"
 
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
       - name: Remove node_modules (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -457,6 +461,7 @@ jobs:
       - name: Install dependencies
         run: |
           go mod download
+          python -m pip install -r ./sdk/python/requirements-dev.txt
           cd web && npm ci
           cd ../sdk/typescript && npm ci
 

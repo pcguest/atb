@@ -94,6 +94,57 @@ func TestGoldReleaseGateHasNoSoftFailurePaths(t *testing.T) {
 	}
 }
 
+func TestReleaseCheckPreparesPythonBeforeCrossLanguageGoTests(t *testing.T) {
+	script := readRepositoryFile(t, "scripts/release-check.sh")
+	goTests := strings.Index(script, `echo "[1/7] Go tests"`)
+	pythonInstall := strings.Index(script, `"$ATB_PYTHON_BIN" -m pip install -r sdk/python/requirements-dev.txt`)
+	if goTests < 0 || pythonInstall < 0 {
+		t.Fatal("release check must install the pinned Python test environment before Go tests")
+	}
+	if pythonInstall > goTests {
+		t.Fatal("release check runs cross-language Go tests before installing Python dependencies")
+	}
+	for _, required := range []string{
+		`ATB_PYTHON_BIN="$VENV_DIR/bin/python"`,
+		`ATB_PYTHON="$ATB_PYTHON_BIN"`,
+		`trap cleanup EXIT`,
+	} {
+		if !strings.Contains(script, required) {
+			t.Errorf("release check does not configure %q", required)
+		}
+	}
+}
+
+func TestGoldReleaseWorkflowsInstallPythonSDKDependencies(t *testing.T) {
+	standalone := readRepositoryFile(t, ".github/workflows/gold-release.yml")
+	release := readRepositoryFile(t, ".github/workflows/release.yml")
+	gateStart := strings.Index(release, "\n  gate-gold:")
+	publishStart := strings.Index(release, "\n  publish:")
+	if gateStart < 0 || publishStart <= gateStart {
+		t.Fatal("release workflow gold gate job boundaries not found")
+	}
+	releaseGate := release[gateStart:publishStart]
+
+	for name, workflow := range map[string]string{
+		"gold-release.yml":      standalone,
+		"release.yml gate-gold": releaseGate,
+	} {
+		if !strings.Contains(workflow, "actions/setup-python@") {
+			t.Errorf("%s does not set up Python for cross-language tests", name)
+		}
+		if !strings.Contains(workflow, "python -m pip install -r ./sdk/python/requirements-dev.txt") {
+			t.Errorf("%s does not install pinned Python SDK dependencies", name)
+		}
+	}
+}
+
+func TestWebReleaseBuildUsesHermeticBundler(t *testing.T) {
+	packageJSON := readRepositoryFile(t, "web/package.json")
+	if !strings.Contains(packageJSON, `"build": "next build --webpack"`) {
+		t.Fatal("web production build must pin webpack instead of allowing Next.js to select a port-binding Turbopack worker")
+	}
+}
+
 func TestReleaseWorkflowPublishesCompleteCanonicalAssets(t *testing.T) {
 	workflow := readRepositoryFile(t, ".github/workflows/release.yml")
 	required := []string{
@@ -154,6 +205,21 @@ func TestSecurityScanExcludesRepositoryBuildCaches(t *testing.T) {
 	}
 	if !strings.Contains(securityTarget, `/go/bin/gosec $$(go list -f "{{.Dir}}" ./...`) {
 		t.Error("Docker gosec scan does not derive the module package directories")
+	}
+}
+
+func TestSecurityScanRejectsMismatchedLocalScannerVersions(t *testing.T) {
+	makefile := readRepositoryFile(t, "Makefile")
+	for _, required := range []string{
+		"TRIVY_VERSION ?= 0.73.0",
+		`[ "$$TRIVY_FOUND_VERSION" = "$(TRIVY_VERSION)" ]`,
+		"GOSEC_VERSION ?= v2.27.1",
+		`go version -m "$$GOSEC_BIN"`,
+		`[ "$$GOSEC_FOUND_VERSION" = "$(GOSEC_VERSION)" ]`,
+	} {
+		if !strings.Contains(makefile, required) {
+			t.Errorf("security-scan does not enforce pinned scanner input %q", required)
+		}
 	}
 }
 

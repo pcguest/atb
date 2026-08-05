@@ -21,6 +21,9 @@ GO_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list ./... | g
 GO_COVER_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/web/node_modules/')
 GOSEC_DIRS = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{.Dir}}' ./... | grep -v '/node_modules/')
 STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)")
+TRIVY_VERSION ?= 0.73.0
+TRIVY_IMAGE ?= ghcr.io/aquasecurity/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c
+GOSEC_VERSION ?= v2.27.1
 
 profile-fixtures:
 	$(GOENV) go run ./scripts/generate_profile_fixtures.go
@@ -198,21 +201,30 @@ install-hooks:
 
 security-scan:
 	@echo "🔐 Running security scans..."
-	@if command -v trivy >/dev/null 2>&1; then \
-		trivy fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
+	@TRIVY_BIN="$$(command -v trivy || true)"; \
+	TRIVY_FOUND_VERSION=""; \
+	if [ -n "$$TRIVY_BIN" ]; then \
+		TRIVY_FOUND_VERSION="$$($$TRIVY_BIN --version 2>/dev/null | awk 'NR == 1 { print $$2 }')"; \
+	fi; \
+	if [ "$$TRIVY_FOUND_VERSION" = "$(TRIVY_VERSION)" ]; then \
+		"$$TRIVY_BIN" fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
 	else \
-		echo "⚠️ trivy not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
+		echo "⚠️ local Trivy version '$${TRIVY_FOUND_VERSION:-missing}' does not match $(TRIVY_VERSION); using pinned Docker image"; \
+		docker run --rm -v "$$(pwd):/work" $(TRIVY_IMAGE) fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
 	fi
 	@GOSEC_BIN="$$(command -v gosec || true)"; \
 	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
 		GOSEC_BIN="$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec"; \
 	fi; \
+	GOSEC_FOUND_VERSION=""; \
 	if [ -n "$$GOSEC_BIN" ]; then \
+		GOSEC_FOUND_VERSION="$$(go version -m "$$GOSEC_BIN" 2>/dev/null | awk '$$1 == "mod" && $$2 == "github.com/securego/gosec/v2" { print $$3 }')"; \
+	fi; \
+	if [ "$$GOSEC_FOUND_VERSION" = "$(GOSEC_VERSION)" ]; then \
 		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
-		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.5@sha256:3aff6657219a4d9c14e27fb1d8976c49c29fddb70ba835014f477e1c70636647 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
+		echo "⚠️ local gosec version '$${GOSEC_FOUND_VERSION:-missing}' does not match $(GOSEC_VERSION); using pinned Docker install"; \
+		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.5@sha256:3aff6657219a4d9c14e27fb1d8976c49c29fddb70ba835014f477e1c70636647 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
 	cd web && npm audit --audit-level=high
 	cd sdk/typescript && npm audit --audit-level=high

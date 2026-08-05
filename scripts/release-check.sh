@@ -21,6 +21,23 @@ if command -v python >/dev/null 2>&1; then
   PYTHON_BIN="python"
 fi
 
+# The Go suite contains cross-language parity tests that import the Python SDK.
+# Build one exact, disposable environment before running any tests and point
+# both parity-test conventions at it. This keeps the release preflight valid on
+# a clean machine instead of depending on packages installed in global Python.
+VENV_DIR="$(mktemp -d)"
+cleanup() {
+  rm -rf "$VENV_DIR"
+}
+trap cleanup EXIT
+"$PYTHON_BIN" -m venv "$VENV_DIR"
+ATB_PYTHON_BIN="$VENV_DIR/bin/python"
+export ATB_PYTHON_BIN
+ATB_PYTHON="$ATB_PYTHON_BIN"
+export ATB_PYTHON
+"$ATB_PYTHON_BIN" -m pip install -r sdk/python/requirements-dev.txt
+"$ATB_PYTHON_BIN" -m pip install -r sdk/python/requirements-release.txt
+
 echo "[1/7] Go tests"
 go test -skip TestInstalledBinarySmokeFlow ./...
 
@@ -37,18 +54,10 @@ echo "[2/7] TypeScript lockfile + build"
 echo "[3/7] Python tests + package build"
 (
   cd sdk/python
-  VENV_DIR="$(mktemp -d)"
-  "$PYTHON_BIN" -m venv "$VENV_DIR"
-  # shellcheck disable=SC1090
-  source "$VENV_DIR/bin/activate"
-  python -m pip install -r requirements-dev.txt
-  python -m pip install -r requirements-release.txt
-  python -m pip install -e .[dev] --no-deps
-  pytest -q
-  python -m build --no-isolation
-  twine check dist/*
-  deactivate
-  rm -rf "$VENV_DIR"
+  "$ATB_PYTHON_BIN" -m pip install -e .[dev] --no-deps
+  "$ATB_PYTHON_BIN" -m pytest -q
+  "$ATB_PYTHON_BIN" -m build --no-isolation
+  "$ATB_PYTHON_BIN" -m twine check dist/*
 )
 
 echo "[4/7] Web dashboard build"
@@ -78,10 +87,14 @@ else
 fi
 
 echo "[7/7] Version metadata"
-"$PYTHON_BIN" - <<'PY'
+"$ATB_PYTHON_BIN" - <<'PY'
 import pathlib
-import tomllib
 import json
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.9 and 3.10 support floor.
+    import tomli as tomllib
 
 pyproject = tomllib.loads(pathlib.Path("sdk/python/pyproject.toml").read_text())
 package_json = json.loads(pathlib.Path("sdk/typescript/package.json").read_text())
