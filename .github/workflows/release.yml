@@ -635,6 +635,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # The single-quoted script is intentionally evaluated by the inner bash.
+          # shellcheck disable=SC2016
           scripts/ci-atb-capture.sh "npm-publication-verified" -- bash -c '
             set -euo pipefail
             npm whoami

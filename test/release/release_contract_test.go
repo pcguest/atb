@@ -177,6 +177,24 @@ func TestReleaseSecurityToolsAreVersionPinned(t *testing.T) {
 	}
 }
 
+func TestCIWorkflowLintAndDockerManifestInputsArePinnedAndArraySafe(t *testing.T) {
+	ci := readRepositoryFile(t, ".github/workflows/ci.yml")
+	if !strings.Contains(ci, "go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12") {
+		t.Fatal("CI does not run the pinned workflow linter")
+	}
+
+	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
+	for _, required := range []string{
+		"mapfile -t digests",
+		`[ "${#digests[@]}" -eq 0 ]`,
+		`"${digests[@]}"`,
+	} {
+		if !strings.Contains(dockerPublish, required) {
+			t.Errorf("Docker manifest publication does not contain array-safe input %q", required)
+		}
+	}
+}
+
 func TestSecurityScanExcludesRepositoryBuildCaches(t *testing.T) {
 	makefile := readRepositoryFile(t, "Makefile")
 	start := strings.Index(makefile, "\nsecurity-scan:")

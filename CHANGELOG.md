@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - CI, release, Docker, Python, npm, and security-scanner inputs are reproducibly pinned; release workflows validate source/tag/image version parity and refuse registry publication states that could appear falsely green.
 - Clean-machine release checks now provision their cross-language Python environment before Go parity tests, pin the static web export to webpack, and reject local Trivy or gosec binaries whose versions differ from the release gate.
+- CI validates workflow scripts with pinned actionlint and uses array-safe package, process and multi-architecture digest handling.
 - The local viewer now scopes query caches by bundle and a non-secret session-token fingerprint, removes prior-scope data on credential changes, and uses accessible session controls and semantic theme tokens.
 - Go builds and workflows require Go 1.26.5, which fixes the reachable standard-library TLS vulnerability GO-2026-5856. High-severity Go, web, and TypeScript dependency advisories are remediated, and Trivy is pinned to 0.73.0.
 

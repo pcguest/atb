@@ -66,7 +66,9 @@ jobs:
           npm run build
 
       - name: Run gosec (HIGH only)
-        run: "$(go env GOPATH)/bin/gosec -severity high -confidence medium ./..."
+        run: |
+          go_bin="$(go env GOPATH)/bin/gosec"
+          "$go_bin" -severity high -confidence medium ./...
 
   # Layer D: Python static security scan over SDK code.
   python-security:

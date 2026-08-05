@@ -157,11 +157,15 @@ jobs:
           VERSION="${TAG#v}"
           MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
           IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
-          DIGESTS=$(jq -r '."containerimage.digest"' /tmp/digests/*.json | \
+          mapfile -t digests < <(jq -r '."containerimage.digest"' /tmp/digests/*.json | \
             awk -v img="${IMAGE}" '{print img"@"$1}')
+          if [ "${#digests[@]}" -eq 0 ]; then
+            echo "no platform image digests were downloaded" >&2
+            exit 1
+          fi
 
           docker buildx imagetools create \
             -t "${IMAGE}:v${VERSION}" \
             -t "${IMAGE}:v${MAJOR_MINOR}" \
             -t "${IMAGE}:latest" \
-            ${DIGESTS}
+            "${digests[@]}"

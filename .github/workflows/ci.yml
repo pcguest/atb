@@ -27,6 +27,10 @@ jobs:
         with:
           go-version: "1.26.5"
 
+      - name: Lint GitHub Actions workflows
+        if: runner.os == 'Linux'
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -97,7 +101,8 @@ jobs:
         shell: bash
         run: |
           go run ./scripts/generate_profile_fixtures.go
-          go test -race -v -skip TestInstalledBinarySmokeFlow $(go list ./... | grep -v '/web/node_modules/')
+          mapfile -t go_packages < <(go list ./... | grep -v '/web/node_modules/')
+          go test -race -v -skip TestInstalledBinarySmokeFlow "${go_packages[@]}"
 
       - name: Test Python SDK
         working-directory: sdk/python
@@ -149,7 +154,7 @@ jobs:
           /tmp/atb-e2e view --no-open --port 18888 >/tmp/atb-e2e.log 2>&1 & echo $! >/tmp/atb-e2e.pid
           sleep 3
           CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm --prefix web run test:e2e
-          kill $(cat /tmp/atb-e2e.pid) 2>/dev/null || true
+          kill "$(cat /tmp/atb-e2e.pid)" 2>/dev/null || true
 
       - name: Notify Discord
         if: ${{ always() && env.DISCORD_WEBHOOK_URL != '' }}
