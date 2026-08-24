@@ -8,13 +8,14 @@ import (
 	"github.com/pcguest/atb/internal/event"
 )
 
-// InboundTransport receives OpenTelemetry trace data from an external source
-// (collector, gateway, or queue). Phase 9 scaffold only: no OTLP decoding yet.
+// InboundTransport receives decoded OpenTelemetry trace data from an external
+// source such as a collector, gateway, or queue. OTLP/JSON decoding is provided
+// by ReceiveJSON; binary protobuf and gRPC transports are not implemented.
 //
 // InboundTransport is intentionally separate from Receiver.Receive: transports
 // ingest raw batches; Receiver translates spans into ATB events via Translator.
 type InboundTransport interface {
-	// Receive ingests one trace batch. Implementations will decode OTLP in a later phase.
+	// Receive ingests one decoded trace batch.
 	Receive(ctx context.Context, trace OTelTrace) error
 }
 

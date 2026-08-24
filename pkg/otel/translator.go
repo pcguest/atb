@@ -11,7 +11,7 @@ import (
 	"github.com/pcguest/atb/internal/event"
 )
 
-// ErrNotImplemented indicates an optional transport path is scaffold-only.
+// ErrNotImplemented indicates an optional transport or mapping path is absent.
 var ErrNotImplemented = errors.New("otel: transport not implemented")
 
 // ErrUnmappableSpan indicates a span is missing data required by the ATB AI

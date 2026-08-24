@@ -364,7 +364,8 @@ CAS is not an external audit opinion, not proof of overall system compliance, an
 ### Integrity vs. completeness
 
 - Integrity, the hash chain: proves that what was recorded has not been changed.
-- Completeness, CAS: measures how much of the workflow was recorded.
+- Profile-scoped evidence coverage, CAS: estimates how much of the selected
+  profile's expected evidence is present in the recorded bundle.
 
 ## Compliance mapping
 

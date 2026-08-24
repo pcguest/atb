@@ -46,7 +46,12 @@ A security team reviewing an ATB submission should expect three artefacts.
 
 ## 4. Understanding the CAS score
 
-The CAS score is a completeness measure for the matched profile, not a judgement on whether the underlying decision or action was correct. Security teams should read it as an evidence-quality signal. A low score means the bundle may still be intact, but material parts of the expected workflow evidence are missing or weak. ATB currently computes eight CAS sub-scores.
+The CAS score estimates recorded evidence coverage for the matched profile; it
+is not a judgement on whether the underlying decision or action was correct and
+does not measure events outside ATB's capture boundary. Security teams should
+read it as an evidence-quality signal. A low score means the bundle may still
+be intact, but material parts of the profile's expected evidence are missing or
+weak. ATB currently computes eight CAS sub-scores.
 
 | Sub-score | What it measures | Low score means |
 |-----------|------------------|-----------------|

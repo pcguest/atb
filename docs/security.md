@@ -34,6 +34,7 @@ storage, identity verification, or hosted control-plane governance.
 - The text and JSON outputs report `anchor: verified` only when message imprint, signature, and chain verification all pass.
 - If the message imprint matches but the TSA certificate chain does not verify, the anchor is reported as partial and the AC sub-score does not receive anchor credit.
 - Digest mismatch, signature failure, malformed token data, or missing anchor evidence are reported as failed.
+- TSA HTTP responses are capped at 4 MiB and the request has a 30-second timeout.
 
 ## Assurance layers
 
@@ -64,6 +65,20 @@ For regulated deployments, pair ATB with filesystem integrity
 monitoring, WORM-capable export, or equivalent external controls before
 relying on bundles as primary evidence.
 
+### Untrusted bundle resource limits
+
+The Go reader caps each NDJSON record at 16 MiB. Chatlog and OTLP/JSON imports,
+proxy bodies, Mortise responses, remote-signer responses, and TSA responses
+also have explicit byte limits. The current bundle parser does not cap total
+bundle bytes or total record count once individual records pass the line limit,
+so a deliberately large bundle can exhaust memory in a process that loads it.
+
+This is a documented accepted limit for the current compatibility line, not a
+claim that arbitrary-size untrusted bundles are safe. Open unknown bundles in a
+resource-limited environment. A default total-byte/record policy is planned for
+a versioned hardening release because tightening the parser can reject bundles
+accepted by earlier versions.
+
 ### Identity attribution
 
 The `actor_id`, `org_id`, and `workspace_id` fields in bundle events are
@@ -81,11 +96,12 @@ assertion, or certificate separately and later verify it against its IdP,
 JWKS, or PKI. ATB deliberately stores digests rather than bearer assertions.
 
 ATB hash-chains the supplied identity evidence and labels it as
-caller-provided. It does not fetch JWKS, validate certificate chains, operate
-an identity provider, or make a legal claim that the named subject performed
-the action. A reviewer should verify the original assertion independently or
-attach an `atb.corroboration.external` record from the deployment identity
-system.
+caller-provided. The evidence layer does not fetch JWKS, validate certificate
+chains, operate an identity provider, or make a legal claim that the named
+subject performed the action. Optional viewer OIDC authentication is a separate
+access-control path. A reviewer should verify the original assertion
+independently or attach an `atb.corroboration.external` record from the
+deployment identity system.
 
 ### Retention evidence
 
@@ -107,6 +123,14 @@ endpoints require authentication.
 Authentication can be performed using:
 *   A per-session token generated at startup (the normal `atb view` path).
 *   OIDC/JWT tokens, configured via `--oidc-issuer` and `--oidc-audience`.
+
+OIDC is operator-configured network access. Discovery and JWKS requests have
+10-second bounds, discovery bodies are capped at 1 MiB, and key-miss refreshes
+use the same timeout. The configured issuer may direct discovery to another
+HTTP(S) JWKS host; ATB does not apply a destination allowlist. Treat issuer
+configuration as trusted administration and do not point it at untrusted or
+internal-only endpoints. HTTP support exists for local/test providers; use
+HTTPS for deployed identity providers.
 
 If neither a session token nor a JWT validator is configured, the API server
 fails closed with HTTP 401. There is no unauthenticated constructor mode.
@@ -153,7 +177,7 @@ Out of scope for the current release:
 
 - Access control: GitHub repository permissions and branch protection.
 - Change management: pull requests and CI status checks.
-- Audit evidence: immutable Git history, CI logs, and release tags.
+- Audit evidence: protected Git history, CI logs, and signed release tags.
 - Encryption and integrity: SHA-256 hash-chain verification across the CLI and SDKs.
 
 This mapping is a readiness baseline, not a formal SOC 2 attestation.

@@ -4,10 +4,12 @@ CAS (Completeness Assurance Score) measures how much of the expected evidence AT
 
 ## Purpose
 
-Use CAS to answer: *given this profile's trust boundary, how complete is the recorded evidence?*
+Use CAS to answer: *given this profile's trust boundary, how much of its
+expected evidence is present in the recorded bundle?*
 
 - **Integrity** (hash chain) proves that what was recorded has not been changed.
-- **CAS** measures how much of the workflow was recorded.
+- **CAS** estimates profile-scoped evidence coverage within the recorded
+  bundle.
 
 A bundle can pass integrity checks and still return a low CAS. A bundle can fail profile obligations and still return a non-zero CAS (CAS is diagnostic in that case; it does not overturn FAIL).
 

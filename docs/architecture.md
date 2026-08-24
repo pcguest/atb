@@ -1,130 +1,156 @@
 # ATB architecture
 
-## Component overview
+ATB turns externally observed AI-agent activity into portable evidence that can
+be verified and investigated without trusting the system that produced it.
+The file boundary, shared semantic contract, and capture limits are the
+load-bearing parts of the architecture.
 
-```mermaid
-flowchart LR
-    CLI["CLI<br/>(atb)"] --> Core["Core Engine"]
-    MCP["MCP Server<br/>(atb mcp serve)"] --> Core
-    PythonSDK["Python SDK"] --> Core
-    TypeScriptSDK["TypeScript SDK"] --> Core
-    Capture["Capture wrapper<br/>(atb capture run)"] --> Core
-    Import["Chatlog import<br/>(atb import chatlog)"] --> Core
-    OTel["OTel translator<br/>(pkg/otel)"] --> Core
-    GitHubAudit["GitHub audit-log corroborator<br/>(pkg/corroborate/github)"] --> Core
-    Core --> BundleStore["Bundle Store<br/>(.atb file)"]
-    BundleStore --> Verify["Verify<br/>(hash chain + profiles)"]
-    BundleStore --> View["Dashboard<br/>(atb view)"]
-    BundleStore --> Export["Export<br/>(compliance / soc2 / gdpr)"]
-    BundleStore --> Push["Push<br/>(S3 / WORM, opt-in, explicit)"]
-    Verify --> Report["Trust Report"]
-    Export --> Archive["Evidence Archive"]
-    Push --> RemoteStorage["Remote WORM Storage"]
+## Evidence flow
+
+```text
+AI agent / application / framework
+              │
+              ▼
+           CAPTURE
+   ┌──────────┼──────────┐
+   │          │          │
+  SDK      intercept    import
+   │          │          │
+   └──────────┼──────────┘
+              ▼
+       canonical ATB event
+              │
+              ▼
+       RFC 8785 canonicalise
+              │
+              ▼
+         SHA-256 chain
+              │
+              ▼
+          .atb bundle
+              │
+       ┌──────┼─────────────┐
+       ▼      ▼             ▼
+    verify  incident      view
+              │
+              ▼
+        evidence pack
+              │ optional
+              ▼
+           Mortise
+        custody boundary
 ```
 
-## Trust boundary
+Signing, RFC 3161 timestamp evidence, and encryption are optional operations
+around the bundle. Signing records configured key provenance, timestamping
+adds independently verifiable time evidence, and encryption protects
+confidentiality. None proves capture completeness.
 
-The trust boundary runs at the bundle file boundary. The Core Engine writes and reads the bundle; everything above the boundary (CLI commands, MCP tool calls, SDK calls) must go through the Core Engine's append and verify logic. No component reads or writes bundle records directly.
+## Independent implementation model
 
-Integrity is verified at the file boundary on read: `atb verify` runs the hash chain across all records before returning results. The dashboard (`atb view`) runs the same check before serving event data — if verification fails, the data endpoints return `403`.
+ATB does not route every SDK call through one shared Go engine. The three
+implementations share a semantic contract and prove agreement with deterministic
+vectors:
 
-Export and push operations seal the bundle before writing. A bundle that fails verification cannot be exported or pushed; the operator must address the integrity issue first.
+```text
+                 shared schemas
+                 shared event vocabulary
+                 shared golden vectors
+                          │
+          ┌───────────────┼───────────────┐
+          ▼               ▼               ▼
+   Go implementation  Python SDK    TypeScript SDK
+          │               │               │
+          └──────── byte-compatible ──────┘
+                    bundle semantics
+```
 
-The `Push` path (`atb push s3://bucket/prefix`) is implemented. It is opt-in and explicit; bundles are not pushed automatically. See [`docs/integrations/worm-s3.md`](./integrations/worm-s3.md) for usage.
+Go is the reference implementation for the CLI and compatibility review.
+Python and TypeScript implement bundle creation, canonicalisation,
+verification, and supported cryptographic semantics independently. A failure
+in any language's golden-vector tests blocks release across all three.
 
-## Bundle safety semantics
+## Bundle file boundary
 
-Bundle mutations are serialised at the file boundary. `Save` and `SignTo`
-take the bundle advisory lock before writing, serialise to a temporary file,
-fsync that file, atomically rename it into place, and fsync the parent
-directory. A second writer either waits when configured with `--lock-wait` or
-receives lock contention without corrupting the existing bundle.
+An event is semantic activity submitted to ATB. A record is the canonicalised
+event plus its SHA-256 chain hash stored as one NDJSON line in a `.atb` bundle.
+The previous record hash is part of the next canonical hash input, beginning
+with the all-zero genesis value.
 
-Read paths intentionally separate parsing from validation. `Load` is the
-non-validating parser used by inspection tools and compatibility paths.
-`LoadVerified` is the integrity-sensitive gate: it requires a manifest record,
-rejects non-bundle NDJSON, and verifies the hash chain before returning bundle
-data to callers that need evidence-grade reads.
+Bundle mutations use append-only record semantics. Go writes the resulting
+local file via advisory locking, a same-directory temporary file, `fsync`, and
+atomic rename. This prevents ordinary concurrent writers and torn writes from
+silently corrupting a bundle. It does not make the file immutable: a process
+with filesystem control can replace or roll back the entire file before
+external anchoring or custody.
 
-Snapshot appends validate the snapshot name before any bundle I/O. Names must
-be non-empty after trimming, at most 128 runes, and free of ASCII control
-characters, `/`, `\`, and NUL.
+Integrity-sensitive readers use `LoadVerified`, which requires a manifest and
+verifies the complete chain before returning evidence. Inspection and legacy
+compatibility paths may use the deliberately non-validating `Load` parser.
 
-The long-running CLI paths that load or append bundle state (`snapshot`,
-`capture run`, `import chatlog`, and `verify`) wrap their file operations in a
-default five-minute context timeout so a hung filesystem operation does not
-block the command indefinitely.
+## Capture surfaces
 
-## Capture and import layer
+- Go, Python, and TypeScript SDKs append events explicitly.
+- `atb capture run` supplies capture context to a child process; it does not
+  auto-instrument arbitrary runtimes.
+- `atb intercept` observes only provider traffic routed through its loopback
+  HTTPS proxy and only configured target hosts.
+- `atb import chatlog` maps supported generic JSONL records.
+- `atb import otel` decodes the implemented OTLP/JSON subset and maps
+  attributable spans through `pkg/otel`.
+- `atb mcp serve` is a beta stdio bridge with a deliberately limited evidence
+  tool surface; it does not instrument unrelated MCP servers.
 
-Capture v1 adds two narrow CLI entry points that sit above the Core Engine and
-preserve the existing trust boundary. Both write into the bundle through the
-same Core Engine append path used by `atb append` and the SDKs; neither reads
-or writes bundle records directly.
+Every surface has blind spots. A capture-scope event can record what an
+integration claims it could observe, but neither that claim nor the resulting
+bundle proves that all relevant real-world activity passed through the
+integration.
 
-`atb capture run` is a wrapper that prepares a local bundle path and runs a
-child command with capture-related environment variables injected into its
-process environment. It does not proxy provider traffic, intercept network
-calls, or auto-instrument arbitrary runtimes. When `--snapshot <name>` is
-supplied, a snapshot record is appended after the child exits. When
-`--profile <id>` is supplied and the child exits successfully, the wrapper
-runs `atb verify` against the resulting bundle. A non-zero child exit code
-always wins: the wrapper returns the child's exit code unless the capture
-layer itself hits a fatal error (lock contention surfaces as exit code 9).
+## Verification, profiles, and incident findings
 
-`atb import chatlog` reads a saved chatlog file (or stdin) on the local
-machine and writes canonical ATB events into a local `.atb` bundle. The
-parser, mapper, and bounded-default fill logic live in the
-`internal/capture/` package. `--from generic-jsonl` is the only supported
-provider in Capture v1. Mapping
-rules are documented in [`integrations/chatlog-import.md`](./integrations/chatlog-import.md):
-user turns become `ai.request.received`, assistant turns with a `model`
-field become `ai.model.invoked` plus `ai.model.output` plus
-`ai.response.sent`, tool records become `ai.tool.exec`, and system records
-contribute to prompt-window digests rather than standalone events.
+`atb verify` recomputes the chain before evaluating optional signature,
+timestamp, and profile evidence. Profiles are ATB-defined declarative evidence
+obligations. CAS is the Completeness Assurance Score: a local estimate of
+profile-scoped evidence coverage within the recorded bundle, not universal
+capture completeness or compliance certification.
 
-Trust boundary: both entry points preserve the file boundary unchanged. The
-hash chain is appended through the Core Engine, every imported record goes
-through the same canonicalisation as any other event, and the resulting
-bundle re-verifies under `atb verify` with no special-case import path.
-Capture v1 reduces manual event entry; it does not guarantee that every
-relevant event was captured, and CAS continues to score recorded evidence
-within the declared profile boundary.
+Incident analysis deterministically derives observations from verified
+records. Findings retain record sequence and hash references. For example,
+`tool_without_approval` means no matching approval is present in the preceding
+recorded evidence; it does not assert that no approval existed outside ATB's
+capture boundary.
 
-`pkg/otel` exposes the public Phase 9 OTel translator. It maps caller-provided
-span structs to the canonical AI trace event envelope documented in
-[`spec-ai-traces.md`](./spec-ai-traces.md). It is a mapping layer, not an OTLP
-collector, hosted telemetry service, or automatic runtime instrumentation.
+## Viewer and authentication boundary
 
-## Corroboration model
+`atb view` is a single-user, loopback-only review server. API routes fail
+closed and accept a generated session token or explicitly paired OIDC issuer
+and audience settings. Viewer authentication protects local API access; it does
+not independently validate caller-asserted actor fields stored in evidence.
 
-The problem corroboration addresses: ATB records only what the instrumented code explicitly
-appends. A compliance reviewer's first question is "how do I know nothing was omitted?" A
-local bundle cannot answer that question by itself. Corroboration adapters let ATB fetch
-evidence from an external source — a queue dequeue receipt, a gateway execution log, a storage
-confirmation — and record it as an `atb.corroboration.external` event in the same bundle.
+A `go install` build uses the `noembed` path and serves installation guidance.
+The full static review UI is embedded only when built from a checkout after the
+web production build.
 
-What `atb.corroboration.external` records: the adapter retrieved a JSON payload from the
-configured external source, computed its SHA-256 digest, and appended the digest and metadata
-to the bundle. It does not verify the external system's own integrity — a compromised gateway
-can produce a valid-looking corroboration record. The event records that corroboration was
-attempted and what the adapter observed; nothing more.
+## External integration and custody boundary
 
-How XC scoring works: the verifier counts the number of `atb.corroboration.external` events
-that pass field validation (non-empty `source`, `reference_id`, `digest`, and a parseable
-`retrieved_at` RFC 3339 timestamp). One valid corroboration event earns full XC credit
-(XC = 1.0). Bundles with zero valid corroboration events return the anchor-based XC score
-unchanged from v1.9.0; no existing bundle is penalised. Full XC credit means corroboration
-was attempted, not that the external system's record is authoritative or complete.
+Explicit network integrations include configured provider traffic, TSA
+requests, OIDC/JWKS retrieval, corroboration adapters, remote signers, S3
+pushes, and optional Mortise endpoints. Core capture, verification, incident
+analysis, profile evaluation, packs, and local review require none of them.
 
-Where additional adapter types would be added: `internal/corroboration/`, implementing the
-`Adapter` interface. The current implementation ships one concrete type:
-`HTTPGatewayAdapter`, which fetches a JSON receipt from a configured URL. Further adapters
-(SQS, S3 event notifications, Kafka, manual) would be added to the same package using the
-same interface — no registry or plugin system is needed at this stage.
+Mortise is the optional commercial custody and organisational layer for ATB
+evidence. The ATB repository contains an integration client and conformance
+surface, not the Mortise runtime. Operator-controlled S3/Object Lock is another
+explicit custody option; an accepted upload request is evidence of API
+acceptance, not proof of continuing storage enforcement.
 
-Phase 9 also exposes `pkg/corroborate/github`, a public GitHub organisation
-audit-log corroborator. It performs an explicit, caller-configured GitHub API
-request using the supplied token and organisation, parses the audit-log
-response, and reports the observed result plus rate-limit metadata. It does
-not retry, append to bundles by itself, or prove GitHub-side completeness.
+## Resource and trust limits
+
+ATB caps individual bundle records, chatlog/OTel imports, proxy bodies, Mortise
+responses, and TSA responses. The current Go bundle reader does not cap total
+bundle bytes or record count after accepting individually bounded records.
+Treat bundles as untrusted input and see the [security model](./security.md) for
+the current hardening classification.
+
+See the [bundle specification](./spec-v1.0.md) for byte-level semantics and the
+[glossary](./glossary.md) for canonical terminology.

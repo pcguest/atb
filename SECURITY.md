@@ -51,9 +51,9 @@ bundle inspection. The threat model is narrow by design.
 
 **What is protected:**
 
-- The server binds to `127.0.0.1` (loopback only) by default. It does not accept connections
-  from other machines on the network unless `--host` is overridden. Do not override `--host` to
-  expose the viewer on a network interface.
+- The server accepts only `localhost` or loopback IP addresses. `--host` can
+  select another loopback address but cannot expose the viewer on a network
+  interface.
 - All read API endpoints (`/api/v1/*`) require a session token (`X-ATB-Session-Token` header or
   `?session_token=` query parameter). The session token is a 32-byte CSPRNG value generated at
   startup. It is delivered to the browser in the URL fragment (`#session=<token>`) so it is never
@@ -62,7 +62,8 @@ bundle inspection. The threat model is narrow by design.
 - Privacy reveal operations require a separate, independently generated reveal token delivered
   via cookie, bearer header, or legacy header. Reveals are rate-limited (10 per minute per
   source address by default) and every successful reveal is appended as an auditable
-  `privacy.reveal` event to the bundle chain.
+  `privacy.reveal` event to the separate `<bundle>.reveals` sidecar chain. The
+  authoritative evidence bundle is not changed by inspection.
 - Bundle data is never served when hash-chain verification fails. The tamper warning page
   contains no event payloads.
 - HTTP response headers include `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
@@ -111,15 +112,17 @@ bundle inspection. The threat model is narrow by design.
   mismatch.
 - Rate limiting: 10 reveals per minute per source address + token combination. Returns
   HTTP 429 with `Retry-After: 60` when exceeded.
-- Audit: every reveal is appended to the bundle chain as a `privacy.reveal` event before
-  the revealed value is returned. If the append fails, the reveal is aborted with HTTP 500.
+- Audit: every reveal is appended to the separate `<bundle>.reveals` ATB chain
+  as a `privacy.reveal` event before the revealed value is returned. The event
+  binds the source bundle id and chain head. If the sidecar append fails, the
+  reveal is aborted with HTTP 500.
 
-## MCP and `atb serve` exposure
+## MCP exposure
 
-`atb mcp serve` and `atb serve` (if present) expose a different surface to the local process
-or stdin/stdout bridge. They are not the same as the viewer server and have separate
-exposure characteristics. Review the relevant command documentation before exposing these
-to external processes or network connections.
+`atb mcp serve` exposes a stdio tool surface to its parent MCP host. It is not
+the viewer server and does not listen on a network socket. Treat the parent
+process as inside the local evidence-write boundary and review
+[`docs/integrations/mcp.md`](docs/integrations/mcp.md) before enabling it.
 
 ## Safe harbour
 

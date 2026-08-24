@@ -1,9 +1,10 @@
 # Incident forensics
 
-ATB acts as a **local-first flight recorder for AI agents**: it captures what an
-agent actually did into a tamper-evident bundle, so when something goes wrong you
-can reconstruct it — even if the agent's own logs cannot be trusted. This guide
-walks the full path: **capture → discover → review**.
+ATB acts as a **local-first flight recorder for AI agents**: configured capture
+surfaces turn observed activity into a tamper-evident bundle, so when something
+goes wrong an investigator can reconstruct the recorded sequence even if the
+agent application's own logs cannot be trusted. This guide walks the full path:
+**capture → discover → review**.
 
 ## 1. Capture (intercept)
 
@@ -137,9 +138,12 @@ For live SDK calls, use `wrap_openai`/`wrap_anthropic` in Python or
 
 ## What the report proves (and what it doesn't)
 
-- **Integrity PASS** — the recorded sequence was not altered after capture.
-- **Signature valid** — attributes the bundle to a signing key (when signed).
-- **`tool_without_approval`** — a control was *missing* in the record, not proof of tampering.
+- **Integrity PASS** — the presented records form the declared hash chain.
+- **Signature valid** — the configured signing key signed the recorded bundle
+  state (when signed).
+- **`tool_without_approval`** — no matching approval is present in the
+  preceding recorded evidence; this is not proof that no approval existed
+  outside the capture boundary.
 - **Reviewer identity evidence present** — an IdP assertion digest was recorded
   without alteration; ATB did not validate the assertion.
 

@@ -1,8 +1,9 @@
 # Provability ladder
 
-ATB separates **integrity** (what was recorded was not altered) from **coverage**
-(how much of a declared workflow was recorded). The provability ladder maps each
-claim to a layer. Configure higher layers to shrink conditional blind spots.
+ATB separates **integrity** (whether the presented records form the declared
+chain) from **coverage** (which expected profile evidence is present in those
+records). The provability ladder maps each claim to a layer. Configure higher
+layers to shrink conditional blind spots.
 
 ## Layers
 

@@ -33,14 +33,14 @@ Every export ZIP is structured under an `evidence/` directory to ensure consiste
 
 | Format | Key Artifacts | Purpose |
 | :--- | :--- | :--- |
-| **`compliance`** | `evidence/reports/trust-report.json` | Full completeness and assurance scoring (CAS). |
+| **`compliance`** | `evidence/reports/trust-report.json` | Profile-scoped evidence coverage and residual-risk reporting (CAS). |
 | **`soc2`** | `evidence/audit_trail.jsonl` | Filtered, security-relevant events in JSONL format. |
 | **`soc2`** | `evidence/soc2_evidence_manifest.json` | Mapping of events to SOC 2 control criteria (e.g., CC6.1). |
 | **`gdpr`** | `evidence/dsr_<id>.json` | Redacted subject-specific records for Article 15 requests. |
 | **`gdpr`** | `evidence/ropa_summary.json` | Summary of processing activities for Article 30 (RoPA). |
 
 ### The verification sidecar (`.verify.json`)
-When `--with-verify` is used, ATB writes a `<output>.verify.json` file next to the ZIP. This sidecar contains the full output of `atb verify --json`, including a `provability_layers` checklist (L1–L5) derived from the verify report. GRC systems should ingest this file to automatically confirm the **integrity** (chain valid) and **completeness** (CAS grade) of the evidence package.
+When `--with-verify` is used, ATB writes a `<output>.verify.json` file next to the ZIP. This sidecar contains the full output of `atb verify --json`, including a `provability_layers` checklist (L1–L5) derived from the verify report. GRC systems can use it to confirm the **integrity** of the presented chain and inspect the selected profile's **recorded evidence coverage** (CAS grade).
 
 ---
 
@@ -54,7 +54,9 @@ For security monitoring, the `soc2` export format is recommended because it prod
 3.  **Map**: Map the standard ATB fields (`type`, `timestamp`, `actor_id_hash`, `data`) to your SIEM’s common information model.
 
 ### GRC integration (audit and governance)
-For GRC platforms (e.g., Vanta, Drata, or custom evidence lockers), the goal is to store the ZIP as an immutable artefact of proof.
+For GRC platforms (e.g., Vanta, Drata, or custom evidence lockers), preserve
+the ZIP under independently enforced retention controls as a portable evidence
+artefact.
 
 1.  **Store**: Upload the ZIP archive to your GRC’s evidence repository or an S3 bucket with versioning and object lock enabled.
 2.  **Verify**: Ingest the `.verify.json` sidecar. Use the `integrity.chain_valid` and `cas.overall` fields to trigger automated alerts if evidence is tampered with or falls below a required completeness threshold (e.g., CAS Grade < B).
