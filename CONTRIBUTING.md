@@ -3,7 +3,7 @@
 ATB is an open project. Contributions, bug reports, and focused documentation improvements are welcome.
 
 This file covers contributor workflow. Release preparation and versioning details live in
-`[docs/release.md](docs/release.md)` and `[VERSIONING.md](VERSIONING.md)`.
+[docs/release.md](docs/release.md) and [VERSIONING.md](VERSIONING.md).
 
 ## Local setup
 
@@ -27,7 +27,7 @@ go build -o atb ./cmd/atb
 
 - Use a short-lived branch or fork and submit against `main`.
 - Do not push directly to `main` routinely.
-- Run `make hygiene-quick` before every push. It runs `go fmt`,
+- Run `make hygiene-quick` before every push. It checks `gofmt`,
 `go vet`, short Go tests, and the web lint and typecheck steps.
 - Install the pre-commit hook with `make install-hooks`.
 - Do not add new Go module dependencies without prior discussion.
@@ -36,7 +36,7 @@ go build -o atb ./cmd/atb
 
 - When behaviour, schema, API, or release-facing text changes, update the relevant docs in the same change.
 - Do not leave stale references to removed flags, UI modes, or deleted files.
-- Tracked follow-on work belongs in `[docs/roadmap.md](docs/roadmap.md)`; do not describe unshipped capability as current in user-facing docs.
+- Tracked follow-on work belongs in [docs/roadmap.md](docs/roadmap.md); do not describe unshipped capability as current in user-facing docs.
 
 ## Python SDK
 
@@ -82,8 +82,8 @@ If GitHub Actions is unavailable (for example, a billing or spending-limit
 block), run the release gates locally before merging to `main`:
 
 ```sh
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.7 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.7 go test ./... -count=1
 bash scripts/check-versions.sh
 ```
 
@@ -128,8 +128,8 @@ or public CLI contract. Full versioning policy is in [VERSIONING.md](VERSIONING.
 ATB is a local-first tamper-evident audit trail. It proves integrity of what was
 recorded; it does not prove capture completeness, model correctness, actor
 identity, or regulatory compliance by itself. Hosted custody, auditor access,
-retention policy, and custodian-of-record work belong in
-[Mortise](https://github.com/pcguest/mortise) or another external product.
+retention policy, and custodian-of-record work belong in Mortise or another
+external custody/organisational product.
 
 ### Core invariants
 
@@ -147,8 +147,8 @@ retention policy, and custodian-of-record work belong in
 Before a public release:
 
 ```bash
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.5 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.7 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.7 go test ./... -count=1
 /bin/bash scripts/check-versions.sh
 ```
 

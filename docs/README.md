@@ -4,8 +4,10 @@ Start with the [five-minute quickstart](./quickstart.md), then follow the path
 that matches your role. This hub is the only doc map — deeper pages are linked
 from here, not scattered across the tree.
 
-ATB is the open, MIT-licensed evidence core of Tenon. Mortise is the separate
-commercial framework for long-term custody; ATB works fully without it.
+ATB is the open-source, local-first evidence core for independently verifiable
+records of AI-agent behaviour. It proves the integrity of recorded evidence,
+not the completeness or truth of capture. No hosted service, account, or
+external database is required.
 
 ## Use ATB
 
@@ -15,8 +17,8 @@ commercial framework for long-term custody; ATB works fully without it.
 | [Capture guide](./guides/capture.md) | Import, wrapper, intercept, integrations |
 | [Incident forensics](./guides/incident-forensics.md) | Capture → discover → review after an agent incident |
 | [Tamper demo](./guides/tamper-demo.md) | One-byte mutation and verify failure |
-| [WORM / S3](./integrations/worm-s3.md) | Operator-controlled immutable retention |
-| [Mortise handoff](./mortise-handoff.md) | Companion custody product boundary |
+| [WORM / S3](./integrations/worm-s3.md) | Request operator-controlled retention and verify the external boundary |
+| [Mortise handoff](./mortise-handoff.md) | Optional commercial custody integration boundary |
 
 ## Review evidence
 
@@ -26,8 +28,9 @@ commercial framework for long-term custody; ATB works fully without it.
 | [Security model](./security.md) | Threats, guarantees, explicit limits |
 | [Public surface](./public-surface.md) | Shipped boundary and never-claims |
 | [Provability ladder](./provability-ladder.md) | Integrity vs completeness |
-| [CAS guide](./cas-guide.md) | Completeness scoring detail |
-| [Compliance hub](./compliance/README.md) | Generate a deterministic profile-aware evidence pack |
+| [CAS guide](./cas-guide.md) | Profile-scoped evidence coverage detail |
+| [Compliance hub](./compliance/README.md) | Generate a deterministic mapping-oriented evidence pack |
+| [Glossary](./glossary.md) | Canonical ATB, Tenon, Mortise, bundle, and evidence terms |
 
 ## Contract
 
@@ -64,11 +67,12 @@ Technical evidence mappings only — not legal advice or certification.
 | [Contributing](../CONTRIBUTING.md) | Development workflow and maintainer rules |
 | [Versioning](../VERSIONING.md) | SemVer, manifest version, breaking changes |
 | [Release runbook](./release.md) | Tag, publish, and pipeline gates |
-| [Roadmap](./roadmap.md) | Shipped vs planned (in-repo scope) |
+| [Roadmap](./roadmap.md) | Shipped vs planned ATB work |
 | [Disaster recovery](./maintenance/disaster-recovery.md) | Source, secrets, and release recovery |
-| [Manual test playbook](./maintenance/manual-test-playbook.md) | Local operator commands for ATB, Mortise, and UI smoke testing |
+| [Manual test playbook](./maintenance/manual-test-playbook.md) | Historical private-trunk ATB/Mortise test procedure |
 | [Public MIT extraction checklist](./maintenance/public-mit-extraction-checklist.md) | Manual allowlist, exclusion, and validation steps for public ATB extraction |
 | [History rewrite plan](./maintenance/history-rewrite-plan.md) | Provenance-preserving history rewrite procedure and decision record |
 
-Evaluator path for ATB + Mortise:
-[Mortise SUBMISSION](https://github.com/pcguest/mortise/blob/main/docs/SUBMISSION.md).
+Tenon is the umbrella product identity. Mortise is the optional commercial
+custody and organisational layer for ATB evidence; it is not required for any
+core workflow. See [Mortise handoff](./mortise-handoff.md).

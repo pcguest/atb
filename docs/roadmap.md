@@ -1,6 +1,7 @@
 ## Current state
 
-ATB v1.15.0 ships the agent-incident-forensics and EU AI Act Article 12 wedge:
+The current source baseline (`v1.15.2` plus unreleased convergence work) ships
+the agent-incident-forensics evidence path:
 local proxy/SDK capture, session anomalies and incident reports, six obligation
 profiles with CAS, `verify.report.v1`, optional reviewer identity evidence,
 retention operations logging, and deterministic compliance evidence packs.
@@ -8,7 +9,10 @@ The v1.0 bundle format and canonical hash semantics remain unchanged.
 
 ## Completed — Phase 9 (Q3 2026)
 
-- ✅ OTel translator scaffold (`pkg/otel`) — span structs mapped to canonical AI trace events (completed 28 May 2026)
+- ✅ OTel OTLP/JSON input and translator (`pkg/otel`) — supported span data is
+  mapped to canonical AI trace events; binary protobuf/gRPC collector transport
+  and broader GenAI semantic-convention mapping remain backlog items
+  (completed 28 May 2026)
 - ✅ GitHub audit log corroboration (`pkg/corroborate/github`) (completed 28 May 2026)
 - ✅ LangChain/LangGraph corroboration (`pkg/corroborate/langchain`) (completed 28 May 2026)
 - ✅ Session index and actor grouping (added 28 May 2026 — completed out of roadmap order)
@@ -63,7 +67,7 @@ and review it from a tamper-evident bundle.
 
 ## Medium term — Q4 2026 to Q1 2027
 
-- OTLP decode and GenAI semconv mapping (pkg/otel) — ◐ partial: GenAI semantic-convention
+- OTLP decode and GenAI semconv mapping (`pkg/otel`) — ◐ partial: GenAI semantic-convention
   mapping (`gen_ai.*` → canonical AI trace events), **OTLP/JSON** decode
   (`DecodeTraceJSON`, dependency-free, hex ids / unix-nano / AnyValue union /
   enum-as-int-or-string), and the OTLP/JSON **ingest path** (`Receiver.ReceiveJSON`
@@ -71,11 +75,12 @@ and review it from a tamper-evident bundle.
   preserved) shipped June 2026; OTLP/protobuf (gRPC) transport remains deferred as
   it would require an OpenTelemetry proto dependency
 - DB reconciliation assurance packs
-- CAS v1 formalisation with provability ladder output
+- Further CAS/provability-ladder formalisation
 
 ## Out of scope (explicit)
 
-- SSO, or RBAC
+- Organisational SSO/RBAC and multi-tenant viewer operation (the local viewer
+  has session-token authentication and optional OIDC role mapping)
 - Hosted tracing or telemetry collection
 - Real-time prevention or blocking of AI actions
 - Universal completeness guarantees — `atb intercept` captures provider API traffic, but an agent that bypasses the proxy (or a direct in-process SDK call) is not seen; completeness is bounded by what flows through the recorder
@@ -83,21 +88,20 @@ and review it from a tamper-evident bundle.
 
 ## Mortise coordination
 
-Mortise is the separate custodian-of-record framework. ATB's roadmap covers
+Mortise is the optional commercial custody and organisational layer. ATB's roadmap covers
 only the frozen public contracts, optional client flows, and cross-repository
 conformance evidence needed to keep that integration stable. Mortise product,
-hosting, storage, IAM, witness, and auditor roadmaps live in
-[pcguest/mortise](https://github.com/pcguest/mortise).
+hosting, storage, IAM, witness, and auditor roadmaps remain outside the ATB
+repository.
 
 ## Design notes (forward-looking — not commitments)
 
 Trust boundaries and never-claims are in [public-surface.md](./public-surface.md).
-Mortise custody design and shipped boundary:
-[Mortise capability boundary](https://github.com/pcguest/mortise/blob/main/docs/capability-boundary.md).
-The items below are historical direction notes, not release commitments:
+Mortise implementation status is established in its own release material. The
+items below are historical direction notes, not ATB release commitments:
 
-- **Mortise transparency log** — Merkle inclusion proofs and witness cosignatures
-  (shipped in Mortise v0.5.0; see product repo)
+- **Transparency-log compatibility** — keep ATB receipt and inclusion-proof
+  contracts suitable for independently operated witness infrastructure
 - **EU AI Act Article 12 mapping** — [compliance/eu-ai-act.md](./compliance/eu-ai-act.md)
 - **Capture and custody scope** — each integration sees only routed traffic;
   see [public-surface.md](./public-surface.md)

@@ -18,22 +18,13 @@ multi-tenant access-control service.
 
 ## Mortise
 
-Mortise authentication is configured in the separate Mortise repository.
-Current supported modes are:
-
-- `MORTISE_AUTH_TOKEN` for a single deployment token.
-- `--api-keys-file` for hashed API-key lookup, organisation isolation,
-  retention policy, and `admin` versus read-only `auditor` roles.
-
-The daemon rejects unauthenticated non-loopback binds. Production deployments
-must still terminate TLS at a reverse proxy, rotate credentials, enforce
-tenant-specific quotas, and preferably add short-lived OIDC or mTLS identity at
-that edge.
+Mortise authentication is configured independently of ATB. Its supported
+identity, organisation, network, and deployment controls are defined by the
+specific Mortise release, not by the ATB viewer model.
 
 ATB clients authenticate to Mortise with `ATB_MORTISE_TOKEN`. The token is read
 from the environment rather than a CLI flag.
 
-See the Mortise
-[runbook](https://github.com/pcguest/mortise/blob/main/docs/runbook.md) and
-[threat model](https://github.com/pcguest/mortise/blob/main/docs/mortise-threat-model.md)
-for the authoritative production controls.
+Consult the documentation for the deployed Mortise release for its
+authoritative production controls. ATB does not share viewer sessions or
+identity state with Mortise.

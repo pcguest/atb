@@ -1,16 +1,20 @@
 # Public repository surface
 
-ATB is a public, MIT-licensed open-source repository. The source tree,
-specifications, SDKs, tests, fixtures, examples, local viewer, release tooling,
-and maintainer documentation are world-readable and should be written on that
-basis.
+ATB is MIT-licensed and this source tree is prepared for open-source
+publication. Repository visibility is a separate operational state: as recorded
+in [`../LOCAL-PUBLIC-READINESS.md`](../LOCAL-PUBLIC-READINESS.md), the GitHub
+remote remains private during this local convergence pass. Specifications,
+SDKs, tests, fixtures, examples, the local viewer, release tooling, and
+maintainer documentation must nevertheless be safe and coherent for future
+world-readable publication.
 
-Mortise is a separate proprietary companion product published for evaluation and
-audit at [github.com/pcguest/mortise](https://github.com/pcguest/mortise).
+Mortise is a separate optional commercial product.
 ATB owns local capture, the `.atb` format, integrity verification, profiles,
-CAS, and offline review. Mortise owns durable custody, signed receipts,
-transparency-log evidence, and auditor access. Tenon is the umbrella name for
-both: ATB the open core, Mortise the commercial framework. Neither product
+CAS, and offline review. Mortise's product territory includes durable custody,
+signed receipts, transparency/witness evidence, and organisational access.
+Tenon is the umbrella
+identity for both: ATB the evidence core, Mortise the custody and organisational
+layer. Neither product
 certifies compliance or proves capture completeness.
 
 ## Compatibility-sensitive public contracts
@@ -31,7 +35,7 @@ in `VERSIONING.md` and cross-language parity through `make test-golden`.
 | Surface | Status | Boundary |
 | --- | --- | --- |
 | Hash chain, signatures, anchors, and `atb verify` | Shipped | Proves integrity of recorded evidence, not factual correctness |
-| Six obligation profiles and CAS | Shipped | Measures expected evidence presence, not universal capture |
+| Six obligation profiles and CAS | Shipped | Estimates profile-scoped evidence coverage, not universal capture |
 | CLI, Go/Python/TypeScript SDKs, and golden vectors | Shipped | Local-first and independently verifiable |
 | `atb intercept`, SDK wrappers, imports, and OTel JSON | Shipped | Each sees only traffic or calls routed through that integration |
 | `atb incident`, evidence packs, and local viewer | Shipped | Review and export surfaces; not a SIEM or hosted collaboration product |
@@ -45,8 +49,8 @@ in `VERSIONING.md` and cross-language parity through `make test-golden`.
 ## Authentication boundaries
 
 `atb view` is loopback-first and uses a generated session token, with optional
-OIDC/JWT validation. Mortise has its own token and organisation-scoped API-key
-model. ATB sends Mortise credentials only from `ATB_MORTISE_TOKEN`; it does not
+OIDC/JWT validation. A configured Mortise deployment has its own authentication
+model. ATB sends a bearer credential only from `ATB_MORTISE_TOKEN`; it does not
 share viewer sessions or identity state with Mortise. See
 [`guides/rbac-configuration.md`](./guides/rbac-configuration.md).
 
@@ -97,10 +101,9 @@ bucket configuration, legal hold, or future object availability.
 
 ## Mortise
 
-The supported companion product and evaluator path live in the
-[Mortise repository](https://github.com/pcguest/mortise). ATB contains only
-the optional client, frozen public contracts, and conformance tests; custody
-runtime and product work do not land in ATB.
+ATB contains only the optional integration client, frozen public contracts, and
+conformance tests. Mortise custody runtime and organisational product work do
+not land in ATB. ATB remains fully useful when no Mortise endpoint exists.
 
 ## Research and planning material
 
@@ -112,5 +115,5 @@ roadmap alone.
 
 `scripts/export-public-demo.sh` and its workflow remain as legacy packaging
 tools for producing a narrow demonstration tree. They are not a security
-boundary and do not define which ATB source is public: this repository itself
-is the public source of truth.
+boundary and do not determine repository visibility or the eventual public
+source boundary.

@@ -1,21 +1,15 @@
 # Mortise integration handoff
 
-Mortise is the separate proprietary custodian-of-record framework built on
-ATB: [github.com/pcguest/mortise](https://github.com/pcguest/mortise). Both sit
-under the Tenon umbrella: ATB is the open MIT evidence core; Mortise provides
-commercial custody, WORM storage, signed receipts, timestamps, transparency,
-and auditor operations.
+Mortise is the optional commercial custody and organisational layer for ATB
+evidence. Both products sit under the Tenon umbrella: ATB is the MIT-licensed,
+local-first evidence core; Mortise operates across custody and organisational
+concerns such as durable retention, receipts, transparency or witness evidence,
+fleet views, and enterprise access controls.
 
-The integration baseline is ATB `v1.15.1` and the next Mortise release after
-`v0.5.0`. ATB contains only the client boundary and conformance tests. Mortise
-runtime code lives exclusively in its own repository.
-
-Use Mortise's
-[end-to-end guide](https://github.com/pcguest/mortise/blob/main/docs/e2e-atb-mortise.md),
-[API quickstart](https://github.com/pcguest/mortise/blob/main/docs/api-quickstart.md),
-and
-[capability boundary](https://github.com/pcguest/mortise/blob/main/docs/capability-boundary.md)
-for the supported evaluator and operator paths.
+ATB contains only the optional client boundary and conformance tests. Mortise
+runtime code lives exclusively outside ATB. Compatibility is established
+against explicit ATB contracts and the versions selected for each controlled
+release, not an evergreen cross-repository assumption.
 
 ## Stable contracts
 
@@ -29,7 +23,7 @@ or reinterpret these contracts:
 | RFC 8785 canonicalisation | `pkg/jcs` | Canonical receipt and proof inputs |
 | Custody verifier | `pkg/custody` | Verify, evaluate profiles, and read head hashes |
 | Verifier report | [`api/verify-schema.md`](./api/verify-schema.md) | Embed `verify.report.v1` in receipts |
-| Profile IDs and CAS | [`profiles.md`](./profiles.md), [`cas-guide.md`](./cas-guide.md) | Preserve ATB completeness semantics |
+| Profile IDs and CAS | [`profiles.md`](./profiles.md), [`cas-guide.md`](./cas-guide.md) | Preserve ATB profile-scoped evidence-coverage semantics |
 | Export envelope | `pkg/custody.BundleExport` | Transfer original bundle bytes and verifier metadata |
 
 Go is canonical. Python and TypeScript bindings must match the frozen schema
@@ -37,7 +31,7 @@ and golden vectors through `make test-golden`.
 
 ## Push integration
 
-- `atb intercept --mortise <endpoint>` lodges immutable bytes when a session
+- `atb intercept --mortise <endpoint>` lodges the completed bundle bytes when a session
   closes.
 - `atb incident export --mortise-endpoint <endpoint>` lodges the authoritative
   bundle instead of writing a derived incident archive.

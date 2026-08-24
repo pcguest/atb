@@ -12,5 +12,5 @@ an explicit capture boundary — see [Public surface](../public-surface.md).
 | WORM / S3 push | [worm-s3.md](./worm-s3.md) |
 | SIEM / GRC export | [siem-grc.md](./siem-grc.md) |
 
-Custody, receipts, and transparency-log operations live in
-[Mortise](https://github.com/pcguest/mortise), not in ATB.
+Custody, receipts, organisational controls, and transparency/witness
+operations live in optional products such as Mortise, not in the ATB runtime.

@@ -16,10 +16,18 @@ It exercises the capture and accountability event types end to end:
 
 ## Why it matters
 
-The bundle's hash chain verifies (integrity intact), yet the **session index
-raises the `tool_without_approval` anomaly** — the core oversight signal for
-agent incidents. Integrity proves the record was not altered; the anomaly
-proves a control was missing. The two are independent, and ATB surfaces both.
+The deliberately incomplete
+[`application-log.txt`](./application-log.txt) reports only a generic provider
+failure and a normal session close. It omits the privileged tool name and the
+absence of a matching recorded approval. That is representative of the logs an
+investigator may be left with after the producing application is no longer a
+trusted source.
+
+The bundle's hash chain verifies (integrity intact), while the **session index
+raises the `tool_without_approval` anomaly**. Integrity proves the presented
+records have not been altered; the anomaly shows that no matching approval is
+present in the preceding recorded evidence. It does not prove that no approval
+existed outside the capture boundary.
 
 ## Review it
 
@@ -37,6 +45,19 @@ Produces a session-scoped forensic report: **Integrity PASS**, anomalies
 **`tool_without_approval`**, and the ordered event list (privileged
 `atb.tool.call` → failed `ai.action.error`) with each row's record hash. Add
 `--format json` for a machine-readable report.
+
+Compare the sources directly:
+
+```bash
+cat examples/bundles/incident-capture/application-log.txt
+atb incident report \
+  --bundle examples/bundles/incident-capture/incident-capture.atb \
+  --session sess-incident-7731
+```
+
+The application log is a claim made by the producing system. The ATB report is
+a deterministic interpretation of portable records whose order and integrity
+can be independently checked after the incident.
 
 ## Regenerate
 

@@ -1,13 +1,8 @@
 # Mortise custody integration
 
-Mortise is the separate custodian-of-record layer for ATB. Its production
-storage and API documentation lives in
-[pcguest/mortise](https://github.com/pcguest/mortise):
-
-- [API quickstart](https://github.com/pcguest/mortise/blob/main/docs/api-quickstart.md)
-- [Production deployment](https://github.com/pcguest/mortise/blob/main/docs/deploy-production.md)
-- [S3 Object Lock](https://github.com/pcguest/mortise/blob/main/docs/deploy-s3.md)
-- [Operator runbook](https://github.com/pcguest/mortise/blob/main/docs/runbook.md)
+Mortise is the optional commercial custody and organisational layer for ATB
+evidence. Production storage, API, identity, retention, and operator controls
+are versioned with Mortise and are not defined by this repository.
 
 ATB does not implement WORM storage or a custody daemon.
 
