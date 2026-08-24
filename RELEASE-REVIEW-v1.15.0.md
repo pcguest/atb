@@ -1,5 +1,9 @@
 # Per-commit review: v1.15.0 and the Mortise site
 
+> **Historical release review for v1.15.0. Not the current release status.**
+> The commit narrative below is preserved and must not be used as a current
+> publication checklist.
+
 Read this before you push. Every commit is GPG-signed (verified good). The
 release was assembled from an inherited 140-file working tree, audited and
 fixed, then grouped by subsystem. Because the inherited work and the fixes share

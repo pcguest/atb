@@ -18,7 +18,7 @@ not represented as a release author.
 
 ## v1.15 history decision
 
-The signed `v1.15.0` tag is immutable and continues to point at commit
+The signed `v1.15.0` tag is preserved and continues to point at commit
 `e0fe8a2`. It is the gated source release for that version.
 
 An unpublished candidate commit, `10a5508`, contained a
@@ -29,6 +29,10 @@ object is retained only in the read-only local backup
 `atb-backup-pre-trailer-rewrite-20260629.git`.
 
 No published tag was moved and no GitHub Release was rewritten.
+
+This is historical provenance, not a claim that v1.15.0 or v1.15.2 is the
+current version on every distribution surface. Registry truth is recorded in
+the current local public-readiness report before each release.
 
 ## Release checks
 

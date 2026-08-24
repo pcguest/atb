@@ -15,11 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clean-machine release checks now provision their cross-language Python environment before Go parity tests, pin the static web export to webpack, and reject local Trivy or gosec binaries whose versions differ from the release gate.
 - CI validates workflow scripts with pinned actionlint and uses array-safe package, process and multi-architecture digest handling.
 - The local viewer now scopes query caches by bundle and a non-secret session-token fingerprint, removes prior-scope data on credential changes, and uses accessible session controls and semantic theme tokens.
-- Go builds and workflows require Go 1.26.5, which fixes the reachable standard-library TLS vulnerability GO-2026-5856. High-severity Go, web, and TypeScript dependency advisories are remediated, and Trivy is pinned to 0.73.0.
+- Go builds and workflows require Go 1.26.7, the latest patched release on the project's 1.26 line. High-severity Go, web, and TypeScript dependency advisories are remediated, and Trivy is pinned to 0.73.0.
+- Current documentation now uses one evidence-led ATB/Tenon/Mortise product model, distinguishes independent Go/Python/TypeScript implementations, and separates the tagged source baseline from GitHub and registry publication state.
 
 ### Security
 - Viewer API authentication fails closed when neither a valid session token nor configured JWT authorizes the request, and `atb view` refuses non-loopback binds.
 - Proxy header evidence uses a conservative allowlist instead of a secret-header denylist. Local MITM CA keys must be owner-only on Unix, and guidance limits CA trust to the captured process.
+- `govulncheck` fails on every reported vulnerability, RFC 3161 responses are capped at 4 MiB, OIDC key-miss refreshes are time-bounded, and raw proxy-body capture emits an explicit sensitive-content warning.
 
 ## [v1.15.2] - 2026-07-08
 

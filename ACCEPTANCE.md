@@ -1,5 +1,9 @@
 # ATB and Mortise acceptance evidence (v1.15.0)
 
+> **Historical release evidence for v1.15.0. Not the current release status.**
+> Commands, observed results, toolchain versions, and product names below are
+> preserved as evidence of that release review.
+
 Every load-bearing claim, the command that proves it, and the result observed on
 this machine. Toolchain: `GOCACHE=$(pwd)/.gocache/go1.26.5 GOTOOLCHAIN=go1.26.5`
 (go.mod requires go 1.26.5; the older 1.26.3 in earlier notes is stale). This is

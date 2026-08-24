@@ -1,5 +1,9 @@
 # Launch collateral: v1.15.1 and the Mortise front
 
+> **Historical, unused v1.15.1 launch collateral. Not current release copy.**
+> It is preserved to show what was prepared; registry and GitHub publication
+> state must be established independently.
+
 Ready-to-use text for the launch. Nothing here has been posted, pushed, or
 published. House rules apply throughout: British English, restrained, no
 certification language. Adjust the security mailbox and the release date before

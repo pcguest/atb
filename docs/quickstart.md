@@ -137,6 +137,11 @@ The Python and TypeScript packages are SDKs only. Their installed `atb`
 command is a compatibility stub that prints Go CLI install guidance and
 will be removed in a future major release.
 
+During this local convergence pass, PyPI and npm still publish `1.14.5` while
+the tagged source baseline is `v1.15.2`. Use a source checkout to evaluate
+unpublished behaviour; do not infer registry publication from the source tag.
+The next controlled release must advance both registries together.
+
 ## 3. Record your first bundle (Python SDK)
 
 ```python

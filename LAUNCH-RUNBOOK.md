@@ -1,10 +1,11 @@
 # Tenon and Mortise Launch Runbook
 
-> **Retired historical record — do not execute.** The public ATB launch is
-> complete, `v1.15.2` already exists on `main`, and the branch, tag, repository
-> migration, and publication commands below describe a superseded one-time
-> process. Use `docs/release.md` plus a newly reviewed release plan for any
-> later release; never recreate or move `v1.15.2` from this runbook.
+> **Retired historical record — do not execute.** `v1.15.2` exists on `main`,
+> but this planned launch was not a complete multi-surface publication and the
+> GitHub repository remains private as of the 2026-08-24 convergence pass. The
+> branch, tag, repository-migration, and publication commands below describe a
+> superseded one-time plan. Use `docs/release.md` plus newly reviewed acceptance
+> evidence; never recreate or move an existing tag from this runbook.
 
 This is a review artefact. Do not run any step until Patrick gives the
 step-specific word.

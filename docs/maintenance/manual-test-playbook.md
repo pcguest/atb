@@ -1,5 +1,10 @@
 # Manual ATB/Mortise test playbook
 
+> **Historical private-trunk playbook.** This records the earlier combined
+> ATB/Mortise checkout procedure and is not the current ATB public-release gate.
+> Current ATB verification is defined by `scripts/release-check.sh`, the
+> repository workflows, and `LOCAL-PUBLIC-READINESS.md`.
+
 Use this playbook from a source checkout when you want to verify that the
 private trunk works end-to-end before extraction, demo, or release work. It
 does not require a hosted service. Mortise is optional and runs on loopback.

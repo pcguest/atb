@@ -1,9 +1,17 @@
-# Git history rewrite plan (prepared, not executed)
+# Historical Git history rewrite plan
 
-This runbook removes build artefacts and a large binary from git history before
-the repository is made public. It is prepared for review. Do not run it without
-the maintainer's explicit go-ahead. It rewrites every commit SHA and requires a
-force-push.
+> **Historical maintenance plan — do not execute against the current
+> repository.** As checked on 2026-08-24, no `.atb-agent` or `.gocache*` path is
+> reachable from any current branch or tag, and the largest reachable blob is
+> approximately 543 KB. The large objects described below may remain as
+> unreachable data in an individual local clone's pack, but unreachable objects
+> are not transferred by a normal push or clone. This document preserves the
+> reasoning from the earlier cleanup pass; it is not the current publication
+> procedure.
+
+This runbook described removing build artefacts and a large binary from an
+earlier reachable history before publication. It rewrites every commit SHA and
+requires a force-push.
 
 ## Why
 
@@ -55,10 +63,11 @@ Only stale `refs/remotes/origin/*` are pruned (filter-repo removes the origin
 remote); they are rebuilt on the next fetch. The rewritten tree builds, and
 `gitleaks detect --log-opts=--all` reported no leaks over 886 commits.
 
-## Secret scan before going public
+## Historical secret-scan instruction
 
-History has not been scanned for credentials. Before the repository is public,
-run a dedicated scanner over the full history and triage any hit:
+At the time of this plan, history had not been scanned for credentials. The
+2026-08-24 convergence pass subsequently scanned all reachable history with
+Gitleaks and found no leak. The historical command was:
 
 ```bash
 gitleaks detect --source . --log-opts="--all"

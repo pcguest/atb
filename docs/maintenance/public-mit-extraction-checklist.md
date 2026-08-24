@@ -1,7 +1,12 @@
 # Public MIT extraction checklist
 
+> Historical extraction plan. The current convergence target is the complete
+> ATB repository, not a newly initialised filtered repository. Retain this as
+> evidence of the earlier allowlist/history review; do not execute it as the
+> publication plan without a new decision.
+
 This checklist is for creating a polished public ATB repository from the private
-trunk while keeping proprietary Mortise product material private.
+trunk while keeping commercial Mortise product material separate.
 
 ## Include in public ATB
 
