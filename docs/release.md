@@ -117,16 +117,20 @@ git tag -a v<NEW> -m "v<NEW>"
 git push origin v<NEW>
 ```
 
-Wait for the `version-gate` workflow to succeed before creating the release.
+Wait for the tag-triggered workflows to succeed. Do not create a GitHub Release
+manually: the `Release` workflow owns the draft, registry publication, retained
+evidence bundle, and final transition out of draft.
 
 ```bash
 gh run list --repo pcguest/atb --workflow version-gate.yml --limit 3
 ```
 
-Tag pushes also trigger `Gold Release Gate` (`make gate-gold-release`, which
-enforces ≥80% statement coverage on `pkg/api/v1`) and `Docker Publish`. Both
-should be green before announcing the release; `Gold Release Gate` can also be
-run on `main` ahead of tagging via `gh workflow run gold-release.yml --ref main`.
+Tag pushes also trigger `Gold Release Gate` (`make gate-gold-release`, including
+the repository's ≥80% aggregate Go coverage threshold), `Docker Publish`, and
+the artifact `Release` workflow. All must be green before announcing the
+release. `Gold Release Gate` can also be run on `main` ahead of tagging via
+`gh workflow run gold-release.yml --ref main`; a manual dispatch of
+`release.yml` builds and verifies artifacts but cannot publish without a tag.
 
 ### Historical publication incidents
 
@@ -153,16 +157,21 @@ build checkpoint, given a publication-verification snapshot, and signed with
 the same release key. The workflow now preflights signing on a temporary copy
 before publication and signs the retained bundle only after all capture steps.
 
-## 7. Create GitHub release
+## 7. Verify automated publication
 
 ```bash
-gh release create v<NEW> \
-  --title "v<NEW>" \
-  --notes "$(awk '/## \[v<NEW>\]/{found=1; next} found && /^## \[/{exit} found{print}' CHANGELOG.md)" \
-  --latest
+gh run list --repo pcguest/atb --workflow release.yml --limit 3
+gh run list --repo pcguest/atb --workflow gold-release.yml --limit 3
+gh run list --repo pcguest/atb --workflow docker-publish.yml --limit 3
+gh release view v<NEW> --repo pcguest/atb
 ```
 
-Release notes are pulled verbatim from the CHANGELOG block.
+The `Release` workflow first creates a draft, publishes the already verified
+Python and npm artifacts, signs and attaches the final ATB release-evidence
+bundle, and only then makes the GitHub Release public. If any step fails, leave
+the draft and registry state intact and follow the partial-publication rollback
+procedure in the local public-readiness report; never replace an immutable
+registry version with different bytes.
 
 ## 8. Close tracking issues
 
