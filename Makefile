@@ -207,10 +207,10 @@ security-scan:
 		TRIVY_FOUND_VERSION="$$($$TRIVY_BIN --version 2>/dev/null | awk 'NR == 1 { print $$2 }')"; \
 	fi; \
 	if [ "$$TRIVY_FOUND_VERSION" = "$(TRIVY_VERSION)" ]; then \
-		"$$TRIVY_BIN" fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
+		"$$TRIVY_BIN" fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ local Trivy version '$${TRIVY_FOUND_VERSION:-missing}' does not match $(TRIVY_VERSION); using pinned Docker image"; \
-		docker run --rm -v "$$(pwd):/work" $(TRIVY_IMAGE) fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
+		docker run --rm -v "$$(pwd):/work" $(TRIVY_IMAGE) fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
 	fi
 	@GOSEC_BIN="$$(command -v gosec || true)"; \
 	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
