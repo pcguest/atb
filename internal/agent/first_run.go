@@ -14,7 +14,7 @@ const workspaceReadmeName = "README"
 const workspaceReadmeContent = `# ATB Agent workspace
 
 This directory holds closed session bundles written by the local ATB Agent.
-Each session stores an immutable hash-chained .atb file under sessions/<id>/.
+Each session stores a tamper-evident, hash-chained .atb file under sessions/<id>/.
 
 Configuration (highest priority first):
   ATB_AGENT_DATA_DIR, ATB_AGENT_LISTEN_ADDR environment variables

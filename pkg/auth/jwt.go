@@ -120,7 +120,9 @@ func (v *JWTValidator) startRefresh(ctx context.Context, interval time.Duration,
 // fresh set on success. Used when a token presents a kid missing from the
 // cached set (mid-rotation).
 func (v *JWTValidator) refetchKeyID(ctx context.Context, kid string) (jwk.Key, bool) {
-	fresh, err := jwk.Fetch(ctx, v.jwksURL)
+	bounded, cancel := context.WithTimeout(ctx, jwksFetchTimeout)
+	defer cancel()
+	fresh, err := jwk.Fetch(bounded, v.jwksURL)
 	if err != nil {
 		v.logger.Error("failed to refetch JWKS on kid miss", "error", err)
 		return nil, false

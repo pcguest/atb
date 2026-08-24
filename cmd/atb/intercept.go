@@ -45,6 +45,9 @@ func runInterceptCommand(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := slog.New(slog.NewTextHandler(stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	if cfg.CaptureBodies {
+		printCapturePrivacyWarning(stderr)
+	}
 
 	p, err := proxy.NewProxy(cfg, nil, logger) // Pass nil for handler
 	if err != nil {
@@ -261,6 +264,10 @@ func printInterceptEnvHints(w io.Writer, port int) {
 	fmt.Fprintf(w, "  export NODE_EXTRA_CA_CERTS=%s  # Node.js\n", caPath)
 	fmt.Fprintln(w, "Provider base-URL path overrides are not supported; only hosts in --target are intercepted.")
 	fmt.Fprintln(w, "Clients that ignore HTTPS_PROXY or use certificate pinning will bypass or reject interception; use an SDK wrapper for those calls.")
+}
+
+func printCapturePrivacyWarning(w io.Writer) {
+	fmt.Fprintln(w, "WARNING: --capture-bodies stores raw prompts, completions, and tool payloads in the bundle; apply access controls, retention limits, and encryption appropriate to that content.")
 }
 
 func printInterceptHelp(w io.Writer) {

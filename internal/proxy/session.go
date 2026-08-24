@@ -536,7 +536,7 @@ func intFromAny(values ...any) int {
 
 // recordedHeaders is a conservative evidence allowlist. Provider APIs invent
 // new credential header names regularly, so a denylist can silently persist a
-// secret into an immutable bundle.
+// secret into a tamper-evident bundle record.
 var recordedHeaders = map[string]struct{}{
 	"accept":               {},
 	"accept-encoding":      {},
