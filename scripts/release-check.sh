@@ -39,7 +39,11 @@ export ATB_PYTHON
 "$ATB_PYTHON_BIN" -m pip install -r sdk/python/requirements-release.txt
 
 echo "[1/7] Go tests"
-go test -skip TestInstalledBinarySmokeFlow ./...
+go_packages=()
+while IFS= read -r package; do
+  go_packages+=("$package")
+done < <(go list ./... | grep -v '/node_modules/')
+go test -skip TestInstalledBinarySmokeFlow "${go_packages[@]}"
 
 echo "[2/7] TypeScript lockfile + build"
 (

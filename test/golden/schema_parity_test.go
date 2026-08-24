@@ -100,10 +100,16 @@ func runPythonSchemaCanonicalize(t *testing.T, repoRoot string, event map[string
 
 	pythonBin := os.Getenv("ATB_PYTHON_BIN")
 	if pythonBin == "" {
-		venvPython := filepath.Join(repoRoot, "sdk", "python", "venv", "bin", "python")
-		if _, err := os.Stat(venvPython); err == nil {
-			pythonBin = venvPython
-		} else {
+		for _, candidate := range []string{
+			filepath.Join(repoRoot, ".venv", "bin", "python"),
+			filepath.Join(repoRoot, "sdk", "python", "venv", "bin", "python"),
+		} {
+			if _, err := os.Stat(candidate); err == nil {
+				pythonBin = candidate
+				break
+			}
+		}
+		if pythonBin == "" {
 			pythonBin = "python3"
 		}
 	}

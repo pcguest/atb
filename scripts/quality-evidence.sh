@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.5}"
+GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.7}"
 GOVERSION="$(GOTOOLCHAIN="$GOTOOLCHAIN" go env GOVERSION 2>/dev/null | tr ' ' '_' || true)"
 GOCACHE="${GOCACHE:-$ROOT/.gocache/${GOVERSION:-default}}"
 GOENV=(env "GOCACHE=$GOCACHE" "GOTOOLCHAIN=$GOTOOLCHAIN")
@@ -21,7 +21,7 @@ if [[ -z "$PYTHON_BIN" ]]; then
 fi
 
 echo "== Go coverage =="
-GO_COVER_PACKAGES="$("${GOENV[@]}" go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | grep -v '/web/node_modules/')"
+GO_COVER_PACKAGES="$("${GOENV[@]}" go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | grep -v '/node_modules/')"
 "${GOENV[@]}" go test $GO_COVER_PACKAGES -coverprofile=coverage.out
 "${GOENV[@]}" go tool cover -func=coverage.out | tail -n 1
 "${GOENV[@]}" go test ./pkg/api/v1 -cover
