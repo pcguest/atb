@@ -1,7 +1,8 @@
 # Security Policy
 
 This file covers vulnerability reporting and supported release policy. For the product threat
-model and control boundaries, see [docs/security.md](docs/security.md).
+model and control boundaries, see
+[docs/concepts/trust-model.md](docs/concepts/trust-model.md).
 
 ## Supported versions
 
@@ -42,7 +43,23 @@ This policy applies to:
 
 Trivy vulnerability scanning runs on a weekly schedule via GitHub Actions.
 
-For incident handling after report intake, see [docs/incident-response.md](docs/incident-response.md).
+## Incident handling
+
+For a suspected vulnerability, credential leak, compromised release artefact,
+or integrity anomaly:
+
+1. Open a private timestamped incident note and classify impact: active
+   compromise/data exposure, exploitable weakness without known exploitation,
+   or low-impact hardening gap.
+2. Contain the issue. Revoke affected credentials, review PyPI OIDC trust,
+   pause publishing when necessary, and disable compromised endpoints.
+3. Patch the root cause on `main`, add regression tests, rebuild and verify
+   release artefacts, and re-enable automation only after its gates pass.
+4. Preserve CI logs, commit references, release metadata, impact, and
+   remediation. Coordinate disclosure after a tested fix is available.
+
+Never replace immutable registry versions with different bytes. Treat a partial
+publication as an incident and follow the release runbook's recovery procedure.
 
 ## Local viewer threat model
 

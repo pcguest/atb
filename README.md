@@ -16,10 +16,10 @@ hash-addressed bundle events without relying on the agent application's own
 logs. It requires no service, cloud account, external database, or hosted
 verifier.
 
-Current release: [`v1.15.2`](CHANGELOG.md) — the tagged source baseline. The
-repository and registry publication state is tracked separately in
-[`LOCAL-PUBLIC-READINESS.md`](./LOCAL-PUBLIC-READINESS.md); a source tag does
-not imply that every release surface has been published.
+Source version: [`v1.15.2`](CHANGELOG.md). A source tag does not imply that
+every registry or GitHub release artefact has been published; check the
+installed CLI/SDK version and the relevant registry before relying on a
+particular release.
 
 ## Try ATB in five minutes
 
@@ -49,7 +49,7 @@ make build
 ./atb view run.atb/bundle.atb --profile atb.profile.policy_decision
 ```
 
-See the [five-minute quickstart](./docs/quickstart.md) for Python and TypeScript
+See the [five-minute quickstart](./docs/getting-started/quickstart.md) for Python and TypeScript
 SDK installation, capture paths, and the complete local review flow.
 
 ## What ATB records
@@ -108,7 +108,18 @@ atb incident export --bundle <bundle-file> --session <session-id> --out incident
 Findings such as `tool_without_approval` mean that no matching approval is
 present in the recorded evidence before the located tool call. They do not
 prove that no approval existed anywhere outside the capture boundary. Follow
-the reproducible [incident-forensics walkthrough](./docs/guides/incident-forensics.md).
+the reproducible [incident-forensics walkthrough](./docs/investigate/incidents.md).
+
+Run the complete offline workflow from a source checkout:
+
+```bash
+make demo-incident
+```
+
+It creates the same incident bundle twice and checks byte-for-byte determinism,
+verifies the intact evidence, reconstructs the session, asserts the expected
+finding, and proves content mutation, record reordering, and record removal all
+fail verification.
 
 ## Independent implementations
 
@@ -161,12 +172,12 @@ or regulatory compliance.
 | Read | Purpose |
 | --- | --- |
 | [Documentation hub](./docs/README.md) | Canonical map of current documentation |
-| [Architecture](./docs/architecture.md) | Components, implementations, and trust boundaries |
-| [Security model](./docs/security.md) | Guarantees, threats, and explicit limits |
-| [Incident forensics](./docs/guides/incident-forensics.md) | Reproducible post-incident workflow |
-| [Profiles and CAS](./docs/profiles.md) | Evidence obligations and profile-scoped scoring |
-| [Bundle specification](./docs/spec-v1.0.md) | Frozen format, hashing, and canonicalisation contract |
-| [Glossary](./docs/glossary.md) | Canonical product and evidence terminology |
+| [Architecture](./docs/concepts/architecture.md) | Components, implementations, and trust boundaries |
+| [Security model](./docs/concepts/trust-model.md) | Guarantees, threats, and explicit limits |
+| [Incident forensics](./docs/investigate/incidents.md) | Reproducible post-incident workflow |
+| [Profiles and CAS](./docs/evidence/profiles.md) | Evidence obligations and profile-scoped scoring |
+| [Bundle specification](./docs/specification/bundle-v1.md) | Frozen format, hashing, and canonicalisation contract |
+| [Glossary](./docs/concepts/glossary.md) | Canonical product and evidence terminology |
 | [Contributing](./CONTRIBUTING.md) | Local development and review gates |
 | [Versioning](./VERSIONING.md) | SemVer and compatibility rules |
 

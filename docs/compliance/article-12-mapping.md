@@ -1,4 +1,4 @@
-# EU AI Act Article 12: ATB evidence mapping
+# EU AI Act evidence mapping
 
 Regulation (EU) 2024/1689, Article 12, requires high-risk AI systems to allow
 the automatic recording of events over the system lifetime, with traceability
@@ -11,6 +11,18 @@ opinion, or a certification claim. ATB proves the integrity of recorded bundle
 contents. It does not prove capture completeness, actor identity, provider-side
 behaviour, or regulatory compliance by itself. Wording such as "aligns with
 Article 12 logging requirements" is accurate. "Certified" or "compliant" is not.
+
+## Broader coverage boundary
+
+| Article | ATB contribution | Boundary |
+| --- | --- | --- |
+| 9: risk management | Profiles and CAS can support recorded risk-control evidence | Partial; not a risk-management system |
+| 12: automatic logging | Hash-chained capture, retention records, and offline verification | Supporting evidence; capture may be incomplete |
+| 13: deployer transparency | Machine-readable verifier output and residual gaps | Partial; not full system documentation |
+| 14: human oversight | Approval, override, policy, and optional identity-evidence records | Identity remains caller-provided until checked externally |
+| 17: quality management | Specifications and deterministic evidence packs | Partial; not a quality-management system |
+| 20: automatically generated logs | Live capture and OTel/chatlog import | Partial; imported records may omit source activity |
+| 10–11: data governance and technical documentation | Runtime evidence only | Training-data governance and full technical documentation are out of scope |
 
 ## Per-obligation mapping
 
@@ -55,5 +67,12 @@ The deterministic pack contains the bundle, `verify.report.v1`, trust reports,
 CAS and obligation results, incident artifacts, reference mappings, and relevant
 retention operations when `.atb/operations.atb` exists.
 
-See [EU AI Act coverage map](./eu-ai-act.md) for the broader Article 9 to 20
-view and the full known-gaps list.
+## Known gaps
+
+- Calls that bypass the configured capture path are not visible to ATB.
+- Identity truth depends on independent IdP, JWKS, certificate, or equivalent
+  verification.
+- Retention evidence records local operations or remote API acceptance, not
+  continuing storage-side enforcement.
+- Custodian-of-record workflows, legal hold, auditor access, and hosted custody
+  are outside the ATB runtime.

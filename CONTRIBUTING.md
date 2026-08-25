@@ -3,7 +3,8 @@
 ATB is an open project. Contributions, bug reports, and focused documentation improvements are welcome.
 
 This file covers contributor workflow. Release preparation and versioning details live in
-[docs/release.md](docs/release.md) and [VERSIONING.md](VERSIONING.md).
+[docs/maintainers/release.md](docs/maintainers/release.md) and
+[VERSIONING.md](VERSIONING.md).
 
 ## Local setup
 
@@ -74,7 +75,9 @@ Open a short-lived branch or fork and submit against `main`. Include:
 - `go test ./...` and `make hygiene-quick` output
 - any follow-up work intentionally left out
 
-If the change touches viewer routes or DTOs, update `docs/spec-dashboard.md` and `docs/api/openapi.yaml` as part of the same patch.
+If the change touches viewer routes or DTOs, update
+`docs/specification/viewer.md` and `docs/api/openapi.yaml` as part of the same
+patch.
 
 ### Local release gates
 
@@ -98,7 +101,9 @@ fields do not require this notice.
 
 ## Release process
 
-The maintainer release sequence is documented in [docs/release.md](docs/release.md). Two scripts are central:
+The maintainer release sequence is documented in
+[docs/maintainers/release.md](docs/maintainers/release.md). Two scripts are
+central:
 
 - `scripts/release-check.sh` — full preflight suite: Go tests,
 TypeScript build and tests, Python tests and package build, web
@@ -108,8 +113,7 @@ Run this before tagging.
 against the release tag across the checked version locations. Run with
 `ATB_SKIP_TAG_CHECK=1` on a feature branch before the tag exists; run
 without the flag after tagging to confirm the tag matches. This check
-also runs in CI via the `version-gate.yml` workflow on every push and
-pull request.
+also runs in the Linux CI job on every push and pull request.
 
 The release tag is the release source of truth. The checked-in version strings must match it.
 
@@ -164,7 +168,8 @@ Go is canonical. Python and TypeScript must match Go byte-for-byte via
 ### Files requiring extra review
 
 - `internal/bundle/`, `internal/hash/`, `internal/canonicalize/`
-- `schemas/event.v1.json`, `docs/spec-v1.0.md`, `docs/spec-ai-traces.md`
+- `schemas/event.v1.json`, `docs/specification/bundle-v1.md`,
+  `docs/specification/events.md`
 - `internal/verify/report.go`, `pkg/custody/schema/`
 - `cmd/atb/exit_codes.go`, public CLI help, documented JSON output
 - `sdk/python/`, `sdk/typescript/`
@@ -173,3 +178,16 @@ Go is canonical. Python and TypeScript must match Go byte-for-byte via
 Schema or canonicalisation changes require docs, tests, and CHANGELOG entries in
 the same release-preparation pass. Do not describe ATB as certifying compliance
 or replacing a custodian.
+
+### Compatibility-sensitive public contracts
+
+External users and the optional Mortise integration depend on these surfaces:
+
+- the bundle specification, event schema, and cross-language hash vectors;
+- `pkg/custody`, `pkg/jcs`, SDK APIs, and `verify.report.v1`;
+- documented CLI help, exit codes, JSON output, profile IDs, and CAS semantics;
+- signatures, anchors, encryption metadata, and custody export envelopes.
+
+Canonicalisation or on-disk changes require the versioning review and
+`make test-golden`. Public API removal requires a deprecation or explicit major
+version decision; do not silently move a contract into an internal package.

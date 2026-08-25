@@ -84,7 +84,7 @@ When you bump the manifest version, you must also:
 - Regenerate the golden vectors (`go test ./internal/hash/... -run TestGoldenVectors -update-vectors`).
 - Re-run the cross-language `make test-golden` so Python and TypeScript continue to match byte-for-byte.
 - Add a CHANGELOG entry under the next unreleased version that names the bump explicitly.
-- Document the new shape in `docs/spec-v1.0.md` alongside the previous shape, side-by-side.
+- Document the new shape in `docs/specification/bundle-v1.md` alongside the previous shape, side-by-side.
 
 ### Historical: the v1.1.2 float profile break
 
@@ -96,11 +96,11 @@ The v1.1.2 break is the only sanctioned historical break in the canonicalisation
 
 This block records what was added in the Capture v1 development cycle. Every item below is purely additive: no existing canonical-hash input, no existing JSON schema field, and no existing golden vector was modified, so the changes are appropriate to a MINOR release and do not require a manifest version bump on their own.
 
-- **New CLI subcommands**: `atb import chatlog` (ingests chat transcripts via the `generic-jsonl` provider) and `atb capture run` (wraps a child process and exports capture context to it via environment variables). Both are documented in [CONTRIBUTING.md](../CONTRIBUTING.md) § Maintainer rules and [docs/release.md](../docs/release.md).
+- **New CLI subcommands**: `atb import chatlog` (ingests chat transcripts via the `generic-jsonl` provider) and `atb capture run` (wraps a child process and exports capture context to it via environment variables). Both are documented in [CONTRIBUTING.md](CONTRIBUTING.md) § Maintainer rules and [docs/maintainers/release.md](docs/maintainers/release.md).
 - **New internal packages**: a `capture` package under `internal/` that owns chatlog parsing, mapping, and the in-memory append helpers shared by both subcommands. The bundle write path also gained an OS-level advisory lock helper (`flock` on Unix, `LockFileEx` on Windows) that surfaces `ErrBundleLocked` on contention.
 - **New optional signature fields**: the `atb.bundle.signature` data payload gained `algorithm`, `key_id`, `backend`, and `signed_at`. All four are optional with `omitempty`; readers that pre-date them treat their absence as `algorithm = "ed25519"` and otherwise unset, preserving compatibility with bundles signed by older releases.
 - **Manifest version 2 (read support, opt-in writer)**: a v2 manifest format is supported by the reader and may be written via `--manifest-version 2`. The default writer remains v1. Reader-side dispatch is governed by `ManifestVersionMax`; bundles declaring a manifest version greater than the maximum return an error wrapping `ErrMalformed`.
-- **New exit code**: `exitLockContention` (value `9`) is returned when a bundle write path cannot acquire the advisory lock. Callers should retry after a short delay; the mutating subcommands accept `--lock-wait <duration>` to extend the in-process wait window before this exit code is surfaced. The constant is documented in `cmd/atb/exit_codes.go` and [CONTRIBUTING.md](../CONTRIBUTING.md); it has a freshly-allocated numeric value and does not collide with any pre-existing exit code.
+- **New exit code**: `exitLockContention` (value `9`) is returned when a bundle write path cannot acquire the advisory lock. Callers should retry after a short delay; the mutating subcommands accept `--lock-wait <duration>` to extend the in-process wait window before this exit code is surfaced. The constant is documented in `cmd/atb/exit_codes.go` and [CONTRIBUTING.md](CONTRIBUTING.md); it has a freshly-allocated numeric value and does not collide with any pre-existing exit code.
 - **Golden corpus integrity**: the cross-language canonical-hash corpus was *not* modified by Capture v1. Every Go, Python, and TypeScript golden vector that existed before the cycle still hashes byte-for-byte to the same value. New tests were added; no existing vector was edited or regenerated.
 
 ## Bundle compatibility matrix
@@ -165,4 +165,4 @@ A failing golden test in **any** language blocks the release across all three. S
 
 - If a release changes user-visible behaviour, update `CHANGELOG.md`, release-facing `README.md` text, and any affected operational docs in the same release-preparation pass.
 - Roadmap targets and issue milestones are planning aids only. They do not override Semantic Versioning, the manifest-version bump rules, or the SDK parity obligation.
-- A schema change without a corresponding CHANGELOG entry, manifest-version review, and golden-vector regeneration is automatically blocked at review time. See [CONTRIBUTING.md](../CONTRIBUTING.md) § Files requiring extra review.
+- A schema change without a corresponding CHANGELOG entry, manifest-version review, and golden-vector regeneration is automatically blocked at review time. See [CONTRIBUTING.md](CONTRIBUTING.md) § Files requiring extra review.

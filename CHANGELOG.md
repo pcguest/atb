@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The local intercept proxy now enforces configurable per-body and aggregate memory limits. Rejected or incomplete exchanges emit privacy-safe `atb.capture.rejected` evidence; the additive event is registered in the checked, generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
 
 ### Changed
+- Bundle readers now enforce cross-language defaults of 16 MiB per record,
+  512 MiB total input, and one million non-empty records. The bundle format and
+  canonical hashes are unchanged; files above the new process-safety defaults
+  may require splitting at a session boundary before loading.
+- PageIndex is now an explicit Python SDK extra instead of pulling its OpenAI
+  and Pydantic dependency graph into every default installation.
 - CI, release, Docker, Python, npm, and security-scanner inputs are reproducibly pinned; release workflows validate source/tag/image version parity and refuse registry publication states that could appear falsely green.
 - Clean-machine release checks now provision their cross-language Python environment before Go parity tests, pin the static web export to webpack, and reject local Trivy or gosec binaries whose versions differ from the release gate.
 - CI validates workflow scripts with pinned actionlint and uses array-safe package, process and multi-architecture digest handling.
@@ -101,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - `go install github.com/pcguest/atb/cmd/atb@latest` now works without build tags: a placeholder asset is committed under `web/out/`, so the default embed compiles from the module proxy. Install docs drop the `-tags noembed` workaround; a `go install` build still serves the minimal install-guidance page for `atb view` (build from a checkout with `make build` for the full review UI).
-- `ai.job.step` criticality corrected from `critical` to `required` in the event registry (`schemas/event.v1.json`, generated constants, `docs/spec-ai-traces.md`). The `background_automation` verifier has never required it — `docs/profiles.md` and the spec already documented it as warning-level evidence — so the registry now matches shipped verification behaviour. No verifier behaviour change.
+- `ai.job.step` criticality corrected from `critical` to `required` in the event registry (`schemas/event.v1.json`, generated constants, `docs/specification/events.md`). The `background_automation` verifier has never required it — `docs/evidence/profiles.md` and the spec already documented it as warning-level evidence — so the registry now matches shipped verification behaviour. No verifier behaviour change.
 
 ### Removed
 - Three event types that were defined but never emitted by any runtime (Go, Python, or TypeScript) are cut from the event registry, schema catalogue, generated constants, and viewer labels: `atb.bundle.pushed` (its design conflicts with WORM custody — appending after push would change the bundle after the immutable copy; `atb push` has never emitted it), `ai.override.requested` (zero emitters; the human-override workflow records `ai.human.approval`), and `snapshot.build` (tooling marker, never emitted). Old bundles containing these types still chain-verify — event types are an open namespace and unknown types are not rejected; the types simply no longer appear in the documented registry. The overlapping `atb.human.override`/`atb.human.approval` family merge is deferred to a deliberate schema-version bump.
@@ -218,13 +224,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `internal/proxy/recorder.go`: `AppendEventHash` returns the appended record hash to enable provability linkage from `atb.exchange.complete` → hashed request record.
 - `internal/proxy/forward.go`: `atb.exchange.complete` now emits a superset payload — `actor_id`, `model`, `input_tokens`, `output_tokens`, `tool_calls_count`, `latency_ms`, `completed_at`, and `request_event_id` sourced from the real append hash — in addition to the original required fields.
 - `internal/proxy/session.go`: `tool_calls_count` on `atb.exchange.complete` now reflects a real count parsed from the response body (`CountToolCallsFromResponse`: Anthropic `tool_use` blocks, OpenAI Chat Completions `tool_calls`, OpenAI Responses `function_call`/`tool_call` items) instead of a hardcoded `0`. Best-effort: an unrecognised or unparseable body yields `0` and never blocks recording.
-- `docs/spec-ai-traces.md`: the `atb.exchange.complete` subsection now distinguishes required, always-emitted (`actor_id`, `completed_at`, `tool_calls_count`), and optional fields, matching the emitted payload exactly.
+- `docs/specification/events.md`: the `atb.exchange.complete` subsection now distinguishes required, always-emitted (`actor_id`, `completed_at`, `tool_calls_count`), and optional fields, matching the emitted payload exactly.
 - `schemas/event.v1.json`: added the four canonical oversight event types (`atb.tool.call`, `atb.data.export`, `atb.human.override`, `atb.human.approval`) and the two proxy-internal session types (`atb.session.close`, `atb.exchange.complete`) to the schema source of truth, with `required_fields` and matching `documented_event_types` entries. Regenerated the Go/Python/TypeScript bindings; the generated `internal/event/types_generated.go` now owns the canonical type constants (previously hand-declared in `types.go`), removing the duplicate-declaration drift between the generator and the committed output.
 - `internal/emit`, `sdk/python/atb/oversight.py`, `sdk/typescript/src/oversight.ts`: renamed the optional tool-call digest fields from `input_hash`/`output_hash` to `tool_input_digest`/`tool_output_digest` to follow the ATB `*_digest` naming convention used elsewhere in the schema. The Go emitter validation error prefix is now `atb:` (was `emit:`), matching the Python and TypeScript surfaces.
-- `docs/spec-ai-traces.md`: reconciled the `atb.tool.call`, `atb.data.export`, `atb.human.override`, and `atb.human.approval` field tables with the shipped SDK contract (required fields are the essential identifier plus `session_id`; `actor_id`, digests, `record_count`, and `classification` are optional) and added `atb.bundle.pushed` to the complete event type registry table.
+- `docs/specification/events.md`: reconciled the `atb.tool.call`, `atb.data.export`, `atb.human.override`, and `atb.human.approval` field tables with the shipped SDK contract (required fields are the essential identifier plus `session_id`; `actor_id`, digests, `record_count`, and `classification` are optional) and added `atb.bundle.pushed` to the complete event type registry table.
 - `tools/eventgen`: the generator now maps the generic `atb.<namespace>.<name>` form to the canonical hand-named constants (e.g. `atb.tool.call` to `TypeToolCall`) so schema-driven generation matches the existing Go and SDK constant names.
 - `schemas/event.v1.json`: `documented_event_types` for `atb.session.close` and `atb.exchange.complete` now declare their always-emitted and optional fields as `properties` (`model`, `exchange_count`, `total_tokens`, `closed_at` for session close; `actor_id`, `completed_at`, `tool_calls_count`, `model`, `input_tokens`, `output_tokens`, `latency_ms` for exchange complete), matching the proxy payload exactly. The `required` arrays are unchanged, so the schema-consistency test and generated bindings are unaffected.
-- `docs/spec-ai-traces.md`: the `atb.session.close` subsection now documents its always-emitted fields (`model`, `exchange_count`, `total_tokens`, `closed_at`), matching the schema and emitted payload.
+- `docs/specification/events.md`: the `atb.session.close` subsection now documents its always-emitted fields (`model`, `exchange_count`, `total_tokens`, `closed_at`), matching the schema and emitted payload.
 - `internal/event/types.go`: the legacy deprecated `Registry` now includes `atb.session.close` and `atb.exchange.complete`, ending its silent divergence from the schema-generated `RegistryGenerated` (guarded by the new parity test).
 - `internal/proxy/session.go`: simplified `NoteExchange` token accumulation to `TotalTokens += promptTokens + outputTokens`, removing a tautological no-op branch; behaviour is unchanged.
 - `atb intercept` records request/response bodies as a SHA-256 digest (`body_sha256`) and byte length (`body_bytes`) by default, not raw content; pass `--capture-bodies` to retain raw bodies. `ScanHeaders` now also strips `Proxy-Authorization`, `Cookie`, and `Set-Cookie` (in addition to `Authorization` / `X-Api-Key`), so no credential or session secret is persisted.
@@ -233,7 +239,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.12.0] - 2026-05-25
 
 ### Added
-- [Custos development handoff](docs/custos-handoff.md): layer model, stable contracts, Custos build phases, and demo script for custodian-of-record development.
+- Custos development handoff (historical document, removed during repository convergence): layer model, stable contracts, Custos build phases, and demo script for custodian-of-record development.
 - Custos ingest conformance test (`test/custos/conformance_test.go`) locking `verify.report.v1` on pass fixtures and checking emitted top-level report fields against the frozen custody schema.
 - Profile workflow SDK helpers (TypeScript and Python): `DataExportGate`, `PolicyDecisionRecorder`, `HumanOverrideGate`, and `BackgroundJobTracker` for emitting canonical events aligned with built-in obligation profiles.
 - `examples/bundles/generate-profile-fixtures.sh` to regenerate passing and failing `.atb` fixtures for all six built-in profiles.
@@ -246,8 +252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Internal TypeScript and Python Agent HTTP clients used by `AutomationSession` for local session open/append/close flows.
 
 ### Changed
-- Expanded `docs/cas-guide.md` with canonical sub-score table, grade bands, and per-profile interpretation examples.
-- Updated `docs/api/verify-schema.md` and `docs/profiles.md` (blind spots, `required_when` semantics) to match verifier behaviour.
+- Expanded `docs/evidence/cas.md` with canonical sub-score table, grade bands, and per-profile interpretation examples.
+- Updated `docs/specification/verify-report.md` and `docs/evidence/profiles.md` (blind spots, `required_when` semantics) to match verifier behaviour.
 - `verify.report.v1` now includes `profile_version` and propagates `residual_risk.drivers` / `recommended_next_evidence` from the internal verifier report.
 - Human-readable `atb verify` text output opens with a concise Summary block (integrity, profile, CAS, top issues, exclusion count).
 - Fixed stale integration tests that used `ai.action.*` events for the `atb.profile.data_export` profile.
@@ -315,11 +321,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stale documentation and maintenance references to the removed legacy viewer flag.
 
 ### Docs
-- `docs/spec-v1.0.md` and `schemas/event.v1.json`: signature provenance fields
+- `docs/specification/bundle-v1.md` and `schemas/event.v1.json`: signature provenance fields
   documented as current optional `atb.bundle.signature` payload fields.
-- `docs/spec-ai-traces.md`: `atb.corroboration.*` namespace and required field schema
+- `docs/specification/events.md`: `atb.corroboration.*` namespace and required field schema
   documented, corroboration event added to the complete event type registry table.
-- `docs/architecture.md`: corroboration model section added, covering the problem addressed,
+- `docs/concepts/architecture.md`: corroboration model section added, covering the problem addressed,
   what the event records, XC scoring, the trust limitation, and adapter extension points.
 - All six built-in profile templates: blind-spot text updated to note XC credit conditions.
 - `docs/integrations/push-transports.md`: S3 WORM headers, queue gateway envelope and
@@ -466,11 +472,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Docs
 - `docs/integrations/worm-s3.md`: S3-compatible endpoint support documented; push
   event language removed to match implementation (local bundle is not modified on export).
-- `docs/spec-dashboard.md`: `--profile` CLI interface, new API routes, and
+- `docs/specification/viewer.md`: `--profile` CLI interface, new API routes, and
   Profile/CAS summary panel spec added.
 - `docs/compliance/eu-ai-act.md`: identity attribution boundary section clarifies
   ATB proves non-alteration but not truthfulness of claimed actor identities.
-- `docs/security.md`: identity attribution caveat strengthened; recommended controls
+- `docs/concepts/trust-model.md`: identity attribution caveat strengthened; recommended controls
   updated to require an independent identity layer or signing scheme.
 - Quickstart Python example corrected to use canonical `rag_answer` event types.
 - PageIndex event type mismatch with `rag_answer` profile and fixed GC sub-score
@@ -508,8 +514,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dashboard API server.
 - Rewrote README above-the-fold: explicit Why ATB bullets, What ATB does not do
   sub-section, `atb push` WORM export added to multi-surface list, demo asset hooks.
-- Updated `docs/spec-dashboard.md` with new API routes, `--profile` CLI interface,
-  and Profile/CAS summary panel spec; updated `docs/quickstart.md` section 4 to cover
+- Updated `docs/specification/viewer.md` with new API routes, `--profile` CLI interface,
+  and Profile/CAS summary panel spec; updated `docs/getting-started/quickstart.md` section 4 to cover
   `--profile` usage and the verify report screenshot reference.
 - Added `docs/launch/assets/` canonical path table to `docs/launch/README.md` with
   regeneration reminders for demo GIF and verify-report screenshot.
@@ -539,13 +545,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - CAS weight vectors for `background_automation`, `policy_decision`, and `human_override` YAML templates to the documented profile-specific values (`data_export` unchanged).
 - README: Install moved to follow Trust Model (verification narrative before installation).
-- `docs/security.md` Limitations expanded: intra-bundle integrity vs capture completeness, local-first filesystem trust boundary.
-- `docs/spec-v1.0.md`: snapshot `bundle_hash` definition, `--with-snapshot-check` behaviour, and that the field is not verified without the flag.
+- `docs/concepts/trust-model.md` Limitations expanded: intra-bundle integrity vs capture completeness, local-first filesystem trust boundary.
+- `docs/specification/bundle-v1.md`: snapshot `bundle_hash` definition, `--with-snapshot-check` behaviour, and that the field is not verified without the flag.
 - `docs/compliance/eu-ai-act.md` rewritten to match the Article 12 mapping structure (overview, profile table, out-of-scope paragraph).
 - `atb view` keeps a loopback default host and accepts an explicit `--host` override.
 - `atb verify` and `atb trust-report` now report RFC 3161 anchor state explicitly as verified, partial, or failed.
-- `docs/security.md` now states the local viewer exposure boundary and the exact RFC 3161 checks performed during `--with-anchor`.
-- `docs/key-management.md` now states the versioned PBKDF2-SHA256 parameters for new and legacy encrypted bundles.
+- `docs/concepts/trust-model.md` now states the local viewer exposure boundary and the exact RFC 3161 checks performed during `--with-anchor`.
+- `docs/evidence/key-management.md` now states the versioned PBKDF2-SHA256 parameters for new and legacy encrypted bundles.
 - CI now checks internal Markdown links under `docs/` and `README.md`.
 - `sdk/python/README.md` now reflects the actual exported Python SDK import paths, append flow, and event type constants from `sdk/python/atb/`.
 - `sdk/typescript/README.md` now reflects the actual exported TypeScript SDK package imports, append flow, and event type constants from `sdk/typescript/src/`.
@@ -588,7 +594,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Ed25519 bundle signing integration test
 - v1.0.0-rc release-readiness checklist
-- Key rotation procedure in `docs/key-management.md`
+- Key rotation procedure in `docs/evidence/key-management.md`
 
 ### Changed
 - Version bumped to `1.0.0-rc` across the CLI, Python SDK, TypeScript SDK, and web package

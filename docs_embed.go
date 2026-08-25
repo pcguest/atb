@@ -10,7 +10,7 @@ import (
 
 // ExportDocsFS stores the docs bundled into export archives.
 //
-//go:embed docs/spec-v1.0.md docs/security.md docs/incident-response.md docs/profiles.md docs/cas-guide.md docs/compliance/*.md docs/compliance/pii-fields.json
+//go:embed docs/specification/bundle-v1.md docs/concepts/trust-model.md SECURITY.md docs/evidence/profiles.md docs/evidence/cas.md docs/compliance/*.md docs/compliance/pii-fields.json
 var ExportDocsFS embed.FS
 
 // ReadExportDoc returns an embedded export doc by repo-relative path.
