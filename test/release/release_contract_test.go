@@ -71,6 +71,8 @@ func TestGoldReleaseGateHasNoSoftFailurePaths(t *testing.T) {
 		}
 	}
 	for _, required := range []string{
+		"$(MAKE) build",
+		"$(MAKE) test-all",
 		"$(MAKE) security-scan",
 		"$(MAKE) test-e2e",
 		"npm run test:a11y",
@@ -115,8 +117,7 @@ func TestReleaseCheckPreparesPythonBeforeCrossLanguageGoTests(t *testing.T) {
 	}
 }
 
-func TestGoldReleaseWorkflowsInstallPythonSDKDependencies(t *testing.T) {
-	standalone := readRepositoryFile(t, ".github/workflows/gold-release.yml")
+func TestGoldReleaseWorkflowInstallsPythonSDKDependencies(t *testing.T) {
 	release := readRepositoryFile(t, ".github/workflows/release.yml")
 	gateStart := strings.Index(release, "\n  gate-gold:")
 	publishStart := strings.Index(release, "\n  publish:")
@@ -125,16 +126,11 @@ func TestGoldReleaseWorkflowsInstallPythonSDKDependencies(t *testing.T) {
 	}
 	releaseGate := release[gateStart:publishStart]
 
-	for name, workflow := range map[string]string{
-		"gold-release.yml":      standalone,
-		"release.yml gate-gold": releaseGate,
-	} {
-		if !strings.Contains(workflow, "actions/setup-python@") {
-			t.Errorf("%s does not set up Python for cross-language tests", name)
-		}
-		if !strings.Contains(workflow, "python -m pip install -r ./sdk/python/requirements-dev.txt") {
-			t.Errorf("%s does not install pinned Python SDK dependencies", name)
-		}
+	if !strings.Contains(releaseGate, "actions/setup-python@") {
+		t.Error("release gold gate does not set up Python for cross-language tests")
+	}
+	if !strings.Contains(releaseGate, "python -m pip install -r ./sdk/python/requirements-dev.txt") {
+		t.Error("release gold gate does not install pinned Python SDK dependencies")
 	}
 }
 
@@ -150,6 +146,8 @@ func TestReleaseWorkflowPublishesCompleteCanonicalAssets(t *testing.T) {
 	required := []string{
 		"artifacts/cli/atb-linux-amd64",
 		"artifacts/cli/atb-windows-amd64.exe",
+		"artifacts/cli/LICENSE",
+		"artifacts/cli/THIRD_PARTY_NOTICES",
 		"artifacts/python/*",
 		"artifacts/npm/*",
 		"artifacts/web/*",
@@ -161,6 +159,39 @@ func TestReleaseWorkflowPublishesCompleteCanonicalAssets(t *testing.T) {
 	for _, value := range required {
 		if !strings.Contains(workflow, value) {
 			t.Errorf("release workflow does not publish required canonical asset or transition %q", value)
+		}
+	}
+}
+
+func TestReleaseArtifactsCarryApplicableLegalFiles(t *testing.T) {
+	workflow := readRepositoryFile(t, ".github/workflows/release.yml")
+	for _, required := range []string{
+		"make check-notices",
+		"cp LICENSE THIRD_PARTY_NOTICES dist/release/",
+		"cp LICENSE THIRD_PARTY_NOTICES web/out/",
+		"package/LICENSE",
+		"package/THIRD_PARTY_NOTICES",
+		"artifacts/cli/LICENSE",
+		"artifacts/cli/THIRD_PARTY_NOTICES",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Errorf("release workflow does not enforce legal artifact contract %q", required)
+		}
+	}
+
+	dockerfile := readRepositoryFile(t, "Dockerfile")
+	if !strings.Contains(dockerfile, "COPY LICENSE THIRD_PARTY_NOTICES /licenses/atb/") {
+		t.Error("runtime container does not carry ATB licence and third-party notices")
+	}
+
+	pythonProject := readRepositoryFile(t, "sdk/python/pyproject.toml")
+	if !strings.Contains(pythonProject, `license-files = ["LICENSE", "THIRD_PARTY_NOTICES"]`) {
+		t.Error("Python package does not include both legal files")
+	}
+	typescriptPackage := readRepositoryFile(t, "sdk/typescript/package.json")
+	for _, name := range []string{`"LICENSE"`, `"THIRD_PARTY_NOTICES"`} {
+		if !strings.Contains(typescriptPackage, name) {
+			t.Errorf("TypeScript package does not include %s", name)
 		}
 	}
 }

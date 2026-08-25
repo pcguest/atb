@@ -87,12 +87,19 @@ jobs:
           npm ci
           npm run build
 
+      - name: Verify third-party notices
+        run: make check-notices
+
       - name: Run Go tests
         run: scripts/ci-atb-capture.sh "tests-pass" -- make test-go
 
       - name: Run Python tests
         working-directory: sdk/python
-        run: pytest -q
+        run: |
+          pytest -q
+          ruff check .
+          ruff format --check .
+          mypy --strict atb
 
       - name: Run TypeScript checks
         working-directory: sdk/typescript
@@ -204,7 +211,8 @@ jobs:
             GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-amd64 ./cmd/atb
             GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-arm64 ./cmd/atb
             GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-windows-amd64.exe ./cmd/atb
-            (cd dist/release && sha256sum atb-* > checksums.txt)
+            cp LICENSE THIRD_PARTY_NOTICES dist/release/
+            (cd dist/release && sha256sum atb-* LICENSE THIRD_PARTY_NOTICES > checksums.txt)
           '
 
       - name: Build Python artifacts
@@ -233,6 +241,7 @@ jobs:
       - name: Archive web export
         run: |
           mkdir -p dist/web
+          cp LICENSE THIRD_PARTY_NOTICES web/out/
           tar -C web/out -czf "dist/web/atb-web-${GITHUB_SHA}.tar.gz" .
 
       - name: Prepare release metadata directories
@@ -382,15 +391,33 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install artifacts/python/*.whl
           python -c "import atb; print(atb.__version__)"
+          python - <<'PY'
+          import pathlib, tarfile, zipfile
+
+          for artifact in pathlib.Path("artifacts/python").iterdir():
+              if artifact.suffix == ".whl":
+                  names = zipfile.ZipFile(artifact).namelist()
+              elif artifact.name.endswith(".tar.gz"):
+                  names = tarfile.open(artifact, "r:gz").getnames()
+              else:
+                  continue
+              assert any(name.endswith("LICENSE") for name in names), artifact
+              assert any(name.endswith("THIRD_PARTY_NOTICES") for name in names), artifact
+          PY
 
       - name: Smoke test npm package
         run: |
+          tar -tzf artifacts/npm/*.tgz | grep -q '^package/LICENSE$'
+          tar -tzf artifacts/npm/*.tgz | grep -q '^package/THIRD_PARTY_NOTICES$'
           npm install artifacts/npm/*.tgz
           node -e "require('@pcguest/atb-sdk'); console.log('npm package load ok')"
 
       - name: Verify web, SBOM, and provenance assets
         run: |
-          tar -tzf artifacts/web/*.tar.gz >/dev/null
+          tar -tzf artifacts/web/*.tar.gz | grep -q '^./LICENSE$'
+          tar -tzf artifacts/web/*.tar.gz | grep -q '^./THIRD_PARTY_NOTICES$'
+          test -s artifacts/cli/LICENSE
+          test -s artifacts/cli/THIRD_PARTY_NOTICES
           jq -e '.spdxVersion and .packages' artifacts/sbom/*.json >/dev/null
           # Recompute artifact hashes against the manifest: structural checks
           # alone would pass even if the shipped files did not match it.
@@ -614,6 +641,8 @@ jobs:
             artifacts/cli/atb-darwin-arm64
             artifacts/cli/atb-windows-amd64.exe
             artifacts/cli/checksums.txt
+            artifacts/cli/LICENSE
+            artifacts/cli/THIRD_PARTY_NOTICES
             artifacts/python/*
             artifacts/npm/*
             artifacts/web/*

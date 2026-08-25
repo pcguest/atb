@@ -1,23 +1,16 @@
-# ATB GitHub Workflows
+# GitHub workflows
 
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| ci.yml | push/PR to main | Test matrix + golden parity + docs smoke |
-| security.yml | push/PR to main, schedule, manual | full-history Gitleaks, gosec, pinned Bandit, both npm audits, and Trivy filesystem/image gates |
-| release.yml | tag push | Build CLI + publish to PyPI/npm + GitHub Release |
-| docker-publish.yml | tag push, manual | Build and publish Docker image |
-| gold-release.yml | tag push | Gold release validation gate |
-| release-gates.yml | push/PR to main, manual | Exact cross-language golden-vector and full Go release gates |
-| ops.yml | schedule/push/PR/issues | Docs deploy, registry health, feedback digest, labeling (conditional) |
-| version-gate.yml | push/PR on version files | Cross-file version parity check via `check-versions.sh` |
+| Workflow | Purpose |
+| --- | --- |
+| `ci.yml` | Cross-platform build, tests, SDK parity, version/support checks, docs, and smoke gates |
+| `security.yml` | History, source, dependency, filesystem, and image security scans |
+| `codeql.yml` | GitHub CodeQL analysis |
+| `release.yml` | Validate, build, verify, gate, and publish non-Docker release artefacts |
+| `docker-publish.yml` | Build and publish signed-by-digest multi-architecture images |
+| `ops.yml` | Weekly registry health and lightweight repository triage |
 
-The repository-local composite action at `.github/actions/go-module` exposes
-this checkout as a local Go module to downstream jobs. It lets integration CI
-test the checked-out ATB contract without fetching a second copy.
+The repository-local composite action under `.github/actions/go-module`
+exposes the checkout as a local Go module to downstream integration jobs.
 
-## Adding a New Job
-
-1. Pick the workflow that matches the job's purpose.
-2. Add conditional `if:` to avoid unnecessary runs.
-3. Test locally with `act` or trigger via `gh workflow run`.
-4. Update this file.
+Actions are pinned to full commit SHAs. Update a pin by reviewing the upstream
+release and changing the `uses:` line in a focused pull request.

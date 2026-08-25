@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 #
-# Post-launch external verification for an explicit ATB release.
+# External verification for an explicit published ATB release.
 #
-# Run this AFTER launch, from a machine with no special access, to prove the
+# Run this after publication, from a machine with no special access, to prove the
 # release works from the outside: the CLI and both SDKs resolve at the
 # requested version,
 # the quickstart runs, and verify exits 0 on an intact bundle and 2 on a
 # tampered one.
 #
-# It fails loudly if any artefact is stale at 1.14.5, missing, or unreachable.
+# It fails loudly if any artefact is missing, mismatched, or unreachable.
 # It makes no changes to any repository, registry, or remote. It only reads
 # public artefacts and works in a temporary directory.
 #
 # Requirements on the runner: go, python3 (with venv), npm. No credentials.
 #
 # Usage:
-#   EXPECT=1.16.0 scripts/post-launch-verify.sh
+#   EXPECT=1.16.0 scripts/verify-published-release.sh
 
 set -u
 
@@ -34,9 +34,6 @@ if ! printf '%s\n' "$EXPECT" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[
   printf 'EXPECT must be stable SemVer (MAJOR.MINOR.PATCH); got %s\n' "$EXPECT" >&2
   exit 2
 fi
-# 1.14.5 is the newest version ever published to the registries; the gated
-# v1.15.0 baseline was never released, so a stale mirror serves 1.14.5.
-STALE="1.14.5"
 MODULE="github.com/pcguest/atb/cmd/atb"
 PYPKG="atb-sdk"
 NPMPKG="@pcguest/atb-sdk"
@@ -59,8 +56,6 @@ if go install "$MODULE@v$EXPECT" 2>"$WORK/goinstall.log"; then
   ver="$("$GOBIN/atb" version 2>/dev/null | awk '{print $NF}')"
   if [ "$ver" = "$EXPECT" ]; then
     ok "go install $MODULE@v$EXPECT -> atb $ver"
-  elif [ "$ver" = "$STALE" ]; then
-    bad "CLI reports the STALE version $STALE, expected $EXPECT"
   else
     bad "CLI reports '$ver', expected $EXPECT"
   fi
@@ -138,8 +133,6 @@ head "4. TypeScript SDK ($NPMPKG) publishes at $EXPECT"
 npmver="$(npm view "$NPMPKG" version 2>/dev/null)"
 if [ "$npmver" = "$EXPECT" ]; then
   ok "npm view $NPMPKG version -> $npmver"
-elif [ "$npmver" = "$STALE" ]; then
-  bad "npm reports the STALE version $STALE, expected $EXPECT"
 elif [ -z "$npmver" ]; then
   bad "npm could not resolve $NPMPKG (unpublished or unreachable)"
 else

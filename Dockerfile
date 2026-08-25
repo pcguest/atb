@@ -42,6 +42,7 @@ LABEL org.opencontainers.image.version="${ATB_VERSION}"
 
 COPY --from=go-builder /out/atb /app/atb
 COPY --from=web-builder /src/web/out /app/web/out
+COPY LICENSE THIRD_PARTY_NOTICES /licenses/atb/
 
 EXPOSE 8080
 VOLUME ["/data"]

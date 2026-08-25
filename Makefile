@@ -1,4 +1,4 @@
-.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -28,18 +28,25 @@ GOSEC_VERSION ?= v2.27.1
 profile-fixtures:
 	$(GOENV) go run ./scripts/generate_profile_fixtures.go
 
-# goldens regenerates every example/demo bundle a fresh clone needs for the
-# local demo path and the docs links under examples/. These .atb bundles are
-# gitignored (generated artefacts, not source); run this once after `make build`
-# to materialise them. Pass/fail semantics are asserted by each generator.
-goldens:
-	@test -x ./atb || { echo "❌ ./atb not found — run 'make build' (or 'go build -o ./atb ./cmd/atb') first"; exit 1; }
-	@echo "📦 Regenerating example + demo bundles..."
-	$(GOENV) go run ./scripts/generate_profile_fixtures.go
-	ATB_BIN=$(CURDIR)/atb bash examples/bundles/generate.sh
-	ATB_BIN=$(CURDIR)/atb bash examples/bundles/demo-workflow/generate.sh
-	$(GOENV) go run ./examples/bundles/incident-capture/
-	@echo "✅ Regenerated examples/bundles/{profiles,project-bootstrap,demo-workflow,incident-capture}"
+# goldens materialises the generated pass/fail profile matrix. The flagship
+# incident workflow is source-only and runs independently via demo-incident.
+goldens: profile-fixtures
+	@echo "✅ Regenerated examples/bundles/profiles"
+
+demo-incident:
+	@echo "🔎 Running deterministic agent-incident workflow..."
+	@set -eu; \
+		demo_bin="$$(mktemp /tmp/atb-demo.XXXXXX)"; \
+		trap 'rm -f "$$demo_bin"' EXIT; \
+		$(GOENV) go build -tags noembed -o "$$demo_bin" ./cmd/atb; \
+		PYTHONPATH=$(CURDIR)/sdk/python ATB_BIN="$$demo_bin" python3 examples/incident-demo/run.py
+	@echo "✅ Incident evidence verified; tampering rejected"
+
+notices:
+	@GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) node scripts/generate-third-party-notices.mjs
+
+check-notices:
+	@GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) node scripts/generate-third-party-notices.mjs --check
 
 # check-generated regenerates the schema-driven bindings and fails if any of
 # them drift from the committed output. Comparing against a pre-regen snapshot
@@ -64,9 +71,9 @@ check-versions:
 test-go: profile-fixtures
 	$(GOENV) go test $(GO_PACKAGES) -count=1
 
-hygiene-quick: check-generated check-versions
+hygiene-quick: check-generated check-versions check-notices
 	@echo "🧹 Running quick hygiene gate..."
-	@unformatted="$$(gofmt -l $$(git ls-files '*.go'))"; \
+	@unformatted="$$(for file in $$(git ls-files -co --exclude-standard '*.go'); do test ! -f "$$file" || gofmt -l "$$file"; done)"; \
 		test -z "$$unformatted" || { printf '❌ Go files require gofmt:\n%s\n' "$$unformatted"; exit 1; }
 	$(GOENV) go vet $(GO_PACKAGES)
 	$(GOENV) $(STATICCHECK) $(GO_PACKAGES)
@@ -141,7 +148,13 @@ test-all: hygiene-full
 install-noembed:
 	$(GOENV) go install -tags noembed ./cmd/atb
 
-gate-gold-release: test-all
+
+# The installed-binary smoke tests exercise the fully embedded dashboard. Build
+# it before test-all so this gate is reproducible from a fresh checkout where
+# web/out contains only the tracked fallback page.
+gate-gold-release:
+	@$(MAKE) build
+	@$(MAKE) test-all
 	@echo "🏆 Running gold release gate..."
 	@echo ""
 	@echo "Step 1: Security scan..."

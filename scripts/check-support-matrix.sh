@@ -56,12 +56,12 @@ done
 TS_ENGINE="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package.json'))['engines']['node'])")"
 expect "sdk/typescript engines.node" "$TS_ENGINE" ">=18"
 
-require_file_contains "docs/support-matrix.md" "Go 1\\.26\\.7" "Go support matrix entry"
-require_file_contains "docs/support-matrix.md" "Python 3\\.9-3\\.12" "Python SDK support matrix entry"
-require_file_contains "docs/support-matrix.md" "Python 3\\.11" "Python CI support matrix entry"
-require_file_contains "docs/support-matrix.md" "Node\\.js >=18" "Node SDK support matrix entry"
-require_file_contains "docs/support-matrix.md" "Node\\.js 22" "Node CI support matrix entry"
-require_file_contains "docs/support-matrix.md" "npm ci" "npm package-manager support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Go 1\\.26\\.7" "Go support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Python 3\\.9-3\\.12" "Python SDK support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Python 3\\.11" "Python CI support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Node\\.js >=18" "Node SDK support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Node\\.js 22" "Node CI support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "npm ci" "npm package-manager support matrix entry"
 
 if [ "$FAIL" -eq 0 ]; then
   echo "ok: support matrix declarations agree"
