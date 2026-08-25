@@ -96,6 +96,26 @@ func TestGoldReleaseGateHasNoSoftFailurePaths(t *testing.T) {
 	}
 }
 
+func TestSecretScanCanReadPullRequestCommits(t *testing.T) {
+	workflow := readRepositoryFile(t, ".github/workflows/security.yml")
+	secretScanStart := strings.Index(workflow, "\n  secret-scan:")
+	goSecurityStart := strings.Index(workflow, "\n  go-security:")
+	if secretScanStart < 0 || goSecurityStart <= secretScanStart {
+		t.Fatal("security workflow secret-scan job boundaries not found")
+	}
+	secretScan := workflow[secretScanStart:goSecurityStart]
+	for _, required := range []string{
+		"contents: read",
+		"pull-requests: read",
+		"GITLEAKS_ENABLE_COMMENTS: \"false\"",
+		"GITLEAKS_ENABLE_UPLOAD_ARTIFACT: \"false\"",
+	} {
+		if !strings.Contains(secretScan, required) {
+			t.Errorf("secret scan does not require %q", required)
+		}
+	}
+}
+
 func TestReleaseCheckPreparesPythonBeforeCrossLanguageGoTests(t *testing.T) {
 	script := readRepositoryFile(t, "scripts/release-check.sh")
 	goTests := strings.Index(script, `echo "[1/7] Go tests"`)
