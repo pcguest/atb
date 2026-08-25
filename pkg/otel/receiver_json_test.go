@@ -109,13 +109,13 @@ func TestReceiveJSON_unmappableSpanAbortsWithDefaultTranslator(t *testing.T) {
 }
 
 // skipTranslator is a tolerant Translator that asks the receiver to skip every
-// span by returning ErrNotImplemented, exercising ReceiveJSON's SkippedCount
+// span by returning ErrUnsupported, exercising ReceiveJSON's SkippedCount
 // aggregation across traces.
 type skipTranslator struct{}
 
 func (skipTranslator) Translate(span otel.OTelSpan) (*event.Event, error) {
 	_ = span
-	return nil, otel.ErrNotImplemented
+	return nil, otel.ErrUnsupported
 }
 
 func TestReceiveJSON_skipCountAggregatesAcrossSpans(t *testing.T) {

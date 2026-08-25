@@ -14,10 +14,7 @@ from atb.capture import (
     parse_chatlog,
 )
 
-
-VALID_LINE = (
-    '{"role":"user","content":"hello","timestamp":"2026-04-26T12:00:00Z"}\n'
-)
+VALID_LINE = '{"role":"user","content":"hello","timestamp":"2026-04-26T12:00:00Z"}\n'
 
 
 def test_parse_chatlog_unsupported_provider_raises():
@@ -28,10 +25,7 @@ def test_parse_chatlog_unsupported_provider_raises():
 
 
 def test_parse_chatlog_malformed_raises():
-    payload = (
-        VALID_LINE
-        + '{"role":"assistant","content": this is not valid json\n'
-    )
+    payload = VALID_LINE + '{"role":"assistant","content": this is not valid json\n'
     with pytest.raises(MalformedChatlogError):
         parse_chatlog("generic-jsonl", payload.encode("utf-8"))
 

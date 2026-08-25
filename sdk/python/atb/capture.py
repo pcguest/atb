@@ -20,7 +20,7 @@ from __future__ import annotations
 import io
 import json
 from dataclasses import dataclass
-from typing import IO, Any, Iterable
+from typing import IO
 
 #: Default cap on chatlog input size, mirroring the Go CLI's
 #: ``defaultMaxImportBytes`` (256 MiB). Callers can override per-call.
@@ -32,7 +32,7 @@ FORMAT_OPENAI_JSONL = "openai-jsonl"
 
 
 class UnsupportedProviderError(ValueError):
-    """Raised when the requested chatlog format is not implemented.
+    """Raised when the requested chatlog format is unsupported.
 
     Mirrors ``capture.ErrUnsupportedProvider`` in the Go reference
     implementation. Inherits from :class:`ValueError` so existing
@@ -129,7 +129,7 @@ def parse_chatlog(
             disable the cap. Defaults to :data:`DEFAULT_MAX_INPUT_BYTES`.
 
     Raises:
-        UnsupportedProviderError: when *format* is not implemented.
+        UnsupportedProviderError: when *format* is unsupported.
         MalformedChatlogError: when the content cannot be parsed.
         InputTooLargeError: when *max_bytes* is exceeded.
 
@@ -158,29 +158,21 @@ def _read_all(
     if isinstance(source, (bytes, bytearray)):
         data = bytes(source)
         if max_bytes is not None and len(data) > max_bytes:
-            raise InputTooLargeError(
-                f"chatlog input exceeds max_bytes={max_bytes}"
-            )
+            raise InputTooLargeError(f"chatlog input exceeds max_bytes={max_bytes}")
         return data.decode("utf-8")
     if isinstance(source, str):
         if max_bytes is not None and len(source.encode("utf-8")) > max_bytes:
-            raise InputTooLargeError(
-                f"chatlog input exceeds max_bytes={max_bytes}"
-            )
+            raise InputTooLargeError(f"chatlog input exceeds max_bytes={max_bytes}")
         return source
     # File-like.
     if max_bytes is not None:
         chunk = source.read(max_bytes + 1)
         if isinstance(chunk, bytes):
             if len(chunk) > max_bytes:
-                raise InputTooLargeError(
-                    f"chatlog input exceeds max_bytes={max_bytes}"
-                )
+                raise InputTooLargeError(f"chatlog input exceeds max_bytes={max_bytes}")
             return chunk.decode("utf-8")
         if len(chunk.encode("utf-8")) > max_bytes:
-            raise InputTooLargeError(
-                f"chatlog input exceeds max_bytes={max_bytes}"
-            )
+            raise InputTooLargeError(f"chatlog input exceeds max_bytes={max_bytes}")
         return chunk
     raw = source.read()
     return raw.decode("utf-8") if isinstance(raw, bytes) else raw

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -151,12 +152,72 @@ func TestNewJWTValidatorBoundsStartupJWKSFetch(t *testing.T) {
 	}
 }
 
+func TestNewJWTValidatorRejectsInvalidConfiguration(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		issuer   string
+		audience string
+	}{
+		{name: "relative issuer", issuer: "issuer.example", audience: "audience"},
+		{name: "unsupported scheme", issuer: "file:///tmp/issuer", audience: "audience"},
+		{name: "embedded credentials", issuer: "https://user:secret@example.com", audience: "audience"},
+		{name: "fragment", issuer: "https://example.com/#fragment", audience: "audience"},
+		{name: "query", issuer: "https://example.com/?tenant=one", audience: "audience"},
+		{name: "empty audience", issuer: "https://example.com", audience: "  "},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := NewJWTValidator(context.Background(), tc.issuer, tc.audience); err == nil {
+				t.Fatalf("NewJWTValidator(%q, %q) unexpectedly succeeded", tc.issuer, tc.audience)
+			}
+		})
+	}
+}
+
+func TestJWTValidatorBoundsJWKSResponses(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/openid-configuration" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(strings.Repeat("x", maxOIDCResponseBytes+1)))
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := NewJWTValidator(context.Background(), server.URL, "test-audience")
+	if err == nil || !strings.Contains(err.Error(), "exceeds 1 MiB") {
+		t.Fatalf("NewJWTValidator error=%v, want bounded-response error", err)
+	}
+}
+
+func TestOIDCFetchRefusesRedirects(t *testing.T) {
+	var targetRequests atomic.Int32
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		targetRequests.Add(1)
+		_, _ = w.Write([]byte(`{"keys":[]}`))
+	}))
+	t.Cleanup(target.Close)
+	redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL, http.StatusFound)
+	}))
+	t.Cleanup(redirect.Close)
+
+	if _, err := fetchJWKS(context.Background(), redirect.URL); err == nil || !strings.Contains(err.Error(), "HTTP 302") {
+		t.Fatalf("fetchJWKS error=%v, want redirect refusal", err)
+	}
+	if got := targetRequests.Load(); got != 0 {
+		t.Fatalf("redirect target received %d requests; want 0", got)
+	}
+}
+
 func TestJWTValidatorRejectsInvalidTokens(t *testing.T) {
 	fixture := newJWTFixture(t)
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := fixture.validator.Validate(canceled, "unused"); err == nil {
 		t.Fatal("canceled validation context succeeded")
+	}
+	if _, err := fixture.validator.Validate(context.Background(), strings.Repeat("x", maxJWTBytes+1)); err == nil || !strings.Contains(err.Error(), "exceeds 64 KiB") {
+		t.Fatalf("oversized JWT error=%v, want bounded-token error", err)
 	}
 
 	tests := []struct {
@@ -186,6 +247,61 @@ func TestJWTValidatorRejectsInvalidTokens(t *testing.T) {
 				t.Fatalf("Validate error=%v, want substring %q", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestJWTValidatorRateLimitsUnknownKeyRefetches(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate RSA key: %v", err)
+	}
+	key, err := jwk.FromRaw(&privateKey.PublicKey)
+	if err != nil {
+		t.Fatalf("create JWK: %v", err)
+	}
+	if err := key.Set(jwk.KeyIDKey, "known-kid"); err != nil {
+		t.Fatalf("set JWK key ID: %v", err)
+	}
+	set := jwk.NewSet()
+	if err := set.AddKey(key); err != nil {
+		t.Fatalf("add JWK: %v", err)
+	}
+
+	var jwksRequests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/.well-known/jwks.json" {
+			http.NotFound(w, r)
+			return
+		}
+		jwksRequests.Add(1)
+		_ = json.NewEncoder(w).Encode(set)
+	}))
+	t.Cleanup(server.Close)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	validator, err := NewJWTValidator(ctx, server.URL, "test-audience")
+	if err != nil {
+		t.Fatalf("NewJWTValidator: %v", err)
+	}
+	for _, kid := range []string{"unknown-one", "unknown-two"} {
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+			"iss": server.URL, "aud": "test-audience",
+			"exp": time.Now().Add(time.Hour).Unix(), "iat": time.Now().Add(-time.Minute).Unix(),
+		})
+		token.Header["kid"] = kid
+		signed, signErr := token.SignedString(privateKey)
+		if signErr != nil {
+			t.Fatalf("sign JWT: %v", signErr)
+		}
+		if _, validateErr := validator.Validate(context.Background(), signed); validateErr == nil {
+			t.Fatalf("Validate unexpectedly accepted %q", kid)
+		}
+	}
+	// One startup fetch plus only one miss-triggered refetch: the second miss
+	// falls inside the cooldown and must use the cached set.
+	if got := jwksRequests.Load(); got != 2 {
+		t.Fatalf("JWKS requests=%d, want 2", got)
 	}
 }
 

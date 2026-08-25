@@ -21,9 +21,7 @@ from atb.canonicalize import canonicalize
 from atb.hash import compute_hash
 from atb.workflow_common import WorkflowContext
 
-TESTDATA_DIR = (
-    Path(__file__).resolve().parents[3] / "internal" / "hash" / "testdata"
-)
+TESTDATA_DIR = Path(__file__).resolve().parents[3] / "internal" / "hash" / "testdata"
 VECTORS_PATH = TESTDATA_DIR / "canonical_vectors.json"
 POLICY_DEFAULTS_PATH = TESTDATA_DIR / "policy_decision_defaults.json"
 

@@ -1,4 +1,4 @@
-/** CAS sub-score metadata — phrasing from docs/cas-guide.md */
+/** CAS sub-score metadata — phrasing from docs/evidence/cas.md */
 
 export type CASSubScoreMeta = {
   code: string;

@@ -127,8 +127,8 @@ func (s *VaultSigner) Sign(ctx context.Context, digest []byte) (sig, pubKey []by
 // and warns once on stderr — signing still completes with documented
 // provenance, but operators should upgrade Vault to expose the type.
 //
-// TODO: drop the ecdsa-p256 fallback once the minimum supported Vault
-// version returns "type" on /v1/transit/keys/<name>.
+// The ecdsa-p256 fallback preserves compatibility with Vault versions or
+// proxies that omit "type" on /v1/transit/keys/<name>.
 func (s *VaultSigner) cachedKeyMaterial(ctx context.Context) (string, []byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

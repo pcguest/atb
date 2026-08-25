@@ -57,7 +57,9 @@ def identity_evidence_payload(
         if auth_context:
             payload["auth_context"] = auth_context
     if evidence.raw_evidence_digest is not None:
-        raw_digest = _stripped_string(evidence.raw_evidence_digest, "raw_evidence_digest")
+        raw_digest = _stripped_string(
+            evidence.raw_evidence_digest, "raw_evidence_digest"
+        )
         if raw_digest:
             payload["raw_evidence_digest"] = raw_digest
     return payload

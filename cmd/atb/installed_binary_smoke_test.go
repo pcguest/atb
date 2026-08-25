@@ -112,7 +112,7 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		names = append(names, f.Name)
 	}
 	requiredEntries := []string{
-		"evidence/docs/spec-v1.0.md",
+		"evidence/docs/specification/bundle-v1.md",
 		"evidence/reports/trust-report.json",
 		"evidence/reports/verify.json",
 	}

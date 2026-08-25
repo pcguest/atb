@@ -130,7 +130,7 @@ func TestCustomerHandoffWorkflow(t *testing.T) {
 	requiredEntries := []string{
 		"evidence/reports/trust-report.json",
 		"evidence/reports/verify.json",
-		"evidence/docs/spec-v1.0.md",
+		"evidence/docs/specification/bundle-v1.md",
 	}
 	for _, entry := range requiredEntries {
 		if !containsString(zipNames(zr.File), entry) {

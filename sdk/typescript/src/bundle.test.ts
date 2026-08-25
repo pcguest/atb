@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
-import { ATBVerificationError, Bundle } from "./bundle.js";
+import {
+  ATBVerificationError,
+  Bundle,
+  BundleResourceLimitError,
+} from "./bundle.js";
 import { GENESIS_HASH } from "./hash.js";
 
 const tempDirs: string[] = [];
@@ -47,6 +51,21 @@ describe("Bundle", () => {
     bundle.records[1].event.type = "decision.tampered";
 
     expect(() => bundle.verify()).toThrowError(ATBVerificationError);
+  });
+
+  it("rejects configured byte and record limits", () => {
+    const path = tempBundlePath();
+    const bundle = new Bundle({ path });
+    bundle.append("ai.tool.exec", { ok: true });
+    bundle.save();
+    const size = readFileSync(path).byteLength;
+
+    expect(() => Bundle.load(path, { maxBytes: size - 1 })).toThrowError(
+      BundleResourceLimitError
+    );
+    expect(() => Bundle.load(path, { maxRecords: 1 })).toThrowError(
+      BundleResourceLimitError
+    );
   });
 
   it("sign_local records local provenance fields", () => {

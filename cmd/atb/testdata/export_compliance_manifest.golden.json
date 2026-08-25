@@ -15,6 +15,10 @@
       "name": "evidence/checksums.sha256"
     },
     {
+      "description": "Documentation reference: SECURITY.md.",
+      "name": "evidence/docs/SECURITY.md"
+    },
+    {
       "description": "Documentation reference: README.md.",
       "name": "evidence/docs/compliance/README.md"
     },
@@ -23,24 +27,16 @@
       "name": "evidence/docs/compliance/article-12-mapping.md"
     },
     {
-      "description": "Documentation reference: eu-ai-act.md.",
-      "name": "evidence/docs/compliance/eu-ai-act.md"
-    },
-    {
       "description": "Documentation reference: pii-fields.json.",
       "name": "evidence/docs/compliance/pii-fields.json"
     },
     {
-      "description": "Documentation reference: incident-response.md.",
-      "name": "evidence/docs/incident-response.md"
+      "description": "Documentation reference: trust-model.md.",
+      "name": "evidence/docs/concepts/trust-model.md"
     },
     {
-      "description": "Documentation reference: security.md.",
-      "name": "evidence/docs/security.md"
-    },
-    {
-      "description": "Documentation reference: spec-v1.0.md.",
-      "name": "evidence/docs/spec-v1.0.md"
+      "description": "Documentation reference: bundle-v1.md.",
+      "name": "evidence/docs/specification/bundle-v1.md"
     },
     {
       "description": "Archive manifest that would be embedded in the zip export.",
@@ -142,13 +138,13 @@
     "profile_version": 1,
     "provability_gaps": [
       {
-        "closed_when": "SC sub-score >= 0.5 and no policy_signature absent warnings.",
+        "closed_when": "SC sub-score \u003e= 0.5 and no policy_signature absent warnings.",
         "gap": "source_binding",
         "layer": "L3",
         "mitigation": "Add policy_signature and policy_signer_pubkey to ai.policy.decision events."
       },
       {
-        "closed_when": "XC sub-score >= 1.0 with at least one valid corroboration event.",
+        "closed_when": "XC sub-score \u003e= 1.0 with at least one valid corroboration event.",
         "gap": "external_corroboration",
         "layer": "L4",
         "mitigation": "Append atb.corroboration.external via atb corroborate or an adapter."
@@ -160,7 +156,7 @@
         "mitigation": "Run atb anchor after snapshot for RFC 3161 timestamp commitment."
       },
       {
-        "closed_when": "GC sub-score >= 0.85 for gated workflow profiles.",
+        "closed_when": "GC sub-score \u003e= 0.85 for gated workflow profiles.",
         "gap": "gating_completeness",
         "layer": "L5",
         "mitigation": "Record precommit, execute, and commit events through the ACP gate path."
@@ -181,7 +177,7 @@
       "level": "Medium",
       "recommended_next_evidence": [
         "Add RFC 3161 TSA anchoring for exports and privileged actions.",
-        "Ensure precommit->execute->commit event chain is present for ACP gating.",
+        "Ensure precommit-\u003eexecute-\u003ecommit event chain is present for ACP gating.",
         "Add source signatures from policy engine or action gate.",
         "Configure external corroboration: gateway log, DB receipt, or queue dequeue."
       ]

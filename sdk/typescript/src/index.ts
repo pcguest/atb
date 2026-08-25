@@ -42,8 +42,15 @@ export function version(): { version: string; algorithm: string } {
   return { version: SDK_VERSION, algorithm: "SHA-256+RFC8785" };
 }
 
-export { Bundle, ATBVerificationError } from "./bundle.js";
-export type { SignatureEvidence, VerifyResult } from "./bundle.js";
+export {
+  Bundle,
+  ATBVerificationError,
+  BundleResourceLimitError,
+  MAX_BUNDLE_RECORDS,
+  MAX_BUNDLE_SIZE_BYTES,
+  MAX_LINE_SIZE_BYTES,
+} from "./bundle.js";
+export type { BundleLoadLimits, SignatureEvidence, VerifyResult } from "./bundle.js";
 export { MortiseClient, MortiseError } from "./mortise-client.js";
 export type {
   MortiseClientOptions,

@@ -1,6 +1,7 @@
 """AutomationSession — workflow chaining harness for multi-hop AI capture.
 
-Composes :class:`~atb.workflow_common.WorkflowContext`, :class:`~atb.action_gate.ActionGate`,
+Composes :class:`~atb.workflow_common.WorkflowContext` and
+:class:`~atb.action_gate.ActionGate`,
 and :class:`~atb.policy_decision_recorder.PolicyDecisionRecorder` so callers open one
 bundle connection, emit events across successive model/tool hops, and flush without
 per-call boilerplate.
@@ -28,8 +29,16 @@ from atb.event_types import (
     AI_RETRIEVAL_EXECUTED_EVENT_TYPE,
     SNAPSHOT_EVENT_TYPE,
 )
-from atb.policy_decision_recorder import PolicyDecisionActionInput, PolicyDecisionRecorder
-from atb.workflow_common import WorkflowContext, canonical_digest, new_action_id, value_digest
+from atb.policy_decision_recorder import (
+    PolicyDecisionActionInput,
+    PolicyDecisionRecorder,
+)
+from atb.workflow_common import (
+    WorkflowContext,
+    canonical_digest,
+    new_action_id,
+    value_digest,
+)
 
 T = TypeVar("T")
 _AGENT_CLIENT_UNSET: Any = object()
@@ -72,9 +81,11 @@ class AutomationSession:
         self.capture_run_id = _optional_str(capture_run_id) or _optional_str(
             lookup.get("ATB_CAPTURE_RUN_ID")
         )
-        self.default_purpose_tag = _optional_str(purpose_tag) or _optional_str(
-            lookup.get("ATB_CAPTURE_MODE")
-        ) or "ai_workflow"
+        self.default_purpose_tag = (
+            _optional_str(purpose_tag)
+            or _optional_str(lookup.get("ATB_CAPTURE_MODE"))
+            or "ai_workflow"
+        )
         self.active_request_id = _optional_str(request_id)
 
         resolved_agent = _resolve_agent_client(agent_client, lookup)
@@ -279,7 +290,7 @@ class AutomationSession:
         )
 
     def run_tool_action(self, action: ActionGateInput, fn: Callable[[], T]) -> T:
-        """Run a privileged tool action with request bootstrap, gate events, and commit."""
+        """Run a tool action with request bootstrap, gate events, and commit."""
         self.begin_request("privileged_tool_action")
         action_id = new_action_id(action.action_id)
         result = self.tool_gate.run(
@@ -346,7 +357,8 @@ class AutomationSession:
         """Persist the bundle to disk."""
         if self._use_agent:
             return Path(self.save_path)
-        return self.ctx.bundle.save(save_path or self.save_path)
+        target = Path(save_path) if save_path is not None else Path(self.save_path)
+        return self.ctx.bundle.save(target)
 
     def snapshot(self, name: str) -> None:
         """Append a named snapshot boundary event."""

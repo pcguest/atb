@@ -5,15 +5,18 @@ Not part of the public SDK surface.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 DEFAULT_AGENT_URL = "http://127.0.0.1:6180"
+MAX_AGENT_RESPONSE_BYTES = 1 * 1024 * 1024
 
 
 class AgentClientError(Exception):
@@ -104,7 +107,7 @@ class AgentClient:
         *,
         request_fn: AgentRequestFn | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        self.base_url = _validated_agent_url(base_url)
         self._request_fn = request_fn or sync_agent_request
         self._session_id: str | None = None
         self.bundle_path: str | None = None
@@ -153,10 +156,12 @@ class AgentClient:
     def append(self, event_type: str, payload: Mapping[str, Any]) -> None:
         self.append_event(event_type, dict(payload))
 
-    def append_event(self, event_type: str, payload: Mapping[str, Any] | None = None) -> None:
+    def append_event(
+        self, event_type: str, payload: Mapping[str, Any] | None = None
+    ) -> None:
         session_id = self._require_session_id()
         response = self._post(
-            f"/v1/session/{urllib.request.quote(session_id, safe='')}/event",
+            f"/v1/session/{urllib.parse.quote(session_id, safe='')}/event",
             {
                 "event_type": event_type,
                 "payload": dict(payload or {}),
@@ -171,12 +176,14 @@ class AgentClient:
         if snapshot_name and snapshot_name.strip():
             body["snapshot_name"] = snapshot_name.strip()
         response = self._post(
-            f"/v1/session/{urllib.request.quote(session_id, safe='')}/close",
+            f"/v1/session/{urllib.parse.quote(session_id, safe='')}/close",
             body,
         )
         parsed = _parse_json(response, "close session")
         result = AgentCloseResult(
-            session_id=str(parsed.get("session_id") or parsed.get("sessionId") or session_id),
+            session_id=str(
+                parsed.get("session_id") or parsed.get("sessionId") or session_id
+            ),
             bundle_path=str(
                 parsed.get("bundle_path")
                 or parsed.get("bundlePath")
@@ -240,13 +247,43 @@ def sync_agent_request(
     timeout = max(timeout_ms, 1) / 1000.0
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            payload = response.read().decode("utf-8")
+            payload = _read_response(response, response.status)
             return AgentHttpResponse(status=response.status, body=payload)
     except urllib.error.HTTPError as exc:
-        payload = exc.read().decode("utf-8", errors="replace")
+        payload = _read_response(exc, exc.code)
         return AgentHttpResponse(status=exc.code, body=payload)
     except TimeoutError as exc:
         raise TimeoutError(f"agent request timed out: {url}") from exc
+
+
+def _validated_agent_url(value: str) -> str:
+    parsed = urllib.parse.urlsplit(value.rstrip("/"))
+    if (
+        parsed.scheme != "http"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise ValueError("ATB Agent URL must be an unauthenticated loopback HTTP URL")
+    try:
+        loopback = ipaddress.ip_address(parsed.hostname).is_loopback
+    except ValueError:
+        loopback = parsed.hostname.lower() == "localhost"
+    if not loopback:
+        raise ValueError("ATB Agent URL must use localhost or a loopback IP")
+    return parsed.geturl()
+
+
+def _read_response(stream: Any, status: int) -> str:
+    payload = cast(bytes, stream.read(MAX_AGENT_RESPONSE_BYTES + 1))
+    if len(payload) > MAX_AGENT_RESPONSE_BYTES:
+        raise AgentClientError(
+            f"agent response exceeds {MAX_AGENT_RESPONSE_BYTES} bytes", status
+        )
+    return payload.decode("utf-8", errors="replace")
 
 
 def _parse_json(response: AgentHttpResponse, action: str) -> dict[str, Any]:
@@ -255,10 +292,12 @@ def _parse_json(response: AgentHttpResponse, action: str) -> dict[str, Any]:
     try:
         parsed = json.loads(response.body)
     except json.JSONDecodeError as exc:
-        raise AgentClientError(f"agent {action}: invalid JSON response", response.status) from exc
+        raise AgentClientError(
+            f"agent {action}: invalid JSON response", response.status
+        ) from exc
     if not isinstance(parsed, dict):
         raise AgentClientError(f"agent {action}: expected JSON object", response.status)
-    return parsed
+    return cast(dict[str, Any], parsed)
 
 
 def _agent_error(response: AgentHttpResponse, action: str) -> AgentClientError:

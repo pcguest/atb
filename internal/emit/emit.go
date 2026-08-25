@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 // Package emit provides the canonical Go surface for emitting the four
-// oversight event types declared in docs/spec-ai-traces.md.
+// oversight event types declared in docs/specification/events.md.
 package emit
 
 import (

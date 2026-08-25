@@ -419,7 +419,7 @@ func printVerifyUsage(w io.Writer) {
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "CAS sub-scores: EC (event coverage), FC (field completeness), RC (relation consistency),")
 	fmt.Fprintln(w, "  TC (temporal consistency), SC (source commitment), XC (external corroboration),")
-	fmt.Fprintln(w, "  AC (anchor coverage), GC (gating completeness). See docs/cas-guide.md.")
+	fmt.Fprintln(w, "  AC (anchor coverage), GC (gating completeness). See docs/evidence/cas.md.")
 }
 
 func writeVerifySchema(cfg verifyCLIConfig, stdout, stderr io.Writer) int {

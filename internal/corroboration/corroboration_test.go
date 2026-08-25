@@ -146,3 +146,25 @@ func TestHTTPGatewayAdapter_TruncationAt4KB(t *testing.T) {
 		t.Error("event data must not contain raw_evidence when truncated")
 	}
 }
+
+func TestHTTPGatewayAdapterRejectsUnsafeURLAndOversizedResponse(t *testing.T) {
+	t.Run("credentials", func(t *testing.T) {
+		a := &corroboration.HTTPGatewayAdapter{URL: "https://user:secret@example.test"}
+		if _, err := a.Fetch(context.Background(), "ref"); err == nil {
+			t.Fatal("expected credential-bearing URL rejection")
+		}
+	})
+
+	t.Run("oversized", func(t *testing.T) {
+		payload := `{"data":"` + strings.Repeat("x", corroboration.MaxHTTPResponseBytes) + `"}`
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(payload))
+		}))
+		defer srv.Close()
+
+		a := &corroboration.HTTPGatewayAdapter{URL: srv.URL}
+		if _, err := a.Fetch(context.Background(), "ref"); err == nil || !strings.Contains(err.Error(), "exceeds") {
+			t.Fatalf("expected response-size error, got %v", err)
+		}
+	})
+}

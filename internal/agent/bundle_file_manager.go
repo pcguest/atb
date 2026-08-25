@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 //
 // Production agent runtime uses BundleFileManager: real .atb files via
-// internal/bundle. MemoryBundleManager is test-only scaffolding (no disk I/O).
+// internal/bundle. MemoryBundleManager is the in-memory test double.
 package agent
 
 import (

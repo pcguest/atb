@@ -14,16 +14,16 @@ import (
 
 func TestVerifyToolCall(t *testing.T) {
 	t.Parallel()
-	// Added: A fixed timestamp keeps the expected query URL deterministic.
+	// A fixed timestamp keeps the expected query URL deterministic.
 	occurredAt := time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC)
-	// Added: The configured API URL and project name are surfaced in the query URL.
+	// The configured API URL and project name are surfaced in the query URL.
 	apiURL := "https://api.smith.langchain.com"
-	// Added: The project name locks the LangSmith project query parameter.
+	// The project name locks the LangSmith project query parameter.
 	projectName := "atb-demo"
-	// Added: The corroborator only constructs URLs and performs no live lookup.
+	// The corroborator only constructs URLs and performs no live lookup.
 	c := langchain.NewLangChainCorroborator(apiURL, projectName)
 
-	// Added: Tool calls use the tool_name metadata value as the LangSmith run name.
+	// Tool calls use the tool_name metadata value as the LangSmith run name.
 	result, err := c.Verify(&corroborate.Event{
 		Type:       "atb.tool.call",
 		OccurredAt: occurredAt,
@@ -51,10 +51,10 @@ func TestVerifyToolCall(t *testing.T) {
 
 func TestVerifyToolCallFallbackName(t *testing.T) {
 	t.Parallel()
-	// Added: Empty metadata exercises the event-type fallback run name.
+	// Empty metadata exercises the event-type fallback run name.
 	c := langchain.NewLangChainCorroborator("https://api.smith.langchain.com", "atb-demo")
 
-	// Added: The event type becomes the run name when tool_name is absent.
+	// The event type becomes the run name when tool_name is absent.
 	result, err := c.Verify(&corroborate.Event{
 		Type:       "atb.tool.call",
 		OccurredAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
@@ -70,10 +70,10 @@ func TestVerifyToolCallFallbackName(t *testing.T) {
 
 func TestVerifyRetrievalPrefix(t *testing.T) {
 	t.Parallel()
-	// Added: Retrieval events are supported by namespace prefix.
+	// Retrieval events are supported by namespace prefix.
 	c := langchain.NewLangChainCorroborator("https://api.smith.langchain.com", "atb-demo")
 
-	// Added: Vector-search retrieval proves prefix matching rather than exact matching.
+	// Vector-search retrieval proves prefix matching rather than exact matching.
 	result, err := c.Verify(&corroborate.Event{
 		Type:       "atb.retrieval.vector_search",
 		OccurredAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
@@ -92,10 +92,10 @@ func TestVerifyRetrievalPrefix(t *testing.T) {
 
 func TestVerifyDataExport(t *testing.T) {
 	t.Parallel()
-	// Added: Data export events are one of the supported LangChain lookup classes.
+	// Data export events are one of the supported LangChain lookup classes.
 	c := langchain.NewLangChainCorroborator("https://api.smith.langchain.com", "atb-demo")
 
-	// Added: A supported data export event should construct a query URL without error.
+	// A supported data export event should construct a query URL without error.
 	_, err := c.Verify(&corroborate.Event{
 		Type:       "atb.data.export",
 		OccurredAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
@@ -107,10 +107,10 @@ func TestVerifyDataExport(t *testing.T) {
 
 func TestVerifyUnsupportedType(t *testing.T) {
 	t.Parallel()
-	// Added: Session lifecycle events are not LangSmith run lookup events.
+	// Session lifecycle events are not LangSmith run lookup events.
 	c := langchain.NewLangChainCorroborator("https://api.smith.langchain.com", "atb-demo")
 
-	// Added: Unsupported types must return the shared sentinel for errors.Is checks.
+	// Unsupported types must return the shared sentinel for errors.Is checks.
 	_, err := c.Verify(&corroborate.Event{
 		Type:       "atb.session.open",
 		OccurredAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),
@@ -122,10 +122,10 @@ func TestVerifyUnsupportedType(t *testing.T) {
 
 func TestQueryURLEncoding(t *testing.T) {
 	t.Parallel()
-	// Added: Special characters in run names must be query-escaped by url.Values.
+	// Special characters in run names must be query-escaped by url.Values.
 	c := langchain.NewLangChainCorroborator("https://api.smith.langchain.com", "project with spaces")
 
-	// Added: The tool name contains characters that would break manual query strings.
+	// The tool name contains characters that would break manual query strings.
 	result, err := c.Verify(&corroborate.Event{
 		Type:       "atb.tool.call",
 		OccurredAt: time.Date(2024, 1, 15, 10, 0, 0, 0, time.UTC),

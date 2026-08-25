@@ -2,17 +2,30 @@
 package otel
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pcguest/atb/internal/canonicalize"
 	"github.com/pcguest/atb/internal/event"
 )
 
-// ErrNotImplemented indicates an optional transport or mapping path is absent.
-var ErrNotImplemented = errors.New("otel: transport not implemented")
+// ErrUnsupported asks Receiver to skip a transport or span mapping that is
+// outside the supported OTLP/JSON subset.
+var ErrUnsupported = errors.New("otel: unsupported transport or span mapping")
+
+// ErrNotImplemented preserves the pre-v1.15.3 sentinel for source and error
+// compatibility.
+// Deprecated: use ErrUnsupported.
+var ErrNotImplemented = ErrUnsupported
+
+// ErrMissingTranslator indicates that Receiver has no translation policy.
+var ErrMissingTranslator = errors.New("otel: translator is required")
 
 // ErrUnmappableSpan indicates a span is missing data required by the ATB AI
 // trace envelope.
@@ -90,6 +103,9 @@ func (t DefaultTranslator) Translate(span OTelSpan) (*event.Event, error) {
 		"timing":            timingForSpan(span),
 		"status":            statusForSpan(span),
 	}
+	if attributes := preservedAttributes(span.Attributes); len(attributes) > 0 {
+		data["otel_attributes"] = attributes
+	}
 	if span.ParentSpanID != "" {
 		data["parent_span_id"] = span.ParentSpanID
 	}
@@ -106,6 +122,62 @@ func (t DefaultTranslator) Translate(span OTelSpan) (*event.Event, error) {
 		SpanID:       span.SpanID,
 		ParentSpanID: span.ParentSpanID,
 	}, nil
+}
+
+// preservedAttributes retains telemetry that the semantic mapper does not yet
+// interpret. Payload-shaped values are represented by a canonical SHA-256
+// digest so prompts, arguments, results, credentials, and bodies do not become
+// raw evidence merely because an upstream producer used an unfamiliar key.
+func preservedAttributes(attributes map[string]any) map[string]any {
+	preserved := make(map[string]any, len(attributes))
+	for key, value := range attributes {
+		normalized := normalizeAttribute(value)
+		if sensitiveAttribute(key, normalized) {
+			canonical, err := canonicalize.Marshal(normalized)
+			if err != nil {
+				canonical = []byte(fmt.Sprint(normalized))
+			}
+			sum := sha256.Sum256(canonical)
+			preserved[key] = map[string]any{
+				"redacted": true,
+				"sha256":   hex.EncodeToString(sum[:]),
+			}
+			continue
+		}
+		preserved[key] = normalized
+	}
+	return preserved
+}
+
+func normalizeAttribute(value any) any {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Sprint(value)
+	}
+	var normalized any
+	if err := json.Unmarshal(raw, &normalized); err != nil {
+		return fmt.Sprint(value)
+	}
+	return normalized
+}
+
+func sensitiveAttribute(key string, value any) bool {
+	switch value.(type) {
+	case string, []any, map[string]any:
+	default:
+		return false
+	}
+	normalized := strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(key))
+	for _, marker := range []string{
+		"authorization", "cookie", "api_key", "apikey", "credential",
+		"secret", "password", "prompt", "completion", "argument", "result",
+		"request_body", "response_body", "tool_input", "tool_output",
+	} {
+		if strings.Contains(normalized, marker) {
+			return true
+		}
+	}
+	return normalized == "input" || normalized == "output" || normalized == "body"
 }
 
 func (t DefaultTranslator) eventType(span OTelSpan) (string, error) {

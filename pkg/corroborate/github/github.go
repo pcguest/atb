@@ -31,7 +31,7 @@ func NewGitHubCorroborator(
 	auditLogURL string,
 	org string,
 ) *GitHubCorroborator {
-	// Added: The constructor stores only local query context and performs no network work.
+	// The constructor stores only local query context and performs no network work.
 	return &GitHubCorroborator{
 		GitHubAuditLogURL: auditLogURL,
 		Org:               org,
@@ -40,15 +40,15 @@ func NewGitHubCorroborator(
 
 // Verify constructs a GitHub Audit Log lookup URL without making an HTTP request.
 func (c *GitHubCorroborator) Verify(event *Event) (CorrobResult, error) {
-	// Added: Nil inputs cannot be mapped to a supported ATB event type.
+	// Nil inputs cannot be mapped to a supported ATB event type.
 	if c == nil || event == nil {
 		return CorrobResult{}, corroborate.ErrEventTypeNotSupported
 	}
-	// Added: Unsupported event types are rejected before query construction.
+	// Unsupported event types are rejected before query construction.
 	if !supportsEventType(event.Type) {
 		return CorrobResult{}, corroborate.ErrEventTypeNotSupported
 	}
-	// Added: Email is the strongest actor lookup value when the event captured it.
+	// Email is the strongest actor lookup value when the event captured it.
 	actorIdent := event.Actor.Email
 	if actorIdent == "" {
 		actorIdent = event.Actor.DisplayName
@@ -57,21 +57,21 @@ func (c *GitHubCorroborator) Verify(event *Event) (CorrobResult, error) {
 		return CorrobResult{}, errors.New("event actor has no identifiable field")
 	}
 
-	// Added: url.Parse keeps the configured API base URL structurally valid.
+	// url.Parse keeps the configured API base URL structurally valid.
 	parsedURL, err := url.Parse(c.GitHubAuditLogURL)
 	if err != nil {
 		return CorrobResult{}, fmt.Errorf("parse github audit log url: %w", err)
 	}
-	// Added: PathEscape prevents organisation names from altering the audit-log path structure.
+	// PathEscape prevents organisation names from altering the audit-log path structure.
 	parsedURL.Path = fmt.Sprintf(
 		"%s/enterprises/%s/audit-log",
 		parsedURL.Path,
 		url.PathEscape(c.Org),
 	)
-	// Added: url.Values safely escapes every query parameter value.
+	// url.Values safely escapes every query parameter value.
 	values := url.Values{}
 	values.Set("phrase", "actor:"+actorIdent)
-	// Changed: UTC date formatting is centralised so audit-log queries stay timezone-stable.
+	// UTC date formatting is centralised so audit-log queries stay timezone-stable.
 	values.Set("created", utcDate(event.OccurredAt))
 	values.Set("include", "all")
 	parsedURL.RawQuery = values.Encode()
@@ -97,6 +97,6 @@ func supportsEventType(eventType string) bool {
 
 // utcDate formats timestamps for the GitHub Audit Log created filter.
 func utcDate(timestamp time.Time) string {
-	// Added: UTC date matching avoids local timezone drift in audit-log queries.
+	// UTC date matching avoids local timezone drift in audit-log queries.
 	return timestamp.UTC().Format("2006-01-02")
 }

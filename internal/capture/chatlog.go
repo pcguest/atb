@@ -368,9 +368,8 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 				"source_line_num": message.Line,
 			}
 			addChatContext(responseData, message)
-			// TODO: reconsider whether ai.response.sent should be emitted on plain
-			// assistant turns that already produce ai.model.output — currently three
-			// events are emitted per turn.
+			// Keep response.sent separate from model.output: the former closes the
+			// application response lifecycle while the latter records model output.
 			result.Events = append(result.Events, EventSpec{Type: event.TypeAIResponseSent, Data: responseData, Timestamp: message.Timestamp})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		default:

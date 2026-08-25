@@ -8,7 +8,7 @@ version = "1.15.2"
 description = "ATB bundle reader and verifier SDK"
 readme = "README.md"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES"]
 authors = [{ name = "Paddy Guest", email = "patrickcguest@proton.me" }]
 keywords = ["audit", "ai", "traceability", "verification", "privacy", "local-first"]
 classifiers = [
@@ -24,14 +24,14 @@ classifiers = [
 requires-python = ">=3.9"
 dependencies = [
     "cryptography>=46.0.7",
-    "pageindex>=0.2.8",
 ]
 
 [project.optional-dependencies]
 langchain = ["langchain>=0.3.28", "langchain-core>=0.2.0"]
 langgraph = ["langgraph>=0.2.0"]
 llamaindex = ["llama-index>=0.14.16"]
-dev = ["pytest>=8.4.2", "black", "mypy", "ruff"]
+pageindex = ["pageindex>=0.2.8"]
+dev = ["pytest>=8.4.2", "black", "mypy>=1.19.1,<2", "ruff"]
 
 [project.urls]
 Homepage = "https://github.com/pcguest/atb"
@@ -48,6 +48,8 @@ target-version = ["py39"]
 
 [tool.ruff]
 line-length = 88
+
+[tool.ruff.lint]
 select = ["E", "F", "I"]
 
 [tool.mypy]

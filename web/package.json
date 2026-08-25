@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --webpack",
+    "postbuild": "node scripts/restore-embed-placeholder.mjs",
     "start": "node -e \"console.error('Unsupported: this project is a static export. Serve web/out with a static file server.'); process.exit(1)\"",
     "lint": "eslint . --ext .ts,.tsx --max-warnings=0",
     "typecheck": "tsc --noEmit",

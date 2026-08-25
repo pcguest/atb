@@ -9,15 +9,25 @@ Quick start::
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from atb.action_gate import ActionGate, ActionGateInput
 
-try:
-    from langchain_core.tools import BaseTool
-except Exception:  # pragma: no cover - fallback when optional dependency is absent.
-    class BaseTool:  # type: ignore[no-redef]
-        pass
+if TYPE_CHECKING:
+
+    class BaseTool(Protocol):
+        """Structural type for the optional LangChain tool dependency."""
+
+        name: str
+        description: str
+
+else:
+    try:
+        from langchain_core.tools import BaseTool
+    except Exception:  # pragma: no cover - optional dependency fallback.
+
+        class BaseTool:
+            """Fallback base when langchain-core is not installed."""
 
 
 class _GatedLangChainTool:
@@ -54,10 +64,12 @@ def gate_langchain_tool(tool: BaseTool, gate: ActionGate) -> BaseTool:
         ActionGateDeniedError: If ``gate`` denies execution in enforce mode.
         Exception: Re-raises exceptions produced by the wrapped tool.
     """
-    return _GatedLangChainTool(tool, gate)  # type: ignore[return-value]
+    return cast(BaseTool, _GatedLangChainTool(tool, gate))
 
 
-def _action_input(tool: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> ActionGateInput:
+def _action_input(
+    tool: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> ActionGateInput:
     if kwargs:
         action_parameters: dict[str, Any] = dict(kwargs)
     elif len(args) == 1 and isinstance(args[0], dict):

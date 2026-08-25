@@ -694,7 +694,7 @@ func buildComplianceExport(now time.Time, cfg exportConfig) (exportBuildResult, 
 		manifest.RetentionDays = retentionDays
 	}
 
-	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
+	for _, doc := range []string{"docs/specification/bundle-v1.md", "docs/concepts/trust-model.md", "SECURITY.md"} {
 		if data, err := readExportDoc(doc); err == nil {
 			zipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(doc), "docs/")))
 			files = append(files, exportFileEntry{ZipPath: zipPath, Data: data})
@@ -977,7 +977,7 @@ func buildBaseExportEvidence(now time.Time, cfg exportConfig) (exportBaseEvidenc
 		base.Manifest.RetentionDays = retentionDays
 	}
 
-	for _, doc := range []string{"docs/spec-v1.0.md", "docs/security.md", "docs/incident-response.md"} {
+	for _, doc := range []string{"docs/specification/bundle-v1.md", "docs/concepts/trust-model.md", "SECURITY.md"} {
 		if data, err := readExportDoc(doc); err == nil {
 			zipPath := filepath.ToSlash(filepath.Join("evidence", "docs", strings.TrimPrefix(filepath.ToSlash(doc), "docs/")))
 			base.Files = append(base.Files, exportFileEntry{ZipPath: zipPath, Data: data})

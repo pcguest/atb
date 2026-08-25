@@ -51,7 +51,7 @@ export default function Navbar() {
               Sessions
             </a>
             <a
-              href="https://github.com/pcguest/atb/blob/main/docs/quickstart.md"
+              href="https://github.com/pcguest/atb/blob/main/docs/getting-started/quickstart.md"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[#9ca3af] hover:text-white text-sm transition-colors"
@@ -74,7 +74,7 @@ export default function Navbar() {
           {/* CTA */}
           <div className="flex items-center gap-3">
             <a
-              href="https://github.com/pcguest/atb/blob/main/docs/quickstart.md"
+              href="https://github.com/pcguest/atb/blob/main/docs/getting-started/quickstart.md"
               target="_blank"
               rel="noopener noreferrer"
               className="hidden sm:inline-flex items-center px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"

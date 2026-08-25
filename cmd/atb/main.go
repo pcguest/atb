@@ -215,7 +215,7 @@ func usageJSON() helpOutput {
 			{
 				Name:        "push",
 				Usage:       "atb push <s3://bucket/prefix> [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry-run] [--format text|json]",
-				Description: "Push a sealed bundle to an S3 WORM target. Uses AWS credential chain. See docs/spec/bundle-push.md.",
+				Description: "Push a sealed bundle to an S3 WORM target. Uses AWS credential chain. See docs/specification/bundle-push.md.",
 				Flags:       []string{"--bundle", "--lock-until", "--dry-run", "--format"},
 				Mutating:    true,
 			},

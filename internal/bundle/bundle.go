@@ -29,6 +29,12 @@ const (
 	BundleFile = "bundle.atb"
 	// MaxLineSizeBytes is the maximum supported size of a single NDJSON record.
 	MaxLineSizeBytes = 16 * 1024 * 1024
+	// MaxBundleSizeBytes is the default maximum number of bytes read from one
+	// bundle. It bounds memory growth when loading untrusted evidence.
+	MaxBundleSizeBytes int64 = 512 * 1024 * 1024
+	// MaxBundleRecords is the default maximum number of non-empty records read
+	// from one bundle.
+	MaxBundleRecords = 1_000_000
 	// ManifestEventType is the reserved event type for bundle manifest records.
 	// A manifest record is always seq 0 and is the first record in a new bundle.
 	ManifestEventType = "atb.bundle.manifest"
@@ -60,6 +66,12 @@ type Record struct {
 // Bundle represents an in-memory ATB bundle.
 type Bundle struct {
 	Records []Record
+}
+
+// LoadLimits controls resource bounds for LoadReaderWithLimits.
+type LoadLimits struct {
+	MaxBytes   int64
+	MaxRecords int
 }
 
 // NewOptions configures bundle construction.
@@ -391,13 +403,44 @@ func contextPathArgs(op string, args []any) (context.Context, string, error) {
 // It is the streaming counterpart of Load and is used by atb verify --remote
 // to verify a bundle downloaded from S3 without writing a temporary file.
 func LoadReader(r io.Reader) (*Bundle, error) {
+	return LoadReaderWithLimits(r, LoadLimits{
+		MaxBytes:   MaxBundleSizeBytes,
+		MaxRecords: MaxBundleRecords,
+	})
+}
+
+// LoadReaderWithLimits reads an NDJSON bundle with explicit resource bounds.
+// Non-positive limits are rejected so callers cannot accidentally disable the
+// untrusted-input policy.
+func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
+	if r == nil {
+		return nil, fmt.Errorf("bundle: load: nil reader: %w", ErrMalformed)
+	}
+	if limits.MaxBytes <= 0 || limits.MaxRecords <= 0 {
+		return nil, fmt.Errorf("bundle: load: limits must be positive: %w", ErrResourceLimit)
+	}
+	counted := &countingReader{reader: r}
 	b := &Bundle{}
-	scanner := bufio.NewScanner(r)
+	scanner := bufio.NewScanner(counted)
 	scanner.Buffer(make([]byte, 64*1024), MaxLineSizeBytes)
 	for scanner.Scan() {
+		if counted.bytesRead > limits.MaxBytes {
+			return nil, fmt.Errorf(
+				"bundle: load: input exceeds %d bytes: %w",
+				limits.MaxBytes,
+				ErrResourceLimit,
+			)
+		}
 		line := scanner.Bytes()
 		if len(line) == 0 {
 			continue
+		}
+		if len(b.Records) >= limits.MaxRecords {
+			return nil, fmt.Errorf(
+				"bundle: load: input exceeds %d records: %w",
+				limits.MaxRecords,
+				ErrResourceLimit,
+			)
 		}
 		var rec Record
 		if err := json.Unmarshal(line, &rec); err != nil {
@@ -408,12 +451,30 @@ func LoadReader(r io.Reader) (*Bundle, error) {
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("bundle: load: scan: %w", err)
 	}
+	if counted.bytesRead > limits.MaxBytes {
+		return nil, fmt.Errorf(
+			"bundle: load: input exceeds %d bytes: %w",
+			limits.MaxBytes,
+			ErrResourceLimit,
+		)
+	}
 	if hasManifestRecord(b.Records) {
 		if _, err := parseManifestData(&b.Records[0]); err != nil {
 			return nil, fmt.Errorf("bundle: load: parse manifest: %w", err)
 		}
 	}
 	return b, nil
+}
+
+type countingReader struct {
+	reader    io.Reader
+	bytesRead int64
+}
+
+func (r *countingReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	r.bytesRead += int64(n)
+	return n, err
 }
 
 // DefaultPath returns the default bundle path relative to the current directory.

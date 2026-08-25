@@ -39,7 +39,7 @@ type BundleSignature struct {
 
 // NewBundleSignatureRecord builds the data payload for an atb.bundle.signature
 // record. The provenance fields (algorithm, backend, signedAt, keyID) are
-// documented in docs/spec-v1.0.md §4.2.
+// documented in docs/specification/bundle-v1.md §4.2.
 //
 // Defaults applied when the caller passes empty strings:
 //   - algorithm → "ed25519"

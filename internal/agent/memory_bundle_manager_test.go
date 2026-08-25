@@ -3,10 +3,8 @@ package agent
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -22,8 +20,8 @@ type sessionRecord struct {
 	closedAt   time.Time
 }
 
-// MemoryBundleManager is a test-only stub: placeholder paths and synthetic
-// hashes. Production uses BundleFileManager (bundle_file_manager.go).
+// MemoryBundleManager is an in-memory test double with synthetic hashes.
+// Production uses BundleFileManager (bundle_file_manager.go).
 type MemoryBundleManager struct {
 	dataDir  string
 	mu       sync.RWMutex
@@ -32,7 +30,7 @@ type MemoryBundleManager struct {
 }
 
 // NewMemoryBundleManager constructs an in-memory session manager rooted at
-// dataDir for placeholder bundle paths.
+// dataDir for deterministic bundle paths.
 func NewMemoryBundleManager(dataDir string) *MemoryBundleManager {
 	return &MemoryBundleManager{
 		dataDir:  dataDir,
@@ -65,7 +63,7 @@ func (m *MemoryBundleManager) OpenSession(_ context.Context, params OpenParams) 
 	return id, nil
 }
 
-// AppendEvent queues a placeholder event on an open session.
+// AppendEvent queues an event on an open session.
 func (m *MemoryBundleManager) AppendEvent(_ context.Context, sessionID SessionID, event PendingEvent) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -122,14 +120,6 @@ func (m *MemoryBundleManager) ActiveSessionCount() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return len(m.sessions)
-}
-
-func newSessionID() (SessionID, error) {
-	var buf [16]byte
-	if _, err := rand.Read(buf[:]); err != nil {
-		return "", fmt.Errorf("agent: generate session id: %w", err)
-	}
-	return SessionID("sess_" + hex.EncodeToString(buf[:])), nil
 }
 
 func syntheticHeadHash(events []PendingEvent) string {

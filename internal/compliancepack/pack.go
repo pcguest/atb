@@ -172,9 +172,9 @@ func Build(ctx context.Context, bundlePath, profileSpec, regime, toolVersion str
 		return Pack{}, err
 	}
 	for _, doc := range []string{
-		"docs/compliance/eu-ai-act.md",
-		"docs/profiles.md",
-		"docs/cas-guide.md",
+		"docs/compliance/article-12-mapping.md",
+		"docs/evidence/profiles.md",
+		"docs/evidence/cas.md",
 	} {
 		content, readErr := atbembed.ReadExportDoc(doc)
 		if readErr != nil {

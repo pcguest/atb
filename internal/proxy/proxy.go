@@ -43,7 +43,7 @@ type Proxy struct {
 	listenWG   sync.WaitGroup
 }
 
-// NewProxy returns a proxy using the stub handler when handler is nil.
+// NewProxy returns a proxy using the logging handler when handler is nil.
 func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func NewProxy(cfg ProxyConfig, handler Handler, logger *slog.Logger) (*Proxy, er
 		cfg.Identity = identity.DefaultChain()
 	}
 	if handler == nil {
-		handler = StubHandler{Logger: logger}
+		handler = LoggingHandler{Logger: logger}
 	}
 
 	var cp *MortisePusher
@@ -195,7 +195,7 @@ func (p *Proxy) waitForListener(timeout time.Duration) {
 // Handler returns the configured capture handler.
 func (p *Proxy) Handler() Handler {
 	if p == nil {
-		return StubHandler{}
+		return LoggingHandler{}
 	}
 	return p.handler
 }

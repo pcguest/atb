@@ -11,7 +11,10 @@ from atb.human_override_gate import (
     HumanOverrideDeniedError,
     HumanOverrideGate,
 )
-from atb.policy_decision_recorder import PolicyDecisionActionInput, PolicyDecisionRecorder
+from atb.policy_decision_recorder import (
+    PolicyDecisionActionInput,
+    PolicyDecisionRecorder,
+)
 
 
 def _user_types(bundle: Bundle) -> list[str]:

@@ -9,7 +9,7 @@ import (
 
 // ErrEventTypeNotSupported indicates an adapter cannot map the supplied event type.
 var ErrEventTypeNotSupported = errors.New(
-	// Added: The shared sentinel lets all adapters expose one errors.Is-compatible value.
+	// The shared sentinel lets all adapters expose one errors.Is-compatible value.
 	"event type not supported by this corroborator",
 )
 

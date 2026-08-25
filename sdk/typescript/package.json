@@ -7,7 +7,9 @@
   "types": "./dist/index.d.ts",
   "files": [
     "dist/",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES"
   ],
   "exports": {
     ".": {
@@ -55,9 +57,6 @@
     "tsup": "^8.5.1",
     "typescript": "6.0.3",
     "vitest": "^4.1.8"
-  },
-  "peerDependencies": {
-    "ai": ">=3.0.0"
   },
   "overrides": {
     "esbuild": "0.28.1"

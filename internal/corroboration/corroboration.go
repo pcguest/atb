@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -19,6 +20,9 @@ const (
 	// MaxRawEvidenceBytes is the maximum payload size stored in RawEvidence.
 	// Payloads larger than this are omitted and Truncated is set to true.
 	MaxRawEvidenceBytes = 4096
+	// MaxHTTPResponseBytes bounds the response read before JSON validation and
+	// hashing. Larger corroboration objects must be reduced at the gateway.
+	MaxHTTPResponseBytes = 1 * 1024 * 1024
 )
 
 // Record holds corroboration fields ready to append as an
@@ -72,6 +76,10 @@ type HTTPGatewayAdapter struct {
 // raw response body is stored in RawEvidence up to MaxRawEvidenceBytes;
 // larger payloads set Truncated to true and omit the raw body.
 func (a *HTTPGatewayAdapter) Fetch(ctx context.Context, referenceID string) (Record, error) {
+	endpoint, err := url.Parse(a.URL)
+	if err != nil || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Host == "" || endpoint.User != nil {
+		return Record{}, fmt.Errorf("corroboration: URL must be an HTTP(S) endpoint without credentials")
+	}
 	timeout := a.Timeout
 	if timeout <= 0 {
 		timeout = 10 * time.Second
@@ -79,7 +87,7 @@ func (a *HTTPGatewayAdapter) Fetch(ctx context.Context, referenceID string) (Rec
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.URL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint.String(), nil)
 	if err != nil {
 		return Record{}, fmt.Errorf("corroboration: build request: %w", err)
 	}
@@ -94,9 +102,12 @@ func (a *HTTPGatewayAdapter) Fetch(ctx context.Context, referenceID string) (Rec
 		return Record{}, fmt.Errorf("corroboration: fetch %s: unexpected status %d", a.URL, resp.StatusCode)
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, MaxHTTPResponseBytes+1))
 	if err != nil {
 		return Record{}, fmt.Errorf("corroboration: read body: %w", err)
+	}
+	if len(body) > MaxHTTPResponseBytes {
+		return Record{}, fmt.Errorf("corroboration: response exceeds %d bytes", MaxHTTPResponseBytes)
 	}
 
 	if !json.Valid(body) {

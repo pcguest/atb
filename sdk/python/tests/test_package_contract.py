@@ -1,4 +1,4 @@
-"""Placeholder tests for ATB Python SDK."""
+"""Public-package smoke contracts for the ATB Python SDK."""
 
 from pathlib import Path
 
@@ -14,7 +14,9 @@ def test_sdk_imports():
 
     assert hasattr(atb, "__version__")
     pyproject = Path(__file__).resolve().parents[1] / "pyproject.toml"
-    expected = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    expected = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"][
+        "version"
+    ]
     assert atb.__version__ == expected
 
 

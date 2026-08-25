@@ -4,20 +4,27 @@ describe("Trust Dashboard against the embedded ATB server", () => {
   });
 
   it("loads verified bundle data without API mocks", () => {
-    expect(Cypress.env("MOCK_API")).to.not.equal(true);
-    cy.get('[data-testid="viewer-health-value"]').should("not.have.text", "0/100");
-    cy.get('[data-testid="chain-length-value"]').invoke("text").then((value) => {
-      expect(Number.parseInt(value, 10)).to.be.greaterThan(0);
-    });
-    cy.request({
-      url: "/api/v1/bundle/events",
-      headers: {
-        "X-ATB-Session-Token": String(Cypress.env("SESSION_TOKEN")),
-      },
-    }).then((response) => {
-      expect(response.status).to.equal(200);
-      expect(response.body.total).to.be.greaterThan(0);
-      expect(response.body.events).to.have.length.greaterThan(0);
+    cy.env<{ MOCK_API: boolean | string; SESSION_TOKEN: string }>([
+      "MOCK_API",
+      "SESSION_TOKEN",
+    ]).then(({ MOCK_API, SESSION_TOKEN }) => {
+      expect(MOCK_API).to.not.equal(true);
+      cy.get('[data-testid="viewer-health-value"]').should("not.have.text", "0/100");
+      cy.get('[data-testid="chain-length-value"]')
+        .invoke("text")
+        .then((value) => {
+          expect(Number.parseInt(value, 10)).to.be.greaterThan(0);
+        });
+      cy.request({
+        url: "/api/v1/bundle/events",
+        headers: {
+          "X-ATB-Session-Token": String(SESSION_TOKEN),
+        },
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body.total).to.be.greaterThan(0);
+        expect(response.body.events).to.have.length.greaterThan(0);
+      });
     });
   });
 

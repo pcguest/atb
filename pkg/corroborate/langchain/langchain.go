@@ -29,7 +29,7 @@ func NewLangChainCorroborator(
 	langsmithAPIURL string,
 	projectName string,
 ) *LangChainCorroborator {
-	// Added: The constructor stores only local query context and performs no network work.
+	// The constructor stores only local query context and performs no network work.
 	return &LangChainCorroborator{
 		LangSmithAPIURL: langsmithAPIURL,
 		ProjectName:     projectName,
@@ -38,15 +38,15 @@ func NewLangChainCorroborator(
 
 // Verify constructs a LangSmith run lookup URL without making an HTTP request.
 func (c *LangChainCorroborator) Verify(event *Event) (CorrobResult, error) {
-	// Added: Nil inputs cannot be mapped to a supported ATB event type.
+	// Nil inputs cannot be mapped to a supported ATB event type.
 	if c == nil || event == nil {
 		return CorrobResult{}, corroborate.ErrEventTypeNotSupported
 	}
-	// Added: Unsupported event types are rejected before query construction.
+	// Unsupported event types are rejected before query construction.
 	if !supportsEventType(event.Type) {
 		return CorrobResult{}, corroborate.ErrEventTypeNotSupported
 	}
-	// Added: Tool names provide the closest LangSmith run-name lookup when present.
+	// Tool names provide the closest LangSmith run-name lookup when present.
 	runName := event.Type
 	if event.Metadata != nil {
 		if toolName := event.Metadata["tool_name"]; toolName != "" {
@@ -54,13 +54,13 @@ func (c *LangChainCorroborator) Verify(event *Event) (CorrobResult, error) {
 		}
 	}
 
-	// Added: url.Values safely escapes every query parameter value.
+	// url.Values safely escapes every query parameter value.
 	values := url.Values{}
 	values.Set("project_name", c.ProjectName)
 	values.Set("filter", `eq(name,"`+runName+`")`)
 	values.Set("start_time", event.OccurredAt.UTC().Format(time.RFC3339))
 
-	// Added: Only the base path is joined directly; query parameters come from url.Values.Encode.
+	// Only the base path is joined directly; query parameters come from url.Values.Encode.
 	baseURL := strings.TrimRight(c.LangSmithAPIURL, "/") + "/api/v1/runs"
 	return CorrobResult{
 		Matched:   false,
@@ -73,7 +73,7 @@ func (c *LangChainCorroborator) Verify(event *Event) (CorrobResult, error) {
 
 // supportsEventType reports whether LangChain can map the ATB event type.
 func supportsEventType(eventType string) bool {
-	// Added: Retrieval events are a namespace and therefore use a prefix match.
+	// Retrieval events are a namespace and therefore use a prefix match.
 	if strings.HasPrefix(eventType, "atb.retrieval.") {
 		return true
 	}

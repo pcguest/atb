@@ -29,10 +29,13 @@ def test_build_index_appends_rag_index_event() -> None:
     }
     retriever = ATBPageIndexRetriever()
 
-    with patch("atb.pageindex._build_pageindex_tree", return_value=tree), patch(
-        "atb.pageindex.subprocess.run",
-        return_value=_successful_run(),
-    ) as mock_run:
+    with (
+        patch("atb.pageindex._build_pageindex_tree", return_value=tree),
+        patch(
+            "atb.pageindex.subprocess.run",
+            return_value=_successful_run(),
+        ) as mock_run,
+    ):
         built_tree, index_id = retriever.build_index("report.pdf")
 
     assert built_tree == tree
@@ -56,10 +59,13 @@ def test_retrieve_appends_rag_retrieval_event() -> None:
     tree = {"structure": [node]}
     retriever = ATBPageIndexRetriever()
 
-    with patch("atb.pageindex._retrieve_pageindex_node", return_value=node), patch(
-        "atb.pageindex.subprocess.run",
-        return_value=_successful_run(),
-    ) as mock_run:
+    with (
+        patch("atb.pageindex._retrieve_pageindex_node", return_value=node),
+        patch(
+            "atb.pageindex.subprocess.run",
+            return_value=_successful_run(),
+        ) as mock_run,
+    ):
         result = retriever.retrieve("margins query", tree, "idx-001", "report.pdf")
 
     assert result == node
@@ -83,9 +89,14 @@ def test_build_index_atb_failure_raises() -> None:
     }
     retriever = ATBPageIndexRetriever()
 
-    with patch("atb.pageindex._build_pageindex_tree", return_value=tree), patch(
-        "atb.pageindex.subprocess.run",
-        return_value=SimpleNamespace(returncode=1, stderr="bundle not found", stdout=""),
+    with (
+        patch("atb.pageindex._build_pageindex_tree", return_value=tree),
+        patch(
+            "atb.pageindex.subprocess.run",
+            return_value=SimpleNamespace(
+                returncode=1, stderr="bundle not found", stdout=""
+            ),
+        ),
     ):
         with pytest.raises(ATBAppendError, match="bundle not found"):
             retriever.build_index("report.pdf")
@@ -96,7 +107,9 @@ def test_retrieve_no_result_raises() -> None:
 
     with patch("atb.pageindex._retrieve_pageindex_node", return_value=None):
         with pytest.raises(PageIndexRetrievalError):
-            retriever.retrieve("margins query", {"structure": []}, "idx-001", "report.pdf")
+            retriever.retrieve(
+                "margins query", {"structure": []}, "idx-001", "report.pdf"
+            )
 
 
 def test_auto_generated_ids_are_valid_uuid4() -> None:
@@ -116,13 +129,17 @@ def test_auto_generated_ids_are_valid_uuid4() -> None:
     }
     retriever = ATBPageIndexRetriever()
 
-    with patch("atb.pageindex._build_pageindex_tree", return_value=tree), patch(
-        "atb.pageindex._retrieve_pageindex_node",
-        return_value=node,
-    ), patch(
-        "atb.pageindex.subprocess.run",
-        return_value=_successful_run(),
-    ) as mock_run:
+    with (
+        patch("atb.pageindex._build_pageindex_tree", return_value=tree),
+        patch(
+            "atb.pageindex._retrieve_pageindex_node",
+            return_value=node,
+        ),
+        patch(
+            "atb.pageindex.subprocess.run",
+            return_value=_successful_run(),
+        ) as mock_run,
+    ):
         built_tree, index_id = retriever.build_index("report.pdf")
         retriever.retrieve("margins query", built_tree, index_id, "report.pdf")
 
@@ -131,5 +148,7 @@ def test_auto_generated_ids_are_valid_uuid4() -> None:
 
     assert str(uuid.UUID(first_payload["index_id"])) == first_payload["index_id"]
     assert uuid.UUID(first_payload["index_id"]).version == 4
-    assert str(uuid.UUID(second_payload["retrieval_id"])) == second_payload["retrieval_id"]
+    assert (
+        str(uuid.UUID(second_payload["retrieval_id"])) == second_payload["retrieval_id"]
+    )
     assert uuid.UUID(second_payload["retrieval_id"]).version == 4

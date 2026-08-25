@@ -126,7 +126,7 @@ func printImportCommandUsage(w io.Writer) {
 	fmt.Fprintln(w, "chatlog provider types:")
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatGenericJSONL)
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatOpenAIJSONL)
-	fmt.Fprintln(w, "otel: ingest an OTLP/JSON trace export (OTLP/protobuf gRPC transport not yet supported)")
+	fmt.Fprintln(w, "otel: ingest an OTLP/JSON trace export (file or standard input; not a gRPC collector)")
 }
 
 func runImportChatlog(args []string, stdin io.Reader, stdout, stderr io.Writer) int {

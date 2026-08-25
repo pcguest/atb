@@ -14,14 +14,14 @@ import (
 
 func TestVerifyConstructsAuditLogURL(t *testing.T) {
 	t.Parallel()
-	// Added: A fixed timestamp keeps the created date deterministic.
+	// A fixed timestamp keeps the created date deterministic.
 	occurredAt := time.Date(2024, 3, 20, 14, 30, 0, 0, time.UTC)
-	// Added: The configured API URL must be preserved as the query URL prefix.
+	// The configured API URL must be preserved as the query URL prefix.
 	auditLogURL := "https://api.github.com"
-	// Added: The corroborator only constructs URLs and performs no live lookup.
+	// The corroborator only constructs URLs and performs no live lookup.
 	c := github.NewGitHubCorroborator(auditLogURL, "pcguest")
 
-	// Added: Email takes precedence over display name for actor lookup.
+	// Email takes precedence over display name for actor lookup.
 	result, err := c.Verify(&corroborate.Event{
 		Type:       "atb.tool.call",
 		OccurredAt: occurredAt,
@@ -53,10 +53,10 @@ func TestVerifyConstructsAuditLogURL(t *testing.T) {
 
 func TestVerifyActorFallbackToDisplayName(t *testing.T) {
 	t.Parallel()
-	// Added: Display name is the fallback when no email is recorded.
+	// Display name is the fallback when no email is recorded.
 	c := github.NewGitHubCorroborator("https://api.github.com", "pcguest")
 
-	// Added: Empty email should still produce a usable actor phrase from display name.
+	// Empty email should still produce a usable actor phrase from display name.
 	result, err := c.Verify(&corroborate.Event{
 		Type:       "atb.tool.call",
 		OccurredAt: time.Date(2024, 3, 20, 14, 30, 0, 0, time.UTC),
@@ -78,10 +78,10 @@ func TestVerifyActorFallbackToDisplayName(t *testing.T) {
 
 func TestVerifyEmptyActor(t *testing.T) {
 	t.Parallel()
-	// Added: GitHub audit-log lookup needs at least one actor identifier.
+	// GitHub audit-log lookup needs at least one actor identifier.
 	c := github.NewGitHubCorroborator("https://api.github.com", "pcguest")
 
-	// Added: Empty actor fields must be rejected rather than producing a broad query.
+	// Empty actor fields must be rejected rather than producing a broad query.
 	_, err := c.Verify(&corroborate.Event{
 		Type:       "atb.tool.call",
 		OccurredAt: time.Date(2024, 3, 20, 14, 30, 0, 0, time.UTC),
@@ -94,10 +94,10 @@ func TestVerifyEmptyActor(t *testing.T) {
 
 func TestVerifyUnsupportedTypeGitHub(t *testing.T) {
 	t.Parallel()
-	// Added: Session lifecycle events are not GitHub audit-log corroboration targets.
+	// Session lifecycle events are not GitHub audit-log corroboration targets.
 	c := github.NewGitHubCorroborator("https://api.github.com", "pcguest")
 
-	// Added: Unsupported types must return the shared sentinel for errors.Is checks.
+	// Unsupported types must return the shared sentinel for errors.Is checks.
 	_, err := c.Verify(&corroborate.Event{
 		Type:       "atb.session.open",
 		OccurredAt: time.Date(2024, 3, 20, 14, 30, 0, 0, time.UTC),
@@ -112,10 +112,10 @@ func TestVerifyUnsupportedTypeGitHub(t *testing.T) {
 
 func TestVerifyPolicyDecision(t *testing.T) {
 	t.Parallel()
-	// Added: Policy decision events are supported GitHub corroboration targets.
+	// Policy decision events are supported GitHub corroboration targets.
 	c := github.NewGitHubCorroborator("https://api.github.com", "pcguest")
 
-	// Added: A supported policy decision event should construct a query URL without error.
+	// A supported policy decision event should construct a query URL without error.
 	_, err := c.Verify(&corroborate.Event{
 		Type:       "atb.policy.decision",
 		OccurredAt: time.Date(2024, 3, 20, 14, 30, 0, 0, time.UTC),

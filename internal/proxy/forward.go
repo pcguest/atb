@@ -429,7 +429,7 @@ func urlForHost(host string) *url.URL {
 
 // RoundTripFixture applies a recorded HTTP exchange through capture helpers.
 func RoundTripFixture(host string, req *http.Request, reqBody []byte, resp *http.Response, respBody []byte, recorder *BundleRecorder, cfg ProxyConfig) (*Proxy, error) {
-	p, err := NewProxy(cfg, StubHandler{}, nil)
+	p, err := NewProxy(cfg, LoggingHandler{}, nil)
 	if err != nil {
 		return nil, err
 	}

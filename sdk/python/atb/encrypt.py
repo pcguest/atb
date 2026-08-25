@@ -287,11 +287,14 @@ def decrypt_bundle(password: str, data: bytes) -> Bundle:
     try:
         bundle.verify()
     except ATBVerificationError as exc:
-        raise ATBDecryptionError("decrypted payload failed hash-chain verification") from exc
+        raise ATBDecryptionError(
+            "decrypted payload failed hash-chain verification"
+        ) from exc
 
     recomputed_head = bundle.records[-1].hash if bundle.records else GENESIS_HASH
     if raw_head_hash != recomputed_head:
         raise ATBDecryptionError(
-            f"decrypted payload head_hash mismatch: expected {raw_head_hash}, got {recomputed_head}"
+            "decrypted payload head_hash mismatch: "
+            f"expected {raw_head_hash}, got {recomputed_head}"
         )
     return bundle

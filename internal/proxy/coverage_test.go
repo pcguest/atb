@@ -629,10 +629,10 @@ func TestProxyDelegationAndIdleSessionClose(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := (StubHandler{}).HandleRequest(ctx, RequestRecord{}); !errors.Is(err, context.Canceled) {
+	if err := (LoggingHandler{}).HandleRequest(ctx, RequestRecord{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled request error = %v", err)
 	}
-	if err := (StubHandler{}).HandleResponse(ctx, ResponseRecord{}); !errors.Is(err, context.Canceled) {
+	if err := (LoggingHandler{}).HandleResponse(ctx, ResponseRecord{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled response error = %v", err)
 	}
 

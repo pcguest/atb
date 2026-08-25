@@ -240,7 +240,7 @@ func SessionCloseRecord(sess *Session) map[string]any {
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
 	// actor_id is a required field on atb.session.close per
-	// docs/spec-ai-traces.md, so it is always emitted. When the proxy could
+	// docs/specification/events.md, so it is always emitted. When the proxy could
 	// not resolve an actor for the session the value is the empty string,
 	// which the session index surfaces as an unresolved identity rather than
 	// silently dropping the field.

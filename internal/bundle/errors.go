@@ -16,6 +16,12 @@ var ErrTamper = errors.New("bundle: tampered")
 // malformed bundles from tamper detection.
 var ErrMalformed = errors.New("bundle: malformed")
 
+// ErrResourceLimit is returned when an untrusted bundle exceeds a reader
+// byte, record-count, or per-record limit. It is separate from ErrMalformed so
+// callers can report that the input may be valid but is unsafe to load under
+// the configured policy.
+var ErrResourceLimit = errors.New("bundle: resource limit exceeded")
+
 // ErrNoManifest is returned when an operation requires a manifest record
 // but the bundle has no records at all.
 var ErrNoManifest = errors.New("bundle: no manifest record")

@@ -43,7 +43,7 @@ func TestBuildIncludesProfileAndIncidentEvidence(t *testing.T) {
 		"incidents/sess-review.json",
 		"retention/operations.atb",
 		"retention/events.json",
-		"docs/compliance/eu-ai-act.md",
+		"docs/compliance/article-12-mapping.md",
 		"MANIFEST.json",
 		"SHA256SUMS",
 	} {

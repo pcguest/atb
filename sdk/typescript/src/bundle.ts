@@ -28,6 +28,23 @@ const DEFAULT_PATH = "run.atb/bundle.atb";
 const MANIFEST_EVENT_TYPE = "atb.bundle.manifest";
 const SIGNATURE_EVENT_TYPE = "atb.bundle.signature";
 const MANIFEST_VERSION = "1";
+export const MAX_LINE_SIZE_BYTES = 16 * 1024 * 1024;
+export const MAX_BUNDLE_SIZE_BYTES = 512 * 1024 * 1024;
+export const MAX_BUNDLE_RECORDS = 1_000_000;
+
+/** Resource bounds applied while loading an untrusted bundle. */
+export interface BundleLoadLimits {
+  maxBytes?: number;
+  maxRecords?: number;
+}
+
+/** Raised when an input exceeds a configured safe-loading bound. */
+export class BundleResourceLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BundleResourceLimitError";
+  }
+}
 
 /** Verification evidence for one `atb.bundle.signature` record. */
 export interface SignatureEvidence {
@@ -412,17 +429,37 @@ export class Bundle {
    * for (const record of bundle.records) console.log(record.event.type);
    * ```
    */
-  static load(path?: string): Bundle {
+  static load(path?: string, limits: BundleLoadLimits = {}): Bundle {
     const target = path ?? DEFAULT_PATH;
+    const maxBytes = limits.maxBytes ?? MAX_BUNDLE_SIZE_BYTES;
+    const maxRecords = limits.maxRecords ?? MAX_BUNDLE_RECORDS;
+    if (maxBytes <= 0 || maxRecords <= 0) {
+      throw new RangeError("bundle load limits must be positive");
+    }
     const bundle = new Bundle({ path: target });
     bundle.records.length = 0;
     const raw = readFileSync(target);
+    if (raw.byteLength > maxBytes) {
+      throw new BundleResourceLimitError(
+        `bundle exceeds maximum size of ${maxBytes} bytes`
+      );
+    }
     const content = raw.toString("utf8");
     const lines = content.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      if (Buffer.byteLength(line, "utf8") > MAX_LINE_SIZE_BYTES) {
+        throw new BundleResourceLimitError(
+          `bundle record at line ${i + 1} exceeds ${MAX_LINE_SIZE_BYTES} bytes`
+        );
+      }
       const trimmed = line.trim();
       if (!trimmed) continue;
+      if (bundle.records.length >= maxRecords) {
+        throw new BundleResourceLimitError(
+          `bundle exceeds maximum record count of ${maxRecords}`
+        );
+      }
       const raw = JSON.parse(trimmed) as Record<string, unknown>;
       if (
         !raw ||

@@ -16,10 +16,10 @@ func TestBuildReportIncludesAllCategories(t *testing.T) {
 	root := t.TempDir()
 
 	mustWriteFile(t, filepath.Join(root, "SECURITY.md"), "security")
-	mustWriteFile(t, filepath.Join(root, "docs/incident-response.md"), "incident")
-	mustWriteFile(t, filepath.Join(root, "docs/security.md"), "docs")
-	mustWriteFile(t, filepath.Join(root, "docs/spec-v1.0.md"), "spec")
-	mustWriteFile(t, filepath.Join(root, "docs/quickstart.md"), "quickstart")
+	mustWriteFile(t, filepath.Join(root, "SECURITY.md"), "incident")
+	mustWriteFile(t, filepath.Join(root, "docs/concepts/trust-model.md"), "docs")
+	mustWriteFile(t, filepath.Join(root, "docs/specification/bundle-v1.md"), "spec")
+	mustWriteFile(t, filepath.Join(root, "docs/getting-started/quickstart.md"), "quickstart")
 	mustWriteFile(t, filepath.Join(root, "cmd/atb/main_test.go"), "tests")
 	mustWriteFile(t, filepath.Join(root, "test/golden/golden_test.go"), "oracle")
 
@@ -78,7 +78,7 @@ func TestBuildReportIncludesAllCategories(t *testing.T) {
 func TestBuildReportGateFailsOnTamperedChain(t *testing.T) {
 	root := t.TempDir()
 
-	mustWriteFile(t, filepath.Join(root, "docs/spec-v1.0.md"), "spec")
+	mustWriteFile(t, filepath.Join(root, "docs/specification/bundle-v1.md"), "spec")
 	bundlePath := filepath.Join(root, "bundle.atb")
 
 	b := newTrustTestBundle(t)
@@ -135,15 +135,15 @@ func TestBuildReportPortableModeUsesEmbeddedEvidence(t *testing.T) {
 	}
 
 	required := map[string]string{
-		"canonicalization_profile": "docs/spec-v1.0.md",
+		"canonicalization_profile": "docs/specification/bundle-v1.md",
 		"security_policy":          "SECURITY.md",
-		"incident_response":        "docs/incident-response.md",
-		"security_docs":            "docs/security.md",
+		"incident_response":        "SECURITY.md",
+		"security_docs":            "docs/concepts/trust-model.md",
 		"go_tests":                 "cmd/atb/main_test.go",
 		"cross_language_oracle":    "test/golden/golden_test.go",
 		"python_property_tests":    "sdk/python/tests/test_properties.py",
-		"quickstart":               "docs/quickstart.md",
-		"ai_integration":           "docs/ai-integration.md",
+		"quickstart":               "docs/getting-started/quickstart.md",
+		"ai_integration":           "docs/maintainers/automation-contract.md",
 		"event_schema":             "schemas/event.v1.json",
 	}
 	for _, category := range report.Categories {

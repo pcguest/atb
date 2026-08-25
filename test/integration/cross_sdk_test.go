@@ -72,7 +72,7 @@ func TestTypeScriptSDKBundleCompatibility(t *testing.T) {
 	if _, err := os.Stat(tsEntry); err != nil {
 		// The TypeScript package ships a CLI stub only. Without compiled output,
 		// this test would need a checked-in build artifact or a real bundle-write CLI path.
-		t.Skip("TypeScript SDK does not expose a CLI bundle-write path; test manually per sdk/typescript/PUBLISHING.md")
+		t.Skip("TypeScript SDK does not expose a CLI bundle-write path")
 	}
 
 	cmd := exec.Command("node", "-e", `

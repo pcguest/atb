@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import sys
 
-
 DEPRECATION_MESSAGE = """ATB CLI is not included in the Python SDK.
 Install the standalone Go CLI instead:
 

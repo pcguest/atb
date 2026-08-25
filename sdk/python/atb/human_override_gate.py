@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
 from atb.action_gate import ActionPrincipal, _principal_payload
+from atb.bundle import Bundle
 from atb.exceptions import ATBError
 from atb.identity_evidence import IdentityEvidence, identity_evidence_payload
 from atb.workflow_common import (
@@ -48,7 +49,7 @@ class HumanOverrideApprovalInput:
 class HumanOverrideGate:
     def __init__(
         self,
-        bundle=None,
+        bundle: Bundle | None = None,
         *,
         mode: Literal["log_only", "enforce"] = "log_only",
         auto_save: bool = False,
@@ -70,7 +71,7 @@ class HumanOverrideGate:
         self.mode = mode
 
     @property
-    def bundle(self):
+    def bundle(self) -> Bundle:
         return self.ctx.bundle
 
     def run(
