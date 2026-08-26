@@ -55,6 +55,7 @@ assessment.
 - [Contributing](../CONTRIBUTING.md)
 - [Versioning](../VERSIONING.md)
 - [Release runbook](./maintainers/release.md)
+- [Local release-candidate acceptance](./maintainers/local-acceptance.md)
 - [Support matrix](./maintainers/support-matrix.md)
 - [Performance](./maintainers/performance.md)
 - [Lint suppressions](./maintainers/lint-suppressions.md)

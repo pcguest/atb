@@ -116,6 +116,32 @@ func TestSecretScanCanReadPullRequestCommits(t *testing.T) {
 	}
 }
 
+func TestFounderAcceptanceRunbookTracksFlagshipIncident(t *testing.T) {
+	runbook := readRepositoryFile(t, "docs/maintainers/local-acceptance.md")
+	quickstart := readRepositoryFile(t, "docs/getting-started/quickstart.md")
+	for _, required := range []string{
+		"python3.9 -m venv .venv",
+		"make gate-gold-release",
+		"make demo-incident",
+		"run.atb/incident-demo/incident.atb",
+		"incident-content-tampered.atb",
+		"incident-order-tampered.atb",
+		"incident-record-removed.atb",
+		"npm pack",
+		"go install -tags noembed ./cmd/atb",
+	} {
+		if !strings.Contains(runbook, required) {
+			t.Errorf("local acceptance runbook does not require %q", required)
+		}
+	}
+	if strings.Contains(quickstart, "run.atb/agent-incident-demo.atb") {
+		t.Error("quickstart still references the obsolete incident bundle path")
+	}
+	if !strings.Contains(quickstart, "run.atb/incident-demo/incident.atb") {
+		t.Error("quickstart does not reference the flagship incident bundle path")
+	}
+}
+
 func TestReleaseCheckPreparesPythonBeforeCrossLanguageGoTests(t *testing.T) {
 	script := readRepositoryFile(t, "scripts/release-check.sh")
 	goTests := strings.Index(script, `echo "[1/7] Go tests"`)

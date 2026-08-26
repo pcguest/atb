@@ -37,7 +37,7 @@ viewer:
 
 ```bash
 ./atb view \
-  --bundle run.atb/agent-incident-demo.atb \
+  --bundle run.atb/incident-demo/incident.atb \
   --profile atb.profile.policy_decision
 ```
 

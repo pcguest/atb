@@ -93,6 +93,11 @@ sed -i '' "s/Source version: \[\`v<OLD>\`\]/Source version: [\`v<NEW>\`]/" READM
 
 ## 4. Run all test suites
 
+For the authoritative clean-clone founder and package-consumer sequence, use
+[local release-candidate acceptance](./local-acceptance.md). It covers the
+isolated Python and Node environments, flagship incident, tamper failures,
+Firefox viewer, packed SDKs, and installed CLI path.
+
 ```bash
 go build ./...
 go test -race ./...
