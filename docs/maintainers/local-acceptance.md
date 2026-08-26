@@ -4,8 +4,8 @@ Use this runbook to test an exact candidate as a new user would. Run it from a
 fresh clone, not a development checkout. Replace `<SHA>` with the candidate
 commit. Nothing in this procedure publishes ATB.
 
-Minimum supported tools are Go 1.26.7, Python 3.9, Node.js 18, and npm with the
-committed lockfiles. Release CI uses Python 3.11 and Node.js 22. The live viewer
+Minimum supported tools are Go 1.26.7, Python 3.9, Node.js 22, and npm with the
+committed lockfiles. Release tooling uses Python 3.11. The live viewer
 acceptance uses Firefox.
 
 ## 1. Clone and prepare isolated tools
@@ -17,22 +17,41 @@ git checkout --detach <SHA>
 
 go version
 python3.9 --version
+python3.11 --version
 node --version
 npm --version
 
 python3.9 -m venv .venv
+if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
+  .venv/bin/python -m ensurepip --upgrade
+fi
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r sdk/python/requirements-dev.txt
-python -m pip install -r sdk/python/requirements-release.txt
 python -m pip install -e './sdk/python[dev]' --no-deps
+
+python3.11 -m venv .venv-release
+.venv-release/bin/python -m pip install --upgrade pip
+.venv-release/bin/python -m pip install -r sdk/python/requirements-release.txt
+
 npm --prefix web ci
 npm --prefix sdk/typescript ci
+make bootstrap-scanners
 ```
 
 This creates all Python and Node state inside the clone. Success means the
 declared requirements and lockfiles are sufficient; an undeclared global
-package must not be needed.
+package must not be needed. The scanners are downloaded from their official
+release assets into `.tmp/bin`, verified against repository-pinned SHA-256
+checksums, and checked for the exact supported versions. The gold gate prefers
+those verified repository-local binaries even when an older global scanner is
+installed.
+
+Some system Python builds omit `ensurepip`. On those platforms, replace the
+Python 3.9 `venv` plus `ensurepip` lines with `uv venv --python 3.9 --seed
+<venv-path>`; keep `UV_CACHE_DIR="$PWD/.tmp/uv-cache"` and
+`UV_PYTHON_INSTALL_DIR="$PWD/.tmp/uv-python"` so the fallback remains isolated
+inside the checkout.
 
 ## 2. Build and run the release gates
 
@@ -102,10 +121,14 @@ the CLI but intentionally serves only viewer-installation guidance.
 ## 6. Test the Python package as a consumer
 
 ```bash
-(cd sdk/python && python -m build --no-isolation && python -m twine check dist/*)
+(cd sdk/python && ../../.venv-release/bin/python -m build --no-isolation && ../../.venv-release/bin/python -m twine check dist/*)
 PY_CONSUMER="$(mktemp -d)"
 python3.9 -m venv "$PY_CONSUMER/venv"
-"$PY_CONSUMER/venv/bin/python" -m pip install sdk/python/dist/*.whl
+if ! "$PY_CONSUMER/venv/bin/python" -m pip --version >/dev/null 2>&1; then
+  "$PY_CONSUMER/venv/bin/python" -m ensurepip --upgrade
+fi
+"$PY_CONSUMER/venv/bin/python" -m pip install --upgrade pip
+"$PY_CONSUMER/venv/bin/python" -m pip install --no-deps sdk/python/dist/*.whl
 "$PY_CONSUMER/venv/bin/python" - "$PY_CONSUMER/consumer.atb" <<'PY'
 import importlib.util
 import sys
@@ -164,7 +187,12 @@ export GOBIN
 go install -tags noembed ./cmd/atb
 "$GOBIN/atb" version
 "$GOBIN/atb" verify --bundle run.atb/incident-demo/incident.atb
-"$GOBIN/atb" view --bundle run.atb/incident-demo/incident.atb
+"$GOBIN/atb" view --bundle run.atb/incident-demo/incident.atb \
+  --no-open --port 18889 >/tmp/atb-go-install-view.log 2>&1 &
+VIEW_PID=$!
+sleep 2
+curl -fsS http://127.0.0.1:18889/view/ | grep -F 'make build'
+kill "$VIEW_PID"
 ```
 
 The installed CLI must create, inspect, and verify bundles. Its viewer command
@@ -173,8 +201,8 @@ pretending to contain the full embedded viewer.
 
 ## 9. Operational ATB workflow
 
-- During development: build with `make build`; use `.venv` and the two package
-  lockfiles for SDK work.
+- During development: build with `make build`; use `.venv` for Python 3.9 SDK
+  compatibility, `.venv-release` for packaging, and the two npm lockfiles.
 - During an agent run: use an SDK/interceptor/importer or `atb capture run` to
   write local evidence.
 - After an incident: run `atb verify`, `atb incident list`, then

@@ -1,4 +1,4 @@
-.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit bootstrap-scanners security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -212,20 +212,37 @@ install-hooks:
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks installed at .githooks/"
 
+bootstrap-scanners:
+	@/bin/bash scripts/bootstrap-scanners.sh "$(CURDIR)/.tmp/bin"
+
 security-scan:
 	@echo "🔐 Running security scans..."
-	@TRIVY_BIN="$$(command -v trivy || true)"; \
+	@TRIVY_BIN=""; \
+	if [ -e "$(CURDIR)/.tmp/bin/trivy" ]; then \
+		test -x "$(CURDIR)/.tmp/bin/trivy" || { echo "❌ repository-local Trivy is not executable"; exit 1; }; \
+		TRIVY_BIN="$(CURDIR)/.tmp/bin/trivy"; \
+	else \
+		TRIVY_BIN="$$(command -v trivy || true)"; \
+	fi; \
 	TRIVY_FOUND_VERSION=""; \
 	if [ -n "$$TRIVY_BIN" ]; then \
 		TRIVY_FOUND_VERSION="$$($$TRIVY_BIN --version 2>/dev/null | awk 'NR == 1 { print $$2 }')"; \
 	fi; \
-	if [ "$$TRIVY_FOUND_VERSION" = "$(TRIVY_VERSION)" ]; then \
+	if [ -n "$$TRIVY_BIN" ] && [ "$$TRIVY_BIN" = "$(CURDIR)/.tmp/bin/trivy" ] && [ "$$TRIVY_FOUND_VERSION" != "$(TRIVY_VERSION)" ]; then \
+		echo "❌ repository-local Trivy version '$${TRIVY_FOUND_VERSION:-unknown}' does not match $(TRIVY_VERSION); rerun make bootstrap-scanners"; exit 1; \
+	elif [ "$$TRIVY_FOUND_VERSION" = "$(TRIVY_VERSION)" ]; then \
 		"$$TRIVY_BIN" fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ local Trivy version '$${TRIVY_FOUND_VERSION:-missing}' does not match $(TRIVY_VERSION); using pinned Docker image"; \
 		docker run --rm -v "$$(pwd):/work" $(TRIVY_IMAGE) fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
 	fi
-	@GOSEC_BIN="$$(command -v gosec || true)"; \
+	@GOSEC_BIN=""; \
+	if [ -e "$(CURDIR)/.tmp/bin/gosec" ]; then \
+		test -x "$(CURDIR)/.tmp/bin/gosec" || { echo "❌ repository-local gosec is not executable"; exit 1; }; \
+		GOSEC_BIN="$(CURDIR)/.tmp/bin/gosec"; \
+	else \
+		GOSEC_BIN="$$(command -v gosec || true)"; \
+	fi; \
 	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
 		GOSEC_BIN="$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec"; \
 	fi; \
@@ -233,7 +250,9 @@ security-scan:
 	if [ -n "$$GOSEC_BIN" ]; then \
 		GOSEC_FOUND_VERSION="$$(go version -m "$$GOSEC_BIN" 2>/dev/null | awk '$$1 == "mod" && $$2 == "github.com/securego/gosec/v2" { print $$3 }')"; \
 	fi; \
-	if [ "$$GOSEC_FOUND_VERSION" = "$(GOSEC_VERSION)" ]; then \
+	if [ -n "$$GOSEC_BIN" ] && [ "$$GOSEC_BIN" = "$(CURDIR)/.tmp/bin/gosec" ] && [ "$$GOSEC_FOUND_VERSION" != "$(GOSEC_VERSION)" ]; then \
+		echo "❌ repository-local gosec version '$${GOSEC_FOUND_VERSION:-unknown}' does not match $(GOSEC_VERSION); rerun make bootstrap-scanners"; exit 1; \
+	elif [ "$$GOSEC_FOUND_VERSION" = "$(GOSEC_VERSION)" ]; then \
 		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
 		echo "⚠️ local gosec version '$${GOSEC_FOUND_VERSION:-missing}' does not match $(GOSEC_VERSION); using pinned Docker install"; \

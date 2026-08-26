@@ -446,6 +446,7 @@
       "properties": {
         "targets": { "type": "array", "items": { "type": "string" }, "description": "Upstream provider hosts captured by the proxy." },
         "capture_mode": { "type": "string", "enum": ["digest", "raw"], "description": "digest: only body_sha256 + byte length recorded; raw: full bodies retained (--capture-bodies)." },
+        "max_body_bytes": { "type": "integer", "minimum": 1, "description": "Configured maximum buffered bytes for each captured request or response body." },
         "header_policy": { "type": "string", "const": "allowlist", "description": "Only explicitly listed non-secret headers are recorded." },
         "recorded_headers": { "type": "array", "items": { "type": "string" }, "description": "Header names eligible for evidence capture; all other headers are omitted." },
         "out_of_scope": { "type": "string", "description": "Plain statement of what this recorder does not see (e.g. provider traffic that bypasses the proxy)." },
@@ -461,7 +462,7 @@
         "method": { "type": "string" },
         "path": { "type": "string" },
         "direction": { "type": "string", "enum": ["request", "response"] },
-        "reason": { "type": "string", "enum": ["body_too_large", "body_read_error", "memory_budget_exhausted"] },
+        "reason": { "type": "string", "enum": ["body_too_large", "body_read_error", "memory_budget_exhausted", "upstream_error", "upstream_connect_error", "upstream_request_write_error", "upstream_response_read_error"] },
         "limit_bytes": { "type": "integer", "minimum": 1 },
         "observed_bytes": { "type": "integer", "minimum": 0, "description": "Bytes observed before rejection; for oversized streams this is a lower bound." }
       },
@@ -485,7 +486,7 @@
     },
     "atb.llm.response": {
       "description": "Captured upstream LLM API response. Proxy-internal; emitted by atb intercept for each response through the capture proxy.",
-      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Credential and session-secret headers are stripped before recording. See internal/proxy/types.go ResponseRecord.ToEvent.",
+      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Only the conservative non-secret header allowlist declared by atb.capture.scope is eligible for recording. See internal/proxy/types.go ResponseRecord.ToEvent.",
       "properties": {
         "session_id": { "type": "string", "description": "Capture session the response belongs to." },
         "host": { "type": "string", "description": "Upstream provider host." },

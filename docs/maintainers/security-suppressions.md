@@ -4,8 +4,9 @@ This register covers every first-party `#nosec` directive accepted by the Go
 security gate. Each directive must name the gosec rule and include its local
 reason on the same line. New blanket exclusions are not permitted.
 
-The v1.15.3 audit contains 64 rule suppressions across 36 files. Gosec v2.27.1
-reports zero unsuppressed findings. Reconcile the register with:
+The v1.15.3 audit contains 67 inline directives across 36 files; gosec v2.27.1
+accepts 64 rule suppressions after build/package deduplication and reports zero
+unsuppressed findings. Reconcile the register with:
 
 ```bash
 rg -n '#nosec|nolint:gosec' --glob '*.go' .

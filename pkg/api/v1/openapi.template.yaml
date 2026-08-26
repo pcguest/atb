@@ -396,13 +396,15 @@ components:
             $ref: '#/components/schemas/EventRecordDTO'
     GraphNodeDTO:
       type: object
-      required: [id, label, type]
+      required: [id, label, type, event_type]
       properties:
         id:
           type: string
         label:
           type: string
         type:
+          type: string
+        event_type:
           type: string
     GraphEdgeDTO:
       type: object

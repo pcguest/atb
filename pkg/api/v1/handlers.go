@@ -735,9 +735,10 @@ func (s *APIServer) handleBundleGraph(w http.ResponseWriter, r *http.Request) {
 		nodeType := graphNodeType(record.Event.Type)
 		label := fmt.Sprintf("%s (#%d)", record.Event.Type, record.Event.Sequence)
 		nodes = append(nodes, GraphNodeDTO{
-			ID:    nodeID,
-			Label: label,
-			Type:  nodeType,
+			ID:        nodeID,
+			Label:     label,
+			Type:      nodeType,
+			EventType: record.Event.Type,
 		})
 		if record.Event.Sequence > 0 {
 			edges = append(edges, GraphEdgeDTO{

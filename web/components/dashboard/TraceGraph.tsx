@@ -54,10 +54,10 @@ export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: Tra
 
       return {
         id: node.id,
-        data: { label: node.label, eventType: node.type },
+        data: { label: node.label, eventType: node.event_type },
         position,
         style: {
-          border: `1px solid ${nodeColor(node.type)}`,
+          border: `1px solid ${nodeColor(node.event_type)}`,
           borderRadius: 4,
           padding: 8,
           background: "hsl(var(--card))",

@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -209,11 +210,32 @@ func (ca *LocalCA) LeafCertificate(host string) (certPEM, keyPEM []byte, err err
 
 // PrintInstallInstructions writes first-run CA trust instructions for common platforms.
 func PrintInstallInstructions(w io.Writer, certPath string) {
+	printInstallInstructions(w, certPath, runtime.GOOS)
+}
+
+func printInstallInstructions(w io.Writer, certPath, goos string) {
 	fmt.Fprintf(w, "ATB generated a local capture CA at %s. Trust it only in the captured process:\n", certPath)
-	fmt.Fprintf(w, "  export SSL_CERT_FILE=%s\n", certPath)
-	fmt.Fprintf(w, "  export CURL_CA_BUNDLE=%s\n", certPath)
-	fmt.Fprintf(w, "  export NODE_EXTRA_CA_CERTS=%s\n", certPath)
+	if goos == "windows" {
+		powerShellPath := strings.ReplaceAll(certPath, "'", "''")
+		fmt.Fprintln(w, "  PowerShell:")
+		fmt.Fprintf(w, "    $env:SSL_CERT_FILE = '%s'\n", powerShellPath)
+		fmt.Fprintf(w, "    $env:CURL_CA_BUNDLE = '%s'\n", powerShellPath)
+		fmt.Fprintf(w, "    $env:NODE_EXTRA_CA_CERTS = '%s'\n", powerShellPath)
+		fmt.Fprintln(w, "  Command Prompt:")
+		fmt.Fprintf(w, "    set \"SSL_CERT_FILE=%s\"\n", certPath)
+		fmt.Fprintf(w, "    set \"CURL_CA_BUNDLE=%s\"\n", certPath)
+		fmt.Fprintf(w, "    set \"NODE_EXTRA_CA_CERTS=%s\"\n", certPath)
+	} else {
+		quotedPath := shellSingleQuote(certPath)
+		fmt.Fprintf(w, "  export SSL_CERT_FILE=%s\n", quotedPath)
+		fmt.Fprintf(w, "  export CURL_CA_BUNDLE=%s\n", quotedPath)
+		fmt.Fprintf(w, "  export NODE_EXTRA_CA_CERTS=%s\n", quotedPath)
+	}
 	fmt.Fprintln(w, "Do not install this CA as a machine-wide root. Clear these variables when capture ends.")
+}
+
+func shellSingleQuote(value string) string {
+	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
 func stripPort(host string) string {

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 else:
     try:
         from langchain_core.callbacks.base import BaseCallbackHandler
-    except Exception:  # pragma: no cover - optional dependency fallback.
+    except ImportError:
 
         class BaseCallbackHandler:
             """Fallback base class when langchain-core is not installed."""

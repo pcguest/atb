@@ -93,9 +93,9 @@ beforeEach(() => {
       statusCode: 200,
       body: {
         nodes: [
-          { id: "evt-1", label: "Start", type: "chain" },
-          { id: "evt-2", label: "Tool", type: "tool" },
-          { id: "evt-3", label: "End", type: "chain" },
+          { id: "evt-1", label: "Start", type: "chain", event_type: "ai.chain.start" },
+          { id: "evt-2", label: "Tool", type: "tool", event_type: "ai.tool.call" },
+          { id: "evt-3", label: "End", type: "chain", event_type: "ai.chain.end" },
         ],
         edges: [
           { id: "edge-1", source: "evt-1", target: "evt-2", label: "next" },

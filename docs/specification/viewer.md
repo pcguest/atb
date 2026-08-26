@@ -50,8 +50,8 @@ Running `atb view` in that case shows a minimal install-guidance page. Build fro
 use the visual interface.
 
 Security note: `atb view` accepts loopback hosts only. All API endpoints require a
-session token generated at startup and delivered to the browser in the URL fragment. It is
-not a network-hosted viewer.
+session token generated at startup and delivered to the browser in the URL fragment. The
+viewer is not network-hosted.
 
 ## Architecture
 

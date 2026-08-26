@@ -31,7 +31,8 @@ ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 # Required for OCI label accuracy. Publish workflows pass the release git tag.
 ARG ATB_VERSION
-RUN test -n "${ATB_VERSION}" || (echo "ATB_VERSION build-arg is required (e.g. --build-arg ATB_VERSION=v1.16.0)" >&2; exit 1)
+RUN printf '%s\n' "${ATB_VERSION}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || \
+  (echo "ATB_VERSION must be a non-empty release version (e.g. --build-arg ATB_VERSION=v1.15.3)" >&2; exit 1)
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -trimpath -ldflags='-s -w' -o /out/atb ./cmd/atb
 

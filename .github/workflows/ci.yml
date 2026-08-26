@@ -11,6 +11,37 @@ permissions:
   contents: read
 
 jobs:
+  python39:
+    name: Python 3.9 Runtime Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up release Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Build wheel
+        run: |
+          python -m pip install build==1.5.0
+          python -m build --wheel sdk/python
+
+      - name: Set up supported runtime Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.9"
+
+      - name: Test installed wheel and SDK contract
+        run: |
+          python -m pip install -r sdk/python/requirements-dev.txt
+          python -m pip install --no-deps sdk/python/dist/*.whl
+          python -m pytest sdk/python/tests
+          python -m ruff check sdk/python
+          python -m ruff format --check sdk/python
+          python -m mypy --strict sdk/python/atb
+          python -c 'import atb; print(atb.__version__)'
+
   # Layers A/B: core integrity, SDK validation, and docs/CLI sync gates.
   test:
     name: Core Validation (Layers A/B)

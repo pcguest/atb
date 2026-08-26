@@ -237,7 +237,8 @@ make security-scan
 Behaviour:
 
 - `make security-scan` runs Trivy, `gosec`, and high-severity npm audits for the web UI and TypeScript SDK.
-- For local development only, it may fall back to Docker-based execution for those two tools when local binaries are missing.
+- `make bootstrap-scanners` installs the exact pinned Trivy and gosec release binaries into `.tmp/bin` after SHA-256 verification. The scan prefers those repository-local binaries.
+- For local development only, Trivy and gosec may individually fall back to their pinned Docker execution paths when no matching local binary is available.
 - CI does not use Docker for the Go code scan. The security workflow installs `gosec` with `go install` and invokes the binary directly.
 - CI also scans full Git history with Gitleaks, runs pinned Bandit on `sdk/python/atb`, and audits both npm lockfiles.
 - CI runs Trivy filesystem and image scans on pushes, pull requests, schedules, and manual dispatches; the image scan builds a local image first.

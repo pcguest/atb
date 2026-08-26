@@ -24,6 +24,8 @@ type forwarder struct {
 	proxy *Proxy
 }
 
+const upstreamConnectTimeout = 5 * time.Second
+
 func (f *forwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodConnect {
 		f.handleConnect(w, r)
@@ -73,11 +75,13 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	upstreamConn, err := tls.Dial("tcp", r.Host, &tls.Config{
+	maxBody := f.proxy.cfg.EffectiveMaxBodyBytes()
+	upstreamConn, err := tls.DialWithDialer(&net.Dialer{Timeout: upstreamConnectTimeout}, "tcp", r.Host, &tls.Config{
 		ServerName: stripPort(r.Host),
 		MinVersion: tls.VersionTLS12,
 	})
 	if err != nil {
+		f.recordCaptureRejection(r.Host, r, "response", "upstream_connect_error", maxBody, 0)
 		_ = tlsConn.Close()
 		return
 	}
@@ -88,7 +92,6 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-		maxBody := f.proxy.cfg.EffectiveMaxBodyBytes()
 		releaseBudget, ok := f.acquireBodyBudget(maxBody)
 		if !ok {
 			f.recordCaptureRejection(r.Host, req, "request", "memory_budget_exhausted", maxBody, 0)
@@ -112,11 +115,13 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := req.Write(upstreamConn); err != nil {
+			f.recordCaptureRejection(r.Host, req, "response", "upstream_request_write_error", maxBody, 0)
 			releaseBudget()
 			break
 		}
 		resp, err := http.ReadResponse(bufio.NewReader(upstreamConn), req)
 		if err != nil {
+			f.recordCaptureRejection(r.Host, req, "response", "upstream_response_read_error", maxBody, 0)
 			releaseBudget()
 			break
 		}
@@ -180,12 +185,14 @@ func (f *forwarder) handleHTTP(w http.ResponseWriter, r *http.Request) {
 
 	targetURL := urlForHost(host)
 	proxy := httputil.NewSingleHostReverseProxy(targetURL) // #nosec G704 -- host validated by IsTargetHost allowlist before proxy construction
+	rejectionRecorded := false
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		respBody, err := ReadBodyLimited(resp.Body, maxBody)
 		if err != nil {
 			_ = resp.Body.Close()
 			reason, observed := classifyBodyReadError(err, maxBody)
 			f.recordCaptureRejection(host, r, "response", reason, maxBody, observed)
+			rejectionRecorded = true
 			return err
 		}
 		_ = resp.Body.Close()
@@ -193,6 +200,9 @@ func (f *forwarder) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		return f.captureResponse(host, r, resp, respBody)
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
+		if !rejectionRecorded {
+			f.recordCaptureRejection(host, r, "response", "upstream_error", maxBody, 0)
+		}
 		if f.proxy.logger != nil {
 			f.proxy.logger.Warn("proxy upstream response failed", "error", err, "host", stripPort(host))
 		}

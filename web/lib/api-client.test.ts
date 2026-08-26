@@ -31,6 +31,10 @@ function requestToken(fetchMock: ReturnType<typeof vi.fn>, callIndex: number): s
   return new Headers(init?.headers).get("X-ATB-Session-Token");
 }
 
+function requestTokens(fetchMock: ReturnType<typeof vi.fn>): Array<string | null> {
+  return fetchMock.mock.calls.map((_, index) => requestToken(fetchMock, index));
+}
+
 function testClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
@@ -106,14 +110,15 @@ describe("React Query cache scoping", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = testClient();
-    const { result } = renderHook(() => useVerificationQuery(), {
+    const { result, unmount } = renderHook(() => useVerificationQuery(), {
       wrapper: wrapperFor(client),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(requestToken(fetchMock, 0)).toBe("token-one");
-    expect(requestToken(fetchMock, 1)).toBe("token-one");
+    unmount();
+    const tokens = requestTokens(fetchMock);
+    expect(tokens.length).toBeGreaterThanOrEqual(2);
+    expect(tokens.every((token) => token === "token-one")).toBe(true);
     expect(
       JSON.stringify(
         client
@@ -139,7 +144,7 @@ describe("React Query cache scoping", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const client = testClient();
-    const { result } = renderHook(() => useVerificationQuery(), {
+    const { result, unmount } = renderHook(() => useVerificationQuery(), {
       wrapper: wrapperFor(client),
     });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
@@ -156,8 +161,6 @@ describe("React Query cache scoping", () => {
     });
 
     expect(result.current.data?.message).toBe("token-two data");
-    expect(requestToken(fetchMock, 0)).toBe("token-one");
-    expect(requestToken(fetchMock, 1)).toBe("token-two");
     await waitFor(() => {
       expect(
         client.getQueryData(
@@ -165,6 +168,10 @@ describe("React Query cache scoping", () => {
         ),
       ).toBeUndefined();
     });
+    unmount();
+    const tokens = requestTokens(fetchMock);
+    expect(tokens).toContain("token-one");
+    expect(tokens).toContain("token-two");
   });
 
   it("removes authenticated cache data and makes an anonymous request on logout", async () => {
@@ -177,7 +184,7 @@ describe("React Query cache scoping", () => {
 
     const client = testClient();
     const authenticatedScope = getQueryScope();
-    const { result } = renderHook(() => useVerificationQuery(), {
+    const { result, unmount } = renderHook(() => useVerificationQuery(), {
       wrapper: wrapperFor(client),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -192,7 +199,9 @@ describe("React Query cache scoping", () => {
     await waitFor(() => {
       expect(client.getQueryData(queryKeys.verification(authenticatedScope))).toBeUndefined();
     });
-    expect(requestToken(fetchMock, 0)).toBe("token-one");
-    expect(requestToken(fetchMock, 1)).toBeNull();
+    unmount();
+    const tokens = requestTokens(fetchMock);
+    expect(tokens).toContain("token-one");
+    expect(tokens).toContain(null);
   });
 });

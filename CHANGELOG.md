@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- The local intercept proxy now enforces configurable per-body and aggregate memory limits. Rejected or incomplete exchanges emit privacy-safe `atb.capture.rejected` evidence; the additive event is registered in the checked, generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
+- The local intercept proxy now enforces a configurable per-body limit and a fixed bounded aggregate in-flight memory budget. Rejected or incomplete exchanges emit privacy-safe `atb.capture.rejected` evidence; the additive event is registered in the checked, generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
 
 ### Changed
 - Bundle readers now enforce cross-language defaults of 16 MiB per record,

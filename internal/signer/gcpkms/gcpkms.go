@@ -118,8 +118,10 @@ func parseP256PEM(text string) ([]byte, error) {
 	if pub.Curve != elliptic.P256() {
 		return nil, fmt.Errorf("public key curve is not P-256")
 	}
-	//lint:ignore SA1019 SEC1 uncompressed encoding is the documented GCP Cloud KMS P-256 wire format; crypto/ecdh is ECDH-only and cannot serialise an ecdsa.PublicKey
-	raw := elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
+	raw, err := pub.Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("encode uncompressed public key: %w", err)
+	}
 	if len(raw) != 65 {
 		return nil, fmt.Errorf("uncompressed public key length = %d, want 65", len(raw))
 	}

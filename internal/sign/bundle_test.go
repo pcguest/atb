@@ -51,8 +51,10 @@ func TestVerifyBundleSignature_ECDSAP256_Uncompressed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
-	//lint:ignore SA1019 SEC1 uncompressed P-256 is the wire format the verifier accepts; crypto/ecdh's ECDH-only API cannot construct this byte sequence from an ecdsa.PrivateKey
-	rawPub := elliptic.Marshal(elliptic.P256(), priv.X, priv.Y)
+	rawPub, err := priv.PublicKey.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	bs := BundleSignature{
 		BundleHash: hex.EncodeToString(digest[:]),
@@ -102,8 +104,10 @@ func TestVerifyBundleSignature_ECDSAP256_Tampered(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign: %v", err)
 	}
-	//lint:ignore SA1019 SEC1 uncompressed P-256 is the wire format the verifier accepts; crypto/ecdh's ECDH-only API cannot construct this byte sequence from an ecdsa.PrivateKey
-	rawPub := elliptic.Marshal(elliptic.P256(), priv.X, priv.Y)
+	rawPub, err := priv.PublicKey.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Flip a bit by re-hashing different content but keep stored hash
 	// matching the tampered content (so we reach signature verify and it fails).

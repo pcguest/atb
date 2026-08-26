@@ -98,19 +98,25 @@ func TestAPIServerJWTAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create JWT validator: %v", err)
 	}
-	claims := jwt.MapClaims{
-		"iss":  issuer.URL + "/",
-		"aud":  "api-test-audience",
-		"exp":  time.Now().Add(time.Hour).Unix(),
-		"iat":  time.Now().Add(-time.Minute).Unix(),
-		"role": string(atbauth.RoleViewer),
+	signToken := func(t *testing.T, tokenIssuer, audience string, expiry time.Time, role atbauth.Role) string {
+		t.Helper()
+		claims := jwt.MapClaims{
+			"iss":  tokenIssuer,
+			"aud":  audience,
+			"exp":  expiry.Unix(),
+			"iat":  time.Now().Add(-time.Minute).Unix(),
+			"role": string(role),
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		token.Header["kid"] = "api-test-kid"
+		signed, err := token.SignedString(privateKey)
+		if err != nil {
+			t.Fatalf("sign JWT: %v", err)
+		}
+		return signed
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	token.Header["kid"] = "api-test-kid"
-	signed, err := token.SignedString(privateKey)
-	if err != nil {
-		t.Fatalf("sign JWT: %v", err)
-	}
+	validViewer := signToken(t, issuer.URL+"/", "api-test-audience", time.Now().Add(time.Hour), atbauth.RoleViewer)
+	validOperator := signToken(t, issuer.URL+"/", "api-test-audience", time.Now().Add(time.Hour), atbauth.RoleOperator)
 
 	_, handler := buildTestAPIServer(t, APIConfig{
 		Bundle:       newTestBundle(t),
@@ -118,15 +124,22 @@ func TestAPIServerJWTAuthentication(t *testing.T) {
 	})
 	for _, tc := range []struct {
 		name       string
+		method     string
+		path       string
 		authHeader string
 		wantStatus int
 	}{
-		{name: "valid JWT", authHeader: "Bearer " + signed, wantStatus: http.StatusOK},
-		{name: "invalid JWT", authHeader: "Bearer invalid", wantStatus: http.StatusUnauthorized},
-		{name: "missing JWT", wantStatus: http.StatusUnauthorized},
+		{name: "valid viewer JWT", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + validViewer, wantStatus: http.StatusOK},
+		{name: "wrong audience", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + signToken(t, issuer.URL+"/", "other-audience", time.Now().Add(time.Hour), atbauth.RoleViewer), wantStatus: http.StatusUnauthorized},
+		{name: "wrong issuer", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + signToken(t, issuer.URL+"/other", "api-test-audience", time.Now().Add(time.Hour), atbauth.RoleViewer), wantStatus: http.StatusUnauthorized},
+		{name: "expired", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + signToken(t, issuer.URL+"/", "api-test-audience", time.Now().Add(-time.Minute), atbauth.RoleViewer), wantStatus: http.StatusUnauthorized},
+		{name: "invalid JWT", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer invalid", wantStatus: http.StatusUnauthorized},
+		{name: "missing JWT", method: http.MethodGet, path: "/api/v1/verification", wantStatus: http.StatusUnauthorized},
+		{name: "viewer cannot verify", method: http.MethodPost, path: "/api/v1/bundle/verify", authHeader: "Bearer " + validViewer, wantStatus: http.StatusForbidden},
+		{name: "operator can verify", method: http.MethodPost, path: "/api/v1/bundle/verify", authHeader: "Bearer " + validOperator, wantStatus: http.StatusOK},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
+			req := httptest.NewRequest(tc.method, tc.path, nil)
 			if tc.authHeader != "" {
 				req.Header.Set("Authorization", tc.authHeader)
 			}

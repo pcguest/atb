@@ -72,6 +72,7 @@ def mortise_server() -> Iterator[Tuple[str, type[_Handler]]]:
     finally:
         server.shutdown()
         thread.join()
+        server.server_close()
 
 
 def test_mortise_client_flows(mortise_server: Tuple[str, type[_Handler]]) -> None:
@@ -121,3 +122,4 @@ def test_mortise_client_surfaces_http_errors() -> None:
     finally:
         server.shutdown()
         thread.join()
+        server.server_close()

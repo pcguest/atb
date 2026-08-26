@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"io"
 	"log/slog"
@@ -67,6 +69,34 @@ func TestLocalCALifecycleAndInstructions(t *testing.T) {
 			t.Fatalf("instructions missing %q: %s", want, instructions.String())
 		}
 	}
+}
+
+func TestInstallInstructionsArePlatformSafe(t *testing.T) {
+	t.Run("POSIX path", func(t *testing.T) {
+		var instructions bytes.Buffer
+		printInstallInstructions(&instructions, "/Users/Paddy's Work/ATB & QA/ca.crt", "darwin")
+		got := instructions.String()
+		if !strings.Contains(got, `export SSL_CERT_FILE='/Users/Paddy'"'"'s Work/ATB & QA/ca.crt'`) {
+			t.Fatalf("POSIX path was not shell quoted: %s", got)
+		}
+	})
+
+	t.Run("Windows path", func(t *testing.T) {
+		var instructions bytes.Buffer
+		printInstallInstructions(&instructions, `C:\Users\Paddy Guest\ATB & QA\ca.crt`, "windows")
+		got := instructions.String()
+		for _, want := range []string{
+			`$env:SSL_CERT_FILE = 'C:\Users\Paddy Guest\ATB & QA\ca.crt'`,
+			`set "SSL_CERT_FILE=C:\Users\Paddy Guest\ATB & QA\ca.crt"`,
+		} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("Windows instructions missing %q: %s", want, got)
+			}
+		}
+		if strings.Contains(got, "export ") {
+			t.Fatalf("Windows instructions contain POSIX export syntax: %s", got)
+		}
+	})
 }
 
 func TestLocalCALoadRejectsPermissiveKeyMode(t *testing.T) {
@@ -261,20 +291,7 @@ func TestHTTPOversizeRequestRecordsRejection(t *testing.T) {
 	if rr.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want %d", rr.Code, http.StatusRequestEntityTooLarge)
 	}
-	b, err := loadBundleForAppend(bundlePath)
-	if err != nil {
-		t.Fatalf("load rejection bundle: %v", err)
-	}
-	found := false
-	for _, rec := range b.Records {
-		if rec.Event.Type == TypeCaptureRejected {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatal("capture rejection event was not recorded")
-	}
+	assertCaptureRejection(t, bundlePath, "request", "body_too_large")
 }
 
 func TestHTTPRequestUnknownLengthBoundaries(t *testing.T) {
@@ -451,6 +468,127 @@ func TestBodyBudgetRejectsConcurrentMaximumReservations(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("first request did not finish")
 	}
+}
+
+func TestHTTPUpstreamFailureEmitsPrivacySafeEvidence(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve upstream address: %v", err)
+	}
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("split upstream address: %v", err)
+	}
+	address := net.JoinHostPort("localhost", port)
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close upstream listener: %v", err)
+	}
+
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+	p, err := NewProxy(ProxyConfig{
+		ListenAddr:  "127.0.0.1:0",
+		BundlePath:  bundlePath,
+		TargetHosts: []string{"localhost"},
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://"+address+"/failed", strings.NewReader("secret body"))
+	req.Header.Set("Authorization", "Bearer secret")
+	rr := httptest.NewRecorder()
+	(&forwarder{proxy: p}).ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadGateway {
+		t.Fatalf("upstream failure status = %d, want %d", rr.Code, http.StatusBadGateway)
+	}
+	assertCaptureRejection(t, bundlePath, "response", "upstream_error")
+}
+
+type hijackResponseWriter struct {
+	conn   net.Conn
+	header http.Header
+}
+
+func (w *hijackResponseWriter) Header() http.Header            { return w.header }
+func (w *hijackResponseWriter) Write(body []byte) (int, error) { return w.conn.Write(body) }
+func (*hijackResponseWriter) WriteHeader(int)                  {}
+func (w *hijackResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return w.conn, bufio.NewReadWriter(bufio.NewReader(w.conn), bufio.NewWriter(w.conn)), nil
+}
+
+func TestCONNECTUpstreamFailureEmitsPrivacySafeEvidence(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve upstream address: %v", err)
+	}
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("split upstream address: %v", err)
+	}
+	address := net.JoinHostPort("localhost", port)
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close upstream listener: %v", err)
+	}
+
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+	p, err := NewProxy(ProxyConfig{
+		ListenAddr:  "127.0.0.1:0",
+		BundlePath:  bundlePath,
+		TargetHosts: []string{"localhost"},
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	ca, err := LoadOrCreateLocalCA()
+	if err != nil {
+		t.Fatalf("load test CA: %v", err)
+	}
+	p.ca = ca
+	serverConn, clientConn := net.Pipe()
+	t.Cleanup(func() {
+		_ = serverConn.Close()
+		_ = clientConn.Close()
+	})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		req := httptest.NewRequest(http.MethodConnect, "http://"+address, nil)
+		req.Host = address
+		(&forwarder{proxy: p}).ServeHTTP(&hijackResponseWriter{conn: serverConn, header: make(http.Header)}, req)
+	}()
+
+	reader := bufio.NewReader(clientConn)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read CONNECT response: %v", err)
+		}
+		if line == "\r\n" {
+			break
+		}
+	}
+	caPEM, err := os.ReadFile(ca.CertPath)
+	if err != nil {
+		t.Fatalf("read test CA: %v", err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(caPEM) {
+		t.Fatal("append test CA")
+	}
+	tlsClient := tls.Client(clientConn, &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		RootCAs:    roots,
+		ServerName: "localhost",
+	})
+	if err := tlsClient.Handshake(); err != nil {
+		t.Fatalf("client TLS handshake: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(upstreamConnectTimeout + 2*time.Second):
+		t.Fatal("CONNECT upstream failure did not finish")
+	}
+	assertCaptureRejection(t, bundlePath, "response", "upstream_connect_error")
 }
 
 func assertCaptureRejection(t *testing.T, bundlePath, direction, reason string) {

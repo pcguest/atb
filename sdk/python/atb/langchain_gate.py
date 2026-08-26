@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 else:
     try:
         from langchain_core.tools import BaseTool
-    except Exception:  # pragma: no cover - optional dependency fallback.
+    except ImportError:
 
         class BaseTool:
             """Fallback base when langchain-core is not installed."""
