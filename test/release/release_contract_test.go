@@ -116,6 +116,37 @@ func TestSecretScanCanReadPullRequestCommits(t *testing.T) {
 	}
 }
 
+func TestSecurityGateValidatesReleaseImagePlatformsWithoutPublishing(t *testing.T) {
+	workflow := readRepositoryFile(t, ".github/workflows/security.yml")
+	imageScanStart := strings.Index(workflow, "\n  trivy-image:")
+	if imageScanStart < 0 {
+		t.Fatal("security workflow image scan job not found")
+	}
+	imageScan := workflow[imageScanStart:]
+	for _, required := range []string{
+		"platform: linux/amd64",
+		"platform: linux/arm64",
+		"docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8",
+		`--platform "${PLATFORM}"`,
+		"--load",
+		`docker run --rm --platform "${PLATFORM}"`,
+		"/licenses/atb/LICENSE",
+		"/licenses/atb/THIRD_PARTY_NOTICES",
+		"/app/web/out/view/index.html",
+		"severity: HIGH,CRITICAL",
+		"exit-code: '1'",
+	} {
+		if !strings.Contains(imageScan, required) {
+			t.Errorf("security image scan does not enforce %q", required)
+		}
+	}
+	for _, forbidden := range []string{"docker push", "push: true", "push-by-digest=true"} {
+		if strings.Contains(imageScan, forbidden) {
+			t.Errorf("PR-safe security image scan contains publishing path %q", forbidden)
+		}
+	}
+}
+
 func TestFounderAcceptanceRunbookTracksFlagshipIncident(t *testing.T) {
 	runbook := readRepositoryFile(t, "docs/maintainers/local-acceptance.md")
 	quickstart := readRepositoryFile(t, "docs/getting-started/quickstart.md")
