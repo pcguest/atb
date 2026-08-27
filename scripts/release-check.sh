@@ -16,9 +16,10 @@ if [[ "$EXPECT" != "$SOURCE_VERSION" ]]; then
 fi
 ATB_SKIP_TAG_CHECK=1 bash scripts/check-versions.sh
 
-PYTHON_BIN="python3"
-if command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="python"
+PYTHON_BIN="${ATB_RELEASE_PYTHON:-python3.11}"
+if ! "$PYTHON_BIN" -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'; then
+  echo "ATB release tooling requires Python 3.11+; got $PYTHON_BIN" >&2
+  exit 1
 fi
 
 # The Go suite contains cross-language parity tests that import the Python SDK.
@@ -35,6 +36,7 @@ ATB_PYTHON_BIN="$VENV_DIR/bin/python"
 export ATB_PYTHON_BIN
 ATB_PYTHON="$ATB_PYTHON_BIN"
 export ATB_PYTHON
+"$ATB_PYTHON_BIN" -m pip install --upgrade pip
 "$ATB_PYTHON_BIN" -m pip install -r sdk/python/requirements-dev.txt
 "$ATB_PYTHON_BIN" -m pip install -r sdk/python/requirements-release.txt
 

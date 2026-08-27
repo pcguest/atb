@@ -1,4 +1,4 @@
-.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit bootstrap-scanners security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -20,7 +20,10 @@ GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
 GO_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list ./... | grep -v '/node_modules/')
 GO_COVER_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/node_modules/')
 GOSEC_DIRS = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{.Dir}}' ./... | grep -v '/node_modules/')
-STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)")
+LOCAL_BIN_DIR := $(CURDIR)/.tmp/bin
+STATICCHECK_VERSION ?= v0.7.0
+GOVULNCHECK_VERSION ?= v1.5.0
+STATICCHECK ?= $(if $(wildcard $(LOCAL_BIN_DIR)/staticcheck),$(LOCAL_BIN_DIR)/staticcheck,$(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)"))
 TRIVY_VERSION ?= 0.73.0
 TRIVY_IMAGE ?= ghcr.io/aquasecurity/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c
 GOSEC_VERSION ?= v2.27.1
@@ -75,6 +78,9 @@ hygiene-quick: check-generated check-versions check-notices
 	@echo "🧹 Running quick hygiene gate..."
 	@unformatted="$$(for file in $$(git ls-files -co --exclude-standard '*.go'); do test ! -f "$$file" || gofmt -l "$$file"; done)"; \
 		test -z "$$unformatted" || { printf '❌ Go files require gofmt:\n%s\n' "$$unformatted"; exit 1; }
+	@test -x "$(STATICCHECK)" || { echo "❌ staticcheck $(STATICCHECK_VERSION) is required; run make bootstrap-scanners"; exit 1; }
+	@found="$$(go version -m "$(STATICCHECK)" 2>/dev/null | awk '$$1 == "mod" && $$2 == "honnef.co/go/tools" { print $$3 }')"; \
+		test "$$found" = "$(STATICCHECK_VERSION)" || { echo "❌ staticcheck version '$${found:-unknown}' does not match $(STATICCHECK_VERSION); run make bootstrap-scanners"; exit 1; }
 	$(GOENV) go vet $(GO_PACKAGES)
 	$(GOENV) $(STATICCHECK) $(GO_PACKAGES)
 	$(MAKE) test-go
@@ -186,12 +192,7 @@ deps-update-npm:
 
 deps-audit-go:
 	@echo "🔍 Auditing Go dependencies..."
-	@if command -v govulncheck >/dev/null; then \
-		$(GOENV) govulncheck ./...; \
-	else \
-		echo "⚠️ govulncheck not installed. Install with: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0"; \
-		$(GOENV) go list -m -u all | grep -v "github.com/pcguest/atb"; \
-	fi
+	@$(MAKE) govuln-scan
 
 deps-audit-npm:
 	@echo "🔍 Auditing NPM dependencies..."
@@ -214,6 +215,23 @@ install-hooks:
 
 bootstrap-scanners:
 	@/bin/bash scripts/bootstrap-scanners.sh "$(CURDIR)/.tmp/bin"
+
+govuln-scan:
+	@GOVULN_BIN=""; \
+	if [ -e "$(LOCAL_BIN_DIR)/govulncheck" ]; then \
+		test -x "$(LOCAL_BIN_DIR)/govulncheck" || { echo "❌ repository-local govulncheck is not executable"; exit 1; }; \
+		GOVULN_BIN="$(LOCAL_BIN_DIR)/govulncheck"; \
+	else \
+		GOVULN_BIN="$$(command -v govulncheck || true)"; \
+	fi; \
+	GOVULN_FOUND_VERSION=""; \
+	if [ -n "$$GOVULN_BIN" ]; then \
+		GOVULN_FOUND_VERSION="$$(go version -m "$$GOVULN_BIN" 2>/dev/null | awk '$$1 == "mod" && $$2 == "golang.org/x/vuln" { print $$3 }')"; \
+	fi; \
+	if [ "$$GOVULN_FOUND_VERSION" != "$(GOVULNCHECK_VERSION)" ]; then \
+		echo "❌ govulncheck version '$${GOVULN_FOUND_VERSION:-missing}' does not match $(GOVULNCHECK_VERSION); run make bootstrap-scanners"; exit 1; \
+	fi; \
+	GOVULNCHECK_BIN="$$GOVULN_BIN" $(GOENV) ./scripts/govulncheck.sh
 
 security-scan:
 	@echo "🔐 Running security scans..."
@@ -258,5 +276,6 @@ security-scan:
 		echo "⚠️ local gosec version '$${GOSEC_FOUND_VERSION:-missing}' does not match $(GOSEC_VERSION); using pinned Docker install"; \
 		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.7@sha256:45a5f7a810238aabcbad211d70b9ae082022d96f7c7259e94041ad1b933575ac sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
+	@$(MAKE) govuln-scan
 	cd web && npm audit --audit-level=high
 	cd sdk/typescript && npm audit --audit-level=high

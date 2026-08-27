@@ -3,8 +3,9 @@
 # scanner failure is blocking; the gate must never turn a real finding green.
 set -euo pipefail
 
-if ! command -v govulncheck >/dev/null 2>&1; then
-  echo "govulncheck.sh: govulncheck binary not on PATH" >&2
+GOVULNCHECK_BIN="${GOVULNCHECK_BIN:-govulncheck}"
+if ! command -v "$GOVULNCHECK_BIN" >/dev/null 2>&1; then
+  echo "govulncheck.sh: govulncheck binary not found: $GOVULNCHECK_BIN" >&2
   exit 2
 fi
 
@@ -17,7 +18,7 @@ while IFS= read -r package; do
 done < <(go list ./... | grep -v '/node_modules/')
 
 set +e
-govulncheck -json "${packages[@]}" > "$OUT"
+"$GOVULNCHECK_BIN" -json "${packages[@]}" > "$OUT"
 status=$?
 set -e
 

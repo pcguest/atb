@@ -58,11 +58,13 @@ make bootstrap-scanners
 
 This creates all Python and Node state inside the clone. Success means the
 declared requirements and lockfiles are sufficient; an undeclared global
-package must not be needed. The scanners are downloaded from their official
+package must not be needed. Trivy and gosec are downloaded from their official
 release assets into `.tmp/bin`, verified against repository-pinned SHA-256
-checksums, and checked for the exact supported versions. The gold gate prefers
-those verified repository-local binaries even when an older global scanner is
-installed.
+checksums, and checked for the exact supported versions. Staticcheck and
+govulncheck are built there from pinned Go modules with checksum-database
+verification and isolated Go caches. The gold gate prefers those verified
+repository-local binaries even when an older global scanner is installed, and
+fails closed if an exact Go analyzer is unavailable.
 
 Some system Python builds omit `ensurepip`. On those platforms, replace the
 Python 3.9 `venv` plus `ensurepip` lines with `uv venv --python 3.9 --seed
@@ -75,7 +77,8 @@ inside the checkout.
 ```bash
 make build
 make gate-gold-release
-SKIP_DOCKER=1 EXPECT=1.15.2 bash scripts/release-check.sh
+ATB_RELEASE_PYTHON=.venv-release/bin/python \
+  SKIP_DOCKER=1 EXPECT=1.15.2 bash scripts/release-check.sh
 ```
 
 `make build` produces `./atb` with the full embedded local viewer. The gold gate

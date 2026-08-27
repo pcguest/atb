@@ -5,10 +5,6 @@ echo "Running make hygiene-quick..."
 make hygiene-quick
 
 echo "Checking Go vulnerability advisories..."
-if command -v govulncheck >/dev/null 2>&1; then
-  scripts/govulncheck.sh
-else
-  echo "govulncheck not installed; the required security workflow remains authoritative"
-fi
+make govuln-scan
 
 echo "Pre-commit checks passed"

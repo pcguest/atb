@@ -4,6 +4,9 @@ set -euo pipefail
 
 readonly TRIVY_VERSION="0.73.0"
 readonly GOSEC_VERSION="2.27.1"
+readonly STATICCHECK_VERSION="v0.7.0"
+readonly GOVULNCHECK_VERSION="v1.5.0"
+readonly GO_VERSION="go1.26.7"
 readonly DEST_DIR="${1:-.tmp/bin}"
 
 case "$(uname -s)" in
@@ -75,9 +78,40 @@ tar -xzf "$tmp_dir/$gosec_archive" -C "$tmp_dir" gosec
 install -m 0755 "$tmp_dir/gosec" "$DEST_DIR/gosec.new"
 mv "$DEST_DIR/gosec.new" "$DEST_DIR/gosec"
 
+# Go's module checksum database supplies provenance verification for the two
+# source-built analyzers. Keep both the module and build caches beside the
+# repository-local binaries so no developer-global Go state is required.
+go_found=$(env \
+  GOCACHE="$DEST_DIR/../go-build-cache" \
+  GOMODCACHE="$DEST_DIR/../go-mod-cache" \
+  GOPROXY="https://proxy.golang.org,direct" \
+  GOSUMDB="sum.golang.org" \
+  GOTOOLCHAIN="$GO_VERSION" \
+  go env GOVERSION)
+[[ "$go_found" == "$GO_VERSION" ]] || { echo "scanner bootstrap requires $GO_VERSION; got $go_found" >&2; exit 1; }
+
+go_install() {
+  env \
+    GOBIN="$DEST_DIR" \
+    GOCACHE="$DEST_DIR/../go-build-cache" \
+    GOMODCACHE="$DEST_DIR/../go-mod-cache" \
+    GOPROXY="https://proxy.golang.org,direct" \
+    GOSUMDB="sum.golang.org" \
+    GOTOOLCHAIN="$GO_VERSION" \
+    go install "$1"
+}
+
+go_install "honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}"
+go_install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+
 trivy_found=$("$DEST_DIR/trivy" --version | awk 'NR == 1 {print $2}')
 gosec_found=$(go version -m "$DEST_DIR/gosec" | awk '$1 == "mod" && $2 == "github.com/securego/gosec/v2" {print $3}')
+staticcheck_found=$(go version -m "$DEST_DIR/staticcheck" | awk '$1 == "mod" && $2 == "honnef.co/go/tools" {print $3}')
+govulncheck_found=$(go version -m "$DEST_DIR/govulncheck" | awk '$1 == "mod" && $2 == "golang.org/x/vuln" {print $3}')
 [[ "$trivy_found" == "$TRIVY_VERSION" ]] || { echo "installed Trivy version mismatch: $trivy_found" >&2; exit 1; }
 [[ "$gosec_found" == "v$GOSEC_VERSION" ]] || { echo "installed gosec version mismatch: $gosec_found" >&2; exit 1; }
+[[ "$staticcheck_found" == "$STATICCHECK_VERSION" ]] || { echo "installed staticcheck version mismatch: $staticcheck_found" >&2; exit 1; }
+[[ "$govulncheck_found" == "$GOVULNCHECK_VERSION" ]] || { echo "installed govulncheck version mismatch: $govulncheck_found" >&2; exit 1; }
 
-printf 'Installed verified scanners in %s:\n  Trivy %s\n  gosec v%s\n' "$DEST_DIR" "$trivy_found" "$GOSEC_VERSION"
+printf 'Installed verified scanners in %s:\n  Trivy %s\n  gosec v%s\n  staticcheck %s\n  govulncheck %s\n' \
+  "$DEST_DIR" "$trivy_found" "$GOSEC_VERSION" "$staticcheck_found" "$govulncheck_found"

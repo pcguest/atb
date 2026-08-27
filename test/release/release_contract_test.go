@@ -186,6 +186,8 @@ func TestReleaseCheckPreparesPythonBeforeCrossLanguageGoTests(t *testing.T) {
 		t.Fatal("release check runs cross-language Go tests before installing Python dependencies")
 	}
 	for _, required := range []string{
+		`PYTHON_BIN="${ATB_RELEASE_PYTHON:-python3.11}"`,
+		`sys.version_info < (3, 11)`,
 		`ATB_PYTHON_BIN="$VENV_DIR/bin/python"`,
 		`ATB_PYTHON="$ATB_PYTHON_BIN"`,
 		`trap cleanup EXIT`,
@@ -210,6 +212,9 @@ func TestGoldReleaseWorkflowInstallsPythonSDKDependencies(t *testing.T) {
 	}
 	if !strings.Contains(releaseGate, "python -m pip install -r ./sdk/python/requirements-dev.txt") {
 		t.Error("release gold gate does not install pinned Python SDK dependencies")
+	}
+	if !strings.Contains(releaseGate, "go install golang.org/x/vuln/cmd/govulncheck@v1.5.0") {
+		t.Error("release gold gate does not install pinned govulncheck")
 	}
 }
 
@@ -344,9 +349,47 @@ func TestSecurityScanRejectsMismatchedLocalScannerVersions(t *testing.T) {
 		"GOSEC_VERSION ?= v2.27.1",
 		`go version -m "$$GOSEC_BIN"`,
 		`[ "$$GOSEC_FOUND_VERSION" = "$(GOSEC_VERSION)" ]`,
+		"STATICCHECK_VERSION ?= v0.7.0",
+		"GOVULNCHECK_VERSION ?= v1.5.0",
+		`go version -m "$$GOVULN_BIN"`,
+		`[ "$$GOVULN_FOUND_VERSION" != "$(GOVULNCHECK_VERSION)" ]`,
+		`GOVULNCHECK_BIN="$$GOVULN_BIN"`,
 	} {
 		if !strings.Contains(makefile, required) {
 			t.Errorf("security-scan does not enforce pinned scanner input %q", required)
+		}
+	}
+}
+
+func TestScannerBootstrapPinsGoAnalyzersAndIsolatesCaches(t *testing.T) {
+	script := readRepositoryFile(t, "scripts/bootstrap-scanners.sh")
+	for _, required := range []string{
+		`readonly STATICCHECK_VERSION="v0.7.0"`,
+		`readonly GOVULNCHECK_VERSION="v1.5.0"`,
+		`readonly GO_VERSION="go1.26.7"`,
+		`GOMODCACHE="$DEST_DIR/../go-mod-cache"`,
+		`GOSUMDB="sum.golang.org"`,
+		`honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}`,
+		`golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}`,
+	} {
+		if !strings.Contains(script, required) {
+			t.Errorf("scanner bootstrap does not enforce %q", required)
+		}
+	}
+}
+
+func TestPreCommitUsesCanonicalGovulnTarget(t *testing.T) {
+	hook := readRepositoryFile(t, ".githooks/pre-commit")
+	if !strings.Contains(hook, "make govuln-scan") {
+		t.Fatal("pre-commit hook does not invoke the canonical govuln target")
+	}
+	for _, forbidden := range []string{
+		"command -v govulncheck",
+		"scripts/govulncheck.sh",
+		"govulncheck not installed",
+	} {
+		if strings.Contains(hook, forbidden) {
+			t.Errorf("pre-commit hook independently discovers or invokes govulncheck via %q", forbidden)
 		}
 	}
 }
