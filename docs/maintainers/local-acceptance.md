@@ -16,12 +16,29 @@ cd atb-rc
 git checkout --detach <SHA>
 
 go version
-python3.9 --version
+if [ -n "${PYTHON39:-}" ]; then
+  "$PYTHON39" -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 9))'
+elif command -v python3.9 >/dev/null 2>&1; then
+  export PYTHON39=python3.9
+else
+  for candidate in python3 /usr/bin/python3; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+      "$candidate" -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 9))'; then
+      export PYTHON39="$candidate"
+      break
+    fi
+  done
+  if [ -z "${PYTHON39:-}" ]; then
+    echo "Python 3.9 is required (set PYTHON39 to its executable)" >&2
+    exit 1
+  fi
+fi
+"$PYTHON39" --version
 python3.11 --version
 node --version
 npm --version
 
-python3.9 -m venv .venv
+"$PYTHON39" -m venv .venv
 if ! .venv/bin/python -m pip --version >/dev/null 2>&1; then
   .venv/bin/python -m ensurepip --upgrade
 fi
@@ -123,7 +140,7 @@ the CLI but intentionally serves only viewer-installation guidance.
 ```bash
 (cd sdk/python && ../../.venv-release/bin/python -m build --no-isolation && ../../.venv-release/bin/python -m twine check dist/*)
 PY_CONSUMER="$(mktemp -d)"
-python3.9 -m venv "$PY_CONSUMER/venv"
+"$PYTHON39" -m venv "$PY_CONSUMER/venv"
 if ! "$PY_CONSUMER/venv/bin/python" -m pip --version >/dev/null 2>&1; then
   "$PY_CONSUMER/venv/bin/python" -m ensurepip --upgrade
 fi

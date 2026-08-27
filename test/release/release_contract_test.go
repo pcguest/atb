@@ -151,7 +151,9 @@ func TestFounderAcceptanceRunbookTracksFlagshipIncident(t *testing.T) {
 	runbook := readRepositoryFile(t, "docs/maintainers/local-acceptance.md")
 	quickstart := readRepositoryFile(t, "docs/getting-started/quickstart.md")
 	for _, required := range []string{
-		"python3.9 -m venv .venv",
+		"command -v python3.9",
+		"sys.version_info[:2] != (3, 9)",
+		`"$PYTHON39" -m venv .venv`,
 		"make gate-gold-release",
 		"make demo-incident",
 		"run.atb/incident-demo/incident.atb",
