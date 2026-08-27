@@ -378,6 +378,19 @@ func TestScannerBootstrapPinsGoAnalyzersAndIsolatesCaches(t *testing.T) {
 	}
 }
 
+func TestLocalGoAnalysisDoesNotUseUserCaches(t *testing.T) {
+	makefile := readRepositoryFile(t, "Makefile")
+	for _, required := range []string{
+		"GOMODCACHE ?= $(CURDIR)/.gomodcache",
+		"STATICCHECK_CACHE ?= $(CURDIR)/.tmp/staticcheck-cache/",
+		"GOENV = GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) STATICCHECK_CACHE=$(STATICCHECK_CACHE)",
+	} {
+		if !strings.Contains(makefile, required) {
+			t.Errorf("local analysis environment does not enforce %q", required)
+		}
+	}
+}
+
 func TestPreCommitUsesCanonicalGovulnTarget(t *testing.T) {
 	hook := readRepositoryFile(t, ".githooks/pre-commit")
 	if !strings.Contains(hook, "make govuln-scan") {

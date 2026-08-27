@@ -14,12 +14,14 @@ test-golden:
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
 GOTOOLCHAIN ?= go1.26.7
-GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
+GOMODCACHE ?= $(CURDIR)/.gomodcache
+GOVERSION := $(shell GOMODCACHE=$(GOMODCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
-GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
-GO_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list ./... | grep -v '/node_modules/')
-GO_COVER_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/node_modules/')
-GOSEC_DIRS = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{.Dir}}' ./... | grep -v '/node_modules/')
+STATICCHECK_CACHE ?= $(CURDIR)/.tmp/staticcheck-cache/$(if $(GOVERSION),$(GOVERSION),default)
+GOENV = GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) STATICCHECK_CACHE=$(STATICCHECK_CACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
+GO_PACKAGES = $$($(GOENV) go list ./... | grep -v '/node_modules/')
+GO_COVER_PACKAGES = $$($(GOENV) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/node_modules/')
+GOSEC_DIRS = $$($(GOENV) go list -f '{{.Dir}}' ./... | grep -v '/node_modules/')
 LOCAL_BIN_DIR := $(CURDIR)/.tmp/bin
 STATICCHECK_VERSION ?= v0.7.0
 GOVULNCHECK_VERSION ?= v1.5.0
@@ -46,10 +48,10 @@ demo-incident:
 	@echo "✅ Incident evidence verified; tampering rejected"
 
 notices:
-	@GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) node scripts/generate-third-party-notices.mjs
+	@$(GOENV) node scripts/generate-third-party-notices.mjs
 
 check-notices:
-	@GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) node scripts/generate-third-party-notices.mjs --check
+	@$(GOENV) node scripts/generate-third-party-notices.mjs --check
 
 # check-generated regenerates the schema-driven bindings and fails if any of
 # them drift from the committed output. Comparing against a pre-regen snapshot
@@ -261,8 +263,8 @@ security-scan:
 	else \
 		GOSEC_BIN="$$(command -v gosec || true)"; \
 	fi; \
-	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
-		GOSEC_BIN="$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec"; \
+	if [ -z "$$GOSEC_BIN" ] && [ -x "$$($(GOENV) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
+		GOSEC_BIN="$$($(GOENV) go env GOPATH 2>/dev/null)/bin/gosec"; \
 	fi; \
 	GOSEC_FOUND_VERSION=""; \
 	if [ -n "$$GOSEC_BIN" ]; then \
