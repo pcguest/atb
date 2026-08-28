@@ -26,18 +26,18 @@ require_file_contains() {
 
 GO_MOD_VERSION="$(awk '/^go / { print $2; exit }' "$ROOT_DIR/go.mod")"
 MAKEFILE_TOOLCHAIN="$(awk '/^GOTOOLCHAIN[[:space:]]*\?=/ { print $3; exit }' "$ROOT_DIR/Makefile")"
-expect "go.mod Go version" "$GO_MOD_VERSION" "1.26.4"
-expect "Makefile GOTOOLCHAIN" "$MAKEFILE_TOOLCHAIN" "go1.26.4"
+expect "go.mod Go version" "$GO_MOD_VERSION" "1.26.7"
+expect "Makefile GOTOOLCHAIN" "$MAKEFILE_TOOLCHAIN" "go1.26.7"
 
 while IFS= read -r wf; do
   if grep -q "setup-go@" "$wf"; then
-    if grep -q 'go-version:' "$wf" && ! grep -q 'go-version: "1.26.4"' "$wf"; then
+    if grep -q 'go-version:' "$wf" && ! grep -q 'go-version: "1.26.7"' "$wf"; then
       fail "${wf#"$ROOT_DIR/"} has non-matrix go-version"
     fi
   fi
   if grep -q "setup-python@" "$wf"; then
-    if grep -q 'python-version:' "$wf" && ! grep -q 'python-version: "3.11"' "$wf"; then
-      fail "${wf#"$ROOT_DIR/"} has non-matrix python-version"
+    if grep -q 'python-version:' "$wf" && grep 'python-version:' "$wf" | grep -Evq 'python-version: "(3\.9|3\.11)"'; then
+      fail "${wf#"$ROOT_DIR/"} has unsupported python-version"
     fi
   fi
   if grep -q "setup-node@" "$wf"; then
@@ -54,14 +54,14 @@ for version in 3.9 3.10 3.11 3.12; do
 done
 
 TS_ENGINE="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package.json'))['engines']['node'])")"
-expect "sdk/typescript engines.node" "$TS_ENGINE" ">=18"
+expect "sdk/typescript engines.node" "$TS_ENGINE" ">=22"
 
-require_file_contains "docs/support-matrix.md" "Go 1\\.26\\.4" "Go support matrix entry"
-require_file_contains "docs/support-matrix.md" "Python 3\\.9-3\\.12" "Python SDK support matrix entry"
-require_file_contains "docs/support-matrix.md" "Python 3\\.11" "Python CI support matrix entry"
-require_file_contains "docs/support-matrix.md" "Node\\.js >=18" "Node SDK support matrix entry"
-require_file_contains "docs/support-matrix.md" "Node\\.js 22" "Node CI support matrix entry"
-require_file_contains "docs/support-matrix.md" "npm ci" "npm package-manager support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Go 1\\.26\\.7" "Go support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Python 3\\.9-3\\.12" "Python SDK support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Python 3\\.9 compatibility; Python 3\\.11 release tooling" "Python CI support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Node\\.js >=22" "Node SDK support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Node\\.js 22" "Node CI support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "npm ci" "npm package-manager support matrix entry"
 
 if [ "$FAIL" -eq 0 ]; then
   echo "ok: support matrix declarations agree"

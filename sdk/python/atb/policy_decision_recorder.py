@@ -6,7 +6,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from atb.workflow_common import WorkflowContext, WorkflowEventSink, canonical_digest, new_action_id
+from atb.bundle import Bundle
+from atb.workflow_common import (
+    WorkflowContext,
+    WorkflowEventSink,
+    canonical_digest,
+    new_action_id,
+)
 
 
 @dataclass(frozen=True)
@@ -21,7 +27,7 @@ class PolicyDecisionActionInput:
 class PolicyDecisionRecorder:
     def __init__(
         self,
-        bundle=None,
+        bundle: Bundle | None = None,
         *,
         auto_save: bool = False,
         save_path: str | None = None,
@@ -41,10 +47,12 @@ class PolicyDecisionRecorder:
         )
 
     @property
-    def bundle(self):
+    def bundle(self) -> Bundle:
         return self.ctx.bundle
 
-    def record(self, action: PolicyDecisionActionInput, decision: Mapping[str, Any]) -> str:
+    def record(
+        self, action: PolicyDecisionActionInput, decision: Mapping[str, Any]
+    ) -> str:
         self.ctx.bootstrap_request("policy_decision", action.request_id)
         action_id = new_action_id(action.action_id)
         self.ctx.emit(
@@ -52,7 +60,9 @@ class PolicyDecisionRecorder:
             {
                 "action_id": action_id,
                 "action_type": action.action_type,
-                "action_parameters_digest": canonical_digest(dict(action.action_parameters)),
+                "action_parameters_digest": canonical_digest(
+                    dict(action.action_parameters)
+                ),
             },
         )
         self.ctx.emit(

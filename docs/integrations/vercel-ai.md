@@ -5,10 +5,12 @@ ATB includes a middleware helper for emitting `ai.llm.call`, `ai.tool.exec`, and
 ## Install
 
 ```bash
-npm install @pcguest/atb-sdk ai
+npm install @pcguest/atb-sdk ai @ai-sdk/openai
 ```
 
-This uses the same TypeScript package listed in the README installation options.
+ATB's helper uses structural callback types and does not depend on the `ai`
+package at runtime. Install the framework/provider packages selected by the
+application; the command above matches this example.
 
 ## Quick start
 

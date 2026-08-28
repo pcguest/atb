@@ -240,7 +240,7 @@ func SessionCloseRecord(sess *Session) map[string]any {
 	sess.mu.Lock()
 	defer sess.mu.Unlock()
 	// actor_id is a required field on atb.session.close per
-	// docs/spec-ai-traces.md, so it is always emitted. When the proxy could
+	// docs/specification/events.md, so it is always emitted. When the proxy could
 	// not resolve an actor for the session the value is the empty string,
 	// which the session index surfaces as an unresolved identity rather than
 	// silently dropping the field.
@@ -356,15 +356,61 @@ func extractJSONField(body []byte, field string) string {
 }
 
 // ReadRequestBody reads and restores an HTTP request body for capture and forwarding.
+// It applies DefaultMaxBodyBytes. Prefer ReadRequestBodyLimited with the proxy
+// configuration when a custom cap is in effect.
 func ReadRequestBody(req *http.Request) ([]byte, error) {
+	return ReadRequestBodyLimited(req, DefaultMaxBodyBytes)
+}
+
+// ReadRequestBodyLimited reads at most max bytes from the request body, restores
+// the body for forwarding on success, and returns ErrBodyTooLarge when the body
+// exceeds max. A non-positive max falls back to DefaultMaxBodyBytes.
+func ReadRequestBodyLimited(req *http.Request, max int64) ([]byte, error) {
 	if req == nil || req.Body == nil {
 		return nil, nil
 	}
-	body, err := io.ReadAll(req.Body)
+	if max <= 0 {
+		max = DefaultMaxBodyBytes
+	}
+	if req.ContentLength > max {
+		_ = req.Body.Close()
+		req.Body = http.NoBody
+		return nil, &BodyTooLargeError{Limit: max, Observed: req.ContentLength}
+	}
+	body, err := readLimited(req.Body, max)
 	if err != nil {
+		_ = req.Body.Close()
+		req.Body = http.NoBody
 		return nil, err
 	}
 	req.Body = io.NopCloser(bytes.NewReader(body))
+	return body, nil
+}
+
+// ReadBodyLimited reads at most max bytes from r. It does not close r.
+// A non-positive max falls back to DefaultMaxBodyBytes.
+func ReadBodyLimited(r io.Reader, max int64) ([]byte, error) {
+	if r == nil {
+		return nil, nil
+	}
+	if max <= 0 {
+		max = DefaultMaxBodyBytes
+	}
+	return readLimited(r, max)
+}
+
+func readLimited(r io.Reader, max int64) ([]byte, error) {
+	if max <= 0 || max > MaxBodyBytesLimit {
+		return nil, fmt.Errorf("%w: invalid read limit %d", ErrInvalidConfig, max)
+	}
+	limited := io.LimitReader(r, max+1)
+	body, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(body)) > max {
+		return nil, &BodyTooLargeError{Limit: max, Observed: int64(len(body))}
+	}
 	return body, nil
 }
 
@@ -488,22 +534,28 @@ func intFromAny(values ...any) int {
 	return 0
 }
 
-// ScanHeaders copies selected request headers for evidence capture.
-// sensitiveHeaders are never recorded into a bundle: they carry credentials or
-// session secrets that must not be persisted in tamper-evident evidence.
-var sensitiveHeaders = map[string]struct{}{
-	"authorization":       {},
-	"x-api-key":           {},
-	"proxy-authorization": {},
-	"cookie":              {},
-	"set-cookie":          {},
+// recordedHeaders is a conservative evidence allowlist. Provider APIs invent
+// new credential header names regularly, so a denylist can silently persist a
+// secret into a tamper-evident bundle record.
+var recordedHeaders = map[string]struct{}{
+	"accept":               {},
+	"accept-encoding":      {},
+	"content-encoding":     {},
+	"content-type":         {},
+	"openai-request-id":    {},
+	"anthropic-request-id": {},
+	"request-id":           {},
+	"retry-after":          {},
+	"traceparent":          {},
+	"user-agent":           {},
+	"x-request-id":         {},
 }
 
-// redactedHeaderNames returns the sorted set of header names ScanHeaders strips,
-// for the atb.capture.scope attestation.
-func redactedHeaderNames() []string {
-	names := make([]string, 0, len(sensitiveHeaders))
-	for name := range sensitiveHeaders {
+// recordedHeaderNames returns the sorted allowlist for the capture-scope
+// attestation.
+func recordedHeaderNames() []string {
+	names := make([]string, 0, len(recordedHeaders))
+	for name := range recordedHeaders {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -513,7 +565,7 @@ func redactedHeaderNames() []string {
 func ScanHeaders(header http.Header) map[string]string {
 	out := map[string]string{}
 	for key, values := range header {
-		if _, sensitive := sensitiveHeaders[strings.ToLower(key)]; sensitive {
+		if _, recorded := recordedHeaders[strings.ToLower(key)]; !recorded {
 			continue
 		}
 		if len(values) > 0 {

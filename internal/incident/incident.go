@@ -299,7 +299,7 @@ func (r Report) Markdown() string {
 		fmt.Fprintf(&b, "| %d | `%s` | %s | %s | `%s` |\n",
 			e.Seq, e.Type, e.Timestamp, e.Summary, shortHash(e.Hash))
 	}
-	b.WriteString("\n> Integrity proves these records are unaltered. This report scopes them to the named session; the full signed bundle is the authoritative evidence, and each row's record hash is verifiable against it.\n")
+	b.WriteString("\n> Integrity PASS means the presented session records agree with the bundle's hash chain. It does not prove capture completeness or prevent whole-file replacement without external custody. This report scopes the bundle to one session, and each row's record hash is independently verifiable against it.\n")
 	return b.String()
 }
 

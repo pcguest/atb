@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// Package proxy re-exports the internal HTTPS capture proxy scaffold.
+// Package proxy exposes the supported HTTPS capture proxy API.
 package proxy
 
 import (
@@ -16,9 +16,11 @@ type (
 	RequestRecord  = internalproxy.RequestRecord
 	ResponseRecord = internalproxy.ResponseRecord
 	Handler        = internalproxy.Handler
-	StubHandler    = internalproxy.StubHandler
-	Proxy          = internalproxy.Proxy
-	Runner         = internalproxy.Runner
+	LoggingHandler = internalproxy.LoggingHandler
+	// Deprecated: use LoggingHandler.
+	StubHandler = internalproxy.StubHandler
+	Proxy       = internalproxy.Proxy
+	Runner      = internalproxy.Runner
 )
 
 var ErrInvalidConfig = internalproxy.ErrInvalidConfig

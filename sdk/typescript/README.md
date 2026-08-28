@@ -1,8 +1,10 @@
 # @pcguest/atb-sdk
 
-The ATB TypeScript SDK reads ATB bundles, verifies local hash chains, and lets Node.js callers iterate canonical bundle events.
+The ATB TypeScript SDK creates and reads ATB bundles, verifies local hash
+chains, and lets Node.js callers iterate canonical bundle events.
 
-It also creates in-memory bundles, appends events, and saves NDJSON bundle files.
+It targets Node.js 18 or newer because file-backed bundles, encryption, and the
+optional loopback Agent transport use Node APIs. It is not a browser SDK.
 
 ## Installation
 
@@ -13,12 +15,23 @@ npm install @pcguest/atb-sdk
 ## Quickstart
 
 ```ts
-import { Bundle } from "@pcguest/atb-sdk";
+import {
+  AI_REQUEST_RECEIVED_EVENT_TYPE,
+  Bundle,
+} from "@pcguest/atb-sdk";
 
-const bundle = Bundle.load("run.atb/bundle.atb");
-const result = bundle.verify();
+const bundle = new Bundle();
+bundle.append(AI_REQUEST_RECEIVED_EVENT_TYPE, {
+  request_id: "req-001",
+  actor_id_hash: "sha256:actor-001",
+  purpose_tag: "rag_answer",
+});
+bundle.save("run.atb/bundle.atb");
 
-for (const record of bundle.records) {
+const received = Bundle.load("run.atb/bundle.atb");
+const result = received.verify();
+
+for (const record of received.records) {
   console.log(record.event.type);
 }
 
@@ -51,7 +64,17 @@ console.log(result.signatures);
 
 ## Profile support
 
-To verify a bundle against a profile, use the Go CLI: `atb verify --bundle <path> --profile <profile-id>`. The TypeScript SDK does not include a verifier.
+`Bundle.verify()` checks local hash-chain integrity and supported signature
+records. To evaluate ATB obligation profiles, incident findings, anchors, and
+the full `verify.report.v1` contract, hand the same file to the Go CLI:
+
+```bash
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer
+```
+
+`Bundle.load()` rejects records above 16 MiB and defaults to 512 MiB and one
+million records per bundle. Pass `{ maxBytes, maxRecords }` as the second
+argument to choose lower limits for untrusted inputs.
 
 ## Optional reviewer identity evidence
 

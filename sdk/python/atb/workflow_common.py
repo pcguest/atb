@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import uuid
 from collections.abc import Mapping
-from datetime import UTC, datetime
-from typing import Any, Literal, Protocol
+from datetime import datetime, timezone
+from typing import Any, Protocol
 
 from atb.bundle import Bundle
 from atb.canonicalize import canonicalize
@@ -17,8 +17,7 @@ DEFAULT_WORKFLOW_SAVE_PATH = "run.atb/bundle.atb"
 class WorkflowEventSink(Protocol):
     """Optional sink that receives workflow events instead of local bundle I/O."""
 
-    def append(self, event_type: str, payload: Mapping[str, Any]) -> None:
-        ...
+    def append(self, event_type: str, payload: Mapping[str, Any]) -> None: ...
 
 
 class WorkflowContext:
@@ -152,4 +151,9 @@ def now_rfc3339() -> str:
 
 
 def _now_rfc3339() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )

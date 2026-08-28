@@ -8,6 +8,21 @@ The ATB Python SDK writes tamper-evident audit bundles in the same format as the
 pip install atb-sdk
 ```
 
+Framework adapters are optional. Install only the integration you use, for
+example `pip install 'atb-sdk[langchain]'` or
+`pip install 'atb-sdk[pageindex]'`.
+
+For a reproducible contributor checkout (CI uses the same pin file):
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .[dev] --no-deps
+```
+
+Release tooling is intentionally separate in `requirements-release.txt`; it is
+not required for normal SDK development. CI-only Bandit dependencies are kept
+in `requirements-security.txt`.
+
 ## Quick example
 
 ```python
@@ -39,6 +54,7 @@ bundle.append(
 )
 
 path = bundle.save("run.atb/bundle.atb")
+bundle.verify()  # local hash-chain and supported signature checks
 print(path)
 ```
 
@@ -68,7 +84,17 @@ print(path)
 
 ## Profile support
 
-To verify a bundle against a profile, use the Go CLI: `atb verify --bundle <path> --profile <profile-id>`. The Python SDK does not include a verifier.
+`Bundle.verify()` checks local hash-chain integrity and supported signature
+records. To evaluate ATB obligation profiles, incident findings, anchors, and
+the full `verify.report.v1` contract, hand the same file to the Go CLI:
+
+```bash
+atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer
+```
+
+`Bundle.load()` rejects records above 16 MiB and defaults to 512 MiB and one
+million records per bundle. Use the `max_bytes` and `max_records` keyword
+arguments to choose lower limits for untrusted inputs.
 
 ## Optional reviewer identity evidence
 
@@ -95,7 +121,7 @@ action = ActionGateInput(
 Retain and verify the original assertion in your IdP/JWKS/PKI workflow. ATB
 hash-chains the supplied digest but does not authenticate the subject.
 
-See [`examples/python/agent_incident_demo.py`](../../examples/python/agent_incident_demo.py)
+See the [agent incident demo](../../examples/incident-demo/README.md)
 for an offline incident-forensics flow.
 
 ## Optional Mortise custody
@@ -115,7 +141,7 @@ client = MortiseClient(
 )
 bundle = Path("run.atb/bundle.atb").read_bytes()
 verification = client.verify_bundle(bundle)  # does not persist
-receipt = client.ingest_bundle(bundle)       # WORM custody + signed receipt
+receipt = client.ingest_bundle(bundle)  # WORM custody + signed receipt
 assert client.verify_receipt(receipt)["verified"] is True
 matches = client.receipts_by_hash(receipt["bundle_hash"])
 ```

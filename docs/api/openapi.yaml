@@ -2,7 +2,13 @@ openapi: 3.0.3
 info:
   title: ATB Viewer API
   version: 1.12.0
-  description: Local-first read API used by `atb view`.
+  description: |
+    Local-first read API used by `atb view`. The server binds to 127.0.0.1 only.
+
+    All endpoints (including read-only ones) require an `X-ATB-Session-Token` header
+    or `?session_token=` query parameter when the viewer is started via `atb view`
+    (the token is auto-generated at startup and delivered in the browser URL fragment).
+    Privacy reveal operations additionally require a separate reveal token.
 servers:
   - url: http://127.0.0.1:8080
     description: Local viewer server
@@ -12,6 +18,9 @@ paths:
       summary: Get bundle verification status
       operationId: getVerification
       tags: [viewer]
+      security:
+        - SessionTokenHeader: []
+        - SessionTokenParam: []
       responses:
         '200':
           description: Verification status payload
@@ -19,6 +28,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerificationResponse'
+        '401':
+          description: Missing or invalid session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
         '405':
           description: Method not allowed
           content:
@@ -30,6 +45,9 @@ paths:
       summary: Get aggregate bundle metadata
       operationId: getBundleMeta
       tags: [viewer]
+      security:
+        - SessionTokenHeader: []
+        - SessionTokenParam: []
       responses:
         '200':
           description: Bundle metadata
@@ -37,6 +55,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BundleMetaResponse'
+        '401':
+          description: Missing or invalid session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
         '403':
           description: Bundle is not verified (tamper detected)
           content:
@@ -54,6 +78,9 @@ paths:
       summary: Get paginated event records
       operationId: getBundleEvents
       tags: [viewer]
+      security:
+        - SessionTokenHeader: []
+        - SessionTokenParam: []
       parameters:
         - in: query
           name: offset
@@ -83,6 +110,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/APIError'
+        '401':
+          description: Missing or invalid session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
         '403':
           description: Bundle is not verified (tamper detected)
           content:
@@ -100,6 +133,9 @@ paths:
       summary: Get trace/span graph model
       operationId: getBundleGraph
       tags: [viewer]
+      security:
+        - SessionTokenHeader: []
+        - SessionTokenParam: []
       responses:
         '200':
           description: Graph model for visualization
@@ -107,6 +143,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BundleGraphResponse'
+        '401':
+          description: Missing or invalid session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
         '403':
           description: Bundle is not verified (tamper detected)
           content:
@@ -119,13 +161,83 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/APIError'
+  /api/v1/bundle/profile:
+    get:
+      summary: Get stored profile and CAS summary
+      operationId: getBundleProfile
+      tags: [viewer]
+      security:
+        - SessionTokenHeader: []
+        - SessionTokenParam: []
+      responses:
+        '200':
+          description: Profile report available
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileReportSummary'
+        '204':
+          description: No profile report computed yet; call POST /api/v1/bundle/verify first
+        '401':
+          description: Missing or invalid session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '403':
+          description: Bundle is not verified (tamper detected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+  /api/v1/bundle/verify:
+    post:
+      summary: Run (or re-run) profile verification
+      operationId: runBundleVerify
+      tags: [viewer]
+      security:
+        - SessionTokenHeader: []
+        - SessionTokenParam: []
+      responses:
+        '200':
+          description: Profile report computed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileReportSummary'
+        '401':
+          description: Missing or invalid session token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '403':
+          description: Bundle is not verified (tamper detected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '405':
+          description: Method not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
+        '422':
+          description: Profile could not be loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIError'
   /api/v1/privacy/reveal:
     post:
       summary: Reveal one masked field value
-      description: >-
-        Returns the requested field value and records the reveal in a separate
-        sidecar (`<bundle>.reveals`) with its own hash chain. The authoritative
-        bundle is never modified by a reveal.
       operationId: revealField
       tags: [viewer]
       security:
@@ -188,6 +300,16 @@ paths:
                 $ref: '#/components/schemas/APIError'
 components:
   securitySchemes:
+    SessionTokenHeader:
+      type: apiKey
+      in: header
+      name: X-ATB-Session-Token
+      description: Session token delivered in the browser URL fragment (#session=<token>) at startup.
+    SessionTokenParam:
+      type: apiKey
+      in: query
+      name: session_token
+      description: Session token as a query parameter (alternative to the header).
     RevealCookieAuth:
       type: apiKey
       in: cookie
@@ -213,7 +335,7 @@ components:
           type: string
     BundleMetaResponse:
       type: object
-      required: [bundle_path, event_count, type_counts, verified, verification_message]
+      required: [bundle_path, event_count, type_counts, verified, verification_message, genesis_hash]
       properties:
         bundle_path:
           type: string
@@ -226,6 +348,10 @@ components:
         first_timestamp:
           type: string
         last_timestamp:
+          type: string
+        genesis_hash:
+          type: string
+        verified_at:
           type: string
         verified:
           type: boolean
@@ -270,13 +396,15 @@ components:
             $ref: '#/components/schemas/EventRecordDTO'
     GraphNodeDTO:
       type: object
-      required: [id, label, type]
+      required: [id, label, type, event_type]
       properties:
         id:
           type: string
         label:
           type: string
         type:
+          type: string
+        event_type:
           type: string
     GraphEdgeDTO:
       type: object
@@ -323,6 +451,51 @@ components:
           type: string
         value:
           nullable: true
+    FailureDTO:
+      type: object
+      required: [kind, detail]
+      properties:
+        kind:
+          type: string
+        detail:
+          type: string
+    ProfileReportSummary:
+      type: object
+      required: [profile_id, pass, chain_valid, anchor_status, critical_failures, warnings]
+      properties:
+        profile_id:
+          type: string
+        pass:
+          type: boolean
+        chain_valid:
+          type: boolean
+        anchor_status:
+          type: string
+        cas_score:
+          type: number
+          format: double
+        cas_grade:
+          type: string
+          description: High, Medium, Low, or Insufficient
+        sub_scores:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        critical_failures:
+          type: array
+          items:
+            $ref: '#/components/schemas/FailureDTO'
+        warnings:
+          type: array
+          items:
+            type: string
+        corroboration_bonus:
+          type: number
+          format: double
+        effective_score:
+          type: number
+          format: double
     APIError:
       type: object
       required: [error]

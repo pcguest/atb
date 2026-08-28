@@ -3,7 +3,11 @@ package apiv1
 
 import (
 	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,17 +15,141 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/hash"
+	atbauth "github.com/pcguest/atb/pkg/auth"
 )
+
+const testAPISessionToken = "test-api-session-token"
 
 func buildTestAPIServer(t *testing.T, cfg APIConfig) (*APIServer, http.Handler) {
 	t.Helper()
 
+	useDefaultSession := cfg.SessionToken == "" && cfg.JWTValidator == nil
+	if useDefaultSession {
+		cfg.SessionToken = testAPISessionToken
+	}
 	srv := NewAPIServer(cfg)
 	mux := http.NewServeMux()
 	srv.Register(mux)
+	if useDefaultSession {
+		return srv, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			clone := r.Clone(r.Context())
+			clone.Header.Set(sessionAuthHeader, testAPISessionToken)
+			mux.ServeHTTP(w, clone)
+		})
+	}
 	return srv, mux
+}
+
+func TestAPIServerFailsClosedWithoutAuthentication(t *testing.T) {
+	srv := NewAPIServer(APIConfig{Bundle: newTestBundle(t)})
+	mux := http.NewServeMux()
+	srv.Register(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("status without authentication: got %d want %d body=%s", rr.Code, http.StatusUnauthorized, rr.Body.String())
+	}
+}
+
+func TestAPIServerJWTAuthentication(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate RSA key: %v", err)
+	}
+	key, err := jwk.FromRaw(&privateKey.PublicKey)
+	if err != nil {
+		t.Fatalf("create JWK: %v", err)
+	}
+	if err := key.Set(jwk.KeyIDKey, "api-test-kid"); err != nil {
+		t.Fatalf("set JWK key ID: %v", err)
+	}
+	set := jwk.NewSet()
+	if err := set.AddKey(key); err != nil {
+		t.Fatalf("add JWK: %v", err)
+	}
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Skipf("cannot bind local JWT test issuer: %v", err)
+	}
+	issuer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/.well-known/jwks.json" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(set); err != nil {
+			t.Errorf("encode JWKS: %v", err)
+		}
+	}))
+	issuer.Listener = listener
+	issuer.Start()
+	t.Cleanup(issuer.Close)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	validator, err := atbauth.NewJWTValidator(ctx, issuer.URL+"/", "api-test-audience")
+	if err != nil {
+		t.Fatalf("create JWT validator: %v", err)
+	}
+	signToken := func(t *testing.T, tokenIssuer, audience string, expiry time.Time, role atbauth.Role) string {
+		t.Helper()
+		claims := jwt.MapClaims{
+			"iss":  tokenIssuer,
+			"aud":  audience,
+			"exp":  expiry.Unix(),
+			"iat":  time.Now().Add(-time.Minute).Unix(),
+			"role": string(role),
+		}
+		token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+		token.Header["kid"] = "api-test-kid"
+		signed, err := token.SignedString(privateKey)
+		if err != nil {
+			t.Fatalf("sign JWT: %v", err)
+		}
+		return signed
+	}
+	validViewer := signToken(t, issuer.URL+"/", "api-test-audience", time.Now().Add(time.Hour), atbauth.RoleViewer)
+	validOperator := signToken(t, issuer.URL+"/", "api-test-audience", time.Now().Add(time.Hour), atbauth.RoleOperator)
+
+	_, handler := buildTestAPIServer(t, APIConfig{
+		Bundle:       newTestBundle(t),
+		JWTValidator: validator,
+	})
+	for _, tc := range []struct {
+		name       string
+		method     string
+		path       string
+		authHeader string
+		wantStatus int
+	}{
+		{name: "valid viewer JWT", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + validViewer, wantStatus: http.StatusOK},
+		{name: "wrong audience", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + signToken(t, issuer.URL+"/", "other-audience", time.Now().Add(time.Hour), atbauth.RoleViewer), wantStatus: http.StatusUnauthorized},
+		{name: "wrong issuer", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + signToken(t, issuer.URL+"/other", "api-test-audience", time.Now().Add(time.Hour), atbauth.RoleViewer), wantStatus: http.StatusUnauthorized},
+		{name: "expired", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer " + signToken(t, issuer.URL+"/", "api-test-audience", time.Now().Add(-time.Minute), atbauth.RoleViewer), wantStatus: http.StatusUnauthorized},
+		{name: "invalid JWT", method: http.MethodGet, path: "/api/v1/verification", authHeader: "Bearer invalid", wantStatus: http.StatusUnauthorized},
+		{name: "missing JWT", method: http.MethodGet, path: "/api/v1/verification", wantStatus: http.StatusUnauthorized},
+		{name: "viewer cannot verify", method: http.MethodPost, path: "/api/v1/bundle/verify", authHeader: "Bearer " + validViewer, wantStatus: http.StatusForbidden},
+		{name: "operator can verify", method: http.MethodPost, path: "/api/v1/bundle/verify", authHeader: "Bearer " + validOperator, wantStatus: http.StatusOK},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, nil)
+			if tc.authHeader != "" {
+				req.Header.Set("Authorization", tc.authHeader)
+			}
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			if rr.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rr.Code, tc.wantStatus, rr.Body.String())
+			}
+		})
+	}
 }
 
 func createTestBundle(t *testing.T) (string, *bundle.Bundle) {

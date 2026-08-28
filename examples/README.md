@@ -14,38 +14,32 @@ Path: [examples/quickstart/](./quickstart/)
 - [Python LangGraph example](./python/langgraph_demo.py)
 - [TypeScript Vercel AI example](./typescript/vercel-chat-bot.ts)
 
-## Demo scripts
+## Flagship incident workflow
 
-Profile workflow helper demos (5-minute runnable scripts with CLI verify): [examples/demo/](./demo/)
-
-## Composite demo bundle
-
-Support-escalation narrative bundle for dashboard demos: [examples/bundles/demo-workflow/](./bundles/demo-workflow/)
-
-## Incident capture demo
-
-Capture-shaped agent-incident bundle (privileged tool call with no approval, plus a failed tool execution) that verifies clean yet raises the `tool_without_approval` oversight anomaly: [examples/bundles/incident-capture/](./bundles/incident-capture/)
+Run `make demo-incident` for the deterministic, application-boundary incident
+workflow. It verifies intact evidence, reconstructs the session, asserts the
+`tool_without_approval` finding, and confirms tamper detection. See
+[examples/incident-demo/](./incident-demo/).
 
 ## Quickstart variants
 
 - [README quickstart](../README.md#quickstart) — `atb.profile.policy_decision` (support triage deny)
 - [examples/quickstart/run.sh](./quickstart/run.sh) — `atb.profile.privileged_tool_action` (six-event privileged action)
 
-## Bundle examples
+## Generated profile matrix
 
-- [Project bootstrap bundle](./bundles/project-bootstrap.atb) — valid fixture for `atb verify`
-- [Tampered bootstrap bundle](./bundles/project-bootstrap-tampered.atb) — hash-chain failure demo; see [tamper demo guide](../docs/guides/tamper-demo.md)
-- [Profile fixtures](./bundles/profiles/) — pass/fail bundle pairs for each of the six built-in obligation profiles
+- Generated profile fixtures — pass/fail bundle pairs for each of the six
+  built-in obligation profiles, created by
+  [`generate_profile_fixtures.go`](../scripts/generate_profile_fixtures.go)
 
-The bundle examples are small verified ATB bundles that demonstrate the on-disk format without exposing internal project logs or operational notes.
+These bundles are generated test inputs, not a second demo. The flagship
+incident workflow above is the sole end-to-end product narrative.
 
-### Regenerating the bundles
-
-The `.atb` files under `examples/bundles/` are **generated artefacts and are gitignored** — a fresh clone does not contain them. Build the CLI once, then regenerate every example and demo bundle with a single command:
+The `.atb` files are gitignored and absent from a fresh clone. Regenerate the
+profile matrix with:
 
 ```bash
-make build     # builds ./atb with the embedded viewer
-make goldens   # regenerates profiles/, project-bootstrap, and demo-workflow
+make goldens
 ```
 
-Each generator asserts its bundle's expected verify outcome (pass or fail), so `make goldens` doubles as a smoke test of the demo path.
+The generator asserts the expected profile outcome for every bundle.

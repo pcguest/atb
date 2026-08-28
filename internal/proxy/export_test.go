@@ -8,7 +8,7 @@ import "net/http"
 // black-box tests in package proxy_test can exercise the capture path without
 // reaching into unexported fields.
 func NewProxyForTest(cfg ProxyConfig, rec *BundleRecorder) (*Proxy, error) {
-	p, err := NewProxy(cfg, StubHandler{}, nil)
+	p, err := NewProxy(cfg, LoggingHandler{}, nil)
 	if err != nil {
 		return nil, err
 	}

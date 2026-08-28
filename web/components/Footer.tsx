@@ -37,15 +37,15 @@ export default function Footer() {
               {[
                 {
                   label: "Quickstart",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/quickstart.md",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/getting-started/quickstart.md",
                 },
                 {
                   label: "Capture guide",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/capture.md",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/capture/overview.md",
                 },
                 {
                   label: "Incident forensics",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/guides/incident-forensics.md",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/investigate/incidents.md",
                 },
                 {
                   label: "Documentation hub",
@@ -53,7 +53,7 @@ export default function Footer() {
                 },
                 {
                   label: "Security Model",
-                  href: "https://github.com/pcguest/atb/blob/main/docs/security.md",
+                  href: "https://github.com/pcguest/atb/blob/main/docs/concepts/trust-model.md",
                 },
                 { label: "Current Scope", href: "#scope" },
               ].map((item) => (

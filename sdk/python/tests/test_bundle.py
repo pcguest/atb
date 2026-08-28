@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from atb.bundle import (
     SIGNATURE_EVENT_TYPE,
     Bundle,
+    BundleResourceLimitError,
     UnsupportedAlgorithmError,
     _save_atomic,
     append_events_in_memory,
@@ -86,6 +87,19 @@ def test_save_atomic_writes_payload(tmp_path):
     assert path.read_bytes() == data
 
 
+def test_load_rejects_byte_and_record_limits(tmp_path):
+    path = tmp_path / "bundle.atb"
+    bundle = Bundle()
+    bundle.append("ai.tool.exec", {"ok": True})
+    bundle.save(path)
+
+    with pytest.raises(BundleResourceLimitError, match="maximum size"):
+        Bundle.load(path, max_bytes=path.stat().st_size - 1)
+
+    with pytest.raises(BundleResourceLimitError, match="record count"):
+        Bundle.load(path, max_records=1)
+
+
 def test_save_atomic_failure_keeps_original_and_removes_temp(tmp_path, monkeypatch):
     path = tmp_path / "bundle.atb"
     original = b"original\n"
@@ -122,9 +136,7 @@ def test_ecdsa_p256_signature_verification_happy_path(tmp_path):
 
 
 @pytest.mark.parametrize("algorithm", ["ed25519", "ecdsa-p256"])
-def test_signature_verification_returns_false_for_tampered_payload(
-    tmp_path, algorithm
-):
+def test_signature_verification_returns_false_for_tampered_payload(tmp_path, algorithm):
     private_key = (
         Ed25519PrivateKey.generate()
         if algorithm == "ed25519"
@@ -132,7 +144,9 @@ def test_signature_verification_returns_false_for_tampered_payload(
     )
     bundle_path = _signed_bundle_path(tmp_path, algorithm, private_key)
     raw = bundle_path.read_text(encoding="utf-8")
-    bundle_path.write_text(raw.replace('"ok": true', '"ok": false', 1), encoding="utf-8")
+    bundle_path.write_text(
+        raw.replace('"ok": true', '"ok": false', 1), encoding="utf-8"
+    )
 
     loaded = Bundle.load(bundle_path)
 

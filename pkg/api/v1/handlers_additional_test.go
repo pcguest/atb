@@ -167,6 +167,11 @@ func TestBundleMetaEventsAndGraphEndpoints(t *testing.T) {
 	if len(graph.Nodes) != 3 {
 		t.Fatalf("expected 3 graph nodes, got %d", len(graph.Nodes))
 	}
+	for _, node := range graph.Nodes {
+		if node.EventType == "" {
+			t.Fatalf("graph node %q lost its canonical event type", node.ID)
+		}
+	}
 	foundSequence := false
 	foundParent := false
 	for _, edge := range graph.Edges {
@@ -629,7 +634,7 @@ func TestWriteJSONSetsContentType(t *testing.T) {
 	}
 }
 
-func TestSessionTokenEnforcesReadEndpoints(t *testing.T) {
+func TestSessionTokenEnforcesProtectedEndpoints(t *testing.T) {
 	bundlePath, b := createRichTestBundle(t)
 	const token = "test-session-token"
 	_, handler := buildTestAPIServer(t, APIConfig{
@@ -640,7 +645,7 @@ func TestSessionTokenEnforcesReadEndpoints(t *testing.T) {
 		RevealRateLimit: 100,
 	})
 
-	readEndpoints := []struct {
+	protectedEndpoints := []struct {
 		method string
 		path   string
 	}{
@@ -649,9 +654,14 @@ func TestSessionTokenEnforcesReadEndpoints(t *testing.T) {
 		{http.MethodGet, "/api/v1/bundle/events"},
 		{http.MethodGet, "/api/v1/bundle/graph"},
 		{http.MethodGet, "/api/v1/bundle/profile"},
+		{http.MethodPost, "/api/v1/bundle/verify"},
+		{http.MethodGet, "/api/v1/bundle/verify/report"},
+		{http.MethodGet, "/api/v1/sessions"},
+		{http.MethodGet, "/api/v1/sessions/by-actor"},
+		{http.MethodGet, "/api/v1/schema/status"},
 	}
 
-	for _, ep := range readEndpoints {
+	for _, ep := range protectedEndpoints {
 		t.Run("no_token_"+ep.path, func(t *testing.T) {
 			req := httptest.NewRequest(ep.method, ep.path, nil)
 			rr := httptest.NewRecorder()
@@ -693,22 +703,6 @@ func TestSessionTokenEnforcesReadEndpoints(t *testing.T) {
 					ep.method, ep.path, rr.Body.String())
 			}
 		})
-	}
-}
-
-func TestSessionTokenSkippedWhenEmpty(t *testing.T) {
-	bundlePath, b := createRichTestBundle(t)
-	_, handler := buildTestAPIServer(t, APIConfig{
-		BundlePath:      bundlePath,
-		Bundle:          b,
-		RevealAuthToken: "reveal-token",
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected session check to be skipped when token is empty: got %d want %d", rr.Code, http.StatusOK)
 	}
 }
 

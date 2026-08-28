@@ -8,13 +8,14 @@ import (
 	"github.com/pcguest/atb/internal/event"
 )
 
-// InboundTransport receives OpenTelemetry trace data from an external source
-// (collector, gateway, or queue). Phase 9 scaffold only: no OTLP decoding yet.
+// InboundTransport receives decoded OpenTelemetry trace data from an external
+// source such as a collector, gateway, or queue. ReceiveJSON is the supported
+// file/stdin bridge; collector transports can implement this interface.
 //
 // InboundTransport is intentionally separate from Receiver.Receive: transports
 // ingest raw batches; Receiver translates spans into ATB events via Translator.
 type InboundTransport interface {
-	// Receive ingests one trace batch. Implementations will decode OTLP in a later phase.
+	// Receive ingests one decoded trace batch.
 	Receive(ctx context.Context, trace OTelTrace) error
 }
 
@@ -22,7 +23,10 @@ type InboundTransport interface {
 type ReceiverResult struct {
 	Events       []*event.Event
 	SkippedCount int
-	Errors       []error // non-ErrNotImplemented translation errors only
+	// Errors is retained for source compatibility. Receiver returns the first
+	// non-skip translation error directly and does not populate this field.
+	// Deprecated: inspect the error returned by Receive or ReceiveJSON.
+	Errors []error
 }
 
 // Receiver binds an optional InboundTransport to a Translator for span-to-event conversion.
@@ -32,21 +36,21 @@ type Receiver struct {
 }
 
 // Receive translates each span in trace through Translator.
-// ErrNotImplemented from Translate increments SkippedCount and continues.
+// ErrUnsupported from Translate increments SkippedCount and continues.
 // Any other translation error aborts and is returned immediately.
 func (r *Receiver) Receive(ctx context.Context, trace OTelTrace) (ReceiverResult, error) {
 	if r.Translator == nil {
-		return ReceiverResult{}, ErrNotImplemented
+		return ReceiverResult{}, ErrMissingTranslator
 	}
 	if r.Transport != nil {
-		if err := r.Transport.Receive(ctx, trace); err != nil && !errors.Is(err, ErrNotImplemented) {
+		if err := r.Transport.Receive(ctx, trace); err != nil && !errors.Is(err, ErrUnsupported) {
 			return ReceiverResult{}, err
 		}
 	}
 	var result ReceiverResult
 	for _, span := range trace.Spans {
 		ev, err := r.Translator.Translate(span)
-		if errors.Is(err, ErrNotImplemented) {
+		if errors.Is(err, ErrUnsupported) {
 			result.SkippedCount++
 			continue
 		}
@@ -68,7 +72,7 @@ func (r *Receiver) Receive(ctx context.Context, trace OTelTrace) (ReceiverResult
 //
 // A payload with no spans yields an empty result and no error; malformed JSON
 // returns the decode error unchanged. As with Receive, a span that cannot be
-// translated (ErrNotImplemented) increments SkippedCount, while any other
+// translated (ErrUnsupported) increments SkippedCount, while any other
 // translation error aborts and is returned with the events gathered so far.
 func (r *Receiver) ReceiveJSON(ctx context.Context, data []byte) (ReceiverResult, error) {
 	traces, err := DecodeTraceJSON(data)
@@ -81,7 +85,6 @@ func (r *Receiver) ReceiveJSON(ctx context.Context, data []byte) (ReceiverResult
 		res, recvErr := r.Receive(ctx, trace)
 		agg.Events = append(agg.Events, res.Events...)
 		agg.SkippedCount += res.SkippedCount
-		agg.Errors = append(agg.Errors, res.Errors...)
 		if recvErr != nil {
 			return agg, recvErr
 		}
@@ -89,12 +92,12 @@ func (r *Receiver) ReceiveJSON(ctx context.Context, data []byte) (ReceiverResult
 	return agg, nil
 }
 
-// StubTransport is a no-op InboundTransport for tests and wiring checks.
+// StubTransport is a no-op transport retained for source compatibility.
+// Deprecated: omit Receiver.Transport when no transport hook is required.
 type StubTransport struct{}
 
-// Receive implements InboundTransport.
-func (StubTransport) Receive(ctx context.Context, trace OTelTrace) error {
-	_ = ctx
-	_ = trace
-	return ErrNotImplemented
+// Receive implements InboundTransport and asks Receiver to continue with
+// translation.
+func (StubTransport) Receive(context.Context, OTelTrace) error {
+	return ErrUnsupported
 }

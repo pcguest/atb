@@ -92,7 +92,7 @@ func (r *BundleRecorder) sessionCloseCallback(sess *Session) error {
 	if sess == nil {
 		return nil
 	}
-	// Fixed: The session close append returns the immutable bytes pushed asynchronously.
+	// The session close append returns the exact tamper-evident bytes pushed asynchronously.
 	snapshot, err := r.appendSessionCloseAndSnapshot(sess)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error appending session close event for session %s: %v\n", sess.ID, err)

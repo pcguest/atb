@@ -117,6 +117,35 @@ func TestRequestPostsTimestampQuery(t *testing.T) {
 	}
 }
 
+func TestRequestRejectsOversizedResponse(t *testing.T) {
+	originalTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = originalTransport
+	})
+
+	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(io.LimitReader(zeroReader{}, maxTSAResponseBytes+1)),
+			Header:     make(http.Header),
+		}, nil
+	})
+
+	_, err := Request("https://tsa.example.test", bytes.Repeat([]byte{0x24}, sha256.Size))
+	if err == nil || !strings.Contains(err.Error(), "TSA response exceeds") {
+		t.Fatalf("expected oversized TSA response error, got %v", err)
+	}
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
+}
+
 func TestVerifyToken_DigestMismatch(t *testing.T) {
 	fixture, err := os.ReadFile(filepath.Join("testdata", "sample.tsr"))
 	if err != nil {

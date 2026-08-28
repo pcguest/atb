@@ -1,0 +1,2 @@
+2026-08-01T09:00:03Z level=error session=sess-incident-demo message="deployment failed"
+2026-08-01T09:00:04Z level=info session=sess-incident-demo message="request closed"

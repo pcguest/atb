@@ -123,7 +123,7 @@ func TestIncidentReviewWorkflow(t *testing.T) {
 	defer zr.Close()
 
 	requiredEntries := []string{
-		"evidence/docs/spec-v1.0.md",
+		"evidence/docs/specification/bundle-v1.md",
 		"evidence/reports/trust-report.json",
 		"evidence/reports/verify.json",
 	}

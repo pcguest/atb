@@ -23,17 +23,12 @@ import re
 import secrets
 import tempfile
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec, utils
-from cryptography.hazmat.primitives.asymmetric.ed25519 import (
-    Ed25519PrivateKey,
-    Ed25519PublicKey,
-)
+if TYPE_CHECKING:
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from atb.event import Event
 from atb.exceptions import ATBVerificationError
@@ -45,6 +40,9 @@ BUNDLE_FILE = "bundle.atb"
 MANIFEST_EVENT_TYPE = "atb.bundle.manifest"
 SIGNATURE_EVENT_TYPE = "atb.bundle.signature"
 MANIFEST_VERSION = "1"
+MAX_LINE_SIZE_BYTES = 16 * 1024 * 1024
+MAX_BUNDLE_SIZE_BYTES = 512 * 1024 * 1024
+MAX_BUNDLE_RECORDS = 1_000_000
 
 # Mirrors internal/bundle/bundle.go::eventTypeRegexp. Used by the
 # in-memory append helper to surface invalid event types as ValueError
@@ -64,6 +62,10 @@ class UnsupportedAlgorithmError(ValueError):
     Raises:
         None.
     """
+
+
+class BundleResourceLimitError(ValueError):
+    """Raised when a bundle exceeds a configured safe-loading limit."""
 
 
 @dataclass
@@ -115,9 +117,9 @@ class Bundle:
             name: Optional name for the bundle
             records: Optional list of initial records
         """
-        object.__setattr__(self, 'name', goal or name or "untitled")
-        object.__setattr__(self, 'records', records if records is not None else [])
-        object.__setattr__(self, '_raw_bytes', None)
+        object.__setattr__(self, "name", goal or name or "untitled")
+        object.__setattr__(self, "records", records if records is not None else [])
+        object.__setattr__(self, "_raw_bytes", None)
         if records is None:
             self._append_manifest()
 
@@ -275,6 +277,8 @@ class Bundle:
             TypeError: If the private key is not Ed25519.
             OSError: If the key or bundle file cannot be read or written.
         """
+        from cryptography.hazmat.primitives import serialization
+
         resolved = Path(path) if path else Path(BUNDLE_DIR) / BUNDLE_FILE
         if not resolved.exists():
             self.save(resolved)
@@ -302,9 +306,9 @@ class Bundle:
             timestamp=signed_at,
         )
 
-        encoded_record = json.dumps({"event": record.event, "hash": record.hash}).encode(
-            "utf-8"
-        )
+        encoded_record = json.dumps(
+            {"event": record.event, "hash": record.hash}
+        ).encode("utf-8")
         payload = raw
         if payload and not payload.endswith(b"\n"):
             payload += b"\n"
@@ -335,26 +339,48 @@ class Bundle:
         return resolved
 
     @classmethod
-    def load(cls, path: str | Path | None = None) -> "Bundle":
+    def load(
+        cls,
+        path: str | Path | None = None,
+        *,
+        max_bytes: int = MAX_BUNDLE_SIZE_BYTES,
+        max_records: int = MAX_BUNDLE_RECORDS,
+    ) -> "Bundle":
         """Load a bundle from *path*.
 
         Args:
             path: File path to read. Defaults to ``run.atb/bundle.atb``.
+            max_bytes: Maximum encoded bundle size accepted.
+            max_records: Maximum number of non-empty records accepted.
 
         Returns:
             A populated :class:`Bundle` instance.
         """
+        if max_bytes <= 0 or max_records <= 0:
+            raise ValueError("bundle load limits must be positive")
         resolved = Path(path) if path else Path(BUNDLE_DIR) / BUNDLE_FILE
         bundle = cls()
         bundle.records.clear()
         raw = resolved.read_bytes()
-        with resolved.open("r", encoding="utf-8") as fh:
-            for line in fh:
-                line = line.strip()
-                if not line:
-                    continue
-                obj = json.loads(line)
-                bundle.records.append(Record(event=obj["event"], hash=obj["hash"]))
+        if len(raw) > max_bytes:
+            raise BundleResourceLimitError(
+                f"bundle exceeds maximum size of {max_bytes} bytes"
+            )
+        for line_number, encoded_line in enumerate(raw.splitlines(), start=1):
+            if len(encoded_line) > MAX_LINE_SIZE_BYTES:
+                raise BundleResourceLimitError(
+                    f"bundle record at line {line_number} exceeds "
+                    f"{MAX_LINE_SIZE_BYTES} bytes"
+                )
+            line = encoded_line.strip()
+            if not line:
+                continue
+            if len(bundle.records) >= max_records:
+                raise BundleResourceLimitError(
+                    f"bundle exceeds maximum record count of {max_records}"
+                )
+            obj = json.loads(line.decode("utf-8"))
+            bundle.records.append(Record(event=obj["event"], hash=obj["hash"]))
         object.__setattr__(bundle, "_raw_bytes", raw)
         return bundle
 
@@ -419,7 +445,10 @@ class Bundle:
 
     @property
     def _has_manifest_record(self) -> bool:
-        return bool(self.records) and self.records[0].event.get("type") == MANIFEST_EVENT_TYPE
+        return (
+            bool(self.records)
+            and self.records[0].event.get("type") == MANIFEST_EVENT_TYPE
+        )
 
     def _append_manifest(self) -> None:
         created_at = _now_rfc3339()
@@ -475,7 +504,7 @@ def append_events_in_memory(bundle: "Bundle", events: list[Any]) -> int:
             raise ValueError(
                 f"append_events_in_memory: event {index} type "
                 f"{event_type!r} does not match required pattern "
-                "(e.g. \"ai.tool.exec\")"
+                '(e.g. "ai.tool.exec")'
             )
         bundle.append(event_type, data, timestamp=timestamp)
         appended += 1
@@ -523,10 +552,18 @@ def _normalize_optional_field(value: str | None) -> str | None:
 
 
 def _now_rfc3339() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
-def _load_private_key(private_key_pem: str | bytes | Path) -> Ed25519PrivateKey:
+def _load_private_key(private_key_pem: str | bytes | Path) -> "Ed25519PrivateKey":
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
     if isinstance(private_key_pem, Path):
         data = private_key_pem.read_bytes()
     elif isinstance(private_key_pem, bytes):
@@ -564,6 +601,16 @@ def _save_atomic(path: Path, data: bytes) -> None:
 
 
 def _verify_signature_record(data: dict[str, Any], raw: bytes, index: int) -> bool:
+    try:
+        from cryptography.exceptions import InvalidSignature
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import ec, utils
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    except ModuleNotFoundError as exc:
+        raise ModuleNotFoundError(
+            "ATB signature verification requires the 'cryptography' package"
+        ) from exc
+
     try:
         stored_hash = bytes.fromhex(_string_field(data, "bundle_hash"))
         signature = base64.b64decode(_string_field(data, "signature"), validate=True)

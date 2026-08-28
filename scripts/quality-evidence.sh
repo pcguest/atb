@@ -4,10 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.4}"
-GOVERSION="$(GOTOOLCHAIN="$GOTOOLCHAIN" go env GOVERSION 2>/dev/null | tr ' ' '_' || true)"
+GOTOOLCHAIN="${GOTOOLCHAIN:-go1.26.7}"
+GOMODCACHE="${GOMODCACHE:-$ROOT/.gomodcache}"
+GOVERSION="$(GOMODCACHE="$GOMODCACHE" GOTOOLCHAIN="$GOTOOLCHAIN" go env GOVERSION 2>/dev/null | tr ' ' '_' || true)"
 GOCACHE="${GOCACHE:-$ROOT/.gocache/${GOVERSION:-default}}"
-GOENV=(env "GOCACHE=$GOCACHE" "GOTOOLCHAIN=$GOTOOLCHAIN")
+STATICCHECK_CACHE="${STATICCHECK_CACHE:-$ROOT/.tmp/staticcheck-cache/${GOVERSION:-default}}"
+GOENV=(env "GOCACHE=$GOCACHE" "GOMODCACHE=$GOMODCACHE" "STATICCHECK_CACHE=$STATICCHECK_CACHE" "GOTOOLCHAIN=$GOTOOLCHAIN")
 PYTHON_BIN="${PYTHON:-}"
 if [[ -z "$PYTHON_BIN" ]]; then
 	if command -v python3 >/dev/null 2>&1; then
@@ -21,7 +23,7 @@ if [[ -z "$PYTHON_BIN" ]]; then
 fi
 
 echo "== Go coverage =="
-GO_COVER_PACKAGES="$("${GOENV[@]}" go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | grep -v '/web/node_modules/')"
+GO_COVER_PACKAGES="$("${GOENV[@]}" go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$' | grep -v '/node_modules/')"
 "${GOENV[@]}" go test $GO_COVER_PACKAGES -coverprofile=coverage.out
 "${GOENV[@]}" go tool cover -func=coverage.out | tail -n 1
 "${GOENV[@]}" go test ./pkg/api/v1 -cover

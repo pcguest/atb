@@ -4,15 +4,21 @@ package proxy
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,10 +64,55 @@ func TestLocalCALifecycleAndInstructions(t *testing.T) {
 
 	var instructions bytes.Buffer
 	PrintInstallInstructions(&instructions, ca.CertPath)
-	for _, platform := range []string{"macOS", "Linux", "Windows"} {
-		if !strings.Contains(instructions.String(), platform) {
-			t.Fatalf("instructions missing %s: %s", platform, instructions.String())
+	for _, want := range []string{"SSL_CERT_FILE", "CURL_CA_BUNDLE", "NODE_EXTRA_CA_CERTS", "Do not install"} {
+		if !strings.Contains(instructions.String(), want) {
+			t.Fatalf("instructions missing %q: %s", want, instructions.String())
 		}
+	}
+}
+
+func TestInstallInstructionsArePlatformSafe(t *testing.T) {
+	t.Run("POSIX path", func(t *testing.T) {
+		var instructions bytes.Buffer
+		printInstallInstructions(&instructions, "/Users/Paddy's Work/ATB & QA/ca.crt", "darwin")
+		got := instructions.String()
+		if !strings.Contains(got, `export SSL_CERT_FILE='/Users/Paddy'"'"'s Work/ATB & QA/ca.crt'`) {
+			t.Fatalf("POSIX path was not shell quoted: %s", got)
+		}
+	})
+
+	t.Run("Windows path", func(t *testing.T) {
+		var instructions bytes.Buffer
+		printInstallInstructions(&instructions, `C:\Users\Paddy Guest\ATB & QA\ca.crt`, "windows")
+		got := instructions.String()
+		for _, want := range []string{
+			`$env:SSL_CERT_FILE = 'C:\Users\Paddy Guest\ATB & QA\ca.crt'`,
+			`set "SSL_CERT_FILE=C:\Users\Paddy Guest\ATB & QA\ca.crt"`,
+		} {
+			if !strings.Contains(got, want) {
+				t.Fatalf("Windows instructions missing %q: %s", want, got)
+			}
+		}
+		if strings.Contains(got, "export ") {
+			t.Fatalf("Windows instructions contain POSIX export syntax: %s", got)
+		}
+	})
+}
+
+func TestLocalCALoadRejectsPermissiveKeyMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows os.FileMode does not expose key-file ACL permissions")
+	}
+	t.Setenv("HOME", t.TempDir())
+	ca, err := LoadOrCreateLocalCA()
+	if err != nil {
+		t.Fatalf("create CA: %v", err)
+	}
+	if err := os.Chmod(ca.KeyPath, 0o644); err != nil {
+		t.Fatalf("chmod CA key: %v", err)
+	}
+	if _, err := LoadOrCreateLocalCA(); err == nil || !strings.Contains(err.Error(), "require 0600") {
+		t.Fatalf("permissive CA key mode error = %v", err)
 	}
 }
 
@@ -138,6 +189,30 @@ func TestHTTPBodyThreadAndHeaderHelpers(t *testing.T) {
 		t.Fatal("request body read error was ignored")
 	}
 
+	oversize := httptest.NewRequest(http.MethodPost, "https://example.com", strings.NewReader(strings.Repeat("x", 64)))
+	if _, err := ReadRequestBodyLimited(oversize, 16); !errors.Is(err, ErrBodyTooLarge) {
+		t.Fatalf("oversize body error = %v, want ErrBodyTooLarge", err)
+	} else {
+		var limitErr *BodyTooLargeError
+		if !errors.As(err, &limitErr) || limitErr.Observed != 64 {
+			t.Fatalf("oversize body detail = %#v, want observed 64", limitErr)
+		}
+	}
+	cfg := ProxyConfig{}
+	if cfg.EffectiveMaxBodyBytes() != DefaultMaxBodyBytes {
+		t.Fatalf("default max body = %d, want %d", cfg.EffectiveMaxBodyBytes(), DefaultMaxBodyBytes)
+	}
+	cfg.MaxBodyBytes = 1024
+	if cfg.EffectiveMaxBodyBytes() != 1024 {
+		t.Fatalf("custom max body = %d, want 1024", cfg.EffectiveMaxBodyBytes())
+	}
+	if err := (&ProxyConfig{ListenAddr: "127.0.0.1:1", BundlePath: "b.atb", TargetHosts: []string{"api.openai.com"}, MaxBodyBytes: -1}).Validate(); err == nil {
+		t.Fatal("negative MaxBodyBytes should fail validation")
+	}
+	if err := (&ProxyConfig{ListenAddr: "127.0.0.1:1", BundlePath: "b.atb", TargetHosts: []string{"api.openai.com"}, MaxBodyBytes: MaxBodyBytesLimit + 1}).Validate(); err == nil {
+		t.Fatal("MaxBodyBytes above the hard limit should fail validation")
+	}
+
 	if err := DrainAndClose(context.Background(), nil, nil); err != nil {
 		t.Fatalf("DrainAndClose nil body: %v", err)
 	}
@@ -170,6 +245,389 @@ func TestHTTPBodyThreadAndHeaderHelpers(t *testing.T) {
 	if IsTargetHost("attacker.example", []string{"api.openai.com"}) {
 		t.Fatal("unlisted host was matched")
 	}
+}
+
+func TestReadBodyLimitedBoundaries(t *testing.T) {
+	tests := []struct {
+		name    string
+		body    string
+		limit   int64
+		wantErr bool
+	}{
+		{name: "below", body: "123", limit: 4},
+		{name: "exact", body: "1234", limit: 4},
+		{name: "above", body: "12345", limit: 4, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ReadBodyLimited(strings.NewReader(tt.body), tt.limit)
+			if tt.wantErr {
+				if !errors.Is(err, ErrBodyTooLarge) {
+					t.Fatalf("error = %v, want ErrBodyTooLarge", err)
+				}
+				return
+			}
+			if err != nil || string(got) != tt.body {
+				t.Fatalf("body = %q error = %v", got, err)
+			}
+		})
+	}
+}
+
+func TestHTTPOversizeRequestRecordsRejection(t *testing.T) {
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+	p, err := NewProxy(ProxyConfig{
+		ListenAddr:   "127.0.0.1:0",
+		BundlePath:   bundlePath,
+		TargetHosts:  []string{"api.openai.com"},
+		MaxBodyBytes: 4,
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://api.openai.com/v1/messages", strings.NewReader("12345"))
+	rr := httptest.NewRecorder()
+	(&forwarder{proxy: p}).ServeHTTP(rr, req)
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusRequestEntityTooLarge)
+	}
+	assertCaptureRejection(t, bundlePath, "request", "body_too_large")
+}
+
+func TestHTTPRequestUnknownLengthBoundaries(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		body       string
+		wantStatus int
+	}{
+		{name: "below", body: "123", wantStatus: http.StatusOK},
+		{name: "exact", body: "1234", wantStatus: http.StatusOK},
+		{name: "above", body: "12345", wantStatus: http.StatusRequestEntityTooLarge},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			upstream := newLoopbackHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("read upstream request: %v", err)
+					return
+				}
+				_, _ = w.Write(body)
+			}))
+			t.Cleanup(upstream.Close)
+			bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+			p, err := NewProxy(ProxyConfig{
+				ListenAddr:   "127.0.0.1:0",
+				BundlePath:   bundlePath,
+				TargetHosts:  []string{"127.0.0.1"},
+				MaxBodyBytes: 4,
+			}, nil, nil)
+			if err != nil {
+				t.Fatalf("NewProxy: %v", err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, upstream.URL+"/chunked", strings.NewReader(tt.body))
+			req.ContentLength = -1
+			req.TransferEncoding = []string{"chunked"}
+			rr := httptest.NewRecorder()
+			(&forwarder{proxy: p}).ServeHTTP(rr, req)
+			if rr.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rr.Code, tt.wantStatus, rr.Body.String())
+			}
+			if tt.wantStatus == http.StatusOK && rr.Body.String() != tt.body {
+				t.Fatalf("forwarded body = %q, want %q", rr.Body.String(), tt.body)
+			}
+			if tt.wantStatus == http.StatusRequestEntityTooLarge {
+				assertCaptureRejection(t, bundlePath, "request", "body_too_large")
+			}
+		})
+	}
+}
+
+func TestHTTPResponseBodyBoundariesAndEncoding(t *testing.T) {
+	var compressed bytes.Buffer
+	zw := gzip.NewWriter(&compressed)
+	if _, err := zw.Write([]byte(strings.Repeat("a", 1024))); err != nil {
+		t.Fatalf("compress response: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close gzip response: %v", err)
+	}
+
+	for _, tt := range []struct {
+		name         string
+		body         []byte
+		limit        int64
+		chunked      bool
+		encoding     string
+		wantStatus   int
+		wantRejected bool
+	}{
+		{name: "below", body: []byte("123"), limit: 4, wantStatus: http.StatusOK},
+		{name: "exact", body: []byte("1234"), limit: 4, wantStatus: http.StatusOK},
+		{name: "above", body: []byte("12345"), limit: 4, wantStatus: http.StatusBadGateway, wantRejected: true},
+		{name: "chunked exact", body: []byte("1234"), limit: 4, chunked: true, wantStatus: http.StatusOK},
+		{
+			name:       "compressed representation",
+			body:       compressed.Bytes(),
+			limit:      int64(compressed.Len()),
+			encoding:   "gzip",
+			wantStatus: http.StatusOK,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			upstream := newLoopbackHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if tt.encoding != "" {
+					w.Header().Set("Content-Encoding", tt.encoding)
+				}
+				if tt.chunked {
+					w.WriteHeader(http.StatusOK)
+					if flusher, ok := w.(http.Flusher); ok {
+						flusher.Flush()
+					}
+				}
+				_, _ = w.Write(tt.body)
+			}))
+			t.Cleanup(upstream.Close)
+			bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+			p, err := NewProxy(ProxyConfig{
+				ListenAddr:   "127.0.0.1:0",
+				BundlePath:   bundlePath,
+				TargetHosts:  []string{"127.0.0.1"},
+				MaxBodyBytes: tt.limit,
+			}, nil, nil)
+			if err != nil {
+				t.Fatalf("NewProxy: %v", err)
+			}
+			req := httptest.NewRequest(http.MethodGet, upstream.URL+"/response", nil)
+			if tt.encoding != "" {
+				// An explicit Accept-Encoding makes the transport preserve the
+				// compressed representation. The proxy bounds the bytes it stores
+				// and forwards; it never expands compressed content in memory.
+				req.Header.Set("Accept-Encoding", tt.encoding)
+			}
+			rr := httptest.NewRecorder()
+			(&forwarder{proxy: p}).ServeHTTP(rr, req)
+			if rr.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d; body=%s", rr.Code, tt.wantStatus, rr.Body.String())
+			}
+			if !tt.wantRejected && !bytes.Equal(rr.Body.Bytes(), tt.body) {
+				t.Fatalf("forwarded response length = %d, want %d", rr.Body.Len(), len(tt.body))
+			}
+			if tt.wantRejected {
+				assertCaptureRejection(t, bundlePath, "response", "body_too_large")
+			}
+		})
+	}
+}
+
+func TestBodyBudgetRejectsConcurrentMaximumReservations(t *testing.T) {
+	var startedOnce sync.Once
+	started := make(chan struct{})
+	release := make(chan struct{})
+	upstream := newLoopbackHTTPServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		startedOnce.Do(func() { close(started) })
+		<-release
+		_, _ = w.Write([]byte("ok"))
+	}))
+	t.Cleanup(upstream.Close)
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+	p, err := NewProxy(ProxyConfig{
+		ListenAddr:   "127.0.0.1:0",
+		BundlePath:   bundlePath,
+		TargetHosts:  []string{"127.0.0.1"},
+		MaxBodyBytes: MaxBodyBytesLimit,
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	f := &forwarder{proxy: p}
+	firstDone := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		rr := httptest.NewRecorder()
+		f.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, upstream.URL+"/first", strings.NewReader("one")))
+		firstDone <- rr
+	}()
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first request did not reach upstream")
+	}
+
+	second := httptest.NewRecorder()
+	f.ServeHTTP(second, httptest.NewRequest(http.MethodPost, upstream.URL+"/second", strings.NewReader("two")))
+	if second.Code != http.StatusServiceUnavailable {
+		t.Fatalf("concurrent status = %d, want %d", second.Code, http.StatusServiceUnavailable)
+	}
+	assertCaptureRejection(t, bundlePath, "request", "memory_budget_exhausted")
+	close(release)
+	select {
+	case first := <-firstDone:
+		if first.Code != http.StatusOK {
+			t.Fatalf("first status = %d, want %d", first.Code, http.StatusOK)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("first request did not finish")
+	}
+}
+
+func TestHTTPUpstreamFailureEmitsPrivacySafeEvidence(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve upstream address: %v", err)
+	}
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("split upstream address: %v", err)
+	}
+	address := net.JoinHostPort("localhost", port)
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close upstream listener: %v", err)
+	}
+
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+	p, err := NewProxy(ProxyConfig{
+		ListenAddr:  "127.0.0.1:0",
+		BundlePath:  bundlePath,
+		TargetHosts: []string{"localhost"},
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://"+address+"/failed", strings.NewReader("secret body"))
+	req.Header.Set("Authorization", "Bearer secret")
+	rr := httptest.NewRecorder()
+	(&forwarder{proxy: p}).ServeHTTP(rr, req)
+	if rr.Code != http.StatusBadGateway {
+		t.Fatalf("upstream failure status = %d, want %d", rr.Code, http.StatusBadGateway)
+	}
+	assertCaptureRejection(t, bundlePath, "response", "upstream_error")
+}
+
+type hijackResponseWriter struct {
+	conn   net.Conn
+	header http.Header
+}
+
+func (w *hijackResponseWriter) Header() http.Header            { return w.header }
+func (w *hijackResponseWriter) Write(body []byte) (int, error) { return w.conn.Write(body) }
+func (*hijackResponseWriter) WriteHeader(int)                  {}
+func (w *hijackResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return w.conn, bufio.NewReadWriter(bufio.NewReader(w.conn), bufio.NewWriter(w.conn)), nil
+}
+
+func TestCONNECTUpstreamFailureEmitsPrivacySafeEvidence(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve upstream address: %v", err)
+	}
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		t.Fatalf("split upstream address: %v", err)
+	}
+	address := net.JoinHostPort("localhost", port)
+	if err := listener.Close(); err != nil {
+		t.Fatalf("close upstream listener: %v", err)
+	}
+
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+	p, err := NewProxy(ProxyConfig{
+		ListenAddr:  "127.0.0.1:0",
+		BundlePath:  bundlePath,
+		TargetHosts: []string{"localhost"},
+	}, nil, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	ca, err := LoadOrCreateLocalCA()
+	if err != nil {
+		t.Fatalf("load test CA: %v", err)
+	}
+	p.ca = ca
+	serverConn, clientConn := net.Pipe()
+	t.Cleanup(func() {
+		_ = serverConn.Close()
+		_ = clientConn.Close()
+	})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		req := httptest.NewRequest(http.MethodConnect, "http://"+address, nil)
+		req.Host = address
+		(&forwarder{proxy: p}).ServeHTTP(&hijackResponseWriter{conn: serverConn, header: make(http.Header)}, req)
+	}()
+
+	reader := bufio.NewReader(clientConn)
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("read CONNECT response: %v", err)
+		}
+		if line == "\r\n" {
+			break
+		}
+	}
+	caPEM, err := os.ReadFile(ca.CertPath)
+	if err != nil {
+		t.Fatalf("read test CA: %v", err)
+	}
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(caPEM) {
+		t.Fatal("append test CA")
+	}
+	tlsClient := tls.Client(clientConn, &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		RootCAs:    roots,
+		ServerName: "localhost",
+	})
+	if err := tlsClient.Handshake(); err != nil {
+		t.Fatalf("client TLS handshake: %v", err)
+	}
+	select {
+	case <-done:
+	case <-time.After(upstreamConnectTimeout + 2*time.Second):
+		t.Fatal("CONNECT upstream failure did not finish")
+	}
+	assertCaptureRejection(t, bundlePath, "response", "upstream_connect_error")
+}
+
+func assertCaptureRejection(t *testing.T, bundlePath, direction, reason string) {
+	t.Helper()
+	b, err := loadBundleForAppend(bundlePath)
+	if err != nil {
+		t.Fatalf("load rejection bundle: %v", err)
+	}
+	for _, rec := range b.Records {
+		if rec.Event.Type != TypeCaptureRejected {
+			continue
+		}
+		data, ok := rec.Event.Data.(map[string]any)
+		if !ok {
+			continue
+		}
+		if data["direction"] == direction && data["reason"] == reason {
+			if _, present := data["body"]; present {
+				t.Fatal("capture rejection evidence contains a body")
+			}
+			if _, present := data["headers"]; present {
+				t.Fatal("capture rejection evidence contains headers")
+			}
+			return
+		}
+	}
+	t.Fatalf("no %s %s capture rejection in bundle", direction, reason)
+}
+
+func newLoopbackHTTPServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Skipf("loopback listener unavailable: %v", err)
+	}
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.Start()
+	return server
 }
 
 func TestHTTPRequestAndForwarderBoundaryHelpers(t *testing.T) {
@@ -309,10 +767,10 @@ func TestProxyDelegationAndIdleSessionClose(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := (StubHandler{}).HandleRequest(ctx, RequestRecord{}); !errors.Is(err, context.Canceled) {
+	if err := (LoggingHandler{}).HandleRequest(ctx, RequestRecord{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled request error = %v", err)
 	}
-	if err := (StubHandler{}).HandleResponse(ctx, ResponseRecord{}); !errors.Is(err, context.Canceled) {
+	if err := (LoggingHandler{}).HandleResponse(ctx, ResponseRecord{}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled response error = %v", err)
 	}
 

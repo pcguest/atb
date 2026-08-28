@@ -118,7 +118,9 @@ def test_from_capture_environment_returns_none_outside_capture() -> None:
     assert AutomationSession.from_capture_environment({}) is None
 
 
-def test_requires_bundle_path_when_not_in_capture_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_requires_bundle_path_when_not_in_capture_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("ATB_BUNDLE_PATH", raising=False)
     with pytest.raises(ValueError, match="bundle_path or ATB_BUNDLE_PATH"):
         AutomationSession()
@@ -168,7 +170,9 @@ def test_open_with_direct_bundle_path(tmp_path: Path) -> None:
     loaded.verify()
 
 
-def test_open_from_capture_env_vars(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_open_from_capture_env_vars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     bundle_path = tmp_path / "run.atb" / "bundle.atb"
     monkeypatch.setenv("ATB_BUNDLE_PATH", str(bundle_path))
     monkeypatch.setenv("ATB_CAPTURE_RUN_ID", "cap-env-1")
@@ -222,9 +226,7 @@ def test_agent_disable_forces_disk_mode(
     assert session.is_using_agent() is False
     assert bundle_path.exists()
     loaded = Bundle.load(bundle_path)
-    assert "ai.model.invoked" in [
-        record.event["type"] for record in loaded.records
-    ]
+    assert "ai.model.invoked" in [record.event["type"] for record in loaded.records]
 
 
 def test_routes_workflow_events_through_agent(tmp_path: Path) -> None:
@@ -234,24 +236,46 @@ def test_routes_workflow_events_through_agent(tmp_path: Path) -> None:
     def request_fn(url, *, method, body=None, headers=None, timeout_ms=30_000):
         calls.append(url)
         if url.endswith("/v1/session/open"):
-            return type("R", (), {"status": 201, "body": json.dumps({
-                "session_id": "sess_agent",
-                "bundle_path": str(tmp_path / "agent" / "bundle.atb"),
-            })})()
+            return type(
+                "R",
+                (),
+                {
+                    "status": 201,
+                    "body": json.dumps(
+                        {
+                            "session_id": "sess_agent",
+                            "bundle_path": str(tmp_path / "agent" / "bundle.atb"),
+                        }
+                    ),
+                },
+            )()
         if "/event" in url:
             parsed = json.loads(body or "{}")
             events.append(parsed)
-            return type("R", (), {"status": 202, "body": json.dumps({"status": "queued"})})()
+            return type(
+                "R", (), {"status": 202, "body": json.dumps({"status": "queued"})}
+            )()
         if "/close" in url:
-            return type("R", (), {"status": 200, "body": json.dumps({
-                "session_id": "sess_agent",
-                "bundle_path": str(tmp_path / "agent" / "bundle.atb"),
-                "head_hash": "deadbeef",
-                "event_count": len(events),
-                "opened_at": "2026-05-25T12:00:00Z",
-                "closed_at": "2026-05-25T12:01:00Z",
-            })})()
-        return type("R", (), {"status": 404, "body": json.dumps({"error": "not found"})})()
+            return type(
+                "R",
+                (),
+                {
+                    "status": 200,
+                    "body": json.dumps(
+                        {
+                            "session_id": "sess_agent",
+                            "bundle_path": str(tmp_path / "agent" / "bundle.atb"),
+                            "head_hash": "deadbeef",
+                            "event_count": len(events),
+                            "opened_at": "2026-05-25T12:00:00Z",
+                            "closed_at": "2026-05-25T12:01:00Z",
+                        }
+                    ),
+                },
+            )()
+        return type(
+            "R", (), {"status": 404, "body": json.dumps({"error": "not found"})}
+        )()
 
     agent_client = AgentClient("http://127.0.0.1:6180", request_fn=request_fn)
     hinted_path = tmp_path / "hint.atb"

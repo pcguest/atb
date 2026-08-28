@@ -190,7 +190,9 @@ def test_wrap_anthropic_records_text_and_tool_use() -> None:
     )
 
     records = _user_records(bundle)
-    invoked = next(r for r in records if r.event["type"] == "ai.model.invoked").event["data"]
+    invoked = next(r for r in records if r.event["type"] == "ai.model.invoked").event[
+        "data"
+    ]
     assert invoked["model_provider"] == "anthropic"
     assert invoked["model_id"] == "claude-sonnet-4-6"
 

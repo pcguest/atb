@@ -2,6 +2,7 @@
 package bundle_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,6 +34,30 @@ func TestLoadMalformedJSON(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "token too long") {
 		t.Fatalf("expected token too long error, got %v", err)
 	}
+}
+
+func TestLoadReaderResourceLimits(t *testing.T) {
+	validRecord := `{"event":{"seq":0},"hash":"abc"}` + "\n"
+
+	t.Run("bytes", func(t *testing.T) {
+		_, err := bundle.LoadReaderWithLimits(strings.NewReader(validRecord), bundle.LoadLimits{
+			MaxBytes:   int64(len(validRecord) - 1),
+			MaxRecords: 1,
+		})
+		if !errors.Is(err, bundle.ErrResourceLimit) {
+			t.Fatalf("expected resource-limit error, got %v", err)
+		}
+	})
+
+	t.Run("records", func(t *testing.T) {
+		_, err := bundle.LoadReaderWithLimits(strings.NewReader(validRecord+validRecord), bundle.LoadLimits{
+			MaxBytes:   int64(len(validRecord) * 2),
+			MaxRecords: 1,
+		})
+		if !errors.Is(err, bundle.ErrResourceLimit) {
+			t.Fatalf("expected resource-limit error, got %v", err)
+		}
+	})
 }
 
 func TestVerifyOutOrderSequence(t *testing.T) {

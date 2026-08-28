@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Smoke-test atb view API endpoints against a running viewer session.
 # Usage:
-#   atb view --bundle examples/bundles/demo-workflow/demo-workflow.atb \
+#   atb view --bundle examples/quickstart/run.atb/bundle.atb \
 #     --profile atb.profile.policy_decision --no-open --port 18890 &
 #   bash scripts/smoke-view.sh http://127.0.0.1:18890 '<session-token-from-stderr>'
 set -euo pipefail

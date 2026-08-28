@@ -5,7 +5,7 @@
 // management backends (AWS KMS, GCP Cloud KMS, Vault, Azure Key Vault) while
 // keeping local Ed25519 signing as the default and primary path.
 //
-// Contract (also enforced by docs/spec-v1.0.md §4.2):
+// Contract (also enforced by docs/specification/bundle-v1.md §4.2):
 //
 //   - The bytes passed to Sign are the canonical pre-image as defined by the
 //     bundle layer. Today that pre-image is the 32-byte SHA-256 digest of the
@@ -68,8 +68,8 @@ func NewLocalSigner(privateKey ed25519.PrivateKey) *LocalSigner {
 // format for the local path. Empty-string is the documented "legacy/implicit
 // local" sentinel; KMS signers will return their explicit backend name.
 //
-// TODO(human): when bumping the manifest version to 2, decide whether to
-// start emitting backend="local" explicitly. See docs/spec-v1.0.md §4.2.
+// A future manifest migration may replace the implicit local sentinel with an
+// explicit backend="local" field. See docs/specification/bundle-v1.md §4.2.
 func (s *LocalSigner) Sign(_ context.Context, digest []byte) (sig, pubKey []byte, keyID, backend, algorithm string, err error) {
 	if len(s.privateKey) != ed25519.PrivateKeySize {
 		return nil, nil, "", "", "", ErrInvalidKey

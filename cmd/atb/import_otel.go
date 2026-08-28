@@ -46,7 +46,7 @@ type importOTelError struct {
 // payload and translates every span to an ATB event via pkg/otel
 // (DecodeTraceJSON -> Receiver.ReceiveJSON), then appends the events with their
 // W3C trace linkage preserved. It is the documented OTLP ingest path; the
-// OTLP/protobuf (gRPC) transport remains deferred.
+// This command intentionally accepts files or standard input, not gRPC.
 func runImportOTel(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if ctx == nil {
 		ctx = context.Background()

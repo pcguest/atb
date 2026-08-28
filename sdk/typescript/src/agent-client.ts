@@ -2,12 +2,13 @@
  * Internal HTTP client for the local ATB Agent capture API (v1).
  * Not part of the public SDK surface.
  */
-import { request as httpRequest } from "node:http";
-import { request as httpsRequest } from "node:https";
+import { spawnSync } from "node:child_process";
+import { isIP } from "node:net";
 import { URL } from "node:url";
 import type { WorkflowEventSink } from "./workflow-common.js";
 
 export const DEFAULT_AGENT_URL = "http://127.0.0.1:6180";
+export const MAX_AGENT_RESPONSE_BYTES = 1 * 1024 * 1024;
 
 export interface AgentOpenParams {
   actorId?: string;
@@ -130,7 +131,7 @@ export class AgentClient implements WorkflowEventSink {
   bundlePath?: string;
 
   constructor(options: AgentClientOptions) {
-    this.baseUrl = options.baseUrl.replace(/\/$/, "");
+    this.baseUrl = validatedAgentBaseUrl(options.baseUrl);
     this.requestFn = options.requestFn ?? syncAgentRequest;
   }
 
@@ -259,62 +260,122 @@ export function syncAgentRequest(
     timeoutMs?: number;
   }
 ): AgentHttpResponse {
-  const target = new URL(url);
-  const transport = target.protocol === "https:" ? httpsRequest : httpRequest;
+  const target = validatedAgentRequestUrl(url);
   const timeoutMs = init.timeoutMs ?? 30_000;
-
-  let finished = false;
-  let status = 0;
-  let body = "";
-  let requestError: Error | undefined;
-
-  const req = transport(
-    {
-      hostname: target.hostname,
-      port: target.port || (target.protocol === "https:" ? 443 : 80),
-      path: `${target.pathname}${target.search}`,
+  // Node cannot service an asynchronous socket callback while the calling API
+  // remains synchronous. Run the small loopback request in a child Node process
+  // so AutomationSession keeps its existing synchronous event-sink contract
+  // without blocking the transport's event loop.
+  const result = spawnSync(process.execPath, ["-e", AGENT_REQUEST_HELPER], {
+    input: JSON.stringify({
+      url: target.href,
       method: init.method,
+      body: init.body,
       headers: init.headers,
-      timeout: timeoutMs,
-    },
-    (res) => {
-      status = res.statusCode ?? 0;
-      const chunks: Buffer[] = [];
-      res.on("data", (chunk: Buffer) => chunks.push(chunk));
-      res.on("end", () => {
-        body = Buffer.concat(chunks).toString("utf8");
-        finished = true;
-      });
+      timeoutMs,
+      maxBytes: MAX_AGENT_RESPONSE_BYTES,
+    }),
+    encoding: "utf8",
+    timeout: timeoutMs + 1_000,
+    maxBuffer: MAX_AGENT_RESPONSE_BYTES + 64 * 1024,
+    windowsHide: true,
+  });
+  if (result.error) {
+    if ((result.error as NodeJS.ErrnoException).code === "ETIMEDOUT") {
+      throw new Error(`agent request timed out: ${url}`);
     }
-  );
-
-  req.on("error", (error: Error) => {
-    requestError = error;
-    finished = true;
-  });
-  req.on("timeout", () => {
-    requestError = new Error(`agent request timed out: ${url}`);
-    req.destroy();
-    finished = true;
-  });
-
-  if (init.body) {
-    req.write(init.body);
+    throw result.error;
   }
+  if (result.status !== 0) {
+    throw new Error(result.stderr.trim() || `agent request failed: ${url}`);
+  }
+  try {
+    return JSON.parse(result.stdout) as AgentHttpResponse;
+  } catch {
+    throw new Error(`agent request returned an invalid response: ${url}`);
+  }
+}
+
+const AGENT_REQUEST_HELPER = String.raw`
+const http = require("node:http");
+let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", chunk => { input += chunk; });
+process.stdin.on("end", () => {
+  const options = JSON.parse(input);
+  const target = new URL(options.url);
+  const req = http.request({
+    hostname: target.hostname,
+    port: target.port || 80,
+    path: target.pathname + target.search,
+    method: options.method,
+    headers: options.headers,
+    timeout: options.timeoutMs,
+  }, res => {
+    const chunks = [];
+    let size = 0;
+    let rejected = false;
+    res.on("data", chunk => {
+      if (rejected) return;
+      size += chunk.length;
+      if (size > options.maxBytes) {
+        rejected = true;
+        process.stderr.write("agent response exceeds " + options.maxBytes + " bytes");
+        process.exitCode = 1;
+        res.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    res.on("end", () => {
+      if (rejected) return;
+      process.stdout.write(JSON.stringify({
+        status: res.statusCode || 0,
+        body: Buffer.concat(chunks).toString("utf8"),
+      }));
+    });
+    res.on("close", () => {
+      if (rejected) process.exit();
+    });
+  });
+  req.on("timeout", () => req.destroy(new Error("request timed out")));
+  req.on("error", error => {
+    process.stderr.write(error.message);
+    process.exitCode = 1;
+  });
+  if (options.body) req.write(options.body);
   req.end();
+});
+`;
 
-  const deadline = Date.now() + timeoutMs + 100;
-  while (!finished && Date.now() < deadline) {
-    // Local agent I/O: brief spin-wait keeps AutomationSession methods synchronous.
-  }
+function validatedAgentRequestUrl(value: string): URL {
+  const target = new URL(value);
+  validatedAgentBaseUrl(target.origin);
+  return target;
+}
 
-  if (requestError) {
-    throw requestError;
+function validatedAgentBaseUrl(value: string): string {
+  const target = new URL(value.replace(/\/$/, ""));
+  const hostname = target.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  const addressFamily = isIP(hostname);
+  const loopback =
+    hostname === "localhost" ||
+    hostname === "::1" ||
+    (addressFamily === 4 && hostname.startsWith("127."));
+  if (
+    target.protocol !== "http:" ||
+    target.username ||
+    target.password ||
+    target.search ||
+    target.hash ||
+    (target.pathname && target.pathname !== "/") ||
+    !loopback
+  ) {
+    throw new TypeError(
+      "ATB Agent URL must be an unauthenticated loopback HTTP origin"
+    );
   }
-  if (!finished) {
-    throw new Error(`agent request timed out: ${url}`);
-  }
-  return { status, body };
+  return target.origin;
 }
 
 function parseJson<T>(response: AgentHttpResponse, action: string): T {

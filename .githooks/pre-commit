@@ -4,11 +4,7 @@ set -euo pipefail
 echo "Running make hygiene-quick..."
 make hygiene-quick
 
-echo "Checking Go vulnerability advisories (warning only)..."
-if command -v govulncheck >/dev/null 2>&1; then
-  if ! govulncheck ./... >/dev/null 2>&1; then
-    echo "Warning: govulncheck reported findings. Review before pushing."
-  fi
-fi
+echo "Checking Go vulnerability advisories..."
+make govuln-scan
 
 echo "Pre-commit checks passed"

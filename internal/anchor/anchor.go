@@ -77,6 +77,8 @@ type issuerAndSerialNumber struct {
 	SerialNumber *big.Int
 }
 
+const maxTSAResponseBytes = 4 * 1024 * 1024
+
 // Request sends an RFC 3161 timestamp request for the given hash to tsaURL.
 // Returns the raw DER-encoded TimeStampResponse bytes.
 func Request(tsaURL string, hash []byte) ([]byte, error) {
@@ -97,7 +99,14 @@ func Request(tsaURL string, hash []byte) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("anchor: TSA returned %d", resp.StatusCode)
 	}
-	return io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTSAResponseBytes+1))
+	if err != nil {
+		return nil, fmt.Errorf("anchor: read TSA response: %w", err)
+	}
+	if len(body) > maxTSAResponseBytes {
+		return nil, fmt.Errorf("anchor: TSA response exceeds %d bytes", maxTSAResponseBytes)
+	}
+	return body, nil
 }
 
 func validateTSAURL(rawURL string) (string, error) {

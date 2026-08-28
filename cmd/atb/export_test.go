@@ -347,9 +347,9 @@ func TestExportUsesEmbeddedDocsOutsideRepoCheckout(t *testing.T) {
 
 		required := []string{
 			"evidence/docs/compliance/README.md",
-			"evidence/docs/incident-response.md",
-			"evidence/docs/security.md",
-			"evidence/docs/spec-v1.0.md",
+			"evidence/docs/SECURITY.md",
+			"evidence/docs/concepts/trust-model.md",
+			"evidence/docs/specification/bundle-v1.md",
 		}
 		names := make([]string, 0, len(zr.File))
 		for _, f := range zr.File {
@@ -444,9 +444,9 @@ func TestExportComplianceZipStructure(t *testing.T) {
 			"evidence/checksums.sha256",
 			"evidence/config/atb-config.json",
 			"evidence/docs/compliance/README.md",
-			"evidence/docs/incident-response.md",
-			"evidence/docs/security.md",
-			"evidence/docs/spec-v1.0.md",
+			"evidence/docs/SECURITY.md",
+			"evidence/docs/concepts/trust-model.md",
+			"evidence/docs/specification/bundle-v1.md",
 			"evidence/manifest.json",
 			"evidence/reports/archive-ledger.json",
 			"evidence/reports/trust-report.json",
@@ -684,9 +684,9 @@ func prepareComplianceDocs(t *testing.T) {
 	if err := os.MkdirAll("docs/compliance", 0750); err != nil {
 		t.Fatalf("mkdir docs/compliance: %v", err)
 	}
-	mustWrite(t, "docs/spec-v1.0.md", "spec")
-	mustWrite(t, "docs/security.md", "security")
-	mustWrite(t, "docs/incident-response.md", "incident")
+	mustWrite(t, "docs/specification/bundle-v1.md", "spec")
+	mustWrite(t, "docs/concepts/trust-model.md", "security")
+	mustWrite(t, "SECURITY.md", "incident")
 	mustWrite(t, "docs/compliance/README.md", "compliance hub")
 }
 
@@ -695,9 +695,9 @@ func preparePhase4Docs(t *testing.T) {
 	if err := os.MkdirAll("docs/compliance", 0750); err != nil {
 		t.Fatalf("mkdir docs/compliance: %v", err)
 	}
-	mustWrite(t, "docs/spec-v1.0.md", "spec")
-	mustWrite(t, "docs/security.md", "security")
-	mustWrite(t, "docs/incident-response.md", "incident")
+	mustWrite(t, "docs/specification/bundle-v1.md", "spec")
+	mustWrite(t, "docs/concepts/trust-model.md", "security")
+	mustWrite(t, "SECURITY.md", "incident")
 	mustWrite(t, "docs/compliance/README.md", "compliance hub")
 }
 

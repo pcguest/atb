@@ -152,7 +152,7 @@ type sessionAccumulator struct {
 	approvalSeen bool
 	// toolWithoutApproval records whether any atb.tool.call was observed in
 	// this session before a preceding atb.human.approval. Ordering matters:
-	// per docs/spec-ai-traces.md an approval only closes the
+	// per docs/specification/events.md an approval only closes the
 	// tool_without_approval anomaly when it is recorded in sequence before
 	// the tool call.
 	toolWithoutApproval bool

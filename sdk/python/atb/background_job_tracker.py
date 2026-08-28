@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
+from atb.bundle import Bundle
 from atb.workflow_common import WorkflowContext, new_job_id, now_rfc3339
 
 T = TypeVar("T")
@@ -22,7 +23,7 @@ class BackgroundJobScheduleInput:
 class BackgroundJobTracker:
     def __init__(
         self,
-        bundle=None,
+        bundle: Bundle | None = None,
         *,
         auto_save: bool = False,
         save_path: str | None = None,
@@ -40,7 +41,7 @@ class BackgroundJobTracker:
         )
 
     @property
-    def bundle(self):
+    def bundle(self) -> Bundle:
         return self.ctx.bundle
 
     def schedule(self, schedule_input: BackgroundJobScheduleInput) -> str:
@@ -56,7 +57,9 @@ class BackgroundJobTracker:
         )
         return job_id
 
-    def start(self, job_id: str, worker_id_hash: str, started_at: str | None = None) -> None:
+    def start(
+        self, job_id: str, worker_id_hash: str, started_at: str | None = None
+    ) -> None:
         self.ctx.emit(
             "ai.job.started",
             {
@@ -66,7 +69,9 @@ class BackgroundJobTracker:
             },
         )
 
-    def step(self, job_id: str, step_index: int, step_type: str, step_outcome: str) -> None:
+    def step(
+        self, job_id: str, step_index: int, step_type: str, step_outcome: str
+    ) -> None:
         self.ctx.emit(
             "ai.job.step",
             {

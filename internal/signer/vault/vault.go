@@ -127,8 +127,8 @@ func (s *VaultSigner) Sign(ctx context.Context, digest []byte) (sig, pubKey []by
 // and warns once on stderr — signing still completes with documented
 // provenance, but operators should upgrade Vault to expose the type.
 //
-// TODO: drop the ecdsa-p256 fallback once the minimum supported Vault
-// version returns "type" on /v1/transit/keys/<name>.
+// The ecdsa-p256 fallback preserves compatibility with Vault versions or
+// proxies that omit "type" on /v1/transit/keys/<name>.
 func (s *VaultSigner) cachedKeyMaterial(ctx context.Context) (string, []byte, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -260,8 +260,10 @@ func parseP256PEM(text string) ([]byte, error) {
 	if pub.Curve != elliptic.P256() {
 		return nil, fmt.Errorf("public key curve is not P-256")
 	}
-	//lint:ignore SA1019 SEC1 uncompressed encoding is the documented Vault Transit P-256 wire format; crypto/ecdh is ECDH-only and cannot serialise an ecdsa.PublicKey
-	raw := elliptic.Marshal(elliptic.P256(), pub.X, pub.Y)
+	raw, err := pub.Bytes()
+	if err != nil {
+		return nil, fmt.Errorf("encode uncompressed public key: %w", err)
+	}
 	if len(raw) != 65 {
 		return nil, fmt.Errorf("uncompressed public key length = %d, want 65", len(raw))
 	}

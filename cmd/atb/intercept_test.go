@@ -46,3 +46,13 @@ func TestInterceptHelpHasNoBaseURLClaim(t *testing.T) {
 		t.Errorf("help output does not mention HTTPS_PROXY routing:\n%s", out)
 	}
 }
+
+func TestPrintCapturePrivacyWarning(t *testing.T) {
+	var out bytes.Buffer
+	printCapturePrivacyWarning(&out)
+	for _, want := range []string{"WARNING", "raw prompts", "retention limits", "encryption"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("warning %q missing %q", out.String(), want)
+		}
+	}
+}

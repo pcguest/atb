@@ -7,7 +7,41 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
+  python39:
+    name: Python 3.9 Runtime Compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up release Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
+
+      - name: Build wheel
+        run: |
+          python -m pip install build==1.5.0
+          python -m build --wheel sdk/python
+
+      - name: Set up supported runtime Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.9"
+
+      - name: Test installed wheel and SDK contract
+        run: |
+          python -m pip install -r sdk/python/requirements-dev.txt
+          python -m pip install --no-deps sdk/python/dist/*.whl
+          python -m pytest sdk/python/tests
+          python -m ruff check sdk/python
+          python -m ruff format --check sdk/python
+          python -m mypy --strict sdk/python/atb
+          python -c 'import atb; print(atb.__version__)'
+
   # Layers A/B: core integrity, SDK validation, and docs/CLI sync gates.
   test:
     name: Core Validation (Layers A/B)
@@ -18,11 +52,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.7"
+
+      - name: Lint GitHub Actions workflows
+        if: runner.os == 'Linux'
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -64,6 +104,14 @@ jobs:
       - name: Build Go CLI
         run: go build -v ./...
 
+      - name: Check version and support-matrix agreement
+        if: runner.os == 'Linux'
+        env:
+          ATB_SKIP_TAG_CHECK: "1"
+        run: |
+          bash scripts/check-versions.sh
+          bash scripts/check-support-matrix.sh
+
       - name: govulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
@@ -73,8 +121,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          find README.md docs -type f -name '*.md' -exec \
-            npx --yes markdown-link-check --quiet --config .markdown-link-check.json {} \;
+          npx --yes --package=markdown-link-check -- bash -c \
+            'find README.md docs -type f -name "*.md" -not -path "docs/releases/*" -exec markdown-link-check --quiet --config .markdown-link-check.json {} \;'
 
       - name: Installed binary smoke gate
         run: go test -v -run TestInstalledBinarySmokeFlow ./cmd/atb
@@ -87,17 +135,26 @@ jobs:
       - name: Install Python SDK dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ./sdk/python[dev]
+          python -m pip install -r ./sdk/python/requirements-dev.txt
+          python -m pip install -e ./sdk/python[dev] --no-deps
 
       - name: Test Go packages
         shell: bash
         run: |
           go run ./scripts/generate_profile_fixtures.go
-          go test -race -v -skip TestInstalledBinarySmokeFlow $(go list ./... | grep -v '/web/node_modules/')
+          go_packages=()
+          while IFS= read -r package; do
+            go_packages+=("$package")
+          done < <(go list ./... | grep -v '/node_modules/')
+          go test -race -v -skip TestInstalledBinarySmokeFlow "${go_packages[@]}"
 
       - name: Test Python SDK
         working-directory: sdk/python
-        run: pytest
+        run: |
+          pytest
+          ruff check .
+          ruff format --check .
+          mypy --strict atb
 
       - name: Typecheck TypeScript SDK
         working-directory: sdk/typescript
@@ -116,7 +173,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -f docs/quickstart.md
+          test -f docs/getting-started/quickstart.md
           test -f docs/roadmap.md
 
           go run ./cmd/atb --help > /tmp/atb-help.txt
@@ -128,13 +185,13 @@ jobs:
           grep -Fq "view [bundle_path]" /tmp/atb-help.txt
           grep -Fq "snapshot <name>" /tmp/atb-help.txt
           grep -q "^## \\[${CLI_TAG}\\]" CHANGELOG.md
-          grep -Fq "Current release: [\`${CLI_TAG}\`](CHANGELOG.md)" README.md
+          grep -Fq "Source version: [\`${CLI_TAG}\`](CHANGELOG.md)" README.md
           grep -Fq "atb bundle new" README.md
           grep -Fq -- "--profile atb.profile.policy_decision" README.md
-          grep -Fq "atb bundle new" docs/quickstart.md
-          grep -Fq -- "--profile atb.profile.privileged_tool_action" docs/quickstart.md
-          grep -Fq "atb view" docs/quickstart.md
-          ! grep -Eq "forthcoming|planned extension" docs/spec-v1.0.md
+          grep -Fq "atb bundle new" docs/getting-started/quickstart.md
+          grep -Fq -- "--profile atb.profile.privileged_tool_action" docs/getting-started/quickstart.md
+          grep -Fq "atb view" docs/getting-started/quickstart.md
+          ! grep -Eq "forthcoming|planned extension" docs/specification/bundle-v1.md
 
       - name: Web E2E (mock API)
         if: matrix.os == 'ubuntu-latest'
@@ -145,17 +202,7 @@ jobs:
           /tmp/atb-e2e view --no-open --port 18888 >/tmp/atb-e2e.log 2>&1 & echo $! >/tmp/atb-e2e.pid
           sleep 3
           CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm --prefix web run test:e2e
-          kill $(cat /tmp/atb-e2e.pid) 2>/dev/null || true
-
-      - name: Notify Discord
-        if: ${{ always() && env.DISCORD_WEBHOOK_URL != '' }}
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          curl -H "Content-Type: application/json" \
-            -d "{\"content\": \"CI Build ${{ job.status }}: ${{ github.workflow }} #${{ github.run_number }}\"}" \
-            "$DISCORD_WEBHOOK_URL"
-        continue-on-error: true
+          kill "$(cat /tmp/atb-e2e.pid)" 2>/dev/null || true
 
   # Layers A/B: multi-language golden canonicalization and parity checks.
   golden-test:
@@ -168,7 +215,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.7"
 
       - name: Set up Python
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -178,21 +225,13 @@ jobs:
       - name: Install Python SDK dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ./sdk/python
+          python -m pip install -r ./sdk/python/requirements-dev.txt
+          python -m pip install -e ./sdk/python --no-deps
 
       - name: Set up Node
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "22"
-
-      - name: Remove node_modules (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $dirs = @('node_modules','web/node_modules','sdk/typescript/node_modules')
-          foreach ($d in $dirs) {
-            if (Test-Path $d) { Remove-Item -Recurse -Force $d }
-          }
 
       - name: Build TypeScript SDK
         working-directory: sdk/typescript
@@ -241,7 +280,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.7"
 
       - name: Seed minimal UI embed tree
         run: |

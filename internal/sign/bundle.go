@@ -39,7 +39,7 @@ type BundleSignature struct {
 
 // NewBundleSignatureRecord builds the data payload for an atb.bundle.signature
 // record. The provenance fields (algorithm, backend, signedAt, keyID) are
-// documented in docs/spec-v1.0.md §4.2.
+// documented in docs/specification/bundle-v1.md §4.2.
 //
 // Defaults applied when the caller passes empty strings:
 //   - algorithm → "ed25519"
@@ -187,12 +187,11 @@ func parseECDSAP256PublicKey(raw []byte) (*ecdsa.PublicKey, error) {
 		return ecPub, nil
 	}
 	if len(raw) == 65 && raw[0] == 0x04 {
-		//lint:ignore SA1019 SEC1 uncompressed is the documented wire format for KMS-emitted P-256 keys; crypto/ecdh is ECDH-only and cannot reach the ecdsa.PublicKey shape
-		x, y := elliptic.Unmarshal(elliptic.P256(), raw)
-		if x == nil || y == nil {
-			return nil, fmt.Errorf("invalid P-256 uncompressed point")
+		pub, err := ecdsa.ParseUncompressedPublicKey(elliptic.P256(), raw)
+		if err != nil {
+			return nil, fmt.Errorf("invalid P-256 uncompressed point: %w", err)
 		}
-		return &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}, nil
+		return pub, nil
 	}
 	return nil, fmt.Errorf("public key is neither PKIX DER nor 65-byte uncompressed P-256 point")
 }

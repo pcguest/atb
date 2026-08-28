@@ -42,16 +42,18 @@ function Row({ index, style, data }: ListChildComponentProps<RowData>) {
         className={`flex h-full w-full items-center justify-between rounded border px-3 text-left transition-colors ${
           isSelected
             ? "border-primary/60 bg-primary/10"
-            : "border-slate-800 bg-slate-900 hover:border-slate-700 hover:bg-slate-800/50"
+            : "border-border bg-card hover:border-ring hover:bg-muted/50"
         } disabled:cursor-not-allowed disabled:opacity-60`}
       >
         <div className="min-w-0">
           <div className={`truncate font-mono text-sm font-medium ${eventFamilyClass(event.type)}`}>
             {eventDisplayLabel(event.type, data.role)}
           </div>
-          <div className="truncate text-xs text-slate-300">{event.timestamp ?? "no timestamp"}</div>
+          <div className="truncate text-xs text-muted-foreground">
+            {event.timestamp ?? "no timestamp"}
+          </div>
         </div>
-        <div className="ml-3 shrink-0 rounded bg-slate-800/80 px-2 py-0.5 font-mono text-xs text-slate-400">
+        <div className="ml-3 shrink-0 rounded bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
           #{event.seq}
         </div>
       </button>
@@ -74,7 +76,7 @@ export function TraceTimeline({
     return (
       <div
         data-testid="event-list"
-        className="rounded border border-slate-800 bg-slate-900 p-4 font-mono text-xs text-slate-300"
+        className="rounded border border-border bg-card p-4 font-mono text-xs text-muted-foreground"
       >
         No events available.
       </div>
@@ -90,8 +92,8 @@ export function TraceTimeline({
   };
 
   return (
-    <div data-testid="event-list" className="rounded border border-slate-800 bg-slate-950">
-      <div className="border-b border-slate-800 px-3 py-2 font-mono text-xs uppercase tracking-widest text-slate-300">
+    <div data-testid="event-list" className="rounded border border-border bg-card">
+      <div className="border-b border-border px-3 py-2 font-mono text-xs uppercase tracking-widest text-muted-foreground">
         Timeline ({events.length}/{total})
       </div>
       <List
@@ -111,15 +113,15 @@ export function TraceTimeline({
       >
         {Row}
       </List>
-      <div className="flex items-center justify-between border-t border-slate-800 px-3 py-2">
-        <span className="font-mono text-xs text-slate-300">
+      <div className="flex items-center justify-between border-t border-border px-3 py-2">
+        <span className="font-mono text-xs text-muted-foreground">
           {events.length} / {total}
         </span>
         <button
           type="button"
           disabled={disabled || loadingMore || !hasMore}
           onClick={onLoadMore}
-          className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-300 hover:border-slate-600 hover:text-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded border border-border bg-card px-2 py-1 text-xs text-muted-foreground hover:border-ring hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loadingMore ? "Loading..." : hasMore ? "Load More" : "All Loaded"}
         </button>

@@ -1,15 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import ReactFlow, {
-  Background,
-  Controls,
-  MiniMap,
-  type Edge,
-  type Node,
-} from "reactflow";
+import ReactFlow, { Background, Controls, MiniMap, type Edge, type Node } from "reactflow";
 import "reactflow/dist/style.css";
 
+import { eventFamily, type EventFamily } from "@/lib/event-family";
 import type { BundleGraphResponse } from "@/lib/types";
 
 type TraceGraphProps = {
@@ -20,15 +15,28 @@ type TraceGraphProps = {
 };
 
 function nodeColor(type: string): string {
-  switch (type) {
+  const family: EventFamily =
+    type === "llm" || type === "tool" || type === "chain" ? type : eventFamily(type);
+
+  switch (family) {
     case "llm":
-      return "#2563eb";
+      return "hsl(var(--ev-llm))";
     case "tool":
-      return "#d97706";
+      return "hsl(var(--ev-tool))";
     case "chain":
-      return "#059669";
+      return "hsl(var(--ev-chain))";
+    case "policy":
+      return "hsl(var(--ev-policy))";
+    case "action":
+      return "hsl(var(--ev-action))";
+    case "human":
+      return "hsl(var(--ev-human))";
+    case "corroboration":
+    case "export":
+    case "retention":
+      return "hsl(var(--ev-export))";
     default:
-      return "#475569";
+      return "hsl(var(--ev-default))";
   }
 }
 
@@ -46,14 +54,14 @@ export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: Tra
 
       return {
         id: node.id,
-        data: { label: node.label, eventType: node.type },
+        data: { label: node.label, eventType: node.event_type },
         position,
         style: {
-          border: `1px solid ${nodeColor(node.type)}`,
+          border: `1px solid ${nodeColor(node.event_type)}`,
           borderRadius: 4,
           padding: 8,
-          background: "#0f172a",
-          color: "#e2e8f0",
+          background: "hsl(var(--card))",
+          color: "hsl(var(--foreground))",
         },
       };
     });
@@ -69,21 +77,21 @@ export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: Tra
       target: edge.target,
       label: edge.label,
       animated: edge.label === "parent",
-      style: { stroke: "#475569" },
-      labelStyle: { fill: "#94a3b8", fontSize: 10 },
+      style: { stroke: "hsl(var(--border))" },
+      labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 10 },
     }));
   }, [graph]);
 
   if (!graph || graph.nodes.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center border border-slate-800 bg-slate-900 text-sm text-slate-500">
+      <div className="flex h-full items-center justify-center border border-border bg-card text-sm text-muted-foreground">
         No graph data available.
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-hidden border border-slate-800 bg-slate-950">
+    <div className="h-full overflow-hidden border border-border bg-card">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -104,7 +112,7 @@ export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: Tra
       >
         <MiniMap nodeColor={(node) => nodeColor(String(node.data.eventType ?? "event"))} />
         <Controls />
-        <Background color="#1f2937" gap={16} />
+        <Background color="hsl(var(--border))" gap={16} />
       </ReactFlow>
     </div>
   );

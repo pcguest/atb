@@ -18,6 +18,11 @@ import (
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
+const (
+	testViewSessionHeader = "X-ATB-Session-Token"
+	testViewSessionToken  = "test-session-token"
+)
+
 func TestParseViewArgs(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -47,10 +52,10 @@ func TestParseViewArgs(t *testing.T) {
 			},
 		},
 		{
-			name: "host override",
-			args: []string{"--host", "0.0.0.0"},
+			name: "IPv6 loopback host override",
+			args: []string{"--host", "::1"},
 			want: viewConfig{
-				Host: "0.0.0.0",
+				Host: "::1",
 				Port: 8080,
 			},
 		},
@@ -93,6 +98,10 @@ func TestParseViewArgs(t *testing.T) {
 		{name: "help", args: []string{"--help"}, wantErr: true},
 		{name: "missing host", args: []string{"--host"}, wantErr: true},
 		{name: "empty host", args: []string{"--host="}, wantErr: true},
+		{name: "unspecified IPv4 host", args: []string{"--host=0.0.0.0"}, wantErr: true},
+		{name: "unspecified IPv6 host", args: []string{"--host=::"}, wantErr: true},
+		{name: "non-loopback IPv4 host", args: []string{"--host=192.0.2.1"}, wantErr: true},
+		{name: "non-loopback hostname", args: []string{"--host=viewer.example"}, wantErr: true},
 		{name: "missing port", args: []string{"--port"}, wantErr: true},
 		{name: "port too low", args: []string{"--port=0"}, wantErr: true},
 		{name: "port too high", args: []string{"--port=65536"}, wantErr: true},
@@ -306,7 +315,7 @@ func TestBuildViewServerFallbackExposesNoData(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "", "", "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", testViewSessionToken, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -329,6 +338,7 @@ func TestBuildViewServerFallbackExposesNoData(t *testing.T) {
 
 	// The verification API endpoint must still be served independently.
 	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
+	verifyReq.Header.Set(testViewSessionHeader, testViewSessionToken)
 	verifyRR := httptest.NewRecorder()
 	handler.ServeHTTP(verifyRR, verifyReq)
 	if verifyRR.Code != http.StatusOK {
@@ -353,7 +363,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", "", "", "")
+	handler, _, tamperDetected, _, err := buildViewServer(bundlePath, false, "", testViewSessionToken, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -372,6 +382,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 	}
 
 	verifyReq := httptest.NewRequest(http.MethodGet, "/api/v1/verification", nil)
+	verifyReq.Header.Set(testViewSessionHeader, testViewSessionToken)
 	verifyRR := httptest.NewRecorder()
 	handler.ServeHTTP(verifyRR, verifyReq)
 	if verifyRR.Code != http.StatusOK {
@@ -382,6 +393,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 	}
 
 	metaReq := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/meta", nil)
+	metaReq.Header.Set(testViewSessionHeader, testViewSessionToken)
 	metaRR := httptest.NewRecorder()
 	handler.ServeHTTP(metaRR, metaReq)
 	if metaRR.Code != http.StatusForbidden {
@@ -405,7 +417,7 @@ func TestBuildViewServerTamperModeCatchesAllRoutes(t *testing.T) {
 		t.Fatalf("save tampered bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "", "", "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", testViewSessionToken, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -561,7 +573,7 @@ func TestPrivacyRevealRecordsToSidecarNotBundle(t *testing.T) {
 		t.Fatalf("read bundle before reveal: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "", "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", testViewSessionToken, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -585,6 +597,7 @@ func TestPrivacyRevealRecordsToSidecarNotBundle(t *testing.T) {
 	payload := []byte(`{"seq":1,"field_path":"email","reason":"qa_test"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/privacy/reveal", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(testViewSessionHeader, testViewSessionToken)
 	req.AddCookie(revealCookie)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -689,7 +702,7 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, true, "", "", "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, true, "", testViewSessionToken, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -697,6 +710,7 @@ func TestPrivacyRevealRequiresAuth(t *testing.T) {
 	payload := []byte(`{"seq":1,"field_path":"email","reason":"qa_test"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/privacy/reveal", bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(testViewSessionHeader, testViewSessionToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	if rr.Code != http.StatusUnauthorized {
@@ -714,7 +728,7 @@ func TestBuildViewServerSetsSecurityHeaders(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, _, _, err := buildViewServer(bundlePath, false, "", "", "", "")
+	handler, _, _, _, err := buildViewServer(bundlePath, false, "", testViewSessionToken, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}
@@ -746,7 +760,7 @@ func TestBuildViewServerServesViewRoute(t *testing.T) {
 		t.Fatalf("save bundle: %v", err)
 	}
 
-	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", "", "", "")
+	handler, _, tamperDetected, openPath, err := buildViewServer(bundlePath, false, "", testViewSessionToken, "", "")
 	if err != nil {
 		t.Fatalf("buildViewServer error: %v", err)
 	}

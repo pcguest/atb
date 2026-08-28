@@ -83,7 +83,7 @@ func (s *Server) handleSessionOpen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bundlePath := placeholderBundlePath(s.cfg.DataDir, sessionID, params.BundlePath)
+	bundlePath := resolvedBundlePath(s.cfg.DataDir, sessionID, params.BundlePath)
 	s.logger.Info("session opened",
 		"session_id", sessionID,
 		"actor_id", params.ActorID,
@@ -194,7 +194,7 @@ func (s *Server) handleSessionClose(w http.ResponseWriter, r *http.Request) {
 
 const timeRFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
 
-func placeholderBundlePath(dataDir string, sessionID SessionID, override string) string {
+func resolvedBundlePath(dataDir string, sessionID SessionID, override string) string {
 	if path := strings.TrimSpace(override); path != "" {
 		return path
 	}

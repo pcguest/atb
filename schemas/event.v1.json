@@ -3,11 +3,11 @@
   "$id": "https://github.com/pcguest/atb/schemas/event.v1.json",
   "title": "ATB Event v1",
   "description": "Canonical ATB event object used for hash computation and verification.",
-  "$comment": "NDJSON line-length cap: 16,777,216 bytes (16 MiB). Readers MAY reject lines exceeding this limit. See docs/spec-v1.0.md §2.3.",
+  "$comment": "Reader safety limits: 16,777,216 bytes per NDJSON record, 536,870,912 total bytes, and 1,000,000 non-empty records by default. See docs/specification/bundle-v1.md §2.3.",
   "reserved_event_types": {
     "atb.bundle.manifest": {
       "description": "Reserved system type. Must be the first record in a bundle and uses seq 0.",
-      "$comment": "The manifest data payload has two supported shapes selected by manifest version. v1 (the writer default for maximum compatibility) wraps the manifest fields as a JSON-encoded string in event.data — readers must json-decode data a second time. This double-encoding is historical, not a deliberate design choice; it is preserved so existing bundles re-verify byte-for-byte. v2 stores the manifest as a structured JSON object directly in event.data. Both forms hash with the same RFC 8785 canonicaliser as any other event; the difference is only in what data contains. See docs/spec-v1.0.md §3.1.",
+      "$comment": "The manifest data payload has two supported shapes selected by manifest version. v1 (the writer default for maximum compatibility) wraps the manifest fields as a JSON-encoded string in event.data — readers must json-decode data a second time. This double-encoding is historical, not a deliberate design choice; it is preserved so existing bundles re-verify byte-for-byte. v2 stores the manifest as a structured JSON object directly in event.data. Both forms hash with the same RFC 8785 canonicaliser as any other event; the difference is only in what data contains. See docs/specification/bundle-v1.md §3.1.",
       "data": {
         "oneOf": [
           {
@@ -413,7 +413,7 @@
     },
     "atb.session.close": {
       "description": "Capture session closed. Proxy-internal lifecycle marker emitted by atb intercept on session teardown.",
-      "$comment": "Beyond the required fields the proxy always emits the always-emitted fields below; they are additive under the manifest v1 contract and readers MUST NOT require them. See docs/spec-ai-traces.md and internal/proxy/session.go SessionCloseRecord.",
+      "$comment": "Beyond the required fields the proxy always emits the always-emitted fields below; they are additive under the manifest v1 contract and readers MUST NOT require them. See docs/specification/events.md and internal/proxy/session.go SessionCloseRecord.",
       "properties": {
         "session_id": { "type": "string", "description": "Stable identifier of the closed capture session." },
         "actor_id": { "type": "string", "description": "Canonical actor reference for the session; empty string when unresolved." },
@@ -426,7 +426,7 @@
     },
     "atb.exchange.complete": {
       "description": "Request/response exchange completed within a capture session. Proxy-internal; consumed by the session index to count exchanges per session.",
-      "$comment": "Beyond the required fields the proxy always emits actor_id, completed_at, and tool_calls_count, and emits model/input_tokens/output_tokens/latency_ms when known. All are additive under the manifest v1 contract and readers MUST NOT require them. See docs/spec-ai-traces.md and internal/proxy/session.go ExchangeCompleteRecord.",
+      "$comment": "Beyond the required fields the proxy always emits actor_id, completed_at, and tool_calls_count, and emits model/input_tokens/output_tokens/latency_ms when known. All are additive under the manifest v1 contract and readers MUST NOT require them. See docs/specification/events.md and internal/proxy/session.go ExchangeCompleteRecord.",
       "properties": {
         "session_id": { "type": "string", "description": "Session identifier the exchange belongs to." },
         "exchange_id": { "type": "string", "description": "Stable identifier of the completed exchange." },
@@ -446,15 +446,31 @@
       "properties": {
         "targets": { "type": "array", "items": { "type": "string" }, "description": "Upstream provider hosts captured by the proxy." },
         "capture_mode": { "type": "string", "enum": ["digest", "raw"], "description": "digest: only body_sha256 + byte length recorded; raw: full bodies retained (--capture-bodies)." },
-        "redacted_headers": { "type": "array", "items": { "type": "string" }, "description": "Header names stripped before recording." },
+        "max_body_bytes": { "type": "integer", "minimum": 1, "description": "Configured maximum buffered bytes for each captured request or response body." },
+        "header_policy": { "type": "string", "const": "allowlist", "description": "Only explicitly listed non-secret headers are recorded." },
+        "recorded_headers": { "type": "array", "items": { "type": "string" }, "description": "Header names eligible for evidence capture; all other headers are omitted." },
         "out_of_scope": { "type": "string", "description": "Plain statement of what this recorder does not see (e.g. provider traffic that bypasses the proxy)." },
         "recorded_at": { "type": "string", "format": "date-time" }
       },
       "required": ["targets", "capture_mode"]
     },
+    "atb.capture.rejected": {
+      "description": "Privacy-safe evidence that a proxied request or response was rejected or could not be captured completely.",
+      "properties": {
+        "session_id": { "type": "string" },
+        "host": { "type": "string" },
+        "method": { "type": "string" },
+        "path": { "type": "string" },
+        "direction": { "type": "string", "enum": ["request", "response"] },
+        "reason": { "type": "string", "enum": ["body_too_large", "body_read_error", "memory_budget_exhausted", "upstream_error", "upstream_connect_error", "upstream_request_write_error", "upstream_response_read_error"] },
+        "limit_bytes": { "type": "integer", "minimum": 1 },
+        "observed_bytes": { "type": "integer", "minimum": 0, "description": "Bytes observed before rejection; for oversized streams this is a lower bound." }
+      },
+      "required": ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"]
+    },
     "atb.llm.request": {
       "description": "Captured upstream LLM API request. Proxy-internal; emitted by atb intercept for each request through the capture proxy.",
-      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Credential and session-secret headers are stripped before recording. See internal/proxy/types.go RequestRecord.ToEvent.",
+      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Only the conservative non-secret header allowlist declared by atb.capture.scope is eligible for recording. See internal/proxy/types.go RequestRecord.ToEvent.",
       "properties": {
         "session_id": { "type": "string", "description": "Capture session the request belongs to." },
         "host": { "type": "string", "description": "Upstream provider host (e.g. api.openai.com)." },
@@ -470,7 +486,7 @@
     },
     "atb.llm.response": {
       "description": "Captured upstream LLM API response. Proxy-internal; emitted by atb intercept for each response through the capture proxy.",
-      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Credential and session-secret headers are stripped before recording. See internal/proxy/types.go ResponseRecord.ToEvent.",
+      "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Only the conservative non-secret header allowlist declared by atb.capture.scope is eligible for recording. See internal/proxy/types.go ResponseRecord.ToEvent.",
       "properties": {
         "session_id": { "type": "string", "description": "Capture session the response belongs to." },
         "host": { "type": "string", "description": "Upstream provider host." },
@@ -768,6 +784,13 @@
       "profiles": [],
       "criticality": "required",
       "required_fields": ["targets", "capture_mode"]
+    },
+    {
+      "type": "atb.capture.rejected",
+      "description": "Capture rejection or incomplete exchange (proxy-internal)",
+      "profiles": [],
+      "criticality": "required",
+      "required_fields": ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"]
     },
     {
       "type": "atb.llm.request",

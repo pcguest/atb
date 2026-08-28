@@ -13,7 +13,7 @@ describe("WorkspaceWelcome", () => {
     expect(screen.getByText(/AutomationSession/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Agent guide/i })).toHaveAttribute(
       "href",
-      expect.stringContaining("docs/guides/capture.md"),
+      expect.stringContaining("docs/capture/overview.md"),
     );
   });
 });

@@ -3,6 +3,8 @@ package otel_test
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,6 +37,8 @@ func TestTranslate_mapsLLMSpan(t *testing.T) {
 			"gen_ai.usage.output_tokens": 28,
 			"gen_ai.usage.total_tokens":  40,
 			"privacy.mode":               "hash",
+			"deployment.region":          "australia-southeast1",
+			"tool.arguments":             `{"account":"customer-17"}`,
 		},
 	})
 	if err != nil {
@@ -64,6 +68,17 @@ func TestTranslate_mapsLLMSpan(t *testing.T) {
 	if tokenUsage["total_tokens"] != int64(40) {
 		t.Fatalf("total_tokens = %v, want 40", tokenUsage["total_tokens"])
 	}
+	attributes := data["otel_attributes"].(map[string]any)
+	if attributes["deployment.region"] != "australia-southeast1" {
+		t.Fatalf("deployment.region = %v", attributes["deployment.region"])
+	}
+	arguments := attributes["tool.arguments"].(map[string]any)
+	if arguments["redacted"] != true || arguments["sha256"] == "" {
+		t.Fatalf("tool.arguments = %#v, want digest-only value", arguments)
+	}
+	if strings.Contains(fmt.Sprint(arguments), "customer-17") {
+		t.Fatalf("tool.arguments leaked raw content: %#v", arguments)
+	}
 }
 
 func TestTranslate_returnsTypedErrorForUnmappableSpan(t *testing.T) {
@@ -77,19 +92,23 @@ func TestTranslate_returnsTypedErrorForUnmappableSpan(t *testing.T) {
 	}
 }
 
-func TestStubTransport_receive(t *testing.T) {
+func TestLegacyReceiverSurfaceRemainsCompatible(t *testing.T) {
 	t.Parallel()
-	var transport otel.StubTransport
-	err := transport.Receive(t.Context(), otel.OTelTrace{TraceID: "abc"})
-	if !errors.Is(err, otel.ErrNotImplemented) {
-		t.Fatalf("Receive() error = %v, want %v", err, otel.ErrNotImplemented)
+
+	var transport otel.InboundTransport = otel.StubTransport{}
+	if err := transport.Receive(t.Context(), otel.OTelTrace{}); !errors.Is(err, otel.ErrNotImplemented) {
+		t.Fatalf("StubTransport.Receive() error = %v, want %v", err, otel.ErrNotImplemented)
+	}
+
+	result := otel.ReceiverResult{Errors: []error{otel.ErrNotImplemented}}
+	if len(result.Errors) != 1 {
+		t.Fatalf("ReceiverResult.Errors length = %d, want 1", len(result.Errors))
 	}
 }
 
 func TestReceiver_returnsUnmappableSpanError(t *testing.T) {
 	t.Parallel()
 	r := &otel.Receiver{
-		Transport:  otel.StubTransport{},
 		Translator: otel.DefaultTranslator{},
 	}
 	trace := otel.OTelTrace{

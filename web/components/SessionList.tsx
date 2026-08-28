@@ -8,6 +8,12 @@ import { useSessionsQuery } from "@/lib/api-client";
 import type { SessionEntry } from "@/lib/types";
 import AnomalyBadge from "./AnomalyBadge";
 
+const SessionRows = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  function SessionRows(props, ref) {
+    return <div {...props} ref={ref} role="rowgroup" />;
+  },
+);
+
 // SessionList renders the workspace session index from GET /api/v1/sessions.
 // It reads through the shared api-client so the viewer session token (delivered
 // in the URL fragment) is attached to the request; a raw fetch() would be
@@ -30,25 +36,39 @@ const SessionList: React.FC = () => {
       // Navigate to the single-bundle viewer for this session, preserving the
       // session-token fragment so the destination view stays authenticated.
       const currentFragment = window.location.hash;
-      router.push(
-        `/view?bundlePath=${encodeURIComponent(session.bundle_path)}${currentFragment}`,
-      );
+      router.push(`/view?bundlePath=${encodeURIComponent(session.bundle_path)}${currentFragment}`);
     };
 
     return (
       <div
         style={style}
-        className="flex items-center border-b border-gray-700 hover:bg-gray-800 cursor-pointer"
-        onClick={handleRowClick}
+        className="group flex items-center border-b border-gray-700 hover:bg-gray-800"
+        role="row"
+        aria-rowindex={index + 2}
       >
-        <div className="w-1/5 p-2 truncate">{session.actor.display_name}</div>
-        <div className="w-1/5 p-2 truncate">{startedAt}</div>
-        <div className="w-1/12 p-2 text-center">{session.exchange_count}</div>
-        <div className="w-1/5 p-2 truncate">
+        <div className="w-1/5 truncate p-2" role="cell">
+          <button
+            type="button"
+            className="w-full truncate rounded text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            aria-label={`Open session ${session.session_id} for ${session.actor.display_name}, started ${startedAt}`}
+            onClick={handleRowClick}
+          >
+            {session.actor.display_name}
+          </button>
+        </div>
+        <div className="w-1/5 truncate p-2" role="cell">
+          {startedAt}
+        </div>
+        <div className="w-1/12 p-2 text-center" role="cell">
+          {session.exchange_count}
+        </div>
+        <div className="w-1/5 truncate p-2" role="cell">
           {session.inferred_profile.replace("atb.profile.", "")}
         </div>
-        <div className="w-1/12 p-2 text-center">{session.cas_grade}</div>
-        <div className="w-1/5 p-2 flex items-center">
+        <div className="w-1/12 p-2 text-center" role="cell">
+          {session.cas_grade}
+        </div>
+        <div className="flex w-1/5 items-center p-2" role="cell">
           {session.anomaly_flags.map((flag) => (
             <AnomalyBadge key={flag} flag={flag} />
           ))}
@@ -58,19 +78,41 @@ const SessionList: React.FC = () => {
   };
 
   return (
-    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg shadow-lg">
-      <h2 className="text-xl font-semibold mb-4">All sessions</h2>
-      <div className="flex font-bold border-b-2 border-gray-600 pb-2 mb-2">
-        <div className="w-1/5 p-2">Actor</div>
-        <div className="w-1/5 p-2">Started at</div>
-        <div className="w-1/12 p-2 text-center">Exchanges</div>
-        <div className="w-1/5 p-2">Profile</div>
-        <div className="w-1/12 p-2 text-center">CAS grade</div>
-        <div className="w-1/5 p-2">Anomalies</div>
+    <div className="rounded-lg bg-gray-900 p-4 text-gray-100 shadow-lg">
+      <h2 className="mb-4 text-xl font-semibold">All sessions</h2>
+      <div role="table" aria-label="Sessions" aria-colcount={6} aria-rowcount={sessions.length + 1}>
+        <div role="rowgroup">
+          <div className="mb-2 flex border-b-2 border-gray-600 pb-2 font-bold" role="row">
+            <div className="w-1/5 p-2" role="columnheader">
+              Actor
+            </div>
+            <div className="w-1/5 p-2" role="columnheader">
+              Started at
+            </div>
+            <div className="w-1/12 p-2 text-center" role="columnheader">
+              Exchanges
+            </div>
+            <div className="w-1/5 p-2" role="columnheader">
+              Profile
+            </div>
+            <div className="w-1/12 p-2 text-center" role="columnheader">
+              CAS grade
+            </div>
+            <div className="w-1/5 p-2" role="columnheader">
+              Anomalies
+            </div>
+          </div>
+        </div>
+        <FixedSizeList
+          height={500}
+          itemCount={sessions.length}
+          itemSize={40}
+          width="100%"
+          outerElementType={SessionRows}
+        >
+          {Row}
+        </FixedSizeList>
       </div>
-      <FixedSizeList height={500} itemCount={sessions.length} itemSize={40} width="100%">
-        {Row}
-      </FixedSizeList>
     </div>
   );
 };

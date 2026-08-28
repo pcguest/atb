@@ -70,10 +70,9 @@ type HTTPConfig struct {
 
 // HTTPRemoteSigner is a generic HTTP-based remote signer. It implements
 // the Signer interface against a small JSON request/response protocol
-// described on Sign. Cloud-specific KMS clients (AWS, GCP, Vault,
-// Azure Key Vault) can be added later by either (a) wrapping this signer
-// behind a thin proxy, or (b) implementing native Signer types in a
-// sibling file.
+// described on Sign. Native AWS KMS, GCP KMS, and Vault implementations live
+// in sibling packages; other services can use this protocol through a narrow
+// signing proxy.
 type HTTPRemoteSigner struct {
 	cfg    HTTPConfig
 	client *http.Client
@@ -200,8 +199,3 @@ func (s *HTTPRemoteSigner) Sign(ctx context.Context, digest []byte) (sig, pubKey
 
 // Compile-time interface satisfaction check.
 var _ Signer = (*HTTPRemoteSigner)(nil)
-
-// TODO(implementation): Add NewAWSKMSSigner, NewGCPKMSSigner,
-// NewVaultSigner, NewAzureKeyVaultSigner. Each constructor takes a
-// context.Context and a backend-specific config struct. AWS/GCP/Azure
-// will require new go.mod dependencies; add them at that time.

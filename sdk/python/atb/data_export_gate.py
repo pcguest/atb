@@ -7,6 +7,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
+from atb.bundle import Bundle
 from atb.exceptions import ATBError
 from atb.identity_evidence import IdentityEvidence, identity_evidence_payload
 from atb.workflow_common import (
@@ -48,7 +49,7 @@ class DataExportApproval:
 class DataExportGate:
     def __init__(
         self,
-        bundle=None,
+        bundle: Bundle | None = None,
         *,
         mode: Literal["log_only", "enforce"] = "log_only",
         policy: Callable[[DataExportInput], Mapping[str, Any]] | None = None,
@@ -75,7 +76,7 @@ class DataExportGate:
         self.actor_id = actor_id
 
     @property
-    def bundle(self):
+    def bundle(self) -> Bundle:
         return self.ctx.bundle
 
     def run(self, export_action: DataExportInput, fn: Callable[[], T]) -> T:

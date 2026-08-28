@@ -14,7 +14,7 @@ const workspaceReadmeName = "README"
 const workspaceReadmeContent = `# ATB Agent workspace
 
 This directory holds closed session bundles written by the local ATB Agent.
-Each session stores an immutable hash-chained .atb file under sessions/<id>/.
+Each session stores a tamper-evident, hash-chained .atb file under sessions/<id>/.
 
 Configuration (highest priority first):
   ATB_AGENT_DATA_DIR, ATB_AGENT_LISTEN_ADDR environment variables
@@ -26,7 +26,7 @@ To capture your first bundle:
   2. Instrument a workflow with TypeScript AutomationSession (ATB_AGENT_URL / ATB_AGENT_AUTO)
      or run: atb capture run
 
-See docs/guides/capture.md in the ATB repository for details.
+See docs/capture/overview.md in the ATB repository for details.
 `
 
 // PrepareWorkspace ensures the agent data directory exists and logs first-run guidance

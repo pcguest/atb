@@ -122,6 +122,9 @@ export const HUMAN_APPROVAL_EVENT_TYPE = HUMAN_APPROVAL;
 export const CAPTURE_SCOPE = "atb.capture.scope" as const;
 export const CAPTURE_SCOPE_EVENT_TYPE = CAPTURE_SCOPE;
 
+export const CAPTURE_REJECTED = "atb.capture.rejected" as const;
+export const CAPTURE_REJECTED_EVENT_TYPE = CAPTURE_REJECTED;
+
 export const LLM_REQUEST = "atb.llm.request" as const;
 export const LLM_REQUEST_EVENT_TYPE = LLM_REQUEST;
 
@@ -395,6 +398,13 @@ export const EVENT_TYPE_REGISTRY = [
     required_fields: ["targets", "capture_mode"],
   },
   {
+    type: CAPTURE_REJECTED,
+    description: "Capture rejection or incomplete exchange (proxy-internal)",
+    profiles: [],
+    criticality: "required",
+    required_fields: ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"],
+  },
+  {
     type: LLM_REQUEST,
     description: "Captured upstream LLM API request (proxy-internal)",
     profiles: [],
@@ -462,6 +472,7 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [HUMAN_OVERRIDE]: ["session_id", "override_reason"],
   [HUMAN_APPROVAL]: ["session_id", "approved_action_id"],
   [CAPTURE_SCOPE]: ["targets", "capture_mode"],
+  [CAPTURE_REJECTED]: ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"],
   [LLM_REQUEST]: ["session_id", "host", "method", "path"],
   [LLM_RESPONSE]: ["session_id", "host", "method", "path", "status_code"],
   [SESSION_CLOSE]: ["session_id", "actor_id"],

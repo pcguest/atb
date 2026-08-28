@@ -19,13 +19,20 @@ import (
 
 // JWTValidator validates JWTs issued by an OIDC provider.
 type JWTValidator struct {
-	issuer   string
-	audience string
-	mu       sync.RWMutex
-	jwks     jwk.Set
-	jwksURL  string
-	logger   *slog.Logger
+	issuer      string
+	audience    string
+	mu          sync.RWMutex
+	jwks        jwk.Set
+	jwksURL     string
+	lastRefetch time.Time
+	logger      *slog.Logger
 }
+
+const (
+	maxOIDCResponseBytes = 1 << 20
+	maxJWTBytes          = 64 << 10
+	jwksRefetchCooldown  = 30 * time.Second
+)
 
 // jwksFetchTimeout bounds each JWKS fetch so validator startup and the
 // background refresh loop cannot hang on an unresponsive issuer. Variable so
@@ -43,7 +50,7 @@ func resolveJWKSURL(ctx context.Context, issuer string) string {
 	if err != nil {
 		return fallback
 	}
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := oidcHTTPClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return fallback
@@ -52,26 +59,92 @@ func resolveJWKSURL(ctx context.Context, issuer string) string {
 	if resp.StatusCode != http.StatusOK {
 		return fallback
 	}
+	body, err := readBoundedOIDCBody(resp.Body)
+	if err != nil {
+		return fallback
+	}
 	var doc struct {
 		JWKSURI string `json:"jwks_uri"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&doc); err != nil || doc.JWKSURI == "" {
+	if err := json.Unmarshal(body, &doc); err != nil || doc.JWKSURI == "" {
 		return fallback
 	}
-	if u, err := url.Parse(doc.JWKSURI); err != nil || (u.Scheme != "https" && u.Scheme != "http") {
+	if _, err := validatedOIDCURL(doc.JWKSURI); err != nil {
 		return fallback
 	}
 	return doc.JWKSURI
 }
 
+func oidcHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: jwksFetchTimeout,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+}
+
+func validatedOIDCURL(raw string) (*url.URL, error) {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
+		return nil, fmt.Errorf("OIDC URL must be an absolute HTTP(S) URL")
+	}
+	if parsed.User != nil || parsed.Fragment != "" {
+		return nil, fmt.Errorf("OIDC URL must not contain credentials or a fragment")
+	}
+	return parsed, nil
+}
+
+func readBoundedOIDCBody(body io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, maxOIDCResponseBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxOIDCResponseBytes {
+		return nil, fmt.Errorf("OIDC response exceeds 1 MiB")
+	}
+	return data, nil
+}
+
+func fetchJWKS(ctx context.Context, rawURL string) (jwk.Set, error) {
+	if _, err := validatedOIDCURL(rawURL); err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := oidcHTTPClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("JWKS endpoint returned HTTP %d", resp.StatusCode)
+	}
+	body, err := readBoundedOIDCBody(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return jwk.Parse(body)
+}
+
 // NewJWTValidator creates a new JWTValidator.
 func NewJWTValidator(ctx context.Context, issuer, audience string) (*JWTValidator, error) {
+	parsedIssuer, err := validatedOIDCURL(issuer)
+	if err != nil || parsedIssuer.RawQuery != "" {
+		return nil, fmt.Errorf("invalid OIDC issuer")
+	}
+	issuer = parsedIssuer.String()
+	if strings.TrimSpace(audience) == "" {
+		return nil, fmt.Errorf("OIDC audience is required")
+	}
 	// Bound the startup discovery and fetch; ctx itself stays alive so it can
 	// scope the background refresh loop below.
 	fetchCtx, cancel := context.WithTimeout(ctx, jwksFetchTimeout)
 	defer cancel()
 	jwksURL := resolveJWKSURL(fetchCtx, issuer)
-	jwks, err := jwk.Fetch(fetchCtx, jwksURL)
+	jwks, err := fetchJWKS(fetchCtx, jwksURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch JWKS from %s: %w", jwksURL, err)
 	}
@@ -87,7 +160,7 @@ func NewJWTValidator(ctx context.Context, issuer, audience string) (*JWTValidato
 	validator.startRefresh(ctx, 5*time.Minute, func(refreshCtx context.Context) (jwk.Set, error) {
 		bounded, cancel := context.WithTimeout(refreshCtx, jwksFetchTimeout)
 		defer cancel()
-		return jwk.Fetch(bounded, jwksURL)
+		return fetchJWKS(bounded, jwksURL)
 	})
 
 	return validator, nil
@@ -120,7 +193,18 @@ func (v *JWTValidator) startRefresh(ctx context.Context, interval time.Duration,
 // fresh set on success. Used when a token presents a kid missing from the
 // cached set (mid-rotation).
 func (v *JWTValidator) refetchKeyID(ctx context.Context, kid string) (jwk.Key, bool) {
-	fresh, err := jwk.Fetch(ctx, v.jwksURL)
+	v.mu.Lock()
+	if time.Since(v.lastRefetch) < jwksRefetchCooldown {
+		key, found := v.jwks.LookupKeyID(kid)
+		v.mu.Unlock()
+		return key, found
+	}
+	v.lastRefetch = time.Now()
+	v.mu.Unlock()
+
+	bounded, cancel := context.WithTimeout(ctx, jwksFetchTimeout)
+	defer cancel()
+	fresh, err := fetchJWKS(bounded, v.jwksURL)
 	if err != nil {
 		v.logger.Error("failed to refetch JWKS on kid miss", "error", err)
 		return nil, false
@@ -135,6 +219,9 @@ func (v *JWTValidator) refetchKeyID(ctx context.Context, kid string) (jwk.Key, b
 func (v *JWTValidator) Validate(ctx context.Context, tokenString string) (jwt.MapClaims, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	if len(tokenString) > maxJWTBytes {
+		return nil, fmt.Errorf("JWT validation failed: token exceeds 64 KiB")
 	}
 	claims := jwt.MapClaims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {

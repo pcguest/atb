@@ -1013,7 +1013,7 @@ func TestSaveAcquiresLock(t *testing.T) {
 	path := filepath.Join(dir, "locked.atb")
 
 	// Pre-acquire the lock so any concurrent Save must surface ErrBundleLocked.
-	release, err := bundle.AcquireWithRetry(context.TODO(), path, 0, 0)
+	release, err := bundle.AcquireWithRetry(context.Background(), path, 0, 0)
 	if err != nil {
 		t.Fatalf("pre-acquire lock: %v", err)
 	}

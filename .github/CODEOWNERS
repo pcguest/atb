@@ -1,0 +1,12 @@
+# Ownership routing for the current solo-maintainer repository.
+#
+# Do not require CODEOWNERS approval in branch protection while @pcguest is the
+# only maintainer: that would make an independent approval impossible. Enable
+# required CODEOWNERS review when a second trusted maintainer is operational.
+* @pcguest
+
+# Security-sensitive release and automation surfaces.
+/.github/ @pcguest
+/scripts/ @pcguest
+/SECURITY.md @pcguest
+/docs/security.md @pcguest

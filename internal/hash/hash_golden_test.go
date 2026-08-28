@@ -7,7 +7,7 @@ package hash_test
 //
 // A failure here means an Event field, struct tag, canonicalisation rule,
 // or float serialisation has changed in a way that rewrites bundle hashes —
-// a BREAKING SCHEMA CHANGE. Bump ManifestVersion (docs/spec-v1.0.md §8),
+// a BREAKING SCHEMA CHANGE. Bump ManifestVersion (docs/specification/bundle-v1.md §8),
 // add a CHANGELOG entry, regenerate testdata/golden_corpus.json, and update
 // the Python mirror in lockstep.
 

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
-// Package otel defines the Phase 9 inbound transport scaffold for OpenTelemetry.
+// Package otel maps supported OpenTelemetry trace input into ATB events.
 //
-// Spans received from collectors or gateways are translated into canonical ATB
-// events (internal/event) before append to a bundle. Full OTLP decode and GenAI
-// semconv mapping are deferred to a later implementation phase.
+// OTLP/JSON ExportTraceServiceRequest payloads can be decoded and translated
+// into canonical ATB events (internal/event) before append to a bundle. Binary
+// protobuf and gRPC collector transports are outside this package's scope. The
+// mapper recognises a bounded attribute set and retains additional attributes
+// under digest-first privacy rules.
 package otel

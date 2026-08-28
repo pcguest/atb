@@ -5,7 +5,7 @@ package hash_test
 // RFC 8785 + SHA-256 canonicalisation pipeline to a committed corpus.
 //
 // Any change that causes this test to fail is a BREAKING SCHEMA CHANGE.
-// It requires a manifest version bump (docs/spec-v1.0.md §8), a CHANGELOG
+// It requires a manifest version bump (docs/specification/bundle-v1.md §8), a CHANGELOG
 // entry, and regeneration of the golden file with the new expected values.
 // The same corpus is mirrored in the Python and TypeScript SDKs; do not
 // regenerate this file without updating those.

@@ -13,8 +13,8 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
-from typing import Any, Literal
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any, Literal
 
 from atb.bundle import Bundle
 from atb.event_types import (
@@ -24,11 +24,18 @@ from atb.event_types import (
 )
 from atb.event_types_generated import CAPTURE_SCOPE
 
-try:
-    from langchain_core.callbacks.base import BaseCallbackHandler
-except Exception:  # pragma: no cover - fallback when optional dependency is absent.
-    class BaseCallbackHandler:  # type: ignore[no-redef]
-        """Fallback base class when langchain-core is not installed."""
+if TYPE_CHECKING:
+
+    class BaseCallbackHandler:
+        """Static callback base when the optional dependency is absent."""
+
+else:
+    try:
+        from langchain_core.callbacks.base import BaseCallbackHandler
+    except ImportError:
+
+        class BaseCallbackHandler:
+            """Fallback base class when langchain-core is not installed."""
 
 
 PrivacyMode = Literal["off", "hash", "redact"]
@@ -516,7 +523,9 @@ class ATBCallbackHandler(BaseCallbackHandler):
     # Async wrappers
     # ------------------------------------------------------------------
 
-    async def aon_chain_start(self, serialized: dict[str, Any], inputs: dict[str, Any], **kwargs: Any) -> None:
+    async def aon_chain_start(
+        self, serialized: dict[str, Any], inputs: dict[str, Any], **kwargs: Any
+    ) -> None:
         """Async wrapper for ``on_chain_start``.
 
         Args:
@@ -562,7 +571,9 @@ class ATBCallbackHandler(BaseCallbackHandler):
         """
         self.on_chain_error(error, **kwargs)
 
-    async def aon_llm_start(self, serialized: dict[str, Any], prompts: list[str], **kwargs: Any) -> None:
+    async def aon_llm_start(
+        self, serialized: dict[str, Any], prompts: list[str], **kwargs: Any
+    ) -> None:
         """Async wrapper for ``on_llm_start``.
 
         Args:
@@ -623,7 +634,9 @@ class ATBCallbackHandler(BaseCallbackHandler):
         """
         self.on_llm_error(error, **kwargs)
 
-    async def aon_tool_start(self, serialized: dict[str, Any], input_str: str, **kwargs: Any) -> None:
+    async def aon_tool_start(
+        self, serialized: dict[str, Any], input_str: str, **kwargs: Any
+    ) -> None:
         """Async wrapper for ``on_tool_start``.
 
         Args:
@@ -837,7 +850,9 @@ class ATBCallbackHandler(BaseCallbackHandler):
         if self.auto_save:
             self.bundle.save(self.save_path)
 
-    def _start_span(self, *, run_id: Any | None, parent_run_id: Any | None, event_type: str) -> _SpanState:
+    def _start_span(
+        self, *, run_id: Any | None, parent_run_id: Any | None, event_type: str
+    ) -> _SpanState:
         run_key = self._run_key(run_id)
         parent_key = self._run_key(parent_run_id) if parent_run_id is not None else None
         parent_state = self._runs.get(parent_key) if parent_key else None
@@ -860,7 +875,9 @@ class ATBCallbackHandler(BaseCallbackHandler):
         existing = self._runs.get(run_key)
         if existing is not None:
             return existing
-        return self._start_span(run_id=run_key, parent_run_id=None, event_type=event_type)
+        return self._start_span(
+            run_id=run_key, parent_run_id=None, event_type=event_type
+        )
 
     def _finish_span(self, run_key: str) -> None:
         self._runs.pop(run_key, None)
@@ -880,7 +897,9 @@ class ATBCallbackHandler(BaseCallbackHandler):
             "sha256": "sha256:" + digest,
         }
 
-    def _provider_and_model(self, serialized: dict[str, Any], kwargs: dict[str, Any]) -> tuple[str, str]:
+    def _provider_and_model(
+        self, serialized: dict[str, Any], kwargs: dict[str, Any]
+    ) -> tuple[str, str]:
         provider = "unknown"
         model = "unknown"
 
@@ -942,7 +961,9 @@ class ATBCallbackHandler(BaseCallbackHandler):
 
         prompt_tokens = int(usage.get("prompt_tokens") or 0)
         completion_tokens = int(usage.get("completion_tokens") or 0)
-        total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
+        total_tokens = int(
+            usage.get("total_tokens") or (prompt_tokens + completion_tokens)
+        )
         return {
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
@@ -999,7 +1020,12 @@ class ATBCallbackHandler(BaseCallbackHandler):
         return f"{prefix}_{uuid.uuid4().hex}"
 
     def _now(self) -> datetime:
-        return datetime.now(UTC)
+        return datetime.now(timezone.utc)
 
     def _iso(self, ts: datetime) -> str:
-        return ts.astimezone(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+        return (
+            ts.astimezone(timezone.utc)
+            .replace(microsecond=0)
+            .isoformat()
+            .replace("+00:00", "Z")
+        )

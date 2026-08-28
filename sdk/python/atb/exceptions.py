@@ -1,5 +1,7 @@
 """ATB SDK exception hierarchy."""
 
+from __future__ import annotations
+
 
 class ATBError(Exception):
     """Base exception for all ATB SDK errors.

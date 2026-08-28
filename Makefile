@@ -1,4 +1,4 @@
-.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -13,30 +13,45 @@ test-golden:
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
-GOTOOLCHAIN ?= go1.26.4
-GOVERSION := $(shell GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
+GOTOOLCHAIN ?= go1.26.7
+GOMODCACHE ?= $(CURDIR)/.gomodcache
+GOVERSION := $(shell GOMODCACHE=$(GOMODCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
-GOENV = GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
-GO_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list ./... | grep -v '/web/node_modules/')
-GO_COVER_PACKAGES = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/web/node_modules/')
-GOSEC_DIRS = $$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go list -f '{{.Dir}}' ./... | grep -v '/node_modules/')
-STATICCHECK ?= $(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)")
+STATICCHECK_CACHE ?= $(CURDIR)/.tmp/staticcheck-cache/$(if $(GOVERSION),$(GOVERSION),default)
+GOENV = GOCACHE=$(GOCACHE) GOMODCACHE=$(GOMODCACHE) STATICCHECK_CACHE=$(STATICCHECK_CACHE) GOTOOLCHAIN=$(GOTOOLCHAIN)
+GO_PACKAGES = $$($(GOENV) go list ./... | grep -v '/node_modules/')
+GO_COVER_PACKAGES = $$($(GOENV) go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' ./... | grep -v '^$$' | grep -v '/node_modules/')
+GOSEC_DIRS = $$($(GOENV) go list -f '{{.Dir}}' ./... | grep -v '/node_modules/')
+LOCAL_BIN_DIR := $(CURDIR)/.tmp/bin
+STATICCHECK_VERSION ?= v0.7.0
+GOVULNCHECK_VERSION ?= v1.5.0
+STATICCHECK ?= $(if $(wildcard $(LOCAL_BIN_DIR)/staticcheck),$(LOCAL_BIN_DIR)/staticcheck,$(shell command -v staticcheck 2>/dev/null || printf '%s/bin/staticcheck' "$$(GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)"))
+TRIVY_VERSION ?= 0.73.0
+TRIVY_IMAGE ?= ghcr.io/aquasecurity/trivy:0.73.0@sha256:7cced7cae583819fc7806d4cbc0dbbc7cad18b99f7d3e235192e6da8c091045c
+GOSEC_VERSION ?= v2.27.1
 
 profile-fixtures:
 	$(GOENV) go run ./scripts/generate_profile_fixtures.go
 
-# goldens regenerates every example/demo bundle a fresh clone needs for the
-# local demo path and the docs links under examples/. These .atb bundles are
-# gitignored (generated artefacts, not source); run this once after `make build`
-# to materialise them. Pass/fail semantics are asserted by each generator.
-goldens:
-	@test -x ./atb || { echo "❌ ./atb not found — run 'make build' (or 'go build -o ./atb ./cmd/atb') first"; exit 1; }
-	@echo "📦 Regenerating example + demo bundles..."
-	$(GOENV) go run ./scripts/generate_profile_fixtures.go
-	ATB_BIN=$(CURDIR)/atb bash examples/bundles/generate.sh
-	ATB_BIN=$(CURDIR)/atb bash examples/bundles/demo-workflow/generate.sh
-	$(GOENV) go run ./examples/bundles/incident-capture/
-	@echo "✅ Regenerated examples/bundles/{profiles,project-bootstrap,demo-workflow,incident-capture}"
+# goldens materialises the generated pass/fail profile matrix. The flagship
+# incident workflow is source-only and runs independently via demo-incident.
+goldens: profile-fixtures
+	@echo "✅ Regenerated examples/bundles/profiles"
+
+demo-incident:
+	@echo "🔎 Running deterministic agent-incident workflow..."
+	@set -eu; \
+		demo_bin="$$(mktemp /tmp/atb-demo.XXXXXX)"; \
+		trap 'rm -f "$$demo_bin"' EXIT; \
+		$(GOENV) go build -tags noembed -o "$$demo_bin" ./cmd/atb; \
+		PYTHONPATH=$(CURDIR)/sdk/python ATB_BIN="$$demo_bin" python3 examples/incident-demo/run.py
+	@echo "✅ Incident evidence verified; tampering rejected"
+
+notices:
+	@$(GOENV) node scripts/generate-third-party-notices.mjs
+
+check-notices:
+	@$(GOENV) node scripts/generate-third-party-notices.mjs --check
 
 # check-generated regenerates the schema-driven bindings and fails if any of
 # them drift from the committed output. Comparing against a pre-regen snapshot
@@ -61,9 +76,14 @@ check-versions:
 test-go: profile-fixtures
 	$(GOENV) go test $(GO_PACKAGES) -count=1
 
-hygiene-quick: check-generated check-versions
+hygiene-quick: check-generated check-versions check-notices
 	@echo "🧹 Running quick hygiene gate..."
-	$(GOENV) go fmt $(GO_PACKAGES) && $(GOENV) go vet $(GO_PACKAGES)
+	@unformatted="$$(for file in $$(git ls-files -co --exclude-standard '*.go'); do test ! -f "$$file" || gofmt -l "$$file"; done)"; \
+		test -z "$$unformatted" || { printf '❌ Go files require gofmt:\n%s\n' "$$unformatted"; exit 1; }
+	@test -x "$(STATICCHECK)" || { echo "❌ staticcheck $(STATICCHECK_VERSION) is required; run make bootstrap-scanners"; exit 1; }
+	@found="$$(go version -m "$(STATICCHECK)" 2>/dev/null | awk '$$1 == "mod" && $$2 == "honnef.co/go/tools" { print $$3 }')"; \
+		test "$$found" = "$(STATICCHECK_VERSION)" || { echo "❌ staticcheck version '$${found:-unknown}' does not match $(STATICCHECK_VERSION); run make bootstrap-scanners"; exit 1; }
+	$(GOENV) go vet $(GO_PACKAGES)
 	$(GOENV) $(STATICCHECK) $(GO_PACKAGES)
 	$(MAKE) test-go
 	cd web && npm run lint && npm run typecheck
@@ -104,9 +124,11 @@ test-e2e:
 	cd web && npm ci
 	cd web && npm run build
 	$(GOENV) go build -o /tmp/atb-e2e ./cmd/atb
+	@test -f examples/quickstart/run.atb/bundle.atb || { echo "📦 Generating quickstart bundle (gitignored, absent on fresh checkouts)..."; ATB_BIN=/tmp/atb-e2e bash examples/quickstart/run.sh > /dev/null; }
 	@/tmp/atb-e2e view --bundle examples/quickstart/run.atb/bundle.atb --session-token 0000000000000000000000000000000000000000000000000000000000000001 --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
 	@sleep 3
-	@cd web && CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-dashboard.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
+	@# ELECTRON_RUN_AS_NODE breaks the Cypress/Electron launcher when set by IDEs.
+	@cd web && env -u ELECTRON_RUN_AS_NODE CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-dashboard.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
 	@kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true
 	@rm -f /tmp/atb-e2e.pid
 	@echo "✅ Live E2E tests passed"
@@ -134,7 +156,13 @@ test-all: hygiene-full
 install-noembed:
 	$(GOENV) go install -tags noembed ./cmd/atb
 
-gate-gold-release: test-all
+
+# The installed-binary smoke tests exercise the fully embedded dashboard. Build
+# it before test-all so this gate is reproducible from a fresh checkout where
+# web/out contains only the tracked fallback page.
+gate-gold-release:
+	@$(MAKE) build
+	@$(MAKE) test-all
 	@echo "🏆 Running gold release gate..."
 	@echo ""
 	@echo "Step 1: Security scan..."
@@ -147,7 +175,7 @@ gate-gold-release: test-all
 	@$(MAKE) test-e2e
 	@echo ""
 	@echo "Step 4: Accessibility audit..."
-	@cd web && npm run test:a11y || (echo "❌ A11y tests failed"; exit 1)
+	@cd web && env -u ELECTRON_RUN_AS_NODE npm run test:a11y || (echo "❌ A11y tests failed"; exit 1)
 	@echo ""
 	@echo "✅ All gold release gates passed"
 	@echo "Ready to tag the current gold release"
@@ -166,12 +194,7 @@ deps-update-npm:
 
 deps-audit-go:
 	@echo "🔍 Auditing Go dependencies..."
-	@if command -v govulncheck >/dev/null; then \
-		$(GOENV) govulncheck ./...; \
-	else \
-		echo "⚠️ govulncheck not installed. Install with: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0"; \
-		$(GOENV) go list -m -u all | grep -v "github.com/pcguest/atb"; \
-	fi
+	@$(MAKE) govuln-scan
 
 deps-audit-npm:
 	@echo "🔍 Auditing NPM dependencies..."
@@ -192,23 +215,69 @@ install-hooks:
 	@git config core.hooksPath .githooks
 	@echo "✅ Hooks installed at .githooks/"
 
+bootstrap-scanners:
+	@/bin/bash scripts/bootstrap-scanners.sh "$(CURDIR)/.tmp/bin"
+
+govuln-scan:
+	@GOVULN_BIN=""; \
+	if [ -e "$(LOCAL_BIN_DIR)/govulncheck" ]; then \
+		test -x "$(LOCAL_BIN_DIR)/govulncheck" || { echo "❌ repository-local govulncheck is not executable"; exit 1; }; \
+		GOVULN_BIN="$(LOCAL_BIN_DIR)/govulncheck"; \
+	else \
+		GOVULN_BIN="$$(command -v govulncheck || true)"; \
+	fi; \
+	GOVULN_FOUND_VERSION=""; \
+	if [ -n "$$GOVULN_BIN" ]; then \
+		GOVULN_FOUND_VERSION="$$(go version -m "$$GOVULN_BIN" 2>/dev/null | awk '$$1 == "mod" && $$2 == "golang.org/x/vuln" { print $$3 }')"; \
+	fi; \
+	if [ "$$GOVULN_FOUND_VERSION" != "$(GOVULNCHECK_VERSION)" ]; then \
+		echo "❌ govulncheck version '$${GOVULN_FOUND_VERSION:-missing}' does not match $(GOVULNCHECK_VERSION); run make bootstrap-scanners"; exit 1; \
+	fi; \
+	GOVULNCHECK_BIN="$$GOVULN_BIN" $(GOENV) ./scripts/govulncheck.sh
+
 security-scan:
 	@echo "🔐 Running security scans..."
-	@if command -v trivy >/dev/null 2>&1; then \
-		trivy fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
+	@TRIVY_BIN=""; \
+	if [ -e "$(CURDIR)/.tmp/bin/trivy" ]; then \
+		test -x "$(CURDIR)/.tmp/bin/trivy" || { echo "❌ repository-local Trivy is not executable"; exit 1; }; \
+		TRIVY_BIN="$(CURDIR)/.tmp/bin/trivy"; \
 	else \
-		echo "⚠️ trivy not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" ghcr.io/aquasecurity/trivy:0.61.0 fs --skip-dirs .gocache --skip-dirs .tmp --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
-	fi
-	@GOSEC_BIN="$$(command -v gosec || true)"; \
-	if [ -z "$$GOSEC_BIN" ] && [ -x "$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
-		GOSEC_BIN="$$(GOCACHE=$(GOCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOPATH 2>/dev/null)/bin/gosec"; \
+		TRIVY_BIN="$$(command -v trivy || true)"; \
 	fi; \
+	TRIVY_FOUND_VERSION=""; \
+	if [ -n "$$TRIVY_BIN" ]; then \
+		TRIVY_FOUND_VERSION="$$($$TRIVY_BIN --version 2>/dev/null | awk 'NR == 1 { print $$2 }')"; \
+	fi; \
+	if [ -n "$$TRIVY_BIN" ] && [ "$$TRIVY_BIN" = "$(CURDIR)/.tmp/bin/trivy" ] && [ "$$TRIVY_FOUND_VERSION" != "$(TRIVY_VERSION)" ]; then \
+		echo "❌ repository-local Trivy version '$${TRIVY_FOUND_VERSION:-unknown}' does not match $(TRIVY_VERSION); rerun make bootstrap-scanners"; exit 1; \
+	elif [ "$$TRIVY_FOUND_VERSION" = "$(TRIVY_VERSION)" ]; then \
+		"$$TRIVY_BIN" fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
+	else \
+		echo "⚠️ local Trivy version '$${TRIVY_FOUND_VERSION:-missing}' does not match $(TRIVY_VERSION); using pinned Docker image"; \
+		docker run --rm -v "$$(pwd):/work" $(TRIVY_IMAGE) fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
+	fi
+	@GOSEC_BIN=""; \
+	if [ -e "$(CURDIR)/.tmp/bin/gosec" ]; then \
+		test -x "$(CURDIR)/.tmp/bin/gosec" || { echo "❌ repository-local gosec is not executable"; exit 1; }; \
+		GOSEC_BIN="$(CURDIR)/.tmp/bin/gosec"; \
+	else \
+		GOSEC_BIN="$$(command -v gosec || true)"; \
+	fi; \
+	if [ -z "$$GOSEC_BIN" ] && [ -x "$$($(GOENV) go env GOPATH 2>/dev/null)/bin/gosec" ]; then \
+		GOSEC_BIN="$$($(GOENV) go env GOPATH 2>/dev/null)/bin/gosec"; \
+	fi; \
+	GOSEC_FOUND_VERSION=""; \
 	if [ -n "$$GOSEC_BIN" ]; then \
+		GOSEC_FOUND_VERSION="$$(go version -m "$$GOSEC_BIN" 2>/dev/null | awk '$$1 == "mod" && $$2 == "github.com/securego/gosec/v2" { print $$3 }')"; \
+	fi; \
+	if [ -n "$$GOSEC_BIN" ] && [ "$$GOSEC_BIN" = "$(CURDIR)/.tmp/bin/gosec" ] && [ "$$GOSEC_FOUND_VERSION" != "$(GOSEC_VERSION)" ]; then \
+		echo "❌ repository-local gosec version '$${GOSEC_FOUND_VERSION:-unknown}' does not match $(GOSEC_VERSION); rerun make bootstrap-scanners"; exit 1; \
+	elif [ "$$GOSEC_FOUND_VERSION" = "$(GOSEC_VERSION)" ]; then \
 		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
-		echo "⚠️ gosec not installed locally; using Docker fallback"; \
-		docker run --rm -v "$$(pwd):/work" -w /work golang:1.26.4 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1 && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
+		echo "⚠️ local gosec version '$${GOSEC_FOUND_VERSION:-missing}' does not match $(GOSEC_VERSION); using pinned Docker install"; \
+		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.7@sha256:45a5f7a810238aabcbad211d70b9ae082022d96f7c7259e94041ad1b933575ac sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
+	@$(MAKE) govuln-scan
 	cd web && npm audit --audit-level=high
 	cd sdk/typescript && npm audit --audit-level=high

@@ -7,7 +7,7 @@ certify compliance, provide legal opinions, or perform conformity assessment.
 ## How to use these mappings
 
 1. Identify the framework question (for example EU AI Act Article 12 logging).
-2. Map it to an ATB [profile](../profiles.md) and expected event types.
+2. Map it to an ATB [profile](../evidence/profiles.md) and expected event types.
 3. Run `atb verify --profile <profile>` and `atb trust-report --profile <profile>`.
 4. Build a deterministic offline pack:
 
@@ -32,9 +32,10 @@ relevant event was captured.
 | Topic | Doc |
 | --- | --- |
 | EU AI Act Article 12 (per-obligation mapping) | [article-12-mapping.md](./article-12-mapping.md) |
-| EU AI Act (Article 9 to 20 coverage map) | [eu-ai-act.md](./eu-ai-act.md) |
-| ISO/IEC 42001 control references | [profiles.md](../profiles.md) (profile obligation tables) |
+| EU AI Act broader coverage boundary | [article-12-mapping.md](./article-12-mapping.md) |
+| ISO/IEC 42001 control references | [profiles](../evidence/profiles.md) (profile obligation tables) |
 | SOC 2, GDPR, NIST AI RMF, retention | Use the profile and event-type mapping workflow above; ATB supplies tamper-evident workflow evidence, not control certification |
 
-For residual risk and CAS interpretation, see the
-[auditor acceptance guide](../ciso-acceptance-guide.md).
+For residual risk and CAS interpretation, see [offline
+verification](../investigate/verify.md) and the [trust
+model](../concepts/trust-model.md).

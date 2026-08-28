@@ -68,10 +68,10 @@ func mustRequest(t *testing.T, body string) *http.Request {
 
 func TestCaptureBundleMetadataHelpers(t *testing.T) {
 	sessionID := SessionID("session-1")
-	if got := placeholderBundlePath("/data", sessionID, " custom.atb "); got != "custom.atb" {
+	if got := resolvedBundlePath("/data", sessionID, " custom.atb "); got != "custom.atb" {
 		t.Fatalf("override path=%q", got)
 	}
-	if got := placeholderBundlePath("/data", sessionID, ""); got != filepath.Join("/data", "sessions", "session-1", "bundle.atb") {
+	if got := resolvedBundlePath("/data", sessionID, ""); got != filepath.Join("/data", "sessions", "session-1", "bundle.atb") {
 		t.Fatalf("default path=%q", got)
 	}
 

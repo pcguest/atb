@@ -73,7 +73,7 @@ export default function Hero() {
           }`}
         >
           <a
-            href="https://github.com/pcguest/atb/blob/main/docs/quickstart.md"
+            href="https://github.com/pcguest/atb/blob/main/docs/getting-started/quickstart.md"
             target="_blank"
             rel="noopener noreferrer"
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-indigo-500/25"

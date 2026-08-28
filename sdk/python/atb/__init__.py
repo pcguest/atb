@@ -14,6 +14,10 @@ Quick start::
     for record in bundle.records: print(record.event["type"])
 """
 
+from __future__ import annotations
+
+from typing import Any, NoReturn
+
 from atb.action_gate import (
     ActionGate,
     ActionGateDecision,
@@ -23,7 +27,7 @@ from atb.action_gate import (
 )
 from atb.automation_session import AutomationSession, is_capture_environment
 from atb.background_job_tracker import BackgroundJobScheduleInput, BackgroundJobTracker
-from atb.bundle import Bundle
+from atb.bundle import Bundle, BundleResourceLimitError
 from atb.data_export_gate import (
     DataExportApproval,
     DataExportDeniedError,
@@ -62,7 +66,7 @@ try:
 except ModuleNotFoundError as exc:
     _encrypt_import_error = exc
 
-    class ATBEncryptionError(ATBError):
+    class ATBEncryptionError(ATBError):  # type: ignore[no-redef]
         """Raised when encryption support is unavailable.
 
         Args:
@@ -75,7 +79,7 @@ except ModuleNotFoundError as exc:
             None.
         """
 
-    class ATBDecryptionError(ATBError):
+    class ATBDecryptionError(ATBError):  # type: ignore[no-redef]
         """Raised when decryption support is unavailable.
 
         Args:
@@ -88,7 +92,7 @@ except ModuleNotFoundError as exc:
             None.
         """
 
-    def encrypt_bundle(*args, **kwargs):
+    def encrypt_bundle(*args: Any, **kwargs: Any) -> NoReturn:  # type: ignore[misc]
         """Report that encryption helpers are unavailable.
 
         Args:
@@ -106,7 +110,7 @@ except ModuleNotFoundError as exc:
             "Install sdk/python dependencies to use encrypt_bundle()."
         ) from _encrypt_import_error
 
-    def decrypt_bundle(*args, **kwargs):
+    def decrypt_bundle(*args: Any, **kwargs: Any) -> NoReturn:  # type: ignore[misc]
         """Report that decryption helpers are unavailable.
 
         Args:
@@ -128,6 +132,7 @@ except ModuleNotFoundError as exc:
 __version__ = "1.15.2"
 __all__ = [
     "Bundle",
+    "BundleResourceLimitError",
     "event_types",
     "ActionGate",
     "ActionGateDeniedError",

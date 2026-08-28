@@ -31,8 +31,8 @@ type OpenParams struct {
 	BundlePath string
 }
 
-// PendingEvent is a placeholder event queued during a session before real
-// bundle integration writes hash-chained records.
+// PendingEvent is a validated event queued during a session before the file
+// manager commits hash-chained records on close.
 type PendingEvent struct {
 	EventType string
 	Payload   string

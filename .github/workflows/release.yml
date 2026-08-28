@@ -26,7 +26,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.7"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -52,7 +52,8 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ./sdk/python[dev]
+          python -m pip install -r ./sdk/python/requirements-dev.txt
+          python -m pip install -e ./sdk/python[dev] --no-deps
 
       - name: Validate TypeScript lockfile
         working-directory: sdk/typescript
@@ -86,12 +87,19 @@ jobs:
           npm ci
           npm run build
 
+      - name: Verify third-party notices
+        run: make check-notices
+
       - name: Run Go tests
         run: scripts/ci-atb-capture.sh "tests-pass" -- make test-go
 
       - name: Run Python tests
         working-directory: sdk/python
-        run: pytest -q
+        run: |
+          pytest -q
+          ruff check .
+          ruff format --check .
+          mypy --strict atb
 
       - name: Run TypeScript checks
         working-directory: sdk/typescript
@@ -151,7 +159,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.7"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -203,15 +211,15 @@ jobs:
             GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-amd64 ./cmd/atb
             GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-darwin-arm64 ./cmd/atb
             GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -o dist/release/atb-windows-amd64.exe ./cmd/atb
-            (cd dist/release && sha256sum atb-* > checksums.txt)
+            cp LICENSE THIRD_PARTY_NOTICES dist/release/
+            (cd dist/release && sha256sum atb-* LICENSE THIRD_PARTY_NOTICES > checksums.txt)
           '
 
       - name: Build Python artifacts
         working-directory: sdk/python
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build twine
-          python -m build
+          python -m pip install -r requirements-release.txt
+          python -m build --no-isolation
           twine check dist/*
 
       - name: Remove node_modules (Windows)
@@ -233,6 +241,7 @@ jobs:
       - name: Archive web export
         run: |
           mkdir -p dist/web
+          cp LICENSE THIRD_PARTY_NOTICES web/out/
           tar -C web/out -czf "dist/web/atb-web-${GITHUB_SHA}.tar.gz" .
 
       - name: Prepare release metadata directories
@@ -382,15 +391,33 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install artifacts/python/*.whl
           python -c "import atb; print(atb.__version__)"
+          python - <<'PY'
+          import pathlib, tarfile, zipfile
+
+          for artifact in pathlib.Path("artifacts/python").iterdir():
+              if artifact.suffix == ".whl":
+                  names = zipfile.ZipFile(artifact).namelist()
+              elif artifact.name.endswith(".tar.gz"):
+                  names = tarfile.open(artifact, "r:gz").getnames()
+              else:
+                  continue
+              assert any(name.endswith("LICENSE") for name in names), artifact
+              assert any(name.endswith("THIRD_PARTY_NOTICES") for name in names), artifact
+          PY
 
       - name: Smoke test npm package
         run: |
+          tar -tzf artifacts/npm/*.tgz | grep -q '^package/LICENSE$'
+          tar -tzf artifacts/npm/*.tgz | grep -q '^package/THIRD_PARTY_NOTICES$'
           npm install artifacts/npm/*.tgz
           node -e "require('@pcguest/atb-sdk'); console.log('npm package load ok')"
 
       - name: Verify web, SBOM, and provenance assets
         run: |
-          tar -tzf artifacts/web/*.tar.gz >/dev/null
+          tar -tzf artifacts/web/*.tar.gz | grep -q '^./LICENSE$'
+          tar -tzf artifacts/web/*.tar.gz | grep -q '^./THIRD_PARTY_NOTICES$'
+          test -s artifacts/cli/LICENSE
+          test -s artifacts/cli/THIRD_PARTY_NOTICES
           jq -e '.spdxVersion and .packages' artifacts/sbom/*.json >/dev/null
           # Recompute artifact hashes against the manifest: structural checks
           # alone would pass even if the shipped files did not match it.
@@ -439,11 +466,15 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.7"
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "22"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.11"
 
       - name: Remove node_modules (Windows)
         if: runner.os == 'Windows'
@@ -457,6 +488,7 @@ jobs:
       - name: Install dependencies
         run: |
           go mod download
+          python -m pip install -r ./sdk/python/requirements-dev.txt
           cd web && npm ci
           cd ../sdk/typescript && npm ci
 
@@ -465,6 +497,18 @@ jobs:
 
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@v0.7.0
+
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@v2.27.1
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.73.0
+          cache: true
 
       - name: Run gold release gate
         run: make gate-gold-release
@@ -493,7 +537,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.4"
+          go-version: "1.26.7"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -562,6 +606,30 @@ jobs:
           atb sign --bundle "$bundle_copy" --key "$key_path"
           atb verify --bundle "$bundle_copy"
 
+      - name: Refuse to overwrite published package versions
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${VERSION#v}"
+          check_absent() {
+            local label="$1" url="$2" status
+            status="$(curl -sS -o /dev/null -w '%{http_code}' "$url")"
+            case "$status" in
+              404) ;;
+              200)
+                echo "$label@$VERSION already exists; refusing an unverifiable overwrite or skip" >&2
+                exit 1
+                ;;
+              *)
+                echo "could not establish whether $label@$VERSION exists (HTTP $status)" >&2
+                exit 1
+                ;;
+            esac
+          }
+          check_absent "atb-sdk" "https://pypi.org/pypi/atb-sdk/${VERSION}/json"
+          check_absent "@pcguest/atb-sdk" "https://registry.npmjs.org/@pcguest%2Fatb-sdk/${VERSION}"
+
       # Layer E: distribution of verified release artifacts to GitHub, PyPI, and npm.
       - name: Create draft GitHub Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v2
@@ -576,6 +644,8 @@ jobs:
             artifacts/cli/atb-darwin-arm64
             artifacts/cli/atb-windows-amd64.exe
             artifacts/cli/checksums.txt
+            artifacts/cli/LICENSE
+            artifacts/cli/THIRD_PARTY_NOTICES
             artifacts/python/*
             artifacts/npm/*
             artifacts/web/*
@@ -586,7 +656,6 @@ jobs:
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           packages-dir: artifacts/python
-          skip-existing: true
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -598,6 +667,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # The single-quoted script is intentionally evaluated by the inner bash.
+          # shellcheck disable=SC2016
           scripts/ci-atb-capture.sh "npm-publication-verified" -- bash -c '
             set -euo pipefail
             npm whoami
@@ -607,13 +678,7 @@ jobs:
               exit 1
             fi
             package_tarball="${package_tarballs[0]}"
-            package_name="$(tar -xOf "$package_tarball" package/package.json | node -e "let data=\"\"; process.stdin.on(\"data\", chunk => data += chunk); process.stdin.on(\"end\", () => process.stdout.write(JSON.parse(data).name))")"
-            package_version="$(tar -xOf "$package_tarball" package/package.json | node -e "let data=\"\"; process.stdin.on(\"data\", chunk => data += chunk); process.stdin.on(\"end\", () => process.stdout.write(JSON.parse(data).version))")"
-            if npm view "${package_name}@${package_version}" version --json >/dev/null 2>&1; then
-              echo "${package_name}@${package_version} is already published"
-            else
-              npm publish "$package_tarball" --access public
-            fi
+            npm publish "$package_tarball" --access public
           '
 
       - name: Sign final release bundle

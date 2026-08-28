@@ -18,7 +18,8 @@ const SessionsPage: React.FC = () => {
         <p className="mt-2 max-w-3xl text-xs text-muted-foreground">
           The workspace index is populated when the viewer is started with{" "}
           <code className="font-mono text-primary">atb view --sessions &lt;dir-or-glob&gt;</code>.
-          A single-bundle viewer opens one bundle directly and reports no sessions here.
+          A single-bundle viewer opens one bundle directly and reports only that bundle&apos;s
+          sessions here.
         </p>
       </header>
 

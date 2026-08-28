@@ -23,7 +23,9 @@ func CaptureScopeEvent(cfg ProxyConfig) *event.Event {
 	data := map[string]any{
 		"targets":          append([]string{}, cfg.TargetHosts...),
 		"capture_mode":     mode,
-		"redacted_headers": redactedHeaderNames(),
+		"max_body_bytes":   cfg.EffectiveMaxBodyBytes(),
+		"header_policy":    "allowlist",
+		"recorded_headers": recordedHeaderNames(),
 		"out_of_scope":     "Provider API traffic that does not pass through this proxy (e.g. direct in-process SDK calls or other egress) is not captured.",
 		"recorded_at":      time.Now().UTC().Format(time.RFC3339Nano),
 	}
@@ -57,7 +59,30 @@ const (
 	TypeLLMRequest = event.TypeLLMRequest
 	// TypeLLMResponse is the ATB event type for a captured upstream LLM response.
 	TypeLLMResponse = event.TypeLLMResponse
+	// TypeCaptureRejected records an exchange the proxy intentionally did not
+	// forward or could not finish capturing.
+	TypeCaptureRejected = event.TypeCaptureRejected
 )
+
+// CaptureRejectedEvent builds privacy-safe evidence for an intentionally
+// rejected or incomplete exchange. It never includes body or header content.
+func CaptureRejectedEvent(sessionID, host, method, path, direction, reason string, limitBytes, observedBytes int64) *event.Event {
+	now := time.Now().UTC()
+	return &event.Event{
+		Type:      TypeCaptureRejected,
+		Timestamp: now.Format(time.RFC3339Nano),
+		Data: map[string]any{
+			"session_id":     sessionID,
+			"host":           stripPort(host),
+			"method":         method,
+			"path":           path,
+			"direction":      direction,
+			"reason":         reason,
+			"limit_bytes":    limitBytes,
+			"observed_bytes": observedBytes,
+		},
+	}
+}
 
 // RequestRecord holds normalised metadata for a captured LLM API request.
 type RequestRecord struct {

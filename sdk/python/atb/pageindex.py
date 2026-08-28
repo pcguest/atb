@@ -33,7 +33,6 @@ from __future__ import annotations
 #   internals with asyncio.run().
 # - PageIndex initialisation requires an OPENAI_API_KEY-compatible model
 #   environment for the underlying LLM calls.
-
 import hashlib
 import importlib
 import json
@@ -43,7 +42,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, cast
 
 
 class ATBAppendError(RuntimeError):
@@ -243,16 +242,21 @@ class ATBPageIndexRetriever:
 def _build_pageindex_tree(source_path: str, model: str) -> dict[str, Any]:
     page_index_module = importlib.import_module("pageindex.page_index")
     page_index = getattr(page_index_module, "page_index")
-    return page_index(
-        doc=source_path,
-        model=model,
-        if_add_node_id="yes",
-        if_add_node_summary="yes",
-        if_add_doc_description="yes",
+    return cast(
+        dict[str, Any],
+        page_index(
+            doc=source_path,
+            model=model,
+            if_add_node_id="yes",
+            if_add_node_summary="yes",
+            if_add_doc_description="yes",
+        ),
     )
 
 
-def _retrieve_pageindex_node(query: str, index: dict[str, Any]) -> dict[str, Any] | None:
+def _retrieve_pageindex_node(
+    query: str, index: dict[str, Any]
+) -> dict[str, Any] | None:
     # The referenced self-hosted repo exposes tree-building plus agent tool
     # primitives, but not a direct retrieve(query) -> node helper. Until
     # upstream exposes one, perform deterministic in-process tree search over
@@ -314,11 +318,7 @@ def _score_node(
 
 
 def _tokenise(text: str) -> set[str]:
-    return {
-        token
-        for token in re.findall(r"[a-z0-9]+", text.lower())
-        if token
-    }
+    return {token for token in re.findall(r"[a-z0-9]+", text.lower()) if token}
 
 
 def _to_source_uri(source_path: str) -> str:

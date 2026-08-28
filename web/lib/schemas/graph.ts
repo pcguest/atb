@@ -4,6 +4,7 @@ export const graphNodeSchema = z.object({
   id: z.string(),
   label: z.string(),
   type: z.string(),
+  event_type: z.string(),
 });
 
 export const graphEdgeSchema = z.object({

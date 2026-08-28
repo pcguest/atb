@@ -383,9 +383,10 @@ atb incident export --bundle <path> --session <id> (--out <pack.zip> | --mortise
 
 Discover, review, and package agent sessions captured in an ATB bundle.
 
-The full signed bundle remains the authoritative, tamper-evident evidence; a
-report scopes one session for review and lists each event with its sequence and
-record hash so it is verifiable against that bundle.
+The bundle remains the primary verification input. A report scopes one session
+for review and lists each event with its sequence and record hash so it is
+verifiable against that bundle. A valid chain does not prove capture
+completeness or external custody.
 
 list flags:
   --bundle <path>            Bundle to read (required)

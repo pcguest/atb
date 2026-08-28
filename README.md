@@ -1,29 +1,27 @@
-# ATB: tamper-evident audit trails for AI systems
+# ATB — independently verifiable evidence for AI agents
 
-[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.4-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE) ![EU AI Act Article 12 logging](https://img.shields.io/badge/EU%20AI%20Act-Article%2012%20logging-blue)
+[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.7-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-**Record what your AI agents actually did, into append-only, hash-chained
-bundles that anyone can verify offline, without a vendor account. Local
-bundles prove integrity of what was recorded; they do not prove capture
-completeness or operator honesty before external custody or anchoring.**
+ATB is an open-source, local-first evidence system for AI agents. It captures
+agent and tool activity into portable, tamper-evident bundles that can be
+independently verified offline.
 
-Current release: [`v1.15.2`](CHANGELOG.md)
+**ATB proves the integrity of what was recorded. It does not prove that every
+relevant event was captured, that an actor was honest before capture, or that
+the recorded activity was correct.**
 
-**Tenon** is the umbrella name for this work. ATB is the open, MIT-licensed
-evidence core beneath it: the bundle format, CLI, SDKs, profiles, and offline
-verification. Mortise is the commercial framework that fits onto that core for
-long-term custody. ATB stands alone and stays fully useful without Mortise.
+When an agent incident occurs, ATB lets an investigator verify the evidence,
+reconstruct recorded actions, and trace deterministic findings back to
+hash-addressed bundle events without relying on the agent application's own
+logs. It requires no service, cloud account, external database, or hosted
+verifier.
 
-- **Tamper-evident by construction.** Every event is RFC 8785-canonicalised
-  and SHA-256 chained; one flipped byte breaks verification.
-- **Verify with zero trust.** `atb verify` runs locally against the bundle
-  alone; Go, Python, and TypeScript verifiers agree byte-for-byte
-  (cross-language golden vectors in CI).
-- **Built for incidents, not dashboards.** Capture an agent session, then
-  prove after the fact which privileged action fired, what was approved, and
-  what failed, even when the agent's own logs can't be trusted.
+Source version: [`v1.15.2`](CHANGELOG.md). A source tag does not imply that
+every registry or GitHub release artefact has been published; check the
+installed CLI/SDK version and the relevant registry before relying on a
+particular release.
 
-## Quickstart
+## Try ATB in five minutes
 
 Install the CLI:
 
@@ -31,158 +29,157 @@ Install the CLI:
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-A `go install` build serves a minimal install-guidance page for `atb view`;
-for the full embedded review UI, build from a checkout with `make build`.
-
-Initialise a bundle, capture a workflow, and verify against a profile:
+Create a bundle, record a decision, and verify its integrity and evidence
+obligations:
 
 ```bash
 atb bundle new
-atb capture run -- your-ai-script.sh
-atb verify --profile atb.profile.policy_decision <bundle-file>
-atb view <bundle-file> --profile atb.profile.policy_decision
+atb append ai.request.received --data='{"request_id":"req-1042","purpose_tag":"support-triage"}'
+atb append ai.policy.decision --data='{"policy_id":"routing","policy_version":"1","decision":"deny","decision_reason_codes":["manual_review"],"subject_id_hash":"sha256-subject","action_id":"act-1042"}'
+atb verify --profile atb.profile.policy_decision run.atb/bundle.atb
 ```
 
-## Agent incident forensics
-
-ATB doubles as a local-first flight recorder for AI agents. `atb intercept`
-records an agent's provider API traffic, tool calls, and failures into a
-tamper-evident bundle. Request and response bodies are digested (not stored) by
-default, and credential headers are stripped. Afterwards:
+`go install` provides the CLI and a minimal install-guidance page for
+`atb view`. The full embedded local viewer is included by a source build:
 
 ```bash
-atb incident list   --bundle <bundle-file>                  # discover sessions + anomalies
-atb incident report --bundle <bundle-file> --session <id>   # session-scoped forensic report
+git clone https://github.com/pcguest/atb.git
+cd atb
+make build
+./atb view run.atb/bundle.atb --profile atb.profile.policy_decision
 ```
 
-The report shows integrity (hash chain), bundle signature provenance, anomaly
-flags such as `tool_without_approval`, and every event hash-addressed to the
-authoritative bundle, so a failed or unapproved privileged action is provable
-even when the agent's own logs can't be trusted. See the
-[Incident forensics walkthrough](./docs/guides/incident-forensics.md).
+See the [five-minute quickstart](./docs/getting-started/quickstart.md) for Python and TypeScript
+SDK installation, capture paths, and the complete local review flow.
 
-## How it works
+## What ATB records
 
-ATB records AI workflow events into append-only `.atb` bundles (NDJSON). Each
-event is canonicalised with RFC 8785 before hashing; each record hash is
-SHA-256 over the previous hash and the canonical event JSON, with a zero-hash
-genesis sentinel. Bundles can be signed with Ed25519 and anchored through an
-RFC 3161 timestamp authority; sensitive bundles can be encrypted with
-AES-256-GCM before storage or transfer. Verification recomputes the chain and
-checks signatures, anchors, profile obligations, and CAS output, entirely
-locally.
-
+```text
+AI agent / application / framework
+              │
+              ▼
+           CAPTURE
+   ┌──────────┼──────────┐
+   │          │          │
+  SDK      intercept    import
+   │          │          │
+   └──────────┼──────────┘
+              ▼
+       canonical ATB event
+              │
+              ▼
+       RFC 8785 canonicalise
+              │
+              ▼
+         SHA-256 chain
+              │
+              ▼
+          .atb bundle
+              │
+       ┌──────┼─────────────┐
+       ▼      ▼             ▼
+    verify  incident      view
+              │
+              ▼
+        evidence pack
+              │ optional
+              ▼
+           Mortise
+        custody boundary
 ```
-agent / app ──► capture (SDK · intercept proxy · OTel import)
-                    │
-                    ▼
-              .atb bundle  (append-only · hash-chained · signed)
-                    │
-        ┌───────────┼───────────────┐
-        ▼           ▼               ▼
-   atb verify   atb incident    atb view
-   (offline)    (forensics)     (local viewer)
-                    │
-                    ▼ optional push
-         Mortise (custody · WORM · receipts · transparency log)
-```
 
-Long-term custody (WORM storage, signed receipts, and an RFC 6962
-transparency log with witness cosignatures) lives in the companion product
-[Mortise](https://github.com/pcguest/mortise); the full story is in its
-[end-to-end guide](https://github.com/pcguest/mortise/blob/main/docs/e2e-atb-mortise.md).
-ATB remains the MIT-licensed local evidence core: bundle format, CLI, SDKs,
-profiles, CAS, incident forensics, and offline compliance packs. Mortise is a
-separate product boundary, not a required hosted dependency for normal ATB use.
+Optional Ed25519 or configured KMS signatures, RFC 3161 timestamp evidence,
+and AES-256-GCM encryption add provenance, time evidence, and confidentiality.
+They do not change the capture-completeness boundary.
 
-Optional custody uses `ATB_MORTISE_TOKEN` and one of:
+## Incident forensics
+
+`atb intercept` records routed provider traffic, tool calls, and failures. By
+default it stores body digests and byte lengths rather than raw prompts or
+completions, and strips credential headers. Raw capture is explicit and emits
+a sensitive-content warning.
 
 ```bash
-atb intercept --bundle run.atb/bundle.atb --mortise https://mortise.example
-atb incident export --bundle run.atb/bundle.atb --session <id> --mortise-endpoint https://mortise.example
-atb compliance pack --bundle run.atb/bundle.atb --profile atb.profile.policy_decision \
-  --regime eu-ai-act --out compliance.zip --mortise-endpoint https://mortise.example
+atb incident list --bundle <bundle-file>
+atb incident report --bundle <bundle-file> --session <session-id>
+atb incident export --bundle <bundle-file> --session <session-id> --out incident-evidence.zip
 ```
 
-The compliance pack includes the returned signed receipt at
-`mortise/receipt.json` under manifest and checksum coverage.
+Findings such as `tool_without_approval` mean that no matching approval is
+present in the recorded evidence before the located tool call. They do not
+prove that no approval existed anywhere outside the capture boundary. Follow
+the reproducible [incident-forensics walkthrough](./docs/investigate/incidents.md).
 
-## Open core and Mortise
+Run the complete offline workflow from a source checkout:
 
-ATB is free forever under MIT. Mortise is the commercial custodian-of-record
-that builds on it. The line is fixed: nothing listed as free is later moved
-behind Mortise, and no Mortise feature breaks offline verification.
+```bash
+make demo-incident
+```
 
-| Free forever in ATB (MIT) | Added by Mortise (commercial) |
-| --- | --- |
-| Bundle format (`.atb`, hash-chained NDJSON) | Custody of record and WORM retention |
-| CLI: `verify`, `view`, `capture`, `incident`, `compliance pack` | Signed Ed25519 custody receipts |
-| Go, Python, and TypeScript SDKs | RFC 6962 transparency log with witness cosignatures |
-| Obligation profiles and CAS scoring | Fleet-scoped views across many bundles |
-| Content-addressed storage and offline verification | Framework evidence exports |
-| Incident forensics | SSO and RBAC |
-| Offline compliance and evidence packs | SLAs and support |
+It creates the same incident bundle twice and checks byte-for-byte determinism,
+verifies the intact evidence, reconstructs the session, asserts the expected
+finding, and proves content mutation, record reordering, and record removal all
+fail verification.
 
-ATB stays fully useful with no Mortise account. Capture, verify, view, and
-incident forensics all run offline.
+## Independent implementations
 
-## Obligation profiles
+Go, Python, and TypeScript independently implement the ATB bundle semantics.
+They share schemas, event vocabulary, and deterministic golden vectors; the
+Python and TypeScript SDKs do not call a hidden Go service.
 
-| Profile ID | Purpose | CAS scored |
-| --- | --- | --- |
-| `atb.profile.privileged_tool_action` | Privileged tool execution and policy gating | Yes |
-| `atb.profile.rag_answer` | Retrieval-augmented answer evidence | Yes |
-| `atb.profile.data_export` | Data export authorisation and movement | Yes |
-| `atb.profile.policy_decision` | Policy decision rationale and subject linkage | Yes |
-| `atb.profile.human_override` | Human override approval and justification | Yes |
-| `atb.profile.background_automation` | Background job scheduling and execution | Yes |
-
-## SDKs
-
-| Language | Path |
+| Language | Package |
 | --- | --- |
 | Go | [`pkg/api/v1`](./pkg/api/v1) |
 | Python | [`sdk/python`](./sdk/python) |
 | TypeScript | [`sdk/typescript`](./sdk/typescript) |
 
-All three agree byte-for-byte with the Go implementation via shared golden
-vectors (`make test-golden`).
+`make test-golden` blocks release unless all three implementations agree on
+canonical bytes and hashes.
 
-## EU AI Act
+## Tenon, ATB, and Mortise
 
-ATB's automatic logging model aligns with EU AI Act Article 12 traceability
-requirements for recorded high-risk AI workflows. The retention guard prevents
-configuration below the EU AI Act minimum unless the operator explicitly
-allows it. CAS scoring exposes residual capture risk. The
-[Article 12 evidence mapping](./docs/compliance/article-12-mapping.md) sets out,
-per obligation, which ATB primitive provides the evidence and what ATB does not
-prove.
+```text
+Tenon
+├── ATB      open-source, local-first evidence core
+└── Mortise  optional commercial custody and organisational layer
+```
 
-**Honest limits:** ATB proves integrity of what was recorded. It does not
-prove universal capture, model correctness, actor identity, or legal
-compliance by itself, and it never certifies compliance.
+Tenon is the umbrella product identity, not an ATB runtime component or hosted
+dependency. ATB remains independently useful for capture, verification,
+incident analysis, local review, profile evaluation, and evidence-pack
+generation.
+
+Mortise is an optional integration boundary for custody of record, WORM
+retention, signed receipts, organisational evidence management, and enterprise
+controls. ATB's optional Mortise client does not make Mortise part of the ATB
+runtime. Operator-controlled S3/Object Lock export is also supported; ATB
+records a successful retention request but does not prove continuing
+storage-side enforcement.
+
+## Evidence profiles and packs
+
+ATB obligation profiles are declarative evidence models evaluated against the
+records in a bundle. The Completeness Assurance Score (CAS) estimates
+profile-scoped evidence coverage; it is not proof of universal capture and not
+an external audit opinion.
+
+`atb compliance pack` is the CLI name for a deterministic, mapping-oriented
+evidence archive. It packages verification artefacts; it does not certify legal
+or regulatory compliance.
 
 ## Documentation
 
-| Read | For |
+| Read | Purpose |
 | --- | --- |
-| [Documentation hub](./docs/README.md) | Start here. One map for all human-facing docs |
-| [Five-minute quickstart](./docs/quickstart.md) | Install, create a bundle, verify locally |
-| [Capture guide](./docs/guides/capture.md) | Import, intercept, SDK integrations |
-| [Incident forensics](./docs/guides/incident-forensics.md) | Capture, discover, and review after an agent incident |
-| [Auditor acceptance guide](./docs/ciso-acceptance-guide.md) | Integrity, profiles, CAS, residual risk |
-| [Operator WORM guide](./docs/integrations/worm-s3.md) | Store bundles under operator-controlled immutable retention |
-| [Bundle specification](./docs/spec-v1.0.md) | Frozen format, hashing, and canonicalisation contract |
-| [Security model](./docs/security.md) | Threat model, guarantees, and explicit limitations |
-| [Submission / evaluation](https://github.com/pcguest/mortise/blob/main/docs/SUBMISSION.md) | Versions, evaluator commands, never-claims, and shipped boundary |
-
-## Contributing and security
-
-- [CONTRIBUTING.md](./CONTRIBUTING.md): local release gates (golden vectors,
-  full test suite, version checks) are the gates of record.
-- [SECURITY.md](./SECURITY.md): reporting vulnerabilities.
-- [VERSIONING.md](./VERSIONING.md): SemVer for releases; the canonical hash
-  input is frozen and changes only via a deliberate manifest-version migration.
+| [Documentation hub](./docs/README.md) | Canonical map of current documentation |
+| [Architecture](./docs/concepts/architecture.md) | Components, implementations, and trust boundaries |
+| [Security model](./docs/concepts/trust-model.md) | Guarantees, threats, and explicit limits |
+| [Incident forensics](./docs/investigate/incidents.md) | Reproducible post-incident workflow |
+| [Profiles and CAS](./docs/evidence/profiles.md) | Evidence obligations and profile-scoped scoring |
+| [Bundle specification](./docs/specification/bundle-v1.md) | Frozen format, hashing, and canonicalisation contract |
+| [Glossary](./docs/concepts/glossary.md) | Canonical product and evidence terminology |
+| [Contributing](./CONTRIBUTING.md) | Local development and review gates |
+| [Versioning](./VERSIONING.md) | SemVer and compatibility rules |
 
 ## Licence
 

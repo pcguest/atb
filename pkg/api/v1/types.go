@@ -46,9 +46,10 @@ type BundleEventsResponse struct {
 
 // GraphNodeDTO models a single node in trace/span visualizations.
 type GraphNodeDTO struct {
-	ID    string `json:"id"`
-	Label string `json:"label"`
-	Type  string `json:"type"`
+	ID        string `json:"id"`
+	Label     string `json:"label"`
+	Type      string `json:"type"`
+	EventType string `json:"event_type"`
 }
 
 // GraphEdgeDTO models directed links in trace/span visualizations.

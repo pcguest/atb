@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/pcguest/atb/internal/event"
@@ -22,6 +23,8 @@ import (
 type forwarder struct {
 	proxy *Proxy
 }
+
+const upstreamConnectTimeout = 5 * time.Second
 
 func (f *forwarder) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodConnect {
@@ -72,11 +75,13 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	upstreamConn, err := tls.Dial("tcp", r.Host, &tls.Config{
+	maxBody := f.proxy.cfg.EffectiveMaxBodyBytes()
+	upstreamConn, err := tls.DialWithDialer(&net.Dialer{Timeout: upstreamConnectTimeout}, "tcp", r.Host, &tls.Config{
 		ServerName: stripPort(r.Host),
 		MinVersion: tls.VersionTLS12,
 	})
 	if err != nil {
+		f.recordCaptureRejection(r.Host, r, "response", "upstream_connect_error", maxBody, 0)
 		_ = tlsConn.Close()
 		return
 	}
@@ -87,27 +92,57 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			break
 		}
-		body, _ := ReadRequestBody(req)
+		releaseBudget, ok := f.acquireBodyBudget(maxBody)
+		if !ok {
+			f.recordCaptureRejection(r.Host, req, "request", "memory_budget_exhausted", maxBody, 0)
+			_ = writeTunnelError(tlsConn, req, http.StatusServiceUnavailable, "proxy capture capacity exceeded")
+			break
+		}
+		body, err := ReadRequestBodyLimited(req, maxBody)
+		if err != nil {
+			reason, observed := classifyBodyReadError(err, maxBody)
+			f.recordCaptureRejection(r.Host, req, "request", reason, maxBody, observed)
+			status := http.StatusBadRequest
+			if errors.Is(err, ErrBodyTooLarge) {
+				status = http.StatusRequestEntityTooLarge
+			}
+			_ = writeTunnelError(tlsConn, req, status, http.StatusText(status))
+			releaseBudget()
+			break
+		}
 		if err := f.captureRequest(r.Host, req, body); err != nil && f.proxy.logger != nil {
 			f.proxy.logger.Warn("proxy capture request failed", "error", err)
 		}
 
 		if err := req.Write(upstreamConn); err != nil {
+			f.recordCaptureRejection(r.Host, req, "response", "upstream_request_write_error", maxBody, 0)
+			releaseBudget()
 			break
 		}
 		resp, err := http.ReadResponse(bufio.NewReader(upstreamConn), req)
 		if err != nil {
+			f.recordCaptureRejection(r.Host, req, "response", "upstream_response_read_error", maxBody, 0)
+			releaseBudget()
 			break
 		}
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, err := ReadBodyLimited(resp.Body, maxBody)
 		_ = resp.Body.Close()
+		if err != nil {
+			reason, observed := classifyBodyReadError(err, maxBody)
+			f.recordCaptureRejection(r.Host, req, "response", reason, maxBody, observed)
+			_ = writeTunnelError(tlsConn, req, http.StatusBadGateway, "upstream response could not be captured")
+			releaseBudget()
+			break
+		}
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		if err := f.captureResponse(r.Host, req, resp, respBody); err != nil && f.proxy.logger != nil {
 			f.proxy.logger.Warn("proxy capture response failed", "error", err)
 		}
 		if err := resp.Write(tlsConn); err != nil {
+			releaseBudget()
 			break
 		}
+		releaseBudget()
 	}
 	_ = tlsConn.Close()
 	_ = upstreamConn.Close()
@@ -123,23 +158,104 @@ func (f *forwarder) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, _ := ReadRequestBody(r)
+	maxBody := f.proxy.cfg.EffectiveMaxBodyBytes()
+	releaseBudget, ok := f.acquireBodyBudget(maxBody)
+	if !ok {
+		f.recordCaptureRejection(host, r, "request", "memory_budget_exhausted", maxBody, 0)
+		http.Error(w, "proxy capture capacity exceeded", http.StatusServiceUnavailable)
+		return
+	}
+	defer releaseBudget()
+	body, err := ReadRequestBodyLimited(r, maxBody)
+	if err != nil {
+		reason, observed := classifyBodyReadError(err, maxBody)
+		f.recordCaptureRejection(host, r, "request", reason, maxBody, observed)
+		status := http.StatusBadRequest
+		message := "request body could not be read"
+		if errors.Is(err, ErrBodyTooLarge) {
+			status = http.StatusRequestEntityTooLarge
+			message = "request body too large"
+		}
+		http.Error(w, message, status)
+		return
+	}
 	if err := f.captureRequest(host, r, body); err != nil && f.proxy.logger != nil {
 		f.proxy.logger.Warn("proxy capture request failed", "error", err)
 	}
 
 	targetURL := urlForHost(host)
 	proxy := httputil.NewSingleHostReverseProxy(targetURL) // #nosec G704 -- host validated by IsTargetHost allowlist before proxy construction
+	rejectionRecorded := false
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		respBody, err := io.ReadAll(resp.Body)
+		respBody, err := ReadBodyLimited(resp.Body, maxBody)
 		if err != nil {
+			_ = resp.Body.Close()
+			reason, observed := classifyBodyReadError(err, maxBody)
+			f.recordCaptureRejection(host, r, "response", reason, maxBody, observed)
+			rejectionRecorded = true
 			return err
 		}
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
 		return f.captureResponse(host, r, resp, respBody)
 	}
+	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
+		if !rejectionRecorded {
+			f.recordCaptureRejection(host, r, "response", "upstream_error", maxBody, 0)
+		}
+		if f.proxy.logger != nil {
+			f.proxy.logger.Warn("proxy upstream response failed", "error", err, "host", stripPort(host))
+		}
+		http.Error(rw, "upstream response could not be captured", http.StatusBadGateway)
+	}
 	proxy.ServeHTTP(w, r)
+}
+
+func (f *forwarder) acquireBodyBudget(maxBody int64) (func(), bool) {
+	if f == nil || f.proxy == nil || f.proxy.bodyBudget == nil {
+		return func() {}, true
+	}
+	reservation := maxBody * 2
+	if !f.proxy.bodyBudget.TryAcquire(reservation) {
+		return nil, false
+	}
+	return func() { f.proxy.bodyBudget.Release(reservation) }, true
+}
+
+func classifyBodyReadError(err error, limit int64) (string, int64) {
+	var tooLarge *BodyTooLargeError
+	if errors.As(err, &tooLarge) {
+		return "body_too_large", tooLarge.Observed
+	}
+	return "body_read_error", 0
+}
+
+func (f *forwarder) recordCaptureRejection(host string, req *http.Request, direction, reason string, limit, observed int64) {
+	if f == nil || f.proxy == nil || f.proxy.recorder == nil || f.proxy.sessions == nil || req == nil {
+		return
+	}
+	sess := f.proxy.sessions.Resolve(ExtractThreadKey(host, req, nil))
+	ev := CaptureRejectedEvent(sess.ID, host, req.Method, req.URL.Path, direction, reason, limit, observed)
+	if err := f.proxy.recorder.AppendEvent(ev); err != nil && f.proxy.logger != nil {
+		f.proxy.logger.Warn("proxy record capture rejection failed", "error", err, "host", stripPort(host))
+	}
+}
+
+func writeTunnelError(conn io.Writer, req *http.Request, status int, message string) error {
+	body := message + "\n"
+	resp := &http.Response{
+		StatusCode:    status,
+		Status:        http.StatusText(status),
+		ProtoMajor:    1,
+		ProtoMinor:    1,
+		ContentLength: int64(len(body)),
+		Header:        make(http.Header),
+		Body:          io.NopCloser(bytes.NewBufferString(body)),
+		Request:       req,
+	}
+	resp.Header.Set("Content-Type", "text/plain; charset=utf-8")
+	resp.Header.Set("Connection", "close")
+	return resp.Write(conn)
 }
 
 func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) error {
@@ -315,13 +431,15 @@ func (f *forwarder) recordToolResultErrors(sessionID string, ts time.Time, body 
 }
 
 func urlForHost(host string) *url.URL {
-	host = stripPort(host)
-	return &url.URL{Scheme: "http", Host: host}
+	// Preserve an explicit upstream port. Host allowlisting deliberately ignores
+	// ports, but forwarding must not silently redirect a validated :port target
+	// to the scheme default.
+	return &url.URL{Scheme: "http", Host: strings.TrimSpace(host)}
 }
 
 // RoundTripFixture applies a recorded HTTP exchange through capture helpers.
 func RoundTripFixture(host string, req *http.Request, reqBody []byte, resp *http.Response, respBody []byte, recorder *BundleRecorder, cfg ProxyConfig) (*Proxy, error) {
-	p, err := NewProxy(cfg, StubHandler{}, nil)
+	p, err := NewProxy(cfg, LoggingHandler{}, nil)
 	if err != nil {
 		return nil, err
 	}

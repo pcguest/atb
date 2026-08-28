@@ -34,7 +34,9 @@ def test_action_gate_run_records_precommit_before_execution() -> None:
     seen_before_execution: list[str] = []
 
     def fn() -> str:
-        seen_before_execution.extend(record.event["type"] for record in _user_records(bundle))
+        seen_before_execution.extend(
+            record.event["type"] for record in _user_records(bundle)
+        )
         return "ok"
 
     gate.run(action, fn)
@@ -121,7 +123,10 @@ def test_action_gate_run_enforce_mode_blocks_when_policy_denies() -> None:
 
     assert called is False
     events = [record.event for record in _user_records(bundle)]
-    assert [event["type"] for event in events] == ["ai.action.precommit", "ai.policy.decision"]
+    assert [event["type"] for event in events] == [
+        "ai.action.precommit",
+        "ai.policy.decision",
+    ]
     assert events[1]["data"]["decision"] == "deny"
 
 
@@ -131,7 +136,9 @@ def test_action_gate_run_log_only_never_blocks_on_deny() -> None:
         bundle=bundle,
         mode="log_only",
         actor_id="actor-1",
-        policy=lambda _: ActionGateDecision(decision="deny", reason_codes=("observe_only",)),
+        policy=lambda _: ActionGateDecision(
+            decision="deny", reason_codes=("observe_only",)
+        ),
     )
     action = ActionGateInput(
         action_type="deploy_change",
@@ -172,7 +179,9 @@ def test_action_gate_arun_matches_sync_semantics() -> None:
     seen_before_execution: list[str] = []
 
     async def fn() -> dict[str, str]:
-        seen_before_execution.extend(record.event["type"] for record in _user_records(bundle))
+        seen_before_execution.extend(
+            record.event["type"] for record in _user_records(bundle)
+        )
         return {"status": "async-ok"}
 
     result = asyncio.run(gate.arun(action, fn))

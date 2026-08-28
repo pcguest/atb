@@ -39,7 +39,8 @@ atb mcp serve
 
 `atb agent run` is an optional local background HTTP service for workspace bundle
 listing. It does **not** replace `atb mcp serve`: MCP remains a standalone stdio
-process. See [Capture guide](../guides/capture.md) for `atb capture run` and intercept.
+process. See [Capture guide](../capture/overview.md) for `atb capture run` and
+intercept.
 
 ## Configuration
 

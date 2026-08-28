@@ -6,22 +6,27 @@ import (
 	"log/slog"
 )
 
-// Handler processes captured proxy records. Item 3 adds real forwarding; the
-// scaffold handler logs records without forwarding upstream traffic.
+// Handler observes request and response records after the proxy's forwarding
+// path has captured them.
 type Handler interface {
 	HandleRequest(ctx context.Context, rec RequestRecord) error
 	HandleResponse(ctx context.Context, rec ResponseRecord) error
 }
 
-var _ Handler = (*StubHandler)(nil)
+var _ Handler = (*LoggingHandler)(nil)
 
-// StubHandler logs captured records and does not forward requests yet.
-type StubHandler struct {
+// LoggingHandler is a logging-only observation hook. Forwarding remains the
+// responsibility of Proxy.
+type LoggingHandler struct {
 	Logger *slog.Logger
 }
 
+// StubHandler preserves the pre-v1.15.3 name for source compatibility.
+// Deprecated: use LoggingHandler.
+type StubHandler = LoggingHandler
+
 // HandleRequest logs the captured request metadata.
-func (h StubHandler) HandleRequest(ctx context.Context, rec RequestRecord) error {
+func (h LoggingHandler) HandleRequest(ctx context.Context, rec RequestRecord) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -42,7 +47,7 @@ func (h StubHandler) HandleRequest(ctx context.Context, rec RequestRecord) error
 }
 
 // HandleResponse logs the captured response metadata.
-func (h StubHandler) HandleResponse(ctx context.Context, rec ResponseRecord) error {
+func (h LoggingHandler) HandleResponse(ctx context.Context, rec ResponseRecord) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}

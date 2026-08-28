@@ -1,0 +1,7 @@
+ATB TypeScript SDK — Third-Party Notices
+========================================
+
+The published @pcguest/atb-sdk archive contains ATB-authored JavaScript and
+TypeScript declaration files and has no runtime dependencies. It does not
+bundle development dependencies or optional framework integrations. Consumers
+install those packages separately under their own licences.
