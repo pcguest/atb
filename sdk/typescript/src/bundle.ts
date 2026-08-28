@@ -337,7 +337,7 @@ export class Bundle {
    * @throws Error when the key or bundle cannot be read or signed.
    */
   sign_local(
-    privateKeyPem: string | Buffer | Uint8Array,
+    privateKeyPem: string | Uint8Array,
     path?: string,
     options: { key_id?: string } = {}
   ): ATBRecord {
@@ -389,7 +389,7 @@ export class Bundle {
    * @throws Error when the key or bundle cannot be read or signed.
    */
   signLocal(
-    privateKeyPem: string | Buffer | Uint8Array,
+    privateKeyPem: string | Uint8Array,
     path?: string,
     options: { keyId?: string } = {}
   ): ATBRecord {
