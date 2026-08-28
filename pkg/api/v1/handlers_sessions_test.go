@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -81,11 +82,11 @@ func TestSessionsEndpointsPreIndexed(t *testing.T) {
 	}
 }
 
-func TestSessionsEndpointsBuildIndexFromDir(t *testing.T) {
+func TestSessionsEndpointsBuildIndexFromSelectedBundle(t *testing.T) {
 	bundlePath, b := createRichTestBundle(t)
 	bundleDir := filepath.Dir(bundlePath)
 
-	// No pre-built index: handler falls back to scanning the bundle directory.
+	// No pre-built index: handler indexes only the explicitly selected bundle.
 	_, handler := buildTestAPIServer(t, APIConfig{
 		BundlePath:      bundlePath,
 		Bundle:          b,
@@ -117,6 +118,31 @@ func TestSessionsEndpointsBuildIndexFromDir(t *testing.T) {
 	}
 	if total != 1 {
 		t.Fatalf("by-actor session total: got %d want %d", total, 1)
+	}
+}
+
+func TestSessionsEndpointsIgnoreSiblingBundlesByDefault(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+	tamperedPath := filepath.Join(filepath.Dir(bundlePath), "tampered-sibling.atb")
+	if err := os.WriteFile(tamperedPath, []byte("not a valid bundle\n"), 0o600); err != nil {
+		t.Fatalf("write tampered sibling: %v", err)
+	}
+
+	_, handler := buildTestAPIServer(t, APIConfig{
+		BundlePath:      bundlePath,
+		Bundle:          b,
+		RevealAuthToken: "test-token",
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/sessions", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("selected bundle sessions: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	sessions := decodeResponseJSON[SessionsResponse](t, rr)
+	if len(sessions.Sessions) != 1 {
+		t.Fatalf("selected bundle session count: got %d want %d", len(sessions.Sessions), 1)
 	}
 }
 

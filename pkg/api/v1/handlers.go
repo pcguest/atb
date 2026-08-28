@@ -297,7 +297,7 @@ func (s *APIServer) sessionsForRequest(r *http.Request) ([]sessionindex.SessionE
 		}
 		return append([]sessionindex.SessionEntry(nil), s.sessions...), nil
 	}
-	return buildSessionIndexForDir(r.Context(), filepath.Dir(s.bundlePath))
+	return sessionindex.BuildIndex(r.Context(), []string{s.bundlePath})
 }
 
 func buildSessionIndexForDir(ctx context.Context, dir string) ([]sessionindex.SessionEntry, error) {
