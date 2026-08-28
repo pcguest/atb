@@ -42,7 +42,8 @@ beforeEach(() => {
         bundle_path: "/tmp/mock-bundle.atb",
         event_count: 3,
         type_counts: {
-          "ai.chain.run": 2,
+          "ai.chain.run": 1,
+          "ai.request.received": 1,
           "ai.tool.exec": 1,
         },
         first_timestamp: now,
@@ -63,7 +64,7 @@ beforeEach(() => {
         events: [
           {
             seq: 1,
-            type: "ai.chain.run",
+            type: "ai.request.received",
             hash: genesisHash,
             prev_hash: "f".repeat(64),
             timestamp: now,
