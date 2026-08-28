@@ -5,7 +5,9 @@ import AnomalyBadge from './AnomalyBadge';
 describe('AnomalyBadge', () => {
   it('renders tool_without_approval badge with correct tooltip', () => {
     render(<AnomalyBadge flag="tool_without_approval" />);
-    const badge = screen.getByTitle('Tool call without preceding human approval.');
+    const badge = screen.getByTitle(
+      'No matching earlier approval exists in the captured evidence; this does not prove no approval occurred elsewhere.',
+    );
     expect(badge).toBeInTheDocument();
     expect(badge.querySelector('svg')).toHaveClass('text-amber-500');
   });

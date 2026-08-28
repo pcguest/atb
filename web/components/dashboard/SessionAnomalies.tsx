@@ -5,7 +5,7 @@ import { useSessionsQuery } from "@/lib/api-client";
 import type { SessionEntry } from "@/lib/types";
 
 const ANOMALY_LABELS: Record<string, string> = {
-  tool_without_approval: "Tool call without approval",
+  tool_without_approval: "No matching earlier approval in captured evidence",
   policy_denied_executed: "Policy denied but action executed",
   action_failed: "Privileged action failed",
   unresolved_identity: "Unresolved identity",

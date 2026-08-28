@@ -37,7 +37,11 @@ describe("summariseAnomalies", () => {
       session("a", ["tool_without_approval", "tool_without_approval"]),
     ]);
     expect(summary).toEqual([
-      { flag: "tool_without_approval", label: "Tool call without approval", sessions: 1 },
+      {
+        flag: "tool_without_approval",
+        label: "No matching earlier approval in captured evidence",
+        sessions: 1,
+      },
     ]);
   });
 
@@ -50,7 +54,7 @@ describe("SessionAnomaliesBanner", () => {
   it("renders a banner listing anomalies", () => {
     render(<SessionAnomaliesBanner sessions={[session("a", ["tool_without_approval"])]} />);
     const banner = screen.getByTestId("session-anomalies");
-    expect(banner.textContent).toContain("Tool call without approval");
+    expect(banner.textContent).toContain("No matching earlier approval in captured evidence");
     expect(banner.textContent).toContain("1 session");
   });
 
