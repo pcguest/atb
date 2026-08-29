@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.15.3] - 2026-08-29
+
 ### Added
 - The local intercept proxy now enforces a configurable per-body limit and a fixed bounded aggregate in-flight memory budget. Rejected or incomplete exchanges emit privacy-safe `atb.capture.rejected` evidence; the additive event is registered in the checked, generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
 
@@ -28,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Viewer API authentication fails closed when neither a valid session token nor configured JWT authorizes the request, and `atb view` refuses non-loopback binds.
 - Proxy header evidence uses a conservative allowlist instead of a secret-header denylist. Local MITM CA keys must be owner-only on Unix, and guidance limits CA trust to the captured process.
 - `govulncheck` fails on every reported vulnerability, RFC 3161 responses are capped at 4 MiB, OIDC key-miss refreshes are time-bounded, and raw proxy-body capture emits an explicit sensitive-content warning.
+
+### Fixed
+- Packed TypeScript declarations no longer require Node ambient types: the public signing input is `string | Uint8Array`, and the package build includes a consumer declaration gate with `types: []`.
+- Ordinary single-bundle viewer mode indexes only the explicitly selected bundle, so damaged sibling `.atb` files cannot suppress the intact session finding; explicit `--sessions` aggregation is unchanged.
+- The viewer now describes `tool_without_approval` as no matching earlier approval in captured evidence and explicitly states that this does not prove approval did not occur elsewhere.
+- Selected default-family events meet strict colour-contrast requirements, with the standard Firefox accessibility fixture covering that state.
 
 ## [v1.15.2] - 2026-07-08
 
