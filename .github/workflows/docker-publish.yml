@@ -88,6 +88,7 @@ jobs:
           echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
 
           docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"
+          bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"
           LABEL_VERSION=$(docker image inspect \
             --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
             "${IMAGE}@${DIGEST}")

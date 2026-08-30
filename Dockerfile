@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS web-builder
+FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 AS web-builder
 WORKDIR /src/web
 ENV NEXT_TELEMETRY_DISABLED=1
 
@@ -10,7 +10,7 @@ RUN npm ci
 COPY web/ ./
 RUN npm run build
 
-FROM golang:1.26.7-alpine@sha256:28d89ee9cc0ff9fec75c82ca201e6bf7fdf9a679d4b7b24dfa04f2bb766bb468 AS go-builder
+FROM --platform=$BUILDPLATFORM golang:1.26.7-alpine@sha256:28d89ee9cc0ff9fec75c82ca201e6bf7fdf9a679d4b7b24dfa04f2bb766bb468 AS go-builder
 WORKDIR /src
 
 COPY go.mod go.sum ./
@@ -27,8 +27,8 @@ COPY test/golden/golden_test.go ./test/golden/golden_test.go
 COPY sdk/python/tests/test_properties.py ./sdk/python/tests/test_properties.py
 COPY --from=web-builder /src/web/out ./web/out
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
 # Required for OCI label accuracy. Publish workflows pass the release git tag.
 ARG ATB_VERSION
 RUN printf '%s\n' "${ATB_VERSION}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || \

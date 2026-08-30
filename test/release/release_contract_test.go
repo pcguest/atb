@@ -126,9 +126,11 @@ func TestSecurityGateValidatesReleaseImagePlatformsWithoutPublishing(t *testing.
 	for _, required := range []string{
 		"platform: linux/amd64",
 		"platform: linux/arm64",
-		"docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8",
+		"runner: ubuntu-latest",
+		"runner: ubuntu-24.04-arm",
 		`--platform "${PLATFORM}"`,
 		"--load",
+		`bash scripts/verify-container-architecture.sh "${IMAGE_REF}" "${PLATFORM}"`,
 		`docker run --rm --platform "${PLATFORM}"`,
 		"/licenses/atb/LICENSE",
 		"/licenses/atb/THIRD_PARTY_NOTICES",
@@ -140,9 +142,55 @@ func TestSecurityGateValidatesReleaseImagePlatformsWithoutPublishing(t *testing.
 			t.Errorf("security image scan does not enforce %q", required)
 		}
 	}
-	for _, forbidden := range []string{"docker push", "push: true", "push-by-digest=true"} {
+	for _, forbidden := range []string{"docker/setup-qemu-action@", "docker push", "push: true", "push-by-digest=true"} {
 		if strings.Contains(imageScan, forbidden) {
 			t.Errorf("PR-safe security image scan contains publishing path %q", forbidden)
+		}
+	}
+}
+
+func TestDockerBuildPropagatesAndVerifiesTargetArchitecture(t *testing.T) {
+	dockerfile := readRepositoryFile(t, "Dockerfile")
+	for _, required := range []string{
+		"FROM --platform=$BUILDPLATFORM node:",
+		"FROM --platform=$BUILDPLATFORM golang:",
+		"ARG TARGETOS\n",
+		"ARG TARGETARCH\n",
+		"GOOS=${TARGETOS} GOARCH=${TARGETARCH}",
+	} {
+		if !strings.Contains(dockerfile, required) {
+			t.Errorf("Dockerfile does not enforce target architecture contract %q", required)
+		}
+	}
+	for _, forbidden := range []string{"ARG TARGETOS=", "ARG TARGETARCH=", "GOOS=linux", "GOARCH=amd64"} {
+		if strings.Contains(dockerfile, forbidden) {
+			t.Errorf("Dockerfile hardcodes target build input %q", forbidden)
+		}
+	}
+
+	verifier := readRepositoryFile(t, "scripts/verify-container-architecture.sh")
+	for _, required := range []string{
+		"{{.Os}}/{{.Architecture}}",
+		`docker cp "$CONTAINER_ID:/app/atb"`,
+		"header[:4] != b\"\\x7fELF\"",
+		"62: \"amd64/x86-64\"",
+		"183: \"arm64/AArch64\"",
+		"Runtime success alone is insufficient",
+	} {
+		if !strings.Contains(verifier, required) {
+			t.Errorf("container architecture verifier does not enforce %q", required)
+		}
+	}
+
+	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
+	if !strings.Contains(dockerPublish, `bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"`) {
+		t.Error("Docker publication does not verify the embedded executable architecture")
+	}
+
+	releaseCheck := readRepositoryFile(t, "scripts/release-check.sh")
+	for _, required := range []string{"for platform in linux/arm64 linux/amd64", "verify-container-architecture.sh"} {
+		if !strings.Contains(releaseCheck, required) {
+			t.Errorf("local release preflight does not enforce %q", required)
 		}
 	}
 }
