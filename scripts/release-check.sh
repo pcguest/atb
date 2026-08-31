@@ -80,6 +80,10 @@ echo "[6/7] Docker smoke build"
 if [[ "${SKIP_DOCKER:-}" == "1" ]]; then
   echo "Skipping Docker smoke build (SKIP_DOCKER=1). The CI workflow docker-publish.yml will build and publish the image on tag push."
 elif command -v docker >/dev/null 2>&1; then
+  if ! docker buildx version >/dev/null 2>&1; then
+    echo "Docker Buildx is required for the dual-platform release smoke build" >&2
+    exit 1
+  fi
   for platform in linux/arm64 linux/amd64; do
     suffix="${platform#linux/}"
     image="atb:release-smoke-${suffix}"

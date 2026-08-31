@@ -188,9 +188,16 @@ func TestDockerBuildPropagatesAndVerifiesTargetArchitecture(t *testing.T) {
 	}
 
 	releaseCheck := readRepositoryFile(t, "scripts/release-check.sh")
-	for _, required := range []string{"for platform in linux/arm64 linux/amd64", "verify-container-architecture.sh"} {
+	for _, required := range []string{"docker buildx version", "for platform in linux/arm64 linux/amd64", "verify-container-architecture.sh"} {
 		if !strings.Contains(releaseCheck, required) {
 			t.Errorf("local release preflight does not enforce %q", required)
+		}
+	}
+
+	releaseRunbook := readRepositoryFile(t, "docs/maintainers/release.md")
+	for _, required := range []string{"Docker Buildx", "binfmt/emulation", "emulated runtime pass does not"} {
+		if !strings.Contains(releaseRunbook, required) {
+			t.Errorf("release runbook does not document Docker architecture prerequisite %q", required)
 		}
 	}
 }
