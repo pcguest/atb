@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- No unreleased changes. -->
 
+## [v1.15.4] - 2026-08-30
+
+### Fixed
+- Multi-architecture Docker builds now compile the ATB executable for the requested target architecture, correcting arm64 images without changing ATB evidence semantics.
+
 ## [v1.15.3] - 2026-08-29
 
 ### Added

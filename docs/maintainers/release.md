@@ -108,6 +108,11 @@ cd sdk/python && python -m pytest && cd ../..
 Run the release preflight before opening the release PR. Contributors without
 a running Docker daemon may skip the local Docker smoke build; the
 `docker-publish.yml` workflow builds and publishes the image on tag push.
+The local Docker smoke requires Docker Buildx and either native execution or
+binfmt/emulation for both `linux/amd64` and `linux/arm64`. It independently
+checks the embedded ELF architecture because an emulated runtime pass does not
+prove that the executable matches the image platform. If the local Docker
+smoke is skipped, both native hosted platform jobs remain mandatory.
 
 ```bash
 SKIP_DOCKER=1 scripts/release-check.sh

@@ -16,7 +16,7 @@ hash-addressed bundle events without relying on the agent application's own
 logs. It requires no service, cloud account, external database, or hosted
 verifier.
 
-Source version: [`v1.15.3`](CHANGELOG.md). A source tag does not imply that
+Source version: [`v1.15.4`](CHANGELOG.md). A source tag does not imply that
 every registry or GitHub release artefact has been published; check the
 installed CLI/SDK version and the relevant registry before relying on a
 particular release.

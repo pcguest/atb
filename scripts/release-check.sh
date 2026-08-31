@@ -80,14 +80,28 @@ echo "[6/7] Docker smoke build"
 if [[ "${SKIP_DOCKER:-}" == "1" ]]; then
   echo "Skipping Docker smoke build (SKIP_DOCKER=1). The CI workflow docker-publish.yml will build and publish the image on tag push."
 elif command -v docker >/dev/null 2>&1; then
-  docker build --build-arg "ATB_VERSION=v${EXPECT}" --platform linux/amd64 -t atb:release-smoke .
-  label_version="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' atb:release-smoke)"
-  binary_version="$(docker run --rm atb:release-smoke version | awk '{print $NF}')"
-  if [[ "$label_version" != "v${EXPECT}" || "$binary_version" != "$EXPECT" ]]; then
-    echo "Docker version mismatch: label=$label_version binary=$binary_version expected=v${EXPECT}/$EXPECT" >&2
+  if ! docker buildx version >/dev/null 2>&1; then
+    echo "Docker Buildx is required for the dual-platform release smoke build" >&2
     exit 1
   fi
-  echo "Docker label and binary versions agree at v${EXPECT}"
+  for platform in linux/arm64 linux/amd64; do
+    suffix="${platform#linux/}"
+    image="atb:release-smoke-${suffix}"
+    docker buildx build \
+      --build-arg "ATB_VERSION=v${EXPECT}" \
+      --platform "$platform" \
+      --load \
+      -t "$image" \
+      .
+    bash scripts/verify-container-architecture.sh "$image" "$platform"
+    label_version="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$image")"
+    binary_version="$(docker run --rm --platform "$platform" "$image" version | awk '{print $NF}')"
+    if [[ "$label_version" != "v${EXPECT}" || "$binary_version" != "$EXPECT" ]]; then
+      echo "Docker version mismatch for $platform: label=$label_version binary=$binary_version expected=v${EXPECT}/$EXPECT" >&2
+      exit 1
+    fi
+    echo "Docker platform, executable architecture, label, and binary version agree for $platform at v${EXPECT}"
+  done
 else
   echo "docker not found; skipping docker smoke build"
 fi
