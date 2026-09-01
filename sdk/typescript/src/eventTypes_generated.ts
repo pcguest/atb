@@ -107,6 +107,15 @@ export const RAG_INDEX_EVENT_TYPE = RAG_INDEX;
 export const RAG_RETRIEVAL = "atb.event.rag_retrieval" as const;
 export const RAG_RETRIEVAL_EVENT_TYPE = RAG_RETRIEVAL;
 
+export const AI_CONTEXT_UNIT = "ai.context.unit" as const;
+export const AI_CONTEXT_UNIT_EVENT_TYPE = AI_CONTEXT_UNIT;
+
+export const AI_CONTEXT_OPERATION = "ai.context.operation" as const;
+export const AI_CONTEXT_OPERATION_EVENT_TYPE = AI_CONTEXT_OPERATION;
+
+export const MCP_OPERATION = "atb.mcp.operation" as const;
+export const MCP_OPERATION_EVENT_TYPE = MCP_OPERATION;
+
 export const TOOL_CALL = "atb.tool.call" as const;
 export const TOOL_CALL_EVENT_TYPE = TOOL_CALL;
 
@@ -353,14 +362,35 @@ export const EVENT_TYPE_REGISTRY = [
     description: "PageIndex document tree build record (index_hash, node_count)",
     profiles: ["atb.profile.rag_answer"],
     criticality: "required",
-    required_fields: [],
+    required_fields: ["index_id", "index_version", "tree_root_digest", "node_count"],
   },
   {
     type: RAG_RETRIEVAL,
     description: "PageIndex reasoning-based retrieval result (node_id, page_start/end)",
     profiles: ["atb.profile.rag_answer"],
     criticality: "required",
-    required_fields: [],
+    required_fields: ["retrieval_id", "index_id", "selected_node_ids", "result_set_digest"],
+  },
+  {
+    type: AI_CONTEXT_UNIT,
+    description: "Observable context unit bound by digest",
+    profiles: ["atb.profile.rag_answer"],
+    criticality: "informational",
+    required_fields: ["unit_id", "kind", "digest"],
+  },
+  {
+    type: AI_CONTEXT_OPERATION,
+    description: "Observable context selection, transformation, compaction, cache reuse, or assembly",
+    profiles: ["atb.profile.rag_answer"],
+    criticality: "informational",
+    required_fields: ["operation_id", "operation", "input_unit_ids", "output_unit_ids"],
+  },
+  {
+    type: MCP_OPERATION,
+    description: "Modern MCP operation evidence with digested request and result metadata",
+    profiles: [],
+    criticality: "informational",
+    required_fields: ["operation_id", "protocol_version", "method", "status", "request_digest"],
   },
   {
     type: TOOL_CALL,
@@ -465,8 +495,11 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [DATA_RETENTION_ENFORCED]: ["operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"],
   [DEV_SESSION]: [],
   [CORROBORATION_EXTERNAL]: [],
-  [RAG_INDEX]: [],
-  [RAG_RETRIEVAL]: [],
+  [RAG_INDEX]: ["index_id", "index_version", "tree_root_digest", "node_count"],
+  [RAG_RETRIEVAL]: ["retrieval_id", "index_id", "selected_node_ids", "result_set_digest"],
+  [AI_CONTEXT_UNIT]: ["unit_id", "kind", "digest"],
+  [AI_CONTEXT_OPERATION]: ["operation_id", "operation", "input_unit_ids", "output_unit_ids"],
+  [MCP_OPERATION]: ["operation_id", "protocol_version", "method", "status", "request_digest"],
   [TOOL_CALL]: ["session_id", "tool_name"],
   [DATA_EXPORT]: ["session_id", "export_target"],
   [HUMAN_OVERRIDE]: ["session_id", "override_reason"],

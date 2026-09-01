@@ -63,10 +63,56 @@
     "UK DSIT AI Code of Practice"
   ],
   "verify_result": {
+    "assessment_coverage": 0.9,
+    "assurance_valid": true,
     "bundle_path": "NORMALISED",
     "cas_grade": "Medium",
     "cas_score": 0.7475,
+    "coverage_grade": "Moderate coverage",
+    "coverage_score": 0.797222222222,
     "critical_failures": [],
+    "dimension_assessments": {
+      "AC": {
+        "assessable": true,
+        "score": 0,
+        "weight": 0.05
+      },
+      "EC": {
+        "assessable": true,
+        "score": 1,
+        "weight": 0.25
+      },
+      "FC": {
+        "assessable": true,
+        "score": 1,
+        "weight": 0.15
+      },
+      "GC": {
+        "assessable": false,
+        "reason": "Gating completeness is not assessable without captured gating evidence.",
+        "weight": 0.1
+      },
+      "RC": {
+        "assessable": true,
+        "score": 1,
+        "weight": 0.15
+      },
+      "SC": {
+        "assessable": true,
+        "score": 0.45,
+        "weight": 0.15
+      },
+      "TC": {
+        "assessable": true,
+        "score": 1,
+        "weight": 0.1
+      },
+      "XC": {
+        "assessable": true,
+        "score": 0,
+        "weight": 0.05
+      }
+    },
     "exclusions": [
       "Limitation: retrieval completeness beyond recorded corpus/version. | Mitigation: ai.retrieval.executed with corpus metadata (L2). | Residual: corpus content not attested.",
       "Limitation: model provider internal execution fidelity. | Mitigation: prompt_digest and output_digest (L2/L3). | Residual: provider-side execution without independent attestation.",
@@ -83,6 +129,7 @@
       "Limitation: model provider internal execution fidelity. | Mitigation: prompt_digest and output_digest (L2/L3). | Residual: provider-side execution without independent attestation.",
       "Limitation: retrieval completeness beyond recorded corpus/version. | Mitigation: ai.retrieval.executed with corpus metadata (L2). | Residual: corpus content not attested."
     ],
+    "integrity_valid": true,
     "obligations": [
       {
         "event_type": "atb.bundle.manifest",

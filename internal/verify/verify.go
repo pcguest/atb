@@ -85,12 +85,28 @@ type ProfileResult struct {
 // It does not override obligation outcome: a profile can FAIL while Overall is
 // non-zero; treat CAS as diagnostic completeness evidence only in that case.
 type CASResult struct {
-	Overall            float64            `json:"overall"`
-	Grade              string             `json:"grade"` // "High" >=0.85 | "Medium" >=0.60 | "Low" >=0.30 | "Insufficient" <0.30
-	CorroborationBonus float64            `json:"corroboration_bonus"`
-	EffectiveScore     float64            `json:"effective_score"`
-	SubScores          map[string]float64 `json:"sub_scores"`
-	WeightVector       map[string]float64 `json:"weight_vector"`
+	Overall            float64                        `json:"overall"`
+	Grade              string                         `json:"grade"` // "High" >=0.85 | "Medium" >=0.60 | "Low" >=0.30 | "Insufficient" <0.30
+	CorroborationBonus float64                        `json:"corroboration_bonus"`
+	EffectiveScore     float64                        `json:"effective_score"`
+	SubScores          map[string]float64             `json:"sub_scores"`
+	WeightVector       map[string]float64             `json:"weight_vector"`
+	CoverageScore      float64                        `json:"coverage_score"`
+	CoverageGrade      string                         `json:"coverage_grade"`
+	AssessmentCoverage float64                        `json:"assessment_coverage"`
+	Dimensions         map[string]DimensionAssessment `json:"dimension_assessments"`
+	IntegrityValid     bool                           `json:"integrity_valid"`
+	AssuranceValid     bool                           `json:"assurance_valid"`
+}
+
+// DimensionAssessment distinguishes absent evidence from a dimension ATB
+// cannot assess from the records presented. Score is nil when Assessable is
+// false; this avoids representing unknown evidence as zero coverage.
+type DimensionAssessment struct {
+	Assessable bool     `json:"assessable"`
+	Score      *float64 `json:"score,omitempty"`
+	Weight     float64  `json:"weight"`
+	Reason     string   `json:"reason,omitempty"`
 }
 
 // ResidualRisk summarises the main outstanding concerns.

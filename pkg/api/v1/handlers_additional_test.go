@@ -659,6 +659,13 @@ func TestSessionTokenEnforcesProtectedEndpoints(t *testing.T) {
 		{http.MethodGet, "/api/v1/sessions"},
 		{http.MethodGet, "/api/v1/sessions/by-actor"},
 		{http.MethodGet, "/api/v1/schema/status"},
+		{http.MethodGet, "/api/v1/investigation/overview"},
+		{http.MethodGet, "/api/v1/investigation/findings"},
+		{http.MethodGet, "/api/v1/investigation/timeline"},
+		{http.MethodGet, "/api/v1/investigation/context"},
+		{http.MethodGet, "/api/v1/investigation/relationships"},
+		{http.MethodGet, "/api/v1/investigation/trust"},
+		{http.MethodGet, "/api/v1/investigation/report"},
 	}
 
 	for _, ep := range protectedEndpoints {

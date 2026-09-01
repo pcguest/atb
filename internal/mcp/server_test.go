@@ -45,11 +45,34 @@ func TestServeInitialize(t *testing.T) {
 		t.Fatalf("unmarshal initialize result: %v", err)
 	}
 
-	if result.ProtocolVersion != protocolVersion {
-		t.Fatalf("unexpected protocolVersion: got %q want %q", result.ProtocolVersion, protocolVersion)
+	if result.ProtocolVersion != LegacyProtocolVersion {
+		t.Fatalf("unexpected protocolVersion: got %q want %q", result.ProtocolVersion, LegacyProtocolVersion)
 	}
 	if result.ServerInfo.Name != "atb" {
 		t.Fatalf("unexpected serverInfo.name: got %q want %q", result.ServerInfo.Name, "atb")
+	}
+}
+
+func TestServeDiscoverModernStatelessProtocol(t *testing.T) {
+	t.Parallel()
+
+	responses := runServer(t, `{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"test","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}}}`+"\n")
+	if len(responses) != 1 {
+		t.Fatalf("unexpected response count: got %d want 1", len(responses))
+	}
+	var result struct {
+		ProtocolVersions []string `json:"protocolVersions"`
+		TTLMS            int      `json:"ttlMs"`
+		CacheScope       string   `json:"cacheScope"`
+	}
+	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
+		t.Fatalf("unmarshal discover result: %v", err)
+	}
+	if len(result.ProtocolVersions) == 0 || result.ProtocolVersions[0] != ProtocolVersion {
+		t.Fatalf("protocolVersions = %v", result.ProtocolVersions)
+	}
+	if result.TTLMS <= 0 || result.CacheScope != "private" {
+		t.Fatalf("cache hints = ttlMs %d scope %q", result.TTLMS, result.CacheScope)
 	}
 }
 
@@ -62,8 +85,11 @@ func TestServeToolsList(t *testing.T) {
 	}
 
 	var result struct {
-		Tools []struct {
-			Name string `json:"name"`
+		TTLMS      int    `json:"ttlMs"`
+		CacheScope string `json:"cacheScope"`
+		Tools      []struct {
+			Name        string         `json:"name"`
+			InputSchema map[string]any `json:"inputSchema"`
 		} `json:"tools"`
 	}
 	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
@@ -73,12 +99,47 @@ func TestServeToolsList(t *testing.T) {
 	names := map[string]bool{}
 	for _, tool := range result.Tools {
 		names[tool.Name] = true
+		if tool.InputSchema["$schema"] != jsonSchemaDialect {
+			t.Fatalf("tool %q schema dialect = %#v", tool.Name, tool.InputSchema["$schema"])
+		}
+	}
+	if result.TTLMS <= 0 || result.CacheScope != "private" {
+		t.Fatalf("tools/list cache hints = ttlMs %d scope %q", result.TTLMS, result.CacheScope)
 	}
 
 	for _, name := range []string{"verify", "atb_init", "status", "rag_index_record", "rag_retrieval_record"} {
 		if !names[name] {
 			t.Fatalf("tool %q missing from tools/list response", name)
 		}
+	}
+}
+
+func TestRAGRetrievalRecordPreservesStructuralProvenance(t *testing.T) {
+	t.Parallel()
+	var captured map[string]any
+	srv := NewWithHandlers("test", strings.NewReader(""), io.Discard, ToolHandlers{
+		Append: func(_ context.Context, eventType string, data map[string]any) (bundle.Record, error) {
+			if eventType != "atb.event.rag_retrieval" {
+				t.Fatalf("event type = %q", eventType)
+			}
+			captured = data
+			return bundle.Record{}, nil
+		},
+	})
+	result, err := srv.toolRAGRetrievalRecord(json.RawMessage(`{
+		"query":"controls","retrieval_id":"r1","index_id":"i1","node_id":"n1",
+		"node_title":"Approval Controls","source_uri":"file:///policy.pdf","page_start":47,
+		"page_end":48,"model_id":"model","latency_ms":2,
+		"strategy":"deterministic_tree_metadata_search","selected_node_ids":["n1"],
+		"selected_parent_ids":["root"],"section_paths":["Risk / Approval Controls"],
+		"selected_content_digests":["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+		"result_set_digest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	}`))
+	if err != nil || result.IsError {
+		t.Fatalf("toolRAGRetrievalRecord() result=%#v err=%v", result, err)
+	}
+	if captured["result_set_digest"] == nil || captured["selected_node_ids"] == nil {
+		t.Fatalf("structural provenance not preserved: %#v", captured)
 	}
 }
 

@@ -180,7 +180,16 @@ func evaluateLoadedBundle(
 
 		if profileSupportsCAS(profile) {
 			subScores := subScoresForProfile(profile, b.Records, anchorResult)
-			cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
+			cas := computeCASWithApplicability(
+				subScores,
+				profile.DefaultWeights(),
+				casApplicability(profile),
+				report.Integrity.ChainValid,
+			)
+			cas.AssuranceValid = report.Integrity.ChainValid && result.Pass
+			if report.Anchoring.AnchorRequired {
+				cas.AssuranceValid = cas.AssuranceValid && report.Anchoring.TSAVerified
+			}
 			report.CAS = &cas
 			if !report.Integrity.ChainValid {
 				report.ResidualRisk = integrityFailureResidualRisk()

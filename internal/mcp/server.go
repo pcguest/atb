@@ -19,7 +19,15 @@ import (
 	"github.com/pcguest/atb/internal/event"
 )
 
-const protocolVersion = "2024-11-05"
+const (
+	// ProtocolVersion is ATB's modern, stateless MCP protocol target.
+	ProtocolVersion = "2026-07-28"
+	// LegacyProtocolVersion remains available only for the deprecated initialize
+	// handshake used by existing stdio clients.
+	LegacyProtocolVersion = "2024-11-05"
+	protocolVersion       = ProtocolVersion
+	jsonSchemaDialect     = "https://json-schema.org/draft/2020-12/schema"
+)
 
 type VerifyInput struct {
 	Path       string `json:"path,omitempty"`
@@ -177,6 +185,8 @@ func (s *Server) handleMessage(raw []byte) error {
 	}
 
 	switch req.Method {
+	case "server/discover":
+		return s.handleDiscover(req.ID)
 	case "initialize":
 		return s.handleInitialize(req.ID, req.Params)
 	case "notifications/initialized":
@@ -198,9 +208,9 @@ func (s *Server) handleInitialize(id *json.RawMessage, raw json.RawMessage) erro
 		}
 	}
 
-	version := protocolVersion
-	if params.ProtocolVersion == protocolVersion {
-		version = params.ProtocolVersion
+	version := LegacyProtocolVersion
+	if params.ProtocolVersion == ProtocolVersion {
+		version = ProtocolVersion
 	}
 
 	result := map[string]any{
@@ -216,14 +226,33 @@ func (s *Server) handleInitialize(id *json.RawMessage, raw json.RawMessage) erro
 	return s.respond(id, result)
 }
 
+func (s *Server) handleDiscover(id *json.RawMessage) error {
+	return s.respond(id, map[string]any{
+		"protocolVersions": []string{ProtocolVersion, LegacyProtocolVersion},
+		"capabilities": map[string]any{
+			"tools":      map[string]any{},
+			"extensions": map[string]any{},
+		},
+		"serverInfo": map[string]any{
+			"name":    "atb",
+			"version": s.version,
+		},
+		"ttlMs":      30000,
+		"cacheScope": "private",
+	})
+}
+
 func (s *Server) handleToolsList(id *json.RawMessage) error {
 	result := map[string]any{
+		"ttlMs":      30000,
+		"cacheScope": "private",
 		"tools": []toolDefinition{
 			{
 				Name:        "verify",
 				Description: "Verify an ATB bundle's integrity and trust chain",
 				InputSchema: map[string]any{
-					"type": "object",
+					"$schema": jsonSchemaDialect,
+					"type":    "object",
 					"properties": map[string]any{
 						"path": map[string]any{
 							"type":        "string",
@@ -253,6 +282,7 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 				Name:        "atb_init",
 				Description: "Initialise a new ATB bundle at the current working directory (idempotent)",
 				InputSchema: map[string]any{
+					"$schema":              jsonSchemaDialect,
 					"type":                 "object",
 					"properties":           map[string]any{},
 					"additionalProperties": false,
@@ -262,6 +292,7 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 				Name:        "status",
 				Description: "Return ATB server status, version, and local bundle state",
 				InputSchema: map[string]any{
+					"$schema":              jsonSchemaDialect,
 					"type":                 "object",
 					"properties":           map[string]any{},
 					"additionalProperties": false,
@@ -271,7 +302,8 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 				Name:        "rag_index_record",
 				Description: "Record a PageIndex document tree build and append atb.event.rag_index to the current bundle",
 				InputSchema: map[string]any{
-					"type": "object",
+					"$schema": jsonSchemaDialect,
+					"type":    "object",
 					"properties": map[string]any{
 						"index_id": map[string]any{
 							"type":        "string",
@@ -297,6 +329,9 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 							"type":        "string",
 							"description": "SHA-256 hex digest of json.dumps(tree, sort_keys=True)",
 						},
+						"index_version":    map[string]any{"type": "string"},
+						"source_digest":    map[string]any{"type": "string"},
+						"tree_root_digest": map[string]any{"type": "string"},
 						"indexed_at": map[string]any{
 							"type":        "string",
 							"description": "RFC3339 timestamp — defaults to server time if omitted",
@@ -317,7 +352,8 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 				Name:        "rag_retrieval_record",
 				Description: "Record a PageIndex reasoning-based retrieval result and append atb.event.rag_retrieval to the current bundle",
 				InputSchema: map[string]any{
-					"type": "object",
+					"$schema": jsonSchemaDialect,
+					"type":    "object",
 					"properties": map[string]any{
 						"query": map[string]any{
 							"type": "string",
@@ -359,6 +395,14 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 							"type":        "integer",
 							"description": "Wall-clock milliseconds for the retrieval call",
 						},
+						"strategy":                 map[string]any{"type": "string"},
+						"query_digest":             map[string]any{"type": "string"},
+						"selected_node_ids":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"selected_parent_ids":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"section_paths":            map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"selected_content_digests": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"result_set_digest":        map[string]any{"type": "string"},
+						"tree_root_digest":         map[string]any{"type": "string"},
 					},
 					"required": []string{
 						"query",
@@ -525,13 +569,16 @@ func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
 	if err := rejectUnknownFields(args, map[string]struct{}{
-		"index_id":   {},
-		"source_uri": {},
-		"page_count": {},
-		"node_count": {},
-		"model_id":   {},
-		"index_hash": {},
-		"indexed_at": {},
+		"index_id":         {},
+		"source_uri":       {},
+		"page_count":       {},
+		"node_count":       {},
+		"model_id":         {},
+		"index_hash":       {},
+		"indexed_at":       {},
+		"index_version":    {},
+		"source_digest":    {},
+		"tree_root_digest": {},
 	}); err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
@@ -579,6 +626,7 @@ func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
 		"index_hash": indexHash,
 		"indexed_at": indexedAt,
 	}
+	copyOptionalEvidenceFields(data, args, "index_version", "source_digest", "tree_root_digest")
 
 	record, err := s.handlers.Append(s.commandContext(), event.TypeRAGIndex, data)
 	if err != nil {
@@ -604,17 +652,25 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
 	if err := rejectUnknownFields(args, map[string]struct{}{
-		"query":        {},
-		"retrieval_id": {},
-		"index_id":     {},
-		"node_id":      {},
-		"node_title":   {},
-		"source_uri":   {},
-		"page_start":   {},
-		"page_end":     {},
-		"node_summary": {},
-		"model_id":     {},
-		"latency_ms":   {},
+		"query":                    {},
+		"retrieval_id":             {},
+		"index_id":                 {},
+		"node_id":                  {},
+		"node_title":               {},
+		"source_uri":               {},
+		"page_start":               {},
+		"page_end":                 {},
+		"node_summary":             {},
+		"model_id":                 {},
+		"latency_ms":               {},
+		"strategy":                 {},
+		"query_digest":             {},
+		"selected_node_ids":        {},
+		"selected_parent_ids":      {},
+		"section_paths":            {},
+		"selected_content_digests": {},
+		"result_set_digest":        {},
+		"tree_root_digest":         {},
 	}); err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
@@ -677,6 +733,7 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	} else if present && strings.TrimSpace(nodeSummary) != "" {
 		data["node_summary"] = nodeSummary
 	}
+	copyOptionalEvidenceFields(data, args, "strategy", "query_digest", "selected_node_ids", "selected_parent_ids", "section_paths", "selected_content_digests", "result_set_digest", "tree_root_digest")
 
 	record, err := s.handlers.Append(s.commandContext(), event.TypeRAGRetrieval, data)
 	if err != nil {
@@ -843,6 +900,14 @@ func rejectUnknownFields(args map[string]any, allowed map[string]struct{}) error
 		}
 	}
 	return nil
+}
+
+func copyOptionalEvidenceFields(destination, source map[string]any, fields ...string) {
+	for _, field := range fields {
+		if value, ok := source[field]; ok {
+			destination[field] = value
+		}
+	}
 }
 
 func requireStringField(args map[string]any, field string) (string, error) {

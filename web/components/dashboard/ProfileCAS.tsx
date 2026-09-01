@@ -16,15 +16,23 @@ import {
 // ─── Grade chip colours ───────────────────────────────────────────────────────
 
 const GRADE_STYLE: Record<string, string> = {
-  High: "bg-green-900/60 text-green-300 border-green-700/40",
-  Medium: "bg-teal-900/60 text-teal-300 border-teal-700/40",
-  Low: "bg-yellow-900/60 text-yellow-300 border-yellow-700/40",
-  Insufficient: "bg-red-900/60 text-red-300 border-red-700/40",
+  "High coverage": "border-verified/40 bg-verified/10 text-verified",
+  "Moderate coverage": "border-warning/40 bg-warning/10 text-warning",
+  "Low coverage": "border-warning/40 bg-warning/10 text-warning",
+  "Minimal coverage": "border-danger/40 bg-danger/10 text-danger",
 };
 
 // ─── Sub-score bar ────────────────────────────────────────────────────────────
 
-function SubScoreBar({ label, value }: { label: string; value: number }) {
+function SubScoreBar({
+  label,
+  value,
+  assessable = true,
+}: {
+  label: string;
+  value: number;
+  assessable?: boolean;
+}) {
   const pct = Math.round(value * 100);
   const meta = casSubScoreMeta(label);
   const inlineLabel = casSubScoreInlineLabel(label);
@@ -52,12 +60,12 @@ function SubScoreBar({ label, value }: { label: string; value: number }) {
       )}
       <div className="flex-1 overflow-hidden rounded-full bg-muted" style={{ height: 4 }}>
         <div
-          className="h-full rounded-full bg-primary/40 transition-all"
-          style={{ width: `${pct}%` }}
+          className={`h-full rounded-full transition-all ${assessable ? "bg-primary/40" : "bg-unknown/30"}`}
+          style={{ width: assessable ? `${pct}%` : "100%" }}
         />
       </div>
       <span className="w-8 shrink-0 text-right font-mono text-[10px] text-muted-foreground">
-        {pct}%
+        {assessable ? `${pct}%` : "N/A"}
       </span>
     </div>
   );
@@ -93,38 +101,32 @@ function FailureCard({
 function ReportBody({ report }: { report: ProfileReportSummary }) {
   const [warningsOpen, setWarningsOpen] = useState(false);
   const [gapsOpen, setGapsOpen] = useState(false);
-  const casPercent = Math.round(report.cas_score * 100);
-  const effectivePct = report.effective_score
-    ? Math.round(report.effective_score * 100)
-    : undefined;
-  const bonusPct =
-    report.corroboration_bonus && report.corroboration_bonus > 0
-      ? Math.round(report.corroboration_bonus * 100)
-      : undefined;
+  const coveragePercent = Math.round((report.coverage_score ?? report.cas_score) * 100);
+  const assessmentPercent = Math.round((report.assessment_coverage ?? 1) * 100);
 
   const subEntries = Object.entries(report.sub_scores) as [string, number][];
 
   return (
     <div className="space-y-3 pb-2">
-      {/* CAS score bar */}
+      {/* Integrity and coverage are deliberately distinct. */}
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            completeness (CAS)
+            Evidence coverage
           </span>
-          <span className="font-mono text-xs text-foreground">{casPercent}%</span>
+          <span className="font-mono text-xs text-foreground">{coveragePercent}%</span>
         </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
             className="h-full rounded-full bg-primary/70 transition-all"
-            style={{ width: `${casPercent}%` }}
+            style={{ width: `${coveragePercent}%` }}
           />
         </div>
-        {effectivePct !== undefined && bonusPct !== undefined && (
-          <p className="font-mono text-[10px] text-muted-foreground">
-            effective {effectivePct}% (with corroboration +{bonusPct}%)
-          </p>
-        )}
+        <p className="font-mono text-[10px] text-muted-foreground">
+          assessment coverage {assessmentPercent}% · integrity{" "}
+          {(report.integrity_valid ?? report.chain_valid) ? "valid" : "failed"} · assurance{" "}
+          {report.assurance_valid ? "valid" : "invalid"}
+        </p>
         <p className="font-mono text-[10px] text-muted-foreground">
           chain {report.chain_valid === false ? "invalid" : "valid"} · anchor{" "}
           {report.anchor_status ?? "unknown"}
@@ -134,7 +136,12 @@ function ReportBody({ report }: { report: ProfileReportSummary }) {
       {/* Sub-score grid — 2 columns */}
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
         {subEntries.map(([key, val]) => (
-          <SubScoreBar key={key} label={key.toUpperCase()} value={val} />
+          <SubScoreBar
+            key={key}
+            label={key.toUpperCase()}
+            value={val}
+            assessable={report.dimension_assessments?.[key.toUpperCase()]?.assessable ?? true}
+          />
         ))}
       </div>
 
@@ -211,8 +218,7 @@ function ReportBody({ report }: { report: ProfileReportSummary }) {
 
       {report.residual_risk_level && (
         <p className="font-mono text-[10px] text-muted-foreground">
-          residual risk:{" "}
-          <span className="text-foreground">{report.residual_risk_level}</span>
+          residual risk: <span className="text-foreground">{report.residual_risk_level}</span>
         </p>
       )}
 
@@ -262,8 +268,7 @@ export function ProfileCAS({ className }: ProfileCASProps) {
   const verifyMutation = useRunBundleVerifyMutation();
 
   const isForbidden =
-    profileQuery.isError &&
-    (profileQuery.error as Error & { status?: number }).status === 403;
+    profileQuery.isError && (profileQuery.error as Error & { status?: number }).status === 403;
 
   const report = profileQuery.data ?? null;
 
@@ -296,10 +301,10 @@ export function ProfileCAS({ className }: ProfileCASProps) {
               </span>
               <span
                 className={`rounded border px-1.5 py-0.5 font-mono text-[10px] font-bold ${
-                  GRADE_STYLE[report.cas_grade] ?? "text-muted-foreground"
+                  GRADE_STYLE[report.coverage_grade || report.cas_grade] ?? "text-muted-foreground"
                 }`}
               >
-                {report.cas_grade}
+                {report.coverage_grade || report.cas_grade}
               </span>
             </>
           )}
@@ -315,77 +320,77 @@ export function ProfileCAS({ className }: ProfileCASProps) {
       {open && (
         <div className="border-t border-border px-3 pt-3">
           <TooltipProvider>
-          {/* Forbidden / tamper */}
-          {isForbidden && (
-            <div className="flex items-center gap-2 py-2 text-xs text-red-400">
-              <ShieldOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span className="font-mono">
-                Verification required before profile report is available.
-              </span>
-            </div>
-          )}
-
-          {/* Loading */}
-          {profileQuery.isLoading && (
-            <div className="space-y-2 py-2">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-2.5 animate-pulse rounded bg-muted" />
-              ))}
-            </div>
-          )}
-
-          {/* No report yet */}
-          {!profileQuery.isLoading && !isForbidden && report === null && (
-            <div className="flex flex-col gap-2 py-2">
-              <span className="font-mono text-xs text-muted-foreground">
-                No profile report — run verification first.
-              </span>
-              <button
-                type="button"
-                disabled={verifyMutation.isPending}
-                onClick={() => verifyMutation.mutate()}
-                className="flex w-fit items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1 font-mono text-xs text-foreground hover:border-ring disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <RotateCcw
-                  className={`h-3 w-3 ${verifyMutation.isPending ? "animate-spin" : ""}`}
-                  aria-hidden="true"
-                />
-                {verifyMutation.isPending ? "Running…" : "Run Verify"}
-              </button>
-              {verifyMutation.isError && (
-                <span className="font-mono text-xs text-destructive">
-                  {verifyMutation.error.message}
+            {/* Forbidden / tamper */}
+            {isForbidden && (
+              <div className="flex items-center gap-2 py-2 text-xs text-red-400">
+                <ShieldOff className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="font-mono">
+                  Verification required before profile report is available.
                 </span>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* Report present */}
-          {!profileQuery.isLoading && !isForbidden && report !== null && (
-            <>
-              <ReportBody report={report} />
-              <div className="border-t border-border pt-2">
+            {/* Loading */}
+            {profileQuery.isLoading && (
+              <div className="space-y-2 py-2">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-2.5 animate-pulse rounded bg-muted" />
+                ))}
+              </div>
+            )}
+
+            {/* No report yet */}
+            {!profileQuery.isLoading && !isForbidden && report === null && (
+              <div className="flex flex-col gap-2 py-2">
+                <span className="font-mono text-xs text-muted-foreground">
+                  No profile report — run verification first.
+                </span>
                 <button
                   type="button"
                   disabled={verifyMutation.isPending}
                   onClick={() => verifyMutation.mutate()}
-                  aria-label="Re-run bundle verification"
-                  className="flex items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1 font-mono text-xs text-muted-foreground hover:border-ring hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex w-fit items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1 font-mono text-xs text-foreground hover:border-ring disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <RotateCcw
                     className={`h-3 w-3 ${verifyMutation.isPending ? "animate-spin" : ""}`}
                     aria-hidden="true"
                   />
-                  {verifyMutation.isPending ? "Running…" : "Re-run Verify"}
+                  {verifyMutation.isPending ? "Running…" : "Run Verify"}
                 </button>
                 {verifyMutation.isError && (
-                  <span className="mt-1 block font-mono text-xs text-destructive">
+                  <span className="font-mono text-xs text-destructive">
                     {verifyMutation.error.message}
                   </span>
                 )}
               </div>
-            </>
-          )}
+            )}
+
+            {/* Report present */}
+            {!profileQuery.isLoading && !isForbidden && report !== null && (
+              <>
+                <ReportBody report={report} />
+                <div className="border-t border-border pt-2">
+                  <button
+                    type="button"
+                    disabled={verifyMutation.isPending}
+                    onClick={() => verifyMutation.mutate()}
+                    aria-label="Re-run bundle verification"
+                    className="flex items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1 font-mono text-xs text-muted-foreground hover:border-ring hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <RotateCcw
+                      className={`h-3 w-3 ${verifyMutation.isPending ? "animate-spin" : ""}`}
+                      aria-hidden="true"
+                    />
+                    {verifyMutation.isPending ? "Running…" : "Re-run Verify"}
+                  </button>
+                  {verifyMutation.isError && (
+                    <span className="mt-1 block font-mono text-xs text-destructive">
+                      {verifyMutation.error.message}
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
           </TooltipProvider>
         </div>
       )}

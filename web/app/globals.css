@@ -4,10 +4,32 @@
 
 @layer base {
   :root {
+    /* Raw palette tokens. Components consume semantic tokens below. */
+    --raw-canvas: 220 22% 96%;
+    --raw-surface-1: 0 0% 100%;
+    --raw-surface-2: 213 34% 93%;
+    --raw-surface-3: 210 27% 90%;
+    --raw-text-primary: 225 30% 13%;
+    --raw-text-secondary: 219 18% 28%;
+    --raw-text-muted: 219 16% 41%;
+    --raw-accent: 212 100% 55%;
+    --raw-verified: 130 49% 42%;
+    --raw-warning: 40 73% 42%;
+    --raw-danger: 3 88% 52%;
+    --raw-unknown: 210 7% 48%;
+
+    /* Semantic surface, text, interaction, and evidence-state tokens. */
+    --surface-1: var(--raw-surface-1);
+    --surface-2: var(--raw-surface-2);
+    --surface-3: var(--raw-surface-3);
+    --state-verified: var(--raw-verified);
+    --state-warning: var(--raw-warning);
+    --state-danger: var(--raw-danger);
+    --state-unknown: var(--raw-unknown);
     --font-sans: "Inter";
     --font-mono: "JetBrains Mono";
-    --background: 220 22% 96%;
-    --foreground: 225 30% 13%;
+    --background: var(--raw-canvas);
+    --foreground: var(--raw-text-primary);
     --card: 0 0% 100%;
     --card-foreground: 225 30% 13%;
     --popover: 0 0% 100%;
@@ -17,7 +39,7 @@
     --secondary: 213 34% 93%;
     --secondary-foreground: 225 30% 13%;
     --muted: 210 27% 90%;
-    --muted-foreground: 219 16% 41%;
+    --muted-foreground: var(--raw-text-muted);
     --accent: 28 96% 55%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
@@ -33,36 +55,56 @@
     --banner-fail-h: 5rem;
 
     /* Event family colour tokens — light surface */
-    --ev-llm:     210 100% 56%;
-    --ev-tool:    142  69% 45%;
-    --ev-chain:   262  80% 62%;
-    --ev-policy:   38  95% 52%;
-    --ev-human:   354  82% 60%;
-    --ev-export:  186  85% 43%;
-    --ev-action:   14  88% 52%;
-    --ev-default: 215  16% 47%;
+    --ev-llm: 210 100% 56%;
+    --ev-tool: 142 69% 45%;
+    --ev-chain: 262 80% 62%;
+    --ev-policy: 38 95% 52%;
+    --ev-human: 354 82% 60%;
+    --ev-export: 186 85% 43%;
+    --ev-action: 14 88% 52%;
+    --ev-default: 215 16% 47%;
   }
 
   .dark {
-    --background: 222 17% 7%;
-    --foreground: 210 16% 88%;
-    --card: 222 14% 11%;
-    --card-foreground: 210 16% 88%;
-    --popover: 222 14% 11%;
-    --popover-foreground: 210 16% 88%;
-    --primary: 193 99% 45%;
+    /* v1.16 forensic dark palette: #0D1117 through #1C2430. */
+    --raw-canvas: 216 28% 7.6%;
+    --raw-surface-1: 214 28% 9.2%;
+    --raw-surface-2: 215 25% 11.6%;
+    --raw-surface-3: 214 26% 15%;
+    --raw-text-primary: 210 29% 93%;
+    --raw-text-secondary: 213 17% 71%;
+    --raw-text-muted: 212 12% 52%;
+    --raw-accent: 212 100% 67%;
+    --raw-verified: 130 49% 49%;
+    --raw-warning: 40 73% 48%;
+    --raw-danger: 3 92% 63%;
+    --raw-unknown: 210 7% 58%;
+    --surface-1: var(--raw-surface-1);
+    --surface-2: var(--raw-surface-2);
+    --surface-3: var(--raw-surface-3);
+    --state-verified: var(--raw-verified);
+    --state-warning: var(--raw-warning);
+    --state-danger: var(--raw-danger);
+    --state-unknown: var(--raw-unknown);
+    --background: var(--raw-canvas);
+    --foreground: var(--raw-text-primary);
+    --card: var(--raw-surface-2);
+    --card-foreground: var(--raw-text-primary);
+    --popover: var(--raw-surface-2);
+    --popover-foreground: var(--raw-text-primary);
+    --primary: var(--raw-accent);
     --primary-foreground: 222 47% 11%;
     --secondary: 220 12% 17%;
-    --secondary-foreground: 210 16% 88%;
+    --secondary-foreground: var(--raw-text-secondary);
     --muted: 220 10% 18%;
-    --muted-foreground: 210 14% 68%;
+    --muted-foreground: var(--raw-text-muted);
     --accent: 32 95% 57%;
     --accent-foreground: 222 47% 11%;
     --destructive: 0 79% 52%;
     --destructive-foreground: 210 16% 88%;
     --border: 220 10% 20%;
     --input: 220 10% 20%;
-    --ring: 193 99% 45%;
+    --ring: var(--raw-accent);
 
     /* Fixed status-bar height consumed by layout for top offset */
     --banner-h: 2.25rem;
@@ -70,14 +112,14 @@
     --banner-fail-h: 5rem;
 
     /* Event family colour tokens — dark surface */
-    --ev-llm:     210 100% 65%;
-    --ev-tool:    142  60% 55%;
-    --ev-chain:   262  70% 70%;
-    --ev-policy:   38  90% 60%;
-    --ev-human:   354  75% 65%;
-    --ev-export:  186  75% 52%;
-    --ev-action:   14  85% 62%;
-    --ev-default: 215  14% 68%;
+    --ev-llm: 210 100% 65%;
+    --ev-tool: 142 60% 55%;
+    --ev-chain: 262 70% 70%;
+    --ev-policy: 38 90% 60%;
+    --ev-human: 354 75% 65%;
+    --ev-export: 186 75% 52%;
+    --ev-action: 14 85% 62%;
+    --ev-default: 215 14% 68%;
   }
 
   * {
@@ -102,16 +144,59 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer utilities {
   /* Event family utilities — set --ev-color then consume for text + border */
-  .ev-llm     { --ev-color: var(--ev-llm);     color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
-  .ev-tool    { --ev-color: var(--ev-tool);    color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
-  .ev-chain   { --ev-color: var(--ev-chain);   color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
-  .ev-policy  { --ev-color: var(--ev-policy);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
-  .ev-human   { --ev-color: var(--ev-human);   color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
-  .ev-export  { --ev-color: var(--ev-export);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
-  .ev-action  { --ev-color: var(--ev-action);  color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
-  .ev-default { --ev-color: var(--ev-default); color: hsl(var(--ev-color)); border-color: hsl(var(--ev-color) / 0.4); }
+  .ev-llm {
+    --ev-color: var(--ev-llm);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
+  .ev-tool {
+    --ev-color: var(--ev-tool);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
+  .ev-chain {
+    --ev-color: var(--ev-chain);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
+  .ev-policy {
+    --ev-color: var(--ev-policy);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
+  .ev-human {
+    --ev-color: var(--ev-human);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
+  .ev-export {
+    --ev-color: var(--ev-export);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
+  .ev-action {
+    --ev-color: var(--ev-action);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
+  .ev-default {
+    --ev-color: var(--ev-default);
+    color: hsl(var(--ev-color));
+    border-color: hsl(var(--ev-color) / 0.4);
+  }
 
   /* Subtle dot-grid — graph/canvas backgrounds */
   .bg-grid {
@@ -182,6 +267,10 @@
 
 @keyframes cursor-blink {
   0%,
-  100% { opacity: 1; }
-  50%  { opacity: 0; }
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
 }

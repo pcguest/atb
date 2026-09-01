@@ -1,6 +1,6 @@
 import type { DashboardRole } from "@/lib/roles";
 
-/** Friendly timeline labels for auditor and executive roles. */
+/** Friendly timeline labels for security and auditor presentations. */
 export const FRIENDLY_EVENT_LABELS: Record<string, string> = {
   "atb.bundle.manifest": "Bundle manifest",
   "atb.bundle.anchor": "Timestamp anchor",
@@ -46,7 +46,7 @@ export const FRIENDLY_EVENT_LABELS: Record<string, string> = {
 };
 
 export function usesFriendlyEventLabels(role: DashboardRole): boolean {
-  return role === "auditor" || role === "executive";
+  return role === "auditor" || role === "security";
 }
 
 export function eventDisplayLabel(eventType: string, role: DashboardRole): string {

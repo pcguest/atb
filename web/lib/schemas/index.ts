@@ -7,10 +7,7 @@ export {
 export { bundleGraphResponseSchema, graphEdgeSchema, graphNodeSchema } from "@/lib/schemas/graph";
 export { privacyRevealRequestSchema, privacyRevealResponseSchema } from "@/lib/schemas/privacy";
 export { verificationResponseSchema, verificationStatusSchema } from "@/lib/schemas/verification";
-export {
-  failureDTOSchema,
-  profileReportSummarySchema,
-} from "@/lib/schemas/profile";
+export { failureDTOSchema, profileReportSummarySchema } from "@/lib/schemas/profile";
 export {
   workspaceBundleSummarySchema,
   workspaceBundlesResponseSchema,
@@ -21,7 +18,18 @@ export {
   sessionEntrySchema,
   sessionsResponseSchema,
 } from "@/lib/schemas/session";
+export { eventTypeStatusSchema, schemaStatusResponseSchema } from "@/lib/schemas/schema-status";
 export {
-  eventTypeStatusSchema,
-  schemaStatusResponseSchema,
-} from "@/lib/schemas/schema-status";
+  contextOperationSchema,
+  contextUnitSchema,
+  evidenceCapabilitySchema,
+  investigationContextSchema,
+  investigationFindingSchema,
+  investigationFindingsSchema,
+  investigationOverviewSchema,
+  investigationRelationshipsSchema,
+  investigationTimelineSchema,
+  investigationTrustSchema,
+  relationshipSchema,
+  timelineEventSchema,
+} from "@/lib/schemas/investigation";

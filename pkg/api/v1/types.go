@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 package apiv1
 
+import verifypkg "github.com/pcguest/atb/internal/verify"
+
 // VerificationResponse reports top-level integrity status for a bundle view session.
 type VerificationResponse struct {
 	Status      string `json:"status"`
@@ -104,19 +106,25 @@ type ProvabilityGapDTO struct {
 // GET /api/v1/bundle/profile returns 204 No Content when no verify report has been computed.
 // POST /api/v1/bundle/verify runs (or re-runs) verify and returns a fresh summary.
 type ProfileReportSummary struct {
-	ProfileID          string              `json:"profile_id"`
-	ProfileVersion     int                 `json:"profile_version,omitempty"`
-	Pass               bool                `json:"pass"`
-	ChainValid         bool                `json:"chain_valid"`
-	AnchorStatus       string              `json:"anchor_status"`
-	CASScore           float64             `json:"cas_score,omitempty"`
-	CASGrade           string              `json:"cas_grade,omitempty"`
-	SubScores          map[string]float64  `json:"sub_scores,omitempty"`
-	CriticalFailures   []FailureDTO        `json:"critical_failures"`
-	Warnings           []string            `json:"warnings"`
-	Exclusions         []string            `json:"exclusions,omitempty"`
-	ResidualRiskLevel  string              `json:"residual_risk_level,omitempty"`
-	CorroborationBonus float64             `json:"corroboration_bonus,omitempty"`
-	EffectiveScore     float64             `json:"effective_score,omitempty"`
-	ProvabilityGaps    []ProvabilityGapDTO `json:"provability_gaps,omitempty"`
+	ProfileID            string                                   `json:"profile_id"`
+	ProfileVersion       int                                      `json:"profile_version,omitempty"`
+	Pass                 bool                                     `json:"pass"`
+	ChainValid           bool                                     `json:"chain_valid"`
+	AnchorStatus         string                                   `json:"anchor_status"`
+	CASScore             float64                                  `json:"cas_score,omitempty"`
+	CASGrade             string                                   `json:"cas_grade,omitempty"`
+	SubScores            map[string]float64                       `json:"sub_scores,omitempty"`
+	CoverageScore        float64                                  `json:"coverage_score,omitempty"`
+	CoverageGrade        string                                   `json:"coverage_grade,omitempty"`
+	AssessmentCoverage   float64                                  `json:"assessment_coverage,omitempty"`
+	DimensionAssessments map[string]verifypkg.DimensionAssessment `json:"dimension_assessments,omitempty"`
+	IntegrityValid       bool                                     `json:"integrity_valid"`
+	AssuranceValid       bool                                     `json:"assurance_valid"`
+	CriticalFailures     []FailureDTO                             `json:"critical_failures"`
+	Warnings             []string                                 `json:"warnings"`
+	Exclusions           []string                                 `json:"exclusions,omitempty"`
+	ResidualRiskLevel    string                                   `json:"residual_risk_level,omitempty"`
+	CorroborationBonus   float64                                  `json:"corroboration_bonus,omitempty"`
+	EffectiveScore       float64                                  `json:"effective_score,omitempty"`
+	ProvabilityGaps      []ProvabilityGapDTO                      `json:"provability_gaps,omitempty"`
 }

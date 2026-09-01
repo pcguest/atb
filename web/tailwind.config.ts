@@ -23,6 +23,13 @@ const config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        "surface-1": "hsl(var(--surface-1))",
+        "surface-2": "hsl(var(--surface-2))",
+        "surface-3": "hsl(var(--surface-3))",
+        verified: "hsl(var(--state-verified))",
+        warning: "hsl(var(--state-warning))",
+        danger: "hsl(var(--state-danger))",
+        unknown: "hsl(var(--state-unknown))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

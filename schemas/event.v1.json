@@ -199,6 +199,64 @@
     "ai.retrieval.executed": {
       "description": "Retrieval step executed during a RAG pipeline."
     },
+    "ai.context.unit": {
+      "description": "An observable unit of context available to an AI workflow. Digests bind content without requiring sensitive content to be stored.",
+      "properties": {
+        "unit_id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["system_instruction", "conversation", "memory", "retrieved_passage", "document_section", "tool_result", "artifact", "policy_context", "compacted_summary"] },
+        "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "source": { "type": "string" },
+        "parent_unit_ids": { "type": "array", "items": { "type": "string" } },
+        "scope": { "type": "string" },
+        "sensitivity": { "type": "string" },
+        "created_at": { "type": "string", "format": "date-time" },
+        "metadata_provenance": { "type": "object", "additionalProperties": { "type": "string", "enum": ["asserted", "derived", "attested"] } }
+      },
+      "required": ["unit_id", "kind", "digest"]
+    },
+    "ai.context.operation": {
+      "description": "An observable selection, transformation, compaction, cache reuse, or assembly of context units.",
+      "properties": {
+        "operation_id": { "type": "string" },
+        "operation": { "type": "string", "enum": ["select", "transform", "compact", "cache_reuse", "assemble"] },
+        "input_unit_ids": { "type": "array", "items": { "type": "string" } },
+        "output_unit_ids": { "type": "array", "items": { "type": "string" } },
+        "method": { "type": "string" },
+        "processor_id": { "type": "string" },
+        "processor_version": { "type": "string" },
+        "input_token_count": { "type": "integer", "minimum": 0 },
+        "output_token_count": { "type": "integer", "minimum": 0 },
+        "preserved_references": { "type": "array", "items": { "type": "string" } },
+        "dropped_references": { "type": "array", "items": { "type": "string" } },
+        "invocation_id": { "type": "string" }
+      },
+      "required": ["operation_id", "operation", "input_unit_ids", "output_unit_ids"]
+    },
+    "atb.mcp.operation": {
+      "description": "Evidence for one MCP operation. Sensitive authorization values are represented only by redacted digests.",
+      "properties": {
+        "operation_id": { "type": "string" },
+        "protocol_version": { "type": "string" },
+        "method": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["success", "error", "cancelled", "pending"] },
+        "request_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "result_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "error_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "client_metadata_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "capabilities_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "authorization_context_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "ttl_ms": { "type": "integer", "minimum": 0 },
+        "cache_scope": { "type": "string" },
+        "task_handle": { "type": "string" },
+        "task_state": { "type": "string" },
+        "mrtr_state": { "type": "string" },
+        "traceparent": { "type": "string" },
+        "tracestate_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "baggage_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": ["operation_id", "protocol_version", "method", "status", "request_digest"]
+    },
     "ai.model.invoked": {
       "description": "LLM invocation sent. Emitted by the runtime and by atb import chatlog when mapping an assistant turn that names a model.",
       "properties": {
@@ -358,10 +416,30 @@
       "description": "External corroboration record retrieved by an adapter from a third-party system."
     },
     "atb.event.rag_index": {
-      "description": "PageIndex document tree build record. Carries an index_hash and node_count summarising the indexed corpus."
+      "description": "PageIndex document tree build record. Carries deterministic source and ordered-tree commitments.",
+      "properties": {
+        "index_id": { "type": "string" },
+        "index_version": { "type": "string" },
+        "source_uri": { "type": "string" },
+        "source_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "tree_root_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "node_count": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["index_id", "index_version", "tree_root_digest", "node_count"]
     },
     "atb.event.rag_retrieval": {
-      "description": "PageIndex reasoning-based retrieval result. Carries node_id and page_start/page_end identifying the retrieved span."
+      "description": "PageIndex retrieval result with observable selected nodes and source ranges.",
+      "properties": {
+        "retrieval_id": { "type": "string" },
+        "index_id": { "type": "string" },
+        "strategy": { "type": "string" },
+        "selected_node_ids": { "type": "array", "items": { "type": "string" } },
+        "selected_parent_ids": { "type": "array", "items": { "type": "string" } },
+        "section_paths": { "type": "array", "items": { "type": "string" } },
+        "selected_content_digests": { "type": "array", "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" } },
+        "result_set_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": ["retrieval_id", "index_id", "selected_node_ids", "result_set_digest"]
     },
     "dev.session": {
       "description": "Developer session marker used by tooling and tests."
@@ -741,14 +819,35 @@
       "description": "PageIndex document tree build record (index_hash, node_count)",
       "profiles": ["atb.profile.rag_answer"],
       "criticality": "required",
-      "required_fields": []
+      "required_fields": ["index_id", "index_version", "tree_root_digest", "node_count"]
     },
     {
       "type": "atb.event.rag_retrieval",
       "description": "PageIndex reasoning-based retrieval result (node_id, page_start/end)",
       "profiles": ["atb.profile.rag_answer"],
       "criticality": "required",
-      "required_fields": []
+      "required_fields": ["retrieval_id", "index_id", "selected_node_ids", "result_set_digest"]
+    },
+    {
+      "type": "ai.context.unit",
+      "description": "Observable context unit bound by digest",
+      "profiles": ["atb.profile.rag_answer"],
+      "criticality": "informational",
+      "required_fields": ["unit_id", "kind", "digest"]
+    },
+    {
+      "type": "ai.context.operation",
+      "description": "Observable context selection, transformation, compaction, cache reuse, or assembly",
+      "profiles": ["atb.profile.rag_answer"],
+      "criticality": "informational",
+      "required_fields": ["operation_id", "operation", "input_unit_ids", "output_unit_ids"]
+    },
+    {
+      "type": "atb.mcp.operation",
+      "description": "Modern MCP operation evidence with digested request and result metadata",
+      "profiles": [],
+      "criticality": "informational",
+      "required_fields": ["operation_id", "protocol_version", "method", "status", "request_digest"]
     },
     {
       "type": "atb.tool.call",
