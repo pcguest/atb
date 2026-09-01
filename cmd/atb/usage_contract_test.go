@@ -36,7 +36,7 @@ func TestCommandUsageRenderers(t *testing.T) {
 	})
 	for _, want := range []string{
 		"atb archive", "atb doc", `"commands"`, "ATB — Agent Trace Bundle",
-		"atb trust-report", "atb view",
+		"atb trust-report", "atb view", "atb intercept",
 	} {
 		if !strings.Contains(processOutput, want) {
 			t.Fatalf("process usage output missing %q", want)

@@ -40,7 +40,7 @@ Documentation = "https://github.com/pcguest/atb/blob/main/docs"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["atb*", "atb_cli_stub*"]
+include = ["atb*"]
 
 [tool.black]
 line-length = 88

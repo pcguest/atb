@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OpenAPI `info.version` is `1.15.4`. `pkg/api/v1` is documented as the local viewer HTTP API, not a product SDK.
 - MCP docs state the shipped handshake is `2024-11-05` and do not claim MCP `2026-07-28` completeness.
 - Historical changelog entries that describe `custosd` HTTP refer to a removed in-repo daemon. Current optional custody is the Mortise client; the receipt wire identifier remains `custos.receipt.v1`.
+- Text help lists `atb intercept`. `atb serve` and `atb identity` remain compatibility commands, not the public product surface.
+
+### Removed
+- Unused Python packaging glob `atb_cli_stub*`.
 
 ## [v1.15.4] - 2026-08-30
 
