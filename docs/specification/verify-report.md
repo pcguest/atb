@@ -131,13 +131,8 @@ When using `atb verify --remote s3://...`, the response wraps `VerifierReport` w
 - If `profile_id` is empty, rerun with `--profile <id>`.
 - If `pass` is false, inspect `critical_failures` first.
 - If `pass` is true but `residual_risk.level` is `Medium` or higher, review `required_warnings`, `sub_scores`, and the [CAS guide](../evidence/cas.md).
-- Machine-readable contract: `atb verify --schema` prints frozen JSON Schema (`verify.report.v1.schema.1`); `atb verify --schema --schema-out path.json` writes it to disk.
+- Machine-readable contract: `atb verify --schema` prints frozen JSON Schema (`verify.report.v1.schema.2`); `atb verify --schema --schema-out path.json` writes it to disk.
 
 ## Schema versioning
 
-`verify.report.v1.schema.1` is a strict custody contract. The embedded schema
-sets `additionalProperties: false`, and conformance tests reject top-level
-report fields that are not declared in that schema. Future additions to the
-automation report require a new schema identifier (for example
-`verify.report.v1.schema.2`, or `verify.report.v2` for semantic changes) and a
-matching CHANGELOG entry.
+`verify.report.v1.schema.2` is the current custody contract (`pkg/custody.VerifyReportSchemaVersion`). The embedded schema sets `additionalProperties: false`, and conformance tests reject top-level report fields that are not declared in that schema. Future additions to the automation report require a new schema identifier (`verify.report.v1.schema.3`, or `verify.report.v2` for semantic changes) and a matching CHANGELOG entry. Do not treat schema.3 as current until that cut ships.

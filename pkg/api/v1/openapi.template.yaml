@@ -1,9 +1,10 @@
 openapi: 3.0.3
 info:
   title: ATB Viewer API
-  version: 1.12.0
+  version: 1.15.4
   description: |
-    Local-first read API used by `atb view`. The server binds to 127.0.0.1 only.
+    Local-first read API used by `atb view`. This is viewer HTTP, not a product SDK.
+    The server binds to 127.0.0.1 only.
 
     All endpoints (including read-only ones) require an `X-ATB-Session-Token` header
     or `?session_token=` query parameter when the viewer is started via `atb view`
