@@ -21,6 +21,11 @@ every registry or GitHub release artefact has been published; check the
 installed CLI/SDK version and the relevant registry before relying on a
 particular release.
 
+v1.15.4 Docker images are multi-architecture (`linux/amd64` and
+`linux/arm64`). Pull the published `atb` image for that tag from Docker Hub
+when the registry publication for the tag is available. Image publication is
+independent of the source tag.
+
 ## Try ATB in five minutes
 
 Install the CLI:
@@ -129,7 +134,7 @@ Python and TypeScript SDKs do not call a hidden Go service.
 
 | Language | Package |
 | --- | --- |
-| Go | [`pkg/api/v1`](./pkg/api/v1) |
+| Go | The `atb` CLI (`cmd/atb`) and supporting libraries. [`pkg/api/v1`](./pkg/api/v1) is the **local viewer HTTP API** used by `atb view`, not a general-purpose product SDK. |
 | Python | [`sdk/python`](./sdk/python) |
 | TypeScript | [`sdk/typescript`](./sdk/typescript) |
 

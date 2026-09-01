@@ -38,6 +38,13 @@ for (const record of received.records) {
 console.log(result.signatures);
 ```
 
+## Generated event catalogue
+
+`src/eventTypes_generated.ts` is produced by `go generate ./internal/event/...`
+from `schemas/event.v1.json`. It is a generate-gate artefact (`make check-generated`),
+not a hand-maintained public module. Do not edit it. Import event constants from
+the published package entry (`@pcguest/atb-sdk`).
+
 ## Supported event types
 
 | Event type constant name | Event type string |

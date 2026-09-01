@@ -65,13 +65,17 @@ Abbreviated `atb verify --profile atb.profile.policy_decision --format json` out
   "cas_score": 0.70,
   "cas_grade": "Medium",
   "critical_failures": [],
-  "residual_risk": "Medium"
+  "residual_risk": {
+    "level": "Medium",
+    "drivers": [],
+    "recommended_next_evidence": []
+  }
 }
 ```
 
 - `pass: true` means the bundle chain is intact and the selected profile passed its required checks.
 - `cas_score` and `cas_grade` describe how much of the expected evidence ATB can see for that workflow.
-- `residual_risk` summarises what is still weak or missing in the recorded evidence, not whether the underlying decision was correct.
+- `residual_risk` is an object. `residual_risk.level` summarises what is still weak or missing in the recorded evidence, not whether the underlying decision was correct.
 
 If you want the full integrity fields, run `atb verify --profile atb.profile.policy_decision --json`
 and check `integrity.chain_valid: true`.
@@ -81,7 +85,7 @@ and check `integrity.chain_valid: true`.
 - `pass: true` with a populated `profile_id` means the selected profile passed and the bundle chain is intact.
 - `profile_id: ""` means the bundle verified for integrity, but no workflow profile was selected or matched. This is common for manifest-only or zero-event bundles.
 - `pass: false` with non-empty `critical_failures` means the selected profile is missing required evidence.
-- `residual_risk: "Critical"` means do not treat the bundle as trustworthy evidence until you inspect the failure. Use `atb verify --json` when you need the full integrity report.
+- `residual_risk.level: "Critical"` means do not treat the bundle as trustworthy evidence until you inspect the failure. Use `atb verify --json` when you need the diagnostic integrity report; `--format json` remains the stable automation contract.
 
 ### Verify against a specific profile
 

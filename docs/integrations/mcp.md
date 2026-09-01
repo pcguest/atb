@@ -82,7 +82,7 @@ Or add a `.mcp.json` file at your project root:
 
 ## MCP handshake
 
-The server uses protocol version `2024-11-05` and responds to
+The shipped server negotiates protocol version `2024-11-05` and responds to
 `initialize` with:
 
 ```json
@@ -92,6 +92,11 @@ The server uses protocol version `2024-11-05` and responds to
   "serverInfo": { "name": "atb", "version": "<release>" }
 }
 ```
+
+ATB does **not** claim MCP specification `2026-07-28` completeness. The
+current initialize result does not advertise `_meta`, `supportedVersions`,
+or `resultType`. Treat this as a local stdio bridge, not a modern-MCP
+compliance statement.
 
 ## Available tools
 

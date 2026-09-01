@@ -15,6 +15,17 @@ decisions are in [repository-inventory.json](./repository-inventory.json).
 | Test suites (`test/` and package tests) | KEEP | Golden, integration, schema, performance, security, and release contracts remain executable. |
 | Automation (`.github/`, `Makefile`, `scripts/`) | MERGE | Six workflows and eleven scripts each have a distinct owner and purpose. |
 
+Named script owners (do not delete these because they look unused from the product UI):
+
+| Script | Owner | Purpose |
+| --- | --- | --- |
+| `scripts/smoke-view.sh` | Viewer maintainers / `atb view` | Authenticated smoke of viewer HTTP against a running local session. |
+| `scripts/verify-published-release.sh` | Release maintainers | External verification of a published CLI/SDK release from a clean machine. |
+| `scripts/verify-container-architecture.sh` | Release / Docker | Assert a published image digest matches `linux/amd64` or `linux/arm64`. |
+| `scripts/check-versions.sh` | Hygiene gate | Version-string agreement across CLI, SDKs, viewer, README, SECURITY, CHANGELOG. |
+| `scripts/generate-third-party-notices.mjs` | Release legal | Regenerates `THIRD_PARTY_NOTICES`. |
+| `scripts/generate_profile_fixtures.go` | Profile tests | Deterministic pass/fail profile bundle matrix. |
+
 ## Canonical documentation tree
 
 | Audience or task | Canonical location |
