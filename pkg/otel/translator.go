@@ -182,10 +182,14 @@ func sensitiveAttribute(key string, value any) bool {
 
 func (t DefaultTranslator) eventType(span OTelSpan) (string, error) {
 	if attr := firstString(span.Attributes, "atb.event_type", "atb.event.type", "ai.event_type", "ai.event.type"); attr != "" {
-		return attr, nil
+		if allowedEventType(attr) {
+			return attr, nil
+		}
 	}
 	if t.DefaultEventType != "" {
-		return t.DefaultEventType, nil
+		if allowedEventType(t.DefaultEventType) {
+			return t.DefaultEventType, nil
+		}
 	}
 	operation := strings.ToLower(firstString(span.Attributes, "gen_ai.operation.name"))
 	switch operation {
@@ -210,6 +214,15 @@ func (t DefaultTranslator) eventType(span OTelSpan) (string, error) {
 	default:
 		return "", &MappingError{Field: "event_type"}
 	}
+}
+
+func allowedEventType(eventType string) bool {
+	for _, spec := range event.EventTypesGenerated {
+		if spec.Type == eventType {
+			return true
+		}
+	}
+	return false
 }
 
 func contextForEvent(eventType string, span OTelSpan) map[string]any {

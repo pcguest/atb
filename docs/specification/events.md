@@ -539,6 +539,9 @@ Developer-only types (`dev.session`) are used internally by tooling and tests an
 | `ai.chain.run` | AI integration (see above) | informational | — |
 | `ai.policy.decision` | Policy | critical | `privileged_tool_action`, `rag_answer`, `data_export`, `policy_decision` |
 | `ai.retrieval.executed` | RAG | required | `rag_answer` |
+| `ai.context.unit` | Context lineage | informational | `rag_answer` |
+| `ai.context.operation` | Context lineage | informational | `rag_answer` |
+| `atb.mcp.operation` | MCP evidence | informational | — |
 | `ai.model.invoked` | RAG | critical | `rag_answer` |
 | `ai.model.output` | RAG | critical | `rag_answer` |
 | `atb.event.rag_index` | RAG (PageIndex) | required | `rag_answer` |
@@ -568,4 +571,4 @@ Developer-only types (`dev.session`) are used internally by tooling and tests an
 | `dev.session` | Developer tooling | informational | — |
 | `atb.corroboration.external` | Corroboration | informational | All (contributes to XC) |
 
-`atb.profile.data_export` evaluates `data.export.precommit` and `data.export.executed`, not `ai.action.*`. `ai.human.approval` and `atb.human.approval` are distinct wire types; do not treat them as aliases. The machine-readable registry is `schemas/event.v1.json` / `atb events`.
+`atb.profile.data_export` evaluates `data.export.precommit` and `data.export.executed`, not `ai.action.*`. `ai.human.approval` and `atb.human.approval` are distinct wire types; do not treat them as aliases. `ai.context.unit`, `ai.context.operation`, and `atb.mcp.operation` are additive 1.16 types: lineage and MCP operation evidence, not aliases of `ai.retrieval.executed` or `atb.tool.call`. The machine-readable registry is `schemas/event.v1.json` / `atb events`.

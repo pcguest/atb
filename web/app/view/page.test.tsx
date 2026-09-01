@@ -9,9 +9,6 @@ vi.mock("@/app/view/components/ui/skeleton", () => ({
 vi.mock("@/components/dashboard/EventInspector", () => ({
   EventInspector: () => <div data-testid="event-inspector" />,
 }));
-vi.mock("@/components/dashboard/ProfileCAS", () => ({
-  ProfileCAS: () => <div data-testid="profile-cas" />,
-}));
 vi.mock("@/components/dashboard/TraceGraph", () => ({
   TraceGraph: () => <div data-testid="trace-graph" />,
 }));
@@ -59,7 +56,21 @@ vi.mock("@/lib/api-client", () => ({
     },
   }),
   useInvestigationFindingsQuery: () => ({ data: { findings: [finding] } }),
-  useInvestigationTimelineQuery: () => ({ data: { events: [] } }),
+  useInvestigationTimelineQuery: () => ({
+    data: {
+      events: [
+        {
+          seq: 2,
+          type: "atb.tool.call",
+          label: "Captured tool call",
+          timestamp: "2026-09-01T00:00:00Z",
+          hash: "sha256:tool",
+          family: "tool",
+          causal_edge: false,
+        },
+      ],
+    },
+  }),
   useInvestigationContextQuery: () => ({
     data: { lineage: { units: [], operations: [], warnings: [] }, capabilities: [] },
   }),
@@ -112,5 +123,40 @@ describe("ATB View investigation model", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
     expect(screen.getByText(/ATB proves the integrity and order/)).toBeInTheDocument();
     expect(screen.getByText("What ATB does not prove")).toBeInTheDocument();
+    expect(screen.getByText("Integrity")).toBeInTheDocument();
+    expect(screen.getByText("Coverage")).toBeInTheDocument();
+    expect(screen.getByText("Corroboration")).toBeInTheDocument();
+    expect(screen.getByText("Hash chain verified")).toBeInTheDocument();
+  });
+
+  it("does not claim context was supplied to the model", () => {
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Context" })[0]);
+    expect(screen.getByText("Context evidence")).toBeInTheDocument();
+    expect(screen.queryByText(/Context supplied to model/i)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/does not prove retrieval did not occur/),
+    ).toBeInTheDocument();
+  });
+
+  it("opens evidence from a finding sequence", () => {
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Findings" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "#2" }));
+    expect(screen.getByText("Exact records")).toBeInTheDocument();
+  });
+
+  it("opens evidence from a timeline row", () => {
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    expect(screen.getByText("Exact records")).toBeInTheDocument();
+  });
+
+  it("keeps the relationship graph collapsed", () => {
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Relationships" })[0]);
+    expect(screen.queryByTestId("trace-graph")).not.toBeInTheDocument();
+    expect(screen.getByText(/Optional graph of the same rows/)).toBeInTheDocument();
   });
 });

@@ -68,8 +68,8 @@ func TestServeDiscoverModernStatelessProtocol(t *testing.T) {
 	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
 		t.Fatalf("unmarshal discover result: %v", err)
 	}
-	if len(result.ProtocolVersions) == 0 || result.ProtocolVersions[0] != ProtocolVersion {
-		t.Fatalf("protocolVersions = %v", result.ProtocolVersions)
+	if result.ProtocolVersions[0] != LegacyProtocolVersion || len(result.ProtocolVersions) != 1 {
+		t.Fatalf("protocolVersions = %v, want only %q until 2026-07-28 fields ship", result.ProtocolVersions, LegacyProtocolVersion)
 	}
 	if result.TTLMS <= 0 || result.CacheScope != "private" {
 		t.Fatalf("cache hints = ttlMs %d scope %q", result.TTLMS, result.CacheScope)
@@ -111,6 +111,49 @@ func TestServeToolsList(t *testing.T) {
 		if !names[name] {
 			t.Fatalf("tool %q missing from tools/list response", name)
 		}
+	}
+}
+
+func TestServeInitializeDoesNotAdvertiseIncompleteModernProtocol(t *testing.T) {
+	t.Parallel()
+
+	responses := runServer(t, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"claude","version":"1.0"}}}`+"\n")
+	if len(responses) != 1 {
+		t.Fatalf("unexpected response count: got %d want 1", len(responses))
+	}
+	var result struct {
+		ProtocolVersion string `json:"protocolVersion"`
+	}
+	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
+		t.Fatalf("unmarshal initialize result: %v", err)
+	}
+	if result.ProtocolVersion != LegacyProtocolVersion {
+		t.Fatalf("protocolVersion = %q, want %q until _meta/supportedVersions/resultType ship", result.ProtocolVersion, LegacyProtocolVersion)
+	}
+}
+
+func TestRAGRetrievalRecordDefaultsToQueryDigest(t *testing.T) {
+	t.Parallel()
+	var captured map[string]any
+	srv := NewWithHandlers("test", strings.NewReader(""), io.Discard, ToolHandlers{
+		Append: func(_ context.Context, _ string, data map[string]any) (bundle.Record, error) {
+			captured = data
+			return bundle.Record{}, nil
+		},
+	})
+	result, err := srv.toolRAGRetrievalRecord(json.RawMessage(`{
+		"query":"secret question","retrieval_id":"r1","index_id":"i1","node_id":"n1",
+		"node_title":"Approval Controls","source_uri":"file:///policy.pdf","page_start":47,
+		"page_end":48,"model_id":"model","latency_ms":2
+	}`))
+	if err != nil || result.IsError {
+		t.Fatalf("toolRAGRetrievalRecord() result=%#v err=%v", result, err)
+	}
+	if captured["query"] != nil {
+		t.Fatalf("plaintext query stored by default: %#v", captured)
+	}
+	if captured["query_digest"] == nil || captured["query_digest"] == "" {
+		t.Fatalf("query_digest missing: %#v", captured)
 	}
 }
 

@@ -24,6 +24,10 @@ describe("eventFamily", () => {
     expect(eventFamily("ai.chain.run")).toBe("chain");
     expect(eventFamily("ai.job.scheduled")).toBe("job");
     expect(eventFamily("atb.corroboration.external")).toBe("corroboration");
+    expect(eventFamily("ai.context.unit")).toBe("context");
+    expect(eventFamily("ai.retrieval.executed")).toBe("context");
+    expect(eventFamily("atb.event.rag_retrieval")).toBe("context");
+    expect(eventFamily("atb.mcp.operation")).toBe("action");
   });
 
   it("falls back to other for unknown types", () => {

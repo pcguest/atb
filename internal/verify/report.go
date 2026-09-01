@@ -93,15 +93,17 @@ func ReportFromVerify(r Report) VerifierReport {
 	if r.CAS != nil {
 		report.CASScore = r.CAS.Overall
 		report.CASGrade = r.CAS.Grade
-		report.CoverageScore = r.CAS.CoverageScore
-		report.CoverageGrade = r.CAS.CoverageGrade
-		report.AssessmentCoverage = r.CAS.AssessmentCoverage
 		report.IntegrityValid = r.CAS.IntegrityValid
 		report.AssuranceValid = r.CAS.AssuranceValid
-		if len(r.CAS.Dimensions) > 0 {
-			report.DimensionAssessments = make(map[string]DimensionAssessment, len(r.CAS.Dimensions))
-			for key, value := range r.CAS.Dimensions {
-				report.DimensionAssessments[key] = value
+		if r.CAS.IntegrityValid {
+			report.CoverageScore = r.CAS.CoverageScore
+			report.CoverageGrade = r.CAS.CoverageGrade
+			report.AssessmentCoverage = r.CAS.AssessmentCoverage
+			if len(r.CAS.Dimensions) > 0 {
+				report.DimensionAssessments = make(map[string]DimensionAssessment, len(r.CAS.Dimensions))
+				for key, value := range r.CAS.Dimensions {
+					report.DimensionAssessments[key] = value
+				}
 			}
 		}
 		if r.CAS.CorroborationBonus != 0 {
@@ -132,6 +134,9 @@ func ReportFromVerify(r Report) VerifierReport {
 	report.Warnings = append([]string(nil), profile.RequiredWarnings...)
 	report.Notes = append([]string(nil), profile.InformationalNotes...)
 	report.ProvabilityGaps = append([]ProvabilityGap(nil), r.ProvabilityGaps...)
+	if r.CAS != nil && !r.CAS.IntegrityValid {
+		report.Notes = append(report.Notes, "coverage_score omitted because integrity_valid is false")
+	}
 
 	return report
 }

@@ -204,19 +204,20 @@ func computeCASWithApplicability(
 	}
 
 	result := CASResult{
-		CoverageScore:      coverageScore,
-		CoverageGrade:      coverageGradeFromScore(coverageScore),
-		AssessmentCoverage: assessmentCoverage,
-		Dimensions:         dimensions,
-		IntegrityValid:     integrityValid,
-		AssuranceValid:     integrityValid,
-		SubScores:          copiedScores,
-		WeightVector:       copiedWeights,
+		IntegrityValid: integrityValid,
+		AssuranceValid: integrityValid,
+		SubScores:      copiedScores,
+		WeightVector:   copiedWeights,
 	}
 	if !integrityValid {
 		result.Grade = "Insufficient"
 		return result
 	}
+
+	result.CoverageScore = coverageScore
+	result.CoverageGrade = coverageGradeFromScore(coverageScore)
+	result.AssessmentCoverage = assessmentCoverage
+	result.Dimensions = dimensions
 
 	var total float64
 	for key, weight := range copiedWeights {

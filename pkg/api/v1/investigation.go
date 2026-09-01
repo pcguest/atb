@@ -28,9 +28,14 @@ func (s *APIServer) handleInvestigationOverview(w http.ResponseWriter, r *http.R
 	if !s.allowInvestigationRead(w, r, false) {
 		return
 	}
-	findings, ok := s.investigationFindings(w, r)
-	if !ok {
-		return
+	integrityValid := s.verifyErr == nil
+	var findings []incident.Finding
+	if integrityValid {
+		var ok bool
+		findings, ok = s.investigationFindings(w, r)
+		if !ok {
+			return
+		}
 	}
 	critical := 0
 	for _, finding := range findings {
@@ -40,16 +45,16 @@ func (s *APIServer) handleInvestigationOverview(w http.ResponseWriter, r *http.R
 	}
 	status := "FAILED"
 	summary := "The presented bundle failed integrity verification. Coverage does not repair invalid integrity."
-	if s.verifyErr == nil {
+	if integrityValid {
 		status = "VERIFIED"
 		summary = investigationSummary(findings, s.profileReport)
 	}
 	writeJSON(w, http.StatusOK, InvestigationOverviewResponse{
 		BundlePath:       s.bundlePath,
 		EventCount:       recordCount(s),
-		IntegrityValid:   s.verifyErr == nil,
+		IntegrityValid:   integrityValid,
 		IntegrityStatus:  status,
-		Profile:          cloneProfileSummary(s.profileReport),
+		Profile:          cloneProfileSummary(s.profileReport, integrityValid),
 		FindingCount:     len(findings),
 		CriticalFindings: critical,
 		CustodyState:     custodyState(s),
@@ -133,11 +138,13 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 	if s.profileReport != nil {
 		response.ProfileID = s.profileReport.ProfileID
 		response.ProfilePass = s.profileReport.Pass
-		response.CoverageScore = s.profileReport.CoverageScore
-		response.CoverageGrade = s.profileReport.CoverageGrade
-		response.AssessmentCoverage = s.profileReport.AssessmentCoverage
 		response.AssuranceValid = s.profileReport.AssuranceValid
 		response.AnchorStatus = s.profileReport.AnchorStatus
+		if response.IntegrityValid && s.profileReport.IntegrityValid {
+			response.CoverageScore = s.profileReport.CoverageScore
+			response.CoverageGrade = s.profileReport.CoverageGrade
+			response.AssessmentCoverage = s.profileReport.AssessmentCoverage
+		}
 	}
 	if s.b != nil {
 		for _, record := range s.b.Records {
@@ -288,20 +295,33 @@ func humanEventLabel(eventType string) string {
 	return strings.ReplaceAll(eventType, ".", " ")
 }
 
+// eventFamily is a display overlay only. Dual wire families stay distinct types.
 func eventFamily(eventType string) string {
 	switch {
+	case strings.HasPrefix(eventType, "ai.llm"), strings.HasPrefix(eventType, "atb.llm"), strings.HasPrefix(eventType, "ai.model"):
+		return "llm"
+	case strings.HasPrefix(eventType, "ai.tool"), eventType == event.TypeToolCall:
+		return "tool"
+	case strings.HasPrefix(eventType, "ai.chain"):
+		return "chain"
+	case strings.HasPrefix(eventType, "ai.policy"):
+		return "policy"
+	case strings.HasPrefix(eventType, "ai.action"), strings.HasPrefix(eventType, "atb.mcp"):
+		return "action"
+	case strings.HasPrefix(eventType, "ai.human"), strings.HasPrefix(eventType, "atb.human"):
+		return "human"
+	case strings.HasPrefix(eventType, "ai.job"):
+		return "job"
+	case strings.HasPrefix(eventType, "atb.corroboration"):
+		return "corroboration"
+	case strings.HasPrefix(eventType, "ai.export"), strings.HasPrefix(eventType, "data.export"), strings.HasPrefix(eventType, "atb.data.export"):
+		return "export"
+	case strings.HasPrefix(eventType, "data.retention"):
+		return "retention"
 	case strings.Contains(eventType, "context"), strings.Contains(eventType, "retrieval"), strings.Contains(eventType, "rag_"):
 		return "context"
-	case strings.Contains(eventType, "policy"):
-		return "policy"
-	case strings.Contains(eventType, "human"):
-		return "human"
-	case strings.Contains(eventType, "action"), strings.Contains(eventType, "tool"), strings.Contains(eventType, "mcp"):
-		return "action"
-	case strings.Contains(eventType, "model"), strings.Contains(eventType, "llm"):
-		return "model"
 	default:
-		return "system"
+		return "other"
 	}
 }
 
@@ -328,10 +348,16 @@ func custodyState(_ *APIServer) string {
 	return "Local only"
 }
 
-func cloneProfileSummary(profile *ProfileReportSummary) *ProfileReportSummary {
+func cloneProfileSummary(profile *ProfileReportSummary, integrityValid bool) *ProfileReportSummary {
 	if profile == nil {
 		return nil
 	}
 	copy := *profile
+	if !integrityValid || !copy.IntegrityValid {
+		copy.CoverageScore = 0
+		copy.CoverageGrade = ""
+		copy.AssessmentCoverage = 0
+		copy.DimensionAssessments = nil
+	}
 	return &copy
 }

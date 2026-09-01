@@ -19,7 +19,6 @@ import { CommandPalette, type PaletteAction } from "@/app/view/components/Comman
 import { RoleSelector } from "@/app/view/components/role-selector/RoleSelector";
 import { Skeleton } from "@/app/view/components/ui/skeleton";
 import { EventInspector } from "@/components/dashboard/EventInspector";
-import { ProfileCAS } from "@/components/dashboard/ProfileCAS";
 import { TraceGraph } from "@/components/dashboard/TraceGraph";
 import {
   flattenEventPages,
@@ -69,7 +68,13 @@ function EmptyState({ children }: { children: React.ReactNode }) {
   );
 }
 
-function FindingCard({ finding }: { finding: InvestigationFinding }) {
+function FindingCard({
+  finding,
+  onOpenEvidence,
+}: {
+  finding: InvestigationFinding;
+  onOpenEvidence?: (seq: number) => void;
+}) {
   return (
     <article className="rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -95,30 +100,58 @@ function FindingCard({ finding }: { finding: InvestigationFinding }) {
       </dl>
       {finding.event_seqs.length > 0 && (
         <p className="mt-3 font-mono text-xs text-muted-foreground">
-          Supporting events: {finding.event_seqs.join(", ")}
+          Supporting events:{" "}
+          {finding.event_seqs.map((seq, index) => (
+            <span key={seq}>
+              {index > 0 ? ", " : ""}
+              {onOpenEvidence ? (
+                <button
+                  type="button"
+                  onClick={() => onOpenEvidence(seq)}
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  #{seq}
+                </button>
+              ) : (
+                `#${seq}`
+              )}
+            </span>
+          ))}
         </p>
       )}
     </article>
   );
 }
 
-function TimelineRow({ event, dense }: { event: TimelineEvent; dense: boolean }) {
+function TimelineRow({
+  event,
+  dense,
+  onSelect,
+}: {
+  event: TimelineEvent;
+  dense: boolean;
+  onSelect: (seq: number) => void;
+}) {
   return (
-    <li
-      className={`grid grid-cols-[4rem_1fr] gap-3 border-b border-border last:border-0 ${dense ? "py-2" : "py-3"}`}
-    >
-      <span className="font-mono text-xs text-muted-foreground">#{event.seq}</span>
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span>{event.label}</span>
-          <time className="font-mono text-xs text-muted-foreground">
-            {event.timestamp || "time unavailable"}
-          </time>
+    <li className="border-b border-border last:border-0">
+      <button
+        type="button"
+        onClick={() => onSelect(event.seq)}
+        className={`grid w-full grid-cols-[4rem_1fr] gap-3 text-left hover:bg-muted ${dense ? "py-2" : "py-3"}`}
+      >
+        <span className="font-mono text-xs text-muted-foreground">#{event.seq}</span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>{event.label}</span>
+            <time className="font-mono text-xs text-muted-foreground">
+              {event.timestamp || "time unavailable"}
+            </time>
+          </div>
+          <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
+            {event.type} · {event.hash}
+          </p>
         </div>
-        <p className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-          {event.type} · {event.hash}
-        </p>
-      </div>
+      </button>
     </li>
   );
 }
@@ -148,18 +181,20 @@ export default function ViewPage() {
       id: "verify",
       label: "Verify bundle",
       hint: "operation",
+      group: "operate",
       run: async () => {
         await verifyMutation.mutateAsync();
       },
     },
-    { id: "findings", label: "Open findings", run: () => setSurface("findings") },
-    { id: "timeline", label: "Open timeline", run: () => setSurface("timeline") },
-    { id: "context", label: "Open context lineage", run: () => setSurface("context") },
-    { id: "raw", label: "Show raw evidence", run: () => setSurface("evidence") },
-    { id: "trust", label: "Open Trust", run: () => setSurface("trust") },
+    { id: "findings", label: "Open findings", group: "navigate", run: () => setSurface("findings") },
+    { id: "timeline", label: "Open timeline", group: "navigate", run: () => setSurface("timeline") },
+    { id: "context", label: "Open context lineage", group: "navigate", run: () => setSurface("context") },
+    { id: "raw", label: "Show raw evidence", group: "navigate", run: () => setSurface("evidence") },
+    { id: "trust", label: "Open Trust", group: "navigate", run: () => setSurface("trust") },
     {
       id: "copy-digest",
       label: "Copy selected evidence digest",
+      group: "copy",
       run: async () => {
         if (selectedEvent?.hash && navigator.clipboard)
           await navigator.clipboard.writeText(selectedEvent.hash);
@@ -183,6 +218,10 @@ export default function ViewPage() {
       reason: "investigation_review",
     });
     return response.value;
+  }
+  function openEvidence(seq: number) {
+    setSelectedSeq(seq);
+    setSurface("evidence");
   }
 
   return (
@@ -258,12 +297,17 @@ export default function ViewPage() {
               overview={overview}
               findings={findingsQuery.data?.findings ?? []}
               openFindings={() => setSurface("findings")}
+              openEvidence={openEvidence}
             />
           )}
           {surface === "findings" && (
             <section className="space-y-3">
               {findingsQuery.data?.findings.map((finding) => (
-                <FindingCard key={`${finding.flag}-${finding.session_id}`} finding={finding} />
+                <FindingCard
+                  key={`${finding.flag}-${finding.session_id}`}
+                  finding={finding}
+                  onOpenEvidence={openEvidence}
+                />
               ))}
               {findingsQuery.data?.findings.length === 0 && (
                 <EmptyState>
@@ -276,7 +320,12 @@ export default function ViewPage() {
             <section className="rounded-lg border border-border bg-card px-4">
               <ol>
                 {timelineQuery.data?.events.map((event) => (
-                  <TimelineRow key={event.seq} event={event} dense={isDensePresentation(role)} />
+                  <TimelineRow
+                    key={event.seq}
+                    event={event}
+                    dense={isDensePresentation(role)}
+                    onSelect={openEvidence}
+                  />
                 ))}
               </ol>
             </section>
@@ -287,10 +336,7 @@ export default function ViewPage() {
               graph={graphQuery.data ?? null}
               relationships={relationshipsQuery.data?.relationships ?? []}
               disabled={!integrityValid || graphQuery.isFetching}
-              select={(seq) => {
-                setSelectedSeq(seq);
-                setSurface("evidence");
-              }}
+              select={openEvidence}
             />
           )}
           {surface === "evidence" && (
@@ -328,10 +374,12 @@ function IncidentSurface({
   overview,
   findings,
   openFindings,
+  openEvidence,
 }: {
   overview: NonNullable<ReturnType<typeof useInvestigationOverviewQuery>["data"]>;
   findings: InvestigationFinding[];
   openFindings: () => void;
+  openEvidence: (seq: number) => void;
 }) {
   return (
     <>
@@ -345,7 +393,7 @@ function IncidentSurface({
           </div>
           <StatePill
             valid={overview.integrity_valid}
-            yes="Integrity verified"
+            yes="Hash chain verified"
             no="Integrity failed"
           />
         </div>
@@ -355,9 +403,11 @@ function IncidentSurface({
           ["Profile", overview.profile?.profile_id || "Not selected"],
           [
             "Evidence coverage",
-            overview.profile
+            overview.integrity_valid && overview.profile
               ? `${Math.round(overview.profile.coverage_score * 100)}%`
-              : "Not assessed",
+              : overview.integrity_valid
+                ? "Not assessed"
+                : "Untrusted",
           ],
           ["Important findings", String(overview.finding_count)],
           ["Custody", overview.custody_state],
@@ -368,7 +418,6 @@ function IncidentSurface({
           </div>
         ))}
       </section>
-      <ProfileCAS />
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-medium">Findings</h2>
@@ -382,11 +431,15 @@ function IncidentSurface({
         </div>
         <div className="space-y-3">
           {findings.slice(0, 3).map((finding) => (
-            <FindingCard key={`${finding.flag}-${finding.session_id}`} finding={finding} />
+            <FindingCard
+              key={`${finding.flag}-${finding.session_id}`}
+              finding={finding}
+              onOpenEvidence={openEvidence}
+            />
           ))}
           {findings.length === 0 && (
             <EmptyState>
-              No investigation findings were identified in the captured evidence.
+              No findings. This does not prove complete capture or universal absence.
             </EmptyState>
           )}
         </div>
@@ -403,9 +456,11 @@ function ContextSurface({
   return (
     <section className="space-y-5">
       <div>
-        <h2 className="font-medium">Context supplied to model</h2>
+        <h2 className="font-medium">Context evidence</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Observable sources and transformations only. ATB does not store hidden model reasoning.
+          Observable sources and transformations only. ATB does not store hidden
+          model reasoning. “Supplied to model” only applies when an invocation
+          bind is proven.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -421,9 +476,34 @@ function ContextSurface({
           </article>
         ))}
         {context?.lineage.units.length === 0 && (
-          <EmptyState>No context lineage was captured for this bundle.</EmptyState>
+          <EmptyState>
+            {(context?.capabilities.length ?? 0) > 0
+              ? "Retrieval was recorded; structured lineage units were not."
+              : "No context lineage units or retrieval capabilities were recorded. This does not prove retrieval did not occur."}
+          </EmptyState>
         )}
       </div>
+      {(context?.capabilities.length ?? 0) > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium">Recorded retrieval capabilities</h3>
+          <ul className="space-y-2">
+            {context?.capabilities.map((capability) => (
+              <li
+                key={`${capability.event_sequence}-${capability.raw_event_type}`}
+                className="rounded-lg border border-border bg-card p-3 text-sm"
+              >
+                <p className="font-medium">{capability.name.replaceAll("_", " ")}</p>
+                {capability.raw_event_type.startsWith("atb.event.rag_") && (
+                  <p className="mt-1 text-xs text-muted-foreground">PageIndex adapter</p>
+                )}
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  {capability.raw_event_type} · event #{capability.event_sequence}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="space-y-3">
         {context?.lineage.operations.map((operation) => (
           <article key={operation.id} className="rounded-lg border border-border bg-card p-4">
@@ -477,34 +557,53 @@ function RelationshipsSurface({
   disabled: boolean;
   select: (seq: number) => void;
 }) {
+  const [graphOpen, setGraphOpen] = useState(false);
   return (
     <section className="space-y-4">
-      <div className="h-[420px] overflow-hidden rounded-lg border border-border bg-surface-1">
-        <TraceGraph
-          graph={graph}
-          disabled={disabled}
-          onSelectSeq={select}
-          layout="dagre-top-down"
-        />
-      </div>
       <div className="rounded-lg border border-border bg-card">
         <ul>
           {relationships.map((relationship) => (
-            <li
-              key={relationship.id}
-              className="grid gap-1 border-b border-border p-3 text-sm last:border-0 md:grid-cols-[10rem_1fr_auto]"
-            >
-              <span className="font-mono text-xs">
-                #{relationship.source_seq} → #{relationship.target_seq}
-              </span>
-              <span>{relationship.kind.replaceAll("_", " ")}</span>
-              <span className="truncate font-mono text-xs text-muted-foreground">
-                {relationship.evidence_value}
-              </span>
+            <li key={relationship.id}>
+              <button
+                type="button"
+                onClick={() => select(relationship.source_seq)}
+                className="grid w-full gap-1 border-b border-border p-3 text-left text-sm last:border-0 hover:bg-muted md:grid-cols-[10rem_1fr_auto]"
+              >
+                <span className="font-mono text-xs">
+                  #{relationship.source_seq} → #{relationship.target_seq}
+                </span>
+                <span>{relationship.kind.replaceAll("_", " ")}</span>
+                <span className="truncate font-mono text-xs text-muted-foreground">
+                  {relationship.evidence_value}
+                </span>
+              </button>
             </li>
           ))}
+          {relationships.length === 0 && (
+            <li className="p-4">
+              <EmptyState>No shared-identifier relationships were derived.</EmptyState>
+            </li>
+          )}
         </ul>
       </div>
+      <details
+        className="rounded-lg border border-border bg-surface-1"
+        onToggle={(event) => setGraphOpen(event.currentTarget.open)}
+      >
+        <summary className="cursor-pointer px-4 py-3 text-sm">
+          Optional graph of the same rows. Shared identifiers, not causation.
+        </summary>
+        {graphOpen && (
+          <div className="h-[420px] overflow-hidden border-t border-border">
+            <TraceGraph
+              graph={graph}
+              disabled={disabled}
+              onSelectSeq={select}
+              layout="dagre-top-down"
+            />
+          </div>
+        )}
+      </details>
     </section>
   );
 }
@@ -576,22 +675,47 @@ function TrustSurface({
 }: {
   trust: NonNullable<ReturnType<typeof useInvestigationTrustQuery>["data"]>;
 }) {
+  const coverage = !trust.integrity_valid
+    ? "Untrusted"
+    : trust.coverage_grade || "Not assessed";
+  const questions = [
+    {
+      title: "Integrity",
+      value: trust.integrity_valid ? "Hash chain verified" : "Hash chain failed",
+      detail: "RFC 8785 canonical hashes and sequence. Coverage cannot repair a broken chain.",
+    },
+    {
+      title: "Coverage",
+      value: coverage,
+      detail: "Profile-scoped completeness of recorded evidence, not proof that everything was captured.",
+    },
+    {
+      title: "Corroboration",
+      value: trust.external_corroboration ? "External evidence present" : "No external corroboration",
+      detail: "Independent records outside this bundle. Absence is not a fail score.",
+    },
+  ];
   return (
     <section className="space-y-5">
       <div className="rounded-xl border border-border bg-card p-5">
         <Fingerprint className="h-5 w-5 text-primary" />
         <h2 className="mt-3 text-xl">{trust.proof_statement}</h2>
       </div>
+      <div className="grid gap-3 lg:grid-cols-3">
+        {questions.map((question) => (
+          <article key={question.title} className="rounded-lg border border-border bg-card p-4">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">{question.title}</p>
+            <p className="mt-2 text-lg">{question.value}</p>
+            <p className="mt-2 text-sm text-muted-foreground">{question.detail}</p>
+          </article>
+        ))}
+      </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          ["Hash chain", trust.integrity_valid ? "Verified" : "Failed"],
           ["Signature", trust.signature_status],
           ["Anchor", trust.anchor_status],
           ["Custody", trust.custody_state],
           ["Canonicalisation", trust.canonicalisation],
-          ["Profile", trust.profile_id || "Not assessed"],
-          ["Coverage", trust.coverage_grade || "Not assessed"],
-          ["External corroboration", trust.external_corroboration ? "Present" : "Absent"],
         ].map(([label, value]) => (
           <div key={label} className="rounded-lg border border-border bg-card p-4">
             <p className="text-xs uppercase text-muted-foreground">{label}</p>

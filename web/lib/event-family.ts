@@ -14,6 +14,7 @@ export type EventFamily =
   | "corroboration"
   | "export"
   | "retention"
+  | "context"
   | "other";
 
 /**
@@ -23,11 +24,11 @@ export type EventFamily =
  */
 export function eventFamily(eventType: string): EventFamily {
   const t = eventType ?? "";
-  if (t.startsWith("ai.llm") || t.startsWith("atb.llm")) return "llm";
+  if (t.startsWith("ai.llm") || t.startsWith("atb.llm") || t.startsWith("ai.model")) return "llm";
   if (t.startsWith("ai.tool") || t === "atb.tool.call") return "tool";
   if (t.startsWith("ai.chain")) return "chain";
   if (t.startsWith("ai.policy")) return "policy";
-  if (t.startsWith("ai.action")) return "action";
+  if (t.startsWith("ai.action") || t.startsWith("atb.mcp")) return "action";
   if (t.startsWith("ai.human") || t.startsWith("atb.human")) return "human";
   if (t.startsWith("ai.job")) return "job";
   if (t.startsWith("atb.corroboration")) return "corroboration";
@@ -38,6 +39,7 @@ export function eventFamily(eventType: string): EventFamily {
   )
     return "export";
   if (t.startsWith("data.retention")) return "retention";
+  if (t.includes("context") || t.includes("retrieval") || t.includes("rag_")) return "context";
   return "other";
 }
 
@@ -52,6 +54,7 @@ const familyClass: Record<EventFamily, string> = {
   corroboration: "ev-export",
   export: "ev-export",
   retention: "ev-export",
+  context: "ev-chain",
   other: "ev-default",
 };
 

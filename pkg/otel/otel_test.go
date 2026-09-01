@@ -110,6 +110,26 @@ func TestTranslateMapsCurrentGenAISemanticsWithoutRawContent(t *testing.T) {
 	}
 }
 
+func TestTranslate_ignoresUnknownEventTypeHint(t *testing.T) {
+	t.Parallel()
+	got, err := otel.Translate(otel.OTelSpan{
+		TraceID:   "0102030405060708090a0b0c0d0e0f10",
+		SpanID:    "0102030405060708",
+		Name:      "gen_ai.chat",
+		StartTime: time.Date(2026, 3, 9, 9, 15, 2, 0, time.UTC),
+		Attributes: map[string]any{
+			"atb.event_type": "hostile.invented.type",
+			"gen_ai.system":  "openai",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Translate() error = %v", err)
+	}
+	if got.Type != event.TypeAILLMCall {
+		t.Fatalf("Type = %q, want mapped %q not the unallowlisted hint", got.Type, event.TypeAILLMCall)
+	}
+}
+
 func TestTranslate_returnsTypedErrorForUnmappableSpan(t *testing.T) {
 	t.Parallel()
 	_, err := otel.Translate(otel.OTelSpan{

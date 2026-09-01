@@ -925,15 +925,17 @@ func verifyReportToSummary(r verifypkg.Report) ProfileReportSummary {
 	if r.CAS != nil {
 		summary.CASScore = r.CAS.Overall
 		summary.CASGrade = r.CAS.Grade
-		summary.CoverageScore = r.CAS.CoverageScore
-		summary.CoverageGrade = r.CAS.CoverageGrade
-		summary.AssessmentCoverage = r.CAS.AssessmentCoverage
 		summary.IntegrityValid = r.CAS.IntegrityValid
 		summary.AssuranceValid = r.CAS.AssuranceValid
-		if len(r.CAS.Dimensions) > 0 {
-			summary.DimensionAssessments = make(map[string]verifypkg.DimensionAssessment, len(r.CAS.Dimensions))
-			for key, value := range r.CAS.Dimensions {
-				summary.DimensionAssessments[key] = value
+		if r.CAS.IntegrityValid {
+			summary.CoverageScore = r.CAS.CoverageScore
+			summary.CoverageGrade = r.CAS.CoverageGrade
+			summary.AssessmentCoverage = r.CAS.AssessmentCoverage
+			if len(r.CAS.Dimensions) > 0 {
+				summary.DimensionAssessments = make(map[string]verifypkg.DimensionAssessment, len(r.CAS.Dimensions))
+				for key, value := range r.CAS.Dimensions {
+					summary.DimensionAssessments[key] = value
+				}
 			}
 		}
 		if r.CAS.CorroborationBonus != 0 {

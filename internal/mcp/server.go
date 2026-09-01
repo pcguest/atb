@@ -209,9 +209,6 @@ func (s *Server) handleInitialize(id *json.RawMessage, raw json.RawMessage) erro
 	}
 
 	version := LegacyProtocolVersion
-	if params.ProtocolVersion == ProtocolVersion {
-		version = ProtocolVersion
-	}
 
 	result := map[string]any{
 		"protocolVersion": version,
@@ -228,7 +225,7 @@ func (s *Server) handleInitialize(id *json.RawMessage, raw json.RawMessage) erro
 
 func (s *Server) handleDiscover(id *json.RawMessage) error {
 	return s.respond(id, map[string]any{
-		"protocolVersions": []string{ProtocolVersion, LegacyProtocolVersion},
+		"protocolVersions": []string{LegacyProtocolVersion},
 		"capabilities": map[string]any{
 			"tools":      map[string]any{},
 			"extensions": map[string]any{},
@@ -350,13 +347,22 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 			},
 			{
 				Name:        "rag_retrieval_record",
-				Description: "Record a PageIndex reasoning-based retrieval result and append atb.event.rag_retrieval to the current bundle",
+				Description: "Record a PageIndex retrieval result and append atb.event.rag_retrieval to the current bundle",
 				InputSchema: map[string]any{
 					"$schema": jsonSchemaDialect,
 					"type":    "object",
 					"properties": map[string]any{
 						"query": map[string]any{
-							"type": "string",
+							"type":        "string",
+							"description": "Optional plaintext query. Omitted from the event unless include_query is true.",
+						},
+						"include_query": map[string]any{
+							"type":        "boolean",
+							"description": "If true, store the plaintext query. Default false; query_digest is recorded instead.",
+						},
+						"query_digest": map[string]any{
+							"type":        "string",
+							"description": "SHA-256 hex digest of the query. Required when query is omitted.",
 						},
 						"retrieval_id": map[string]any{
 							"type": "string",
@@ -396,7 +402,6 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 							"description": "Wall-clock milliseconds for the retrieval call",
 						},
 						"strategy":                 map[string]any{"type": "string"},
-						"query_digest":             map[string]any{"type": "string"},
 						"selected_node_ids":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						"selected_parent_ids":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						"section_paths":            map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
@@ -405,7 +410,6 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 						"tree_root_digest":         map[string]any{"type": "string"},
 					},
 					"required": []string{
-						"query",
 						"retrieval_id",
 						"index_id",
 						"node_id",
@@ -653,6 +657,7 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	}
 	if err := rejectUnknownFields(args, map[string]struct{}{
 		"query":                    {},
+		"include_query":            {},
 		"retrieval_id":             {},
 		"index_id":                 {},
 		"node_id":                  {},
@@ -675,10 +680,42 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
 
-	query, err := requireStringField(args, "query")
+	includeQuery := false
+	if rawInclude, ok := args["include_query"]; ok {
+		parsed, ok := rawInclude.(bool)
+		if !ok {
+			return newToolResponse("invalid params: include_query must be a boolean", true), nil
+		}
+		includeQuery = parsed
+	}
+
+	query, queryPresent, err := optionalStringField(args, "query")
 	if err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
+	queryDigest, digestPresent, err := optionalStringField(args, "query_digest")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if !queryPresent && !digestPresent {
+		return newToolResponse("invalid params: query_digest is required unless query is supplied", true), nil
+	}
+	if includeQuery && !queryPresent {
+		return newToolResponse("invalid params: include_query requires query", true), nil
+	}
+
+	computedDigest := ""
+	if queryPresent {
+		computedDigest = stringDigest(query)
+	}
+	if digestPresent {
+		if computedDigest != "" && !strings.EqualFold(computedDigest, queryDigest) {
+			return newToolResponse("invalid params: query_digest does not match query", true), nil
+		}
+	} else {
+		queryDigest = computedDigest
+	}
+
 	retrievalID, err := requireStringField(args, "retrieval_id")
 	if err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
@@ -717,7 +754,7 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	}
 
 	data := map[string]any{
-		"query":        query,
+		"query_digest": queryDigest,
 		"retrieval_id": retrievalID,
 		"index_id":     indexID,
 		"node_id":      nodeID,
@@ -732,6 +769,9 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	} else if present && strings.TrimSpace(nodeSummary) != "" {
 		data["node_summary"] = nodeSummary
+	}
+	if includeQuery {
+		data["query"] = query
 	}
 	copyOptionalEvidenceFields(data, args, "strategy", "query_digest", "selected_node_ids", "selected_parent_ids", "section_paths", "selected_content_digests", "result_set_digest", "tree_root_digest")
 

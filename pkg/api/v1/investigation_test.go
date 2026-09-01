@@ -68,6 +68,12 @@ func TestInvestigationTamperBoundary(t *testing.T) {
 		BundlePath: bundlePath,
 		Bundle:     b,
 		VerifyErr:  errors.New("chain verification failed"),
+		ProfileReport: &ProfileReportSummary{
+			ProfileID:      "atb.profile.rag_answer",
+			CoverageScore:  0.9,
+			CoverageGrade:  "High coverage",
+			IntegrityValid: false,
+		},
 	})
 
 	for _, path := range []string{
@@ -82,6 +88,14 @@ func TestInvestigationTamperBoundary(t *testing.T) {
 		}
 		if !strings.Contains(rr.Body.String(), `"integrity_valid":false`) {
 			t.Fatalf("%s must expose failed integrity: %s", path, rr.Body.String())
+		}
+		if strings.Contains(rr.Body.String(), `"coverage_score"`) {
+			t.Fatalf("%s must omit coverage_score when integrity failed: %s", path, rr.Body.String())
+		}
+		if path == "/api/v1/investigation/overview" && strings.Contains(rr.Body.String(), `"finding_count":`) {
+			if !strings.Contains(rr.Body.String(), `"finding_count":0`) {
+				t.Fatalf("overview must not invent findings on invalid integrity: %s", rr.Body.String())
+			}
 		}
 	}
 
@@ -122,5 +136,28 @@ func TestInvestigationReportUsesCoreIncidentRenderer(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), "# Incident report — session `session-report`") {
 		t.Fatalf("report did not use incident renderer: %s", rr.Body.String())
+	}
+}
+
+func TestEventFamilyIsDisplayOverlay(t *testing.T) {
+	cases := map[string]string{
+		event.TypeAILLMCall:           "llm",
+		event.TypeLLMRequest:          "llm",
+		event.TypeAIModelInvoked:      "llm",
+		event.TypeToolCall:            "tool",
+		event.TypeAIActionExecuted:    "action",
+		event.TypeMcpOperation:        "action",
+		event.TypeAIContextUnit:       "context",
+		event.TypeAIRetrievalExecuted: "context",
+		event.TypeRAGRetrieval:        "context",
+		event.TypeAIHumanApproval:     "human",
+		event.TypeHumanApproval:       "human",
+		event.TypeDataExportExecuted:  "export",
+		event.TypeDevSession:          "other",
+	}
+	for eventType, want := range cases {
+		if got := eventFamily(eventType); got != want {
+			t.Fatalf("eventFamily(%q)=%q want %q", eventType, got, want)
+		}
 	}
 }
