@@ -16,12 +16,12 @@ hash-addressed bundle events without relying on the agent application's own
 logs. It requires no service, cloud account, external database, or hosted
 verifier.
 
-Source version: [`v1.15.4`](CHANGELOG.md). A source tag does not imply that
+Source version: [`v1.16.0`](CHANGELOG.md). A source tag does not imply that
 every registry or GitHub release artefact has been published; check the
 installed CLI/SDK version and the relevant registry before relying on a
 particular release.
 
-v1.15.4 Docker images are multi-architecture (`linux/amd64` and
+v1.16.0 Docker images are multi-architecture (`linux/amd64` and
 `linux/arm64`). Pull the published `atb` image for that tag from Docker Hub
 when the registry publication for the tag is available. Image publication is
 independent of the source tag.

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.16.0] - 2026-09-02
+
+Freeze: PASS WITH DOCUMENTED DEBT on `a607f244012bb8ca0faf81209cace38f73e8093d`. Freeze-review accepted debt is non-blocking.
+
 ### Changed
 - Documentation now matches the shipped `data_export` profile (`data.export.*` as the critical path), `verify.report.v1.schema.3` as the current custody schema, and `residual_risk` as an object on `atb verify --format json`.
 - `coverage_score` is omitted when the hash chain is invalid; `cas_score` remains `0` on integrity failure.
@@ -14,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OTel `atb.event_type` is an allowlisted hint, not a taxonomy authority.
 - View Context is labelled evidence, not “supplied to model”; coverage percentages are hidden when the chain is invalid; Relationships is table-first.
 - Investigation View is the shipped surface: Incident-first, three-question Trust, findings sequences open Evidence, and the command palette traps focus.
-- OpenAPI `info.version` is `1.15.4`. `pkg/api/v1` is documented as the local viewer HTTP API, not a product SDK.
+- OpenAPI `info.version` is `1.16.0`. `pkg/api/v1` is documented as the local viewer HTTP API, not a product SDK.
 - MCP docs state the shipped handshake is `2024-11-05` and do not claim MCP `2026-07-28` completeness.
 - Historical changelog entries that describe `custosd` HTTP refer to a removed in-repo daemon. Current optional custody is the Mortise client; the receipt wire identifier remains `custos.receipt.v1`.
 - Text help lists `atb intercept`. `atb serve` and `atb identity` remain compatibility commands, not the public product surface.
