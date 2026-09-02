@@ -73,7 +73,8 @@
     --raw-surface-3: 214 26% 15%;
     --raw-text-primary: 210 29% 93%;
     --raw-text-secondary: 213 17% 71%;
-    --raw-text-muted: 212 12% 52%;
+    /* 64% L ≈ 6.6:1 on card / 5.4:1 on muted; 52% was 4.48:1 and failed WCAG AA. */
+    --raw-text-muted: 212 12% 64%;
     --raw-accent: 212 100% 67%;
     --raw-verified: 130 49% 49%;
     --raw-warning: 40 73% 48%;
