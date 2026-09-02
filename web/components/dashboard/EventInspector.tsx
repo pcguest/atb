@@ -66,7 +66,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
     setError(null);
     try {
       const value = await onReveal(eventSeq, fieldPath);
-      setRevealed((prev) => ({ ...prev, [path]: value }));
+      setRevealed((prev) => ({ ...prev, [fieldPath]: value }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Reveal failed";
       setError(message);

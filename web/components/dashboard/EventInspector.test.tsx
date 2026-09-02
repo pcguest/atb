@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import { EventInspector } from "@/components/dashboard/EventInspector";
 import type { EventRecord } from "@/lib/types";
@@ -32,5 +32,25 @@ describe("EventInspector", () => {
   it("omits the summary line when there is nothing concise to say", () => {
     render(<EventInspector event={makeEvent("dev.session", { x: 1 })} onReveal={noReveal} />);
     expect(screen.queryByTestId("event-summary")).toBeNull();
+  });
+
+  it("overlays a revealed value onto inspector JSON after a successful reveal", async () => {
+    const onReveal = vi.fn().mockResolvedValue("auditor@example.com");
+    render(
+      <EventInspector
+        event={makeEvent("dev.session", { email: "[REDACTED]" })}
+        onReveal={onReveal}
+      />,
+    );
+    expect(screen.getByText(/\[REDACTED\]/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Click to Reveal: data\.email/ }));
+    await waitFor(() => {
+      expect(onReveal).toHaveBeenCalledWith(3, "email");
+    });
+    await waitFor(() => {
+      expect(document.querySelector("pre")?.textContent).toContain("auditor@example.com");
+    });
+    expect(document.querySelector("pre")?.textContent).not.toContain("[REDACTED]");
+    expect(screen.queryByRole("button", { name: /Click to Reveal/ })).toBeNull();
   });
 });
