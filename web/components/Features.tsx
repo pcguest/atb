@@ -92,7 +92,7 @@ const FEATURES = [
     ),
     title: "Masked Reveal Flow",
     description:
-      "Configured PII fields are masked by default in the local viewer. Individual reveals use a per-session viewer token, are rate-limited, and append an audit event to the bundle.",
+      "Configured PII fields are masked by default in the local viewer. Individual reveals use a per-session viewer token, are rate-limited, and append an audit event to a `<bundle>.reveals` sidecar. The authoritative bundle is not mutated.",
     tag: "/api/v1/privacy/reveal",
   },
 ];

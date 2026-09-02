@@ -2,7 +2,7 @@
 
 ## Status
 
-**Single-bundle viewer (`/view/`) — shipped:** local `atb view` API server with verification gate and privacy reveal flow; verification banner, timeline, trace graph, event inspector, stats strip, Profile/CAS panel, and `SessionAnomalies` banner when `--sessions` indexes additional bundles; reveal audit logging written to a separate `<bundle>.reveals` sidecar, never into the authoritative bundle.
+**Single-bundle viewer (`/view/`) — shipped:** local `atb view` API server with verification gate and privacy reveal flow. Investigation View is Incident-first: Incident, Findings, Timeline, Context, Relationships, Evidence, and Trust. Trust answers Integrity, Coverage, and Corroboration. There is no Health score, Trust Dashboard, stats strip, Profile/CAS panel, or `SessionAnomalies` banner on `/view`. Reveal audit logging is written to a separate `<bundle>.reveals` sidecar, never into the authoritative bundle.
 
 **Cross-bundle session UI — shipped:** `GET /api/v1/sessions`,
 `GET /api/v1/sessions/by-actor`, and `GET /api/v1/schema/status` are
@@ -228,40 +228,19 @@ Clicking a session row opens the existing single-bundle viewer for
 
 ## UI components
 
-### Verification banner
-- Green lock style when valid.
-- Red warning banner when invalid.
-- Invalid state disables interactive panels.
+### Investigation View (`/view`)
 
-### Timeline view
-- virtualized vertical list
-- color-coded event families (`llm`, `tool`, `chain`, default)
-- default page size from API: 200
+Shipped `/view` is Incident-first investigation. It is not a Health or Trust Dashboard.
 
-### Graph view
-- React Flow node/edge model from `/api/v1/bundle/graph`
-- parent span and sequence relationships visualized
+- **Incident** — “What happened?” summary, integrity pill (hash chain verified or integrity failed), profile id, evidence coverage (Untrusted when the chain is invalid), finding count, custody.
+- **Findings** — investigation findings with conclude / cannot-conclude; empty state does not prove complete capture.
+- **Timeline** — chronological investigation event list. Not virtualised.
+- **Context** — context evidence units and operations. Not labelled “supplied to model”.
+- **Relationships** — table-first shared identifiers. Optional graph of the same rows is unbounded and is not a causation claim.
+- **Evidence** — paginated raw events, inspector with fields masked by default, `Click to Reveal` via `POST /api/v1/privacy/reveal`.
+- **Trust** — Integrity, Coverage, and Corroboration. No Health 0–100, stats strip, Profile/CAS panel, or `SessionAnomalies` banner.
 
-### Inspector panel
-- selected event detail
-- masked fields by default
-- `Click to Reveal` triggers reveal endpoint
-
-### Profile/CAS summary panel (when `--profile` supplied or after "Verify" button)
-- Profile ID
-- Pass/fail badge
-- Completeness (CAS) score and grade: labeled "completeness (CAS)", not "compliance"
-- `corroboration_bonus` and `effective_score` when a `CorroborationPolicy` is applied; grade derives from `effective_score`
-- Chain/anchor status (one line)
-- List of critical obligation failures with `kind` and `detail`
-- Collapsible warnings section
-- Collapsible `provability_gaps` section when present: each item includes `gap`, `layer`, `mitigation`, and `closed_when` from the verify report
-- "Run verify" button triggers `POST /api/v1/bundle/verify` when no startup report was computed
-
-### Stats overview
-- total events
-- event family counts
-- verification status
+Invalid hash-chain state shows tamper-first UX and blocks data endpoints. Profile/CAS summaries remain available from `GET /api/v1/bundle/profile` and `POST /api/v1/bundle/verify`; they are not a `/view` dashboard panel.
 
 ### Session list
 - virtualised table fed by `GET /api/v1/sessions`
@@ -294,13 +273,9 @@ Clicking a session row opens the existing single-bundle viewer for
 - an `undeclared types observed` banner names any rogue types so contract drift
   is visible rather than hidden behind per-session detail
 
-## Performance requirements
+## Performance
 
-- handle 10k+ events smoothly
-- required mechanisms:
-  - paginated API
-  - timeline virtualization
-  - lazy detail rendering
+Shipped `/view` does not claim 10k-event UI smoothness. Evidence uses paginated `GET /api/v1/bundle/events` (page size 200) plus load-more, and the inspector renders one selected event. Investigation Timeline, Context, and Relationships lists are unvirtualised and unpaginated. The optional Relationships graph is unbounded. Large-bundle smoothness is documented debt, not a shipped guarantee.
 
 ## Error handling
 
