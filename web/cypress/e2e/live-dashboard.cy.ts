@@ -9,12 +9,10 @@ describe("Trust Dashboard against the embedded ATB server", () => {
       "SESSION_TOKEN",
     ]).then(({ MOCK_API, SESSION_TOKEN }) => {
       expect(MOCK_API).to.not.equal(true);
-      cy.get('[data-testid="viewer-health-value"]').should("not.have.text", "0/100");
-      cy.get('[data-testid="chain-length-value"]')
-        .invoke("text")
-        .then((value) => {
-          expect(Number.parseInt(value, 10)).to.be.greaterThan(0);
-        });
+      cy.get('[aria-label="Investigation navigation"]').contains("button", "Trust").click();
+      cy.contains("Integrity").should("be.visible");
+      cy.contains("Coverage").should("be.visible");
+      cy.contains("Corroboration").should("be.visible");
       cy.request({
         url: "/api/v1/bundle/events",
         headers: {

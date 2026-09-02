@@ -104,6 +104,74 @@ beforeEach(() => {
         ],
       },
     }).as("getBundleGraph");
+
+    cy.intercept("GET", "**/api/v1/investigation/overview*", {
+      statusCode: 200,
+      body: {
+        bundle_path: "/tmp/mock-bundle.atb",
+        event_count: 3,
+        integrity_valid: true,
+        integrity_status: "VERIFIED",
+        profile: null,
+        finding_count: 1,
+        critical_findings: 0,
+        custody_state: "Local only",
+        summary: "One bounded finding requires review.",
+      },
+    }).as("getInvestigationOverview");
+
+    cy.intercept("GET", "**/api/v1/investigation/trust*", {
+      statusCode: 200,
+      body: {
+        proof_statement: "ATB proves the integrity and order of the records presented in a bundle.",
+        integrity_valid: true,
+        canonicalisation: "rfc8785",
+        signature_status: "absent",
+        anchor_status: "absent",
+        profile_pass: false,
+        coverage_score: 0,
+        coverage_grade: "",
+        assessment_coverage: 0,
+        assurance_valid: false,
+        external_corroboration: false,
+        custody_state: "Local only",
+        limitations: ["ATB does not prove complete capture."],
+      },
+    }).as("getInvestigationTrust");
+
+    cy.intercept("GET", "**/api/v1/investigation/findings*", {
+      statusCode: 200,
+      body: {
+        findings: [
+          {
+            flag: "tool_without_approval",
+            severity: "high",
+            title: "No matching approval",
+            detail: "No matching earlier approval exists in the captured evidence.",
+            basis: "captured session evidence",
+            boundedness: "captured_evidence_only",
+            what_atb_can_conclude: "No captured match exists.",
+            what_atb_cannot_conclude: "ATB cannot prove universal absence.",
+            event_seqs: [2],
+          },
+        ],
+      },
+    }).as("getInvestigationFindings");
+
+    cy.intercept("GET", "**/api/v1/investigation/timeline*", {
+      statusCode: 200,
+      body: { events: [] },
+    }).as("getInvestigationTimeline");
+
+    cy.intercept("GET", "**/api/v1/investigation/context*", {
+      statusCode: 200,
+      body: { lineage: { units: [], operations: [], warnings: [] }, capabilities: [] },
+    }).as("getInvestigationContext");
+
+    cy.intercept("GET", "**/api/v1/investigation/relationships*", {
+      statusCode: 200,
+      body: { relationships: [] },
+    }).as("getInvestigationRelationships");
   });
 });
 
@@ -117,13 +185,13 @@ Cypress.Commands.add("waitForDashboard", () => {
     cy.clearLocalStorage("atb-ui-store-v1");
     cy.visit(!isMockMode && sessionToken ? `/view/#session=${sessionToken}` : "/view");
     if (isMockMode) {
-      cy.wait(["@getVerification", "@getBundleMeta", "@getBundleEvents", "@getBundleGraph"]);
+      cy.wait(["@getVerification", "@getInvestigationOverview"]);
     }
-    cy.get('[data-testid="stats-overview"]', { timeout: 10000 }).should("be.visible");
-    cy.get('[data-testid="event-list"]', { timeout: 10000 }).should("be.visible");
-    cy.get('[data-testid="viewer-health-value"]', { timeout: 10000 })
+    cy.contains("ATB View", { timeout: 10000 }).should("be.visible");
+    cy.get('[aria-label="Investigation navigation"]', { timeout: 10000 })
       .should("be.visible")
-      .should("not.contain.text", "TEST-MODE");
+      .contains("button", "Trust");
+    cy.contains("What happened?").should("be.visible");
   });
 });
 
