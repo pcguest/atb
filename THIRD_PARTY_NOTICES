@@ -126,9 +126,9 @@ Component inventory
 - github.com/lestrrat-go/iter@v1.0.2 — MIT — text 9608b271fc0d
 - github.com/lestrrat-go/jwx/v2@v2.1.6 — MIT — text bc8b2c443020
 - github.com/lestrrat-go/option@v1.0.1 — MIT — text c2e14ebdcfc2
-- golang.org/x/crypto@v0.53.0 — BSD-style — text 39890ed387d5
-- golang.org/x/sync@v0.21.0 — BSD-style — text 39890ed387d5
-- golang.org/x/sys@v0.46.0 — BSD-style — text 39890ed387d5
+- golang.org/x/crypto@v0.55.0 — BSD-style — text 39890ed387d5
+- golang.org/x/sync@v0.22.0 — BSD-style — text 39890ed387d5
+- golang.org/x/sys@v0.47.0 — BSD-style — text 39890ed387d5
 - gopkg.in/yaml.v3@v3.0.1 — MIT — text 5d327b5cc095
 - immer@10.2.0 — MIT — text 9a7b4dc15434
 - immer@11.1.4 — MIT — text 9a7b4dc15434
@@ -368,7 +368,7 @@ SOFTWARE.
 
 ================================================================================
 Licence text 39890ed387d5
-Used by: golang.org/x/crypto@v0.53.0, golang.org/x/sync@v0.21.0, golang.org/x/sys@v0.46.0
+Used by: golang.org/x/crypto@v0.55.0, golang.org/x/sync@v0.22.0, golang.org/x/sys@v0.47.0
 ================================================================================
 
 LICENSE
