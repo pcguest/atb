@@ -26,58 +26,25 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const openerRef = useRef<HTMLElement | null>(null);
-  const openRef = useRef(false);
-
-  function rememberOpener() {
-    const active = document.activeElement;
-    openerRef.current =
-      active instanceof HTMLElement && active !== document.body ? active : triggerRef.current;
-  }
-
-  function closePalette() {
-    setOpen(false);
-    setQuery("");
-  }
-
-  function openPalette() {
-    rememberOpener();
-    setOpen(true);
-    setActiveIndex(0);
-  }
-
-  useEffect(() => {
-    openRef.current = open;
-  }, [open]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        if (openRef.current) {
-          closePalette();
-        } else {
-          openPalette();
-        }
+        setOpen((current) => !current);
+        setActiveIndex(0);
       }
-      if (event.key === "Escape" && openRef.current) {
-        closePalette();
+      if (event.key === "Escape") {
+        setOpen(false);
+        setQuery("");
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-    // openPalette/closePalette are stable over the listener lifetime via openRef.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyboard listener is registered once
   }, []);
 
   useEffect(() => {
-    if (open) {
-      inputRef.current?.focus();
-      return;
-    }
-    openerRef.current?.focus();
-    openerRef.current = null;
+    if (open) inputRef.current?.focus();
   }, [open]);
 
   const filtered = useMemo(() => {
@@ -98,7 +65,8 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
   }, [filtered]);
 
   async function run(action: PaletteAction) {
-    closePalette();
+    setOpen(false);
+    setQuery("");
     await action.run();
   }
 
@@ -141,9 +109,11 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
   return (
     <>
       <button
-        ref={triggerRef}
         type="button"
-        onClick={openPalette}
+        onClick={() => {
+          setOpen(true);
+          setActiveIndex(0);
+        }}
         className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-card px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-label="Open command palette"
       >
@@ -157,7 +127,8 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
           role="presentation"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) {
-              closePalette();
+              setOpen(false);
+              setQuery("");
             }
           }}
         >
@@ -189,7 +160,10 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
               <button
                 ref={closeRef}
                 type="button"
-                onClick={closePalette}
+                onClick={() => {
+                  setOpen(false);
+                  setQuery("");
+                }}
                 className="rounded p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Close command palette"
               >

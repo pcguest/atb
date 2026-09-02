@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CommandPalette, type PaletteAction } from "./CommandPalette";
@@ -34,21 +34,5 @@ describe("CommandPalette", () => {
     expect(screen.getByRole("button", { name: "Close command palette" })).toHaveFocus();
     fireEvent.keyDown(screen.getByRole("dialog", { name: "Command palette" }), { key: "Tab" });
     expect(input).toHaveFocus();
-  });
-
-  it("restores focus to the Commands trigger after Escape", async () => {
-    render(<CommandPalette actions={actions} />);
-    const opener = screen.getByRole("button", { name: "Open command palette" });
-    opener.focus();
-    fireEvent.click(opener);
-
-    expect(screen.getByRole("combobox", { name: "Filter commands" })).toHaveFocus();
-
-    fireEvent.keyDown(window, { key: "Escape" });
-
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog", { name: "Command palette" })).not.toBeInTheDocument();
-      expect(opener).toHaveFocus();
-    });
   });
 });
