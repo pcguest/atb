@@ -195,6 +195,11 @@ func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 			CorroborationBonus: 0.05,
 			EffectiveScore:     0.93,
 			SubScores:          map[string]float64{"EC": 0.9},
+			CoverageScore:      0.76,
+			CoverageGrade:      "Moderate coverage",
+			AssessmentCoverage: 1,
+			IntegrityValid:     true,
+			AssuranceValid:     true,
 		},
 		Profiles: []verifypkg.ProfileResult{{
 			ProfileID:        "atb.profile.policy_decision",
@@ -218,6 +223,9 @@ func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	if summary.CASGrade != "High" || summary.EffectiveScore != 0.93 || summary.AnchorStatus != "verified" {
 		t.Fatalf("CAS summary = %+v", summary)
 	}
+	if !summary.IntegrityValid || summary.CoverageScore != 0.76 || summary.CoverageGrade != "Moderate coverage" {
+		t.Fatalf("coverage summary = %+v", summary)
+	}
 	if len(summary.CriticalFailures) != 1 || len(summary.ProvabilityGaps) != 1 ||
 		len(summary.Exclusions) != 1 || summary.ResidualRiskLevel != "High" {
 		t.Fatalf("detail summary = %+v", summary)
@@ -226,6 +234,19 @@ func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	empty := startupProfileSummary(verifypkg.Report{})
 	if empty.Pass || empty.CASGrade != "" || empty.CriticalFailures == nil || empty.Warnings == nil {
 		t.Fatalf("empty summary = %+v", empty)
+	}
+
+	untrusted := startupProfileSummary(verifypkg.Report{
+		Integrity: verifypkg.IntegrityResult{ChainValid: true},
+		CAS: &verifypkg.CASResult{
+			Overall:        0.9,
+			CoverageScore:  0.9,
+			CoverageGrade:  "High coverage",
+			IntegrityValid: false,
+		},
+	})
+	if untrusted.IntegrityValid || untrusted.CoverageScore != 0 || untrusted.CoverageGrade != "" {
+		t.Fatalf("untrusted coverage must be omitted: %+v", untrusted)
 	}
 }
 

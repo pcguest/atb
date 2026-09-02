@@ -64,6 +64,38 @@ func TestInvestigationEndpointsExposeHumanFirstReadModels(t *testing.T) {
 	}
 }
 
+func TestInvestigationCoverageSurvivesValidIntegrityClone(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+	_, handler := buildTestAPIServer(t, APIConfig{
+		BundlePath: bundlePath,
+		Bundle:     b,
+		ProfileReport: &ProfileReportSummary{
+			ProfileID:      "atb.profile.privileged_tool_action",
+			CoverageScore:  0.76,
+			CoverageGrade:  "Moderate coverage",
+			IntegrityValid: true,
+		},
+	})
+
+	for _, path := range []string{
+		"/api/v1/investigation/overview",
+		"/api/v1/investigation/trust",
+	} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("%s status: got %d want %d body=%s", path, rr.Code, http.StatusOK, rr.Body.String())
+		}
+		if !strings.Contains(rr.Body.String(), `"coverage_score":0.76`) {
+			t.Fatalf("%s must keep assessed coverage_score: %s", path, rr.Body.String())
+		}
+		if !strings.Contains(rr.Body.String(), `"coverage_grade":"Moderate coverage"`) {
+			t.Fatalf("%s must keep coverage_grade: %s", path, rr.Body.String())
+		}
+	}
+}
+
 func TestInvestigationTamperBoundary(t *testing.T) {
 	bundlePath, b := createRichTestBundle(t)
 	_, handler := buildTestAPIServer(t, APIConfig{

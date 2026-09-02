@@ -13,7 +13,24 @@ vi.mock("@/components/dashboard/TraceGraph", () => ({
   TraceGraph: () => <div data-testid="trace-graph" />,
 }));
 
-const overview = {
+const overview: {
+  bundle_path: string;
+  event_count: number;
+  integrity_valid: boolean;
+  integrity_status: string;
+  profile: {
+    profile_id: string;
+    pass: boolean;
+    coverage_score?: number;
+    coverage_grade?: string;
+    critical_failures: unknown[];
+    warnings: string[];
+  } | null;
+  finding_count: number;
+  critical_findings: number;
+  custody_state: string;
+  summary: string;
+} = {
   bundle_path: "demo.atb",
   event_count: 3,
   integrity_valid: true,
@@ -35,25 +52,26 @@ const finding = {
   what_atb_cannot_conclude: "ATB cannot prove universal absence.",
   event_seqs: [2],
 };
+const trust = {
+  proof_statement: "ATB proves the integrity and order of the records presented in a bundle.",
+  integrity_valid: true,
+  canonicalisation: "rfc8785",
+  signature_status: "absent",
+  anchor_status: "absent",
+  profile_pass: false,
+  coverage_score: 0 as number | undefined,
+  coverage_grade: "",
+  assessment_coverage: 0,
+  assurance_valid: false,
+  external_corroboration: false,
+  custody_state: "Local only",
+  limitations: ["ATB does not prove complete capture."],
+};
 
 vi.mock("@/lib/api-client", () => ({
   useInvestigationOverviewQuery: () => ({ data: overview, isLoading: false, isError: false }),
   useInvestigationTrustQuery: () => ({
-    data: {
-      proof_statement: "ATB proves the integrity and order of the records presented in a bundle.",
-      integrity_valid: true,
-      canonicalisation: "rfc8785",
-      signature_status: "absent",
-      anchor_status: "absent",
-      profile_pass: false,
-      coverage_score: 0,
-      coverage_grade: "",
-      assessment_coverage: 0,
-      assurance_valid: false,
-      external_corroboration: false,
-      custody_state: "Local only",
-      limitations: ["ATB does not prove complete capture."],
-    },
+    data: trust,
   }),
   useInvestigationFindingsQuery: () => ({ data: { findings: [finding] } }),
   useInvestigationTimelineQuery: () => ({
@@ -85,7 +103,13 @@ vi.mock("@/lib/api-client", () => ({
 import ViewPage from "./page";
 
 beforeEach(() => useUIStore.setState({ role: "engineer" }));
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  overview.integrity_valid = true;
+  overview.profile = null;
+  trust.coverage_score = 0;
+  trust.coverage_grade = "";
+});
 
 describe("ATB View investigation model", () => {
   it("opens on the Incident summary rather than the graph", () => {
@@ -127,6 +151,39 @@ describe("ATB View investigation model", () => {
     expect(screen.getByText("Coverage")).toBeInTheDocument();
     expect(screen.getByText("Corroboration")).toBeInTheDocument();
     expect(screen.getByText("Hash chain verified")).toBeInTheDocument();
+  });
+
+  it("does not render omitted coverage as 0%", () => {
+    overview.profile = {
+      profile_id: "atb.profile.privileged_tool_action",
+      pass: true,
+      coverage_score: 0,
+      coverage_grade: "",
+      critical_failures: [],
+      warnings: [],
+    };
+    render(<ViewPage />);
+    expect(screen.getByText("Evidence coverage")).toBeInTheDocument();
+    expect(screen.getByText("Not assessed")).toBeInTheDocument();
+    expect(screen.queryByText("0%")).not.toBeInTheDocument();
+  });
+
+  it("renders assessed coverage as a percentage", () => {
+    overview.profile = {
+      profile_id: "atb.profile.privileged_tool_action",
+      pass: true,
+      coverage_score: 0.76,
+      coverage_grade: "Moderate coverage",
+      critical_failures: [],
+      warnings: [],
+    };
+    trust.coverage_score = 0.76;
+    trust.coverage_grade = "Moderate coverage";
+    render(<ViewPage />);
+    expect(screen.getByText("76%")).toBeInTheDocument();
+    expect(screen.queryByText("Not assessed")).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
+    expect(screen.getByText("Moderate coverage")).toBeInTheDocument();
   });
 
   it("does not claim context was supplied to the model", () => {

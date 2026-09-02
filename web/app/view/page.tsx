@@ -370,6 +370,30 @@ export default function ViewPage() {
   );
 }
 
+function evidenceCoverageLabel(
+  integrityValid: boolean,
+  profile:
+    | {
+        coverage_score?: number;
+        coverage_grade?: string;
+      }
+    | null
+    | undefined,
+): string {
+  if (!integrityValid) {
+    return "Untrusted";
+  }
+  const grade = profile?.coverage_grade?.trim();
+  if (!grade) {
+    return "Not assessed";
+  }
+  const score = profile?.coverage_score;
+  if (typeof score === "number" && Number.isFinite(score)) {
+    return `${Math.round(score * 100)}%`;
+  }
+  return grade;
+}
+
 function IncidentSurface({
   overview,
   findings,
@@ -403,11 +427,7 @@ function IncidentSurface({
           ["Profile", overview.profile?.profile_id || "Not selected"],
           [
             "Evidence coverage",
-            overview.integrity_valid && overview.profile
-              ? `${Math.round(overview.profile.coverage_score * 100)}%`
-              : overview.integrity_valid
-                ? "Not assessed"
-                : "Untrusted",
+            evidenceCoverageLabel(overview.integrity_valid, overview.profile),
           ],
           ["Important findings", String(overview.finding_count)],
           ["Custody", overview.custody_state],
