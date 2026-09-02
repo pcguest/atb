@@ -70,6 +70,7 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
+    "browserslist": "4.28.8",
     "glob": "^11.0.0",
     "minimatch": "9.0.7",
     "postcss": "^8.5.10",
