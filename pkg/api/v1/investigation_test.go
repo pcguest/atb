@@ -2,12 +2,14 @@
 package apiv1
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 )
 
@@ -112,6 +114,65 @@ func TestInvestigationTamperBoundary(t *testing.T) {
 			t.Fatalf("%s status: got %d want %d body=%s", path, rr.Code, http.StatusForbidden, rr.Body.String())
 		}
 	}
+}
+
+func TestInvestigationReportJSONEncodesWithoutRawHTML(t *testing.T) {
+	bundlePath, b, sessionID := investigationReportXSSFixture(t)
+	_, handler := buildTestAPIServer(t, APIConfig{BundlePath: bundlePath, Bundle: b})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/investigation/report?format=json&session_id="+sessionID, nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("report status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); got != "application/json" {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	body := rr.Body.String()
+	if strings.Contains(body, "<script>") {
+		t.Fatalf("JSON body contained raw HTML: %s", body)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &decoded); err != nil {
+		t.Fatalf("body is not encoded JSON: %v", err)
+	}
+}
+
+func TestInvestigationReportMarkdownEscapesHTML(t *testing.T) {
+	bundlePath, b, sessionID := investigationReportXSSFixture(t)
+	_, handler := buildTestAPIServer(t, APIConfig{BundlePath: bundlePath, Bundle: b})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/investigation/report?format=markdown&session_id="+sessionID, nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("report status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("Content-Type"); !strings.HasPrefix(got, "text/markdown") {
+		t.Fatalf("Content-Type = %q", got)
+	}
+	body := rr.Body.String()
+	if strings.Contains(body, "<script>") {
+		t.Fatalf("markdown body contained raw HTML: %s", body)
+	}
+	if !strings.Contains(body, "&lt;script&gt;") {
+		t.Fatalf("markdown body did not HTML-escape injected field: %s", body)
+	}
+}
+
+func investigationReportXSSFixture(t *testing.T) (string, *bundle.Bundle, string) {
+	t.Helper()
+	const sessionID = "session-xss"
+	bundlePath, b := createRichTestBundle(t)
+	appendTestBundleEvent(t, b, event.TypeToolCall, map[string]any{
+		"session_id": sessionID,
+		"tool_name":  "<script>alert(1)</script>",
+	})
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save xss fixture: %v", err)
+	}
+	return bundlePath, b, sessionID
 }
 
 func TestInvestigationReportUsesCoreIncidentRenderer(t *testing.T) {

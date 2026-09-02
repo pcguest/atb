@@ -2,7 +2,9 @@
 package apiv1
 
 import (
+	"encoding/json"
 	"fmt"
+	"html"
 	"net/http"
 	"sort"
 	"strings"
@@ -184,7 +186,7 @@ func (s *APIServer) handleInvestigationReport(w http.ResponseWriter, r *http.Req
 		return
 	}
 	if format == "json" {
-		payload, err := report.JSON()
+		payload, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, APIError{Error: "incident report could not be rendered"})
 			return
@@ -198,7 +200,7 @@ func (s *APIServer) handleInvestigationReport(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="atb-incident-report.md"`)
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(report.Markdown()))
+	_, _ = w.Write([]byte(html.EscapeString(report.Markdown())))
 }
 
 func (s *APIServer) allowInvestigationRead(w http.ResponseWriter, r *http.Request, requireIntegrity bool) bool {
