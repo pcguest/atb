@@ -16,7 +16,7 @@
     "test:a11y": "CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:3000 ./scripts/run-static-cypress.sh cypress/e2e/a11y.cy.ts",
     "e2e": "cypress run",
     "pretest:e2e": "npm run build",
-    "test:e2e": "CYPRESS_BASE_URL=http://127.0.0.1:3000 ./scripts/run-static-cypress.sh cypress/e2e/dashboard.cy.ts",
+    "test:e2e": "CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:3000 ./scripts/run-static-cypress.sh cypress/e2e/investigation.cy.ts",
     "test:e2e:open": "cypress open",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

@@ -123,7 +123,7 @@ beforeEach(() => {
     cy.intercept("GET", "**/api/v1/investigation/trust*", {
       statusCode: 200,
       body: {
-        proof_statement: "ATB proves the integrity and order of the records presented in a bundle.",
+        proof_statement: "ATB proves the integrity and order of records presented in a bundle.",
         integrity_valid: true,
         canonicalisation: "rfc8785",
         signature_status: "absent",

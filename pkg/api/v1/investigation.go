@@ -129,7 +129,7 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	response := InvestigationTrustResponse{
-		ProofStatement:   "ATB proves the integrity and order of the records presented in a bundle.",
+		ProofStatement:   "ATB proves the integrity and order of records presented in a bundle.",
 		IntegrityValid:   s.verifyErr == nil,
 		Canonicalisation: "rfc8785",
 		SignatureStatus:  signatureStatus(s),

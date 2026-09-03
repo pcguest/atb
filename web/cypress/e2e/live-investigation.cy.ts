@@ -1,4 +1,4 @@
-describe("Trust Dashboard against the embedded ATB server", () => {
+describe("ATB investigation against the embedded server", () => {
   beforeEach(() => {
     cy.waitForDashboard();
   });
@@ -15,9 +15,7 @@ describe("Trust Dashboard against the embedded ATB server", () => {
       cy.contains("Corroboration").should("be.visible");
       cy.request({
         url: "/api/v1/bundle/events",
-        headers: {
-          "X-ATB-Session-Token": String(SESSION_TOKEN),
-        },
+        headers: { "X-ATB-Session-Token": String(SESSION_TOKEN) },
       }).then((response) => {
         expect(response.status).to.equal(200);
         expect(response.body.total).to.be.greaterThan(0);

@@ -46,7 +46,7 @@ func TestInvestigationEndpointsExposeHumanFirstReadModels(t *testing.T) {
 		{"/api/v1/investigation/timeline", `"label":"Context unit recorded"`},
 		{"/api/v1/investigation/context", `"name":"retrieval.performed"`},
 		{"/api/v1/investigation/relationships", `"relationships"`},
-		{"/api/v1/investigation/trust", `"proof_statement":"ATB proves the integrity and order of the records presented in a bundle."`},
+		{"/api/v1/investigation/trust", `"proof_statement":"ATB proves the integrity and order of records presented in a bundle."`},
 	}
 
 	for _, test := range tests {

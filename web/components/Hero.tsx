@@ -1,134 +1,101 @@
-"use client";
+import { ArrowRight, CheckCircle2, FileSearch, PackageCheck, ShieldCheck } from "lucide-react";
 
-import { useEffect, useState } from "react";
-
-const STATS = [
-  { label: "Verify", value: "atb verify" },
-  { label: "Viewer", value: "atb view" },
-  { label: "SDKs", value: "Python + TS" },
-  { label: "Storage", value: "run.atb/*.atb" },
+const FLOW = [
+  ["01", "Capture", "Record agent activity into a portable bundle."],
+  ["02", "Verify", "Check record order and hash-chain integrity."],
+  ["03", "Investigate", "Move from findings to exact supporting evidence."],
+  ["04", "Export", "Package bounded evidence for offline review."],
 ];
 
 export default function Hero() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setMounted(true);
-    });
-    return () => {
-      window.cancelAnimationFrame(frame);
-    };
-  }, []);
-
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
-      {/* Background grid */}
-      <div className="absolute inset-0 bg-grid opacity-100" />
-
-      {/* Radial glow */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-[600px] h-[600px] rounded-full bg-indigo-600/5 blur-3xl" />
-      </div>
-
-      {/* Content */}
-      <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        {/* Badge */}
-        <div
-          className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-sm font-mono mb-8 transition-all duration-700 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-          Local-first CLI, SDKs, and local viewer
-        </div>
-
-        {/* Headline */}
-        <h1
-          className={`text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 transition-all duration-700 delay-100 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <span className="text-white">Local-first audit trails</span>
-          <br />
-          <span className="gradient-text">you can verify yourself</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p
-          className={`text-lg sm:text-xl text-[#9ca3af] max-w-2xl mx-auto mb-10 leading-relaxed transition-all duration-700 delay-200 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          ATB ships as a Go CLI plus Python and TypeScript SDKs. It writes tamper-evident bundles to
-          disk, serves a local viewer, and exports deterministic evidence packs without default
-          external trace storage.
-          <span className="text-indigo-300"> Go CLI first. Local review by default.</span>
-        </p>
-
-        {/* CTA buttons */}
-        <div
-          className={`flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 transition-all duration-700 delay-300 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          <a
-            href="https://github.com/pcguest/atb/blob/main/docs/getting-started/quickstart.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-all hover:shadow-lg hover:shadow-indigo-500/25"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            Read Quickstart
-          </a>
-          <a
-            href="https://github.com/pcguest/atb"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg border border-[#1e1e2e] hover:border-indigo-500/50 text-[#e2e8f0] font-medium transition-all hover:bg-indigo-500/5"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-            </svg>
-            View on GitHub
-          </a>
-        </div>
-
-        {/* Stats row */}
-        <div
-          className={`grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-2xl mx-auto transition-all duration-700 delay-400 ${
-            mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
-          }`}
-        >
-          {STATS.map((stat) => (
-            <div
-              key={stat.label}
-              className="flex flex-col items-center p-3 rounded-lg border border-[#1e1e2e] bg-[#111118]/50"
+    <section id="top" className="border-b border-border bg-background pt-24">
+      <div className="mx-auto grid max-w-7xl gap-14 px-4 pb-16 sm:px-6 lg:grid-cols-[1.15fr_0.85fr] lg:px-8 lg:pb-20 lg:pt-12">
+        <div className="max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-verified/30 bg-verified/10 px-3 py-1.5 text-xs font-medium text-verified">
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Local-first evidence for AI-agent incidents
+          </div>
+          <h1 className="mt-7 text-4xl font-semibold leading-[1.08] tracking-[-0.035em] text-foreground sm:text-6xl">
+            Know what happened. Verify what was recorded.
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
+            ATB captures agent activity into portable, hash-chained bundles you can verify,
+            investigate, and export without sending evidence to a hosted service.
+          </p>
+          <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
+            ATB proves the integrity and order of records presented in a bundle. It does not prove
+            complete capture, model correctness, or external custody unless that evidence exists.
+          </p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <a
+              href="https://github.com/pcguest/atb/blob/main/docs/getting-started/quickstart.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
-              <span className="font-mono text-indigo-300 font-semibold text-sm">{stat.value}</span>
-              <span className="text-[#6b7280] text-xs mt-1">{stat.label}</span>
-            </div>
-          ))}
+              Start with the quickstart <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </a>
+            <a
+              href="https://github.com/pcguest/atb"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-11 items-center justify-center rounded-md border border-border bg-card px-5 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Inspect the source
+            </a>
+          </div>
         </div>
+
+        <aside
+          className="self-end rounded-xl border border-border bg-card p-5"
+          aria-label="ATB trust boundary"
+        >
+          <div className="flex items-center gap-3 border-b border-border pb-4">
+            <span className="grid h-9 w-9 place-items-center rounded-md border border-primary/30 bg-primary/10 text-primary">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Evidence boundary</p>
+              <p className="text-xs text-muted-foreground">Clear claims, inspectable records</p>
+            </div>
+          </div>
+          <dl className="divide-y divide-border">
+            <div className="grid grid-cols-[7.5rem_1fr] gap-3 py-4 text-sm">
+              <dt className="text-muted-foreground">Integrity</dt>
+              <dd className="font-medium">SHA-256 + RFC 8785 chain</dd>
+            </div>
+            <div className="grid grid-cols-[7.5rem_1fr] gap-3 py-4 text-sm">
+              <dt className="text-muted-foreground">Review</dt>
+              <dd className="font-medium">Incident → exact evidence</dd>
+            </div>
+            <div className="grid grid-cols-[7.5rem_1fr] gap-3 py-4 text-sm">
+              <dt className="text-muted-foreground">Custody</dt>
+              <dd className="font-medium">Local unless independently recorded</dd>
+            </div>
+          </dl>
+          <div className="mt-1 flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 font-mono text-xs text-muted-foreground">
+            <PackageCheck className="h-4 w-4 text-verified" aria-hidden="true" />
+            atb verify run.atb/bundle.atb
+          </div>
+        </aside>
       </div>
 
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-[#6b7280]">
-        <span className="text-xs font-mono">scroll</span>
-        <div className="w-px h-8 bg-gradient-to-b from-[#6b7280] to-transparent" />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <ol className="grid border-x border-t border-border bg-surface-1 sm:grid-cols-2 lg:grid-cols-4">
+          {FLOW.map(([step, title, detail], index) => (
+            <li key={title} className="border-b border-border p-5 lg:border-r lg:last:border-r-0">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] text-primary">{step}</span>
+                {index === 2 ? (
+                  <FileSearch className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                ) : null}
+                <h2 className="text-sm font-semibold">{title}</h2>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{detail}</p>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );

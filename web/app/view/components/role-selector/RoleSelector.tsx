@@ -31,7 +31,7 @@ export function RoleSelector() {
           id="role-selector"
           data-testid="role-selector"
           className="inline-flex h-9 min-w-[10rem] items-center justify-between rounded-md border border-border bg-card px-3 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="Select dashboard role"
+          aria-label="Select presentation mode"
         >
           <Select.Value />
           <Select.Icon asChild>

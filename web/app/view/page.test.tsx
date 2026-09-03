@@ -52,8 +52,21 @@ const finding = {
   what_atb_cannot_conclude: "ATB cannot prove universal absence.",
   event_seqs: [2],
 };
+const findings = [finding];
+const context = {
+  lineage: { units: [], operations: [], warnings: [] },
+  capabilities: [] as Array<{
+    name: string;
+    mapping_version: string;
+    event_sequence: number;
+    raw_event_type: string;
+    fields: Record<string, unknown>;
+  }>,
+};
+let overviewLoading = false;
+let overviewError = false;
 const trust = {
-  proof_statement: "ATB proves the integrity and order of the records presented in a bundle.",
+  proof_statement: "ATB proves the integrity and order of records presented in a bundle.",
   integrity_valid: true,
   canonicalisation: "rfc8785",
   signature_status: "absent",
@@ -69,11 +82,19 @@ const trust = {
 };
 
 vi.mock("@/lib/api-client", () => ({
-  useInvestigationOverviewQuery: () => ({ data: overview, isLoading: false, isError: false }),
+  useInvestigationOverviewQuery: () => ({
+    data: overview,
+    isLoading: overviewLoading,
+    isError: overviewError,
+  }),
   useInvestigationTrustQuery: () => ({
     data: trust,
   }),
-  useInvestigationFindingsQuery: () => ({ data: { findings: [finding] } }),
+  useInvestigationFindingsQuery: () => ({
+    data: { findings },
+    isLoading: false,
+    isError: false,
+  }),
   useInvestigationTimelineQuery: () => ({
     data: {
       events: [
@@ -89,9 +110,7 @@ vi.mock("@/lib/api-client", () => ({
       ],
     },
   }),
-  useInvestigationContextQuery: () => ({
-    data: { lineage: { units: [], operations: [], warnings: [] }, capabilities: [] },
-  }),
+  useInvestigationContextQuery: () => ({ data: context }),
   useInvestigationRelationshipsQuery: () => ({ data: { relationships: [] } }),
   useBundleEventsQuery: () => ({ data: { pages: [] }, hasNextPage: false, fetchNextPage: vi.fn() }),
   useBundleGraphQuery: () => ({ data: null, isFetching: false }),
@@ -109,6 +128,15 @@ afterEach(() => {
   overview.profile = null;
   trust.coverage_score = 0;
   trust.coverage_grade = "";
+  trust.integrity_valid = true;
+  trust.external_corroboration = false;
+  trust.custody_state = "Local only";
+  overview.custody_state = "Local only";
+  overview.finding_count = 1;
+  findings.splice(0, findings.length, finding);
+  context.capabilities.splice(0);
+  overviewLoading = false;
+  overviewError = false;
 });
 
 describe("ATB View investigation model", () => {
@@ -191,9 +219,7 @@ describe("ATB View investigation model", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Context" })[0]);
     expect(screen.getByText("Context evidence")).toBeInTheDocument();
     expect(screen.queryByText(/Context supplied to model/i)).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/does not prove retrieval did not occur/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/does not prove retrieval did not occur/)).toBeInTheDocument();
   });
 
   it("opens evidence from a finding sequence", () => {
@@ -214,6 +240,71 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Relationships" })[0]);
     expect(screen.queryByTestId("trace-graph")).not.toBeInTheDocument();
-    expect(screen.getByText(/Optional graph of the same rows/)).toBeInTheDocument();
+    expect(screen.getByText(/Open optional graph/)).toBeInTheDocument();
+  });
+
+  it("makes failed integrity visibly untrusted", () => {
+    overview.integrity_valid = false;
+    trust.integrity_valid = false;
+    render(<ViewPage />);
+    expect(screen.getByText("Integrity failed")).toBeInTheDocument();
+    expect(screen.getByText("Untrusted")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
+    expect(screen.getByText("Hash chain failed")).toBeInTheDocument();
+  });
+
+  it("states the boundary when no findings are derived", () => {
+    findings.splice(0);
+    overview.finding_count = 0;
+    render(<ViewPage />);
+    expect(screen.getByText("No findings in recorded evidence")).toBeInTheDocument();
+    expect(
+      screen.getByText(/does not prove complete capture or universal absence/),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a long finding readable and its evidence reachable", () => {
+    const longDetail = "A bounded forensic explanation ".repeat(24).trim();
+    findings[0] = { ...finding, detail: longDetail };
+    render(<ViewPage />);
+    expect(screen.getByText(longDetail)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "#2" })).toBeInTheDocument();
+  });
+
+  it("distinguishes retrieval evidence from missing structured lineage", () => {
+    context.capabilities.push({
+      name: "retrieval_query",
+      mapping_version: "1",
+      event_sequence: 2,
+      raw_event_type: "atb.event.rag_query",
+      fields: {},
+    });
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Context" })[0]);
+    expect(
+      screen.getByText("Retrieval was recorded; structured lineage units were not."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Recorded retrieval capabilities")).toBeInTheDocument();
+  });
+
+  it("reports absent and present external custody without scoring it", () => {
+    trust.external_corroboration = true;
+    trust.custody_state = "External receipt recorded";
+    overview.custody_state = "External receipt recorded";
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
+    expect(screen.getByText("External evidence present")).toBeInTheDocument();
+    expect(screen.getByText("External receipt recorded")).toBeInTheDocument();
+    expect(screen.queryByText(/health score/i)).not.toBeInTheDocument();
+  });
+
+  it("renders explicit loading and recoverable error states", () => {
+    overviewLoading = true;
+    const { rerender } = render(<ViewPage />);
+    expect(screen.getByRole("status")).toHaveTextContent("Loading investigation");
+    overviewLoading = false;
+    overviewError = true;
+    rerender(<ViewPage />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/local viewer session/);
   });
 });

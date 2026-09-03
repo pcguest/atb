@@ -53,4 +53,21 @@ describe("EventInspector", () => {
     expect(document.querySelector("pre")?.textContent).not.toContain("[REDACTED]");
     expect(screen.queryByRole("button", { name: /Click to Reveal/ })).toBeNull();
   });
+
+  it("handles long hashes and large JSON without expanding the layout", () => {
+    const longValue = "evidence-segment-".repeat(256);
+    render(
+      <EventInspector
+        event={makeEvent("ai.tool.exec", { payload: longValue, nested: { count: 4096 } })}
+        onReveal={noReveal}
+      />,
+    );
+    expect(screen.getByTitle("Click to copy full hash")).toHaveTextContent(
+      "aaaaaaaaaaaa…aaaaaaaaaaaa",
+    );
+    const json = document.querySelector("pre");
+    expect(json).not.toBeNull();
+    expect(json?.textContent).toContain(longValue);
+    expect(json).toHaveClass("overflow-auto");
+  });
 });

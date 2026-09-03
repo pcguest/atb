@@ -2,7 +2,7 @@ const SHIPPED = [
   "`atb init`, `append`, `snapshot`, `verify`, `archive`, `export`, `trust-report`, and `evidence` in the Go CLI",
   "`atb capture run` and `atb import chatlog` for Capture v1 workflows",
   "`atb corroborate`, `atb push`, `atb anchor`, and `atb mcp serve`",
-  "`atb view` localhost viewer with verification, timeline, graph, and inspector",
+  "`atb view` forensic investigation with findings, timeline, evidence, and explicit trust boundaries",
   "Optional bundle encryption and decryption for local handoff workflows",
   "Deterministic `soc2` and `gdpr` evidence exports",
   "Python SDK plus LangChain callback middleware",
@@ -19,16 +19,16 @@ const NOT_SHIPPED = [
 
 function ScopeCard({ title, eyebrow, items }: { title: string; eyebrow: string; items: string[] }) {
   return (
-    <div className="rounded-xl border border-[#1e1e2e] bg-[#111118]/60 p-6">
-      <span className="inline-block font-mono text-xs text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-2 py-1 rounded mb-4">
+    <div className="rounded-xl border border-border bg-card p-6">
+      <span className="mb-4 inline-block rounded border border-primary/25 bg-primary/10 px-2 py-1 font-mono text-xs text-primary">
         {eyebrow}
       </span>
-      <h3 className="text-white font-semibold text-lg mb-4">{title}</h3>
+      <h3 className="mb-4 text-lg font-semibold text-foreground">{title}</h3>
       <ul className="space-y-3">
         {items.map((item) => (
           <li key={item} className="flex items-start gap-3">
             <svg
-              className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0"
+              className="mt-0.5 h-4 w-4 shrink-0 text-primary"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -40,7 +40,7 @@ function ScopeCard({ title, eyebrow, items }: { title: string; eyebrow: string; 
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <span className="text-[#9ca3af] text-sm leading-relaxed">{item}</span>
+            <span className="text-sm leading-relaxed text-muted-foreground">{item}</span>
           </li>
         ))}
       </ul>
@@ -50,25 +50,22 @@ function ScopeCard({ title, eyebrow, items }: { title: string; eyebrow: string; 
 
 export default function CurrentScope() {
   return (
-    <section id="scope" className="py-24 relative">
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#1e1e2e] to-transparent" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <span className="inline-block font-mono text-indigo-400 text-sm mb-3">
-            {"// current scope"}
+    <section id="scope" className="border-b border-border bg-surface-1 py-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-12 max-w-3xl">
+          <span className="mb-3 inline-block font-mono text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            Current scope
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            What ATB is, and what it is not
+          <h2 className="mb-4 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            A precise boundary builds trust.
           </h2>
-          <p className="text-[#9ca3af] text-lg max-w-3xl mx-auto">
-            ATB is a local-first toolchain for tamper-evident AI traces. The repo ships the
-            items on the left today. The items on the right are intentionally out of scope for the
-            current release.
+          <p className="max-w-3xl text-lg leading-8 text-muted-foreground">
+            ATB is a local-first evidence toolchain. These capabilities are explicit so a reviewer
+            can distinguish what the bundle establishes from what it cannot.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <ScopeCard eyebrow="shipped today" title="Implemented in this repo" items={SHIPPED} />
           <ScopeCard
             eyebrow="not shipped"
@@ -77,8 +74,9 @@ export default function CurrentScope() {
           />
         </div>
 
-        <p className="text-center text-[#6b7280] text-sm mt-8 font-mono">
-          If you need the right-hand column, ATB is not claiming to solve that yet.
+        <p className="mt-8 text-sm text-muted-foreground">
+          Mortise may add independent organisational custody. Tenon supplies the shared product
+          language. Neither changes what a local ATB bundle proves.
         </p>
       </div>
     </section>

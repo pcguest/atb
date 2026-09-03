@@ -58,6 +58,7 @@ assessment.
 - [Local release-candidate acceptance](./maintainers/local-acceptance.md)
 - [Support matrix](./maintainers/support-matrix.md)
 - [Performance](./maintainers/performance.md)
+- [Tenon family visual grammar](./maintainers/visual-system.md)
 - [Lint suppressions](./maintainers/lint-suppressions.md)
 - [Security scanner suppressions](./maintainers/security-suppressions.md)
 - [Roadmap](./roadmap.md)

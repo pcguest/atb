@@ -215,9 +215,11 @@
 
   /* Content offset for the fixed status banner; grows when tamper is shown */
   .view-shell {
+    --view-banner-offset: var(--banner-h);
     padding-top: var(--banner-h);
   }
   html[data-tamper="true"] .view-shell {
+    --view-banner-offset: var(--banner-fail-h);
     padding-top: var(--banner-fail-h);
   }
 }
