@@ -6,9 +6,9 @@ ATB is an open-source, local-first evidence system for AI agents. It captures
 agent and tool activity into portable, tamper-evident bundles that can be
 independently verified offline.
 
-**ATB proves the integrity of what was recorded. It does not prove that every
-relevant event was captured, that an actor was honest before capture, or that
-the recorded activity was correct.**
+**ATB proves the integrity and order of records presented in a bundle. It does
+not prove that every relevant event was captured, that an actor was honest
+before capture, or that the recorded activity was correct.**
 
 When an agent incident occurs, ATB lets an investigator verify the evidence,
 reconstruct recorded actions, and trace deterministic findings back to
@@ -56,6 +56,10 @@ make build
 
 See the [five-minute quickstart](./docs/getting-started/quickstart.md) for Python and TypeScript
 SDK installation, capture paths, and the complete local review flow.
+
+The product flow is **capture → bundle → verify → investigate → export**. Each
+stage leaves a portable artefact or an explicit result; nothing requires a
+hosted ATB service.
 
 ## What ATB records
 

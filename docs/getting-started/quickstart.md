@@ -141,10 +141,11 @@ The Python and TypeScript packages are SDKs only. Their installed `atb`
 command is a compatibility stub that prints Go CLI install guidance and
 will be removed in a future major release.
 
-During this local convergence pass, PyPI and npm still publish `1.14.5` while
-the tagged source baseline is `v1.15.2`. Use a source checkout to evaluate
-unpublished behaviour; do not infer registry publication from the source tag.
-The next controlled release must advance both registries together.
+Registry publication can lag the source tree. As checked on 3 September 2026,
+PyPI publishes `atb-sdk` 1.14.5 and npm publishes `@pcguest/atb-sdk` 1.15.4;
+neither is the local v1.16.0 candidate. Check the relevant registry and the
+installed package version before relying on release-specific behaviour. The
+next controlled release must advance both registries together.
 
 ## 3. Record your first bundle (Python SDK)
 
@@ -189,11 +190,13 @@ atb view --profile atb.profile.rag_answer
 atb view --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
 ```
 
-`atb view` opens one local review surface for one bundle at a time. `--profile` runs verify at
-startup and makes the profile and CAS summary available immediately in the UI. Without
-`--profile`, use the "Run verify" button in the UI to trigger `POST /api/v1/bundle/verify`.
-The summary shows profile ID, pass or fail, completeness (CAS) score and grade, chain and anchor
-status, and any critical obligation failures.
+`atb view` opens one local investigation surface for one bundle at a time.
+`--profile` runs verification at startup and makes its separate integrity,
+profile-coverage, and custody answers available immediately. Without
+`--profile`, use "Verify bundle" in the command palette to trigger
+`POST /api/v1/bundle/verify`. Investigation follows Incident → Findings →
+Timeline → Context → Relationships → Evidence → Trust; findings link directly
+to their supporting records.
 
 `atb view` requires building from source to include the embedded review UI:
 `cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb`
@@ -205,7 +208,7 @@ Security note: `atb view` accepts loopback hosts only. All API endpoints require
 session token generated at startup and delivered in the browser URL fragment. It is not a
 network-hosted viewer.
 
-Dashboard details:
+Viewer details:
 
 - [Viewer specification](../specification/viewer.md)
 
