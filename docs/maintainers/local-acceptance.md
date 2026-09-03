@@ -78,14 +78,14 @@ inside the checkout.
 make build
 make gate-gold-release
 ATB_RELEASE_PYTHON=.venv-release/bin/python \
-  SKIP_DOCKER=1 EXPECT=1.15.2 bash scripts/release-check.sh
+  SKIP_DOCKER=1 EXPECT=1.16.0 bash scripts/release-check.sh
 ```
 
 `make build` produces `./atb` with the full embedded local viewer. The gold gate
 runs the production viewer build, Go and SDK tests, security scans, coverage,
 Firefox E2E, and accessibility. `release-check.sh` rebuilds and validates the
-candidate packages in a disposable Python environment. Use the candidate's
-source version for `EXPECT`; change it to `1.15.3` on the release branch.
+candidate packages in a disposable Python environment. Always set `EXPECT` to
+the candidate's source version on the release branch.
 
 Docker being skipped locally is not a pass. Record it as blocked and require
 the hosted Docker build and Trivy image checks.
