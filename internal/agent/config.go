@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -74,6 +75,9 @@ func LoadConfigFromEnv(version string, getenv func(string) string) (Config, erro
 	if v := strings.TrimSpace(getenv("ATB_AGENT_LISTEN_ADDR")); v != "" {
 		listenAddr = v
 	}
+	if err := validateLoopbackListenAddr(listenAddr); err != nil {
+		return Config{}, err
+	}
 
 	dataDir := DefaultDataDir(homeDir)
 	if fileCfg != nil && strings.TrimSpace(fileCfg.DataDir) != "" {
@@ -88,6 +92,21 @@ func LoadConfigFromEnv(version string, getenv func(string) string) (Config, erro
 		DataDir:    dataDir,
 		Version:    version,
 	}, nil
+}
+
+func validateLoopbackListenAddr(listenAddr string) error {
+	host, _, err := net.SplitHostPort(listenAddr)
+	if err != nil {
+		return fmt.Errorf("agent listen address must be host:port: %w", err)
+	}
+	if strings.EqualFold(host, "localhost") {
+		return nil
+	}
+	ip := net.ParseIP(host)
+	if ip == nil || !ip.IsLoopback() {
+		return fmt.Errorf("agent listen address must use a loopback host")
+	}
+	return nil
 }
 
 func loadAgentSettingsFromFiles(homeDir string, getenv func(string) string) *agentSettingsFile {
