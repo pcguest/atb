@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -73,7 +74,15 @@ func (s *Server) handleSessionOpen(w http.ResponseWriter, r *http.Request) {
 		ActorID:    strings.TrimSpace(req.ActorID),
 		PurposeTag: strings.TrimSpace(req.PurposeTag),
 		ProfileID:  strings.TrimSpace(req.ProfileID),
-		BundlePath: strings.TrimSpace(req.BundlePath),
+	}
+	if strings.TrimSpace(req.BundlePath) != "" {
+		bundlePath, err := resolveAgentBundlePath(s.cfg.DataDir, req.BundlePath)
+		if err != nil {
+			s.logger.Warn("session open rejected", "reason", "bundle path outside agent data directory")
+			writeCaptureError(w, http.StatusBadRequest, "bundle_path must stay within the agent data directory")
+			return
+		}
+		params.BundlePath = bundlePath
 	}
 
 	sessionID, err := s.bundleManager.OpenSession(r.Context(), params)
@@ -199,6 +208,72 @@ func resolvedBundlePath(dataDir string, sessionID SessionID, override string) st
 		return path
 	}
 	return filepath.Join(dataDir, "sessions", sessionID.String(), "bundle.atb")
+}
+
+func resolveAgentBundlePath(dataDir, requested string) (string, error) {
+	rootPath, err := filepath.Abs(filepath.Clean(dataDir))
+	if err != nil {
+		return "", fmt.Errorf("resolve agent data directory: %w", err)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(rootPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve agent data directory symlinks: %w", err)
+	}
+
+	requested = strings.TrimSpace(requested)
+	candidate := filepath.Clean(requested)
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(rootPath, candidate)
+	}
+	candidate, err = filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve bundle path: %w", err)
+	}
+	if !pathWithinRoot(rootPath, candidate) {
+		return "", fmt.Errorf("bundle path escapes agent data directory")
+	}
+
+	existingPath, err := nearestExistingPath(candidate)
+	if err != nil {
+		return "", err
+	}
+	resolvedExisting, err := filepath.EvalSymlinks(existingPath)
+	if err != nil {
+		return "", fmt.Errorf("resolve bundle path symlinks: %w", err)
+	}
+	if !pathWithinRoot(resolvedRoot, resolvedExisting) {
+		return "", fmt.Errorf("bundle path symlink escapes agent data directory")
+	}
+	if info, statErr := os.Lstat(candidate); statErr == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("bundle path must not be a symbolic link")
+	} else if statErr != nil && !errors.Is(statErr, os.ErrNotExist) {
+		return "", fmt.Errorf("inspect bundle path: %w", statErr)
+	}
+
+	return candidate, nil
+}
+
+func nearestExistingPath(path string) (string, error) {
+	for {
+		if _, err := os.Lstat(path); err == nil {
+			return path, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", fmt.Errorf("inspect bundle path ancestor: %w", err)
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", fmt.Errorf("bundle path has no existing ancestor")
+		}
+		path = parent
+	}
+}
+
+func pathWithinRoot(root, path string) bool {
+	relative, err := filepath.Rel(root, path)
+	if err != nil || filepath.IsAbs(relative) {
+		return false
+	}
+	return relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func decodeJSONBody(r *http.Request, dst any) error {
