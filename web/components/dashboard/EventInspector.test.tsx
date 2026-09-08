@@ -43,7 +43,7 @@ describe("EventInspector", () => {
       />,
     );
     expect(screen.getByText(/\[REDACTED\]/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Click to Reveal: data\.email/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Reveal masked field data.email" }));
     await waitFor(() => {
       expect(onReveal).toHaveBeenCalledWith(3, "email");
     });
@@ -51,7 +51,7 @@ describe("EventInspector", () => {
       expect(document.querySelector("pre")?.textContent).toContain("auditor@example.com");
     });
     expect(document.querySelector("pre")?.textContent).not.toContain("[REDACTED]");
-    expect(screen.queryByRole("button", { name: /Click to Reveal/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Reveal masked field/ })).toBeNull();
   });
 
   it("handles long hashes and large JSON without expanding the layout", () => {
@@ -62,12 +62,35 @@ describe("EventInspector", () => {
         onReveal={noReveal}
       />,
     );
-    expect(screen.getByTitle("Click to copy full hash")).toHaveTextContent(
+    expect(screen.getAllByTitle("Click to copy full hash")[0]).toHaveTextContent(
       "aaaaaaaaaaaa…aaaaaaaaaaaa",
     );
     const json = document.querySelector("pre");
     expect(json).not.toBeNull();
     expect(json?.textContent).toContain(longValue);
+    expect(json?.textContent).toContain('"prev_hash"');
     expect(json).toHaveClass("overflow-auto");
+  });
+
+  it("does not apply a delayed reveal to a different selected event", async () => {
+    let resolveReveal: ((value: unknown) => void) | undefined;
+    const onReveal = vi.fn(() => new Promise<unknown>((resolve) => { resolveReveal = resolve; }));
+    const { rerender } = render(
+      <EventInspector event={makeEvent("dev.session", { email: "[REDACTED]" })} onReveal={onReveal} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Reveal masked field data.email" }));
+    rerender(
+      <EventInspector
+        event={{ ...makeEvent("dev.session", { email: "second@example.com" }), seq: 4, hash: "c".repeat(64) }}
+        onReveal={onReveal}
+      />,
+    );
+    resolveReveal?.("first@example.com");
+
+    await waitFor(() => {
+      expect(document.querySelector("pre")?.textContent).toContain("second@example.com");
+    });
+    expect(document.querySelector("pre")?.textContent).not.toContain("first@example.com");
   });
 });

@@ -107,9 +107,11 @@ export function LoadingState({ label = "Loading evidence…" }: { label?: string
 export function ErrorState({
   title = "This evidence could not be loaded",
   children,
+  onRetry,
 }: {
   title?: string;
   children: React.ReactNode;
+  onRetry?: () => void;
 }) {
   return (
     <div className="rounded-lg border border-danger/35 bg-danger/5 p-5" role="alert">
@@ -118,6 +120,7 @@ export function ErrorState({
         <div>
           <p className="text-sm font-medium">{title}</p>
           <div className="mt-1 text-sm leading-6 text-muted-foreground">{children}</div>
+          {onRetry && <button type="button" className="mt-3 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={onRetry}>Try again</button>}
         </div>
       </div>
     </div>
@@ -126,11 +129,16 @@ export function ErrorState({
 
 export function CopyAction({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  const [failed, setFailed] = useState(false);
   async function copy() {
-    if (!navigator.clipboard) return;
-    await navigator.clipboard.writeText(value);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setFailed(false);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setFailed(true);
+    }
   }
   return (
     <button
@@ -141,7 +149,7 @@ export function CopyAction({ value, label }: { value: string; label: string }) {
       aria-label={label}
     >
       {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copied" : "Copy"}
+      <span role="status">{failed ? "Copy failed" : copied ? "Copied" : "Copy"}</span>
     </button>
   );
 }

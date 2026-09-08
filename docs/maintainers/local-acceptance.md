@@ -82,8 +82,11 @@ ATB_RELEASE_PYTHON=.venv-release/bin/python \
 ```
 
 `make build` produces `./atb` with the full embedded local viewer. The gold gate
-runs the production viewer build, Go and SDK tests, security scans, coverage,
-Firefox E2E, and accessibility. `release-check.sh` rebuilds and validates the
+runs the production viewer build, Go tests, security scans, coverage,
+Firefox E2E, and accessibility. Run the full Python SDK (`.venv/bin/python -m
+pytest sdk/python/tests`), TypeScript SDK (`npm --prefix sdk/typescript test`),
+and View Vitest (`npm --prefix web test`) suites separately; gold does not own
+those full suites. `release-check.sh` rebuilds and validates the
 candidate packages in a disposable Python environment. Always set `EXPECT` to
 the candidate's source version on the release branch.
 

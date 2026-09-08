@@ -20,12 +20,14 @@ export default function Hero() {
             Know what happened. Verify what was recorded.
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-muted-foreground">
-            ATB captures agent activity into portable, hash-chained bundles you can verify,
-            investigate, and export without sending evidence to a hosted service.
+            ATB is a local-first evidence system for AI agents. It records agent activity into
+            portable, tamper-evident bundles that can be independently verified and investigated
+            offline.
           </p>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-            ATB proves the integrity and order of records presented in a bundle. It does not prove
-            complete capture, model correctness, or external custody unless that evidence exists.
+            Verification establishes the integrity and order of records presented in a bundle. It
+            does not prove complete capture, model correctness, or external custody unless that
+            evidence exists.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a

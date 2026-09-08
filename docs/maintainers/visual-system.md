@@ -24,7 +24,7 @@ The source of truth is `web/app/globals.css` and `web/tailwind.config.ts`.
 | -------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
 | Canvas and elevation | `background`, `surface-1..3`, `card`, `popover` | Elevation comes from small tone/border changes, not decorative gradients.        |
 | Text                 | `foreground`, `muted-foreground`                | Human label first; IDs and hashes use mono and wrap/truncate deliberately.       |
-| Interaction          | `primary`, `ring`, `border`, `muted`            | Cyan is the shared action/focus colour; hover remains quieter than selection.    |
+| Interaction          | `primary`, `ring`, `border`, `muted`            | Blue is the shared action/focus colour; hover remains quieter than selection.    |
 | Evidence state       | `verified`, `warning`, `danger`, `unknown`      | Green = verified, amber = attention/inconclusive, red = failure, grey = unknown. |
 | Shape                | `radius`                                        | Compact radii; pills are reserved for short status badges.                       |
 | Type                 | `font-sans`, `font-mono`                        | Sans for language, mono for evidence identifiers and code.                       |
@@ -33,6 +33,36 @@ The base spacing unit is Tailwind's 0.25rem. Controls are normally 2–2.5rem
 high; dense rows use 0.75–1rem padding; major surfaces use 1.25–1.75rem. A
 single surface header establishes eyebrow, title, explanation, and optional
 action.
+
+### Semantic convergence
+
+Existing `background`, `card`, `surface-1..3`, `muted-foreground`, `primary`,
+`ring`, and status names remain compatible. New components can use the more
+specific semantic names below; raw palette values belong only in globals.css.
+
+| Role           | Tailwind tokens                                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Surfaces       | `surface-page`, `surface-sidebar`, `surface-panel`, `surface-raised`, `surface-selected`, `surface-code`         |
+| Text           | `text-primary`, `text-secondary`, `text-tertiary`, `text-technical`, `text-disabled` (e.g. `text-text-tertiary`) |
+| Borders        | `border-subtle`, `border-standard`, `border-selected`, `border-status`                                           |
+| Interaction    | `interaction-hover`, `interaction-focus`, `interaction-selected`, `interaction-pressed`                          |
+| Evidence state | `verified`, `warning`, `failed` (alias of `danger`), `unknown`, `untrusted`                                      |
+
+Blue means interactive or selected. Green means verified, amber means qualified
+or untrusted, and red means failed. Event families use neutral technical text;
+type labels carry their identity without a rainbow. Status always includes text.
+
+Use 4/8-based spacing, the existing small/medium/large radius set, 12px technical
+or secondary text, 14px body/section controls, 20–24px page titles, and 36–60px
+display text only on the public homepage. Micro-labels stay at least 11px. Text
+sizes do not excuse low contrast: tertiary text is shared with muted foreground
+and must pass 4.5:1 on its actual surface. CodeDemo’s former hardcoded #6b7280
+install labels now consume this token on `surface-code`; strict axe remains on.
+
+The public product panel uses a real screenshot of the embedded investigation
+at `/product/investigation.png`, accompanied by a fixture caption and a link to
+the full-size image. Marketing copy and screenshots must be reviewed together;
+synthetic records must not be presented as a product capture.
 
 ## Investigation composition
 

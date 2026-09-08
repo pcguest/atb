@@ -1,10 +1,5 @@
 import "cypress-axe";
 
-Cypress.on("uncaught:exception", (err) => {
-  console.warn("Uncaught exception:", err.message);
-  return false;
-});
-
 Cypress.Commands.add("retryableRequest", (options: Partial<Cypress.RequestOptions> = {}) => {
   return cy.request({
     ...options,
@@ -211,13 +206,15 @@ Cypress.Commands.add("checkA11yStrict", (context?: A11yContext) => {
       },
     },
     (violations) => {
-      violations.forEach((violation) => {
+      const messages = violations.map((violation) => {
         const msg = `${violation.id}: ${violation.help} :: ${violation.nodes
           .map((node) => node.target.join(", "))
           .join(" | ")}`;
         Cypress.log({ name: "axe", message: msg });
         console.error("[axe]", msg);
+        return msg;
       });
+      if (messages.length > 0) throw new Error(messages.join("\n"));
     },
   );
 });

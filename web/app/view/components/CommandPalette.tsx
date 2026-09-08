@@ -3,7 +3,12 @@
 import { Command, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-export type PaletteGroup = "navigate" | "operate" | "copy";
+/**
+ * These are deliberately the View taxonomy, rather than a mirror of every
+ * CLI command. A group is rendered only when the local viewer can perform an
+ * action in it.
+ */
+export type PaletteGroup = "navigate" | "inspect" | "verify" | "export" | "copy" | "raw";
 
 export type PaletteAction = {
   id: string;
@@ -13,17 +18,22 @@ export type PaletteAction = {
   run: () => void | Promise<void>;
 };
 
-const GROUP_ORDER: PaletteGroup[] = ["operate", "navigate", "copy"];
+const GROUP_ORDER: PaletteGroup[] = ["navigate", "inspect", "verify", "export", "copy", "raw"];
 const GROUP_LABEL: Record<PaletteGroup, string> = {
-  operate: "Operate",
   navigate: "Navigate",
   copy: "Copy",
+  inspect: "Inspect",
+  verify: "Verify",
+  export: "Export",
+  raw: "Open raw evidence",
 };
 
 export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [operation, setOperation] = useState<{ label: string; state: "pending" | "success" | "error" } | null>(null);
+  const runningRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -82,9 +92,10 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    return needle
+    const matching = needle
       ? actions.filter((action) => action.label.toLowerCase().includes(needle))
       : actions;
+    return GROUP_ORDER.flatMap((group) => matching.filter((action) => (action.group ?? "navigate") === group));
   }, [actions, query]);
 
   const resolvedIndex =
@@ -98,8 +109,18 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
   }, [filtered]);
 
   async function run(action: PaletteAction) {
+    if (runningRef.current) return;
+    runningRef.current = true;
     closePalette();
-    await action.run();
+    setOperation({ label: action.label, state: "pending" });
+    try {
+      await action.run();
+      setOperation({ label: action.label, state: "success" });
+    } catch {
+      setOperation({ label: action.label, state: "error" });
+    } finally {
+      runningRef.current = false;
+    }
   }
 
   function moveActive(delta: number) {
@@ -151,6 +172,11 @@ export function CommandPalette({ actions }: { actions: PaletteAction[] }) {
         <span>Commands</span>
         <kbd className="rounded border border-border px-1.5 font-mono text-[10px]">⌘K</kbd>
       </button>
+      {operation && (
+        <span role={operation.state === "error" ? "alert" : "status"} className="max-w-64 text-xs text-muted-foreground">
+          {operation.state === "pending" ? `${operation.label}…` : operation.state === "error" ? `${operation.label} failed. Try again from Commands.` : `${operation.label} complete.`}
+        </span>
+      )}
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-start justify-center bg-background/80 px-4 pt-[12vh] backdrop-blur-sm"

@@ -118,8 +118,8 @@ export default function CodeDemo() {
             Use the interface that fits the workflow.
           </h2>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-muted-foreground">
-            The repo currently ships a Go CLI, a Python SDK, and a TypeScript SDK. All three write
-            the same local bundle format and verify the same hash chain.
+            The Go CLI, Python SDK, and TypeScript SDK write the same local bundle format and verify
+            the same hash chain.
           </p>
         </div>
 
@@ -130,6 +130,23 @@ export default function CodeDemo() {
               className="flex items-center gap-1"
               role="tablist"
               aria-label="Code example language"
+              onKeyDown={(event) => {
+                const current = TABS.findIndex((tab) => tab.id === activeTab);
+                const next =
+                  event.key === "ArrowRight"
+                    ? (current + 1) % TABS.length
+                    : event.key === "ArrowLeft"
+                      ? (current + TABS.length - 1) % TABS.length
+                      : event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? TABS.length - 1
+                          : -1;
+                if (next < 0) return;
+                event.preventDefault();
+                setActiveTab(TABS[next].id);
+                document.getElementById(`code-tab-${TABS[next].id}`)?.focus();
+              }}
             >
               {TABS.map((tab) => (
                 <button
@@ -137,6 +154,9 @@ export default function CodeDemo() {
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
                   role="tab"
+                  id={`code-tab-${tab.id}`}
+                  aria-controls="code-example-panel"
+                  tabIndex={activeTab === tab.id ? 0 : -1}
                   aria-selected={activeTab === tab.id}
                   className={`min-h-8 rounded px-3 py-1 font-mono text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     activeTab === tab.id
@@ -151,7 +171,13 @@ export default function CodeDemo() {
           </div>
 
           {/* Code content */}
-          <div className="min-h-[320px] overflow-x-auto p-6" role="tabpanel">
+          <div
+            id="code-example-panel"
+            aria-labelledby={`code-tab-${activeTab}`}
+            tabIndex={0}
+            className="min-h-[320px] overflow-x-auto bg-surface-code p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            role="tabpanel"
+          >
             {activeTab === "cli" ? (
               <div>
                 {(CODE.cli as Array<{ prompt: string; cmd: string; out: string }>).map(
@@ -228,13 +254,18 @@ export default function CodeDemo() {
           ].map((item) => (
             <div
               key={item.label}
-              className="flex items-center gap-3 p-3 rounded-lg border border-[#1e1e2e] bg-[#111118]/50"
+              className="flex min-w-0 flex-col items-start gap-2 rounded-md border border-border bg-surface-code p-3"
             >
-              <span className="text-[#6b7280] text-xs font-mono shrink-0">{item.label}</span>
-              <code className="text-indigo-300 text-xs font-mono truncate">{item.cmd}</code>
+              <span className="text-text-tertiary text-xs font-mono">{item.label}</span>
+              <code className="break-all text-primary text-xs font-mono">{item.cmd}</code>
             </div>
           ))}
         </div>
+        <p className="mt-3 text-xs leading-6 text-muted-foreground">
+          These install commands use published releases. For the full embedded View, build from a
+          checkout with <code className="text-foreground">make build</code>; <code>go install</code>{" "}
+          provides the CLI and viewer-installation guidance.
+        </p>
       </div>
     </section>
   );

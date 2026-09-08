@@ -32,7 +32,7 @@ export default function Footer() {
 
           {/* Product */}
           <div>
-            <h4 className="mb-3 text-sm font-medium text-foreground">Docs</h4>
+            <h2 className="mb-3 text-sm font-medium text-foreground">Docs</h2>
             <ul className="space-y-2">
               {[
                 {
@@ -73,7 +73,7 @@ export default function Footer() {
 
           {/* Developers */}
           <div>
-            <h4 className="mb-3 text-sm font-medium text-foreground">Developers</h4>
+            <h2 className="mb-3 text-sm font-medium text-foreground">Developers</h2>
             <ul className="space-y-2">
               {[
                 { label: "GitHub", href: "https://github.com/pcguest/atb" },

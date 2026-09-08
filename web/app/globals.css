@@ -12,20 +12,41 @@
     --raw-text-primary: 225 30% 13%;
     --raw-text-secondary: 219 18% 28%;
     --raw-text-muted: 219 16% 41%;
-    --raw-accent: 212 100% 55%;
-    --raw-verified: 130 49% 42%;
-    --raw-warning: 40 73% 42%;
-    --raw-danger: 3 88% 52%;
-    --raw-unknown: 210 7% 48%;
+    --raw-accent: 215 78% 40%;
+    --raw-verified: 145 60% 28%;
+    --raw-warning: 35 85% 30%;
+    --raw-danger: 3 75% 40%;
+    --raw-unknown: 215 12% 40%;
 
     /* Semantic surface, text, interaction, and evidence-state tokens. */
     --surface-1: var(--raw-surface-1);
     --surface-2: var(--raw-surface-2);
     --surface-3: var(--raw-surface-3);
+    --surface-page: var(--raw-canvas);
+    --surface-sidebar: var(--raw-surface-1);
+    --surface-panel: var(--raw-surface-2);
+    --surface-raised: var(--raw-surface-3);
+    --surface-selected: 214 55% 90%;
+    --surface-code: var(--raw-surface-1);
+    --text-primary: var(--raw-text-primary);
+    --text-secondary: var(--raw-text-secondary);
+    --text-tertiary: var(--raw-text-muted);
+    --text-technical: var(--raw-text-secondary);
+    --text-disabled: var(--raw-text-muted);
+    --border-subtle: 216 20% 88%;
+    --border-standard: 216 22% 76%;
+    --border-selected: var(--raw-accent);
+    --border-status: var(--raw-unknown);
+    --interaction-hover: var(--raw-surface-3);
+    --interaction-focus: var(--raw-accent);
+    --interaction-selected: var(--surface-selected);
+    --interaction-pressed: var(--raw-surface-2);
     --state-verified: var(--raw-verified);
     --state-warning: var(--raw-warning);
     --state-danger: var(--raw-danger);
     --state-unknown: var(--raw-unknown);
+    --state-failed: var(--raw-danger);
+    --state-untrusted: var(--raw-warning);
     --font-sans: "Inter";
     --font-mono: "JetBrains Mono";
     --background: var(--raw-canvas);
@@ -34,19 +55,19 @@
     --card-foreground: 225 30% 13%;
     --popover: 0 0% 100%;
     --popover-foreground: 225 30% 13%;
-    --primary: 198 100% 42%;
+    --primary: var(--raw-accent);
     --primary-foreground: 210 40% 98%;
     --secondary: 213 34% 93%;
     --secondary-foreground: 225 30% 13%;
     --muted: 210 27% 90%;
     --muted-foreground: var(--raw-text-muted);
-    --accent: 28 96% 55%;
+    --accent: var(--raw-accent);
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
-    --border: 216 28% 84%;
-    --input: 216 28% 84%;
-    --ring: 198 100% 42%;
+    --border: var(--border-standard);
+    --input: var(--border-standard);
+    --ring: var(--interaction-focus);
     --radius: 0.375rem;
 
     /* Fixed status-bar height consumed by layout for top offset */
@@ -80,6 +101,9 @@
     --raw-warning: 40 73% 48%;
     --raw-danger: 3 92% 63%;
     --raw-unknown: 210 7% 58%;
+    --surface-selected: 214 35% 20%;
+    --border-subtle: 218 15% 17%;
+    --border-standard: 218 13% 25%;
     --surface-1: var(--raw-surface-1);
     --surface-2: var(--raw-surface-2);
     --surface-3: var(--raw-surface-3);
@@ -99,12 +123,12 @@
     --secondary-foreground: var(--raw-text-secondary);
     --muted: 220 10% 18%;
     --muted-foreground: var(--raw-text-muted);
-    --accent: 32 95% 57%;
+    --accent: var(--raw-accent);
     --accent-foreground: 222 47% 11%;
     --destructive: 0 79% 52%;
     --destructive-foreground: 210 16% 88%;
-    --border: 220 10% 20%;
-    --input: 220 10% 20%;
+    --border: var(--border-standard);
+    --input: var(--border-standard);
     --ring: var(--raw-accent);
 
     /* Fixed status-bar height consumed by layout for top offset */
@@ -127,9 +151,28 @@
     @apply border-border;
   }
 
+  :root,
+  .dark {
+    /* Event categories are labels, not evidence statuses. Keep them neutral. */
+    --ev-llm: var(--text-technical);
+    --ev-tool: var(--text-technical);
+    --ev-chain: var(--text-technical);
+    --ev-policy: var(--text-technical);
+    --ev-human: var(--text-technical);
+    --ev-export: var(--text-technical);
+    --ev-action: var(--text-technical);
+    --ev-default: var(--text-technical);
+  }
+
   html,
   body {
     @apply min-h-screen bg-background text-foreground;
+  }
+
+  /* Covers native controls and the few semantic controls supplied by libraries. */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
   }
 
   body {

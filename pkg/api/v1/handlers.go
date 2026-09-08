@@ -531,7 +531,7 @@ func NewTamperHandler(bundlePath string, verifyErr error) http.Handler {
 </head>
 <body>
   <main>
-    <div class="banner">TAMPER DETECTED — HASH CHAIN VERIFICATION FAILED</div>
+    <h1 class="banner">TAMPER DETECTED — HASH CHAIN VERIFICATION FAILED</h1>
     <p class="meta">Bundle: <code>%s</code></p>
     <p class="meta">Details: <code>%s</code></p>
     <p class="meta">Event data is blocked. Review <code>/api/v1/verification</code> for machine-readable status.</p>

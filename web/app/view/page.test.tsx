@@ -65,6 +65,9 @@ const context = {
 };
 let overviewLoading = false;
 let overviewError = false;
+let eventPages: Array<{ events: Array<{ seq: number; type: string; hash: string; prev_hash: string; data: Record<string, unknown> }> }> = [];
+let eventsHasNextPage = false;
+const fetchNextPage = vi.fn();
 const trust = {
   proof_statement: "ATB proves the integrity and order of records presented in a bundle.",
   integrity_valid: true,
@@ -112,7 +115,7 @@ vi.mock("@/lib/api-client", () => ({
   }),
   useInvestigationContextQuery: () => ({ data: context }),
   useInvestigationRelationshipsQuery: () => ({ data: { relationships: [] } }),
-  useBundleEventsQuery: () => ({ data: { pages: [] }, hasNextPage: false, fetchNextPage: vi.fn() }),
+  useBundleEventsQuery: () => ({ data: { pages: eventPages }, hasNextPage: eventsHasNextPage, fetchNextPage, isLoading: false, isError: false, isFetchingNextPage: false }),
   useBundleGraphQuery: () => ({ data: null, isFetching: false }),
   useRunBundleVerifyMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRevealFieldMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -137,6 +140,9 @@ afterEach(() => {
   context.capabilities.splice(0);
   overviewLoading = false;
   overviewError = false;
+  eventPages = [];
+  eventsHasNextPage = false;
+  fetchNextPage.mockReset();
 });
 
 describe("ATB View investigation model", () => {
@@ -178,7 +184,7 @@ describe("ATB View investigation model", () => {
     expect(screen.getByText("Integrity")).toBeInTheDocument();
     expect(screen.getByText("Coverage")).toBeInTheDocument();
     expect(screen.getByText("Corroboration")).toBeInTheDocument();
-    expect(screen.getByText("Hash chain verified")).toBeInTheDocument();
+    expect(screen.getAllByText("Hash chain verified")).not.toHaveLength(0);
   });
 
   it("does not render omitted coverage as 0%", () => {
@@ -217,7 +223,7 @@ describe("ATB View investigation model", () => {
   it("does not claim context was supplied to the model", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Context" })[0]);
-    expect(screen.getByText("Context evidence")).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Context evidence" })).toBeInTheDocument();
     expect(screen.queryByText(/Context supplied to model/i)).not.toBeInTheDocument();
     expect(screen.getByText(/does not prove retrieval did not occur/)).toBeInTheDocument();
   });
@@ -229,10 +235,29 @@ describe("ATB View investigation model", () => {
     expect(screen.getByText("Exact records")).toBeInTheDocument();
   });
 
+  it("retains an unavailable selected finding event as an explicit evidence state", () => {
+    findings[0] = { ...finding, event_seqs: [99] };
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Findings" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "#99" }));
+    expect(screen.getByText("Event #99 unavailable")).toBeInTheDocument();
+  });
+
+  it("loads subsequent event pages for a selected finding event", () => {
+    findings[0] = { ...finding, event_seqs: [99] };
+    eventsHasNextPage = true;
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Findings" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "#99" }));
+    expect(fetchNextPage).toHaveBeenCalled();
+    expect(screen.getByText("Loading selected record…")).toBeInTheDocument();
+  });
+
   it("opens evidence from a timeline row", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open in Evidence →" }));
     expect(screen.getByText("Exact records")).toBeInTheDocument();
   });
 
@@ -250,7 +275,17 @@ describe("ATB View investigation model", () => {
     expect(screen.getByText("Integrity failed")).toBeInTheDocument();
     expect(screen.getByText("Untrusted")).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
-    expect(screen.getByText("Hash chain failed")).toBeInTheDocument();
+    expect(screen.getAllByText("Hash chain failed")).not.toHaveLength(0);
+  });
+
+  it("blocks event-derived findings and timeline when integrity is invalid", () => {
+    overview.integrity_valid = false;
+    trust.integrity_valid = false;
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Findings" })[0]);
+    expect(screen.getByText("Event-derived investigation is blocked")).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    expect(screen.getByText("Event-derived investigation is blocked")).toBeInTheDocument();
   });
 
   it("states the boundary when no findings are derived", () => {
@@ -294,7 +329,7 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
     expect(screen.getByText("External evidence present")).toBeInTheDocument();
-    expect(screen.getByText("External receipt recorded")).toBeInTheDocument();
+    expect(screen.getAllByText("External receipt recorded")).not.toHaveLength(0);
     expect(screen.queryByText(/health score/i)).not.toBeInTheDocument();
   });
 

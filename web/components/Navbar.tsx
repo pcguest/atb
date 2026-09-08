@@ -17,10 +17,10 @@ export default function Navbar() {
         </a>
         <div className="hidden items-center gap-6 md:flex">
           <a href="#features" className="text-sm text-muted-foreground hover:text-foreground">
-            Capabilities
+            Product
           </a>
           <a href="#demo" className="text-sm text-muted-foreground hover:text-foreground">
-            Workflow
+            Integrate
           </a>
           <a href="#scope" className="text-sm text-muted-foreground hover:text-foreground">
             Trust boundary
