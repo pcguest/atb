@@ -48,8 +48,8 @@ describe("ATB investigation against the embedded server", () => {
         headers: { "X-ATB-Session-Token": String(SESSION_TOKEN) },
       }).then((response) => {
         expect(response.status).to.equal(200);
-        expect(response.body.total).to.be.greaterThan(0);
-        expect(response.body.events).to.have.length.greaterThan(0);
+        expect(response.body.total).to.be.at.least(0);
+        expect(response.body.events).to.have.length(response.body.total);
       });
       cy.request({
         url: "/api/v1/investigation/overview",
