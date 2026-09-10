@@ -162,12 +162,16 @@ func normalizeAttribute(value any) any {
 }
 
 func sensitiveAttribute(key string, value any) bool {
+	normalized := strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(key))
+	switch normalized {
+	case "gen_ai_retrieval_query_text", "gen_ai_retrieval_documents", "gen_ai_input_messages", "gen_ai_output_messages":
+		return true
+	}
 	switch value.(type) {
 	case string, []any, map[string]any:
 	default:
 		return false
 	}
-	normalized := strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(key))
 	for _, marker := range []string{
 		"authorization", "cookie", "api_key", "apikey", "credential",
 		"secret", "password", "prompt", "completion", "argument", "result",

@@ -99,6 +99,7 @@ func EvaluateBundle(cfg EvaluateConfig, opts ...EvaluateOption) (*Report, error)
 		cfg.AnchorRequired,
 		eopts.strictSourceSignatures || cfg.StrictSourceSignatures,
 	)
+	applyRequiredAnchorRisk(&report)
 
 	if cfg.RequireValidChain && !report.Integrity.ChainValid {
 		return nil, fmt.Errorf("verify: %s: %w", cfg.BundlePath, ErrChainInvalid)
@@ -116,6 +117,20 @@ func EvaluateBundle(cfg EvaluateConfig, opts ...EvaluateOption) (*Report, error)
 	}
 
 	return &report, nil
+}
+
+func applyRequiredAnchorRisk(report *Report) {
+	if !report.Anchoring.AnchorRequired || report.Anchoring.TSAVerified {
+		return
+	}
+	if report.CAS != nil {
+		report.CAS.AssuranceValid = false
+	}
+	if report.ResidualRisk.Level != "Critical" {
+		report.ResidualRisk.Level = "High"
+	}
+	report.ResidualRisk.Drivers = appendUniqueStrings(report.ResidualRisk.Drivers, "required_anchor_unverified")
+	report.ResidualRisk.RecommendedNextEvidence = appendUniqueStrings(report.ResidualRisk.RecommendedNextEvidence, "Provide a verifiable timestamp anchor required by the selected verification policy.")
 }
 
 func evaluateLoadedBundle(

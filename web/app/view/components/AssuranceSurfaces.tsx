@@ -196,7 +196,7 @@ export function ContextSurface({
             )}
             <details>
               <summary className="cursor-pointer text-sm">Recorded metadata</summary>
-              <pre className="mt-3 max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs">
+              <pre tabIndex={0} className="mt-3 max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs">
                 {JSON.stringify(active.record, null, 2)}
               </pre>
             </details>

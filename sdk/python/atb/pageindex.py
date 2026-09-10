@@ -258,7 +258,8 @@ class ATBPageIndexRetriever:
             )
 
         count = 1 if "node_id" in tree else 0
-        for child in tree.get("nodes", []):
+        nodes = tree.get("nodes")
+        for child in nodes if isinstance(nodes, list) else []:
             if isinstance(child, dict):
                 count += self._count_nodes(child)
         return count
@@ -311,7 +312,8 @@ def _iter_nodes(tree: dict[str, Any]) -> Iterator[dict[str, Any]]:
     if "node_id" in tree:
         yield tree
 
-    for child in tree.get("nodes", []):
+    nodes = tree.get("nodes")
+    for child in nodes if isinstance(nodes, list) else []:
         if isinstance(child, dict):
             yield from _iter_nodes(child)
 
@@ -387,10 +389,14 @@ def _node_path(tree: dict[str, Any], target_id: str) -> tuple[str, list[str]]:
         next_ids = [*ids, node_id] if node_id else ids
         if node_id == target_id:
             return " / ".join(next_titles), next_ids[:-1]
+        structure = node.get("structure")
+        nodes = node.get("nodes")
         children = (
-            node.get("structure")
-            if isinstance(node.get("structure"), list)
-            else node.get("nodes", [])
+            structure
+            if isinstance(structure, list)
+            else nodes
+            if isinstance(nodes, list)
+            else []
         )
         for child in children:
             if isinstance(child, dict):

@@ -38,7 +38,7 @@ export default function ViewPage() {
   const verifyMutation = useRunBundleVerifyMutation();
   const revealMutation = useRevealFieldMutation();
   const events = useMemo(() => flattenEventPages(eventsQuery.data?.pages), [eventsQuery.data?.pages]);
-  const timeline = timelineQuery.data?.events ?? [];
+  const timeline = (timelineQuery.data?.events ?? []).filter(event => event.type !== "atb.bundle.manifest");
   const effectiveSeq = selectedSeq ?? timeline[0]?.seq ?? null;
   const selectedEvent = events.find(event => event.seq === effectiveSeq) ?? null;
   const findings = findingsQuery.data?.findings ?? [];

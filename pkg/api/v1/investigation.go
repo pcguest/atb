@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/pcguest/atb/internal/contextlineage"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/incident"
+	"github.com/pcguest/atb/internal/sessionindex"
 	atbauth "github.com/pcguest/atb/pkg/auth"
 )
 
@@ -83,7 +85,19 @@ func (s *APIServer) investigationFindings(w http.ResponseWriter, r *http.Request
 		writeSessionIndexError(w, err)
 		return nil, false
 	}
-	return incident.BuildBundleFindings(s.b, sessions), true
+	loadedPath, err := filepath.Abs(s.bundlePath)
+	if err != nil {
+		writeSessionIndexError(w, err)
+		return nil, false
+	}
+	scoped := make([]sessionindex.SessionEntry, 0, len(sessions))
+	for _, session := range sessions {
+		path, err := filepath.Abs(session.BundlePath)
+		if err == nil && path == loadedPath {
+			scoped = append(scoped, session)
+		}
+	}
+	return incident.BuildBundleFindings(s.b, scoped), true
 }
 
 func (s *APIServer) handleInvestigationTimeline(w http.ResponseWriter, r *http.Request) {
@@ -148,7 +162,7 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 			response.AssessmentCoverage = s.profileReport.AssessmentCoverage
 		}
 	}
-	if s.b != nil {
+	if response.IntegrityValid && s.b != nil {
 		for _, record := range s.b.Records {
 			if record.Event.Type == event.TypeCorroborationExternal {
 				response.ExternalCorroboration = true
@@ -179,6 +193,10 @@ func (s *APIServer) handleInvestigationReport(w http.ResponseWriter, r *http.Req
 	report, err := incident.Build(r.Context(), s.bundlePath, sessionID)
 	if err != nil {
 		writeJSON(w, http.StatusUnprocessableEntity, APIError{Error: "incident report could not be built"})
+		return
+	}
+	if !report.IntegrityValid {
+		writeJSON(w, http.StatusForbidden, APIError{Error: "incident evidence failed integrity verification"})
 		return
 	}
 	if !report.Found {

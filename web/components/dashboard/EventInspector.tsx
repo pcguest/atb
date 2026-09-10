@@ -163,7 +163,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
 
         <details className="rounded border border-border" open>
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Canonical record</summary>
-          <pre className="max-h-[380px] overflow-auto border-t border-border bg-muted p-3 text-xs text-foreground">
+          <pre tabIndex={0} className="max-h-[380px] overflow-auto border-t border-border bg-muted p-3 text-xs text-foreground">
             {JSON.stringify(canonicalRecord, null, 2)}
           </pre>
         </details>

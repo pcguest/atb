@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -98,6 +100,7 @@ func TestInvestigationCoverageSurvivesValidIntegrityClone(t *testing.T) {
 
 func TestInvestigationTamperBoundary(t *testing.T) {
 	bundlePath, b := createRichTestBundle(t)
+	appendTestBundleEvent(t, b, event.TypeCorroborationExternal, map[string]any{"source": "untrusted"})
 	_, handler := buildTestAPIServer(t, APIConfig{
 		BundlePath: bundlePath,
 		Bundle:     b,
@@ -126,6 +129,9 @@ func TestInvestigationTamperBoundary(t *testing.T) {
 		if strings.Contains(rr.Body.String(), `"coverage_score"`) {
 			t.Fatalf("%s must omit coverage_score when integrity failed: %s", path, rr.Body.String())
 		}
+		if strings.Contains(rr.Body.String(), `"external_corroboration":true`) {
+			t.Fatalf("invalid evidence asserted corroboration: %s", rr.Body.String())
+		}
 		if path == "/api/v1/investigation/overview" && strings.Contains(rr.Body.String(), `"finding_count":`) {
 			if !strings.Contains(rr.Body.String(), `"finding_count":0`) {
 				t.Fatalf("overview must not invent findings on invalid integrity: %s", rr.Body.String())
@@ -145,6 +151,49 @@ func TestInvestigationTamperBoundary(t *testing.T) {
 		if rr.Code != http.StatusForbidden {
 			t.Fatalf("%s status: got %d want %d body=%s", path, rr.Code, http.StatusForbidden, rr.Body.String())
 		}
+	}
+}
+
+func TestInvestigationReportRejectsTamperAfterServerLoad(t *testing.T) {
+	path, b, session := investigationReportXSSFixture(t)
+	_, handler := buildTestAPIServer(t, APIConfig{BundlePath: path, Bundle: b})
+	b.Records[len(b.Records)-1].Event.Data = map[string]any{"session_id": session, "tool_name": "tampered sentinel"}
+	if err := b.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	for _, format := range []string{"json", "markdown"} {
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/investigation/report?format="+format+"&session_id="+session, nil))
+		if rr.Code != http.StatusForbidden || strings.Contains(rr.Body.String(), "tampered sentinel") {
+			t.Fatalf("untrusted report: status=%d body=%s", rr.Code, rr.Body.String())
+		}
+	}
+}
+
+func TestInvestigationFindingsDoNotCrossBundles(t *testing.T) {
+	path, b, session := investigationReportXSSFixture(t)
+	other, err := bundle.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := other.Append(event.TypeToolCall, map[string]any{"session_id": session, "tool_name": "other"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := other.Save(filepath.Join(filepath.Dir(path), "other.atb")); err != nil {
+		t.Fatal(err)
+	}
+	_, handler := buildTestAPIServer(t, APIConfig{BundlePath: path, Bundle: b})
+	request := func(suffix string) string {
+		t.Helper()
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/investigation/findings"+suffix, nil))
+		if rr.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+		}
+		return rr.Body.String()
+	}
+	if got, want := request("?bundle_dir="+url.QueryEscape(filepath.Dir(path))), request(""); got != want {
+		t.Fatalf("directory changed bundle findings: got=%s want=%s", got, want)
 	}
 }
 

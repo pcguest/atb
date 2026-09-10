@@ -94,6 +94,8 @@ func TestTranslateMapsCurrentGenAISemanticsWithoutRawContent(t *testing.T) {
 			"gen_ai.data_source.id":       "policy-handbook",
 			"gen_ai.retrieval.query.text": "secret approval question",
 			"gen_ai.retrieval.documents":  []any{map[string]any{"id": "doc-1", "score": 0.9}},
+			"gen_ai.input.messages":       "private input sentinel",
+			"gen_ai.output.messages":      "private output sentinel",
 		},
 	})
 	if err != nil {
@@ -107,6 +109,11 @@ func TestTranslateMapsCurrentGenAISemanticsWithoutRawContent(t *testing.T) {
 	query := context["query"].(map[string]any)
 	if query["sha256"] == "" || strings.Contains(fmt.Sprint(context), "secret approval question") {
 		t.Fatalf("retrieval context must be digest-only: %#v", context)
+	}
+	for _, secret := range []string{"secret approval question", "doc-1", "private input sentinel", "private output sentinel"} {
+		if strings.Contains(fmt.Sprint(got), secret) {
+			t.Fatalf("translated event retained sensitive content %q", secret)
+		}
 	}
 }
 

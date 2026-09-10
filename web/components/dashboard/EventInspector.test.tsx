@@ -70,6 +70,7 @@ describe("EventInspector", () => {
     expect(json?.textContent).toContain(longValue);
     expect(json?.textContent).toContain('"prev_hash"');
     expect(json).toHaveClass("overflow-auto");
+    expect(json).toHaveAttribute("tabindex", "0");
   });
 
   it("does not apply a delayed reveal to a different selected event", async () => {

@@ -101,6 +101,7 @@ vi.mock("@/lib/api-client", () => ({
   useInvestigationTimelineQuery: () => ({
     data: {
       events: [
+        { seq: 0, type: "atb.bundle.manifest", label: "Manifest", timestamp: "2026-09-01T00:00:00Z", hash: "manifest", family: "bundle", causal_edge: false },
         {
           seq: 2,
           type: "atb.tool.call",

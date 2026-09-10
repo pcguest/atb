@@ -8,6 +8,30 @@ from unittest.mock import patch
 import pytest
 
 from atb import ATBAppendError, ATBPageIndexRetriever, PageIndexRetrievalError
+from atb.pageindex import _iter_nodes, _node_path
+
+
+@pytest.mark.parametrize("malformed", [None, 1, "children", {"node_id": "child"}])
+def test_malformed_child_collections_are_not_traversed(malformed) -> None:
+    tree = {"node_id": "root", "structure": malformed, "nodes": malformed}
+    assert list(_iter_nodes(tree)) == [tree]
+    assert _node_path(tree, "child") == ("", [])
+    assert ATBPageIndexRetriever()._count_nodes(tree) == 1
+
+
+@pytest.mark.parametrize("structure", [None, 1, "children", {}])
+def test_list_nodes_fallback(structure) -> None:
+    child = {"node_id": "child", "title": "Child"}
+    tree = {"title": "Root", "structure": structure, "nodes": [child]}
+    assert list(_iter_nodes(tree)) == [child]
+    assert _node_path(tree, "child") == ("Root / Child", [])
+
+
+@pytest.mark.parametrize("structure", [[], [{"node_id": "preferred"}]])
+def test_list_structure_takes_precedence(structure) -> None:
+    tree = {"structure": structure, "nodes": [{"node_id": "ignored"}]}
+    assert list(_iter_nodes(tree)) == structure
+    assert _node_path(tree, "ignored") == ("", [])
 
 
 def _successful_run() -> SimpleNamespace:
