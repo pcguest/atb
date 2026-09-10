@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -36,10 +37,12 @@ func TestRootedBundleRoundTrip(t *testing.T) {
 	if len(loaded.Records) != len(b.Records) {
 		t.Fatalf("record count = %d, want %d", len(loaded.Records), len(b.Records))
 	}
-	if info, err := os.Stat(filepath.Join(dir, path)); err != nil {
-		t.Fatal(err)
-	} else if info.Mode().Perm() != bundleFileMode {
-		t.Fatalf("mode = %o, want %o", info.Mode().Perm(), bundleFileMode)
+	if runtime.GOOS != "windows" {
+		if info, err := os.Stat(filepath.Join(dir, path)); err != nil {
+			t.Fatal(err)
+		} else if info.Mode().Perm() != bundleFileMode {
+			t.Fatalf("mode = %o, want %o", info.Mode().Perm(), bundleFileMode)
+		}
 	}
 }
 

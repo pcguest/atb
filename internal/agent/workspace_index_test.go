@@ -14,6 +14,7 @@ import (
 func TestWorkspaceIndexListBundles(t *testing.T) {
 	root := t.TempDir()
 	mgr := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 
 	firstClose := time.Date(2026, 5, 25, 6, 0, 0, 0, time.UTC)
 	secondClose := time.Date(2026, 5, 25, 7, 0, 0, 0, time.UTC)
@@ -135,6 +136,7 @@ func TestWorkspaceIndexListBundlesEmpty(t *testing.T) {
 func TestWorkspaceBundlesHandler(t *testing.T) {
 	root := t.TempDir()
 	mgr := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 	fixedClose := time.Date(2026, 5, 25, 6, 1, 23, 0, time.UTC)
 	mgr.now = func() time.Time { return fixedClose }
 

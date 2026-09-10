@@ -18,6 +18,7 @@ func TestBundleFileManagerLifecycle(t *testing.T) {
 	fixedNow := time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)
 	root := filepath.Join(t.TempDir(), "agent")
 	mgr := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 	mgr.now = func() time.Time { return fixedNow }
 
 	ctx := context.Background()
@@ -96,6 +97,7 @@ func TestBundleFileManagerLifecycle(t *testing.T) {
 
 func TestBundleFileManagerOpenCreatesManifestOnlyBundle(t *testing.T) {
 	mgr := NewBundleFileManager(t.TempDir())
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 	id, err := mgr.OpenSession(context.Background(), OpenParams{ActorID: "actor-1"})
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
@@ -122,6 +124,7 @@ func TestBundleFileManagerOpenCreatesManifestOnlyBundle(t *testing.T) {
 func TestBundleFileManagerCustomBundlePathResume(t *testing.T) {
 	root := t.TempDir()
 	mgr := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 	customPath := filepath.Join(root, "custom", "bundle.atb")
 
 	id, err := mgr.OpenSession(context.Background(), OpenParams{
@@ -142,6 +145,7 @@ func TestBundleFileManagerCustomBundlePathResume(t *testing.T) {
 	}
 
 	mgr2 := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr2.Shutdown(context.Background()) })
 	id2, err := mgr2.OpenSession(context.Background(), OpenParams{BundlePath: customPath})
 	if err != nil {
 		t.Fatalf("resume OpenSession: %v", err)

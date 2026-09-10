@@ -2,6 +2,7 @@
 package agent
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -92,5 +93,6 @@ func mustTestServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("NewServer: %v", err)
 	}
+	t.Cleanup(func() { _ = srv.bundleManager.Shutdown(context.Background()) })
 	return srv
 }
