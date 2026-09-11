@@ -101,7 +101,10 @@ func TrustReportFromVerify(r Report, b *bundle.Bundle) TrustReport {
 	if len(r.ProvabilityGaps) > 0 {
 		report.ProvabilityGaps = append([]ProvabilityGap(nil), r.ProvabilityGaps...)
 	}
-	if r.CAS != nil {
+	// Coverage dimensions are not assessable if the chain is invalid. Do not
+	// serialize a CAS object whose numeric fields could be mistaken for a
+	// measured zero-coverage result from tampered evidence.
+	if r.CAS != nil && r.CAS.IntegrityValid {
 		cas := *r.CAS
 		report.CAS = &cas
 		report.CASScore = r.CAS.Overall

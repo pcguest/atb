@@ -52,8 +52,10 @@ for fixture_path in \
   fixture_ready=false
   for fixture_attempt in {1..30}; do
     if curl --silent --fail "http://127.0.0.1:$fixture_port/view/" > /dev/null; then
-      fixture_ready=true
-      break
+      if kill -0 "$fixture_pid" 2>/dev/null; then
+        fixture_ready=true
+        break
+      fi
     fi
     kill -0 "$fixture_pid" 2>/dev/null || { echo "View exited; inspect $fixture_artifacts/$fixture_name-server.log" >&2; exit 1; }
     sleep 1

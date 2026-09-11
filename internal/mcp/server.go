@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -620,6 +621,12 @@ func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
 		// Default server-side so the hashed event payload is complete even when clients omit the timestamp.
 		indexedAt = time.Now().UTC().Format(time.RFC3339)
 	}
+	if err := validateOptionalStringFields(args, "index_version"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalDigestFields(args, "source_digest", "tree_root_digest"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
 
 	data := map[string]any{
 		"index_id":   indexID,
@@ -709,6 +716,9 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 		computedDigest = stringDigest(query)
 	}
 	if digestPresent {
+		if !validSHA256Digest(queryDigest) {
+			return newToolResponse("invalid params: query_digest must be a 64-character hexadecimal SHA-256 digest", true), nil
+		}
 		if computedDigest != "" && !strings.EqualFold(computedDigest, queryDigest) {
 			return newToolResponse("invalid params: query_digest does not match query", true), nil
 		}
@@ -773,7 +783,19 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	if includeQuery {
 		data["query"] = query
 	}
-	copyOptionalEvidenceFields(data, args, "strategy", "query_digest", "selected_node_ids", "selected_parent_ids", "section_paths", "selected_content_digests", "result_set_digest", "tree_root_digest")
+	if err := validateOptionalStringFields(args, "strategy"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalStringArrayFields(args, "selected_node_ids", "selected_parent_ids", "section_paths"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalDigestArrayFields(args, "selected_content_digests"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalDigestFields(args, "result_set_digest", "tree_root_digest"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	copyOptionalEvidenceFields(data, args, "strategy", "selected_node_ids", "selected_parent_ids", "section_paths", "selected_content_digests", "result_set_digest", "tree_root_digest")
 
 	record, err := s.handlers.Append(s.commandContext(), event.TypeRAGRetrieval, data)
 	if err != nil {
@@ -948,6 +970,83 @@ func copyOptionalEvidenceFields(destination, source map[string]any, fields ...st
 			destination[field] = value
 		}
 	}
+}
+
+func validateOptionalStringFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		text, ok := value.(string)
+		if !ok || strings.TrimSpace(text) == "" {
+			return fmt.Errorf("field %q must be a non-empty string", field)
+		}
+	}
+	return nil
+}
+
+func validateOptionalDigestFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		text, ok := value.(string)
+		if !ok || !validSHA256Digest(text) {
+			return fmt.Errorf("field %q must be a 64-character hexadecimal SHA-256 digest", field)
+		}
+	}
+	return nil
+}
+
+func validateOptionalStringArrayFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		values, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("field %q must be an array of strings", field)
+		}
+		for _, value := range values {
+			text, ok := value.(string)
+			if !ok || strings.TrimSpace(text) == "" {
+				return fmt.Errorf("field %q must be an array of non-empty strings", field)
+			}
+		}
+	}
+	return nil
+}
+
+func validateOptionalDigestArrayFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		values, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("field %q must be an array of SHA-256 digests", field)
+		}
+		for _, value := range values {
+			text, ok := value.(string)
+			if !ok || !validSHA256Digest(text) {
+				return fmt.Errorf("field %q must be an array of 64-character hexadecimal SHA-256 digests", field)
+			}
+		}
+	}
+	return nil
+}
+
+func validSHA256Digest(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 func requireStringField(args map[string]any, field string) (string, error) {

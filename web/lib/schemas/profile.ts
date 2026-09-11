@@ -27,7 +27,7 @@ export const profileReportSummarySchema = z.object({
   anchor_status: z.string().optional(),
   cas_score: z.number().default(0),
   cas_grade: z.string().optional().default(""),
-  coverage_score: z.number().optional().default(0),
+  coverage_score: z.number().optional(),
   coverage_grade: z.string().optional().default(""),
   assessment_coverage: z.number().optional().default(0),
   dimension_assessments: z.record(z.string(), dimensionAssessmentSchema).optional().default({}),

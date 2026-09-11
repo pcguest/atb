@@ -59,7 +59,7 @@ export default function ViewPage() {
   async function reveal(seq: number, fieldPath: string) { return (await revealMutation.mutateAsync({ seq, field_path: fieldPath, reason: "investigation_review" })).value; }
   const actions: PaletteAction[] = [
     ...surfaces.map(([id, label]) => ({ id, label: `Open ${label.toLowerCase()}`, group: "navigate" as const, run: () => setSurface(id) })),
-    ...(!verifyMutation.isPending ? [{ id: "verify", label: "Verify bundle", group: "verify" as const, run: async () => { await verifyMutation.mutateAsync(); } }] : []),
+    ...(!verifyMutation.isPending ? [{ id: "verify", label: "Verify bundle", group: "verify" as const, run: async () => { await verifyMutation.mutateAsync(); await Promise.all([overviewQuery.refetch(), trustQuery.refetch()]); } }] : []),
     ...(selectedEvent ? [
       { id: "inspect-selected", label: "Inspect selected evidence", group: "inspect" as const, run: () => openEvidence(selectedEvent.seq) },
       { id: "copy-digest", label: "Copy selected evidence digest", group: "copy" as const, run: () => navigator.clipboard.writeText(selectedEvent.hash) },

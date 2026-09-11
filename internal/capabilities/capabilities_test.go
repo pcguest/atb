@@ -31,3 +31,11 @@ func TestDeriveRetrievalCapabilityPreservesRawIdentity(t *testing.T) {
 		t.Fatal("canonical capability must not copy unbounded raw query content")
 	}
 }
+
+func TestDeriveRetrievalCapabilityWithoutAllowlistedFields(t *testing.T) {
+	t.Parallel()
+	got := Derive([]bundle.Record{{Event: hash.Event{Sequence: 4, Type: "ai.retrieval.executed", Data: map[string]any{}}}})
+	if len(got) != 1 || got[0].Fields == nil || len(got[0].Fields) != 0 {
+		t.Fatalf("Derive() = %#v, want empty-field retrieval capability", got)
+	}
+}

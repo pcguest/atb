@@ -237,8 +237,8 @@ func TestInvestigationReportMarkdownEscapesHTML(t *testing.T) {
 	if strings.Contains(body, "<script>") {
 		t.Fatalf("markdown body contained raw HTML: %s", body)
 	}
-	if !strings.Contains(body, "&lt;script&gt;") {
-		t.Fatalf("markdown body did not HTML-escape injected field: %s", body)
+	if !strings.Contains(body, "\\<script\\>") {
+		t.Fatalf("markdown body did not neutralize injected field: %s", body)
 	}
 }
 
@@ -275,6 +275,9 @@ func TestInvestigationReportUsesCoreIncidentRenderer(t *testing.T) {
 	}
 	if got := rr.Header().Get("Content-Disposition"); got != `attachment; filename="atb-incident-report.md"` {
 		t.Fatalf("Content-Disposition = %q", got)
+	}
+	if got := rr.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("X-Content-Type-Options = %q", got)
 	}
 	if !strings.Contains(rr.Body.String(), "# Incident report — session `session-report`") {
 		t.Fatalf("report did not use incident renderer: %s", rr.Body.String())

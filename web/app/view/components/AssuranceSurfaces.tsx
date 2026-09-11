@@ -386,7 +386,7 @@ export function TrustSurface({
     {
       name: "Coverage",
       question: "Does the selected evidence profile pass?",
-      status: !data.integrity_valid ? "Untrusted" : data.coverage_grade || "Not assessed",
+      status: !data.integrity_valid ? "Untrusted" : !data.profile_id ? "Not assessed" : data.profile_pass ? "Pass" : "Does not pass",
       reason:
         "Profile-scoped completeness of recorded evidence, not proof that everything was captured.",
       source: data.profile_id || "No selected profile recorded",

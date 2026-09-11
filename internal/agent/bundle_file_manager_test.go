@@ -184,4 +184,17 @@ func TestBundleFileManagerShutdownClearsSessions(t *testing.T) {
 	if err := mgr.AppendEvent(context.Background(), id, PendingEvent{EventType: "test"}); !errors.Is(err, ErrSessionNotFound) {
 		t.Fatalf("AppendEvent after shutdown: got %v, want ErrSessionNotFound", err)
 	}
+
+	// Shutdown discards the old session, but the manager remains usable for a
+	// later runtime lifecycle and opens a new rooted filesystem capability.
+	newID, err := mgr.OpenSession(context.Background(), OpenParams{ActorID: "actor-2"})
+	if err != nil {
+		t.Fatalf("OpenSession after shutdown: %v", err)
+	}
+	if newID == id {
+		t.Fatalf("OpenSession after shutdown reused session ID %q", id)
+	}
+	if err := mgr.Shutdown(context.Background()); err != nil {
+		t.Fatalf("second Shutdown: %v", err)
+	}
 }

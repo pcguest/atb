@@ -380,6 +380,26 @@ func TestServeRAGRetrievalRecord(t *testing.T) {
 	}
 }
 
+func TestServeRAGRecordRejectsMalformedOptionalEvidence(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name string
+		tool string
+		args map[string]any
+	}{
+		{"query digest", "rag_retrieval_record", map[string]any{"query_digest": "not-a-digest", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1}},
+		{"selected nodes", "rag_retrieval_record", map[string]any{"query": "query", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1, "selected_node_ids": "node"}},
+		{"source digest", "rag_index_record", map[string]any{"index_id": "idx", "source_uri": "file:///doc", "page_count": 1, "node_count": 1, "model_id": "model", "index_hash": "hash", "source_digest": map[string]any{}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := callTool(t, testToolHandlers(), test.tool, test.args)
+			if !result.IsError {
+				t.Fatalf("%s accepted malformed optional evidence: %#v", test.name, result)
+			}
+		})
+	}
+}
+
 func TestServeRAGIndexRecordMissingRequired(t *testing.T) {
 	tempDir := t.TempDir()
 	restore := chdirTempDir(t, tempDir)

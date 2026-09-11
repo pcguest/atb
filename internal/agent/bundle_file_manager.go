@@ -191,7 +191,13 @@ func (m *BundleFileManager) Shutdown(context.Context) error {
 	defer m.mu.Unlock()
 	m.sessions = make(map[SessionID]*fileSessionRecord)
 	if m.root != nil {
-		return m.root.Close()
+		err := m.root.Close()
+		// Shutdown releases a filesystem capability but does not make this
+		// manager terminal: callers can open a fresh session afterwards.
+		m.root = nil
+		m.rootErr = nil
+		m.rootOnce = sync.Once{}
+		return err
 	}
 	return nil
 }

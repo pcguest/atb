@@ -279,6 +279,7 @@ func casApplicability(profile Profile) map[string]string {
 		return map[string]string{
 			"RC": "The profile declares no relation rules.",
 			"TC": "The profile declares no temporal rules.",
+			"SC": "Generic scoring cannot assess source binding for a custom profile.",
 			"GC": "The profile declares no gating rules.",
 		}
 	}

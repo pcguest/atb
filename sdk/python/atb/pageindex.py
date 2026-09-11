@@ -73,6 +73,10 @@ class PageIndexRetrievalError(RuntimeError):
     """
 
 
+class PageIndexSourceChangedError(RuntimeError):
+    """Raised when a local source changes while its index is being built."""
+
+
 class ATBPageIndexRetriever:
     """
     Wraps PageIndex tree indexing and reasoning-based retrieval with
@@ -143,7 +147,14 @@ class ATBPageIndexRetriever:
         """
 
         resolved_index_id = index_id or str(uuid.uuid4())
+        source_digest = _source_digest(source_path)
         tree = _build_pageindex_tree(source_path, self.model)
+        # A local source must remain stable across PageIndex's path-based build;
+        # otherwise a digest recorded afterwards could commit different bytes.
+        if source_digest is not None and _source_digest(source_path) != source_digest:
+            raise PageIndexSourceChangedError(
+                "source changed while PageIndex tree was being built"
+            )
         tree_root_digest = _digest_json(tree)
         payload = {
             "index_id": resolved_index_id,
@@ -151,14 +162,13 @@ class ATBPageIndexRetriever:
             "source_uri": _to_source_uri(source_path),
             # Retained for v1 compatibility; tree_root_digest is the clearer
             # structural commitment used by new investigation surfaces.
-            "index_hash": tree_root_digest,
+            "index_hash": _legacy_index_digest(tree),
             "tree_root_digest": tree_root_digest,
             "node_count": self._count_nodes(tree),
             "page_count": _page_count(tree),
             "model_id": self.model,
             "indexed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
-        source_digest = _source_digest(source_path)
         if source_digest is not None:
             payload["source_digest"] = source_digest
         self._atb_append("atb.event.rag_index", payload)
@@ -359,6 +369,11 @@ def _digest_json(value: Any) -> str:
         value, sort_keys=True, ensure_ascii=False, separators=(",", ":")
     ).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def _legacy_index_digest(value: Any) -> str:
+    """Return the v1 PageIndex digest serialization retained as index_hash."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
 def _source_digest(source_path: str) -> str | None:

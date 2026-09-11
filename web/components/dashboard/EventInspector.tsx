@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/app/view/components/ui/tooltip";
 import { collectMaskedPaths, setByPath } from "@/lib/pii";
+import { copyTextToClipboard } from "@/lib/hash-display";
 import type { EventRecord } from "@/lib/types";
 
 type EventInspectorProps = {
@@ -116,7 +117,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
         <details className="rounded border border-border p-3 text-xs" open>
           <summary className="cursor-pointer font-medium">Identifiers and hashes</summary>
           <dl className="mt-3 grid gap-2 text-foreground">
-            <div><dt className="inline text-muted-foreground">Sequence: </dt><dd className="inline"><button type="button" aria-label={`Copy sequence ${event.seq}`} className="rounded-sm font-mono text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => void navigator.clipboard?.writeText(String(event.seq))}>#{event.seq}</button></dd></div>
+            <div><dt className="inline text-muted-foreground">Sequence: </dt><dd className="inline"><button type="button" aria-label={`Copy sequence ${event.seq}`} className="rounded-sm font-mono text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => void copyTextToClipboard(String(event.seq))}>#{event.seq}</button></dd></div>
             <div className="break-all"><dt className="inline text-muted-foreground">Record hash: </dt><dd className="inline"><HashValue hash={event.hash} className="text-foreground" /></dd></div>
             <div className="break-all"><dt className="inline text-muted-foreground">Previous hash: </dt><dd className="inline"><HashValue hash={event.prev_hash} className="text-foreground" /></dd></div>
           </dl>

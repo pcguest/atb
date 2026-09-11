@@ -51,10 +51,6 @@ func deriveRecord(record bundle.Record) (Evidence, bool) {
 	fields := map[string]any{}
 	copyIfPresent(fields, data, "retrieval_id", "request_id", "query_digest", "index_id", "strategy",
 		"result_set_digest", "selected_node_ids", "section_paths", "page_start", "page_end")
-	if len(fields) == 0 {
-		return Evidence{}, false
-	}
-
 	return Evidence{
 		Name:           "retrieval.performed",
 		MappingVersion: MappingVersion,

@@ -128,6 +128,10 @@ export function ErrorState({
 }
 
 export function CopyAction({ value, label }: { value: string; label: string }) {
+  return <CopyActionControl key={value} value={value} label={label} />;
+}
+
+function CopyActionControl({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
   const [failed, setFailed] = useState(false);
   async function copy() {

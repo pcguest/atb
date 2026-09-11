@@ -74,6 +74,7 @@ const trust = {
   canonicalisation: "rfc8785",
   signature_status: "absent",
   anchor_status: "absent",
+  profile_id: "",
   profile_pass: false,
   coverage_score: 0 as number | undefined,
   coverage_grade: "",
@@ -214,11 +215,13 @@ describe("ATB View investigation model", () => {
     };
     trust.coverage_score = 0.76;
     trust.coverage_grade = "Moderate coverage";
+    trust.profile_id = "atb.profile.privileged_tool_action";
+    trust.profile_pass = true;
     render(<ViewPage />);
     expect(screen.getByText("76%")).toBeInTheDocument();
     expect(screen.queryByText("Not assessed")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
-    expect(screen.getByText("Moderate coverage")).toBeInTheDocument();
+    expect(screen.getByText("Pass")).toBeInTheDocument();
   });
 
   it("does not claim context was supplied to the model", () => {

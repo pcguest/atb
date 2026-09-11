@@ -546,9 +546,9 @@ Developer-only types (`dev.session`) are used internally by tooling and tests an
 | `ai.model.output` | RAG | critical | `rag_answer` |
 | `atb.event.rag_index` | RAG (PageIndex) | required | `rag_answer` |
 | `atb.event.rag_retrieval` | RAG (PageIndex) | required | `rag_answer` |
-| `ai.action.precommit` | Privileged action | critical | `privileged_tool_action`, `policy_decision`, `human_override` |
-| `ai.action.executed` | Privileged action | critical | `privileged_tool_action`, `human_override` |
-| `ai.action.committed` | Privileged action | critical | `privileged_tool_action` |
+| `ai.action.precommit` | Privileged action | critical | `privileged_tool_action`, `data_export`, `policy_decision`, `human_override` |
+| `ai.action.executed` | Privileged action | critical | `privileged_tool_action`, `data_export`, `human_override` |
+| `ai.action.committed` | Privileged action | critical | `privileged_tool_action`, `data_export`, `human_override` |
 | `ai.action.error` | Privileged action | required | — |
 | `ai.human.approval` | Human oversight | required | `privileged_tool_action`, `data_export`, `human_override` |
 | `ai.job.scheduled` | Background automation | critical | `background_automation` |

@@ -12,6 +12,11 @@ import (
 	"github.com/pcguest/atb/internal/event"
 )
 
+const (
+	maxOperationPayloadBytes = 1 << 20 // 1 MiB before canonical hashing
+	maxOperationTextBytes    = 4 << 10 // 4 KiB for retained or hashed metadata
+)
+
 // OperationInput contains observable metadata for one MCP request/response.
 // Sensitive authorization, tracestate, and baggage values are accepted only
 // so they can be committed by digest; they are never copied into event data.
@@ -49,6 +54,9 @@ func BuildOperationEvent(input OperationInput) (*event.Event, error) {
 	default:
 		return nil, fmt.Errorf("mcp evidence: unsupported status %q", status)
 	}
+	if err := validateOperationText(input); err != nil {
+		return nil, err
+	}
 	requestDigest, err := canonicalDigest(input.Request)
 	if err != nil {
 		return nil, fmt.Errorf("mcp evidence: request digest: %w", err)
@@ -83,7 +91,10 @@ func BuildOperationEvent(input OperationInput) (*event.Event, error) {
 			return nil, fmt.Errorf("mcp evidence: %s: %w", key, err)
 		}
 	}
-	if input.TTLMS != nil && *input.TTLMS >= 0 {
+	if input.TTLMS != nil {
+		if *input.TTLMS < 0 {
+			return nil, fmt.Errorf("mcp evidence: ttl_ms must not be negative")
+		}
 		data["ttl_ms"] = *input.TTLMS
 	}
 	copyText(data, "cache_scope", input.CacheScope)
@@ -103,6 +114,9 @@ func BuildOperationEvent(input OperationInput) (*event.Event, error) {
 		timestamp = time.Now().UTC()
 	}
 	traceID, spanID := traceIDs(input.Traceparent)
+	if strings.TrimSpace(input.Traceparent) != "" && traceID == "" {
+		return nil, fmt.Errorf("mcp evidence: invalid traceparent")
+	}
 	return &event.Event{
 		Type:      event.TypeMcpOperation,
 		HashAlgo:  "sha256",
@@ -118,8 +132,31 @@ func canonicalDigest(value any) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if len(canonical) > maxOperationPayloadBytes {
+		return "", fmt.Errorf("value exceeds %d-byte evidence limit", maxOperationPayloadBytes)
+	}
 	sum := sha256.Sum256(canonical)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func validateOperationText(input OperationInput) error {
+	for name, value := range map[string]string{
+		"protocol_version": input.ProtocolVersion,
+		"method":           input.Method,
+		"name":             input.Name,
+		"traceparent":      input.Traceparent,
+		"tracestate":       input.Tracestate,
+		"baggage":          input.Baggage,
+		"cache_scope":      input.CacheScope,
+		"task_handle":      input.TaskHandle,
+		"task_state":       input.TaskState,
+		"mrtr_state":       input.MRTRState,
+	} {
+		if len(value) > maxOperationTextBytes {
+			return fmt.Errorf("mcp evidence: %s exceeds %d-byte evidence limit", name, maxOperationTextBytes)
+		}
+	}
+	return nil
 }
 
 func stringDigest(value string) string {
@@ -135,11 +172,15 @@ func copyText(data map[string]any, key, value string) {
 
 func traceIDs(traceparent string) (string, string) {
 	parts := strings.Split(strings.TrimSpace(traceparent), "-")
-	if len(parts) != 4 || len(parts[1]) != 32 || len(parts[2]) != 16 {
+	if len(parts) != 4 || len(parts[0]) != 2 || len(parts[1]) != 32 || len(parts[2]) != 16 || len(parts[3]) != 2 {
 		return "", ""
 	}
-	if _, err := hex.DecodeString(parts[1] + parts[2]); err != nil {
+	if _, err := hex.DecodeString(parts[0] + parts[1] + parts[2] + parts[3]); err != nil || parts[0] == "ff" || allZeroHex(parts[1]) || allZeroHex(parts[2]) {
 		return "", ""
 	}
 	return strings.ToLower(parts[1]), strings.ToLower(parts[2])
+}
+
+func allZeroHex(value string) bool {
+	return strings.Trim(value, "0") == ""
 }

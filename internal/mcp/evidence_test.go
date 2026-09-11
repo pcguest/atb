@@ -52,3 +52,31 @@ func TestBuildOperationEventRejectsUnsupportedStatus(t *testing.T) {
 		t.Fatal("expected unsupported status error")
 	}
 }
+
+func TestBuildOperationEventRejectsInvalidOptionalMetadata(t *testing.T) {
+	t.Parallel()
+	negativeTTL := -1
+	for _, input := range []OperationInput{
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, TTLMS: &negativeTTL},
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "00-00000000000000000000000000000000-0000000000000001-01"},
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-zz"},
+	} {
+		if _, err := BuildOperationEvent(input); err == nil {
+			t.Fatalf("BuildOperationEvent(%+v) succeeded, want validation error", input)
+		}
+	}
+}
+
+func TestBuildOperationEventRejectsOversizedEvidence(t *testing.T) {
+	t.Parallel()
+	tooLargePayload := strings.Repeat("x", maxOperationPayloadBytes+1)
+	tooLargeName := strings.Repeat("x", maxOperationTextBytes+1)
+	for _, input := range []OperationInput{
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: tooLargePayload},
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Name: tooLargeName},
+	} {
+		if _, err := BuildOperationEvent(input); err == nil {
+			t.Fatalf("BuildOperationEvent accepted oversized evidence")
+		}
+	}
+}

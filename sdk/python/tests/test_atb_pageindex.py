@@ -8,7 +8,11 @@ from unittest.mock import patch
 import pytest
 
 from atb import ATBAppendError, ATBPageIndexRetriever, PageIndexRetrievalError
-from atb.pageindex import _iter_nodes, _node_path
+from atb.pageindex import (
+    PageIndexSourceChangedError,
+    _iter_nodes,
+    _node_path,
+)
 
 
 @pytest.mark.parametrize("malformed", [None, 1, "children", {"node_id": "child"}])
@@ -68,7 +72,10 @@ def test_build_index_appends_rag_index_event() -> None:
     assert "atb.event.rag_index" in cmd
     payload = json.loads(cmd[3])
     assert payload["index_hash"]
-    assert payload["tree_root_digest"] == payload["index_hash"]
+    assert payload["tree_root_digest"] != payload["index_hash"]
+    assert payload["index_hash"] == __import__("hashlib").sha256(
+        json.dumps(tree, sort_keys=True).encode()
+    ).hexdigest()
     assert payload["index_version"] == "pageindex.tree.v1"
     assert payload["model_id"] == retriever.model
     assert "source_digest" not in payload
@@ -137,6 +144,19 @@ def test_build_index_commits_to_available_source_bytes(tmp_path) -> None:
         payload["source_digest"]
         == __import__("hashlib").sha256(source.read_bytes()).hexdigest()
     )
+
+
+def test_build_index_rejects_source_mutation_during_build(tmp_path) -> None:
+    source = tmp_path / "report.pdf"
+    source.write_bytes(b"original evidence")
+
+    def mutate_source(*_args):
+        source.write_bytes(b"different evidence")
+        return {"node_id": "root", "nodes": []}
+
+    with patch("atb.pageindex._build_pageindex_tree", side_effect=mutate_source):
+        with pytest.raises(PageIndexSourceChangedError, match="source changed"):
+            ATBPageIndexRetriever().build_index(str(source))
 
 
 def test_build_index_atb_failure_raises() -> None:

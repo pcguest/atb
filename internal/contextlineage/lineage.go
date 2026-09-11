@@ -69,11 +69,12 @@ func Build(records []bundle.Record) Lineage {
 
 	for _, record := range records {
 		data, ok := record.Event.Data.(map[string]any)
-		if !ok {
-			continue
-		}
 		switch record.Event.Type {
 		case event.TypeAIContextUnit:
+			if !ok {
+				lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("seq %d: malformed context unit", record.Event.Sequence))
+				continue
+			}
 			unit, valid := unitFromData(record.Event.Sequence, data)
 			if !valid {
 				lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("seq %d: malformed context unit", record.Event.Sequence))
@@ -86,6 +87,10 @@ func Build(records []bundle.Record) Lineage {
 			unitIDs[unit.ID] = record.Event.Sequence
 			lineage.Units = append(lineage.Units, unit)
 		case event.TypeAIContextOperation:
+			if !ok {
+				lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("seq %d: malformed context operation", record.Event.Sequence))
+				continue
+			}
 			operation, valid := operationFromData(record.Event.Sequence, data)
 			if !valid {
 				lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("seq %d: malformed context operation", record.Event.Sequence))
@@ -97,6 +102,13 @@ func Build(records []bundle.Record) Lineage {
 			}
 			operationIDs[operation.ID] = record.Event.Sequence
 			lineage.Operations = append(lineage.Operations, operation)
+		}
+	}
+	for _, unit := range lineage.Units {
+		for _, parentID := range unit.ParentIDs {
+			if _, exists := unitIDs[parentID]; !exists {
+				lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("context unit %q references unavailable parent unit %q", unit.ID, parentID))
+			}
 		}
 	}
 
@@ -128,11 +140,13 @@ func unitFromData(sequence int, data map[string]any) (Unit, bool) {
 }
 
 func operationFromData(sequence int, data map[string]any) (Operation, bool) {
+	inputUnitIDs, inputOK := requiredTexts(data, "input_unit_ids")
+	outputUnitIDs, outputOK := requiredTexts(data, "output_unit_ids")
 	operation := Operation{
 		ID:                  text(data, "operation_id"),
 		Type:                text(data, "operation"),
-		InputUnitIDs:        texts(data, "input_unit_ids"),
-		OutputUnitIDs:       texts(data, "output_unit_ids"),
+		InputUnitIDs:        inputUnitIDs,
+		OutputUnitIDs:       outputUnitIDs,
 		Method:              text(data, "method"),
 		ProcessorID:         text(data, "processor_id"),
 		ProcessorVersion:    text(data, "processor_version"),
@@ -145,7 +159,7 @@ func operationFromData(sequence int, data map[string]any) (Operation, bool) {
 	}
 	validType := operation.Type == "select" || operation.Type == "transform" || operation.Type == "compact" ||
 		operation.Type == "cache_reuse" || operation.Type == "assemble"
-	return operation, operation.ID != "" && validType
+	return operation, operation.ID != "" && validType && inputOK && outputOK
 }
 
 func text(data map[string]any, key string) string {
@@ -174,9 +188,25 @@ func texts(data map[string]any, key string) []string {
 	return result
 }
 
+func requiredTexts(data map[string]any, key string) ([]string, bool) {
+	if _, ok := data[key]; !ok {
+		return nil, false
+	}
+	values := texts(data, key)
+	switch data[key].(type) {
+	case []string, []any:
+		return values, true
+	default:
+		return nil, false
+	}
+}
+
 func integer(data map[string]any, key string) *int {
 	switch value := data[key].(type) {
 	case int:
+		if value < 0 {
+			return nil
+		}
 		return &value
 	case float64:
 		converted := int(value)

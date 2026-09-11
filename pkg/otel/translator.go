@@ -164,7 +164,7 @@ func normalizeAttribute(value any) any {
 func sensitiveAttribute(key string, value any) bool {
 	normalized := strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(key))
 	switch normalized {
-	case "gen_ai_retrieval_query_text", "gen_ai_retrieval_documents", "gen_ai_input_messages", "gen_ai_output_messages":
+	case "gen_ai_retrieval_query", "gen_ai_retrieval_query_text", "gen_ai_retrieval_documents", "gen_ai_input_messages", "gen_ai_output_messages":
 		return true
 	}
 	switch value.(type) {
@@ -221,12 +221,27 @@ func (t DefaultTranslator) eventType(span OTelSpan) (string, error) {
 }
 
 func allowedEventType(eventType string) bool {
-	for _, spec := range event.EventTypesGenerated {
-		if spec.Type == eventType {
-			return true
-		}
+	// These are application evidence events that the translator can map from a
+	// span. Bundle-control records have custody semantics and must only be
+	// created by their dedicated bundle operations.
+	switch eventType {
+	case event.TypeAIRequestReceived,
+		event.TypeAIResponseSent,
+		event.TypeAILLMCall,
+		event.TypeAIToolExec,
+		event.TypeAIChainRun,
+		event.TypeAIPolicyDecision,
+		event.TypeAIRetrievalExecuted,
+		event.TypeAIModelInvoked,
+		event.TypeAIModelOutput,
+		event.TypeAIActionPrecommit,
+		event.TypeAIActionExecuted,
+		event.TypeAIActionCommitted,
+		event.TypeAIHumanApproval:
+		return true
+	default:
+		return false
 	}
-	return false
 }
 
 func contextForEvent(eventType string, span OTelSpan) map[string]any {

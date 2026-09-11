@@ -4,7 +4,6 @@ package apiv1
 import (
 	"encoding/json"
 	"fmt"
-	"html"
 	"net/http"
 	"path/filepath"
 	"sort"
@@ -217,8 +216,11 @@ func (s *APIServer) handleInvestigationReport(w http.ResponseWriter, r *http.Req
 	}
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="atb-incident-report.md"`)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(html.EscapeString(report.Markdown())))
+	// #nosec G705 -- Markdown is structurally escaped at its bundle-derived
+	// field boundaries and this endpoint forces it to download as an attachment.
+	_, _ = w.Write([]byte(report.Markdown()))
 }
 
 func (s *APIServer) allowInvestigationRead(w http.ResponseWriter, r *http.Request, requireIntegrity bool) bool {
@@ -356,10 +358,8 @@ func signatureStatus(s *APIServer) string {
 	if s.verifierReport == nil || len(s.verifierReport.Signatures) == 0 {
 		return "absent"
 	}
-	for _, signature := range s.verifierReport.Signatures {
-		if signature.Valid {
-			return "verified"
-		}
+	if s.verifierReport.Signatures[len(s.verifierReport.Signatures)-1].Valid {
+		return "verified"
 	}
 	return "failed"
 }

@@ -425,7 +425,7 @@
         "tree_root_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "node_count": { "type": "integer", "minimum": 0 }
       },
-      "required": ["index_id", "index_version", "tree_root_digest", "node_count"]
+      "required": ["index_id", "node_count", "source_uri", "index_hash"]
     },
     "atb.event.rag_retrieval": {
       "description": "PageIndex retrieval result with observable selected nodes and source ranges.",
@@ -439,7 +439,7 @@
         "selected_content_digests": { "type": "array", "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" } },
         "result_set_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
       },
-      "required": ["retrieval_id", "index_id", "selected_node_ids", "result_set_digest"]
+      "required": ["retrieval_id", "index_id", "node_id", "node_title", "source_uri", "page_start", "page_end"]
     },
     "dev.session": {
       "description": "Developer session marker used by tooling and tests."
@@ -819,14 +819,14 @@
       "description": "PageIndex document tree build record (index_hash, node_count)",
       "profiles": ["atb.profile.rag_answer"],
       "criticality": "required",
-      "required_fields": ["index_id", "index_version", "tree_root_digest", "node_count"]
+      "required_fields": ["index_id", "node_count", "source_uri", "index_hash"]
     },
     {
       "type": "atb.event.rag_retrieval",
       "description": "PageIndex reasoning-based retrieval result (node_id, page_start/end)",
       "profiles": ["atb.profile.rag_answer"],
       "criticality": "required",
-      "required_fields": ["retrieval_id", "index_id", "selected_node_ids", "result_set_digest"]
+      "required_fields": ["retrieval_id", "index_id", "node_id", "node_title", "source_uri", "page_start", "page_end"]
     },
     {
       "type": "ai.context.unit",

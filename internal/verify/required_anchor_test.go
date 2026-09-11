@@ -32,4 +32,29 @@ func TestRequiredAnchorDoesNotDowngradeIntegrityFailure(t *testing.T) {
 	if report.ResidualRisk.Level != "Critical" {
 		t.Fatalf("risk=%+v", report.ResidualRisk)
 	}
+	if len(report.ResidualRisk.RecommendedNextEvidence) != 0 {
+		t.Fatalf("critical integrity failure must not recommend timestamping: %+v", report.ResidualRisk)
+	}
+	if slices.Contains(report.ResidualRisk.Drivers, "required_anchor_unverified") {
+		t.Fatalf("critical integrity failure must remain the primary driver: %+v", report.ResidualRisk)
+	}
+	if len(report.ProvabilityGaps) != 1 || report.ProvabilityGaps[0].Gap != "integrity" {
+		t.Fatalf("critical integrity failure gaps = %+v, want only integrity", report.ProvabilityGaps)
+	}
+}
+
+func TestRequiredAnchorProducesGapWithoutCAS(t *testing.T) {
+	report := Report{
+		Integrity:    IntegrityResult{ChainValid: true},
+		Anchoring:    AnchoringResult{AnchorRequired: true},
+		ResidualRisk: residualRiskNoMatchingProfile(),
+	}
+	applyRequiredAnchorRisk(&report)
+	report.ProvabilityGaps = DeriveProvabilityGaps(report)
+	if !slices.Contains(report.ResidualRisk.Drivers, "required_anchor_unverified") {
+		t.Fatalf("required-anchor driver missing: %+v", report.ResidualRisk)
+	}
+	if !slices.ContainsFunc(report.ProvabilityGaps, func(gap ProvabilityGap) bool { return gap.Gap == "timestamp_anchor" }) {
+		t.Fatalf("required-anchor provability gap missing: %+v", report.ProvabilityGaps)
+	}
 }
