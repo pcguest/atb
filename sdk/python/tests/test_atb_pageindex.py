@@ -73,9 +73,12 @@ def test_build_index_appends_rag_index_event() -> None:
     payload = json.loads(cmd[3])
     assert payload["index_hash"]
     assert payload["tree_root_digest"] != payload["index_hash"]
-    assert payload["index_hash"] == __import__("hashlib").sha256(
-        json.dumps(tree, sort_keys=True).encode()
-    ).hexdigest()
+    assert (
+        payload["index_hash"]
+        == __import__("hashlib")
+        .sha256(json.dumps(tree, sort_keys=True).encode())
+        .hexdigest()
+    )
     assert payload["index_version"] == "pageindex.tree.v1"
     assert payload["model_id"] == retriever.model
     assert "source_digest" not in payload
