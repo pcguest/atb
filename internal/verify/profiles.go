@@ -3,6 +3,7 @@ package verify
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -150,31 +151,87 @@ func ComputeCAS(
 	weights map[string]float64,
 	integrityValid bool,
 ) CASResult {
+	return computeCASWithApplicability(subScores, weights, nil, integrityValid)
+}
+
+// computeCASWithApplicability preserves Overall and Grade as the v1 legacy
+// weighted result while calculating evidence coverage only over dimensions ATB
+// can assess. A nil applicability map means every weighted dimension is
+// assessable, preserving ComputeCAS behaviour for existing callers.
+func computeCASWithApplicability(
+	subScores map[string]float64,
+	weights map[string]float64,
+	applicability map[string]string,
+	integrityValid bool,
+) CASResult {
 	copiedScores := copyFloatMap(subScores)
 	copiedWeights := copyFloatMap(weights)
-	if !integrityValid {
-		return CASResult{
-			Overall:            0,
-			Grade:              "Insufficient",
-			CorroborationBonus: 0,
-			EffectiveScore:     0,
-			SubScores:          copiedScores,
-			WeightVector:       copiedWeights,
+	dimensions := make(map[string]DimensionAssessment, len(copiedWeights))
+	var assessableWeight float64
+	var declaredWeight float64
+	var coverageTotal float64
+	for key, weight := range copiedWeights {
+		if weight <= 0 {
+			continue
 		}
+		declaredWeight += weight
+		reason, explicitlyUnassessable := applicability[key]
+		if explicitlyUnassessable {
+			dimensions[key] = DimensionAssessment{
+				Assessable: false,
+				Weight:     weight,
+				Reason:     reason,
+			}
+			continue
+		}
+		score := copiedScores[key]
+		dimensions[key] = DimensionAssessment{
+			Assessable: true,
+			Score:      &score,
+			Weight:     weight,
+		}
+		assessableWeight += weight
+		coverageTotal += weight * score
 	}
+
+	var coverageScore float64
+	if assessableWeight > 0 {
+		coverageScore = roundCASFloat(coverageTotal / assessableWeight)
+	}
+	var assessmentCoverage float64
+	if declaredWeight > 0 {
+		assessmentCoverage = roundCASFloat(assessableWeight / declaredWeight)
+	}
+
+	result := CASResult{
+		IntegrityValid: integrityValid,
+		AssuranceValid: integrityValid,
+		SubScores:      copiedScores,
+		WeightVector:   copiedWeights,
+	}
+	if !integrityValid {
+		result.Grade = "Insufficient"
+		return result
+	}
+
+	result.CoverageScore = coverageScore
+	result.CoverageGrade = coverageGradeFromScore(coverageScore)
+	result.AssessmentCoverage = assessmentCoverage
+	result.Dimensions = dimensions
 
 	var total float64
 	for key, weight := range copiedWeights {
 		total += weight * copiedScores[key]
 	}
-	return CASResult{
-		Overall:            total,
-		Grade:              gradeFromScore(total),
-		CorroborationBonus: 0,
-		EffectiveScore:     total,
-		SubScores:          copiedScores,
-		WeightVector:       copiedWeights,
-	}
+	result.Overall = total
+	result.Grade = gradeFromScore(total)
+	result.EffectiveScore = total
+	return result
+}
+
+func roundCASFloat(value float64) float64 {
+	const precision = 1e12
+	return math.Round(value*precision) / precision
 }
 
 func gradeFromScore(score float64) string {
@@ -187,6 +244,44 @@ func gradeFromScore(score float64) string {
 		return "Low"
 	default:
 		return "Insufficient"
+	}
+}
+
+func coverageGradeFromScore(score float64) string {
+	switch {
+	case score >= 0.85:
+		return "High coverage"
+	case score >= 0.60:
+		return "Moderate coverage"
+	case score >= 0.30:
+		return "Low coverage"
+	default:
+		return "Minimal coverage"
+	}
+}
+
+func casApplicability(profile Profile) map[string]string {
+	if profile == nil {
+		return nil
+	}
+	switch profile.ID() {
+	case profileIDRAGAnswer:
+		return map[string]string{
+			"GC": "Gating completeness is not assessable without captured gating evidence.",
+		}
+	case profileIDPrivilegedToolAction,
+		profileIDDataExport,
+		profileIDPolicyDecision,
+		profileIDHumanOverride,
+		profileIDBackgroundAutomation:
+		return nil
+	default:
+		return map[string]string{
+			"RC": "The profile declares no relation rules.",
+			"TC": "The profile declares no temporal rules.",
+			"SC": "Generic scoring cannot assess source binding for a custom profile.",
+			"GC": "The profile declares no gating rules.",
+		}
 	}
 }
 

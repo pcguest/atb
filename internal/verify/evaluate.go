@@ -99,6 +99,11 @@ func EvaluateBundle(cfg EvaluateConfig, opts ...EvaluateOption) (*Report, error)
 		cfg.AnchorRequired,
 		eopts.strictSourceSignatures || cfg.StrictSourceSignatures,
 	)
+	applyRequiredAnchorRisk(&report)
+	// Required-anchor policy is applied after loading/evaluating the bundle.
+	// Re-derive gaps here so the structured evidence view and residual-risk
+	// summary describe the same unmet requirement.
+	report.ProvabilityGaps = DeriveProvabilityGaps(report)
 
 	if cfg.RequireValidChain && !report.Integrity.ChainValid {
 		return nil, fmt.Errorf("verify: %s: %w", cfg.BundlePath, ErrChainInvalid)
@@ -116,6 +121,23 @@ func EvaluateBundle(cfg EvaluateConfig, opts ...EvaluateOption) (*Report, error)
 	}
 
 	return &report, nil
+}
+
+func applyRequiredAnchorRisk(report *Report) {
+	if !report.Anchoring.AnchorRequired || report.Anchoring.TSAVerified {
+		return
+	}
+	if report.CAS != nil {
+		report.CAS.AssuranceValid = false
+	}
+	if report.ResidualRisk.Level == "Critical" {
+		// A timestamp can establish a time commitment, but cannot repair a
+		// broken hash chain. Keep integrity failure as the sole immediate action.
+		return
+	}
+	report.ResidualRisk.Level = "High"
+	report.ResidualRisk.Drivers = appendUniqueStrings(report.ResidualRisk.Drivers, "required_anchor_unverified")
+	report.ResidualRisk.RecommendedNextEvidence = appendUniqueStrings(report.ResidualRisk.RecommendedNextEvidence, "Provide a verifiable timestamp anchor required by the selected verification policy.")
 }
 
 func evaluateLoadedBundle(
@@ -148,6 +170,8 @@ func evaluateLoadedBundle(
 				SubScores: map[string]float64{
 					"SC": sc,
 				},
+				IntegrityValid: report.Integrity.ChainValid,
+				AssuranceValid: report.Integrity.ChainValid,
 			}
 			if sc > 0 && report.Integrity.ChainValid {
 				report.CAS.Overall = sc
@@ -180,7 +204,16 @@ func evaluateLoadedBundle(
 
 		if profileSupportsCAS(profile) {
 			subScores := subScoresForProfile(profile, b.Records, anchorResult)
-			cas := ComputeCAS(subScores, profile.DefaultWeights(), report.Integrity.ChainValid)
+			cas := computeCASWithApplicability(
+				subScores,
+				profile.DefaultWeights(),
+				casApplicability(profile),
+				report.Integrity.ChainValid,
+			)
+			cas.AssuranceValid = report.Integrity.ChainValid && result.Pass
+			if report.Anchoring.AnchorRequired {
+				cas.AssuranceValid = cas.AssuranceValid && report.Anchoring.TSAVerified
+			}
 			report.CAS = &cas
 			if !report.Integrity.ChainValid {
 				report.ResidualRisk = integrityFailureResidualRisk()

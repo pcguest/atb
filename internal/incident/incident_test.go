@@ -90,7 +90,7 @@ func TestBuildScopesSessionAndReportsIntegrity(t *testing.T) {
 	}
 
 	md := rep.Markdown()
-	if !strings.Contains(md, "tool=wipe_db") || !strings.Contains(md, "error_class=failed") {
+	if !strings.Contains(md, "tool=wipe\\_db") || !strings.Contains(md, "error\\_class=failed") {
 		t.Errorf("markdown missing event summaries:\n%s", md)
 	}
 	if !strings.Contains(md, "unsigned") {
@@ -202,7 +202,7 @@ func TestBuildSummarisesPrincipal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	if md := rep.Markdown(); !strings.Contains(md, "by agent:sha256:a1 on_behalf_of sha256:u9") {
+	if md := rep.Markdown(); !strings.Contains(md, "by agent:sha256:a1 on\\_behalf\\_of sha256:u9") {
 		t.Errorf("markdown missing principal summary:\n%s", md)
 	}
 }

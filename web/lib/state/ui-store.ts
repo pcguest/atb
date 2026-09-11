@@ -59,6 +59,14 @@ export const useUIStore = create<UIStoreState>()(
     }),
     {
       name: "atb-ui-store-v1",
+      version: 2,
+      migrate: (persisted) => {
+        const state = persisted as Record<string, unknown>;
+        if (state.role === "executive") {
+          return { ...state, role: "security" as DashboardRole } as Partial<UIStoreState>;
+        }
+        return state as Partial<UIStoreState>;
+      },
       storage: createJSONStorage(resolveUIStorage),
       partialize: (state) => ({
         role: state.role,

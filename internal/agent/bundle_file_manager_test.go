@@ -18,6 +18,7 @@ func TestBundleFileManagerLifecycle(t *testing.T) {
 	fixedNow := time.Date(2026, 5, 25, 12, 0, 0, 0, time.UTC)
 	root := filepath.Join(t.TempDir(), "agent")
 	mgr := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 	mgr.now = func() time.Time { return fixedNow }
 
 	ctx := context.Background()
@@ -96,6 +97,7 @@ func TestBundleFileManagerLifecycle(t *testing.T) {
 
 func TestBundleFileManagerOpenCreatesManifestOnlyBundle(t *testing.T) {
 	mgr := NewBundleFileManager(t.TempDir())
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 	id, err := mgr.OpenSession(context.Background(), OpenParams{ActorID: "actor-1"})
 	if err != nil {
 		t.Fatalf("OpenSession: %v", err)
@@ -122,6 +124,7 @@ func TestBundleFileManagerOpenCreatesManifestOnlyBundle(t *testing.T) {
 func TestBundleFileManagerCustomBundlePathResume(t *testing.T) {
 	root := t.TempDir()
 	mgr := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr.Shutdown(context.Background()) })
 	customPath := filepath.Join(root, "custom", "bundle.atb")
 
 	id, err := mgr.OpenSession(context.Background(), OpenParams{
@@ -142,6 +145,7 @@ func TestBundleFileManagerCustomBundlePathResume(t *testing.T) {
 	}
 
 	mgr2 := NewBundleFileManager(root)
+	t.Cleanup(func() { _ = mgr2.Shutdown(context.Background()) })
 	id2, err := mgr2.OpenSession(context.Background(), OpenParams{BundlePath: customPath})
 	if err != nil {
 		t.Fatalf("resume OpenSession: %v", err)
@@ -179,5 +183,18 @@ func TestBundleFileManagerShutdownClearsSessions(t *testing.T) {
 	}
 	if err := mgr.AppendEvent(context.Background(), id, PendingEvent{EventType: "test"}); !errors.Is(err, ErrSessionNotFound) {
 		t.Fatalf("AppendEvent after shutdown: got %v, want ErrSessionNotFound", err)
+	}
+
+	// Shutdown discards the old session, but the manager remains usable for a
+	// later runtime lifecycle and opens a new rooted filesystem capability.
+	newID, err := mgr.OpenSession(context.Background(), OpenParams{ActorID: "actor-2"})
+	if err != nil {
+		t.Fatalf("OpenSession after shutdown: %v", err)
+	}
+	if newID == id {
+		t.Fatalf("OpenSession after shutdown reused session ID %q", id)
+	}
+	if err := mgr.Shutdown(context.Background()); err != nil {
+		t.Fatalf("second Shutdown: %v", err)
 	}
 }

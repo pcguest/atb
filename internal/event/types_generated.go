@@ -68,6 +68,12 @@ const (
 	TypeRAGIndex = "atb.event.rag_index"
 	// TypeRAGRetrieval is "atb.event.rag_retrieval".
 	TypeRAGRetrieval = "atb.event.rag_retrieval"
+	// TypeAIContextUnit is "ai.context.unit".
+	TypeAIContextUnit = "ai.context.unit"
+	// TypeAIContextOperation is "ai.context.operation".
+	TypeAIContextOperation = "ai.context.operation"
+	// TypeMcpOperation is "atb.mcp.operation".
+	TypeMcpOperation = "atb.mcp.operation"
 	// TypeToolCall is "atb.tool.call".
 	TypeToolCall = "atb.tool.call"
 	// TypeDataExport is "atb.data.export".
@@ -131,8 +137,11 @@ var EventTypesGenerated = []EventTypeSpecGenerated{
 	{Type: TypeDataRetentionEnforced, Description: "Retention-relevant local operation completed or remote retention request accepted", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"}},
 	{Type: TypeDevSession, Description: "Developer session marker (tooling use)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
 	{Type: TypeCorroborationExternal, Description: "External corroboration record (adapter-retrieved evidence)", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{}},
-	{Type: TypeRAGIndex, Description: "PageIndex document tree build record (index_hash, node_count)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{}},
-	{Type: TypeRAGRetrieval, Description: "PageIndex reasoning-based retrieval result (node_id, page_start/end)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{}},
+	{Type: TypeRAGIndex, Description: "PageIndex document tree build record (index_hash, node_count)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{"index_id", "node_count", "source_uri", "index_hash"}},
+	{Type: TypeRAGRetrieval, Description: "PageIndex reasoning-based retrieval result (node_id, page_start/end)", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "required", RequiredFields: []string{"retrieval_id", "index_id", "node_id", "node_title", "source_uri", "page_start", "page_end"}},
+	{Type: TypeAIContextUnit, Description: "Observable context unit bound by digest", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "informational", RequiredFields: []string{"unit_id", "kind", "digest"}},
+	{Type: TypeAIContextOperation, Description: "Observable context selection, transformation, compaction, cache reuse, or assembly", Profiles: []string{"atb.profile.rag_answer"}, Criticality: "informational", RequiredFields: []string{"operation_id", "operation", "input_unit_ids", "output_unit_ids"}},
+	{Type: TypeMcpOperation, Description: "Modern MCP operation evidence with digested request and result metadata", Profiles: []string{}, Criticality: "informational", RequiredFields: []string{"operation_id", "protocol_version", "method", "status", "request_digest"}},
 	{Type: TypeToolCall, Description: "Tool invocation recorded for session oversight", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "tool_name"}},
 	{Type: TypeDataExport, Description: "Data export outside session boundary", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "export_target"}},
 	{Type: TypeHumanOverride, Description: "Human operator overrode an AI-recommended action", Profiles: []string{}, Criticality: "required", RequiredFields: []string{"session_id", "override_reason"}},
@@ -179,6 +188,9 @@ var RegistryGenerated = []EventInfo{
 	{TypeCorroborationExternal, "External corroboration record (adapter-retrieved evidence)", "", "informational"},
 	{TypeRAGIndex, "PageIndex document tree build record (index_hash, node_count)", "atb.profile.rag_answer", "required"},
 	{TypeRAGRetrieval, "PageIndex reasoning-based retrieval result (node_id, page_start/end)", "atb.profile.rag_answer", "required"},
+	{TypeAIContextUnit, "Observable context unit bound by digest", "atb.profile.rag_answer", "informational"},
+	{TypeAIContextOperation, "Observable context selection, transformation, compaction, cache reuse, or assembly", "atb.profile.rag_answer", "informational"},
+	{TypeMcpOperation, "Modern MCP operation evidence with digested request and result metadata", "", "informational"},
 	{TypeToolCall, "Tool invocation recorded for session oversight", "", "required"},
 	{TypeDataExport, "Data export outside session boundary", "", "required"},
 	{TypeHumanOverride, "Human operator overrode an AI-recommended action", "", "required"},
@@ -223,8 +235,11 @@ var RequiredFieldsGenerated = map[string][]string{
 	TypeDataRetentionEnforced:      []string{"operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"},
 	TypeDevSession:                 []string{},
 	TypeCorroborationExternal:      []string{},
-	TypeRAGIndex:                   []string{},
-	TypeRAGRetrieval:               []string{},
+	TypeRAGIndex:                   []string{"index_id", "node_count", "source_uri", "index_hash"},
+	TypeRAGRetrieval:               []string{"retrieval_id", "index_id", "node_id", "node_title", "source_uri", "page_start", "page_end"},
+	TypeAIContextUnit:              []string{"unit_id", "kind", "digest"},
+	TypeAIContextOperation:         []string{"operation_id", "operation", "input_unit_ids", "output_unit_ids"},
+	TypeMcpOperation:               []string{"operation_id", "protocol_version", "method", "status", "request_digest"},
 	TypeToolCall:                   []string{"session_id", "tool_name"},
 	TypeDataExport:                 []string{"session_id", "export_target"},
 	TypeHumanOverride:              []string{"session_id", "override_reason"},

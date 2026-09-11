@@ -36,6 +36,9 @@ type fileSessionRecord struct {
 // BundleFileManager implements BundleManager with on-disk hash-chained bundles.
 type BundleFileManager struct {
 	dataDir  string
+	root     *os.Root
+	rootErr  error
+	rootOnce sync.Once
 	mu       sync.RWMutex
 	sessions map[SessionID]*fileSessionRecord
 	now      func() time.Time
@@ -52,6 +55,11 @@ func NewBundleFileManager(dataDir string) *BundleFileManager {
 
 // OpenSession creates or resumes a bundle at the session path and persists it.
 func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) (SessionID, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err := m.openRoot(); err != nil {
+		return "", err
+	}
 	id, err := newSessionID()
 	if err != nil {
 		return "", err
@@ -59,7 +67,12 @@ func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) 
 
 	bundlePath := strings.TrimSpace(params.BundlePath)
 	if bundlePath == "" {
-		bundlePath = sessionBundlePath(m.dataDir, id)
+		bundlePath = filepath.Join("sessions", id.String(), "bundle.atb")
+	}
+
+	bundlePath, err = bundle.RootedRelativePath(m.dataDir, bundlePath)
+	if err != nil {
+		return "", err
 	}
 
 	var (
@@ -67,8 +80,8 @@ func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) 
 		createdAt  time.Time
 		eventCount int
 	)
-	if _, statErr := os.Stat(bundlePath); statErr == nil {
-		b, err = bundle.LoadVerified(bundlePath)
+	if _, statErr := m.root.Stat(bundlePath); statErr == nil {
+		b, err = bundle.LoadRooted(m.root, bundlePath)
 		if err != nil {
 			return "", fmt.Errorf("agent: open existing bundle: %w", err)
 		}
@@ -82,7 +95,7 @@ func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) 
 			return "", fmt.Errorf("agent: new bundle: %w", err)
 		}
 		createdAt = m.now().UTC()
-		if err := b.Save(ctx, bundlePath); err != nil {
+		if err := b.SaveRooted(ctx, m.root, bundlePath); err != nil {
 			return "", fmt.Errorf("agent: save new bundle: %w", err)
 		}
 	}
@@ -95,8 +108,6 @@ func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) 
 		createdAt:  createdAt,
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.sessions[id] = record
 	return id, nil
 }
@@ -120,12 +131,14 @@ func (m *BundleFileManager) AppendEvent(ctx context.Context, sessionID SessionID
 	}
 
 	opts := appendOptionsForSession(record.params)
-	if err := record.bundle.AppendWithOptions(agentRawEventType, data, opts); err != nil {
+	next := &bundle.Bundle{Records: append([]bundle.Record(nil), record.bundle.Records...)}
+	if err := next.AppendWithOptions(agentRawEventType, data, opts); err != nil {
 		return fmt.Errorf("agent: append event: %w", err)
 	}
-	if err := record.bundle.Save(ctx, record.bundlePath); err != nil {
+	if err := next.SaveRooted(ctx, m.root, record.bundlePath); err != nil {
 		return fmt.Errorf("agent: save bundle: %w", err)
 	}
+	record.bundle = next
 	record.eventCount++
 	return nil
 }
@@ -143,11 +156,11 @@ func (m *BundleFileManager) CloseSession(ctx context.Context, sessionID SessionI
 		return BundleMetadata{}, ErrSessionClosed
 	}
 
-	if err := record.bundle.Save(ctx, record.bundlePath); err != nil {
+	if err := record.bundle.SaveRooted(ctx, m.root, record.bundlePath); err != nil {
 		return BundleMetadata{}, fmt.Errorf("agent: save bundle on close: %w", err)
 	}
 
-	verified, err := bundle.LoadVerified(record.bundlePath)
+	verified, err := bundle.LoadRooted(m.root, record.bundlePath)
 	if err != nil {
 		return BundleMetadata{}, fmt.Errorf("agent: verify bundle on close: %w", err)
 	}
@@ -159,14 +172,14 @@ func (m *BundleFileManager) CloseSession(ctx context.Context, sessionID SessionI
 
 	meta := BundleMetadata{
 		SessionID:  sessionID,
-		Path:       record.bundlePath,
+		Path:       filepath.Join(m.dataDir, record.bundlePath),
 		ProfileID:  record.params.ProfileID,
 		HeadHash:   custody.HeadHash(verified),
 		EventCount: record.eventCount,
 		CreatedAt:  record.createdAt,
 		ClosedAt:   closedAt,
 	}
-	if err := writeSessionMeta(m.dataDir, meta); err != nil {
+	if err := m.writeSessionMeta(meta); err != nil {
 		return BundleMetadata{}, err
 	}
 	return meta, nil
@@ -177,6 +190,15 @@ func (m *BundleFileManager) Shutdown(context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sessions = make(map[SessionID]*fileSessionRecord)
+	if m.root != nil {
+		err := m.root.Close()
+		// Shutdown releases a filesystem capability but does not make this
+		// manager terminal: callers can open a fresh session afterwards.
+		m.root = nil
+		m.rootErr = nil
+		m.rootOnce = sync.Once{}
+		return err
+	}
 	return nil
 }
 
@@ -246,4 +268,25 @@ func manifestCreatedAt(b *bundle.Bundle) time.Time {
 		return time.Time{}
 	}
 	return parsed.UTC()
+}
+
+func (m *BundleFileManager) openRoot() error {
+	m.rootOnce.Do(func() {
+		// DataDir is trusted configuration; caller-controlled paths are used only
+		// after opening this capability.
+		if err := os.MkdirAll(m.dataDir, 0o750); err != nil { // #nosec G703 -- dataDir is trusted agent configuration, never a request-controlled bundle path.
+			m.rootErr = err
+			return
+		}
+		m.root, m.rootErr = os.OpenRoot(m.dataDir)
+	})
+	return m.rootErr
+}
+
+func (m *BundleFileManager) writeSessionMeta(meta BundleMetadata) error {
+	payload, err := json.MarshalIndent(sessionMetaFromBundleMetadata(meta), "", "  ")
+	if err != nil {
+		return err
+	}
+	return bundle.WriteAtomicRooted(m.root, filepath.Join("sessions", meta.SessionID.String(), sessionMetaFilename), payload)
 }

@@ -81,6 +81,75 @@ func TestTranslate_mapsLLMSpan(t *testing.T) {
 	}
 }
 
+func TestTranslateMapsCurrentGenAISemanticsWithoutRawContent(t *testing.T) {
+	t.Parallel()
+	got, err := otel.Translate(otel.OTelSpan{
+		TraceID:   "0102030405060708090a0b0c0d0e0f10",
+		SpanID:    "0102030405060708",
+		Name:      "retrieval policy-handbook",
+		StartTime: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+		Attributes: map[string]any{
+			"gen_ai.operation.name":       "retrieval",
+			"gen_ai.provider.name":        "example",
+			"gen_ai.data_source.id":       "policy-handbook",
+			"gen_ai.retrieval.query.text": "secret approval question",
+			"gen_ai.retrieval.query":      "alternate retrieval query sentinel",
+			"gen_ai.retrieval.documents":  []any{map[string]any{"id": "doc-1", "score": 0.9}},
+			"gen_ai.input.messages":       "private input sentinel",
+			"gen_ai.output.messages":      "private output sentinel",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Translate() error = %v", err)
+	}
+	if got.Type != event.TypeAIRetrievalExecuted {
+		t.Fatalf("Type = %q, want %q", got.Type, event.TypeAIRetrievalExecuted)
+	}
+	data := got.Data.(map[string]any)
+	context := data["context"].(map[string]any)
+	query := context["query"].(map[string]any)
+	if query["sha256"] == "" || strings.Contains(fmt.Sprint(context), "secret approval question") {
+		t.Fatalf("retrieval context must be digest-only: %#v", context)
+	}
+	for _, secret := range []string{"secret approval question", "alternate retrieval query sentinel", "doc-1", "private input sentinel", "private output sentinel"} {
+		if strings.Contains(fmt.Sprint(got), secret) {
+			t.Fatalf("translated event retained sensitive content %q", secret)
+		}
+	}
+}
+
+func TestTranslate_ignoresUnknownEventTypeHint(t *testing.T) {
+	t.Parallel()
+	got, err := otel.Translate(otel.OTelSpan{
+		TraceID:   "0102030405060708090a0b0c0d0e0f10",
+		SpanID:    "0102030405060708",
+		Name:      "gen_ai.chat",
+		StartTime: time.Date(2026, 3, 9, 9, 15, 2, 0, time.UTC),
+		Attributes: map[string]any{
+			"atb.event_type": "hostile.invented.type",
+			"gen_ai.system":  "openai",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Translate() error = %v", err)
+	}
+	if got.Type != event.TypeAILLMCall {
+		t.Fatalf("Type = %q, want mapped %q not the unallowlisted hint", got.Type, event.TypeAILLMCall)
+	}
+}
+
+func TestTranslateRejectsBundleControlEventHint(t *testing.T) {
+	t.Parallel()
+	got, err := otel.Translate(otel.OTelSpan{
+		TraceID: "0102030405060708090a0b0c0d0e0f10", SpanID: "0102030405060708", Name: "llm call",
+		StartTime:  time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC),
+		Attributes: map[string]any{"atb.event_type": event.TypeBundleAnchor},
+	})
+	if err != nil || got.Type != event.TypeAILLMCall {
+		t.Fatalf("Translate() = (%#v, %v), want mapped application event", got, err)
+	}
+}
+
 func TestTranslate_returnsTypedErrorForUnmappableSpan(t *testing.T) {
 	t.Parallel()
 	_, err := otel.Translate(otel.OTelSpan{

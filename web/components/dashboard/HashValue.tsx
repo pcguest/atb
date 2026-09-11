@@ -34,7 +34,8 @@ export function HashValue({ hash, className }: HashValueProps) {
           <button
             type="button"
             onClick={() => void handleCopy()}
-            className={`cursor-copy font-mono text-left hover:text-primary ${className ?? ""}`}
+            aria-label={`Copy full hash ${hash}`}
+            className={`cursor-copy rounded-sm font-mono text-left hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${className ?? ""}`}
             title={copied ? "Copied" : "Click to copy full hash"}
           >
             {display}

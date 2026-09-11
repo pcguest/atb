@@ -229,7 +229,7 @@ func TestWriteMappingValidationUpdateAndActorApplication(t *testing.T) {
 		t.Fatalf("resolved actor = %+v", actor)
 	}
 
-	if got := identity.FallbackDisplayName("abc"); got != "api-key:abc" {
+	if got := identity.FallbackDisplayName("abc"); got != "api-key:[redacted]" {
 		t.Fatalf("short fallback = %q", got)
 	}
 	if got := identity.FallbackDisplayName(""); got != "" {

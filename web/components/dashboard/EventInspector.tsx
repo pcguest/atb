@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { eventFamilyClass, eventSummary } from "@/lib/event-family";
 import { HashValue } from "@/components/dashboard/HashValue";
@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
 } from "@/app/view/components/ui/tooltip";
 import { collectMaskedPaths, setByPath } from "@/lib/pii";
+import { copyTextToClipboard } from "@/lib/hash-display";
 import type { EventRecord } from "@/lib/types";
 
 type EventInspectorProps = {
@@ -23,12 +24,15 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
   const [revealed, setRevealed] = useState<Record<string, unknown>>({});
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const selectionKey = event ? `${event.seq}:${event.hash}` : "none";
+  const activeSelection = useRef(selectionKey);
+  activeSelection.current = selectionKey;
 
   useEffect(() => {
     setRevealed({});
     setPending(null);
     setError(null);
-  }, [event?.seq]);
+  }, [selectionKey]);
 
   const renderedData = useMemo(() => {
     if (!event) {
@@ -48,6 +52,8 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
     return collectMaskedPaths(renderedData, "data");
   }, [renderedData]);
 
+  const canonicalRecord = useMemo(() => event ? { ...event, data: renderedData } : null, [event, renderedData]);
+
   if (!event) {
     return (
       <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground">
@@ -62,44 +68,60 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
     }
     const eventSeq = event.seq;
     const fieldPath = path.replace(/^data\./, "");
+    const requestSelection = selectionKey;
     setPending(path);
     setError(null);
     try {
       const value = await onReveal(eventSeq, fieldPath);
-      setRevealed((prev) => ({ ...prev, [path]: value }));
+      if (activeSelection.current !== requestSelection) return;
+      setRevealed((prev) => ({ ...prev, [fieldPath]: value }));
     } catch (err) {
+      if (activeSelection.current !== requestSelection) return;
       const message = err instanceof Error ? err.message : "Reveal failed";
       setError(message);
     } finally {
-      setPending(null);
+      if (activeSelection.current === requestSelection) setPending(null);
     }
   }
 
   return (
     <div className="rounded-lg border border-border bg-card">
-      <div className="space-y-3 p-3">
-        <div className="grid gap-2 text-xs text-foreground">
-          <div>
-            <span className="text-muted-foreground">type:</span>{" "}
-            <span className={`font-medium ${eventFamilyClass(event.type)}`}>{event.type}</span>
-          </div>
-          {eventSummary(event.type, event.data) && (
-            <div data-testid="event-summary">
-              <span className="text-muted-foreground">summary:</span>{" "}
-              <span className={`font-medium ${eventFamilyClass(event.type)}`}>
-                {eventSummary(event.type, event.data)}
-              </span>
-            </div>
-          )}
-          <div>
-            <span className="text-muted-foreground">seq:</span>{" "}
-            <span className="text-foreground">{event.seq}</span>
-          </div>
-          <div className="break-all">
-            <span className="text-muted-foreground">hash:</span>{" "}
-            <HashValue hash={event.hash} className="text-foreground" />
-          </div>
-        </div>
+      <div className="space-y-4 p-3">
+        <section aria-labelledby="record-summary-heading" className="space-y-2">
+          <h4 id="record-summary-heading" className="text-sm font-semibold">Recorded event #{event.seq}</h4>
+          {eventSummary(event.type, event.data) ? (
+            <p data-testid="event-summary" className={`text-sm font-medium ${eventFamilyClass(event.type)}`}>
+              {eventSummary(event.type, event.data)}
+            </p>
+          ) : <p className="text-sm text-muted-foreground">No concise human-readable summary was recorded for this event.</p>}
+        </section>
+
+        <details className="rounded border border-border p-3 text-xs" open>
+          <summary className="cursor-pointer font-medium">Technical metadata</summary>
+          <dl className="mt-3 grid gap-2 text-foreground">
+            <div><dt className="inline text-muted-foreground">Canonical event type: </dt><dd className={`inline font-medium ${eventFamilyClass(event.type)}`}>{event.type}</dd></div>
+            <div><dt className="inline text-muted-foreground">Sequence: </dt><dd className="inline">{event.seq}</dd></div>
+            {event.timestamp && <div><dt className="inline text-muted-foreground">Recorded timestamp: </dt><dd className="inline break-all">{event.timestamp}</dd></div>}
+          </dl>
+        </details>
+
+        {(event.trace_id || event.span_id || event.parent_span_id) && <details className="rounded border border-border p-3 text-xs">
+          <summary className="cursor-pointer font-medium">Source and provenance</summary>
+          <dl className="mt-3 grid gap-2 break-all text-foreground">
+            {event.trace_id && <div><dt className="inline text-muted-foreground">Trace: </dt><dd className="inline font-mono">{event.trace_id}</dd></div>}
+            {event.span_id && <div><dt className="inline text-muted-foreground">Span: </dt><dd className="inline font-mono">{event.span_id}</dd></div>}
+            {event.parent_span_id && <div><dt className="inline text-muted-foreground">Parent span: </dt><dd className="inline font-mono">{event.parent_span_id}</dd></div>}
+          </dl>
+        </details>}
+
+        <details className="rounded border border-border p-3 text-xs" open>
+          <summary className="cursor-pointer font-medium">Identifiers and hashes</summary>
+          <dl className="mt-3 grid gap-2 text-foreground">
+            <div><dt className="inline text-muted-foreground">Sequence: </dt><dd className="inline"><button type="button" aria-label={`Copy sequence ${event.seq}`} className="rounded-sm font-mono text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => void copyTextToClipboard(String(event.seq))}>#{event.seq}</button></dd></div>
+            <div className="break-all"><dt className="inline text-muted-foreground">Record hash: </dt><dd className="inline"><HashValue hash={event.hash} className="text-foreground" /></dd></div>
+            <div className="break-all"><dt className="inline text-muted-foreground">Previous hash: </dt><dd className="inline"><HashValue hash={event.prev_hash} className="text-foreground" /></dd></div>
+          </dl>
+        </details>
 
         {maskedPaths.length > 0 && (
           <div className="rounded border border-border bg-muted p-2">
@@ -114,7 +136,8 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
                           type="button"
                           disabled={disabled || pending === path}
                           onClick={() => handleReveal(path)}
-                          className="w-full rounded border border-border bg-muted px-2 py-1 text-left text-xs text-foreground hover:border-ring disabled:cursor-not-allowed disabled:opacity-60"
+                          aria-label={`Reveal masked field ${path}`}
+                          className="w-full rounded border border-border bg-muted px-2 py-1 text-left text-xs text-foreground hover:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {pending === path ? "Revealing..." : `Click to Reveal: ${path}`}
                         </button>
@@ -137,11 +160,14 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
           </div>
         )}
 
-        {error && <div className="text-xs text-red-300">{error}</div>}
+        {error && <div role="alert" className="text-xs text-red-300">{error}</div>}
 
-        <pre className="max-h-[380px] overflow-auto rounded bg-muted p-3 text-xs text-foreground">
-          {JSON.stringify(renderedData, null, 2)}
-        </pre>
+        <details className="rounded border border-border" open>
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Canonical record</summary>
+          <pre tabIndex={0} className="max-h-[380px] overflow-auto border-t border-border bg-muted p-3 text-xs text-foreground">
+            {JSON.stringify(canonicalRecord, null, 2)}
+          </pre>
+        </details>
       </div>
     </div>
   );

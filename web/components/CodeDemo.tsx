@@ -96,10 +96,10 @@ function TerminalLine({ line }: { line: { prompt: string; cmd: string; out: stri
   return (
     <div className="mb-3">
       <div className="flex items-start gap-2">
-        <span className="text-indigo-400 font-mono text-sm select-none mt-0.5">{line.prompt}</span>
-        <span className="font-mono text-sm text-[#e2e8f0]">{line.cmd}</span>
+        <span className="mt-0.5 select-none font-mono text-sm text-primary">{line.prompt}</span>
+        <span className="font-mono text-sm text-foreground">{line.cmd}</span>
       </div>
-      <div className="font-mono text-sm text-[#22c55e] mt-1 pl-4">{line.out}</div>
+      <div className="mt-1 pl-4 font-mono text-sm text-verified">{line.out}</div>
     </div>
   );
 }
@@ -108,49 +108,76 @@ export default function CodeDemo() {
   const [activeTab, setActiveTab] = useState("cli");
 
   return (
-    <section id="demo" className="py-24 relative">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section header */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
-            Three shipped entry points
+    <section id="demo" className="border-b border-border bg-background py-20">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-10 max-w-3xl">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+            One evidence format
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            Use the interface that fits the workflow.
           </h2>
-          <p className="text-[#9ca3af] text-lg max-w-2xl mx-auto">
-            The repo currently ships a Go CLI, a Python SDK, and a TypeScript SDK. All three write
-            the same local bundle format and verify the same hash chain.
+          <p className="mt-4 max-w-2xl text-lg leading-8 text-muted-foreground">
+            The Go CLI, Python SDK, and TypeScript SDK write the same local bundle format and verify
+            the same hash chain.
           </p>
         </div>
 
-        {/* Terminal window */}
-        <div className="rounded-xl border border-[#1e1e2e] bg-[#111118] overflow-hidden glow">
-          {/* Window chrome */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e1e2e] bg-[#0d0d14]">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#ef4444]" />
-              <div className="w-3 h-3 rounded-full bg-[#eab308]" />
-              <div className="w-3 h-3 rounded-full bg-[#22c55e]" />
-            </div>
-            {/* Tabs */}
-            <div className="flex items-center gap-1">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-1 px-4 py-3">
+            <span className="font-mono text-xs text-muted-foreground">capture.example</span>
+            <div
+              className="flex items-center gap-1"
+              role="tablist"
+              aria-label="Code example language"
+              onKeyDown={(event) => {
+                const current = TABS.findIndex((tab) => tab.id === activeTab);
+                const next =
+                  event.key === "ArrowRight"
+                    ? (current + 1) % TABS.length
+                    : event.key === "ArrowLeft"
+                      ? (current + TABS.length - 1) % TABS.length
+                      : event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? TABS.length - 1
+                          : -1;
+                if (next < 0) return;
+                event.preventDefault();
+                setActiveTab(TABS[next].id);
+                document.getElementById(`code-tab-${TABS[next].id}`)?.focus();
+              }}
+            >
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
+                  type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-3 py-1 rounded text-xs font-mono transition-all ${
+                  role="tab"
+                  id={`code-tab-${tab.id}`}
+                  aria-controls="code-example-panel"
+                  tabIndex={activeTab === tab.id ? 0 : -1}
+                  aria-selected={activeTab === tab.id}
+                  className={`min-h-8 rounded px-3 py-1 font-mono text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                     activeTab === tab.id
-                      ? "bg-indigo-600/20 text-indigo-300 border border-indigo-500/30"
-                      : "text-[#6b7280] hover:text-[#9ca3af]"
+                      ? "border border-primary/30 bg-primary/10 text-primary"
+                      : "border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
                   {tab.label}
                 </button>
               ))}
             </div>
-            <div className="w-16" />
           </div>
 
           {/* Code content */}
-          <div className="p-6 min-h-[320px] overflow-x-auto">
+          <div
+            id="code-example-panel"
+            aria-labelledby={`code-tab-${activeTab}`}
+            tabIndex={0}
+            className="min-h-[320px] overflow-x-auto bg-surface-code p-6 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            role="tabpanel"
+          >
             {activeTab === "cli" ? (
               <div>
                 {(CODE.cli as Array<{ prompt: string; cmd: string; out: string }>).map(
@@ -159,12 +186,12 @@ export default function CodeDemo() {
                   ),
                 )}
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-indigo-400 font-mono text-sm">$</span>
-                  <span className="terminal-cursor font-mono text-sm text-[#e2e8f0]" />
+                  <span className="font-mono text-sm text-primary">$</span>
+                  <span className="terminal-cursor font-mono text-sm text-foreground" />
                 </div>
               </div>
             ) : (
-              <pre className="font-mono text-sm text-[#e2e8f0] leading-relaxed whitespace-pre-wrap">
+              <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-foreground">
                 <code>
                   {activeTab === "python"
                     ? (CODE.python as string).split("\n").map((line, i) => (
@@ -174,11 +201,11 @@ export default function CodeDemo() {
                             .split(/(<kw>.*?<\/kw>)/)
                             .map((part, j) =>
                               part.startsWith("<kw>") ? (
-                                <span key={j} className="text-indigo-400">
+                                <span key={j} className="text-primary">
                                   {part.replace(/<\/?kw>/g, "")}
                                 </span>
                               ) : part.startsWith("#") ? (
-                                <span key={j} className="text-[#6b7280]">
+                                <span key={j} className="text-muted-foreground">
                                   {part}
                                 </span>
                               ) : (
@@ -191,7 +218,7 @@ export default function CodeDemo() {
                     : (CODE.typescript as string).split("\n").map((line, i) => (
                         <span key={i}>
                           {line.startsWith("//") ? (
-                            <span className="text-[#6b7280]">{line}</span>
+                            <span className="text-muted-foreground">{line}</span>
                           ) : (
                             line
                               .replace(
@@ -201,7 +228,7 @@ export default function CodeDemo() {
                               .split(/(<kw>.*?<\/kw>)/)
                               .map((part, j) =>
                                 part.startsWith("<kw>") ? (
-                                  <span key={j} className="text-indigo-400">
+                                  <span key={j} className="text-primary">
                                     {part.replace(/<\/?kw>/g, "")}
                                   </span>
                                 ) : (
@@ -227,13 +254,18 @@ export default function CodeDemo() {
           ].map((item) => (
             <div
               key={item.label}
-              className="flex items-center gap-3 p-3 rounded-lg border border-[#1e1e2e] bg-[#111118]/50"
+              className="flex min-w-0 flex-col items-start gap-2 rounded-md border border-border bg-surface-code p-3"
             >
-              <span className="text-[#6b7280] text-xs font-mono shrink-0">{item.label}</span>
-              <code className="text-indigo-300 text-xs font-mono truncate">{item.cmd}</code>
+              <span className="text-text-tertiary text-xs font-mono">{item.label}</span>
+              <code className="break-all text-primary text-xs font-mono">{item.cmd}</code>
             </div>
           ))}
         </div>
+        <p className="mt-3 text-xs leading-6 text-muted-foreground">
+          These install commands use published releases. For the full embedded View, build from a
+          checkout with <code className="text-foreground">make build</code>; <code>go install</code>{" "}
+          provides the CLI and viewer-installation guidance.
+        </p>
       </div>
     </section>
   );

@@ -146,6 +146,52 @@ func TestLoadConfigFromEnvRequiresVersion(t *testing.T) {
 	}
 }
 
+func TestLoadConfigFromEnvRejectsNonLoopbackListenAddress(t *testing.T) {
+	for _, listenAddr := range []string{
+		"0.0.0.0:6180",
+		"[::]:6180",
+		"192.0.2.1:6180",
+		"agent.example:6180",
+		"missing-port",
+	} {
+		t.Run(listenAddr, func(t *testing.T) {
+			_, err := LoadConfigFromEnv("1.11.0", func(key string) string {
+				if key == "ATB_AGENT_LISTEN_ADDR" {
+					return listenAddr
+				}
+				return ""
+			})
+			if err == nil {
+				t.Fatalf("LoadConfigFromEnv accepted non-loopback address %q", listenAddr)
+			}
+		})
+	}
+}
+
+func TestLoadConfigFromEnvAcceptsLoopbackListenAddress(t *testing.T) {
+	for _, listenAddr := range []string{
+		"127.0.0.1:6180",
+		"127.42.0.1:6180",
+		"[::1]:6180",
+		"localhost:6180",
+	} {
+		t.Run(listenAddr, func(t *testing.T) {
+			cfg, err := LoadConfigFromEnv("1.11.0", func(key string) string {
+				if key == "ATB_AGENT_LISTEN_ADDR" {
+					return listenAddr
+				}
+				return ""
+			})
+			if err != nil {
+				t.Fatalf("LoadConfigFromEnv rejected loopback address %q: %v", listenAddr, err)
+			}
+			if cfg.ListenAddr != listenAddr {
+				t.Fatalf("ListenAddr = %q, want %q", cfg.ListenAddr, listenAddr)
+			}
+		})
+	}
+}
+
 func TestDefaultConfigPath(t *testing.T) {
 	want := filepath.Join("/home/tester", ".atb", "config.json")
 	if got := DefaultConfigPath("/home/tester"); got != want {

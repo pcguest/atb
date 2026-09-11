@@ -237,9 +237,9 @@ func SessionListMarkdown(bundlePath string, entries []sessionindex.SessionEntry)
 // Markdown renders the report as a reviewer-facing markdown document.
 func (r Report) Markdown() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Incident report — session `%s`\n\n", r.SessionID)
+	fmt.Fprintf(&b, "# Incident report — session `%s`\n\n", markdownInline(r.SessionID))
 	if !r.Found {
-		fmt.Fprintf(&b, "No events found for session `%s` in `%s`.\n", r.SessionID, r.BundlePath)
+		fmt.Fprintf(&b, "No events found for session `%s` in `%s`.\n", markdownInline(r.SessionID), markdownInline(r.BundlePath))
 		return b.String()
 	}
 
@@ -247,25 +247,25 @@ func (r Report) Markdown() string {
 	if r.IntegrityValid {
 		integrity = "PASS"
 	}
-	fmt.Fprintf(&b, "- Bundle: `%s`\n", r.BundlePath)
+	fmt.Fprintf(&b, "- Bundle: `%s`\n", markdownInline(r.BundlePath))
 	fmt.Fprintf(&b, "- Integrity (hash chain): **%s**\n", integrity)
 	fmt.Fprintf(&b, "- Signature: %s\n", signatureSummary(r.Signatures))
 	if r.CaptureScope != nil {
 		fmt.Fprintf(&b, "- Capture coverage: targets=[%s] mode=%s\n",
-			strings.Join(r.CaptureScope.Targets, ", "), orDash(r.CaptureScope.CaptureMode))
+			markdownInline(strings.Join(r.CaptureScope.Targets, ", ")), markdownInline(orDash(r.CaptureScope.CaptureMode)))
 		if r.CaptureScope.OutOfScope != "" {
-			fmt.Fprintf(&b, "  - Out of scope: %s\n", r.CaptureScope.OutOfScope)
+			fmt.Fprintf(&b, "  - Out of scope: %s\n", markdownInline(r.CaptureScope.OutOfScope))
 		}
 	}
-	fmt.Fprintf(&b, "- Chain head hash: `%s`\n", r.ChainHeadHash)
+	fmt.Fprintf(&b, "- Chain head hash: `%s`\n", markdownInline(r.ChainHeadHash))
 	if r.Session != nil {
-		fmt.Fprintf(&b, "- Actor: %s\n", actorLabel(r.Session.Actor))
+		fmt.Fprintf(&b, "- Actor: %s\n", markdownInline(actorLabel(r.Session.Actor)))
 		fmt.Fprintf(&b, "- Exchanges: %d\n", r.Session.ExchangeCount)
-		fmt.Fprintf(&b, "- Inferred profile: %s\n", orDash(r.Session.InferredProfile))
-		fmt.Fprintf(&b, "- CAS grade: %s\n", orDash(r.Session.CASGrade))
+		fmt.Fprintf(&b, "- Inferred profile: %s\n", markdownInline(orDash(r.Session.InferredProfile)))
+		fmt.Fprintf(&b, "- CAS grade: %s\n", markdownInline(orDash(r.Session.CASGrade)))
 		flags := "none"
 		if len(r.Session.AnomalyFlags) > 0 {
-			flags = strings.Join(r.Session.AnomalyFlags, ", ")
+			flags = markdownInline(strings.Join(r.Session.AnomalyFlags, ", "))
 		}
 		fmt.Fprintf(&b, "- Anomalies: **%s**\n", flags)
 	}
@@ -281,14 +281,14 @@ func (r Report) Markdown() string {
 				at = "seq " + joinSeqs(f.EventSeqs)
 			}
 			fmt.Fprintf(&b, "| %s | %s | %s | %s |\n",
-				strings.ToUpper(f.Severity), f.Title, at, f.Detail)
+				markdownInline(strings.ToUpper(f.Severity)), markdownInline(f.Title), markdownInline(at), markdownInline(f.Detail))
 		}
 	}
 	if len(r.ReviewerIdentities) > 0 {
 		b.WriteString("\n## Reviewer identity evidence\n\n")
 		b.WriteString("These values were supplied by the caller and preserved by the ATB hash chain; ATB did not independently verify the identity assertion.\n\n")
 		for _, evidence := range r.ReviewerIdentities {
-			fmt.Fprintf(&b, "- Seq %d: %s\n", evidence.Sequence, identityevidence.Summary(evidence))
+			fmt.Fprintf(&b, "- Seq %d: %s\n", evidence.Sequence, markdownInline(identityevidence.Summary(evidence)))
 		}
 	}
 
@@ -297,7 +297,7 @@ func (r Report) Markdown() string {
 	b.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, e := range r.Events {
 		fmt.Fprintf(&b, "| %d | `%s` | %s | %s | `%s` |\n",
-			e.Seq, e.Type, e.Timestamp, e.Summary, shortHash(e.Hash))
+			e.Seq, markdownInline(e.Type), markdownInline(e.Timestamp), markdownInline(e.Summary), markdownInline(shortHash(e.Hash)))
 	}
 	b.WriteString("\n> Integrity PASS means the presented session records agree with the bundle's hash chain. It does not prove capture completeness or prevent whole-file replacement without external custody. This report scopes the bundle to one session, and each row's record hash is independently verifiable against it.\n")
 	return b.String()
@@ -506,4 +506,15 @@ func shortHash(h string) string {
 		return h[:16] + "…"
 	}
 	return h
+}
+
+// markdownInline makes bundle-derived text literal in report prose, code
+// spans, and table cells. Evidence content must never introduce Markdown or
+// HTML structure into a reviewer-facing report.
+func markdownInline(value string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\", "`", "\\`", "*", "\\*", "_", "\\_", "[", "\\[", "]", "\\]",
+		"<", "\\<", ">", "\\>", "|", "\\|", "\r", " ", "\n", " ",
+	)
+	return replacer.Replace(value)
 }

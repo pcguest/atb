@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/pcguest/atb/internal/bundle"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -73,7 +75,15 @@ func (s *Server) handleSessionOpen(w http.ResponseWriter, r *http.Request) {
 		ActorID:    strings.TrimSpace(req.ActorID),
 		PurposeTag: strings.TrimSpace(req.PurposeTag),
 		ProfileID:  strings.TrimSpace(req.ProfileID),
-		BundlePath: strings.TrimSpace(req.BundlePath),
+	}
+	if strings.TrimSpace(req.BundlePath) != "" {
+		bundlePath, err := resolveAgentBundlePath(s.cfg.DataDir, req.BundlePath)
+		if err != nil {
+			s.logger.Warn("session open rejected", "reason", "bundle path outside agent data directory")
+			writeCaptureError(w, http.StatusBadRequest, "bundle_path must stay within the agent data directory")
+			return
+		}
+		params.BundlePath = bundlePath
 	}
 
 	sessionID, err := s.bundleManager.OpenSession(r.Context(), params)
@@ -199,6 +209,34 @@ func resolvedBundlePath(dataDir string, sessionID SessionID, override string) st
 		return path
 	}
 	return filepath.Join(dataDir, "sessions", sessionID.String(), "bundle.atb")
+}
+
+// This preflight provides a useful request error. BundleFileManager enforces
+// containment independently at every filesystem operation through os.Root.
+func resolveAgentBundlePath(dataDir, requested string) (string, error) {
+	relative, err := bundle.RootedRelativePath(dataDir, strings.TrimSpace(requested))
+	if err != nil {
+		return "", err
+	}
+	root, err := os.OpenRoot(dataDir)
+	if err != nil {
+		return "", err
+	}
+	defer root.Close()
+	if info, err := root.Lstat(relative); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("bundle path must not be a symbolic link")
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	// Stat checks existing intermediate symlinks; missing directories are valid.
+	if _, err := root.Stat(relative); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	absolute, err := filepath.Abs(dataDir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(absolute, relative), nil
 }
 
 func decodeJSONBody(r *http.Request, dst any) error {

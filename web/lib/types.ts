@@ -18,6 +18,15 @@ import {
   sessionsResponseSchema,
   verificationResponseSchema,
   workspaceBundlesResponseSchema,
+  investigationContextSchema,
+  investigationFindingSchema,
+  investigationFindingsSchema,
+  investigationOverviewSchema,
+  investigationRelationshipsSchema,
+  investigationTimelineSchema,
+  investigationTrustSchema,
+  relationshipSchema,
+  timelineEventSchema,
 } from "@/lib/schemas";
 
 export type APIError = z.infer<typeof apiErrorSchema>;
@@ -37,3 +46,12 @@ export type SessionEntry = z.infer<typeof sessionEntrySchema>;
 export type SessionsResponse = z.infer<typeof sessionsResponseSchema>;
 export type EventTypeStatus = z.infer<typeof eventTypeStatusSchema>;
 export type SchemaStatusResponse = z.infer<typeof schemaStatusResponseSchema>;
+export type InvestigationOverview = z.infer<typeof investigationOverviewSchema>;
+export type InvestigationFinding = z.infer<typeof investigationFindingSchema>;
+export type InvestigationFindings = z.infer<typeof investigationFindingsSchema>;
+export type TimelineEvent = z.infer<typeof timelineEventSchema>;
+export type InvestigationTimeline = z.infer<typeof investigationTimelineSchema>;
+export type InvestigationContext = z.infer<typeof investigationContextSchema>;
+export type Relationship = z.infer<typeof relationshipSchema>;
+export type InvestigationRelationships = z.infer<typeof investigationRelationshipsSchema>;
+export type InvestigationTrust = z.infer<typeof investigationTrustSchema>;

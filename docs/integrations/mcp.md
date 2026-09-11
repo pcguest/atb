@@ -82,7 +82,7 @@ Or add a `.mcp.json` file at your project root:
 
 ## MCP handshake
 
-The server uses protocol version `2024-11-05` and responds to
+The shipped server negotiates protocol version `2024-11-05` and responds to
 `initialize` with:
 
 ```json
@@ -92,6 +92,12 @@ The server uses protocol version `2024-11-05` and responds to
   "serverInfo": { "name": "atb", "version": "<release>" }
 }
 ```
+
+ATB does **not** claim MCP specification `2026-07-28` completeness. Initialize
+and `server/discover` currently advertise only `2024-11-05`. The initialize
+result does not include `_meta`, `supportedVersions`, or `resultType`.
+`rag_retrieval_record` stores `query_digest` by default; plaintext `query` is
+opt-in via `include_query`.
 
 ## Available tools
 
@@ -146,13 +152,16 @@ time).
 
 #### `rag_retrieval_record`
 
-Required fields: `query`, `retrieval_id`, `index_id`, `node_id`,
-`node_title`, `source_uri`, `page_start`, `page_end`, `model_id`,
-`latency_ms`. Optional: `node_summary`.
+Required fields: `retrieval_id`, `index_id`, `node_id`, `node_title`,
+`source_uri`, `page_start`, `page_end`, `model_id`, `latency_ms`, and either
+`query` or `query_digest`. Plaintext `query` is not stored unless
+`include_query` is true.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `query` | string | The retrieval query string. |
+| `query` | string | Optional retrieval query. Digested by default. |
+| `include_query` | boolean | If true, store plaintext `query` on the event. |
+| `query_digest` | string | SHA-256 hex of the query. Required when `query` is omitted. |
 | `retrieval_id` | string | Unique identifier for this retrieval result. |
 | `index_id` | string | Foreign key -- must match a prior `rag_index_record.index_id`. |
 | `node_id` | string | PageIndex `node_id` from the matched tree node. |

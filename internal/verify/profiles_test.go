@@ -2,6 +2,8 @@
 package verify
 
 import (
+	"encoding/json"
+	"math"
 	"strings"
 	"testing"
 
@@ -515,6 +517,118 @@ func TestRAGAnswerSubScores_GCIsFixed(t *testing.T) {
 	const want = 0.3
 	if got := scores["GC"]; got != want {
 		t.Fatalf("ragAnswerSubScores GC = %v, want %v", got, want)
+	}
+}
+
+func TestComputeCASOmitsCoverageWhenIntegrityInvalid(t *testing.T) {
+	t.Parallel()
+
+	scores := map[string]float64{"EC": 1, "FC": 0.8, "GC": 0.3}
+	weights := map[string]float64{"EC": 0.4, "FC": 0.4, "GC": 0.2}
+	applicability := map[string]string{"GC": "gating evidence unavailable"}
+
+	result := computeCASWithApplicability(scores, weights, applicability, false)
+
+	if result.Overall != 0 || result.Grade != "Insufficient" {
+		t.Fatalf("legacy integrity result = %.2f (%s), want 0 (Insufficient)", result.Overall, result.Grade)
+	}
+	if result.CoverageScore != 0 || result.CoverageGrade != "" || result.AssessmentCoverage != 0 {
+		t.Fatalf("coverage must be omitted on invalid integrity: score=%.3f grade=%q assessment=%.3f",
+			result.CoverageScore, result.CoverageGrade, result.AssessmentCoverage)
+	}
+	if result.Dimensions != nil {
+		t.Fatalf("dimension assessments must not be published on invalid integrity: %#v", result.Dimensions)
+	}
+	if result.IntegrityValid || result.AssuranceValid {
+		t.Fatal("invalid integrity must invalidate assurance")
+	}
+}
+
+func TestVerifierReportOmitsCoverageJSONWhenChainInvalid(t *testing.T) {
+	t.Parallel()
+
+	report := ReportFromVerify(Report{
+		BundlePath: "run.atb/bundle.atb",
+		Integrity:  IntegrityResult{ChainValid: false, Error: "tampered"},
+		CAS: &CASResult{
+			Overall:            0,
+			Grade:              "Insufficient",
+			CoverageScore:      0.9,
+			CoverageGrade:      "High coverage",
+			AssessmentCoverage: 0.8,
+			IntegrityValid:     false,
+			AssuranceValid:     false,
+		},
+		Profiles: []ProfileResult{{
+			ProfileID: "atb.profile.rag_answer",
+			Version:   1,
+			Pass:      false,
+		}},
+	})
+	if report.CoverageScore != 0 || report.CoverageGrade != "" || report.AssessmentCoverage != 0 || report.DimensionAssessments != nil {
+		t.Fatalf("public coverage leaked on invalid chain: %+v", report)
+	}
+	encoded, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var round map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &round); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"coverage_score", "coverage_grade", "assessment_coverage", "dimension_assessments"} {
+		if _, ok := round[key]; ok {
+			t.Fatalf("JSON still contains %q: %s", key, encoded)
+		}
+	}
+	if _, ok := round["integrity_valid"]; !ok {
+		t.Fatal("integrity_valid missing from JSON")
+	}
+}
+
+func TestComputeCASWithApplicabilitySeparatesCoverageFromIntegrity(t *testing.T) {
+	t.Parallel()
+
+	scores := map[string]float64{"EC": 1, "FC": 0.8, "GC": 0.3}
+	weights := map[string]float64{"EC": 0.4, "FC": 0.4, "GC": 0.2}
+	applicability := map[string]string{"GC": "gating evidence unavailable"}
+
+	result := computeCASWithApplicability(scores, weights, applicability, true)
+
+	if result.Overall == 0 || result.Grade == "Insufficient" {
+		t.Fatalf("valid integrity should still score overall, got %.2f (%s)", result.Overall, result.Grade)
+	}
+	if math.Abs(result.CoverageScore-0.9) > 1e-9 {
+		t.Fatalf("CoverageScore = %.3f, want 0.9", result.CoverageScore)
+	}
+	if math.Abs(result.AssessmentCoverage-0.8) > 1e-9 {
+		t.Fatalf("AssessmentCoverage = %.3f, want 0.8", result.AssessmentCoverage)
+	}
+	if !result.IntegrityValid || !result.AssuranceValid {
+		t.Fatal("valid integrity must keep assurance valid")
+	}
+	gc := result.Dimensions["GC"]
+	if gc.Assessable || gc.Score != nil || gc.Reason == "" {
+		t.Fatalf("GC assessment = %#v, want bounded not-assessable result", gc)
+	}
+}
+
+func TestRAGCASMarksGatingNotAssessable(t *testing.T) {
+	t.Parallel()
+
+	profile := ProfileByID(profileIDRAGAnswer)
+	result := computeCASWithApplicability(
+		ragAnswerSubScores(nil, AnchorAbsent),
+		profile.DefaultWeights(),
+		casApplicability(profile),
+		true,
+	)
+
+	if result.Dimensions["GC"].Assessable {
+		t.Fatal("RAG GC must be not assessable without gating evidence")
+	}
+	if result.AssessmentCoverage >= 1 {
+		t.Fatalf("AssessmentCoverage = %.3f, want less than 1", result.AssessmentCoverage)
 	}
 }
 

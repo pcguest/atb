@@ -32,6 +32,14 @@ revision produced a report, while `report_version` stays `verify.report.v1`.
 Removing or renaming a field, or changing the meaning of one, is a contract break
 and requires `verify.report.v2`.
 
+As of ATB v1.16.0 the current JSON Schema revision is
+`verify.report.v1.schema.3`. v1.15.4 shipped `verify.report.v1.schema.2`.
+Schema.3 is additive: it adds optional `coverage_score`, `coverage_grade`,
+`assessment_coverage`, `dimension_assessments`, `integrity_valid`, and
+`assurance_valid` fields documented in `docs/specification/verify-report.md`.
+`report_version` remains `verify.report.v1`. Bundles continue to read manifest
+versions `1` and `2` and write manifest version `1` by default.
+
 ## Breaking vs non-breaking changes
 
 ### Breaking (require manifest version bump, new golden vectors, cross-language SDK update)

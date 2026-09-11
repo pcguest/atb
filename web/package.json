@@ -1,6 +1,6 @@
 {
   "name": "atb-web",
-  "version": "1.15.4",
+  "version": "1.16.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -16,7 +16,7 @@
     "test:a11y": "CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:3000 ./scripts/run-static-cypress.sh cypress/e2e/a11y.cy.ts",
     "e2e": "cypress run",
     "pretest:e2e": "npm run build",
-    "test:e2e": "CYPRESS_BASE_URL=http://127.0.0.1:3000 ./scripts/run-static-cypress.sh cypress/e2e/dashboard.cy.ts",
+    "test:e2e": "CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:3000 ./scripts/run-static-cypress.sh cypress/e2e/investigation.cy.ts",
     "test:e2e:open": "cypress open",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -24,22 +24,17 @@
   "dependencies": {
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-query": "^5.90.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "framer-motion": "^12.23.24",
     "lucide-react": "^0.544.0",
-    "next": "16.3.0",
+    "next": "16.3.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "react-is": "^18.3.1",
     "react-window": "^1.8.10",
     "reactflow": "^11.11.4",
-    "recharts": "^3.2.1",
     "tailwind-merge": "^3.3.1",
-    "uuid": "^14.0.0",
     "zod": "^4.1.11",
     "zustand": "^5.0.8"
   },
@@ -70,6 +65,7 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
+    "browserslist": "4.28.8",
     "glob": "^11.0.0",
     "minimatch": "9.0.7",
     "postcss": "^8.5.10",

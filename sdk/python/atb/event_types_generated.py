@@ -111,6 +111,15 @@ RAG_INDEX_EVENT_TYPE: Final = RAG_INDEX
 RAG_RETRIEVAL: Final = "atb.event.rag_retrieval"
 RAG_RETRIEVAL_EVENT_TYPE: Final = RAG_RETRIEVAL
 
+AI_CONTEXT_UNIT: Final = "ai.context.unit"
+AI_CONTEXT_UNIT_EVENT_TYPE: Final = AI_CONTEXT_UNIT
+
+AI_CONTEXT_OPERATION: Final = "ai.context.operation"
+AI_CONTEXT_OPERATION_EVENT_TYPE: Final = AI_CONTEXT_OPERATION
+
+MCP_OPERATION: Final = "atb.mcp.operation"
+MCP_OPERATION_EVENT_TYPE: Final = MCP_OPERATION
+
 TOOL_CALL: Final = "atb.tool.call"
 TOOL_CALL_EVENT_TYPE: Final = TOOL_CALL
 
@@ -357,14 +366,35 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "description": "PageIndex document tree build record (index_hash, node_count)",
         "profiles": ["atb.profile.rag_answer"],
         "criticality": "required",
-        "required_fields": [],
+        "required_fields": ["index_id", "node_count", "source_uri", "index_hash"],
     },
     {
         "type": RAG_RETRIEVAL,
         "description": "PageIndex reasoning-based retrieval result (node_id, page_start/end)",
         "profiles": ["atb.profile.rag_answer"],
         "criticality": "required",
-        "required_fields": [],
+        "required_fields": ["retrieval_id", "index_id", "node_id", "node_title", "source_uri", "page_start", "page_end"],
+    },
+    {
+        "type": AI_CONTEXT_UNIT,
+        "description": "Observable context unit bound by digest",
+        "profiles": ["atb.profile.rag_answer"],
+        "criticality": "informational",
+        "required_fields": ["unit_id", "kind", "digest"],
+    },
+    {
+        "type": AI_CONTEXT_OPERATION,
+        "description": "Observable context selection, transformation, compaction, cache reuse, or assembly",
+        "profiles": ["atb.profile.rag_answer"],
+        "criticality": "informational",
+        "required_fields": ["operation_id", "operation", "input_unit_ids", "output_unit_ids"],
+    },
+    {
+        "type": MCP_OPERATION,
+        "description": "Modern MCP operation evidence with digested request and result metadata",
+        "profiles": [],
+        "criticality": "informational",
+        "required_fields": ["operation_id", "protocol_version", "method", "status", "request_digest"],
     },
     {
         "type": TOOL_CALL,
@@ -469,8 +499,11 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     DATA_RETENTION_ENFORCED: ["operation", "enforcement_system", "outcome", "evidence_level", "independently_verified"],
     DEV_SESSION: [],
     CORROBORATION_EXTERNAL: [],
-    RAG_INDEX: [],
-    RAG_RETRIEVAL: [],
+    RAG_INDEX: ["index_id", "node_count", "source_uri", "index_hash"],
+    RAG_RETRIEVAL: ["retrieval_id", "index_id", "node_id", "node_title", "source_uri", "page_start", "page_end"],
+    AI_CONTEXT_UNIT: ["unit_id", "kind", "digest"],
+    AI_CONTEXT_OPERATION: ["operation_id", "operation", "input_unit_ids", "output_unit_ids"],
+    MCP_OPERATION: ["operation_id", "protocol_version", "method", "status", "request_digest"],
     TOOL_CALL: ["session_id", "tool_name"],
     DATA_EXPORT: ["session_id", "export_target"],
     HUMAN_OVERRIDE: ["session_id", "override_reason"],
@@ -551,6 +584,12 @@ __all__ = [
     "RAG_INDEX_EVENT_TYPE",
     "RAG_RETRIEVAL",
     "RAG_RETRIEVAL_EVENT_TYPE",
+    "AI_CONTEXT_UNIT",
+    "AI_CONTEXT_UNIT_EVENT_TYPE",
+    "AI_CONTEXT_OPERATION",
+    "AI_CONTEXT_OPERATION_EVENT_TYPE",
+    "MCP_OPERATION",
+    "MCP_OPERATION_EVENT_TYPE",
     "TOOL_CALL",
     "TOOL_CALL_EVENT_TYPE",
     "DATA_EXPORT",

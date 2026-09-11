@@ -162,12 +162,16 @@ func normalizeAttribute(value any) any {
 }
 
 func sensitiveAttribute(key string, value any) bool {
+	normalized := strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(key))
+	switch normalized {
+	case "gen_ai_retrieval_query", "gen_ai_retrieval_query_text", "gen_ai_retrieval_documents", "gen_ai_input_messages", "gen_ai_output_messages":
+		return true
+	}
 	switch value.(type) {
 	case string, []any, map[string]any:
 	default:
 		return false
 	}
-	normalized := strings.ToLower(strings.NewReplacer("-", "_", ".", "_").Replace(key))
 	for _, marker := range []string{
 		"authorization", "cookie", "api_key", "apikey", "credential",
 		"secret", "password", "prompt", "completion", "argument", "result",
@@ -182,10 +186,25 @@ func sensitiveAttribute(key string, value any) bool {
 
 func (t DefaultTranslator) eventType(span OTelSpan) (string, error) {
 	if attr := firstString(span.Attributes, "atb.event_type", "atb.event.type", "ai.event_type", "ai.event.type"); attr != "" {
-		return attr, nil
+		if allowedEventType(attr) {
+			return attr, nil
+		}
 	}
 	if t.DefaultEventType != "" {
-		return t.DefaultEventType, nil
+		if allowedEventType(t.DefaultEventType) {
+			return t.DefaultEventType, nil
+		}
+	}
+	operation := strings.ToLower(firstString(span.Attributes, "gen_ai.operation.name"))
+	switch operation {
+	case "retrieval":
+		return event.TypeAIRetrievalExecuted, nil
+	case "execute_tool":
+		return event.TypeAIToolExec, nil
+	case "chat", "generate_content", "text_completion", "embeddings":
+		return event.TypeAILLMCall, nil
+	case "create_agent", "invoke_agent", "invoke_workflow":
+		return event.TypeAIChainRun, nil
 	}
 
 	name := strings.ToLower(span.Name)
@@ -201,6 +220,30 @@ func (t DefaultTranslator) eventType(span OTelSpan) (string, error) {
 	}
 }
 
+func allowedEventType(eventType string) bool {
+	// These are application evidence events that the translator can map from a
+	// span. Bundle-control records have custody semantics and must only be
+	// created by their dedicated bundle operations.
+	switch eventType {
+	case event.TypeAIRequestReceived,
+		event.TypeAIResponseSent,
+		event.TypeAILLMCall,
+		event.TypeAIToolExec,
+		event.TypeAIChainRun,
+		event.TypeAIPolicyDecision,
+		event.TypeAIRetrievalExecuted,
+		event.TypeAIModelInvoked,
+		event.TypeAIModelOutput,
+		event.TypeAIActionPrecommit,
+		event.TypeAIActionExecuted,
+		event.TypeAIActionCommitted,
+		event.TypeAIHumanApproval:
+		return true
+	default:
+		return false
+	}
+}
+
 func contextForEvent(eventType string, span OTelSpan) map[string]any {
 	switch eventType {
 	case event.TypeAILLMCall:
@@ -209,6 +252,8 @@ func contextForEvent(eventType string, span OTelSpan) map[string]any {
 		return toolContext(span)
 	case event.TypeAIChainRun:
 		return chainContext(span)
+	case event.TypeAIRetrievalExecuted:
+		return retrievalContext(span)
 	default:
 		return map[string]any{
 			"span_name": span.Name,
@@ -219,7 +264,7 @@ func contextForEvent(eventType string, span OTelSpan) map[string]any {
 
 func llmContext(span OTelSpan) map[string]any {
 	ctx := map[string]any{}
-	if provider := firstString(span.Attributes, "gen_ai.system", "llm.provider", "ai.provider"); provider != "" {
+	if provider := firstString(span.Attributes, "gen_ai.provider.name", "gen_ai.system", "llm.provider", "ai.provider"); provider != "" {
 		ctx["provider"] = provider
 	}
 	if model := firstString(span.Attributes, "gen_ai.request.model", "gen_ai.response.model", "llm.model", "ai.model"); model != "" {
@@ -227,6 +272,8 @@ func llmContext(span OTelSpan) map[string]any {
 	}
 	addTextDigest(ctx, "prompt", span.Attributes, "gen_ai.prompt", "prompt.text", "gen_ai.prompt.sha256", "prompt.sha256")
 	addTextDigest(ctx, "completion", span.Attributes, "gen_ai.completion", "completion.text", "gen_ai.completion.sha256", "completion.sha256")
+	addValueDigest(ctx, "input_messages", span.Attributes, "gen_ai.input.messages")
+	addValueDigest(ctx, "output_messages", span.Attributes, "gen_ai.output.messages")
 	addTokenUsage(ctx, span.Attributes)
 	if temperature, ok := firstFloat(span.Attributes, "gen_ai.request.temperature", "temperature"); ok {
 		ctx["temperature"] = temperature
@@ -242,7 +289,7 @@ func llmContext(span OTelSpan) map[string]any {
 
 func toolContext(span OTelSpan) map[string]any {
 	ctx := map[string]any{}
-	if name := firstString(span.Attributes, "tool.name", "ai.tool.name", "tool_name"); name != "" {
+	if name := firstString(span.Attributes, "gen_ai.tool.name", "tool.name", "ai.tool.name", "tool_name"); name != "" {
 		ctx["tool_name"] = name
 	}
 	if version := firstString(span.Attributes, "tool.version", "tool_version"); version != "" {
@@ -250,6 +297,21 @@ func toolContext(span OTelSpan) map[string]any {
 	}
 	addTextDigest(ctx, "input", span.Attributes, "tool.input", "input.text", "tool.input.sha256", "input.sha256")
 	addTextDigest(ctx, "output", span.Attributes, "tool.output", "output.text", "tool.output.sha256", "output.sha256")
+	addValueDigest(ctx, "arguments", span.Attributes, "gen_ai.tool.call.arguments")
+	addValueDigest(ctx, "result", span.Attributes, "gen_ai.tool.call.result")
+	if callID := firstString(span.Attributes, "gen_ai.tool.call.id"); callID != "" {
+		ctx["tool_call_id"] = callID
+	}
+	return ctx
+}
+
+func retrievalContext(span OTelSpan) map[string]any {
+	ctx := map[string]any{}
+	addValueDigest(ctx, "query", span.Attributes, "gen_ai.retrieval.query.text")
+	addValueDigest(ctx, "documents", span.Attributes, "gen_ai.retrieval.documents")
+	if sourceID := firstString(span.Attributes, "gen_ai.data_source.id"); sourceID != "" {
+		ctx["data_source_id"] = sourceID
+	}
 	return ctx
 }
 
@@ -332,6 +394,19 @@ func addTextDigest(ctx map[string]any, key string, attrs map[string]any, textKey
 		payload["sha256"] = digest
 	}
 	ctx[key] = payload
+}
+
+func addValueDigest(ctx map[string]any, key string, attrs map[string]any, attributeKey string) {
+	value, ok := attrs[attributeKey]
+	if !ok || value == nil {
+		return
+	}
+	canonical, err := canonicalize.Marshal(normalizeAttribute(value))
+	if err != nil {
+		return
+	}
+	sum := sha256.Sum256(canonical)
+	ctx[key] = map[string]any{"sha256": hex.EncodeToString(sum[:])}
 }
 
 func addTokenUsage(ctx map[string]any, attrs map[string]any) {

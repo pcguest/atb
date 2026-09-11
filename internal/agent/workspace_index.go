@@ -3,7 +3,11 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -39,8 +43,16 @@ func (idx *WorkspaceIndex) ListBundles(ctx context.Context) ([]BundleSummary, er
 		return nil, err
 	}
 
-	pattern := filepath.Join(idx.dataDir, "sessions", "*", sessionMetaFilename)
-	matches, err := filepath.Glob(pattern)
+	root, err := os.OpenRoot(idx.dataDir)
+	if errors.Is(err, os.ErrNotExist) {
+		return []BundleSummary{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer root.Close()
+	pattern := "sessions/*/" + sessionMetaFilename
+	matches, err := fs.Glob(root.FS(), pattern)
 	if err != nil {
 		return nil, fmt.Errorf("agent: glob session meta: %w", err)
 	}
@@ -51,7 +63,11 @@ func (idx *WorkspaceIndex) ListBundles(ctx context.Context) ([]BundleSummary, er
 			return nil, err
 		}
 
-		meta, err := readSessionMeta(metaPath)
+		raw, err := root.ReadFile(filepath.FromSlash(metaPath))
+		var meta sessionMetaFile
+		if err == nil {
+			err = json.Unmarshal(raw, &meta)
+		}
 		if err != nil {
 			return nil, err
 		}

@@ -128,7 +128,7 @@ test-e2e:
 	@/tmp/atb-e2e view --bundle examples/quickstart/run.atb/bundle.atb --session-token 0000000000000000000000000000000000000000000000000000000000000001 --no-open --port 18888 > /tmp/atb-e2e.log 2>&1 & echo $$! > /tmp/atb-e2e.pid
 	@sleep 3
 	@# ELECTRON_RUN_AS_NODE breaks the Cypress/Electron launcher when set by IDEs.
-	@cd web && env -u ELECTRON_RUN_AS_NODE CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-dashboard.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
+	@cd web && env -u ELECTRON_RUN_AS_NODE CYPRESS_BASE_URL=http://127.0.0.1:18888 npx cypress run --spec cypress/e2e/live-investigation.cy.ts --browser firefox --env MOCK_API=false,SESSION_TOKEN=0000000000000000000000000000000000000000000000000000000000000001 || (echo "❌ Live E2E tests failed"; kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true; rm -f /tmp/atb-e2e.pid; exit 1)
 	@kill $$(cat /tmp/atb-e2e.pid) 2>/dev/null || true
 	@rm -f /tmp/atb-e2e.pid
 	@echo "✅ Live E2E tests passed"

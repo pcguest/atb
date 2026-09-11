@@ -39,10 +39,10 @@ func TestRunIncidentReportMarkdown(t *testing.T) {
 		t.Fatalf("exit = %d, stderr=%s", code, errBuf.String())
 	}
 	got := out.String()
-	if !strings.Contains(got, "sess-A") || !strings.Contains(got, "tool=wipe_db") {
+	if !strings.Contains(got, "sess-A") || !strings.Contains(got, "tool=wipe\\_db") {
 		t.Errorf("unexpected report:\n%s", got)
 	}
-	if !strings.Contains(got, "tool_without_approval") {
+	if !strings.Contains(got, "tool\\_without\\_approval") {
 		t.Errorf("expected anomaly in report:\n%s", got)
 	}
 }

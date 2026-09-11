@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +20,15 @@ import (
 	"github.com/pcguest/atb/internal/event"
 )
 
-const protocolVersion = "2024-11-05"
+const (
+	// ProtocolVersion is ATB's modern, stateless MCP protocol target.
+	ProtocolVersion = "2026-07-28"
+	// LegacyProtocolVersion remains available only for the deprecated initialize
+	// handshake used by existing stdio clients.
+	LegacyProtocolVersion = "2024-11-05"
+	protocolVersion       = ProtocolVersion
+	jsonSchemaDialect     = "https://json-schema.org/draft/2020-12/schema"
+)
 
 type VerifyInput struct {
 	Path       string `json:"path,omitempty"`
@@ -177,6 +186,8 @@ func (s *Server) handleMessage(raw []byte) error {
 	}
 
 	switch req.Method {
+	case "server/discover":
+		return s.handleDiscover(req.ID)
 	case "initialize":
 		return s.handleInitialize(req.ID, req.Params)
 	case "notifications/initialized":
@@ -198,10 +209,7 @@ func (s *Server) handleInitialize(id *json.RawMessage, raw json.RawMessage) erro
 		}
 	}
 
-	version := protocolVersion
-	if params.ProtocolVersion == protocolVersion {
-		version = params.ProtocolVersion
-	}
+	version := LegacyProtocolVersion
 
 	result := map[string]any{
 		"protocolVersion": version,
@@ -216,14 +224,33 @@ func (s *Server) handleInitialize(id *json.RawMessage, raw json.RawMessage) erro
 	return s.respond(id, result)
 }
 
+func (s *Server) handleDiscover(id *json.RawMessage) error {
+	return s.respond(id, map[string]any{
+		"protocolVersions": []string{LegacyProtocolVersion},
+		"capabilities": map[string]any{
+			"tools":      map[string]any{},
+			"extensions": map[string]any{},
+		},
+		"serverInfo": map[string]any{
+			"name":    "atb",
+			"version": s.version,
+		},
+		"ttlMs":      30000,
+		"cacheScope": "private",
+	})
+}
+
 func (s *Server) handleToolsList(id *json.RawMessage) error {
 	result := map[string]any{
+		"ttlMs":      30000,
+		"cacheScope": "private",
 		"tools": []toolDefinition{
 			{
 				Name:        "verify",
 				Description: "Verify an ATB bundle's integrity and trust chain",
 				InputSchema: map[string]any{
-					"type": "object",
+					"$schema": jsonSchemaDialect,
+					"type":    "object",
 					"properties": map[string]any{
 						"path": map[string]any{
 							"type":        "string",
@@ -253,6 +280,7 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 				Name:        "atb_init",
 				Description: "Initialise a new ATB bundle at the current working directory (idempotent)",
 				InputSchema: map[string]any{
+					"$schema":              jsonSchemaDialect,
 					"type":                 "object",
 					"properties":           map[string]any{},
 					"additionalProperties": false,
@@ -262,6 +290,7 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 				Name:        "status",
 				Description: "Return ATB server status, version, and local bundle state",
 				InputSchema: map[string]any{
+					"$schema":              jsonSchemaDialect,
 					"type":                 "object",
 					"properties":           map[string]any{},
 					"additionalProperties": false,
@@ -271,7 +300,8 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 				Name:        "rag_index_record",
 				Description: "Record a PageIndex document tree build and append atb.event.rag_index to the current bundle",
 				InputSchema: map[string]any{
-					"type": "object",
+					"$schema": jsonSchemaDialect,
+					"type":    "object",
 					"properties": map[string]any{
 						"index_id": map[string]any{
 							"type":        "string",
@@ -297,6 +327,9 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 							"type":        "string",
 							"description": "SHA-256 hex digest of json.dumps(tree, sort_keys=True)",
 						},
+						"index_version":    map[string]any{"type": "string"},
+						"source_digest":    map[string]any{"type": "string"},
+						"tree_root_digest": map[string]any{"type": "string"},
 						"indexed_at": map[string]any{
 							"type":        "string",
 							"description": "RFC3339 timestamp — defaults to server time if omitted",
@@ -315,12 +348,22 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 			},
 			{
 				Name:        "rag_retrieval_record",
-				Description: "Record a PageIndex reasoning-based retrieval result and append atb.event.rag_retrieval to the current bundle",
+				Description: "Record a PageIndex retrieval result and append atb.event.rag_retrieval to the current bundle",
 				InputSchema: map[string]any{
-					"type": "object",
+					"$schema": jsonSchemaDialect,
+					"type":    "object",
 					"properties": map[string]any{
 						"query": map[string]any{
-							"type": "string",
+							"type":        "string",
+							"description": "Optional plaintext query. Omitted from the event unless include_query is true.",
+						},
+						"include_query": map[string]any{
+							"type":        "boolean",
+							"description": "If true, store the plaintext query. Default false; query_digest is recorded instead.",
+						},
+						"query_digest": map[string]any{
+							"type":        "string",
+							"description": "SHA-256 hex digest of the query. Required when query is omitted.",
 						},
 						"retrieval_id": map[string]any{
 							"type": "string",
@@ -359,9 +402,15 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 							"type":        "integer",
 							"description": "Wall-clock milliseconds for the retrieval call",
 						},
+						"strategy":                 map[string]any{"type": "string"},
+						"selected_node_ids":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"selected_parent_ids":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"section_paths":            map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"selected_content_digests": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+						"result_set_digest":        map[string]any{"type": "string"},
+						"tree_root_digest":         map[string]any{"type": "string"},
 					},
 					"required": []string{
-						"query",
 						"retrieval_id",
 						"index_id",
 						"node_id",
@@ -525,13 +574,16 @@ func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
 	if err := rejectUnknownFields(args, map[string]struct{}{
-		"index_id":   {},
-		"source_uri": {},
-		"page_count": {},
-		"node_count": {},
-		"model_id":   {},
-		"index_hash": {},
-		"indexed_at": {},
+		"index_id":         {},
+		"source_uri":       {},
+		"page_count":       {},
+		"node_count":       {},
+		"model_id":         {},
+		"index_hash":       {},
+		"indexed_at":       {},
+		"index_version":    {},
+		"source_digest":    {},
+		"tree_root_digest": {},
 	}); err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
@@ -569,6 +621,12 @@ func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
 		// Default server-side so the hashed event payload is complete even when clients omit the timestamp.
 		indexedAt = time.Now().UTC().Format(time.RFC3339)
 	}
+	if err := validateOptionalStringFields(args, "index_version"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalDigestFields(args, "source_digest", "tree_root_digest"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
 
 	data := map[string]any{
 		"index_id":   indexID,
@@ -579,6 +637,7 @@ func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
 		"index_hash": indexHash,
 		"indexed_at": indexedAt,
 	}
+	copyOptionalEvidenceFields(data, args, "index_version", "source_digest", "tree_root_digest")
 
 	record, err := s.handlers.Append(s.commandContext(), event.TypeRAGIndex, data)
 	if err != nil {
@@ -604,25 +663,69 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
 	if err := rejectUnknownFields(args, map[string]struct{}{
-		"query":        {},
-		"retrieval_id": {},
-		"index_id":     {},
-		"node_id":      {},
-		"node_title":   {},
-		"source_uri":   {},
-		"page_start":   {},
-		"page_end":     {},
-		"node_summary": {},
-		"model_id":     {},
-		"latency_ms":   {},
+		"query":                    {},
+		"include_query":            {},
+		"retrieval_id":             {},
+		"index_id":                 {},
+		"node_id":                  {},
+		"node_title":               {},
+		"source_uri":               {},
+		"page_start":               {},
+		"page_end":                 {},
+		"node_summary":             {},
+		"model_id":                 {},
+		"latency_ms":               {},
+		"strategy":                 {},
+		"query_digest":             {},
+		"selected_node_ids":        {},
+		"selected_parent_ids":      {},
+		"section_paths":            {},
+		"selected_content_digests": {},
+		"result_set_digest":        {},
+		"tree_root_digest":         {},
 	}); err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
 
-	query, err := requireStringField(args, "query")
+	includeQuery := false
+	if rawInclude, ok := args["include_query"]; ok {
+		parsed, ok := rawInclude.(bool)
+		if !ok {
+			return newToolResponse("invalid params: include_query must be a boolean", true), nil
+		}
+		includeQuery = parsed
+	}
+
+	query, queryPresent, err := optionalStringField(args, "query")
 	if err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
+	queryDigest, digestPresent, err := optionalStringField(args, "query_digest")
+	if err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if !queryPresent && !digestPresent {
+		return newToolResponse("invalid params: query_digest is required unless query is supplied", true), nil
+	}
+	if includeQuery && !queryPresent {
+		return newToolResponse("invalid params: include_query requires query", true), nil
+	}
+
+	computedDigest := ""
+	if queryPresent {
+		computedDigest = stringDigest(query)
+	}
+	if digestPresent {
+		if !validSHA256Digest(queryDigest) {
+			return newToolResponse("invalid params: query_digest must be a 64-character hexadecimal SHA-256 digest", true), nil
+		}
+		if computedDigest != "" && !strings.EqualFold(computedDigest, queryDigest) {
+			return newToolResponse("invalid params: query_digest does not match query", true), nil
+		}
+	} else {
+		queryDigest = computedDigest
+	}
+
 	retrievalID, err := requireStringField(args, "retrieval_id")
 	if err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
@@ -661,7 +764,7 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	}
 
 	data := map[string]any{
-		"query":        query,
+		"query_digest": queryDigest,
 		"retrieval_id": retrievalID,
 		"index_id":     indexID,
 		"node_id":      nodeID,
@@ -677,6 +780,22 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	} else if present && strings.TrimSpace(nodeSummary) != "" {
 		data["node_summary"] = nodeSummary
 	}
+	if includeQuery {
+		data["query"] = query
+	}
+	if err := validateOptionalStringFields(args, "strategy"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalStringArrayFields(args, "selected_node_ids", "selected_parent_ids", "section_paths"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalDigestArrayFields(args, "selected_content_digests"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	if err := validateOptionalDigestFields(args, "result_set_digest", "tree_root_digest"); err != nil {
+		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
+	}
+	copyOptionalEvidenceFields(data, args, "strategy", "selected_node_ids", "selected_parent_ids", "section_paths", "selected_content_digests", "result_set_digest", "tree_root_digest")
 
 	record, err := s.handlers.Append(s.commandContext(), event.TypeRAGRetrieval, data)
 	if err != nil {
@@ -843,6 +962,91 @@ func rejectUnknownFields(args map[string]any, allowed map[string]struct{}) error
 		}
 	}
 	return nil
+}
+
+func copyOptionalEvidenceFields(destination, source map[string]any, fields ...string) {
+	for _, field := range fields {
+		if value, ok := source[field]; ok {
+			destination[field] = value
+		}
+	}
+}
+
+func validateOptionalStringFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		text, ok := value.(string)
+		if !ok || strings.TrimSpace(text) == "" {
+			return fmt.Errorf("field %q must be a non-empty string", field)
+		}
+	}
+	return nil
+}
+
+func validateOptionalDigestFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		text, ok := value.(string)
+		if !ok || !validSHA256Digest(text) {
+			return fmt.Errorf("field %q must be a 64-character hexadecimal SHA-256 digest", field)
+		}
+	}
+	return nil
+}
+
+func validateOptionalStringArrayFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		values, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("field %q must be an array of strings", field)
+		}
+		for _, value := range values {
+			text, ok := value.(string)
+			if !ok || strings.TrimSpace(text) == "" {
+				return fmt.Errorf("field %q must be an array of non-empty strings", field)
+			}
+		}
+	}
+	return nil
+}
+
+func validateOptionalDigestArrayFields(args map[string]any, fields ...string) error {
+	for _, field := range fields {
+		value, present := args[field]
+		if !present {
+			continue
+		}
+		values, ok := value.([]any)
+		if !ok {
+			return fmt.Errorf("field %q must be an array of SHA-256 digests", field)
+		}
+		for _, value := range values {
+			text, ok := value.(string)
+			if !ok || !validSHA256Digest(text) {
+				return fmt.Errorf("field %q must be an array of 64-character hexadecimal SHA-256 digests", field)
+			}
+		}
+	}
+	return nil
+}
+
+func validSHA256Digest(value string) bool {
+	value = strings.TrimSpace(value)
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 func requireStringField(args map[string]any, field string) (string, error) {
