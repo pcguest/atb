@@ -93,7 +93,9 @@ func ReportFromVerify(r Report) VerifierReport {
 	if r.CAS != nil {
 		report.CASScore = r.CAS.Overall
 		report.CASGrade = r.CAS.Grade
-		report.IntegrityValid = r.CAS.IntegrityValid
+		// Hash-chain integrity is authoritative even when a fallback CAS is
+		// unassessable (and consequently has IntegrityValid unset).
+		report.IntegrityValid = r.Integrity.ChainValid
 		report.AssuranceValid = r.CAS.AssuranceValid
 		if r.CAS.IntegrityValid {
 			report.CoverageScore = r.CAS.CoverageScore
