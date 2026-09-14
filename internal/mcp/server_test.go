@@ -97,8 +97,10 @@ func TestServeToolsList(t *testing.T) {
 	}
 
 	names := map[string]bool{}
+	schemas := map[string]map[string]any{}
 	for _, tool := range result.Tools {
 		names[tool.Name] = true
+		schemas[tool.Name] = tool.InputSchema
 		if tool.InputSchema["$schema"] != jsonSchemaDialect {
 			t.Fatalf("tool %q schema dialect = %#v", tool.Name, tool.InputSchema["$schema"])
 		}
@@ -110,6 +112,36 @@ func TestServeToolsList(t *testing.T) {
 	for _, name := range []string{"verify", "atb_init", "status", "rag_index_record", "rag_retrieval_record"} {
 		if !names[name] {
 			t.Fatalf("tool %q missing from tools/list response", name)
+		}
+	}
+	for _, toolName := range []string{"rag_index_record", "rag_retrieval_record"} {
+		properties := schemas[toolName]["properties"].(map[string]any)
+		for _, field := range []string{"source_digest", "tree_root_digest"} {
+			if toolName == "rag_retrieval_record" && field == "source_digest" {
+				continue
+			}
+			property, ok := properties[field].(map[string]any)
+			if !ok || property["pattern"] != "^[a-f0-9]{64}$" {
+				t.Fatalf("tool %q field %q must advertise the canonical digest pattern: %#v", toolName, field, properties[field])
+			}
+		}
+	}
+	retrievalProperties := schemas["rag_retrieval_record"]["properties"].(map[string]any)
+	for _, field := range []string{"query_digest", "result_set_digest"} {
+		property := retrievalProperties[field].(map[string]any)
+		if property["pattern"] != "^[a-f0-9]{64}$" {
+			t.Fatalf("retrieval field %q must advertise the canonical digest pattern: %#v", field, property)
+		}
+	}
+	selectedDigests := retrievalProperties["selected_content_digests"].(map[string]any)
+	selectedItems := selectedDigests["items"].(map[string]any)
+	if selectedItems["pattern"] != "^[a-f0-9]{64}$" {
+		t.Fatalf("selected_content_digests items must advertise the canonical digest pattern: %#v", selectedItems)
+	}
+	for _, field := range []string{"page_start", "page_end"} {
+		property := retrievalProperties[field].(map[string]any)
+		if property["minimum"] != float64(0) {
+			t.Fatalf("retrieval field %q minimum = %#v, want 0", field, property["minimum"])
 		}
 	}
 }
@@ -391,6 +423,7 @@ func TestServeRAGRecordRejectsMalformedOptionalEvidence(t *testing.T) {
 		args map[string]any
 	}{
 		{"query digest", "rag_retrieval_record", map[string]any{"query_digest": "not-a-digest", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1}},
+		{"negative page start", "rag_retrieval_record", map[string]any{"query": "query", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": -1, "page_end": 0, "model_id": "model", "latency_ms": 1}},
 		{"uppercase index hash", "rag_index_record", map[string]any{"index_id": "idx", "source_uri": "file:///doc", "page_count": 1, "node_count": 1, "model_id": "model", "index_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}},
 		{"selected nodes", "rag_retrieval_record", map[string]any{"query": "query", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1, "selected_node_ids": "node"}},
 		{"source digest", "rag_index_record", map[string]any{"index_id": "idx", "source_uri": "file:///doc", "page_count": 1, "node_count": 1, "model_id": "model", "index_hash": "hash", "source_digest": map[string]any{}}},

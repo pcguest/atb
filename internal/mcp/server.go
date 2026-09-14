@@ -329,8 +329,8 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 							"pattern":     "^[a-f0-9]{64}$",
 						},
 						"index_version":    map[string]any{"type": "string"},
-						"source_digest":    map[string]any{"type": "string"},
-						"tree_root_digest": map[string]any{"type": "string"},
+						"source_digest":    digestInputSchema(),
+						"tree_root_digest": digestInputSchema(),
 						"indexed_at": map[string]any{
 							"type":        "string",
 							"description": "RFC3339 timestamp — defaults to server time if omitted",
@@ -365,6 +365,7 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 						"query_digest": map[string]any{
 							"type":        "string",
 							"description": "SHA-256 hex digest of the query. Required when query is omitted.",
+							"pattern":     "^[a-f0-9]{64}$",
 						},
 						"retrieval_id": map[string]any{
 							"type": "string",
@@ -387,10 +388,12 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 						"page_start": map[string]any{
 							"type":        "integer",
 							"description": "PageIndex start_index of the matched node",
+							"minimum":     0,
 						},
 						"page_end": map[string]any{
 							"type":        "integer",
 							"description": "PageIndex end_index of the matched node",
+							"minimum":     0,
 						},
 						"node_summary": map[string]any{
 							"type":        "string",
@@ -407,9 +410,9 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 						"selected_node_ids":        map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						"selected_parent_ids":      map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 						"section_paths":            map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-						"selected_content_digests": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-						"result_set_digest":        map[string]any{"type": "string"},
-						"tree_root_digest":         map[string]any{"type": "string"},
+						"selected_content_digests": map[string]any{"type": "array", "items": digestInputSchema()},
+						"result_set_digest":        digestInputSchema(),
+						"tree_root_digest":         digestInputSchema(),
 					},
 					"required": []string{
 						"retrieval_id",
@@ -758,6 +761,9 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	if err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
+	if pageStart < 0 || pageEnd < 0 {
+		return newToolResponse("invalid params: page_start and page_end must be nonnegative integers", true), nil
+	}
 	modelID, err := requireStringField(args, "model_id")
 	if err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
@@ -973,6 +979,13 @@ func copyOptionalEvidenceFields(destination, source map[string]any, fields ...st
 		if value, ok := source[field]; ok {
 			destination[field] = value
 		}
+	}
+}
+
+func digestInputSchema() map[string]any {
+	return map[string]any{
+		"type":    "string",
+		"pattern": "^[a-f0-9]{64}$",
 	}
 }
 

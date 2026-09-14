@@ -224,3 +224,28 @@ func TestTranslate_preservesAIActionError(t *testing.T) {
 		t.Fatalf("action error fields = %#v", data)
 	}
 }
+
+func TestTranslate_bindsAIActionErrorToGenAIToolCall(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, 3, 9, 9, 15, 2, 0, time.UTC)
+
+	got, err := otel.Translate(otel.OTelSpan{
+		TraceID:   "0102030405060708090a0b0c0d0e0f10",
+		SpanID:    "0102030405060708",
+		Name:      "tool.execute",
+		StartTime: start,
+		EndTime:   start.Add(time.Millisecond),
+		Attributes: map[string]any{
+			"atb.event_type":      "ai.action.error",
+			"gen_ai.tool.call.id": "tool-call-123",
+			"error_class":         "failed",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Translate() error = %v", err)
+	}
+	data := got.Data.(map[string]any)
+	if data["action_id"] != "tool-call-123" {
+		t.Fatalf("action_id = %#v, want GenAI tool call ID", data["action_id"])
+	}
+}

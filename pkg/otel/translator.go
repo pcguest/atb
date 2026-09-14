@@ -113,7 +113,7 @@ func (t DefaultTranslator) Translate(span OTelSpan) (*event.Event, error) {
 		data["run_id"] = runID
 	}
 	if eventType == event.TypeAIActionError {
-		actionID := firstString(span.Attributes, "action_id", "atb.action_id")
+		actionID := firstString(span.Attributes, "action_id", "atb.action_id", "gen_ai.tool.call.id")
 		if actionID == "" {
 			actionID = span.SpanID
 		}

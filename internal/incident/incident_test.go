@@ -447,8 +447,11 @@ func TestMarkdownReportLiteralSafety(t *testing.T) {
 	if strings.Contains(md, "~~strike~~") || strings.Contains(md, "~~bar~~") {
 		t.Errorf("raw strikethrough delimiters were emitted: %s", md)
 	}
-	if strings.Contains(md, "https://evil.com") {
+	if strings.Contains(md, "http://evil.com") {
 		t.Errorf("raw autolink was emitted: %s", md)
+	}
+	if !strings.Contains(md, "http:\u200b//evil.com") {
+		t.Errorf("display-preserving URL break missing: %s", md)
 	}
 	if strings.Contains(md, "mail@example.com") {
 		t.Errorf("raw email autolink was emitted: %s", md)
