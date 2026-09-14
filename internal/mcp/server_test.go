@@ -115,7 +115,10 @@ func TestServeToolsList(t *testing.T) {
 		}
 	}
 	for _, toolName := range []string{"rag_index_record", "rag_retrieval_record"} {
-		properties := schemas[toolName]["properties"].(map[string]any)
+		properties, ok := schemas[toolName]["properties"].(map[string]any)
+		if !ok {
+			t.Fatalf("tool %q properties must be an object: %#v", toolName, schemas[toolName]["properties"])
+		}
 		for _, field := range []string{"source_digest", "tree_root_digest"} {
 			if toolName == "rag_retrieval_record" && field == "source_digest" {
 				continue
@@ -126,22 +129,28 @@ func TestServeToolsList(t *testing.T) {
 			}
 		}
 	}
-	retrievalProperties := schemas["rag_retrieval_record"]["properties"].(map[string]any)
+	retrievalProperties, ok := schemas["rag_retrieval_record"]["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("rag_retrieval_record properties must be an object: %#v", schemas["rag_retrieval_record"]["properties"])
+	}
 	for _, field := range []string{"query_digest", "result_set_digest"} {
-		property := retrievalProperties[field].(map[string]any)
-		if property["pattern"] != "^[a-f0-9]{64}$" {
-			t.Fatalf("retrieval field %q must advertise the canonical digest pattern: %#v", field, property)
+		property, ok := retrievalProperties[field].(map[string]any)
+		if !ok || property["pattern"] != "^[a-f0-9]{64}$" {
+			t.Fatalf("retrieval field %q must advertise the canonical digest pattern: %#v", field, retrievalProperties[field])
 		}
 	}
-	selectedDigests := retrievalProperties["selected_content_digests"].(map[string]any)
-	selectedItems := selectedDigests["items"].(map[string]any)
-	if selectedItems["pattern"] != "^[a-f0-9]{64}$" {
-		t.Fatalf("selected_content_digests items must advertise the canonical digest pattern: %#v", selectedItems)
+	selectedDigests, ok := retrievalProperties["selected_content_digests"].(map[string]any)
+	if !ok {
+		t.Fatalf("selected_content_digests must be an object: %#v", retrievalProperties["selected_content_digests"])
+	}
+	selectedItems, ok := selectedDigests["items"].(map[string]any)
+	if !ok || selectedItems["pattern"] != "^[a-f0-9]{64}$" {
+		t.Fatalf("selected_content_digests items must advertise the canonical digest pattern: %#v", selectedDigests["items"])
 	}
 	for _, field := range []string{"page_start", "page_end"} {
-		property := retrievalProperties[field].(map[string]any)
-		if property["minimum"] != float64(0) {
-			t.Fatalf("retrieval field %q minimum = %#v, want 0", field, property["minimum"])
+		property, ok := retrievalProperties[field].(map[string]any)
+		if !ok || property["minimum"] != float64(0) {
+			t.Fatalf("retrieval field %q minimum = %#v, want 0", field, retrievalProperties[field])
 		}
 	}
 }
