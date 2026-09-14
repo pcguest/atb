@@ -410,7 +410,7 @@ func TestMarkdownReportLiteralSafety(t *testing.T) {
 	if err != nil {
 		t.Fatalf("bundle.New: %v", err)
 	}
-	maliciousSessionID := "sess`evil` | [link](http://evil.com) | <script>alert(1)</script> | # heading | *em* | _em_ | ~~strike~~ | line\nbreak"
+	maliciousSessionID := "sess`evil` | [link](http://evil.com) | mail@example.com | <script>alert(1)</script> | # heading | *em* | _em_ | ~~strike~~ | line\nbreak"
 	if err := b.Append(event.TypeToolCall, map[string]any{
 		"session_id": maliciousSessionID,
 		"tool_name":  "test|tool`name`*foo*~~bar~~<tag>",
@@ -447,11 +447,12 @@ func TestMarkdownReportLiteralSafety(t *testing.T) {
 	if strings.Contains(md, "~~strike~~") || strings.Contains(md, "~~bar~~") {
 		t.Errorf("raw strikethrough delimiters were emitted: %s", md)
 	}
-	// Pipe characters in cells must be escaped so table structure is not broken
-	if strings.Contains(md, "| sess`evil` |") {
-		t.Errorf("unescaped pipe in table cell: %s", md)
+	if strings.Contains(md, "https://evil.com") {
+		t.Errorf("raw autolink was emitted: %s", md)
 	}
-
+	if strings.Contains(md, "mail@example.com") {
+		t.Errorf("raw email autolink was emitted: %s", md)
+	}
 	// Verify SessionListMarkdown as well
 	sessions, err := incident.ListSessions(context.Background(), path)
 	if err != nil {
@@ -460,5 +461,8 @@ func TestMarkdownReportLiteralSafety(t *testing.T) {
 	smd := incident.SessionListMarkdown(path, sessions)
 	if strings.Contains(smd, "`evil`") || strings.Contains(smd, "<script>") || strings.Contains(smd, "~~strike~~") {
 		t.Errorf("SessionListMarkdown leaked raw markdown syntax: %s", smd)
+	}
+	if !strings.Contains(smd, "\\|") {
+		t.Errorf("SessionListMarkdown did not escape a table-cell pipe: %s", smd)
 	}
 }

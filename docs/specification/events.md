@@ -529,8 +529,8 @@ hex digest).
 
 `atb.event.rag_retrieval` records one selected PageIndex node. Its required
 fields are `retrieval_id`, `index_id`, `node_id`, `node_title`, and
-`source_uri` (strings), plus `page_start` and `page_end` (integers with a
-minimum value of 1). Optional selection arrays and digest commitments are
+`source_uri` (strings), plus `page_start` and `page_end` (zero-based integers
+with a minimum value of 0). Optional selection arrays and digest commitments are
 described by `schemas/event.v1.json`; any digest there is lowercase SHA-256
 hex.
 

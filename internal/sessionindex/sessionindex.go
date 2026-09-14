@@ -184,19 +184,15 @@ func IsBundleLevelEvent(eventType string) bool {
 	}
 }
 
-func bundleLevelEvent(eventType string) bool {
-	return IsBundleLevelEvent(eventType)
-}
-
 func entriesForBundle(bundlePath string, b *bundle.Bundle) []SessionEntry {
 	sessions := make(map[string]*sessionAccumulator)
 	order := []string{}
 
 	for _, record := range b.Records {
-		if bundleLevelEvent(record.Event.Type) {
+		if IsBundleLevelEvent(record.Event.Type) {
 			continue
 		}
-		sessionID := sessionIDForEvent(record.Event, bundlePath)
+		sessionID := SessionIDForEvent(record.Event, bundlePath)
 		acc, ok := sessions[sessionID]
 		if !ok {
 			acc = &sessionAccumulator{
@@ -368,10 +364,6 @@ func SessionIDForEvent(event hash.Event, bundlePath string) string {
 		return sessionID
 	}
 	return sessionIDFromPath(bundlePath)
-}
-
-func sessionIDForEvent(event hash.Event, bundlePath string) string {
-	return SessionIDForEvent(event, bundlePath)
 }
 
 func eventSessionID(event hash.Event) string {

@@ -462,7 +462,7 @@ components:
           type: string
     ProfileReportSummary:
       type: object
-      required: [profile_id, pass, chain_valid, anchor_status, critical_failures, warnings]
+      required: [profile_id, pass, chain_valid, anchor_status, integrity_valid, assurance_valid, critical_failures, warnings]
       properties:
         profile_id:
           type: string
@@ -489,7 +489,7 @@ components:
         dimension_assessments:
           type: object
           additionalProperties:
-            type: object
+            $ref: '#/components/schemas/DimensionAssessment'
         integrity_valid:
           type: boolean
         assurance_valid:
@@ -513,6 +513,20 @@ components:
         effective_score:
           type: number
           format: double
+    DimensionAssessment:
+      type: object
+      required: [assessable, weight]
+      properties:
+        assessable:
+          type: boolean
+        score:
+          type: number
+          format: double
+        weight:
+          type: number
+          format: double
+        reason:
+          type: string
     APIError:
       type: object
       required: [error]

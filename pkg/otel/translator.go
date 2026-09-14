@@ -112,6 +112,20 @@ func (t DefaultTranslator) Translate(span OTelSpan) (*event.Event, error) {
 	if runID := firstString(span.Attributes, "atb.run_id", "run_id"); runID != "" {
 		data["run_id"] = runID
 	}
+	if eventType == event.TypeAIActionError {
+		actionID := firstString(span.Attributes, "action_id", "atb.action_id")
+		if actionID == "" {
+			actionID = span.SpanID
+		}
+		errorClass := firstString(span.Attributes, "error_class", "atb.error_class")
+		switch errorClass {
+		case "failed", "blocked", "timeout", "exception", "denied_at_sink":
+		default:
+			errorClass = "failed"
+		}
+		data["action_id"] = actionID
+		data["error_class"] = errorClass
+	}
 
 	return &event.Event{
 		Type:         eventType,

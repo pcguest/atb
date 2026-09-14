@@ -145,7 +145,10 @@ func BuildBundleFindings(b *bundle.Bundle, bundlePath string, sessions []session
 	if b == nil || len(sessions) == 0 {
 		return []Finding{}
 	}
-	loadedPath, _ := filepath.Abs(bundlePath)
+	loadedPath := ""
+	if bundlePath != "" {
+		loadedPath, _ = filepath.Abs(bundlePath)
+	}
 	findings := []Finding{}
 	for _, session := range sessions {
 		if loadedPath != "" && session.BundlePath != "" {

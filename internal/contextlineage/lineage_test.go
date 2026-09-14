@@ -62,17 +62,20 @@ func TestBuildReportsMalformedAndUnavailableContextReferences(t *testing.T) {
 		{Event: hash.Event{Sequence: 1, Type: "ai.context.unit", Data: "not-an-object"}},
 		{Event: hash.Event{Sequence: 2, Type: "ai.context.unit", Data: map[string]any{"unit_id": "child", "kind": "retrieved_passage", "digest": "aaa", "parent_unit_ids": []any{"missing"}}}},
 		{Event: hash.Event{Sequence: 3, Type: "ai.context.operation", Data: map[string]any{"operation_id": "missing-arrays", "operation": "select"}}},
-		{Event: hash.Event{Sequence: 4, Type: "ai.context.operation", Data: map[string]any{"operation_id": "negative-tokens", "operation": "select", "input_unit_ids": []any{}, "output_unit_ids": []any{}, "input_token_count": -1}}},
+		{Event: hash.Event{Sequence: 4, Type: "ai.context.operation", Data: map[string]any{"operation_id": "negative-tokens", "operation": "select", "input_unit_ids": []any{}, "output_unit_ids": []any{}, "input_token_count": -1, "output_token_count": -0.5}}},
 	}
 	lineage := Build(records)
 	if len(lineage.Operations) != 1 || lineage.Operations[0].InputTokenCount != nil {
 		t.Fatalf("operations = %#v", lineage.Operations)
 	}
-	if len(lineage.Warnings) != 4 {
-		t.Fatalf("warnings = %#v, want malformed unit, missing parent, malformed operation, and negative token count", lineage.Warnings)
+	if len(lineage.Warnings) != 5 {
+		t.Fatalf("warnings = %#v, want malformed unit, missing parent, malformed operation, and two negative token counts", lineage.Warnings)
 	}
 	if !containsWarning(lineage.Warnings, "input_token_count must not be negative") {
 		t.Fatalf("negative token warning missing: %#v", lineage.Warnings)
+	}
+	if !containsWarning(lineage.Warnings, "output_token_count must not be negative") {
+		t.Fatalf("negative fractional token warning missing: %#v", lineage.Warnings)
 	}
 }
 

@@ -147,7 +147,7 @@ time).
 | `page_count` | integer | Total pages in the document. |
 | `node_count` | integer | Total nodes in the PageIndex tree (recursive count). |
 | `model_id` | string | LLM model used to build the index. |
-| `index_hash` | string | SHA-256 hex digest of `json.dumps(tree, sort_keys=True)`. |
+| `index_hash` | string | Canonical lowercase, unpadded 64-character SHA-256 hexadecimal digest of `json.dumps(tree, sort_keys=True)`. |
 | `indexed_at` | string | RFC 3339 timestamp. Defaults to server time if omitted. |
 
 #### `rag_retrieval_record`

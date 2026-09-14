@@ -207,29 +207,27 @@ func requiredTexts(data map[string]any, key string) ([]string, bool) {
 }
 
 func integer(data map[string]any, key string) *int {
-	switch value := data[key].(type) {
-	case int:
-		if value < 0 {
-			return nil
-		}
-		return &value
-	case float64:
-		converted := int(value)
-		if value == float64(converted) && converted >= 0 {
-			return &converted
-		}
+	value, valid := numberValue(data, key)
+	converted := int(value)
+	if !valid || value != float64(converted) || converted < 0 {
+		return nil
 	}
-	return nil
+	return &converted
 }
 
 func negativeInteger(data map[string]any, key string) bool {
+	value, valid := numberValue(data, key)
+	return valid && value < 0
+}
+
+func numberValue(data map[string]any, key string) (float64, bool) {
 	switch value := data[key].(type) {
 	case int:
-		return value < 0
+		return float64(value), true
 	case float64:
-		return value == float64(int(value)) && value < 0
+		return value, true
 	default:
-		return false
+		return 0, false
 	}
 }
 

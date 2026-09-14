@@ -143,7 +143,7 @@ func TestRAGRetrievalRecordDefaultsToQueryDigest(t *testing.T) {
 	})
 	result, err := srv.toolRAGRetrievalRecord(json.RawMessage(`{
 		"query":"secret question","retrieval_id":"r1","index_id":"i1","node_id":"n1",
-		"node_title":"Approval Controls","source_uri":"file:///policy.pdf","page_start":47,
+		"node_title":"Approval Controls","source_uri":"file:///policy.pdf","page_start":0,
 		"page_end":48,"model_id":"model","latency_ms":2
 	}`))
 	if err != nil || result.IsError {
@@ -154,6 +154,9 @@ func TestRAGRetrievalRecordDefaultsToQueryDigest(t *testing.T) {
 	}
 	if captured["query_digest"] == nil || captured["query_digest"] == "" {
 		t.Fatalf("query_digest missing: %#v", captured)
+	}
+	if pageStart, ok := captured["page_start"].(int); !ok || pageStart != 0 {
+		t.Fatalf("page_start = %#v, want zero-based offset 0", captured["page_start"])
 	}
 }
 
@@ -388,6 +391,7 @@ func TestServeRAGRecordRejectsMalformedOptionalEvidence(t *testing.T) {
 		args map[string]any
 	}{
 		{"query digest", "rag_retrieval_record", map[string]any{"query_digest": "not-a-digest", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1}},
+		{"uppercase index hash", "rag_index_record", map[string]any{"index_id": "idx", "source_uri": "file:///doc", "page_count": 1, "node_count": 1, "model_id": "model", "index_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}},
 		{"selected nodes", "rag_retrieval_record", map[string]any{"query": "query", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1, "selected_node_ids": "node"}},
 		{"source digest", "rag_index_record", map[string]any{"index_id": "idx", "source_uri": "file:///doc", "page_count": 1, "node_count": 1, "model_id": "model", "index_hash": "hash", "source_digest": map[string]any{}}},
 	} {

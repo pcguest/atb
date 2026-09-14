@@ -586,6 +586,36 @@ func TestVerifierReportOmitsCoverageJSONWhenChainInvalid(t *testing.T) {
 	}
 }
 
+func TestCASResultJSONKeepsZeroCoverageWhenIntegrityValid(t *testing.T) {
+	t.Parallel()
+
+	encoded, err := json.Marshal(CASResult{
+		IntegrityValid: true,
+		CoverageScore:  0,
+		CoverageGrade:  "Minimal coverage",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var round map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &round); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"coverage_score", "assessment_coverage"} {
+		if _, ok := round[key]; !ok {
+			t.Fatalf("valid zero coverage omitted %q: %s", key, encoded)
+		}
+	}
+
+	invalid, err := json.Marshal(CASResult{CoverageScore: 0})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(invalid), `"coverage_score"`) {
+		t.Fatalf("invalid integrity published coverage: %s", invalid)
+	}
+}
+
 func TestComputeCASWithApplicabilitySeparatesCoverageFromIntegrity(t *testing.T) {
 	t.Parallel()
 

@@ -210,7 +210,7 @@ func TestTranslate_preservesAIActionError(t *testing.T) {
 		Attributes: map[string]any{
 			"atb.event_type": "ai.action.error",
 			"action_id":      "act-err-1",
-			"error_class":    "permission_denied",
+			"error_class":    "denied_at_sink",
 		},
 	})
 	if err != nil {
@@ -218,5 +218,9 @@ func TestTranslate_preservesAIActionError(t *testing.T) {
 	}
 	if got.Type != event.TypeAIActionError {
 		t.Fatalf("Translate() type = %q, want %q", got.Type, event.TypeAIActionError)
+	}
+	data := got.Data.(map[string]any)
+	if data["action_id"] != "act-err-1" || data["error_class"] != "denied_at_sink" {
+		t.Fatalf("action error fields = %#v", data)
 	}
 }

@@ -512,9 +512,12 @@ func shortHash(h string) string {
 // spans, and table cells. Evidence content must never introduce Markdown or
 // HTML structure into a reviewer-facing report.
 func markdownInline(value string) string {
+	// Breaking the URL scheme delimiter prevents GFM autolinking without
+	// altering ordinary colon-bearing evidence such as timestamps or actor IDs.
+	value = strings.ReplaceAll(value, "://", ":\\//")
 	replacer := strings.NewReplacer(
 		"\\", "\\\\", "`", "\\`", "*", "\\*", "_", "\\_", "~", "\\~", "[", "\\[", "]", "\\]",
-		"<", "\\<", ">", "\\>", "|", "\\|", "\r", " ", "\n", " ",
+		"<", "\\<", ">", "\\>", "|", "\\|", "@", "\\@", "\r", " ", "\n", " ",
 	)
 	return replacer.Replace(value)
 }

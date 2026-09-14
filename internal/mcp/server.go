@@ -326,6 +326,7 @@ func (s *Server) handleToolsList(id *json.RawMessage) error {
 						"index_hash": map[string]any{
 							"type":        "string",
 							"description": "SHA-256 hex digest of json.dumps(tree, sort_keys=True)",
+							"pattern":     "^[a-f0-9]{64}$",
 						},
 						"index_version":    map[string]any{"type": "string"},
 						"source_digest":    map[string]any{"type": "string"},
@@ -612,6 +613,9 @@ func (s *Server) toolRAGIndexRecord(raw json.RawMessage) (toolResponse, error) {
 	if err != nil {
 		return newToolResponse(fmt.Sprintf("invalid params: %v", err), true), nil
 	}
+	if !validSHA256Digest(indexHash) {
+		return newToolResponse("invalid params: index_hash must be a lowercase, unpadded 64-character hexadecimal SHA-256 digest", true), nil
+	}
 
 	indexedAt, present, err := optionalStringField(args, "indexed_at")
 	if err != nil {
@@ -717,7 +721,7 @@ func (s *Server) toolRAGRetrievalRecord(raw json.RawMessage) (toolResponse, erro
 	}
 	if digestPresent {
 		if !validSHA256Digest(queryDigest) {
-			return newToolResponse("invalid params: query_digest must be a 64-character hexadecimal SHA-256 digest", true), nil
+			return newToolResponse("invalid params: query_digest must be a lowercase, unpadded 64-character hexadecimal SHA-256 digest", true), nil
 		}
 		if computedDigest != "" && !strings.EqualFold(computedDigest, queryDigest) {
 			return newToolResponse("invalid params: query_digest does not match query", true), nil
@@ -994,7 +998,7 @@ func validateOptionalDigestFields(args map[string]any, fields ...string) error {
 		}
 		text, ok := value.(string)
 		if !ok || !validSHA256Digest(text) {
-			return fmt.Errorf("field %q must be a 64-character hexadecimal SHA-256 digest", field)
+			return fmt.Errorf("field %q must be a lowercase, unpadded 64-character hexadecimal SHA-256 digest", field)
 		}
 	}
 	return nil
@@ -1028,12 +1032,12 @@ func validateOptionalDigestArrayFields(args map[string]any, fields ...string) er
 		}
 		values, ok := value.([]any)
 		if !ok {
-			return fmt.Errorf("field %q must be an array of SHA-256 digests", field)
+			return fmt.Errorf("field %q must be an array of lowercase, unpadded 64-character hexadecimal SHA-256 digests", field)
 		}
 		for _, value := range values {
 			text, ok := value.(string)
 			if !ok || !validSHA256Digest(text) {
-				return fmt.Errorf("field %q must be an array of 64-character hexadecimal SHA-256 digests", field)
+				return fmt.Errorf("field %q must be an array of lowercase, unpadded 64-character hexadecimal SHA-256 digests", field)
 			}
 		}
 	}

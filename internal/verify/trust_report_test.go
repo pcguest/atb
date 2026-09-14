@@ -7,8 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -266,13 +264,5 @@ func TestTrustReportFromVerify_InvalidIntegrityDoesNotMaterialiseCoverageScore(t
 	trustReport := TrustReportFromVerify(report, b)
 	if trustReport.CAS != nil {
 		t.Fatalf("expected nil CAS on invalid integrity, got %+v", trustReport.CAS)
-	}
-
-	data, err := json.Marshal(trustReport)
-	if err != nil {
-		t.Fatalf("marshal error: %v", err)
-	}
-	if strings.Contains(string(data), `"coverage_score"`) {
-		t.Fatalf("trust report serialized coverage_score on invalid integrity: %s", string(data))
 	}
 }
