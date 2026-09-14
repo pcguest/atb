@@ -190,4 +190,24 @@ describe("assurance inspection", () => {
     expect(screen.getAllByText("External receipt recorded")).not.toHaveLength(0);
     expect(screen.getByText(/Bundle canonicalisation contract/)).toBeVisible();
   });
+
+  it("renders the API failed-integrity proof without asserting a positive proof", () => {
+    const data = investigationTrustSchema.parse({
+      proof_statement:
+        "ATB cannot establish the integrity or order of records in the presented bundle because verification failed.",
+      integrity_valid: false,
+      canonicalisation: "rfc8785",
+      signature_status: "absent",
+      anchor_status: "absent",
+      profile_pass: false,
+      assurance_valid: false,
+      external_corroboration: false,
+      custody_state: "Local only",
+      limitations: [],
+    });
+    render(<TrustSurface data={data} timeline={[]} onOpenEvidence={vi.fn()} />);
+    expect(screen.getByText("Untrusted")).toBeVisible();
+    expect(screen.getByText(/cannot establish the integrity or order/)).toBeVisible();
+    expect(screen.queryByText("ATB proves the integrity and order of records presented in a bundle.")).toBeNull();
+  });
 });

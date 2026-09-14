@@ -132,6 +132,15 @@ func TestInvestigationTamperBoundary(t *testing.T) {
 		if strings.Contains(rr.Body.String(), `"external_corroboration":true`) {
 			t.Fatalf("invalid evidence asserted corroboration: %s", rr.Body.String())
 		}
+		if path == "/api/v1/investigation/trust" {
+			const invalidIntegrityProof = "ATB cannot establish the integrity or order of records in the presented bundle because verification failed."
+			if !strings.Contains(rr.Body.String(), `"proof_statement":"`+invalidIntegrityProof+`"`) {
+				t.Fatalf("trust response must state the bounded failed-integrity result: %s", rr.Body.String())
+			}
+			if strings.Contains(rr.Body.String(), "ATB proves the integrity and order") {
+				t.Fatalf("trust response must not assert integrity proof after verification failure: %s", rr.Body.String())
+			}
+		}
 		if path == "/api/v1/investigation/overview" && strings.Contains(rr.Body.String(), `"finding_count":`) {
 			if !strings.Contains(rr.Body.String(), `"finding_count":0`) {
 				t.Fatalf("overview must not invent findings on invalid integrity: %s", rr.Body.String())

@@ -141,9 +141,14 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 	if !s.allowInvestigationRead(w, r, false) {
 		return
 	}
+	integrityValid := s.verifyErr == nil
+	proofStatement := "ATB proves the integrity and order of records presented in a bundle."
+	if !integrityValid {
+		proofStatement = "ATB cannot establish the integrity or order of records in the presented bundle because verification failed."
+	}
 	response := InvestigationTrustResponse{
-		ProofStatement:   "ATB proves the integrity and order of records presented in a bundle.",
-		IntegrityValid:   s.verifyErr == nil,
+		ProofStatement:   proofStatement,
+		IntegrityValid:   integrityValid,
 		Canonicalisation: "rfc8785",
 		SignatureStatus:  signatureStatus(s),
 		AnchorStatus:     "absent",
