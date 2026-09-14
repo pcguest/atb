@@ -131,13 +131,8 @@ When using `atb verify --remote s3://...`, the response wraps `VerifierReport` w
 - If `profile_id` is empty, rerun with `--profile <id>`.
 - If `pass` is false, inspect `critical_failures` first.
 - If `pass` is true but `residual_risk.level` is `Medium` or higher, review `required_warnings`, `sub_scores`, and the [CAS guide](../evidence/cas.md).
-- Machine-readable contract: `atb verify --schema` prints frozen JSON Schema (`verify.report.v1.schema.1`); `atb verify --schema --schema-out path.json` writes it to disk.
+- Machine-readable contract: `atb verify --schema` prints frozen JSON Schema (`verify.report.v1.schema.3`); `atb verify --schema --schema-out path.json` writes it to disk.
 
 ## Schema versioning
 
-`verify.report.v1.schema.1` is a strict custody contract. The embedded schema
-sets `additionalProperties: false`, and conformance tests reject top-level
-report fields that are not declared in that schema. Future additions to the
-automation report require a new schema identifier (for example
-`verify.report.v1.schema.2`, or `verify.report.v2` for semantic changes) and a
-matching CHANGELOG entry.
+`verify.report.v1.schema.3` is the current custody contract (`pkg/custody.VerifyReportSchemaVersion`). It adds optional coverage and integrity fields (`coverage_score`, `coverage_grade`, `assessment_coverage`, `dimension_assessments`, `integrity_valid`, `assurance_valid`). The embedded schema sets `additionalProperties: false`. `coverage_score` is omitted when `integrity_valid` is false; `cas_score` remains `0` on integrity failure for existing consumers. Future additions require `verify.report.v1.schema.4` or `verify.report.v2` for semantic changes.

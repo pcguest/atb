@@ -16,7 +16,7 @@ import (
 // (the recorded bytes were altered — hash/chain failures), while an intact but
 // incomplete bundle fails *provability* (the bytes are genuine, but the workflow
 // skipped a control the obligation profile requires). This smoke drives the same
-// real verifier path the viewer's ProfileCAS panel and `atb verify` use, and
+// real verifier path the viewer's profile report and `atb verify` use, and
 // proves the second mode surfaces as obligation gaps rather than an integrity
 // failure — and that completeness is scored, not binary.
 func TestProfileGapsOnIntactButIncompleteBundle(t *testing.T) {
@@ -56,7 +56,7 @@ func TestProfileGapsOnIntactButIncompleteBundle(t *testing.T) {
 	}
 
 	// 2. The profile gate fails and the missing obligations surface — as critical
-	//    failures and/or provability gaps (the ProfileCAS panel reads both).
+	//    failures and/or provability gaps (View reports both).
 	if incompleteReport.Pass {
 		t.Fatalf("incomplete bundle unexpectedly passed its profile gate")
 	}

@@ -45,11 +45,34 @@ func TestServeInitialize(t *testing.T) {
 		t.Fatalf("unmarshal initialize result: %v", err)
 	}
 
-	if result.ProtocolVersion != protocolVersion {
-		t.Fatalf("unexpected protocolVersion: got %q want %q", result.ProtocolVersion, protocolVersion)
+	if result.ProtocolVersion != LegacyProtocolVersion {
+		t.Fatalf("unexpected protocolVersion: got %q want %q", result.ProtocolVersion, LegacyProtocolVersion)
 	}
 	if result.ServerInfo.Name != "atb" {
 		t.Fatalf("unexpected serverInfo.name: got %q want %q", result.ServerInfo.Name, "atb")
+	}
+}
+
+func TestServeDiscoverModernStatelessProtocol(t *testing.T) {
+	t.Parallel()
+
+	responses := runServer(t, `{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"test","version":"1"},"io.modelcontextprotocol/clientCapabilities":{}}}}`+"\n")
+	if len(responses) != 1 {
+		t.Fatalf("unexpected response count: got %d want 1", len(responses))
+	}
+	var result struct {
+		ProtocolVersions []string `json:"protocolVersions"`
+		TTLMS            int      `json:"ttlMs"`
+		CacheScope       string   `json:"cacheScope"`
+	}
+	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
+		t.Fatalf("unmarshal discover result: %v", err)
+	}
+	if result.ProtocolVersions[0] != LegacyProtocolVersion || len(result.ProtocolVersions) != 1 {
+		t.Fatalf("protocolVersions = %v, want only %q until 2026-07-28 fields ship", result.ProtocolVersions, LegacyProtocolVersion)
+	}
+	if result.TTLMS <= 0 || result.CacheScope != "private" {
+		t.Fatalf("cache hints = ttlMs %d scope %q", result.TTLMS, result.CacheScope)
 	}
 }
 
@@ -62,8 +85,11 @@ func TestServeToolsList(t *testing.T) {
 	}
 
 	var result struct {
-		Tools []struct {
-			Name string `json:"name"`
+		TTLMS      int    `json:"ttlMs"`
+		CacheScope string `json:"cacheScope"`
+		Tools      []struct {
+			Name        string         `json:"name"`
+			InputSchema map[string]any `json:"inputSchema"`
 		} `json:"tools"`
 	}
 	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
@@ -71,14 +97,136 @@ func TestServeToolsList(t *testing.T) {
 	}
 
 	names := map[string]bool{}
+	schemas := map[string]map[string]any{}
 	for _, tool := range result.Tools {
 		names[tool.Name] = true
+		schemas[tool.Name] = tool.InputSchema
+		if tool.InputSchema["$schema"] != jsonSchemaDialect {
+			t.Fatalf("tool %q schema dialect = %#v", tool.Name, tool.InputSchema["$schema"])
+		}
+	}
+	if result.TTLMS <= 0 || result.CacheScope != "private" {
+		t.Fatalf("tools/list cache hints = ttlMs %d scope %q", result.TTLMS, result.CacheScope)
 	}
 
 	for _, name := range []string{"verify", "atb_init", "status", "rag_index_record", "rag_retrieval_record"} {
 		if !names[name] {
 			t.Fatalf("tool %q missing from tools/list response", name)
 		}
+	}
+	for _, toolName := range []string{"rag_index_record", "rag_retrieval_record"} {
+		properties, ok := schemas[toolName]["properties"].(map[string]any)
+		if !ok {
+			t.Fatalf("tool %q properties must be an object: %#v", toolName, schemas[toolName]["properties"])
+		}
+		for _, field := range []string{"source_digest", "tree_root_digest"} {
+			if toolName == "rag_retrieval_record" && field == "source_digest" {
+				continue
+			}
+			property, ok := properties[field].(map[string]any)
+			if !ok || property["pattern"] != "^[a-f0-9]{64}$" {
+				t.Fatalf("tool %q field %q must advertise the canonical digest pattern: %#v", toolName, field, properties[field])
+			}
+		}
+	}
+	retrievalProperties, ok := schemas["rag_retrieval_record"]["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("rag_retrieval_record properties must be an object: %#v", schemas["rag_retrieval_record"]["properties"])
+	}
+	for _, field := range []string{"query_digest", "result_set_digest"} {
+		property, ok := retrievalProperties[field].(map[string]any)
+		if !ok || property["pattern"] != "^[a-f0-9]{64}$" {
+			t.Fatalf("retrieval field %q must advertise the canonical digest pattern: %#v", field, retrievalProperties[field])
+		}
+	}
+	selectedDigests, ok := retrievalProperties["selected_content_digests"].(map[string]any)
+	if !ok {
+		t.Fatalf("selected_content_digests must be an object: %#v", retrievalProperties["selected_content_digests"])
+	}
+	selectedItems, ok := selectedDigests["items"].(map[string]any)
+	if !ok || selectedItems["pattern"] != "^[a-f0-9]{64}$" {
+		t.Fatalf("selected_content_digests items must advertise the canonical digest pattern: %#v", selectedDigests["items"])
+	}
+	for _, field := range []string{"page_start", "page_end"} {
+		property, ok := retrievalProperties[field].(map[string]any)
+		if !ok || property["minimum"] != float64(0) {
+			t.Fatalf("retrieval field %q minimum = %#v, want 0", field, retrievalProperties[field])
+		}
+	}
+}
+
+func TestServeInitializeDoesNotAdvertiseIncompleteModernProtocol(t *testing.T) {
+	t.Parallel()
+
+	responses := runServer(t, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2026-07-28","capabilities":{},"clientInfo":{"name":"claude","version":"1.0"}}}`+"\n")
+	if len(responses) != 1 {
+		t.Fatalf("unexpected response count: got %d want 1", len(responses))
+	}
+	var result struct {
+		ProtocolVersion string `json:"protocolVersion"`
+	}
+	if err := json.Unmarshal(responses[0].Result, &result); err != nil {
+		t.Fatalf("unmarshal initialize result: %v", err)
+	}
+	if result.ProtocolVersion != LegacyProtocolVersion {
+		t.Fatalf("protocolVersion = %q, want %q until _meta/supportedVersions/resultType ship", result.ProtocolVersion, LegacyProtocolVersion)
+	}
+}
+
+func TestRAGRetrievalRecordDefaultsToQueryDigest(t *testing.T) {
+	t.Parallel()
+	var captured map[string]any
+	srv := NewWithHandlers("test", strings.NewReader(""), io.Discard, ToolHandlers{
+		Append: func(_ context.Context, _ string, data map[string]any) (bundle.Record, error) {
+			captured = data
+			return bundle.Record{}, nil
+		},
+	})
+	result, err := srv.toolRAGRetrievalRecord(json.RawMessage(`{
+		"query":"secret question","retrieval_id":"r1","index_id":"i1","node_id":"n1",
+		"node_title":"Approval Controls","source_uri":"file:///policy.pdf","page_start":0,
+		"page_end":48,"model_id":"model","latency_ms":2
+	}`))
+	if err != nil || result.IsError {
+		t.Fatalf("toolRAGRetrievalRecord() result=%#v err=%v", result, err)
+	}
+	if captured["query"] != nil {
+		t.Fatalf("plaintext query stored by default: %#v", captured)
+	}
+	if captured["query_digest"] == nil || captured["query_digest"] == "" {
+		t.Fatalf("query_digest missing: %#v", captured)
+	}
+	if pageStart, ok := captured["page_start"].(int); !ok || pageStart != 0 {
+		t.Fatalf("page_start = %#v, want zero-based offset 0", captured["page_start"])
+	}
+}
+
+func TestRAGRetrievalRecordPreservesStructuralProvenance(t *testing.T) {
+	t.Parallel()
+	var captured map[string]any
+	srv := NewWithHandlers("test", strings.NewReader(""), io.Discard, ToolHandlers{
+		Append: func(_ context.Context, eventType string, data map[string]any) (bundle.Record, error) {
+			if eventType != "atb.event.rag_retrieval" {
+				t.Fatalf("event type = %q", eventType)
+			}
+			captured = data
+			return bundle.Record{}, nil
+		},
+	})
+	result, err := srv.toolRAGRetrievalRecord(json.RawMessage(`{
+		"query":"controls","retrieval_id":"r1","index_id":"i1","node_id":"n1",
+		"node_title":"Approval Controls","source_uri":"file:///policy.pdf","page_start":47,
+		"page_end":48,"model_id":"model","latency_ms":2,
+		"strategy":"deterministic_tree_metadata_search","selected_node_ids":["n1"],
+		"selected_parent_ids":["root"],"section_paths":["Risk / Approval Controls"],
+		"selected_content_digests":["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+		"result_set_digest":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	}`))
+	if err != nil || result.IsError {
+		t.Fatalf("toolRAGRetrievalRecord() result=%#v err=%v", result, err)
+	}
+	if captured["result_set_digest"] == nil || captured["selected_node_ids"] == nil {
+		t.Fatalf("structural provenance not preserved: %#v", captured)
 	}
 }
 
@@ -273,6 +421,28 @@ func TestServeRAGRetrievalRecord(t *testing.T) {
 	}
 	if sequence, ok := content["sequence"].(float64); !ok || sequence < 1 {
 		t.Fatalf("unexpected sequence: %#v", content["sequence"])
+	}
+}
+
+func TestServeRAGRecordRejectsMalformedOptionalEvidence(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name string
+		tool string
+		args map[string]any
+	}{
+		{"query digest", "rag_retrieval_record", map[string]any{"query_digest": "not-a-digest", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1}},
+		{"negative page start", "rag_retrieval_record", map[string]any{"query": "query", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": -1, "page_end": 0, "model_id": "model", "latency_ms": 1}},
+		{"uppercase index hash", "rag_index_record", map[string]any{"index_id": "idx", "source_uri": "file:///doc", "page_count": 1, "node_count": 1, "model_id": "model", "index_hash": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"}},
+		{"selected nodes", "rag_retrieval_record", map[string]any{"query": "query", "retrieval_id": "ret", "index_id": "idx", "node_id": "node", "node_title": "title", "source_uri": "file:///doc", "page_start": 1, "page_end": 1, "model_id": "model", "latency_ms": 1, "selected_node_ids": "node"}},
+		{"source digest", "rag_index_record", map[string]any{"index_id": "idx", "source_uri": "file:///doc", "page_count": 1, "node_count": 1, "model_id": "model", "index_hash": "hash", "source_digest": map[string]any{}}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := callTool(t, testToolHandlers(), test.tool, test.args)
+			if !result.IsError {
+				t.Fatalf("%s accepted malformed optional evidence: %#v", test.name, result)
+			}
+		})
 	}
 }
 
@@ -676,5 +846,42 @@ func chdirTempDir(t *testing.T, dir string) func() {
 		if err := os.Chdir(cwd); err != nil {
 			t.Fatalf("restore os.Chdir(%q): %v", cwd, err)
 		}
+	}
+}
+
+func TestValidSHA256DigestCanonicalEnforcement(t *testing.T) {
+	t.Parallel()
+	canonical := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+	// Canonical lowercase success
+	if !validSHA256Digest(canonical) {
+		t.Errorf("validSHA256Digest(%q) = false, want true", canonical)
+	}
+
+	// Uppercase rejected
+	uppercase := strings.ToUpper(canonical)
+	if validSHA256Digest(uppercase) {
+		t.Errorf("validSHA256Digest(%q) = true, want false (uppercase)", uppercase)
+	}
+
+	// Leading whitespace rejected
+	if validSHA256Digest(" " + canonical) {
+		t.Errorf("validSHA256Digest leading whitespace = true, want false")
+	}
+
+	// Trailing whitespace rejected
+	if validSHA256Digest(canonical + " ") {
+		t.Errorf("validSHA256Digest trailing whitespace = true, want false")
+	}
+
+	// Wrong length rejected
+	if validSHA256Digest(canonical[:63]) || validSHA256Digest(canonical+"a") {
+		t.Errorf("validSHA256Digest wrong length = true, want false")
+	}
+
+	// Non-hex rejected
+	nonHex := canonical[:63] + "g"
+	if validSHA256Digest(nonHex) {
+		t.Errorf("validSHA256Digest non-hex = true, want false")
 	}
 }

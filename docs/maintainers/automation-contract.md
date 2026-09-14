@@ -84,7 +84,9 @@ Example valid event:
 - `required_warnings[]`: non-blocking required warnings
 - `informational_notes[]`: informational notes from verification
 - `exclusions[]` (optional): declared blind spots for the matched profile
-- `residual_risk`: `Low|Medium|High|Critical`
+- `residual_risk`: object with `level` (`Low|Medium|High|Critical`), optional `drivers[]`, and optional `recommended_next_evidence[]`
+
+`atb verify --format json` is the stable `VerifierReport`. `atb verify --json` is a diagnostic internal report and must not be treated as the same contract.
 
 ## Trust report schema
 
@@ -96,7 +98,7 @@ Example valid event:
 - `pass`: whether the evaluated profile passed
 - `cas_score` (optional): completeness assurance score when the profile supports CAS
 - `cas_grade` (optional): `High|Medium|Low|Insufficient`
-- `residual_risk`: `Low|Medium|High|Critical`
+- `residual_risk`: string `Low|Medium|High|Critical` on the trust-report JSON (this is not the verify-report object)
 - `chain`: hash-chain summary object
 - `anchoring`: TSA anchoring summary object
 - `sections[]`: profile-specific evidence sections

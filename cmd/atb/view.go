@@ -375,6 +375,14 @@ func startupProfileSummary(report verifypkg.Report) apiv1.ProfileReportSummary {
 		summary.CorroborationBonus = report.CAS.CorroborationBonus
 		summary.EffectiveScore = report.CAS.EffectiveScore
 		summary.SubScores = report.CAS.SubScores
+		summary.IntegrityValid = report.CAS.IntegrityValid
+		summary.AssuranceValid = report.CAS.AssuranceValid
+		if report.CAS.IntegrityValid {
+			summary.CoverageScore = report.CAS.CoverageScore
+			summary.CoverageGrade = report.CAS.CoverageGrade
+			summary.AssessmentCoverage = report.CAS.AssessmentCoverage
+			summary.DimensionAssessments = report.CAS.Dimensions
+		}
 	}
 	if len(report.Profiles) > 0 {
 		profile := report.Profiles[0]

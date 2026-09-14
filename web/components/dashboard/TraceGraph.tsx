@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import ReactFlow, { Background, Controls, MiniMap, type Edge, type Node } from "reactflow";
+import ReactFlow, { Controls, type Edge, type Node } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { eventFamily, type EventFamily } from "@/lib/event-family";
 import type { BundleGraphResponse } from "@/lib/types";
 
 type TraceGraphProps = {
@@ -14,58 +13,32 @@ type TraceGraphProps = {
   layout?: "dagre-top-down";
 };
 
-function nodeColor(type: string): string {
-  const family: EventFamily =
-    type === "llm" || type === "tool" || type === "chain" ? type : eventFamily(type);
-
-  switch (family) {
-    case "llm":
-      return "hsl(var(--ev-llm))";
-    case "tool":
-      return "hsl(var(--ev-tool))";
-    case "chain":
-      return "hsl(var(--ev-chain))";
-    case "policy":
-      return "hsl(var(--ev-policy))";
-    case "action":
-      return "hsl(var(--ev-action))";
-    case "human":
-      return "hsl(var(--ev-human))";
-    case "corroboration":
-    case "export":
-    case "retention":
-      return "hsl(var(--ev-export))";
-    default:
-      return "hsl(var(--ev-default))";
-  }
-}
-
-export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: TraceGraphProps) {
+export function TraceGraph({ graph, disabled = false, onSelectSeq }: TraceGraphProps) {
   const nodes = useMemo<Node[]>(() => {
     if (!graph) {
       return [];
     }
 
     return graph.nodes.map((node, idx) => {
-      const position =
-        layout === "dagre-top-down"
-          ? { x: (idx % 3) * 260, y: Math.floor(idx / 3) * 120 }
-          : { x: (idx % 5) * 220, y: Math.floor(idx / 5) * 100 };
+      const position = { x: (idx % 2) * 340, y: Math.floor(idx / 2) * 140 };
 
       return {
         id: node.id,
         data: { label: node.label, eventType: node.event_type },
         position,
         style: {
-          border: `1px solid ${nodeColor(node.event_type)}`,
+          border: "1px solid hsl(var(--border))",
           borderRadius: 4,
-          padding: 8,
+          padding: 12,
+          width: 250,
+          fontSize: 12,
+          textAlign: "left",
           background: "hsl(var(--card))",
           color: "hsl(var(--foreground))",
         },
       };
     });
-  }, [graph, layout]);
+  }, [graph]);
 
   const edges = useMemo<Edge[]>(() => {
     if (!graph) {
@@ -76,9 +49,13 @@ export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: Tra
       source: edge.source,
       target: edge.target,
       label: edge.label,
-      animated: edge.label === "parent",
-      style: { stroke: "hsl(var(--border))" },
-      labelStyle: { fill: "hsl(var(--muted-foreground))", fontSize: 10 },
+      animated: false,
+      style: {
+        stroke: "hsl(var(--muted-foreground))",
+        strokeDasharray: edge.label === "next" ? "4 4" : undefined,
+      },
+      labelStyle: { fill: "hsl(var(--foreground))", fontSize: 12 },
+      labelBgStyle: { fill: "hsl(var(--card))" },
     }));
   }, [graph]);
 
@@ -105,14 +82,12 @@ export function TraceGraph({ graph, disabled = false, onSelectSeq, layout }: Tra
             onSelectSeq(seq);
           }
         }}
-        nodesDraggable={!disabled}
+        nodesDraggable={false}
         nodesConnectable={false}
         elementsSelectable={!disabled}
         fitView
       >
-        <MiniMap nodeColor={(node) => nodeColor(String(node.data.eventType ?? "event"))} />
-        <Controls />
-        <Background color="hsl(var(--border))" gap={16} />
+        <Controls showInteractive={false} />
       </ReactFlow>
     </div>
   );

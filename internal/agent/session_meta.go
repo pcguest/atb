@@ -2,9 +2,6 @@
 package agent
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
 	"path/filepath"
 )
 
@@ -37,31 +34,4 @@ func sessionMetaFromBundleMetadata(meta BundleMetadata) sessionMetaFile {
 		OpenedAt:   meta.CreatedAt.UTC().Format(timeRFC3339Nano),
 		ClosedAt:   meta.ClosedAt.UTC().Format(timeRFC3339Nano),
 	}
-}
-
-func writeSessionMeta(dataDir string, meta BundleMetadata) error {
-	payload, err := json.MarshalIndent(sessionMetaFromBundleMetadata(meta), "", "  ")
-	if err != nil {
-		return fmt.Errorf("agent: marshal session meta: %w", err)
-	}
-	path := sessionMetaPath(dataDir, meta.SessionID)
-	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
-		return fmt.Errorf("agent: mkdir session meta: %w", err)
-	}
-	if err := os.WriteFile(path, payload, 0600); err != nil {
-		return fmt.Errorf("agent: write session meta: %w", err)
-	}
-	return nil
-}
-
-func readSessionMeta(path string) (sessionMetaFile, error) {
-	raw, err := os.ReadFile(path) // #nosec G304 -- path is constructed from the configured workspace and validated session directory entries.
-	if err != nil {
-		return sessionMetaFile{}, fmt.Errorf("agent: read session meta: %w", err)
-	}
-	var meta sessionMetaFile
-	if err := json.Unmarshal(raw, &meta); err != nil {
-		return sessionMetaFile{}, fmt.Errorf("agent: parse session meta: %w", err)
-	}
-	return meta, nil
 }

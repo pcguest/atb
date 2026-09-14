@@ -196,6 +196,13 @@ func (s *APIServer) Register(mux *http.ServeMux) {
 	mux.Handle("/api/v1/sessions", s.authMiddleware(http.HandlerFunc(s.handleSessions)))
 	mux.Handle("/api/v1/sessions/by-actor", s.authMiddleware(http.HandlerFunc(s.handleSessionsByActor)))
 	mux.Handle("/api/v1/schema/status", s.authMiddleware(http.HandlerFunc(s.handleSchemaStatus)))
+	mux.Handle("/api/v1/investigation/overview", s.authMiddleware(http.HandlerFunc(s.handleInvestigationOverview)))
+	mux.Handle("/api/v1/investigation/findings", s.authMiddleware(http.HandlerFunc(s.handleInvestigationFindings)))
+	mux.Handle("/api/v1/investigation/timeline", s.authMiddleware(http.HandlerFunc(s.handleInvestigationTimeline)))
+	mux.Handle("/api/v1/investigation/context", s.authMiddleware(http.HandlerFunc(s.handleInvestigationContext)))
+	mux.Handle("/api/v1/investigation/relationships", s.authMiddleware(http.HandlerFunc(s.handleInvestigationRelationships)))
+	mux.Handle("/api/v1/investigation/trust", s.authMiddleware(http.HandlerFunc(s.handleInvestigationTrust)))
+	mux.Handle("/api/v1/investigation/report", s.authMiddleware(http.HandlerFunc(s.handleInvestigationReport)))
 }
 
 // SessionsResponse is the API response for GET /api/v1/sessions.
@@ -524,7 +531,7 @@ func NewTamperHandler(bundlePath string, verifyErr error) http.Handler {
 </head>
 <body>
   <main>
-    <div class="banner">TAMPER DETECTED — HASH CHAIN VERIFICATION FAILED</div>
+    <h1 class="banner">TAMPER DETECTED — HASH CHAIN VERIFICATION FAILED</h1>
     <p class="meta">Bundle: <code>%s</code></p>
     <p class="meta">Details: <code>%s</code></p>
     <p class="meta">Event data is blocked. Review <code>/api/v1/verification</code> for machine-readable status.</p>
@@ -918,6 +925,19 @@ func verifyReportToSummary(r verifypkg.Report) ProfileReportSummary {
 	if r.CAS != nil {
 		summary.CASScore = r.CAS.Overall
 		summary.CASGrade = r.CAS.Grade
+		summary.IntegrityValid = r.CAS.IntegrityValid
+		summary.AssuranceValid = r.CAS.AssuranceValid
+		if r.CAS.IntegrityValid {
+			summary.CoverageScore = r.CAS.CoverageScore
+			summary.CoverageGrade = r.CAS.CoverageGrade
+			summary.AssessmentCoverage = r.CAS.AssessmentCoverage
+			if len(r.CAS.Dimensions) > 0 {
+				summary.DimensionAssessments = make(map[string]verifypkg.DimensionAssessment, len(r.CAS.Dimensions))
+				for key, value := range r.CAS.Dimensions {
+					summary.DimensionAssessments[key] = value
+				}
+			}
+		}
 		if r.CAS.CorroborationBonus != 0 {
 			summary.CorroborationBonus = r.CAS.CorroborationBonus
 			summary.EffectiveScore = r.CAS.EffectiveScore

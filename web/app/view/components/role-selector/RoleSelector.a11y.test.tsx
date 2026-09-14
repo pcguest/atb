@@ -8,7 +8,7 @@ describe("RoleSelector accessibility", () => {
   it("exposes an accessible role selector control", () => {
     const { getByLabelText } = render(<RoleSelector />);
 
-    const selector = getByLabelText("Select dashboard role");
+    const selector = getByLabelText("Select presentation mode");
     expect(selector).toBeInTheDocument();
   });
 });

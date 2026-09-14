@@ -150,6 +150,9 @@ func Run(ctx context.Context, cfg Config, logger *slog.Logger) error {
 	if logger == nil {
 		logger = slog.Default()
 	}
+	if err := validateLoopbackListenAddr(cfg.ListenAddr); err != nil {
+		return err
+	}
 	if err := PrepareWorkspace(cfg.DataDir, logger); err != nil {
 		return err
 	}

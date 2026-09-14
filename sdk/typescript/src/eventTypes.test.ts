@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   AI_ACTION_COMMITTED_EVENT_TYPE,
+  AI_ACTION_ERROR,
+  AI_ACTION_ERROR_EVENT_TYPE,
   AI_ACTION_EXECUTED_EVENT_TYPE,
   AI_ACTION_PRECOMMIT_EVENT_TYPE,
   AI_CHAIN_RUN_EVENT_TYPE,
+  AI_CONTEXT_OPERATION,
+  AI_CONTEXT_OPERATION_EVENT_TYPE,
+  AI_CONTEXT_UNIT,
+  AI_CONTEXT_UNIT_EVENT_TYPE,
   AI_HUMAN_APPROVAL_EVENT_TYPE,
   AI_JOB_COMPLETED_EVENT_TYPE,
   AI_JOB_SCHEDULED_EVENT_TYPE,
@@ -17,11 +23,17 @@ import {
   AI_RESPONSE_SENT_EVENT_TYPE,
   AI_RETRIEVAL_EXECUTED_EVENT_TYPE,
   AI_TOOL_EXEC_EVENT_TYPE,
+  ATB_MCP_OPERATION,
+  ATB_MCP_OPERATION_EVENT_TYPE,
   BUNDLE_ANCHOR_EVENT_TYPE,
   BUNDLE_MANIFEST_EVENT_TYPE,
   BUNDLE_SIGNATURE_EVENT_TYPE,
+  DATA_EXPORT_ERROR,
+  DATA_EXPORT_ERROR_EVENT_TYPE,
   DATA_EXPORT_EXECUTED_EVENT_TYPE,
   DATA_EXPORT_PRECOMMIT_EVENT_TYPE,
+  MCP_OPERATION,
+  MCP_OPERATION_EVENT_TYPE,
   RAG_INDEX_EVENT_TYPE,
   RAG_RETRIEVAL_EVENT_TYPE,
   SNAPSHOT_EVENT_TYPE,
@@ -47,6 +59,8 @@ describe("event type constants", () => {
     expect(AI_ACTION_PRECOMMIT_EVENT_TYPE).toBe("ai.action.precommit");
     expect(AI_ACTION_EXECUTED_EVENT_TYPE).toBe("ai.action.executed");
     expect(AI_ACTION_COMMITTED_EVENT_TYPE).toBe("ai.action.committed");
+    expect(AI_ACTION_ERROR).toBe("ai.action.error");
+    expect(AI_ACTION_ERROR_EVENT_TYPE).toBe("ai.action.error");
     expect(AI_HUMAN_APPROVAL_EVENT_TYPE).toBe("ai.human.approval");
     expect(AI_JOB_SCHEDULED_EVENT_TYPE).toBe("ai.job.scheduled");
     expect(AI_JOB_STARTED_EVENT_TYPE).toBe("ai.job.started");
@@ -54,5 +68,15 @@ describe("event type constants", () => {
     expect(AI_JOB_COMPLETED_EVENT_TYPE).toBe("ai.job.completed");
     expect(DATA_EXPORT_PRECOMMIT_EVENT_TYPE).toBe("data.export.precommit");
     expect(DATA_EXPORT_EXECUTED_EVENT_TYPE).toBe("data.export.executed");
+    expect(DATA_EXPORT_ERROR).toBe("data.export.error");
+    expect(DATA_EXPORT_ERROR_EVENT_TYPE).toBe("data.export.error");
+    expect(AI_CONTEXT_UNIT).toBe("ai.context.unit");
+    expect(AI_CONTEXT_UNIT_EVENT_TYPE).toBe("ai.context.unit");
+    expect(AI_CONTEXT_OPERATION).toBe("ai.context.operation");
+    expect(AI_CONTEXT_OPERATION_EVENT_TYPE).toBe("ai.context.operation");
+    expect(MCP_OPERATION).toBe("atb.mcp.operation");
+    expect(MCP_OPERATION_EVENT_TYPE).toBe("atb.mcp.operation");
+    expect(ATB_MCP_OPERATION).toBe("atb.mcp.operation");
+    expect(ATB_MCP_OPERATION_EVENT_TYPE).toBe("atb.mcp.operation");
   });
 });

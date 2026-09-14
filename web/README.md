@@ -1,62 +1,38 @@
-# ATB Web Dashboard Notes
+# ATB View
 
-## Static Export and Security Headers
+ATB View is the static frontend embedded by the local `atb view` server. It is
+a single-bundle forensic investigation surface, not a hosted dashboard.
 
-The web app is configured for static export (`output: "export"` in `next.config.js`).
-Do not add Next.js `headers()` rules for this app: static export ignores them and prints noisy build warnings.
+The primary sequence is Incident → Findings → Timeline → Context →
+Relationships → Evidence → Trust. Relationships are list-first and the graph
+is optional. Trust keeps integrity, selected-profile coverage, and external
+custody separate; it never reduces them to a health score.
 
-Runtime security headers (including CSP) are enforced by the Go viewer server in `cmd/atb/view.go`.
-Source builds of the Go CLI embed whatever is present under `web/out/`, so run a fresh web build before testing `atb view` from a checkout:
+## Build and verify
 
 ```bash
-cd web
 npm ci
+npm run typecheck
+npm run lint
+npm test
 npm run build
-cd ..
-go build -o atb ./cmd/atb
+npm run test:e2e
+npm run test:a11y
 ```
 
-Validate header delivery through the embed flow:
+The app uses a static export (`output: "export"` in `next.config.js`). Do not
+add Next.js `headers()` rules: the Go viewer server in `cmd/atb/view.go`
+delivers runtime security headers, including CSP. A source build embeds the
+contents of `web/out/`, so rebuild the frontend before building the CLI:
 
 ```bash
+cd web && npm ci && npm run build && cd ..
+go build -o atb ./cmd/atb
 make test-embed
 ```
 
-## Font behaviour in CI
-
-The dashboard avoids runtime Google Fonts fetches in layout code to keep CI and offline builds reliable.
-
-## Current Dashboard Readiness
-
-### Completed
-
-- [x] Role-based rendering (Engineer/Auditor/Executive)
-- [x] Real-time polling (5s interval)
-- [x] Trust Score widget + calculation logic
-- [x] Bundle Meta panel with copyable hashes
-- [x] Zod schema validation for all API responses
-- [x] React Query + Zustand state management
-- [x] WCAG 2.1 AA accessibility (0 axe violations in mock-mode E2E)
-- [x] E2E tests (4/4 passing with mock API)
-- [x] Optional Lighthouse targets documented for local operator runs (A11y >= 100, Perf >= 90)
-
-### Test Commands
-
-```bash
-# Unit tests
-npm run test
-
-# E2E tests (mock mode for CI)
-CYPRESS_MOCK_API=true npm run test:e2e
-
-# Accessibility audit
-npm run test:a11y
-
-# Build validation
-npm run build
-
-# Optional local Lighthouse audit, if installed globally
-lighthouse http://localhost:8080/view/ --output=json --output-path=./lh-report.json --only-categories=accessibility,performance
-```
-
-See [docs/roadmap.md](../docs/roadmap.md) for tracked follow-on work.
+The layout avoids runtime font requests so offline builds and local review are
+deterministic. Component and Vitest tests are the isolated state harness;
+Cypress exercises the full mocked flow and the embedded server in Firefox.
+See the [viewer specification](../docs/specification/viewer.md) and
+[visual-system guidance](../docs/maintainers/visual-system.md).

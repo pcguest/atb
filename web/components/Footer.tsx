@@ -1,26 +1,26 @@
 export default function Footer() {
   return (
-    <footer className="border-t border-[#1e1e2e] py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+    <footer className="bg-background py-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-8 grid grid-cols-1 gap-8 md:grid-cols-4">
           {/* Brand */}
           <div className="md:col-span-2">
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
-                <span className="font-mono font-bold text-white text-xs">A</span>
+              <div className="flex h-7 w-7 items-center justify-center rounded-md border border-primary/35 bg-primary/10">
+                <span className="font-mono text-xs font-bold text-primary">A</span>
               </div>
-              <span className="font-mono font-semibold text-white">ATB</span>
+              <span className="font-semibold text-foreground">ATB</span>
             </div>
-            <p className="text-[#6b7280] text-sm leading-relaxed max-w-xs">
-              Local-first audit trails for privacy-sensitive AI and agent workflows. Go
-              CLI, local viewer, exports, and SDKs that share the same bundle format.
+            <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+              Portable evidence for AI-agent incidents. Capture, verify, investigate, and export
+              locally.
             </p>
             <div className="flex items-center gap-3 mt-4">
               <a
                 href="https://github.com/pcguest/atb"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[#6b7280] hover:text-white transition-colors"
+                className="text-muted-foreground transition-colors hover:text-foreground"
                 aria-label="GitHub"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -32,7 +32,7 @@ export default function Footer() {
 
           {/* Product */}
           <div>
-            <h4 className="text-white font-medium text-sm mb-3">Docs</h4>
+            <h2 className="mb-3 text-sm font-medium text-foreground">Docs</h2>
             <ul className="space-y-2">
               {[
                 {
@@ -62,7 +62,7 @@ export default function Footer() {
                     href={item.href}
                     target={item.href.startsWith("http") ? "_blank" : undefined}
                     rel={item.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                    className="text-[#6b7280] hover:text-white text-sm transition-colors"
+                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {item.label}
                   </a>
@@ -73,7 +73,7 @@ export default function Footer() {
 
           {/* Developers */}
           <div>
-            <h4 className="text-white font-medium text-sm mb-3">Developers</h4>
+            <h2 className="mb-3 text-sm font-medium text-foreground">Developers</h2>
             <ul className="space-y-2">
               {[
                 { label: "GitHub", href: "https://github.com/pcguest/atb" },
@@ -99,7 +99,7 @@ export default function Footer() {
                     href={item.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#6b7280] hover:text-white text-sm transition-colors"
+                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {item.label}
                   </a>
@@ -110,9 +110,9 @@ export default function Footer() {
         </div>
 
         {/* Bottom bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between pt-8 border-t border-[#1e1e2e] gap-4">
-          <p className="text-[#6b7280] text-sm font-mono">© 2026 ATB. MIT License.</p>
-          <div className="flex items-center gap-4 text-[#6b7280] text-sm">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-border pt-8 sm:flex-row">
+          <p className="font-mono text-sm text-muted-foreground">© 2026 ATB. MIT License.</p>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <span className="font-mono text-xs">
               Built and maintained in the open by Patrick Guest.
             </span>

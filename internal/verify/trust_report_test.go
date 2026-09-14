@@ -65,6 +65,16 @@ func TestTrustReportFromVerify_RAGAnswer(t *testing.T) {
 	}
 }
 
+func TestTrustReportOmitsCASForInvalidIntegrity(t *testing.T) {
+	b := newRAGAnswerBundle(t)
+	b.Records[1].Hash = "tampered"
+	report := Verify(b, "bundle.atb", profileIDRAGAnswer)
+	trustReport := TrustReportFromVerify(report, b)
+	if trustReport.CAS != nil || trustReport.CASScore != 0 || trustReport.CASGrade != "" {
+		t.Fatalf("tampered evidence exposed CAS: %+v", trustReport)
+	}
+}
+
 func TestTrustReportFromVerify_BackgroundAutomation(t *testing.T) {
 	b := newVerifyTestBundle(t)
 	appendVerifyRecord(t, b, event.TypeAIJobScheduled, map[string]any{
@@ -236,5 +246,23 @@ func TestFirstEventField_NonObjectDataReturnsEmpty(t *testing.T) {
 
 	if got := firstEventField(b, bundle.AnchorEventType, "bundle_hash"); got != "" {
 		t.Fatalf("expected empty string, got %q", got)
+	}
+}
+
+func TestTrustReportFromVerify_InvalidIntegrityDoesNotMaterialiseCoverageScore(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{"session_id": "s1"}, "2026-03-27T12:00:00Z")
+
+	// Tamper with record hash to invalidate chain integrity
+	b.Records[len(b.Records)-1].Hash = "0000000000000000000000000000000000000000000000000000000000000000"
+
+	report := Verify(b, "bundle.atb", profileIDPrivilegedToolAction)
+	if report.Integrity.ChainValid {
+		t.Fatal("expected invalid integrity")
+	}
+
+	trustReport := TrustReportFromVerify(report, b)
+	if trustReport.CAS != nil {
+		t.Fatalf("expected nil CAS on invalid integrity, got %+v", trustReport.CAS)
 	}
 }

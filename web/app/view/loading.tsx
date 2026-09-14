@@ -6,7 +6,7 @@ export default function ViewLoading() {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Loading Trust Dashboard</CardTitle>
+          <CardTitle>Loading investigation</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <Skeleton className="h-4 w-1/3" />

@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- No unreleased changes. -->
 
+## [v1.16.0] - 2026-09-03
+
+### Changed
+- Documentation now matches the shipped `data_export` profile (`data.export.*` as the critical path), `verify.report.v1.schema.3` as the current custody schema, and `residual_risk` as an object on `atb verify --format json`.
+- `coverage_score` is omitted when the hash chain is invalid; `cas_score` remains `0` on integrity failure.
+- MCP initialize/`server/discover` advertise only `2024-11-05` until modern protocol fields exist. RAG retrieval records a query digest by default.
+- OTel `atb.event_type` is an allowlisted hint, not a taxonomy authority.
+- View Context is labelled evidence, not “supplied to model”; coverage percentages are hidden when the chain is invalid; Relationships is table-first.
+- Investigation View is the shipped surface: Incident-first, three-question Trust, findings sequences open Evidence, and the command palette traps focus.
+- View and the public landing page now share a restrained forensic visual grammar, explicit loading/empty/error states, accessible navigation labels, and a stable Incident → Findings → Timeline → Context → Relationships → Evidence → Trust sequence.
+- The public quickstart now distinguishes the local v1.16.0 candidate from the independently published Python and TypeScript registry versions.
+- OpenAPI `info.version` is `1.16.0`. `pkg/api/v1` is documented as the local viewer HTTP API, not a product SDK.
+- MCP docs state the shipped handshake is `2024-11-05` and do not claim MCP `2026-07-28` completeness.
+- Historical changelog entries that describe `custosd` HTTP refer to a removed in-repo daemon. Current optional custody is the Mortise client; the receipt wire identifier remains `custos.receipt.v1`.
+- Text help lists `atb intercept`. `atb serve` and `atb identity` remain compatibility commands, not the public product surface.
+
+### Removed
+- Unused Python packaging glob `atb_cli_stub*`.
+- Unmounted health-score, dashboard-stat, anomaly, legacy timeline, and duplicate compliance panel experiments, together with their stale browser specs.
+
+### Security
+- Agent bundle access is confined to the configured bundle root, including symlink escape checks.
+- The agent server revalidates loopback binding at startup even when configuration validation is bypassed by an in-process caller.
+- Short fallback API keys are fully redacted rather than partially disclosed.
+
 ## [v1.15.4] - 2026-08-30
 
 ### Fixed

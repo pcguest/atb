@@ -12,6 +12,13 @@ export const provabilityGapSchema = z.object({
   closed_when: z.string(),
 });
 
+export const dimensionAssessmentSchema = z.object({
+  assessable: z.boolean(),
+  score: z.number().nullable().optional(),
+  weight: z.number(),
+  reason: z.string().optional().default(""),
+});
+
 export const profileReportSummarySchema = z.object({
   profile_id: z.string(),
   profile_version: z.number().int().positive().optional(),
@@ -20,6 +27,12 @@ export const profileReportSummarySchema = z.object({
   anchor_status: z.string().optional(),
   cas_score: z.number().default(0),
   cas_grade: z.string().optional().default(""),
+  coverage_score: z.number().optional(),
+  coverage_grade: z.string().optional().default(""),
+  assessment_coverage: z.number().optional().default(0),
+  dimension_assessments: z.record(z.string(), dimensionAssessmentSchema).optional().default({}),
+  integrity_valid: z.boolean().optional().default(false),
+  assurance_valid: z.boolean().optional().default(false),
   effective_score: z.number().optional(),
   corroboration_bonus: z.number().optional(),
   sub_scores: z.record(z.string(), z.number()).optional().default({}),

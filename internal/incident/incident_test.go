@@ -90,7 +90,7 @@ func TestBuildScopesSessionAndReportsIntegrity(t *testing.T) {
 	}
 
 	md := rep.Markdown()
-	if !strings.Contains(md, "tool=wipe_db") || !strings.Contains(md, "error_class=failed") {
+	if !strings.Contains(md, "tool=wipe\\_db") || !strings.Contains(md, "error\\_class=failed") {
 		t.Errorf("markdown missing event summaries:\n%s", md)
 	}
 	if !strings.Contains(md, "unsigned") {
@@ -202,7 +202,7 @@ func TestBuildSummarisesPrincipal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
-	if md := rep.Markdown(); !strings.Contains(md, "by agent:sha256:a1 on_behalf_of sha256:u9") {
+	if md := rep.Markdown(); !strings.Contains(md, "by agent:sha256:a1 on\\_behalf\\_of sha256:u9") {
 		t.Errorf("markdown missing principal summary:\n%s", md)
 	}
 }
@@ -380,7 +380,7 @@ func TestListSessions(t *testing.T) {
 	if !strings.Contains(md, "sess-A") || !strings.Contains(md, "sess-B") {
 		t.Errorf("session list markdown missing sessions:\n%s", md)
 	}
-	if !strings.Contains(md, "tool_without_approval") {
+	if !strings.Contains(md, "tool\\_without\\_approval") {
 		t.Errorf("session list should surface the anomaly:\n%s", md)
 	}
 }
@@ -401,5 +401,71 @@ func TestReportJSONRoundTrips(t *testing.T) {
 	}
 	if back.SessionID != "sess-A" || len(back.Events) != 4 {
 		t.Errorf("json round-trip mismatch: %+v", back)
+	}
+}
+
+func TestMarkdownReportLiteralSafety(t *testing.T) {
+	t.Parallel()
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("bundle.New: %v", err)
+	}
+	maliciousSessionID := "sess`evil` | [link](http://evil.com) | mail@example.com | <script>alert(1)</script> | # heading | *em* | _em_ | ~~strike~~ | line\nbreak"
+	if err := b.Append(event.TypeToolCall, map[string]any{
+		"session_id": maliciousSessionID,
+		"tool_name":  "test|tool`name`*foo*~~bar~~<tag>",
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "unsafe-name.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	rep, err := incident.Build(context.Background(), path, maliciousSessionID)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	// Keep the bundle fixture path portable for Windows while still exercising
+	// literal rendering of hostile bundle-derived path text.
+	rep.BundlePath = "unsafe`path`|name.atb"
+	md := rep.Markdown()
+
+	// Newlines in session ID or bundle path must be collapsed to spaces
+	if strings.Contains(md, "line\nbreak") {
+		t.Errorf("raw newline was not collapsed: %s", md)
+	}
+	// Raw unescaped backticks must not be emitted for bundle-derived values
+	if strings.Contains(md, "`evil`") {
+		t.Errorf("raw backtick was emitted: %s", md)
+	}
+	// HTML brackets must be escaped
+	if strings.Contains(md, "<script>") || strings.Contains(md, "<tag>") {
+		t.Errorf("raw HTML brackets were emitted: %s", md)
+	}
+	// GFM strikethrough must be escaped
+	if strings.Contains(md, "~~strike~~") || strings.Contains(md, "~~bar~~") {
+		t.Errorf("raw strikethrough delimiters were emitted: %s", md)
+	}
+	if strings.Contains(md, "http://evil.com") {
+		t.Errorf("raw autolink was emitted: %s", md)
+	}
+	if !strings.Contains(md, "http:\u200b//evil.com") {
+		t.Errorf("display-preserving URL break missing: %s", md)
+	}
+	if strings.Contains(md, "mail@example.com") {
+		t.Errorf("raw email autolink was emitted: %s", md)
+	}
+	// Verify SessionListMarkdown as well
+	sessions, err := incident.ListSessions(context.Background(), path)
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
+	smd := incident.SessionListMarkdown(path, sessions)
+	if strings.Contains(smd, "`evil`") || strings.Contains(smd, "<script>") || strings.Contains(smd, "~~strike~~") {
+		t.Errorf("SessionListMarkdown leaked raw markdown syntax: %s", smd)
+	}
+	if !strings.Contains(smd, "\\|") {
+		t.Errorf("SessionListMarkdown did not escape a table-cell pipe: %s", smd)
 	}
 }

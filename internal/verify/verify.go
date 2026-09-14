@@ -85,12 +85,67 @@ type ProfileResult struct {
 // It does not override obligation outcome: a profile can FAIL while Overall is
 // non-zero; treat CAS as diagnostic completeness evidence only in that case.
 type CASResult struct {
-	Overall            float64            `json:"overall"`
-	Grade              string             `json:"grade"` // "High" >=0.85 | "Medium" >=0.60 | "Low" >=0.30 | "Insufficient" <0.30
-	CorroborationBonus float64            `json:"corroboration_bonus"`
-	EffectiveScore     float64            `json:"effective_score"`
-	SubScores          map[string]float64 `json:"sub_scores"`
-	WeightVector       map[string]float64 `json:"weight_vector"`
+	Overall            float64                        `json:"overall"`
+	Grade              string                         `json:"grade"` // "High" >=0.85 | "Medium" >=0.60 | "Low" >=0.30 | "Insufficient" <0.30
+	CorroborationBonus float64                        `json:"corroboration_bonus"`
+	EffectiveScore     float64                        `json:"effective_score"`
+	SubScores          map[string]float64             `json:"sub_scores"`
+	WeightVector       map[string]float64             `json:"weight_vector"`
+	CoverageScore      float64                        `json:"coverage_score,omitempty"`
+	CoverageGrade      string                         `json:"coverage_grade,omitempty"`
+	AssessmentCoverage float64                        `json:"assessment_coverage,omitempty"`
+	Dimensions         map[string]DimensionAssessment `json:"dimension_assessments,omitempty"`
+	IntegrityValid     bool                           `json:"integrity_valid"`
+	AssuranceValid     bool                           `json:"assurance_valid"`
+}
+
+// MarshalJSON publishes coverage metrics only when they are meaningful. A
+// valid bundle can legitimately have zero coverage, so those zero values must
+// remain distinct from coverage withheld after an integrity failure.
+func (r CASResult) MarshalJSON() ([]byte, error) {
+	type casResultJSON struct {
+		Overall            float64                        `json:"overall"`
+		Grade              string                         `json:"grade"`
+		CorroborationBonus float64                        `json:"corroboration_bonus"`
+		EffectiveScore     float64                        `json:"effective_score"`
+		SubScores          map[string]float64             `json:"sub_scores"`
+		WeightVector       map[string]float64             `json:"weight_vector"`
+		CoverageScore      *float64                       `json:"coverage_score,omitempty"`
+		CoverageGrade      *string                        `json:"coverage_grade,omitempty"`
+		AssessmentCoverage *float64                       `json:"assessment_coverage,omitempty"`
+		Dimensions         map[string]DimensionAssessment `json:"dimension_assessments,omitempty"`
+		IntegrityValid     bool                           `json:"integrity_valid"`
+		AssuranceValid     bool                           `json:"assurance_valid"`
+	}
+
+	encoded := casResultJSON{
+		Overall:            r.Overall,
+		Grade:              r.Grade,
+		CorroborationBonus: r.CorroborationBonus,
+		EffectiveScore:     r.EffectiveScore,
+		SubScores:          r.SubScores,
+		WeightVector:       r.WeightVector,
+		IntegrityValid:     r.IntegrityValid,
+		AssuranceValid:     r.AssuranceValid,
+	}
+	if r.IntegrityValid {
+		encoded.CoverageScore = &r.CoverageScore
+		encoded.CoverageGrade = &r.CoverageGrade
+		encoded.AssessmentCoverage = &r.AssessmentCoverage
+		encoded.Dimensions = r.Dimensions
+	}
+
+	return json.Marshal(encoded)
+}
+
+// DimensionAssessment distinguishes absent evidence from a dimension ATB
+// cannot assess from the records presented. Score is nil when Assessable is
+// false; this avoids representing unknown evidence as zero coverage.
+type DimensionAssessment struct {
+	Assessable bool     `json:"assessable"`
+	Score      *float64 `json:"score,omitempty"`
+	Weight     float64  `json:"weight"`
+	Reason     string   `json:"reason,omitempty"`
 }
 
 // ResidualRisk summarises the main outstanding concerns.

@@ -60,20 +60,33 @@ print(path)
 
 ## Supported event types
 
+Canonical constants live in `atb/event_types_generated.py` (generated from
+`schemas/event.v1.json`; do not edit by hand). `ai.*` and `atb.*` families
+are distinct wire types — for example `ai.human.approval` is not
+`atb.human.approval`, and `ai.retrieval.executed` is not
+`atb.event.rag_retrieval`.
+
 | Event type constant name | Event type string |
 | --- | --- |
 | `BUNDLE_MANIFEST_EVENT_TYPE` | `atb.bundle.manifest` |
 | `BUNDLE_ANCHOR_EVENT_TYPE` | `atb.bundle.anchor` |
 | `BUNDLE_SIGNATURE_EVENT_TYPE` | `atb.bundle.signature` |
+| `SNAPSHOT_EVENT_TYPE` | `atb.snapshot` |
 | `AI_REQUEST_RECEIVED_EVENT_TYPE` | `ai.request.received` |
 | `AI_RESPONSE_SENT_EVENT_TYPE` | `ai.response.sent` |
+| `AI_LLM_CALL_EVENT_TYPE` | `ai.llm.call` |
+| `AI_TOOL_EXEC_EVENT_TYPE` | `ai.tool.exec` |
+| `AI_CHAIN_RUN_EVENT_TYPE` | `ai.chain.run` |
 | `AI_POLICY_DECISION_EVENT_TYPE` | `ai.policy.decision` |
 | `AI_RETRIEVAL_EXECUTED_EVENT_TYPE` | `ai.retrieval.executed` |
 | `AI_MODEL_INVOKED_EVENT_TYPE` | `ai.model.invoked` |
 | `AI_MODEL_OUTPUT_EVENT_TYPE` | `ai.model.output` |
+| `RAG_INDEX_EVENT_TYPE` | `atb.event.rag_index` |
+| `RAG_RETRIEVAL_EVENT_TYPE` | `atb.event.rag_retrieval` |
 | `AI_ACTION_PRECOMMIT_EVENT_TYPE` | `ai.action.precommit` |
 | `AI_ACTION_EXECUTED_EVENT_TYPE` | `ai.action.executed` |
 | `AI_ACTION_COMMITTED_EVENT_TYPE` | `ai.action.committed` |
+| `AI_ACTION_ERROR_EVENT_TYPE` | `ai.action.error` |
 | `AI_HUMAN_APPROVAL_EVENT_TYPE` | `ai.human.approval` |
 | `AI_JOB_SCHEDULED_EVENT_TYPE` | `ai.job.scheduled` |
 | `AI_JOB_STARTED_EVENT_TYPE` | `ai.job.started` |
@@ -81,6 +94,13 @@ print(path)
 | `AI_JOB_COMPLETED_EVENT_TYPE` | `ai.job.completed` |
 | `DATA_EXPORT_PRECOMMIT_EVENT_TYPE` | `data.export.precommit` |
 | `DATA_EXPORT_EXECUTED_EVENT_TYPE` | `data.export.executed` |
+| `DATA_EXPORT_ERROR_EVENT_TYPE` | `data.export.error` |
+| `TOOL_CALL_EVENT_TYPE` | `atb.tool.call` |
+| `DATA_EXPORT_EVENT_TYPE` | `atb.data.export` |
+| `HUMAN_OVERRIDE_EVENT_TYPE` | `atb.human.override` |
+| `HUMAN_APPROVAL_EVENT_TYPE` | `atb.human.approval` |
+| `CAPTURE_SCOPE_EVENT_TYPE` | `atb.capture.scope` |
+| `CAPTURE_REJECTED_EVENT_TYPE` | `atb.capture.rejected` |
 
 ## Profile support
 

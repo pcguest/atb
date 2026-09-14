@@ -3,32 +3,27 @@ import { describe, expect, it } from "vitest";
 import {
   canExportEvidence,
   canRevealMaskedFields,
-  canViewExecutiveSummary,
   canViewRawData,
+  dashboardRoles,
+  isDensePresentation,
 } from "@/lib/roles";
 
-describe("role permission helpers", () => {
-  it("allows engineer-only raw event access", () => {
-    expect(canViewRawData("engineer")).toBe(true);
-    expect(canViewRawData("auditor")).toBe(false);
-    expect(canViewRawData("executive")).toBe(false);
+describe("presentation modes", () => {
+  it("defines the agreed Engineer, Security, and Auditor modes", () => {
+    expect(dashboardRoles).toEqual(["engineer", "security", "auditor"]);
   });
 
-  it("allows auditor and engineer evidence export", () => {
-    expect(canExportEvidence("engineer")).toBe(true);
-    expect(canExportEvidence("auditor")).toBe(true);
-    expect(canExportEvidence("executive")).toBe(false);
+  it("does not use presentation modes as access control", () => {
+    for (const role of dashboardRoles) {
+      expect(canViewRawData(role)).toBe(true);
+      expect(canExportEvidence(role)).toBe(true);
+      expect(canRevealMaskedFields(role)).toBe(true);
+    }
   });
 
-  it("allows executive-only trend summary", () => {
-    expect(canViewExecutiveSummary("engineer")).toBe(false);
-    expect(canViewExecutiveSummary("auditor")).toBe(false);
-    expect(canViewExecutiveSummary("executive")).toBe(true);
-  });
-
-  it("allows engineer-only reveal actions", () => {
-    expect(canRevealMaskedFields("engineer")).toBe(true);
-    expect(canRevealMaskedFields("auditor")).toBe(false);
-    expect(canRevealMaskedFields("executive")).toBe(false);
+  it("uses Engineer as the dense presentation", () => {
+    expect(isDensePresentation("engineer")).toBe(true);
+    expect(isDensePresentation("security")).toBe(false);
+    expect(isDensePresentation("auditor")).toBe(false);
   });
 });

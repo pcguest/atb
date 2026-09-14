@@ -153,8 +153,12 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 		if viewResp.Header.Get("Content-Security-Policy") == "" {
 			t.Fatalf("expected Content-Security-Policy header on /view/")
 		}
-		if !strings.Contains(viewBody, "Trust Dashboard") {
-			t.Fatalf("expected dashboard HTML from installed binary, got %s", viewBody)
+		// Trust questions are client-rendered. This GET only sees static HTML, so
+		// assert View chrome that is actually shipped — not the stale "Trust Dashboard" copy.
+		for _, want := range []string{"view-shell", "Verifying bundle integrity"} {
+			if !strings.Contains(viewBody, want) {
+				t.Fatalf("expected installed View HTML to contain %q, got %s", want, viewBody)
+			}
 		}
 	})
 }

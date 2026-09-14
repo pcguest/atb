@@ -6,9 +6,9 @@ ATB is an open-source, local-first evidence system for AI agents. It captures
 agent and tool activity into portable, tamper-evident bundles that can be
 independently verified offline.
 
-**ATB proves the integrity of what was recorded. It does not prove that every
-relevant event was captured, that an actor was honest before capture, or that
-the recorded activity was correct.**
+**ATB proves the integrity and order of records presented in a bundle. It does
+not prove that every relevant event was captured, that an actor was honest
+before capture, or that the recorded activity was correct.**
 
 When an agent incident occurs, ATB lets an investigator verify the evidence,
 reconstruct recorded actions, and trace deterministic findings back to
@@ -16,10 +16,15 @@ hash-addressed bundle events without relying on the agent application's own
 logs. It requires no service, cloud account, external database, or hosted
 verifier.
 
-Source version: [`v1.15.4`](CHANGELOG.md). A source tag does not imply that
+Source version: [`v1.16.0`](CHANGELOG.md). A source tag does not imply that
 every registry or GitHub release artefact has been published; check the
 installed CLI/SDK version and the relevant registry before relying on a
 particular release.
+
+v1.16.0 Docker images are multi-architecture (`linux/amd64` and
+`linux/arm64`). Pull the published `atb` image for that tag from Docker Hub
+when the registry publication for the tag is available. Image publication is
+independent of the source tag.
 
 ## Try ATB in five minutes
 
@@ -51,6 +56,10 @@ make build
 
 See the [five-minute quickstart](./docs/getting-started/quickstart.md) for Python and TypeScript
 SDK installation, capture paths, and the complete local review flow.
+
+The product flow is **capture → bundle → verify → investigate → export**. Each
+stage leaves a portable artefact or an explicit result; nothing requires a
+hosted ATB service.
 
 ## What ATB records
 
@@ -129,7 +138,7 @@ Python and TypeScript SDKs do not call a hidden Go service.
 
 | Language | Package |
 | --- | --- |
-| Go | [`pkg/api/v1`](./pkg/api/v1) |
+| Go | The `atb` CLI (`cmd/atb`) and supporting libraries. [`pkg/api/v1`](./pkg/api/v1) is the **local viewer HTTP API** used by `atb view`, not a general-purpose product SDK. |
 | Python | [`sdk/python`](./sdk/python) |
 | TypeScript | [`sdk/typescript`](./sdk/typescript) |
 

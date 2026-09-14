@@ -12,27 +12,33 @@ import (
 const VerifyReportVersion = "verify.report.v1"
 
 type VerifierReport struct {
-	ReportVersion      string                      `json:"report_version"`
-	BundlePath         string                      `json:"bundle_path"`
-	Retrospective      bool                        `json:"retrospective,omitempty"`
-	ProfileID          string                      `json:"profile_id"`
-	ProfileVersion     int                         `json:"profile_version,omitempty"`
-	Pass               bool                        `json:"pass"`
-	GateResult         GateResult                  `json:"gate_result"`
-	CASScore           float64                     `json:"cas_score"`
-	CASGrade           string                      `json:"cas_grade,omitempty"`
-	CorroborationBonus float64                     `json:"corroboration_bonus,omitempty"`
-	EffectiveScore     float64                     `json:"effective_score,omitempty"`
-	SubScores          map[string]float64          `json:"sub_scores,omitempty"`
-	Failures           []ReportFailure             `json:"critical_failures"`
-	Obligations        []ObligationResult          `json:"obligations,omitempty"`
-	Warnings           []string                    `json:"required_warnings"`
-	Notes              []string                    `json:"informational_notes"`
-	Exclusions         []string                    `json:"exclusions,omitempty"`
-	Signatures         []SignatureProvenance       `json:"signatures,omitempty"`
-	ProvabilityGaps    []ProvabilityGap            `json:"provability_gaps,omitempty"`
-	ReviewerIdentities []identityevidence.Evidence `json:"reviewer_identities,omitempty"`
-	ResidualRisk       ResidualRiskReport          `json:"residual_risk"`
+	ReportVersion        string                         `json:"report_version"`
+	BundlePath           string                         `json:"bundle_path"`
+	Retrospective        bool                           `json:"retrospective,omitempty"`
+	ProfileID            string                         `json:"profile_id"`
+	ProfileVersion       int                            `json:"profile_version,omitempty"`
+	Pass                 bool                           `json:"pass"`
+	GateResult           GateResult                     `json:"gate_result"`
+	CASScore             float64                        `json:"cas_score"`
+	CASGrade             string                         `json:"cas_grade,omitempty"`
+	CorroborationBonus   float64                        `json:"corroboration_bonus,omitempty"`
+	EffectiveScore       float64                        `json:"effective_score,omitempty"`
+	SubScores            map[string]float64             `json:"sub_scores,omitempty"`
+	CoverageScore        float64                        `json:"coverage_score,omitempty"`
+	CoverageGrade        string                         `json:"coverage_grade,omitempty"`
+	AssessmentCoverage   float64                        `json:"assessment_coverage,omitempty"`
+	DimensionAssessments map[string]DimensionAssessment `json:"dimension_assessments,omitempty"`
+	IntegrityValid       bool                           `json:"integrity_valid"`
+	AssuranceValid       bool                           `json:"assurance_valid"`
+	Failures             []ReportFailure                `json:"critical_failures"`
+	Obligations          []ObligationResult             `json:"obligations,omitempty"`
+	Warnings             []string                       `json:"required_warnings"`
+	Notes                []string                       `json:"informational_notes"`
+	Exclusions           []string                       `json:"exclusions,omitempty"`
+	Signatures           []SignatureProvenance          `json:"signatures,omitempty"`
+	ProvabilityGaps      []ProvabilityGap               `json:"provability_gaps,omitempty"`
+	ReviewerIdentities   []identityevidence.Evidence    `json:"reviewer_identities,omitempty"`
+	ResidualRisk         ResidualRiskReport             `json:"residual_risk"`
 }
 
 type ReportFailure struct {
@@ -49,13 +55,14 @@ type ResidualRiskReport struct {
 
 func ReportFromVerify(r Report) VerifierReport {
 	report := VerifierReport{
-		ReportVersion: VerifyReportVersion,
-		BundlePath:    r.BundlePath,
-		Retrospective: r.Retrospective,
-		GateResult:    gateResultFromVerify(r, false),
-		Failures:      []ReportFailure{},
-		Warnings:      []string{},
-		Notes:         []string{},
+		ReportVersion:  VerifyReportVersion,
+		BundlePath:     r.BundlePath,
+		Retrospective:  r.Retrospective,
+		IntegrityValid: r.Integrity.ChainValid,
+		GateResult:     gateResultFromVerify(r, false),
+		Failures:       []ReportFailure{},
+		Warnings:       []string{},
+		Notes:          []string{},
 		ResidualRisk: ResidualRiskReport{
 			Level:                   r.ResidualRisk.Level,
 			Drivers:                 append([]string(nil), r.ResidualRisk.Drivers...),
@@ -86,6 +93,21 @@ func ReportFromVerify(r Report) VerifierReport {
 	if r.CAS != nil {
 		report.CASScore = r.CAS.Overall
 		report.CASGrade = r.CAS.Grade
+		// Hash-chain integrity is authoritative even when a fallback CAS is
+		// unassessable (and consequently has IntegrityValid unset).
+		report.IntegrityValid = r.Integrity.ChainValid
+		report.AssuranceValid = r.CAS.AssuranceValid
+		if r.CAS.IntegrityValid {
+			report.CoverageScore = r.CAS.CoverageScore
+			report.CoverageGrade = r.CAS.CoverageGrade
+			report.AssessmentCoverage = r.CAS.AssessmentCoverage
+			if len(r.CAS.Dimensions) > 0 {
+				report.DimensionAssessments = make(map[string]DimensionAssessment, len(r.CAS.Dimensions))
+				for key, value := range r.CAS.Dimensions {
+					report.DimensionAssessments[key] = value
+				}
+			}
+		}
 		if r.CAS.CorroborationBonus != 0 {
 			report.CorroborationBonus = r.CAS.CorroborationBonus
 			report.EffectiveScore = r.CAS.EffectiveScore
@@ -114,6 +136,9 @@ func ReportFromVerify(r Report) VerifierReport {
 	report.Warnings = append([]string(nil), profile.RequiredWarnings...)
 	report.Notes = append([]string(nil), profile.InformationalNotes...)
 	report.ProvabilityGaps = append([]ProvabilityGap(nil), r.ProvabilityGaps...)
+	if r.CAS != nil && !r.CAS.IntegrityValid {
+		report.Notes = append(report.Notes, "coverage_score omitted because integrity_valid is false")
+	}
 
 	return report
 }

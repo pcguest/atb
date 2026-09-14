@@ -24,6 +24,12 @@ import {
   sessionsResponseSchema,
   verificationResponseSchema,
   workspaceBundlesResponseSchema,
+  investigationContextSchema,
+  investigationFindingsSchema,
+  investigationOverviewSchema,
+  investigationRelationshipsSchema,
+  investigationTimelineSchema,
+  investigationTrustSchema,
 } from "@/lib/schemas";
 import type {
   BundleEventsResponse,
@@ -37,6 +43,12 @@ import type {
   SessionEntry,
   VerificationResponse,
   WorkspaceBundlesResponse,
+  InvestigationContext,
+  InvestigationFindings,
+  InvestigationOverview,
+  InvestigationRelationships,
+  InvestigationTimeline,
+  InvestigationTrust,
 } from "@/lib/types";
 
 const defaultEventsPageSize = 200;
@@ -159,6 +171,8 @@ export const queryKeys = {
   sessions: (scope: QueryScope) => scopedQueryKey(scope, ["sessions"]),
   actorSessions: (scope: QueryScope) => scopedQueryKey(scope, ["sessions", "by-actor"]),
   schemaStatus: (scope: QueryScope) => scopedQueryKey(scope, ["schema", "status"]),
+  investigation: (scope: QueryScope, surface: string) =>
+    scopedQueryKey(scope, ["investigation", surface]),
 };
 
 function parseWithSchema<T>(schema: ZodSchema<T>, payload: unknown, path: string): T {
@@ -285,6 +299,78 @@ export function getSchemaStatus(
   signal?: AbortSignal,
 ): Promise<SchemaStatusResponse> {
   return requestJSON("/api/v1/schema/status", schemaStatusResponseSchema, { signal }, sessionToken);
+}
+
+export function getInvestigationOverview(
+  sessionToken = getSessionToken(),
+  signal?: AbortSignal,
+): Promise<InvestigationOverview> {
+  return requestJSON(
+    "/api/v1/investigation/overview",
+    investigationOverviewSchema,
+    { signal },
+    sessionToken,
+  );
+}
+
+export function getInvestigationFindings(
+  sessionToken = getSessionToken(),
+  signal?: AbortSignal,
+): Promise<InvestigationFindings> {
+  return requestJSON(
+    "/api/v1/investigation/findings",
+    investigationFindingsSchema,
+    { signal },
+    sessionToken,
+  );
+}
+
+export function getInvestigationTimeline(
+  sessionToken = getSessionToken(),
+  signal?: AbortSignal,
+): Promise<InvestigationTimeline> {
+  return requestJSON(
+    "/api/v1/investigation/timeline",
+    investigationTimelineSchema,
+    { signal },
+    sessionToken,
+  );
+}
+
+export function getInvestigationContext(
+  sessionToken = getSessionToken(),
+  signal?: AbortSignal,
+): Promise<InvestigationContext> {
+  return requestJSON(
+    "/api/v1/investigation/context",
+    investigationContextSchema,
+    { signal },
+    sessionToken,
+  );
+}
+
+export function getInvestigationRelationships(
+  sessionToken = getSessionToken(),
+  signal?: AbortSignal,
+): Promise<InvestigationRelationships> {
+  return requestJSON(
+    "/api/v1/investigation/relationships",
+    investigationRelationshipsSchema,
+    { signal },
+    sessionToken,
+  );
+}
+
+export function getInvestigationTrust(
+  sessionToken = getSessionToken(),
+  signal?: AbortSignal,
+): Promise<InvestigationTrust> {
+  return requestJSON(
+    "/api/v1/investigation/trust",
+    investigationTrustSchema,
+    { signal },
+    sessionToken,
+  );
 }
 
 export async function getBundleProfile(
@@ -451,6 +537,66 @@ export function useSchemaStatusQuery(
     enabled,
     retry: false,
     staleTime: 30000,
+  });
+}
+
+export function useInvestigationOverviewQuery(): UseQueryResult<InvestigationOverview, Error> {
+  const { scope, sessionToken } = useRequestContext();
+  return useQuery({
+    queryKey: queryKeys.investigation(scope, "overview"),
+    queryFn: ({ signal }) => getInvestigationOverview(sessionToken, signal),
+    retry: 1,
+    staleTime: 5000,
+  });
+}
+
+export function useInvestigationFindingsQuery(enabled: boolean) {
+  const { scope, sessionToken } = useRequestContext();
+  return useQuery({
+    queryKey: queryKeys.investigation(scope, "findings"),
+    queryFn: ({ signal }) => getInvestigationFindings(sessionToken, signal),
+    enabled,
+    retry: 1,
+  });
+}
+
+export function useInvestigationTimelineQuery(enabled: boolean) {
+  const { scope, sessionToken } = useRequestContext();
+  return useQuery({
+    queryKey: queryKeys.investigation(scope, "timeline"),
+    queryFn: ({ signal }) => getInvestigationTimeline(sessionToken, signal),
+    enabled,
+    retry: 1,
+  });
+}
+
+export function useInvestigationContextQuery(enabled: boolean) {
+  const { scope, sessionToken } = useRequestContext();
+  return useQuery({
+    queryKey: queryKeys.investigation(scope, "context"),
+    queryFn: ({ signal }) => getInvestigationContext(sessionToken, signal),
+    enabled,
+    retry: 1,
+  });
+}
+
+export function useInvestigationRelationshipsQuery(enabled: boolean) {
+  const { scope, sessionToken } = useRequestContext();
+  return useQuery({
+    queryKey: queryKeys.investigation(scope, "relationships"),
+    queryFn: ({ signal }) => getInvestigationRelationships(sessionToken, signal),
+    enabled,
+    retry: 1,
+  });
+}
+
+export function useInvestigationTrustQuery(): UseQueryResult<InvestigationTrust, Error> {
+  const { scope, sessionToken } = useRequestContext();
+  return useQuery({
+    queryKey: queryKeys.investigation(scope, "trust"),
+    queryFn: ({ signal }) => getInvestigationTrust(sessionToken, signal),
+    retry: 1,
+    staleTime: 5000,
   });
 }
 

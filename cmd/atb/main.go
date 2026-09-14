@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	version         = "1.15.4"
+	version         = "1.16.0"
 	verifyAlgorithm = "SHA-256||RFC8785"
 )
 
@@ -436,6 +436,7 @@ Commands:
   bundle new [--dry-run] [--format text|json] [--manifest-version 1|2]  Initialise a new ATB bundle in ./run.atb/ with crash-safe, atomic, locked writes (alias for init)
   import chatlog --from <provider-type> --input <path> [--bundle <path>] [--snapshot <name>]  Import a saved chatlog with crash-safe atomic writes; snapshot names are validated and operation time is bounded by the default five-minute timeout
   capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]  Run a child command; snapshot names are validated and bundle writes are crash-safe, atomic, locked, and bounded by the default five-minute timeout
+  intercept [--port 8080] --bundle <path> [--target openai,anthropic] [--identity-map key=name]... [--mortise <url>]  Start the local HTTPS capture proxy
   append <type> <json|--data <json>> [--actor-id <id>] [--org-id <id>] [--workspace-id <id>] [--sign-policy <path>] [--dry-run] [--format text|json] [--lock-wait <duration>]  Append an event using crash-safe, atomic, locked bundle writes
   snapshot <name> [--dry-run] [--format text|json] [--lock-wait <duration>]  Append a snapshot event with crash-safe atomic writes and the default five-minute timeout; names must be non-empty, <=128 chars, and free of control characters or slashes
   anchor [bundle_path] [--tsa-url <url>]  Submit the current bundle hash to an RFC 3161 TSA and save the token
@@ -462,6 +463,10 @@ Commands:
   doc gen-openapi [--output docs/api/openapi.yaml]  Generate API docs artifacts
   incident list|report|export --bundle <path> [--session <id>] [--format markdown|json] [--out <pack.zip>]  Discover, review, and package captured agent sessions for forensic review
   version           Print the ATB version
+
+Internal compatibility commands (not the public product surface; kept until a major):
+  serve             Alias of mcp serve
+  identity set      Local API-key display-name map used by intercept
 
 Exit codes:
   0  exitSuccess: success

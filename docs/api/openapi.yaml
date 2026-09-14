@@ -1,9 +1,10 @@
 openapi: 3.0.3
 info:
   title: ATB Viewer API
-  version: 1.12.0
+  version: 1.16.0
   description: |
-    Local-first read API used by `atb view`. The server binds to 127.0.0.1 only.
+    Local-first read API used by `atb view`. This is viewer HTTP, not a product SDK.
+    The server binds to 127.0.0.1 only.
 
     All endpoints (including read-only ones) require an `X-ATB-Session-Token` header
     or `?session_token=` query parameter when the viewer is started via `atb view`
@@ -461,7 +462,7 @@ components:
           type: string
     ProfileReportSummary:
       type: object
-      required: [profile_id, pass, chain_valid, anchor_status, critical_failures, warnings]
+      required: [profile_id, pass, chain_valid, anchor_status, integrity_valid, assurance_valid, critical_failures, warnings]
       properties:
         profile_id:
           type: string
@@ -477,6 +478,22 @@ components:
         cas_grade:
           type: string
           description: High, Medium, Low, or Insufficient
+        coverage_score:
+          type: number
+          format: double
+        coverage_grade:
+          type: string
+        assessment_coverage:
+          type: number
+          format: double
+        dimension_assessments:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/DimensionAssessment'
+        integrity_valid:
+          type: boolean
+        assurance_valid:
+          type: boolean
         sub_scores:
           type: object
           additionalProperties:
@@ -496,6 +513,20 @@ components:
         effective_score:
           type: number
           format: double
+    DimensionAssessment:
+      type: object
+      required: [assessable, weight]
+      properties:
+        assessable:
+          type: boolean
+        score:
+          type: number
+          format: double
+        weight:
+          type: number
+          format: double
+        reason:
+          type: string
     APIError:
       type: object
       required: [error]

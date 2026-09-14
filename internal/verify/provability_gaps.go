@@ -92,6 +92,12 @@ func DeriveProvabilityGaps(report Report) []ProvabilityGap {
 		gaps = append(gaps, gap)
 	}
 
+	// This is a verification-policy requirement, not merely a CAS sub-score.
+	// In particular, no matching profile may produce no AC sub-score at all.
+	if report.Anchoring.AnchorRequired && !report.Anchoring.TSAVerified {
+		addGap(provabilityGapBySubScore["AC"])
+	}
+
 	if report.CAS != nil {
 		for key, score := range report.CAS.SubScores {
 			if score >= provabilityGapScoreThreshold {

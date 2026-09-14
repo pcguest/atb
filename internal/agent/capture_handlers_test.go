@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -84,6 +86,68 @@ func TestSessionOpenHandler(t *testing.T) {
 				tt.validate(t, rec)
 			}
 		})
+	}
+}
+
+func TestResolveAgentBundlePath(t *testing.T) {
+	root := t.TempDir()
+
+	relative, err := resolveAgentBundlePath(root, "reviews/session.atb")
+	if err != nil {
+		t.Fatalf("resolve relative path: %v", err)
+	}
+	if want := filepath.Join(root, "reviews", "session.atb"); relative != want {
+		t.Fatalf("relative path = %q, want %q", relative, want)
+	}
+
+	absolute := filepath.Join(root, "absolute.atb")
+	if got, err := resolveAgentBundlePath(root, absolute); err != nil || got != absolute {
+		t.Fatalf("resolve absolute path = %q, %v; want %q", got, err, absolute)
+	}
+
+	for _, requested := range []string{
+		filepath.Join(root, "..", "outside.atb"),
+		"../outside.atb",
+	} {
+		if _, err := resolveAgentBundlePath(root, requested); err == nil {
+			t.Fatalf("resolveAgentBundlePath(%q) succeeded outside data directory", requested)
+		}
+	}
+}
+
+func TestResolveAgentBundlePathRejectsSymlinkEscape(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	link := filepath.Join(root, "linked")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if _, err := resolveAgentBundlePath(root, filepath.Join(link, "session.atb")); err == nil {
+		t.Fatal("resolveAgentBundlePath accepted a path through an escaping symlink")
+	}
+}
+
+func TestSessionOpenRejectsBundlePathOutsideDataDirectory(t *testing.T) {
+	srv := mustTestServer(t)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/session/open",
+		strings.NewReader(`{"bundle_path":"../outside.atb"}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d, body = %s", rec.Code, http.StatusBadRequest, rec.Body.String())
+	}
+	var body ErrorResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal error: %v", err)
+	}
+	if body.Error != "bundle_path must stay within the agent data directory" {
+		t.Fatalf("error = %q", body.Error)
 	}
 }
 

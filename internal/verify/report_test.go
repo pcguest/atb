@@ -195,3 +195,15 @@ func TestReportFromVerifyWithBundle_IncludesReviewerIdentityEvidence(t *testing.
 		t.Fatalf("reviewer identity = %+v", got)
 	}
 }
+
+func TestReportFromVerifyPreservesChainIntegrityWithUnassessableCAS(t *testing.T) {
+	t.Parallel()
+
+	report := ReportFromVerify(Report{
+		Integrity: IntegrityResult{ChainValid: true},
+		CAS:       &CASResult{Grade: "Insufficient"},
+	})
+	if !report.IntegrityValid {
+		t.Fatalf("integrity_valid=false; intact hash chain must remain authoritative: %+v", report)
+	}
+}

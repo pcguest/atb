@@ -1,4 +1,4 @@
-describe("Trust Dashboard accessibility", () => {
+describe("ATB investigation accessibility", () => {
   beforeEach(() => {
     cy.waitForDashboard();
   });

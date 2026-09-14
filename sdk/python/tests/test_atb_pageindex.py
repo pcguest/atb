@@ -8,6 +8,34 @@ from unittest.mock import patch
 import pytest
 
 from atb import ATBAppendError, ATBPageIndexRetriever, PageIndexRetrievalError
+from atb.pageindex import (
+    PageIndexSourceChangedError,
+    _iter_nodes,
+    _node_path,
+)
+
+
+@pytest.mark.parametrize("malformed", [None, 1, "children", {"node_id": "child"}])
+def test_malformed_child_collections_are_not_traversed(malformed) -> None:
+    tree = {"node_id": "root", "structure": malformed, "nodes": malformed}
+    assert list(_iter_nodes(tree)) == [tree]
+    assert _node_path(tree, "child") == ("", [])
+    assert ATBPageIndexRetriever()._count_nodes(tree) == 1
+
+
+@pytest.mark.parametrize("structure", [None, 1, "children", {}])
+def test_list_nodes_fallback(structure) -> None:
+    child = {"node_id": "child", "title": "Child"}
+    tree = {"title": "Root", "structure": structure, "nodes": [child]}
+    assert list(_iter_nodes(tree)) == [child]
+    assert _node_path(tree, "child") == ("Root / Child", [])
+
+
+@pytest.mark.parametrize("structure", [[], [{"node_id": "preferred"}]])
+def test_list_structure_takes_precedence(structure) -> None:
+    tree = {"structure": structure, "nodes": [{"node_id": "ignored"}]}
+    assert list(_iter_nodes(tree)) == structure
+    assert _node_path(tree, "ignored") == ("", [])
 
 
 def _successful_run() -> SimpleNamespace:
@@ -44,6 +72,16 @@ def test_build_index_appends_rag_index_event() -> None:
     assert "atb.event.rag_index" in cmd
     payload = json.loads(cmd[3])
     assert payload["index_hash"]
+    assert payload["tree_root_digest"] != payload["index_hash"]
+    assert (
+        payload["index_hash"]
+        == __import__("hashlib")
+        .sha256(json.dumps(tree, sort_keys=True).encode())
+        .hexdigest()
+    )
+    assert payload["index_version"] == "pageindex.tree.v1"
+    assert payload["model_id"] == retriever.model
+    assert "source_digest" not in payload
     assert payload["node_count"] == 1
     assert "report.pdf" in payload["source_uri"]
 
@@ -77,6 +115,51 @@ def test_retrieve_appends_rag_retrieval_event() -> None:
     assert payload["page_end"] == 28
     assert payload["index_id"] == "idx-001"
     assert payload["latency_ms"] >= 0
+    assert payload["strategy"] == "deterministic_tree_metadata_search"
+    assert payload["selected_node_ids"] == ["0007"]
+    assert payload["section_paths"] == ["Financial Stability"]
+    assert len(payload["selected_content_digests"][0]) == 64
+    assert len(payload["result_set_digest"]) == 64
+
+
+def test_build_index_commits_to_available_source_bytes(tmp_path) -> None:
+    source = tmp_path / "report.pdf"
+    source.write_bytes(b"portable source evidence")
+    tree = {
+        "node_id": "root",
+        "title": "Root",
+        "start_index": 1,
+        "end_index": 1,
+        "nodes": [],
+    }
+    retriever = ATBPageIndexRetriever()
+
+    with (
+        patch("atb.pageindex._build_pageindex_tree", return_value=tree),
+        patch(
+            "atb.pageindex.subprocess.run", return_value=_successful_run()
+        ) as mock_run,
+    ):
+        retriever.build_index(str(source))
+
+    payload = _payload_from_call(mock_run)
+    assert (
+        payload["source_digest"]
+        == __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+    )
+
+
+def test_build_index_rejects_source_mutation_during_build(tmp_path) -> None:
+    source = tmp_path / "report.pdf"
+    source.write_bytes(b"original evidence")
+
+    def mutate_source(*_args):
+        source.write_bytes(b"different evidence")
+        return {"node_id": "root", "nodes": []}
+
+    with patch("atb.pageindex._build_pageindex_tree", side_effect=mutate_source):
+        with pytest.raises(PageIndexSourceChangedError, match="source changed"):
+            ATBPageIndexRetriever().build_index(str(source))
 
 
 def test_build_index_atb_failure_raises() -> None:

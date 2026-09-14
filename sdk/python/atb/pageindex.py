@@ -73,6 +73,10 @@ class PageIndexRetrievalError(RuntimeError):
     """
 
 
+class PageIndexSourceChangedError(RuntimeError):
+    """Raised when a local source changes while its index is being built."""
+
+
 class ATBPageIndexRetriever:
     """
     Wraps PageIndex tree indexing and reasoning-based retrieval with
@@ -143,17 +147,30 @@ class ATBPageIndexRetriever:
         """
 
         resolved_index_id = index_id or str(uuid.uuid4())
+        source_digest = _source_digest(source_path)
         tree = _build_pageindex_tree(source_path, self.model)
-        index_hash = hashlib.sha256(
-            json.dumps(tree, sort_keys=True).encode()
-        ).hexdigest()
+        # A local source must remain stable across PageIndex's path-based build;
+        # otherwise a digest recorded afterwards could commit different bytes.
+        if source_digest is not None and _source_digest(source_path) != source_digest:
+            raise PageIndexSourceChangedError(
+                "source changed while PageIndex tree was being built"
+            )
+        tree_root_digest = _digest_json(tree)
         payload = {
             "index_id": resolved_index_id,
+            "index_version": "pageindex.tree.v1",
             "source_uri": _to_source_uri(source_path),
-            "index_hash": index_hash,
+            # Retained for v1 compatibility; tree_root_digest is the clearer
+            # structural commitment used by new investigation surfaces.
+            "index_hash": _legacy_index_digest(tree),
+            "tree_root_digest": tree_root_digest,
             "node_count": self._count_nodes(tree),
+            "page_count": _page_count(tree),
+            "model_id": self.model,
             "indexed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
+        if source_digest is not None:
+            payload["source_digest"] = source_digest
         self._atb_append("atb.event.rag_index", payload)
         return tree, resolved_index_id
 
@@ -195,16 +212,34 @@ class ATBPageIndexRetriever:
                 f"PageIndex returned no matching node for query: {query}"
             )
 
+        section_path, parent_ids = _node_path(index, str(node["node_id"]))
+        selected_content_digest = _digest_json(node)
+        selected_node_ids = [str(node["node_id"])]
         payload = {
             "retrieval_id": resolved_retrieval_id,
             "index_id": index_id,
             "source_uri": source_uri,
             "query": query,
+            "query_digest": hashlib.sha256(query.encode()).hexdigest(),
+            "strategy": "deterministic_tree_metadata_search",
             "node_id": node["node_id"],
             "node_title": node["title"],
             "page_start": node["start_index"],
             "page_end": node["end_index"],
             "latency_ms": latency_ms,
+            "selected_node_ids": selected_node_ids,
+            "selected_parent_ids": parent_ids,
+            "section_paths": [section_path] if section_path else [],
+            "selected_content_digests": [selected_content_digest],
+            "result_set_digest": _digest_json(
+                {
+                    "index_id": index_id,
+                    "selected_node_ids": selected_node_ids,
+                    "selected_content_digests": [selected_content_digest],
+                }
+            ),
+            "tree_root_digest": _digest_json(index),
+            "model_id": self.model,
         }
         if node.get("summary"):
             payload["node_summary"] = node["summary"]
@@ -233,7 +268,8 @@ class ATBPageIndexRetriever:
             )
 
         count = 1 if "node_id" in tree else 0
-        for child in tree.get("nodes", []):
+        nodes = tree.get("nodes")
+        for child in nodes if isinstance(nodes, list) else []:
             if isinstance(child, dict):
                 count += self._count_nodes(child)
         return count
@@ -286,7 +322,8 @@ def _iter_nodes(tree: dict[str, Any]) -> Iterator[dict[str, Any]]:
     if "node_id" in tree:
         yield tree
 
-    for child in tree.get("nodes", []):
+    nodes = tree.get("nodes")
+    for child in nodes if isinstance(nodes, list) else []:
         if isinstance(child, dict):
             yield from _iter_nodes(child)
 
@@ -325,3 +362,65 @@ def _to_source_uri(source_path: str) -> str:
     if "://" in source_path:
         return source_path
     return Path(source_path).expanduser().resolve().as_uri()
+
+
+def _digest_json(value: Any) -> str:
+    encoded = json.dumps(
+        value, sort_keys=True, ensure_ascii=False, separators=(",", ":")
+    ).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _legacy_index_digest(value: Any) -> str:
+    """Return the v1 PageIndex digest serialization retained as index_hash."""
+    return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+
+
+def _source_digest(source_path: str) -> str | None:
+    if "://" in source_path:
+        return None
+    path = Path(source_path).expanduser()
+    if not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _page_count(tree: dict[str, Any]) -> int:
+    end_pages = [int(node.get("end_index", 0) or 0) for node in _iter_nodes(tree)]
+    return max(end_pages, default=0)
+
+
+def _node_path(tree: dict[str, Any], target_id: str) -> tuple[str, list[str]]:
+    def visit(
+        node: dict[str, Any], titles: list[str], ids: list[str]
+    ) -> tuple[str, list[str]] | None:
+        title = str(node.get("title", "")).strip()
+        node_id = str(node.get("node_id", "")).strip()
+        next_titles = [*titles, title] if title else titles
+        next_ids = [*ids, node_id] if node_id else ids
+        if node_id == target_id:
+            return " / ".join(next_titles), next_ids[:-1]
+        structure = node.get("structure")
+        nodes = node.get("nodes")
+        children = (
+            structure
+            if isinstance(structure, list)
+            else nodes
+            if isinstance(nodes, list)
+            else []
+        )
+        for child in children:
+            if isinstance(child, dict):
+                found = visit(child, next_titles, next_ids)
+                if found is not None:
+                    return found
+        return None
+
+    found = visit(tree, [], [])
+    if found is not None:
+        return found
+    return "", []

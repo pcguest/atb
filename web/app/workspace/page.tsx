@@ -36,8 +36,8 @@ export default function WorkspacePage() {
         <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">ATB</p>
         <h1 className="mt-1 text-2xl font-semibold text-foreground">Workspace bundles</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Read-only index of closed session bundles. Evidence remains immutable on disk; this page
-          only lists metadata for navigation.
+          Read-only index of closed session bundles. This page lists metadata for navigation and
+          does not modify bundle records; local storage remains operator-controlled.
         </p>
       </header>
 

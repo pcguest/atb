@@ -200,14 +200,15 @@ func WriteMapping(path, apiKey, displayName, email, orgRole string) error {
 	return os.WriteFile(path, out, 0o600)
 }
 
-// FallbackDisplayName returns api-key:<last-4> when no mapping exists.
+// FallbackDisplayName returns api-key:<last-4> when a sufficiently long key has
+// no mapping. Short keys are redacted rather than copied into captured evidence.
 func FallbackDisplayName(apiKey string) string {
 	apiKey = strings.TrimSpace(apiKey)
 	if len(apiKey) >= 4 {
 		return "api-key:" + apiKey[len(apiKey)-4:]
 	}
 	if apiKey != "" {
-		return "api-key:" + apiKey
+		return "api-key:[redacted]"
 	}
 	return ""
 }
