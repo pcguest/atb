@@ -96,7 +96,7 @@ func (s *APIServer) investigationFindings(w http.ResponseWriter, r *http.Request
 			scoped = append(scoped, session)
 		}
 	}
-	return incident.BuildBundleFindings(s.b, scoped), true
+	return incident.BuildBundleFindings(s.b, s.bundlePath, scoped), true
 }
 
 func (s *APIServer) handleInvestigationTimeline(w http.ResponseWriter, r *http.Request) {

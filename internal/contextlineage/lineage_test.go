@@ -2,6 +2,7 @@
 package contextlineage
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -67,7 +68,19 @@ func TestBuildReportsMalformedAndUnavailableContextReferences(t *testing.T) {
 	if len(lineage.Operations) != 1 || lineage.Operations[0].InputTokenCount != nil {
 		t.Fatalf("operations = %#v", lineage.Operations)
 	}
-	if len(lineage.Warnings) != 3 {
-		t.Fatalf("warnings = %#v, want malformed unit, missing parent, and malformed operation", lineage.Warnings)
+	if len(lineage.Warnings) != 4 {
+		t.Fatalf("warnings = %#v, want malformed unit, missing parent, malformed operation, and negative token count", lineage.Warnings)
 	}
+	if !containsWarning(lineage.Warnings, "input_token_count must not be negative") {
+		t.Fatalf("negative token warning missing: %#v", lineage.Warnings)
+	}
+}
+
+func containsWarning(warnings []string, substring string) bool {
+	for _, warning := range warnings {
+		if strings.Contains(warning, substring) {
+			return true
+		}
+	}
+	return false
 }

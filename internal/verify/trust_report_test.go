@@ -7,6 +7,8 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -246,5 +248,31 @@ func TestFirstEventField_NonObjectDataReturnsEmpty(t *testing.T) {
 
 	if got := firstEventField(b, bundle.AnchorEventType, "bundle_hash"); got != "" {
 		t.Fatalf("expected empty string, got %q", got)
+	}
+}
+
+func TestTrustReportFromVerify_InvalidIntegrityDoesNotMaterialiseCoverageScore(t *testing.T) {
+	b := newVerifyTestBundle(t)
+	appendVerifyRecord(t, b, event.TypeAIRequestReceived, map[string]any{"session_id": "s1"}, "2026-03-27T12:00:00Z")
+
+	// Tamper with record hash to invalidate chain integrity
+	b.Records[len(b.Records)-1].Hash = "0000000000000000000000000000000000000000000000000000000000000000"
+
+	report := Verify(b, "bundle.atb", profileIDPrivilegedToolAction)
+	if report.Integrity.ChainValid {
+		t.Fatal("expected invalid integrity")
+	}
+
+	trustReport := TrustReportFromVerify(report, b)
+	if trustReport.CAS != nil {
+		t.Fatalf("expected nil CAS on invalid integrity, got %+v", trustReport.CAS)
+	}
+
+	data, err := json.Marshal(trustReport)
+	if err != nil {
+		t.Fatalf("marshal error: %v", err)
+	}
+	if strings.Contains(string(data), `"coverage_score"`) {
+		t.Fatalf("trust report serialized coverage_score on invalid integrity: %s", string(data))
 	}
 }

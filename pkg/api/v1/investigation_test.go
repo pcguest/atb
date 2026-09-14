@@ -279,7 +279,7 @@ func TestInvestigationReportUsesCoreIncidentRenderer(t *testing.T) {
 	if got := rr.Header().Get("X-Content-Type-Options"); got != "nosniff" {
 		t.Fatalf("X-Content-Type-Options = %q", got)
 	}
-	if !strings.Contains(rr.Body.String(), "# Incident report — session `session-report`") {
+	if !strings.Contains(rr.Body.String(), "# Incident report — session session-report") {
 		t.Fatalf("report did not use incident renderer: %s", rr.Body.String())
 	}
 }

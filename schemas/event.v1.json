@@ -420,6 +420,7 @@
       "properties": {
         "index_id": { "type": "string" },
         "index_version": { "type": "string" },
+        "index_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "source_uri": { "type": "string" },
         "source_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "tree_root_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
@@ -432,6 +433,11 @@
       "properties": {
         "retrieval_id": { "type": "string" },
         "index_id": { "type": "string" },
+        "node_id": { "type": "string" },
+        "node_title": { "type": "string" },
+        "source_uri": { "type": "string" },
+        "page_start": { "type": "integer", "minimum": 1 },
+        "page_end": { "type": "integer", "minimum": 1 },
         "strategy": { "type": "string" },
         "selected_node_ids": { "type": "array", "items": { "type": "string" } },
         "selected_parent_ids": { "type": "array", "items": { "type": "string" } },

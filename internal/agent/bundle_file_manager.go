@@ -190,16 +190,16 @@ func (m *BundleFileManager) Shutdown(context.Context) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.sessions = make(map[SessionID]*fileSessionRecord)
+	var err error
 	if m.root != nil {
-		err := m.root.Close()
-		// Shutdown releases a filesystem capability but does not make this
-		// manager terminal: callers can open a fresh session afterwards.
-		m.root = nil
-		m.rootErr = nil
-		m.rootOnce = sync.Once{}
-		return err
+		err = m.root.Close()
 	}
-	return nil
+	// Shutdown releases either a live or failed filesystem capability; a
+	// later lifecycle must get a fresh attempt to open it.
+	m.root = nil
+	m.rootErr = nil
+	m.rootOnce = sync.Once{}
+	return err
 }
 
 // ActiveSessionCount returns open session handles. Used by tests.

@@ -166,12 +166,12 @@ type sessionAccumulator struct {
 	actionFailed bool
 }
 
-// bundleLevelEvent reports whether the event type is a bundle-scoped system
+// IsBundleLevelEvent reports whether the event type is a bundle-scoped system
 // record (manifest, signature, anchor, push marker, snapshot) rather than
 // session activity. These carry no session_id, so without this skip they would
 // seed a spurious path-derived pseudo-session — visible, for example, once a
 // captured bundle is signed.
-func bundleLevelEvent(eventType string) bool {
+func IsBundleLevelEvent(eventType string) bool {
 	switch eventType {
 	case event.TypeBundleManifest,
 		event.TypeBundleSignature,
@@ -182,6 +182,10 @@ func bundleLevelEvent(eventType string) bool {
 	default:
 		return false
 	}
+}
+
+func bundleLevelEvent(eventType string) bool {
+	return IsBundleLevelEvent(eventType)
 }
 
 func entriesForBundle(bundlePath string, b *bundle.Bundle) []SessionEntry {
@@ -357,11 +361,17 @@ func casGradeForProfile(bundlePath string, b *bundle.Bundle, profileID string) s
 	return verifierReport.CASGrade
 }
 
-func sessionIDForEvent(event hash.Event, bundlePath string) string {
+// SessionIDForEvent returns the session ID for an event, falling back to
+// the filename of bundlePath if no session ID is present in the event data.
+func SessionIDForEvent(event hash.Event, bundlePath string) string {
 	if sessionID := eventSessionID(event); sessionID != "" {
 		return sessionID
 	}
 	return sessionIDFromPath(bundlePath)
+}
+
+func sessionIDForEvent(event hash.Event, bundlePath string) string {
+	return SessionIDForEvent(event, bundlePath)
 }
 
 func eventSessionID(event hash.Event) string {

@@ -802,3 +802,40 @@ func chdirTempDir(t *testing.T, dir string) func() {
 		}
 	}
 }
+
+func TestValidSHA256DigestCanonicalEnforcement(t *testing.T) {
+	t.Parallel()
+	canonical := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+
+	// Canonical lowercase success
+	if !validSHA256Digest(canonical) {
+		t.Errorf("validSHA256Digest(%q) = false, want true", canonical)
+	}
+
+	// Uppercase rejected
+	uppercase := strings.ToUpper(canonical)
+	if validSHA256Digest(uppercase) {
+		t.Errorf("validSHA256Digest(%q) = true, want false (uppercase)", uppercase)
+	}
+
+	// Leading whitespace rejected
+	if validSHA256Digest(" " + canonical) {
+		t.Errorf("validSHA256Digest leading whitespace = true, want false")
+	}
+
+	// Trailing whitespace rejected
+	if validSHA256Digest(canonical + " ") {
+		t.Errorf("validSHA256Digest trailing whitespace = true, want false")
+	}
+
+	// Wrong length rejected
+	if validSHA256Digest(canonical[:63]) || validSHA256Digest(canonical+"a") {
+		t.Errorf("validSHA256Digest wrong length = true, want false")
+	}
+
+	// Non-hex rejected
+	nonHex := canonical[:63] + "g"
+	if validSHA256Digest(nonHex) {
+		t.Errorf("validSHA256Digest non-hex = true, want false")
+	}
+}

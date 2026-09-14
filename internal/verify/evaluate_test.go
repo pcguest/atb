@@ -580,3 +580,40 @@ func reportFailureID(report Report, kind string, containsText string) string {
 	}
 	return ""
 }
+
+func TestEvaluateBundleNoMatchingProfileDoesNotImplyAssuranceValid(t *testing.T) {
+	t.Parallel()
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("bundle.New: %v", err)
+	}
+	// Append an event that does not match any profile
+	if err := b.Append("dev.session", map[string]any{"note": "unmatched"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+
+	report, err := EvaluateBundle(EvaluateConfig{
+		Records:       b.Records,
+		AllApplicable: true,
+	})
+	if err != nil {
+		t.Fatalf("EvaluateBundle: %v", err)
+	}
+
+	if !report.Integrity.ChainValid {
+		t.Fatal("expected chain valid")
+	}
+	if len(report.Profiles) != 0 {
+		t.Fatalf("expected 0 matching profiles, got %d", len(report.Profiles))
+	}
+	if report.CAS == nil {
+		t.Fatal("expected non-nil fallback CAS")
+	}
+	if !report.CAS.IntegrityValid {
+		t.Error("expected CAS.IntegrityValid == true")
+	}
+	// Crucial epistemic invariant: integrity valid does NOT imply assurance valid when no profile matched
+	if report.CAS.AssuranceValid {
+		t.Error("expected CAS.AssuranceValid == false when no profile was evaluated")
+	}
+}

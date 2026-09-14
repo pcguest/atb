@@ -171,7 +171,9 @@ func evaluateLoadedBundle(
 					"SC": sc,
 				},
 				IntegrityValid: report.Integrity.ChainValid,
-				AssuranceValid: report.Integrity.ChainValid,
+				// No profile obligations were evaluated, so chain integrity alone
+				// cannot establish profile-scoped assurance.
+				AssuranceValid: false,
 			}
 			if sc > 0 && report.Integrity.ChainValid {
 				report.CAS.Overall = sc

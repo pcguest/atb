@@ -198,3 +198,44 @@ func TestBundleFileManagerShutdownClearsSessions(t *testing.T) {
 		t.Fatalf("second Shutdown: %v", err)
 	}
 }
+
+func TestBundleFileManagerShutdownRecoversFromFailedRootOpen(t *testing.T) {
+	tempDir := t.TempDir()
+	blockingFilePath := filepath.Join(tempDir, "blocking_file")
+	if err := os.WriteFile(blockingFilePath, []byte("blocker"), 0o600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// First open attempt pointing into a regular file path will fail openRoot/MkdirAll
+	dataDir := filepath.Join(blockingFilePath, "subdata")
+	mgr := NewBundleFileManager(dataDir)
+
+	ctx := context.Background()
+	_, err := mgr.OpenSession(ctx, OpenParams{ActorID: "actor-1"})
+	if err == nil {
+		t.Fatal("expected OpenSession to fail on invalid dataDir path")
+	}
+
+	// Shutdown should reset capability state unconditionally (even when m.root is nil)
+	if err := mgr.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown: %v", err)
+	}
+
+	// Environment / path corrected
+	if err := os.Remove(blockingFilePath); err != nil {
+		t.Fatalf("Remove blocker: %v", err)
+	}
+
+	// Next OpenSession must succeed
+	id, err := mgr.OpenSession(ctx, OpenParams{ActorID: "actor-1"})
+	if err != nil {
+		t.Fatalf("OpenSession after Shutdown and path correction failed: %v", err)
+	}
+	if id == "" {
+		t.Fatal("expected valid session ID")
+	}
+
+	if err := mgr.Shutdown(ctx); err != nil {
+		t.Fatalf("final Shutdown: %v", err)
+	}
+}

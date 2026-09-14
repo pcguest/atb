@@ -195,3 +195,28 @@ func TestReceiver_returnsUnmappableSpanError(t *testing.T) {
 		t.Fatalf("SkippedCount = %d, want 0", got.SkippedCount)
 	}
 }
+
+func TestTranslate_preservesAIActionError(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, 3, 9, 9, 15, 2, 0, time.UTC)
+	end := start.Add(500 * time.Millisecond)
+
+	got, err := otel.Translate(otel.OTelSpan{
+		TraceID:   "0102030405060708090a0b0c0d0e0f10",
+		SpanID:    "0102030405060708",
+		Name:      "tool.execute", // Span name contains "tool", but explicit canonical event type must take precedence
+		StartTime: start,
+		EndTime:   end,
+		Attributes: map[string]any{
+			"atb.event_type": "ai.action.error",
+			"action_id":      "act-err-1",
+			"error_class":    "permission_denied",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Translate() error = %v", err)
+	}
+	if got.Type != event.TypeAIActionError {
+		t.Fatalf("Translate() type = %q, want %q", got.Type, event.TypeAIActionError)
+	}
+}

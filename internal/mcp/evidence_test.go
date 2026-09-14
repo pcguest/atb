@@ -59,6 +59,10 @@ func TestBuildOperationEventRejectsInvalidOptionalMetadata(t *testing.T) {
 	for _, input := range []OperationInput{
 		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, TTLMS: &negativeTTL},
 		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "00-00000000000000000000000000000000-0000000000000001-01"},
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "00-00000000000000000000000000000000-00f067aa0ba902b7-01"},
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01"},
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "FF-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
+		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "ff-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"},
 		{ProtocolVersion: ProtocolVersion, Method: "tools/call", Status: "success", Request: map[string]any{}, Traceparent: "01-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-zz"},
 	} {
 		if _, err := BuildOperationEvent(input); err == nil {

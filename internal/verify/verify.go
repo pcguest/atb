@@ -91,10 +91,10 @@ type CASResult struct {
 	EffectiveScore     float64                        `json:"effective_score"`
 	SubScores          map[string]float64             `json:"sub_scores"`
 	WeightVector       map[string]float64             `json:"weight_vector"`
-	CoverageScore      float64                        `json:"coverage_score"`
-	CoverageGrade      string                         `json:"coverage_grade"`
-	AssessmentCoverage float64                        `json:"assessment_coverage"`
-	Dimensions         map[string]DimensionAssessment `json:"dimension_assessments"`
+	CoverageScore      float64                        `json:"coverage_score,omitempty"`
+	CoverageGrade      string                         `json:"coverage_grade,omitempty"`
+	AssessmentCoverage float64                        `json:"assessment_coverage,omitempty"`
+	Dimensions         map[string]DimensionAssessment `json:"dimension_assessments,omitempty"`
 	IntegrityValid     bool                           `json:"integrity_valid"`
 	AssuranceValid     bool                           `json:"assurance_valid"`
 }

@@ -96,6 +96,11 @@ func Build(records []bundle.Record) Lineage {
 				lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("seq %d: malformed context operation", record.Event.Sequence))
 				continue
 			}
+			for _, key := range []string{"input_token_count", "output_token_count"} {
+				if negativeInteger(data, key) {
+					lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("seq %d: %s must not be negative", record.Event.Sequence, key))
+				}
+			}
 			if previous, exists := operationIDs[operation.ID]; exists {
 				lineage.Warnings = append(lineage.Warnings, fmt.Sprintf("seq %d: duplicate context operation %q first seen at seq %d", record.Event.Sequence, operation.ID, previous))
 				continue
@@ -215,6 +220,17 @@ func integer(data map[string]any, key string) *int {
 		}
 	}
 	return nil
+}
+
+func negativeInteger(data map[string]any, key string) bool {
+	switch value := data[key].(type) {
+	case int:
+		return value < 0
+	case float64:
+		return value == float64(int(value)) && value < 0
+	default:
+		return false
+	}
 }
 
 func provenance(raw any) map[string]MetadataProvenance {

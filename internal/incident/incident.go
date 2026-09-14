@@ -215,7 +215,7 @@ func ListSessions(ctx context.Context, bundlePath string) ([]sessionindex.Sessio
 // SessionListMarkdown renders a session list as a reviewer-facing table.
 func SessionListMarkdown(bundlePath string, entries []sessionindex.SessionEntry) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Sessions in `%s`\n\n", bundlePath)
+	fmt.Fprintf(&b, "# Sessions in %s\n\n", markdownInline(bundlePath))
 	if len(entries) == 0 {
 		b.WriteString("No sessions found.\n")
 		return b.String()
@@ -227,9 +227,9 @@ func SessionListMarkdown(bundlePath string, entries []sessionindex.SessionEntry)
 		if len(e.AnomalyFlags) > 0 {
 			anomalies = strings.Join(e.AnomalyFlags, ", ")
 		}
-		fmt.Fprintf(&b, "| `%s` | %s | %d | %s | %s | %s |\n",
-			e.SessionID, actorLabel(e.Actor), e.ExchangeCount,
-			orDash(e.InferredProfile), orDash(e.CASGrade), anomalies)
+		fmt.Fprintf(&b, "| %s | %s | %d | %s | %s | %s |\n",
+			markdownInline(e.SessionID), markdownInline(actorLabel(e.Actor)), e.ExchangeCount,
+			markdownInline(orDash(e.InferredProfile)), markdownInline(orDash(e.CASGrade)), markdownInline(anomalies))
 	}
 	return b.String()
 }
@@ -237,9 +237,9 @@ func SessionListMarkdown(bundlePath string, entries []sessionindex.SessionEntry)
 // Markdown renders the report as a reviewer-facing markdown document.
 func (r Report) Markdown() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Incident report — session `%s`\n\n", markdownInline(r.SessionID))
+	fmt.Fprintf(&b, "# Incident report — session %s\n\n", markdownInline(r.SessionID))
 	if !r.Found {
-		fmt.Fprintf(&b, "No events found for session `%s` in `%s`.\n", markdownInline(r.SessionID), markdownInline(r.BundlePath))
+		fmt.Fprintf(&b, "No events found for session %s in %s.\n", markdownInline(r.SessionID), markdownInline(r.BundlePath))
 		return b.String()
 	}
 
@@ -247,7 +247,7 @@ func (r Report) Markdown() string {
 	if r.IntegrityValid {
 		integrity = "PASS"
 	}
-	fmt.Fprintf(&b, "- Bundle: `%s`\n", markdownInline(r.BundlePath))
+	fmt.Fprintf(&b, "- Bundle: %s\n", markdownInline(r.BundlePath))
 	fmt.Fprintf(&b, "- Integrity (hash chain): **%s**\n", integrity)
 	fmt.Fprintf(&b, "- Signature: %s\n", signatureSummary(r.Signatures))
 	if r.CaptureScope != nil {
@@ -257,7 +257,7 @@ func (r Report) Markdown() string {
 			fmt.Fprintf(&b, "  - Out of scope: %s\n", markdownInline(r.CaptureScope.OutOfScope))
 		}
 	}
-	fmt.Fprintf(&b, "- Chain head hash: `%s`\n", markdownInline(r.ChainHeadHash))
+	fmt.Fprintf(&b, "- Chain head hash: %s\n", markdownInline(r.ChainHeadHash))
 	if r.Session != nil {
 		fmt.Fprintf(&b, "- Actor: %s\n", markdownInline(actorLabel(r.Session.Actor)))
 		fmt.Fprintf(&b, "- Exchanges: %d\n", r.Session.ExchangeCount)
@@ -296,7 +296,7 @@ func (r Report) Markdown() string {
 	b.WriteString("| Seq | Type | Time | Summary | Record hash |\n")
 	b.WriteString("| --- | --- | --- | --- | --- |\n")
 	for _, e := range r.Events {
-		fmt.Fprintf(&b, "| %d | `%s` | %s | %s | `%s` |\n",
+		fmt.Fprintf(&b, "| %d | %s | %s | %s | %s |\n",
 			e.Seq, markdownInline(e.Type), markdownInline(e.Timestamp), markdownInline(e.Summary), markdownInline(shortHash(e.Hash)))
 	}
 	b.WriteString("\n> Integrity PASS means the presented session records agree with the bundle's hash chain. It does not prove capture completeness or prevent whole-file replacement without external custody. This report scopes the bundle to one session, and each row's record hash is independently verifiable against it.\n")
@@ -513,7 +513,7 @@ func shortHash(h string) string {
 // HTML structure into a reviewer-facing report.
 func markdownInline(value string) string {
 	replacer := strings.NewReplacer(
-		"\\", "\\\\", "`", "\\`", "*", "\\*", "_", "\\_", "[", "\\[", "]", "\\]",
+		"\\", "\\\\", "`", "\\`", "*", "\\*", "_", "\\_", "~", "\\~", "[", "\\[", "]", "\\]",
 		"<", "\\<", ">", "\\>", "|", "\\|", "\r", " ", "\n", " ",
 	)
 	return replacer.Replace(value)

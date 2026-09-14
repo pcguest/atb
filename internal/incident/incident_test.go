@@ -380,7 +380,7 @@ func TestListSessions(t *testing.T) {
 	if !strings.Contains(md, "sess-A") || !strings.Contains(md, "sess-B") {
 		t.Errorf("session list markdown missing sessions:\n%s", md)
 	}
-	if !strings.Contains(md, "tool_without_approval") {
+	if !strings.Contains(md, "tool\\_without\\_approval") {
 		t.Errorf("session list should surface the anomaly:\n%s", md)
 	}
 }
@@ -401,5 +401,61 @@ func TestReportJSONRoundTrips(t *testing.T) {
 	}
 	if back.SessionID != "sess-A" || len(back.Events) != 4 {
 		t.Errorf("json round-trip mismatch: %+v", back)
+	}
+}
+
+func TestMarkdownReportLiteralSafety(t *testing.T) {
+	t.Parallel()
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("bundle.New: %v", err)
+	}
+	maliciousSessionID := "sess`evil` | [link](http://evil.com) | <script>alert(1)</script> | # heading | *em* | _em_ | ~~strike~~ | line\nbreak"
+	if err := b.Append(event.TypeToolCall, map[string]any{
+		"session_id": maliciousSessionID,
+		"tool_name":  "test|tool`name`*foo*~~bar~~<tag>",
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "unsafe`path`|name.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	rep, err := incident.Build(context.Background(), path, maliciousSessionID)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	md := rep.Markdown()
+
+	// Newlines in session ID or bundle path must be collapsed to spaces
+	if strings.Contains(md, "line\nbreak") {
+		t.Errorf("raw newline was not collapsed: %s", md)
+	}
+	// Raw unescaped backticks must not be emitted for bundle-derived values
+	if strings.Contains(md, "`evil`") {
+		t.Errorf("raw backtick was emitted: %s", md)
+	}
+	// HTML brackets must be escaped
+	if strings.Contains(md, "<script>") || strings.Contains(md, "<tag>") {
+		t.Errorf("raw HTML brackets were emitted: %s", md)
+	}
+	// GFM strikethrough must be escaped
+	if strings.Contains(md, "~~strike~~") || strings.Contains(md, "~~bar~~") {
+		t.Errorf("raw strikethrough delimiters were emitted: %s", md)
+	}
+	// Pipe characters in cells must be escaped so table structure is not broken
+	if strings.Contains(md, "| sess`evil` |") {
+		t.Errorf("unescaped pipe in table cell: %s", md)
+	}
+
+	// Verify SessionListMarkdown as well
+	sessions, err := incident.ListSessions(context.Background(), path)
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
+	smd := incident.SessionListMarkdown(path, sessions)
+	if strings.Contains(smd, "`evil`") || strings.Contains(smd, "<script>") || strings.Contains(smd, "~~strike~~") {
+		t.Errorf("SessionListMarkdown leaked raw markdown syntax: %s", smd)
 	}
 }

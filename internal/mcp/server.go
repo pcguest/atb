@@ -1041,7 +1041,9 @@ func validateOptionalDigestArrayFields(args map[string]any, fields ...string) er
 }
 
 func validSHA256Digest(value string) bool {
-	value = strings.TrimSpace(value)
+	if strings.TrimSpace(value) != value || strings.ToLower(value) != value {
+		return false
+	}
 	if len(value) != 64 {
 		return false
 	}

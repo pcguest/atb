@@ -237,6 +237,7 @@ func allowedEventType(eventType string) bool {
 		event.TypeAIActionPrecommit,
 		event.TypeAIActionExecuted,
 		event.TypeAIActionCommitted,
+		event.TypeAIActionError,
 		event.TypeAIHumanApproval:
 		return true
 	default:

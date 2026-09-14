@@ -3,8 +3,8 @@
 package incident
 
 import (
+	"path/filepath"
 	"sort"
-	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/sessionindex"
@@ -141,18 +141,33 @@ func buildFindings(flags []string, events []scopedEvent) []Finding {
 // BuildBundleFindings returns explained findings for every indexed session in
 // a bundle. Session index flags remain authoritative; this function only binds
 // them to their supporting captured records and bounded language.
-func BuildBundleFindings(b *bundle.Bundle, sessions []sessionindex.SessionEntry) []Finding {
+func BuildBundleFindings(b *bundle.Bundle, bundlePath string, sessions []sessionindex.SessionEntry) []Finding {
 	if b == nil || len(sessions) == 0 {
 		return []Finding{}
 	}
+	loadedPath, _ := filepath.Abs(bundlePath)
 	findings := []Finding{}
 	for _, session := range sessions {
-		scoped := []scopedEvent{}
-		for _, record := range b.Records {
-			data, _ := record.Event.Data.(map[string]any)
-			if sessionID(data) != session.SessionID {
+		if loadedPath != "" && session.BundlePath != "" {
+			sessPath, err := filepath.Abs(session.BundlePath)
+			if err == nil && sessPath != loadedPath {
 				continue
 			}
+		}
+		effectiveBundlePath := bundlePath
+		if effectiveBundlePath == "" {
+			effectiveBundlePath = session.BundlePath
+		}
+		scoped := []scopedEvent{}
+		for _, record := range b.Records {
+			if sessionindex.IsBundleLevelEvent(record.Event.Type) {
+				continue
+			}
+			recSessionID := sessionindex.SessionIDForEvent(record.Event, effectiveBundlePath)
+			if recSessionID != session.SessionID {
+				continue
+			}
+			data, _ := record.Event.Data.(map[string]any)
 			scoped = append(scoped, scopedEvent{
 				seq:  record.Event.Sequence,
 				typ:  record.Event.Type,
@@ -172,17 +187,6 @@ func BuildBundleFindings(b *bundle.Bundle, sessions []sessionindex.SessionEntry)
 		return findings[i].SessionID < findings[j].SessionID
 	})
 	return findings
-}
-
-func sessionID(data map[string]any) string {
-	for _, key := range []string{"session_id", "sessionId"} {
-		if value, ok := data[key].(string); ok {
-			if value = strings.TrimSpace(value); value != "" {
-				return value
-			}
-		}
-	}
-	return ""
 }
 
 // locateTriggers walks the session's events once and returns, per flag, the

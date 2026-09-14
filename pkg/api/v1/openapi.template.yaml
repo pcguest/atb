@@ -478,6 +478,22 @@ components:
         cas_grade:
           type: string
           description: High, Medium, Low, or Insufficient
+        coverage_score:
+          type: number
+          format: double
+        coverage_grade:
+          type: string
+        assessment_coverage:
+          type: number
+          format: double
+        dimension_assessments:
+          type: object
+          additionalProperties:
+            type: object
+        integrity_valid:
+          type: boolean
+        assurance_valid:
+          type: boolean
         sub_scores:
           type: object
           additionalProperties:

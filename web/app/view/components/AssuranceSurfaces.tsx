@@ -391,7 +391,7 @@ export function TrustSurface({
         "Profile-scoped completeness of recorded evidence, not proof that everything was captured.",
       source: data.profile_id || "No selected profile recorded",
       gap: "A passing profile does not establish universal capture completeness.",
-      tone: !data.integrity_valid ? ("danger" as const) : ("unknown" as const),
+      tone: !data.integrity_valid ? ("danger" as const) : !data.profile_id ? ("unknown" as const) : data.profile_pass ? ("verified" as const) : ("danger" as const),
     },
     {
       name: "Corroboration",
