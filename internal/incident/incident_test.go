@@ -417,7 +417,7 @@ func TestMarkdownReportLiteralSafety(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
-	path := filepath.Join(t.TempDir(), "unsafe`path`|name.atb")
+	path := filepath.Join(t.TempDir(), "unsafe-name.atb")
 	if err := b.Save(path); err != nil {
 		t.Fatalf("save: %v", err)
 	}
@@ -426,6 +426,9 @@ func TestMarkdownReportLiteralSafety(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
+	// Keep the bundle fixture path portable for Windows while still exercising
+	// literal rendering of hostile bundle-derived path text.
+	rep.BundlePath = "unsafe`path`|name.atb"
 	md := rep.Markdown()
 
 	// Newlines in session ID or bundle path must be collapsed to spaces
