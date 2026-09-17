@@ -90,7 +90,7 @@ GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.7 go test ./... -count=1
 bash scripts/check-versions.sh
 ```
 
-These mirror the `release-gate.yml` workflow; all three must pass.
+These mirror the checks in `.github/workflows/release.yml`; all three must pass.
 
 ## Schema changes
 
