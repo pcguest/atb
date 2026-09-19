@@ -6,6 +6,9 @@ This file covers contributor workflow. Release preparation and versioning detail
 [docs/maintainers/release.md](docs/maintainers/release.md) and
 [VERSIONING.md](VERSIONING.md).
 
+For AI-assisted development, see [AGENTS.md](AGENTS.md) for product identity, public/private
+boundaries, and architectural invariants.
+
 ## Local setup
 
 ```bash
