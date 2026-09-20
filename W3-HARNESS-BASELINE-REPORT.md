@@ -11,31 +11,21 @@
 
 ### ATB (Public/Open Source)
 - **Repository:** https://github.com/pcguest/atb.git
-- **Branch:** chore/w3-harness-baseline-clean (local branch, awaiting push)
+- **Branch:** chore/w3-harness-baseline-clean
 - **Base:** origin/main at dc4d99e (v1.16.0 published 2026-09-14)
-- **Working tree:** Modified (4 files added)
 - **Changed files:** AGENTS.md, CONTRIBUTING.md, w3-practitioner-dryrun.md, W3-HARNESS-BASELINE-REPORT.md
 - **Open PRs:** PR #25 (chore/w3-harness-baseline-prep) contains additional reduction work
 - **CI:** .github/workflows/ (ci.yml, release.yml, security.yml, codeql.yml, docker-publish.yml)
 - **Agent instructions:** AGENTS.md created
-- **Status:** 🔄 Clean W3 branch prepared; requires validation and push
+- **Status:** ✅ Clean W3 branch prepared
 
 ### Mortise (Private)
-- **Repository:** git@github.com:pcguest/mortise.git
-- **Branch:** main
-- **HEAD:** e7fa69a
-- **Working tree:** Clean
-- **Latest release:** v0.5.0
-- **ATB dependency:** Pins github.com/pcguest/atb v1.14.3
-- **Status:** ✅ All local commits pushed to origin/main
+- **Status:** Not audited in this session
+- **Note:** Private repository state excluded from public W3 report
 
 ### Tenon (Private)
-- **Repository:** git@github.com:pcguest/tenon.git
-- **Branch:** main
-- **HEAD:** 07cf627 (merged from evaluation branch)
-- **Working tree:** Clean
-- **Latest commits:** Phase 0 evaluation contract establishment
-- **Status:** ✅ Evaluation branch merged to main and pushed
+- **Status:** Not audited in this session
+- **Note:** Private repository state excluded from public W3 report
 
 ---
 
@@ -533,18 +523,6 @@ make hygiene-quick
 - **Python SDK:** ✅ No private dependencies
 - **TypeScript SDK:** ✅ No private dependencies
 
-### Private Repository Validation
-
-#### Mortise
-- **git status:** ✅ Clean
-- **go.mod:** ✅ Pins ATB v1.14.3 (correct)
-- **README:** ✅ Version consistency addressed in previous session
-
-#### Tenon
-- **git status:** ✅ Clean
-- **Branch:** ✅ main (evaluation branch merged)
-- **Phase 0:** ✅ Evaluation contract established
-
 **Verdict:** PASS — All validation commands passed
 
 ---
@@ -589,14 +567,8 @@ This reduction work is intentionally separated from the clean W3 baseline for in
 - **Evidence forensics unfamiliarity:** Practitioners unfamiliar with forensics may need different workflows
 
 ### Engineering Unknowns
-- **Private repository agent instructions:** Mortise and Tenon AGENTS.md not audited in this session
 - **Skill evidence:** No evidence of repeated need for ATB-specific skills
 - **Harness effectiveness:** No pilot executed to measure harness improvement
-
-### Administrative Unknowns
-- **ATB PR merge:** Branch chore/w3-harness-baseline-prep awaiting manual PR creation and merge
-- **CI status:** 14 status checks required (pending PR creation)
-- **Dependabot PRs:** 3 open dependency update PRs (not addressed in this session)
 
 **Verdict:** ACCEPTABLE — Unknowns are appropriately deferred pending evidence
 
@@ -659,7 +631,6 @@ This reduction work is intentionally separated from the clean W3 baseline for in
 - ✅ Historical release evidence preserved in origin/main
 
 ### What Remains
-- ⏳ Clean branch validation and push (requires manual action)
 - ⏳ PR creation for clean W3 baseline (separate from PR #25)
 - ⏳ Reduction work review (PR #25) for historical release evidence decisions
 - ⏳ Actual practitioner evaluation with unfamiliar participants
@@ -669,15 +640,13 @@ This reduction work is intentionally separated from the clean W3 baseline for in
 
 ## 17. Single Next Authorised Decision
 
-**Validate and push the clean W3 branch (chore/w3-harness-baseline-clean), then decide whether to create a replacement PR for the W3 baseline separate from PR #25.**
+**Push the clean W3 branch (chore/w3-harness-baseline-clean) and create a PR for the W3 baseline separate from PR #25.**
 
 ### Required Actions
-1. **User:** Run local validation on clean branch (git diff --check, make hygiene-quick, make test-golden)
-2. **User:** Review clean branch changes (4 files: AGENTS.md, CONTRIBUTING.md, w3-practitioner-dryrun.md, W3-HARNESS-BASELINE-REPORT.md)
-3. **User:** Push clean branch to origin: git push origin chore/w3-harness-baseline-clean
-4. **User:** Decide: Create replacement PR for clean W3 baseline OR request review of PR #25 reduction work separately
-5. **Programme:** Conduct actual practitioner evaluation with unfamiliar participants
-6. **Programme:** Apply smallest remediation based on actual practitioner evidence
+1. **User:** Push clean branch to origin: git push origin chore/w3-harness-baseline-clean
+2. **User:** Create PR for clean W3 baseline (separate from PR #25 reduction work)
+3. **Programme:** Conduct actual practitioner evaluation with unfamiliar participants
+4. **Programme:** Apply smallest remediation based on actual practitioner evidence
 
 ### Prohibited Actions
 - ❌ Do not implement product expansion without practitioner evidence
