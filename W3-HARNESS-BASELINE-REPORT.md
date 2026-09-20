@@ -185,7 +185,7 @@ Private Repositories
 ### Files Added
 - **ATB:**
   - AGENTS.md (62 lines) — Product identity and public/private boundary
-  - w3-practitioner-dryrun.md (229 lines) — INTERNAL DOGFOOD/DRY-RUN results
+  - w3-practitioner-dryrun.md (228 lines) — INTERNAL DOGFOOD/DRY-RUN results
 
 ### Files Modified
 - **ATB:**
