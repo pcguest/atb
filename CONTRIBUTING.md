@@ -6,6 +6,9 @@ This file covers contributor workflow. Release preparation and versioning detail
 [docs/maintainers/release.md](docs/maintainers/release.md) and
 [VERSIONING.md](VERSIONING.md).
 
+For AI-assisted development, see [AGENTS.md](AGENTS.md) for product identity, public/private
+boundaries, and architectural invariants.
+
 ## Local setup
 
 ```bash
@@ -90,7 +93,7 @@ GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.7 go test ./... -count=1
 bash scripts/check-versions.sh
 ```
 
-These mirror the `release-gate.yml` workflow; all three must pass.
+These mirror the release-gate checks: golden-vector parity (ci.yml), Go tests, and version agreement (release.yml); all three must pass.
 
 ## Schema changes
 
