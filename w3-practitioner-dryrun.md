@@ -10,7 +10,7 @@
 
 ### Test A1: Go CLI Installation
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install github.com/pcguest/atb/cmd/atb@v1.16.0
 ```
 **Result:** ✅ SUCCESS
 **Observation:** Installation completed successfully via go install
@@ -21,6 +21,7 @@ go install github.com/pcguest/atb/cmd/atb@latest
 ```bash
 git clone https://github.com/pcguest/atb.git
 cd atb
+git checkout v1.16.0
 make build
 ```
 **Result:** ✅ SUCCESS
@@ -30,7 +31,7 @@ make build
 
 ### Test A3: Python SDK Installation
 ```bash
-pip install atb-sdk
+pip install atb-sdk==1.16.0
 ```
 **Result:** ✅ SUCCESS
 **Observation:** Installation from PyPI successful
@@ -39,18 +40,28 @@ pip install atb-sdk
 
 ### Test A4: TypeScript SDK Installation
 ```bash
-npm install @pcguest/atb-sdk
+npm install @pcguest/atb-sdk@1.16.0
 ```
 **Result:** ✅ SUCCESS
 **Observation:** Installation from npm successful
 **Friction:** None
 **INTERNAL DOGFOOD:** Familiar with npm
 
+### Test A5: Bundle Creation (for B–H tests)
+```bash
+make demo-incident
+```
+**Result:** ✅ SUCCESS
+**Observation:** Demo incident bundle created at run.atb/incident-demo/incident.atb
+**Friction:** None
+**INTERNAL DOGFOOD:** Familiar with make targets
+**Note:** Jobs B–H below use this bundle for verification
+
 ## Job B: Verify - Determine whether its integrity verifies
 
 ### Test B1: Verification on intact bundle
 ```bash
-atb verify --profile atb.profile.policy_decision run.atb/bundle.atb
+atb verify --profile atb.profile.policy_decision run.atb/incident-demo/incident.atb
 ```
 **Result:** ✅ SUCCESS
 **Observation:** Verification passed with profile evaluation
@@ -68,7 +79,7 @@ atb verify --profile atb.profile.policy_decision run.atb/bundle.atb
 
 ### Test C1: Viewer navigation
 ```bash
-atb view run.atb/bundle.atb --profile atb.profile.policy_decision
+atb view run.atb/incident-demo/incident.atb --profile atb.profile.policy_decision
 ```
 **Result:** ✅ SUCCESS
 **Observation:** Viewer launches successfully, shows Investigation view
@@ -87,7 +98,7 @@ atb view run.atb/bundle.atb --profile atb.profile.policy_decision
 **Result:** ✅ SUCCESS
 **Observation:** docs/concepts/trust-model.md clearly states what ATB does and does not prove
 **Friction:** None
-**Evidence:** Documentation explicitly states: "ATB proves integrity, not completeness or truth"
+**Evidence:** Documentation explicitly states that hash chaining "does not prove capture completeness"
 
 ### Test D2: Integrity failure handling
 **Result:** ✅ SUCCESS
@@ -194,9 +205,7 @@ atb incident report --bundle <bundle-file> --session <session-id>
    - **Workaround:** Use go install for CLI-only usage
    - **Evidence:** Source build requires both Go and Node.js toolchains
 
-2. **No friction observed in INTERNAL DOGFOOD:** All tasks completed successfully
-   - **Note:** Internal dogfood may not reveal unfamiliar practitioner friction
-   - **Evidence:** Familiarity with toolchains may mask real practitioner barriers
+**Note:** Internal dogfood may not reveal unfamiliar practitioner friction; familiarity with toolchains may mask real practitioner barriers.
 
 ### Recommendations for Actual Practitioner Evaluation
 1. Test with practitioners unfamiliar with Go/Node.js toolchains

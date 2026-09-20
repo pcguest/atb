@@ -59,4 +59,4 @@ go test ./...
 
 - Embedded docs: `docs_embed.go`, `trust_embed.go`
 - Generated fixtures: `examples/bundles/profiles/`
-- Web build: `web/build/` (not committed)
+- Web build: `web/out/` (not committed)

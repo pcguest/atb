@@ -63,7 +63,7 @@
 - **AGENTS.md:** Created (new) ✅
 - **Scope:** Product identity, public/private boundary, architectural invariants, validation commands, security boundaries, repository structure
 - **Classification:** KEEP — Minimal invariant-only instructions
-- **Lines:** 45 lines
+- **Lines:** 62 lines
 - **Authority:** Establishes canonical public/private boundary
 
 #### System-Level Devin Configuration
@@ -159,9 +159,9 @@ Private Repositories
 - None (deferred until evidence justifies)
 
 **L3 — Task State:**
-- Branch: chore/w3-harness-baseline-prep
-- Commit: 31dc6fa
-- PR: Awaiting manual creation
+- Branch: chore/w3-harness-baseline-clean
+- Commit: 92dcb69
+- PR: #26 (OPEN)
 
 **L4 — Ephemeral Investigation:**
 - w3-practitioner-dryrun.md ( INTERNAL DOGFOOD/DRY-RUN results)
@@ -184,8 +184,8 @@ Private Repositories
 
 ### Files Added
 - **ATB:**
-  - AGENTS.md (45 lines) — Product identity and public/private boundary
-  - w3-practitioner-dryrun.md (219 lines) — INTERNAL DOGFOOD/DRY-RUN results
+  - AGENTS.md (62 lines) — Product identity and public/private boundary
+  - w3-practitioner-dryrun.md (229 lines) — INTERNAL DOGFOOD/DRY-RUN results
 
 ### Files Modified
 - **ATB:**
@@ -196,7 +196,7 @@ Private Repositories
   - None (merge pushed in previous session)
 
 ### Instructions Shortened
-- **AGENTS.md:** Minimal invariant-only instructions (45 lines)
+- **AGENTS.md:** Minimal invariant-only instructions (62 lines)
 - **No previous instructions existed** in ATB repository
 
 ### Duplicate Prompts Removed
@@ -493,12 +493,11 @@ make hygiene-quick
 - Go tests: ✅ Pass (38 packages)
 - Web lint: ✅ Pass
 - Web typecheck: ✅ Pass
-- govulncheck: ✅ No vulnerabilities
 
 #### make test-golden
-**Result:** ⏳ NOT RUN (deferred to CI)
-- Rationale: Cross-language golden vector test requires Python and TypeScript environments
-- Status: Will run in CI when PR is created
+**Result:** ✅ PASS (run in CI)
+- Cross-language canonical-hash golden vectors: Go, Python, TypeScript
+- Status: CI golden-test job passed
 
 #### go test ./...
 **Result:** ✅ PASS (included in hygiene-quick)
@@ -550,7 +549,7 @@ This reduction work is intentionally separated from the clean W3 baseline for in
 - **Test coverage:** All 38 Go test files retained ✅
 
 ### Complexity Delta
-- **Net change:** +2 files (AGENTS.md, w3-practitioner-dryrun.md)
+- **Net change:** +3 files added (AGENTS.md, w3-practitioner-dryrun.md, W3-HARNESS-BASELINE-REPORT.md), 1 file modified (CONTRIBUTING.md)
 - **Net complexity:** Minimal increase (invariant-only instructions)
 - **Debt reduction:** Previous session removed 34 files
 
@@ -613,7 +612,7 @@ This reduction work is intentionally separated from the clean W3 baseline for in
 2. **Public/private boundary:** Canonical statement established in AGENTS.md ✅
 3. **Harness baseline:** Minimal AGENTS.md created, no unnecessary skills added ✅
 4. **W3 materials:** Reproducible study materials prepared and dry-run completed ✅
-5. **Clean diff:** Only 4 files added (AGENTS.md, CONTRIBUTING.md, w3-practitioner-dryrun.md, W3-HARNESS-BASELINE-REPORT.md) ✅
+5. **Clean diff:** 3 files added (AGENTS.md, w3-practitioner-dryrun.md, W3-HARNESS-BASELINE-REPORT.md), 1 file modified (CONTRIBUTING.md) ✅
 6. **Reduction isolation:** Historical release documents preserved in origin/main; reduction work isolated to PR #25 for separate review ✅
 7. **Release contracts:** No deterministic tests weakened in clean branch ✅
 8. **Documentation:** No broken links, no private leakage in public repo ✅
@@ -631,7 +630,7 @@ This reduction work is intentionally separated from the clean W3 baseline for in
 - ✅ Historical release evidence preserved in origin/main
 
 ### What Remains
-- ⏳ PR creation for clean W3 baseline (separate from PR #25)
+- ⏳ PR #26 review and merge
 - ⏳ Reduction work review (PR #25) for historical release evidence decisions
 - ⏳ Actual practitioner evaluation with unfamiliar participants
 - ⏳ Evidence-based product expansion decisions
@@ -640,13 +639,14 @@ This reduction work is intentionally separated from the clean W3 baseline for in
 
 ## 17. Single Next Authorised Decision
 
-**Push the clean W3 branch (chore/w3-harness-baseline-clean) and create a PR for the W3 baseline separate from PR #25.**
+**Review and merge PR #26 (docs: establish clean W3 practitioner harness baseline) after addressing review comments.**
 
 ### Required Actions
-1. **User:** Push clean branch to origin: git push origin chore/w3-harness-baseline-clean
-2. **User:** Create PR for clean W3 baseline (separate from PR #25 reduction work)
-3. **Programme:** Conduct actual practitioner evaluation with unfamiliar participants
-4. **Programme:** Apply smallest remediation based on actual practitioner evidence
+1. **User:** Address cubic-dev-ai review comments on PR #26
+2. **User:** Push corrections to chore/w3-harness-baseline-clean
+3. **User:** Recheck CI and merge PR #26 when all checks pass
+4. **Programme:** Conduct actual practitioner evaluation with unfamiliar participants
+5. **Programme:** Apply smallest remediation based on actual practitioner evidence
 
 ### Prohibited Actions
 - ❌ Do not implement product expansion without practitioner evidence
