@@ -412,7 +412,7 @@ export function TrustSurface({
   const active = questions.find((question) => question.name === selected) ?? questions[0];
   const related = timeline.filter((event) => event.family === "corroboration");
   return (
-    <section className="space-y-4" aria-label="Trust">
+    <section className="space-y-4" aria-label="Evidence status">
       <div className="rounded-lg border border-border bg-card p-4">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           What ATB proves

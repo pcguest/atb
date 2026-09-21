@@ -150,7 +150,7 @@ afterEach(() => {
 });
 
 describe("ATB View investigation model", () => {
-  it("opens on the Incident summary rather than the graph", () => {
+  it("opens on the Run summary rather than the graph", () => {
     render(<ViewPage />);
     expect(screen.getByText("What happened?")).toBeInTheDocument();
     expect(screen.getByText(overview.summary)).toBeInTheDocument();
@@ -160,13 +160,13 @@ describe("ATB View investigation model", () => {
   it("provides every primary investigation surface", () => {
     render(<ViewPage />);
     for (const label of [
-      "Incident",
+      "Run",
       "Findings",
       "Timeline",
       "Context",
       "Relationships",
       "Evidence",
-      "Trust",
+      "Evidence status",
     ]) {
       expect(screen.getAllByRole("button", { name: label }).length).toBeGreaterThan(0);
     }
@@ -180,9 +180,9 @@ describe("ATB View investigation model", () => {
     expect(screen.queryByText(/available in the Engineer role/i)).not.toBeInTheDocument();
   });
 
-  it("opens the same Trust action from navigation", () => {
+  it("opens Evidence status from navigation", () => {
     render(<ViewPage />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
     expect(screen.getByText(/ATB proves the integrity and order/)).toBeInTheDocument();
     expect(screen.getByText("What ATB does not prove")).toBeInTheDocument();
     expect(screen.getByText("Integrity")).toBeInTheDocument();
@@ -222,7 +222,7 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     expect(screen.getByText("76%")).toBeInTheDocument();
     expect(screen.queryByText("Not assessed")).not.toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
     expect(screen.getByText("Pass")).toBeInTheDocument();
   });
 
@@ -280,7 +280,7 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     expect(screen.getByText("Integrity failed")).toBeInTheDocument();
     expect(screen.getByText("Untrusted")).toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
     expect(screen.getAllByText("Hash chain failed")).not.toHaveLength(0);
   });
 
@@ -333,7 +333,7 @@ describe("ATB View investigation model", () => {
     trust.custody_state = "External receipt recorded";
     overview.custody_state = "External receipt recorded";
     render(<ViewPage />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Trust" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
     expect(screen.getByText("External evidence present")).toBeInTheDocument();
     expect(screen.getAllByText("External receipt recorded")).not.toHaveLength(0);
     expect(screen.queryByText(/health score/i)).not.toBeInTheDocument();
