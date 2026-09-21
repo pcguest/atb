@@ -204,6 +204,37 @@ jobs:
           CYPRESS_MOCK_API=true CYPRESS_BASE_URL=http://127.0.0.1:18888 npm --prefix web run test:e2e
           kill "$(cat /tmp/atb-e2e.pid)" 2>/dev/null || true
 
+  # Cypress Cloud retains supplementary development-test history. The normal
+  # Web E2E step above is the authoritative product validation; a recording
+  # failure here must not turn a passing deterministic test into a CI failure.
+  cypress-cloud-record:
+    name: Cypress Cloud Recording (supplementary)
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    continue-on-error: true
+    env:
+      CYPRESS_RECORD_KEY: ${{ secrets.CYPRESS_RECORD_KEY }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22"
+
+      - name: Record static Firefox journey when Cloud is configured
+        if: env.CYPRESS_RECORD_KEY != ''
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+          ./scripts/run-static-cypress.sh cypress/e2e/investigation.cy.ts --record
+
+      - name: Report unconfigured recording
+        if: env.CYPRESS_RECORD_KEY == ''
+        run: echo "Cypress Cloud recording not configured; deterministic browser validation remains authoritative."
+
   # Layers A/B: multi-language golden canonicalization and parity checks.
   golden-test:
     name: Golden Parity (Layers A/B)
