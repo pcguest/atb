@@ -185,7 +185,7 @@ Cypress.Commands.add("waitForDashboard", () => {
     cy.contains("ATB View", { timeout: 10000 }).should("be.visible");
     cy.get('[aria-label="Investigation navigation"]', { timeout: 10000 })
       .should("be.visible")
-      .contains("button", "Trust");
+      .contains("button", "Evidence status");
     cy.contains("What happened?").should("be.visible");
   });
 });

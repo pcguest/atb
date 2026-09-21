@@ -1,6 +1,7 @@
 import { defineConfig } from "cypress";
 
 export default defineConfig({
+  projectId: "vqacqs",
   video: false,
   screenshotOnRunFailure: true,
   viewportWidth: 1280,

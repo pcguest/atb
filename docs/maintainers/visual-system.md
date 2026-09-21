@@ -66,10 +66,10 @@ synthetic records must not be presented as a product capture.
 
 ## Investigation composition
 
-ATB View keeps one stable route through Incident → Findings → Timeline →
-Context → Relationships → Evidence → Trust. Findings and timeline rows open
+ATB View keeps one stable route through Run → Findings → Timeline →
+Context → Relationships → Evidence → Evidence status. Findings and timeline rows open
 the exact supporting event. Relationships are table/list-first; the graph is
-an explicitly opened secondary representation. Trust answers three independent
+an explicitly opened secondary representation. Evidence status answers three independent
 questions: record integrity, selected-profile coverage, and external custody.
 
 The shipped component grammar is:

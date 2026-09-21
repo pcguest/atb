@@ -2,7 +2,7 @@
 
 ## Status
 
-**Single-bundle viewer (`/view/`) — shipped:** local `atb view` API server with verification gate and privacy reveal flow. Investigation View is Incident-first: Incident, Findings, Timeline, Context, Relationships, Evidence, and Trust. Trust answers Integrity, Coverage, and Corroboration. There is no Health score, Trust Dashboard, stats strip, Profile/CAS panel, or `SessionAnomalies` banner on `/view`. Reveal audit logging is written to a separate `<bundle>.reveals` sidecar, never into the authoritative bundle.
+**Single-bundle viewer (`/view/`) — shipped:** local `atb view` API server with verification gate and privacy reveal flow. Investigation View is Run-first: Run, Findings, Timeline, Context, Relationships, Evidence, and Evidence status. Evidence status answers Integrity, Coverage, and Corroboration. There is no Health score, Trust Dashboard, stats strip, Profile/CAS panel, or `SessionAnomalies` banner on `/view`. Reveal audit logging is written to a separate `<bundle>.reveals` sidecar, never into the authoritative bundle.
 
 **Cross-bundle session UI — shipped:** `GET /api/v1/sessions`,
 `GET /api/v1/sessions/by-actor`, and `GET /api/v1/schema/status` are
@@ -230,15 +230,25 @@ Clicking a session row opens the existing single-bundle viewer for
 
 ### Investigation View (`/view`)
 
-Shipped `/view` is Incident-first investigation. It is not a Health or Trust Dashboard.
+Shipped `/view` is Run-first investigation. It is not a Health or Trust Dashboard.
 
-- **Incident** — “What happened?” summary, integrity pill (hash chain verified or integrity failed), profile id, evidence coverage (Untrusted when the chain is invalid), finding count, custody.
+### Run projection
+
+In this viewer, **Run** is a human-facing projection of the captured activity in
+the loaded bundle. Its source data is the bundle's ordered records; it starts
+at the first captured record and ends at the last captured record. The bundle
+path identifies that projection. A recorded `session_id`, where present, may
+relate individual records to a session, but is neither required nor treated as
+the Run identity. Run does not claim that one bundle is one complete session,
+one complete lifecycle, or all activity associated with an external run.
+
+- **Run** — recorded-activity summary, integrity pill (hash chain verified or integrity failed), profile id, evidence coverage (Untrusted when the chain is invalid), finding count, custody. It is bounded to the loaded bundle.
 - **Findings** — investigation findings with conclude / cannot-conclude; empty state does not prove complete capture.
 - **Timeline** — chronological investigation event list. Not virtualised.
 - **Context** — context evidence units and operations. Not labelled “supplied to model”.
 - **Relationships** — table-first shared identifiers. Optional graph of the same rows is unbounded and is not a causation claim.
 - **Evidence** — paginated raw events, inspector with fields masked by default, `Click to Reveal` via `POST /api/v1/privacy/reveal`.
-- **Trust** — Integrity, Coverage, and Corroboration. No Health 0–100, stats strip, Profile/CAS panel, or `SessionAnomalies` banner.
+- **Evidence status** — Integrity, Coverage, and Corroboration. No Health 0–100, stats strip, Profile/CAS panel, or `SessionAnomalies` banner. This label is not a claim of truth, safety, or complete capture.
 
 Invalid hash-chain state shows tamper-first UX and blocks data endpoints. Profile/CAS summaries remain available from `GET /api/v1/bundle/profile` and `POST /api/v1/bundle/verify`; they are not a `/view` dashboard panel.
 

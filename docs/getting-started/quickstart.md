@@ -116,14 +116,13 @@ ATB_LOCK_WAIT=10s atb snapshot ci_checkpoint
 
 ## 2. Installation options
 
-### Go CLI
+### Go CLI (Recommended for latest features)
 
 ```bash
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-A `go install` build serves a minimal install-guidance page for `atb view`;
-for the full embedded review UI, build from a checkout with `make build`.
+The Go CLI is the recommended installation method for accessing the latest features. A `go install` build serves a minimal install-guidance page for `atb view`; for the full embedded review UI, build from a checkout with `make build`.
 
 ### Python SDK
 
@@ -141,11 +140,14 @@ The Python and TypeScript packages are SDKs only. Their installed `atb`
 command is a compatibility stub that prints Go CLI install guidance and
 will be removed in a future major release.
 
-Registry publication can lag the source tree. As checked on 3 September 2026,
-PyPI publishes `atb-sdk` 1.14.5 and npm publishes `@pcguest/atb-sdk` 1.15.4;
-neither is the local v1.16.0 candidate. Check the relevant registry and the
-installed package version before relying on release-specific behaviour. The
-next controlled release must advance both registries together.
+### Version Status and Recommendations
+
+> **Note**: Registry publication may occasionally lag behind the source tree.
+>
+> **Recommendations**:
+> - For the latest features and behavior matching current documentation, use `go install` for the CLI or build from source
+> - If using SDKs from registries, check the installed version (`pip show atb-sdk` or `npm list @pcguest/atb-sdk`) against the documentation
+> - Behavior differences between versions may cause confusion if your installed version doesn't match the documentation you're reading
 
 ## 3. Record your first bundle (Python SDK)
 
@@ -176,7 +178,33 @@ bundle.save("my-trace.atb")
 bundle.verify()
 ```
 
-## 4. Open the local review UI
+## 4. Record your first bundle (TypeScript SDK)
+
+```typescript
+import { Bundle } from "@pcguest/atb-sdk";
+
+const bundle = new Bundle();
+
+bundle.append("ai.request.received", {
+  request_id: "req-001",
+  actor_id_hash: "sha256-user-001",
+  purpose_tag: "rag_answer",
+});
+
+bundle.append("ai.model.invoked", {
+  model_provider: "openai",
+  model_id: "gpt-4",
+  model_parameters_digest: "sha256-params-001",
+  prompt_digest: "sha256-prompt-001",
+});
+
+await bundle.save("my-trace.atb");
+bundle.verify();
+```
+
+For a runnable TypeScript quickstart example, see [examples/typescript/](../../examples/typescript/).
+
+## 5. Open the local review UI
 
 ```bash
 # Default bundle path
@@ -194,8 +222,8 @@ atb view --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
 `--profile` runs verification at startup and makes its separate integrity,
 profile-coverage, and custody answers available immediately. Without
 `--profile`, use "Verify bundle" in the command palette to trigger
-`POST /api/v1/bundle/verify`. Investigation follows Incident → Findings →
-Timeline → Context → Relationships → Evidence → Trust; findings link directly
+`POST /api/v1/bundle/verify`. Investigation follows Run → Findings → Timeline
+→ Context → Relationships → Evidence → Evidence status; findings link directly
 to their supporting records.
 
 `atb view` requires building from source to include the embedded review UI:
@@ -212,7 +240,7 @@ Viewer details:
 
 - [Viewer specification](../specification/viewer.md)
 
-## 5. Incident evidence export
+## 6. Incident evidence export
 
 ```bash
 atb incident list --bundle run.atb/bundle.atb
@@ -239,7 +267,7 @@ Compliance packs are deterministic offline review artefacts. They include the
 selected profile/CAS result, obligation mapping, relevant incident reports, and
 retention evidence when `.atb/operations.atb` is present.
 
-## 6. Compliance exports
+## 7. Compliance exports
 
 ```bash
 atb config retention --days 183
@@ -256,7 +284,7 @@ Reference docs:
 - [Compliance hub](../compliance/README.md)
 - [Incident forensics](../investigate/incidents.md)
 
-## 7. AI integrations
+## 8. AI integrations
 
 ```python
 from atb.langchain_callback import ATBCallbackHandler
@@ -271,7 +299,7 @@ Integration docs:
 - [LangChain integration](../integrations/langchain.md)
 - [Vercel AI SDK integration](../integrations/vercel-ai.md)
 
-## 8. Next steps
+## 9. Next steps
 
 - [Go example](../../examples/go/README.md)
 - [Capture guide](../capture/overview.md)

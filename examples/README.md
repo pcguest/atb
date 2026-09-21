@@ -12,6 +12,7 @@ Path: [examples/quickstart/](./quickstart/)
 
 - [Python LangChain example](./python/langchain_bot.py)
 - [Python LangGraph example](./python/langgraph_demo.py)
+- [TypeScript quickstart](./typescript/README.md)
 - [TypeScript Vercel AI example](./typescript/vercel-chat-bot.ts)
 
 ## Flagship incident workflow
