@@ -1,0 +1,16 @@
+{
+  "name": "atb-typescript-quickstart",
+  "version": "1.0.0",
+  "description": "ATB TypeScript SDK Quickstart Example",
+  "main": "quickstart.ts",
+  "scripts": {
+    "start": "tsx quickstart.ts"
+  },
+  "dependencies": {
+    "@pcguest/atb-sdk": "^1.16.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  },
+  "private": true
+}
