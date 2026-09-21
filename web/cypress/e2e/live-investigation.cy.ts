@@ -18,7 +18,7 @@ describe("ATB investigation against the embedded server", () => {
         cy.contains("ATB View", { timeout: 10000 }).should("be.visible");
         cy.get('[aria-label="Investigation navigation"]', { timeout: 10000 })
           .should("be.visible")
-          .contains("button", "Trust");
+          .contains("button", "Evidence status");
         cy.contains("What happened?").should("be.visible");
       });
     });
@@ -39,7 +39,7 @@ describe("ATB investigation against the embedded server", () => {
         cy.contains("Event data is blocked").should("be.visible");
         return;
       }
-      cy.get('[aria-label="Investigation navigation"]').contains("button", "Trust").click();
+      cy.get('[aria-label="Investigation navigation"]').contains("button", "Evidence status").click();
       cy.contains("Integrity").should("be.visible");
       cy.contains("Coverage").should("be.visible");
       cy.contains("Corroboration").should("be.visible");
@@ -76,7 +76,7 @@ describe("ATB investigation against the embedded server", () => {
       cy.checkA11yStrict();
       return;
     }
-    for (const surface of ["Incident", "Findings", "Timeline", "Context", "Relationships", "Evidence", "Trust"]) {
+    for (const surface of ["Run", "Findings", "Timeline", "Context", "Relationships", "Evidence", "Evidence status"]) {
       cy.get('[aria-label="Investigation navigation"]').contains("button", surface).click();
       cy.get("main").should("be.visible");
       cy.get("main").should("not.contain.text", "Loading");
@@ -95,7 +95,7 @@ describe("ATB investigation against the embedded server", () => {
     }
     for (const width of [1440, 1280, 1024, 900]) {
       cy.viewport(width, 900);
-      for (const surface of ["Incident", "Evidence", "Relationships", "Trust"]) {
+      for (const surface of ["Run", "Evidence", "Relationships", "Evidence status"]) {
         cy.get('[aria-label="Investigation navigation"]').contains("button", surface).click().should("be.visible");
         cy.document().should((document) => {
           expect(document.documentElement.scrollWidth).to.be.at.most(width);

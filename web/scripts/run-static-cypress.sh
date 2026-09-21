@@ -1,18 +1,27 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 1 ]; then
-  echo "usage: $0 <spec>" >&2
+if [ "$#" -lt 1 ]; then
+  echo "usage: $0 <spec> [cypress args...]" >&2
   exit 1
 fi
 
 SPEC="$1"
+shift
+case "$SPEC" in
+  /*) ;;
+  *) SPEC="$(pwd)/$SPEC" ;;
+esac
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+OUT_DIR="${SCRIPT_DIR}/../out"
 HOST="${STATIC_HOST:-127.0.0.1}"
 PORT="${STATIC_PORT:-3000}"
 BASE_URL="${CYPRESS_BASE_URL:-http://${HOST}:${PORT}}"
 SERVER_LOG="${STATIC_SERVER_LOG:-/tmp/atb-static-cypress.log}"
 
-python3 -m http.server "$PORT" --bind "$HOST" --directory out >"$SERVER_LOG" 2>&1 &
+cd "${SCRIPT_DIR}/.."
+
+python3 -m http.server "$PORT" --bind "$HOST" --directory "$OUT_DIR" >"$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 
 cleanup() {
@@ -34,4 +43,4 @@ done
 
 # ELECTRON_RUN_AS_NODE (sometimes set by IDEs) makes Cypress treat its binary as
 # Node and reject Electron smoke-test flags. Clear it for the browser launch.
-env -u ELECTRON_RUN_AS_NODE npx --no-install cypress run --spec "$SPEC" --browser firefox --env MOCK_API=true
+CYPRESS_BASE_URL="$BASE_URL" env -u ELECTRON_RUN_AS_NODE npx --no-install cypress run --spec "$SPEC" --browser firefox --env MOCK_API=true "$@"
