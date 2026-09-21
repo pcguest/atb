@@ -216,8 +216,11 @@ def main() -> None:
     print(application_log, end="")
 
     _run_cli(atb, ["verify", "--bundle", str(BUNDLE_PATH)])
-    sessions = _run_cli(atb, ["incident", "list", "--bundle", str(BUNDLE_PATH)])
-    report = _run_cli(
+    sessions_output = _run_cli(
+        atb,
+        ["incident", "list", "--bundle", str(BUNDLE_PATH), "--format", "json"],
+    )
+    report_output = _run_cli(
         atb,
         [
             "incident",
@@ -226,9 +229,21 @@ def main() -> None:
             str(BUNDLE_PATH),
             "--session",
             SESSION_ID,
+            "--format",
+            "json",
         ],
     )
-    if "tool_without_approval" not in sessions + report:
+    sessions = json.loads(sessions_output)
+    report = json.loads(report_output)
+    reported_flags = {
+        flag
+        for session in sessions
+        for flag in session.get("anomaly_flags", [])
+    }
+    reported_flags.update(
+        finding.get("flag") for finding in report.get("findings", [])
+    )
+    if "tool_without_approval" not in reported_flags:
         raise RuntimeError("expected tool_without_approval finding was not reported")
 
     for tampered_path in (
