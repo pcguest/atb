@@ -135,6 +135,7 @@ func runImportOTel(ctx context.Context, args []string, stdin io.Reader, stdout, 
 			TraceID:      ev.TraceID,
 			SpanID:       ev.SpanID,
 			ParentSpanID: ev.ParentSpanID,
+			Acquisition:  ev.Acquisition,
 		}); appendErr != nil {
 			return fail(exitSystemError, fmt.Sprintf("failed appending event %d/%d: %v", written+1, len(result.Events), appendErr))
 		}
@@ -142,20 +143,26 @@ func runImportOTel(ctx context.Context, args []string, stdin io.Reader, stdout, 
 	}
 
 	if cfg.SnapshotName != "" {
-		snapshotAt := time.Now().UTC().Format(time.RFC3339Nano)
-		bundleHash, hashErr := verifypkg.SnapshotBundleHash(b.Records)
-		if hashErr != nil {
-			return fail(snapshotExitCode(hashErr), fmt.Sprintf("events not persisted because snapshot step failed: %v", hashErr))
+		if err := validateSnapshotName(cfg.SnapshotName); err != nil {
+			return fail(exitUserError, err.Error())
 		}
-		snap := snapshotEventData{
-			Name:        cfg.SnapshotName,
-			BundleHash:  bundleHash,
-			RecordCount: len(b.Records),
-			SnapshotAt:  snapshotAt,
-		}
-		if err := b.AppendWithOptions(event.TypeSnapshot, snap, &bundle.AppendOptions{Timestamp: snapshotAt}); err != nil {
-			return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
-		}
+	}
+
+	snapshotAt := time.Now().UTC().Format(time.RFC3339Nano)
+	bundleHash, hashErr := verifypkg.SnapshotBundleHash(b.Records)
+	if hashErr != nil {
+		return fail(snapshotExitCode(hashErr), fmt.Sprintf("events not persisted because snapshot step failed: %v", hashErr))
+	}
+	snap := snapshotEventData{
+		Name:        cfg.SnapshotName,
+		BundleHash:  bundleHash,
+		RecordCount: len(b.Records),
+		SnapshotAt:  snapshotAt,
+	}
+	if err := b.AppendWithOptions(event.TypeSnapshot, snap, &bundle.AppendOptions{
+		Timestamp: snapshotAt,
+	}); err != nil {
+		return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
 	}
 
 	if err := b.Save(ctx, cfg.BundlePath); err != nil {
@@ -166,14 +173,14 @@ func runImportOTel(ctx context.Context, args []string, stdin io.Reader, stdout, 
 	}
 
 	if cfg.Format == formatJSON {
-		res := importOTelResult{
+		result := importOTelResult{
 			EventsWritten:    written,
 			SpansSkipped:     result.SkippedCount,
 			BundlePath:       cfg.BundlePath,
 			SnapshotAppended: cfg.SnapshotName != "",
 			SnapshotName:     cfg.SnapshotName,
 		}
-		if err := json.NewEncoder(stdout).Encode(res); err != nil {
+		if err := json.NewEncoder(stdout).Encode(result); err != nil {
 			fmt.Fprintf(stderr, "atb import otel: encode json: %v\n", err)
 			return exitSystemError
 		}

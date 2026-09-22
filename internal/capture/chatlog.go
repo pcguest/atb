@@ -62,13 +62,15 @@ type ChatMessage struct {
 	RequestID             string
 	ActorIDHash           string
 	PurposeTag            string
+	RawLine               string // Raw source line for digest computation
 }
 
 // EventSpec is one canonical ATB event ready to append into a bundle.
 type EventSpec struct {
-	Type      string
-	Data      map[string]any
-	Timestamp string
+	Type        string
+	Data        map[string]any
+	Timestamp   string
+	Acquisition *event.AcquisitionInfo
 }
 
 // MappingResult captures the mapped ATB events and import metadata.
@@ -172,7 +174,13 @@ func parseRawChatMessage(line int, raw []byte) (ChatMessage, error) {
 		return ChatMessage{}, fmt.Errorf("parse generic JSONL line %d: %w", line, err)
 	}
 
-	return normaliseRawChatMessage(line, input)
+	message, err := normaliseRawChatMessage(line, input)
+	if err != nil {
+		return ChatMessage{}, err
+	}
+	// Store the raw line for digest computation
+	message.RawLine = string(raw)
+	return message, nil
 }
 
 func normaliseRawChatMessage(line int, input rawChatMessage) (ChatMessage, error) {
@@ -221,6 +229,40 @@ func normaliseRawChatMessage(line int, input rawChatMessage) (ChatMessage, error
 	}
 
 	return message, nil
+}
+
+// computeSourceDigest computes the SHA-256 digest of the raw source representation
+// BEFORE semantic translation. This enables verification that the imported ATB
+// evidence came from the same acquired source representation.
+func computeSourceDigest(rawLine string) string {
+	sum := sha256.Sum256([]byte(rawLine))
+	return "sha256:" + hex.EncodeToString(sum[:])
+}
+
+// buildAcquisitionInfo creates the AcquisitionInfo for a chatlog import.
+func buildAcquisitionInfo(message ChatMessage, adapter string) *event.AcquisitionInfo {
+	acquiredAt := time.Now().UTC().Format(time.RFC3339Nano)
+	sourceDigest := computeSourceDigest(message.RawLine)
+	sourceRecordID := fmt.Sprintf("line:%d", message.Line)
+
+	return &event.AcquisitionInfo{
+		Mode:            "retrospective",
+		SourceSystem:    "chatlog",
+		SourceRecordID:  sourceRecordID,
+		SourceTimestamp: message.Timestamp,
+		AcquiredAt:      acquiredAt,
+		SourceDigest:    sourceDigest,
+		Adapter:         "atb.chatlog.generic-jsonl",
+		AdapterVersion:  "1.0.0",
+		Checkpoint: &event.CheckpointInfo{
+			SourceSystem:      "chatlog",
+			AcquisitionStream: "stdin", // Will be overridden by caller if needed
+			Position:          fmt.Sprintf("line:%d", message.Line),
+			ObservedAt:        acquiredAt,
+			Adapter:           "atb.chatlog.generic-jsonl",
+			AdapterVersion:    "1.0.0",
+		},
+	}
 }
 
 // MapMessagesToEvents converts parsed chat messages into canonical ATB events.
@@ -297,7 +339,12 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 				"source_line_num": message.Line,
 			}
 			addChatContext(data, message)
-			result.Events = append(result.Events, EventSpec{Type: event.TypeAIRequestReceived, Data: data, Timestamp: message.Timestamp})
+			result.Events = append(result.Events, EventSpec{
+				Type:        event.TypeAIRequestReceived,
+				Data:        data,
+				Timestamp:   message.Timestamp,
+				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+			})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		case "tool":
 			if currentRequestID == "" {
@@ -325,7 +372,12 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 				data["tool_args"] = toolArgsValue
 			}
 			addChatContext(data, message)
-			result.Events = append(result.Events, EventSpec{Type: event.TypeAIToolExec, Data: data, Timestamp: message.Timestamp})
+			result.Events = append(result.Events, EventSpec{
+				Type:        event.TypeAIToolExec,
+				Data:        data,
+				Timestamp:   message.Timestamp,
+				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+			})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		case "assistant":
 			if currentRequestID == "" {
@@ -346,7 +398,12 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 					"source_line_num":         message.Line,
 				}
 				addChatContext(data, message)
-				result.Events = append(result.Events, EventSpec{Type: event.TypeAIModelInvoked, Data: data, Timestamp: message.Timestamp})
+				result.Events = append(result.Events, EventSpec{
+					Type:        event.TypeAIModelInvoked,
+					Data:        data,
+					Timestamp:   message.Timestamp,
+					Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+				})
 
 				outputData := map[string]any{
 					"request_id":      currentRequestID,
@@ -356,7 +413,12 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 					"source_line_num": message.Line,
 				}
 				addChatContext(outputData, message)
-				result.Events = append(result.Events, EventSpec{Type: event.TypeAIModelOutput, Data: outputData, Timestamp: message.Timestamp})
+				result.Events = append(result.Events, EventSpec{
+					Type:        event.TypeAIModelOutput,
+					Data:        outputData,
+					Timestamp:   message.Timestamp,
+					Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+				})
 				modelTurnSeen = true
 			}
 
@@ -370,7 +432,12 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 			addChatContext(responseData, message)
 			// Keep response.sent separate from model.output: the former closes the
 			// application response lifecycle while the latter records model output.
-			result.Events = append(result.Events, EventSpec{Type: event.TypeAIResponseSent, Data: responseData, Timestamp: message.Timestamp})
+			result.Events = append(result.Events, EventSpec{
+				Type:        event.TypeAIResponseSent,
+				Data:        responseData,
+				Timestamp:   message.Timestamp,
+				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+			})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		default:
 			return MappingResult{}, fmt.Errorf("capture: turn %d: %w", index, ErrUnknownTurn)
@@ -389,7 +456,10 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 // appended (it stops at the first failure).
 func AppendEventsToBundleInMemory(b *bundle.Bundle, events []EventSpec) (int, error) {
 	for i, spec := range events {
-		if err := b.AppendWithOptions(spec.Type, spec.Data, &bundle.AppendOptions{Timestamp: spec.Timestamp}); err != nil {
+		if err := b.AppendWithOptions(spec.Type, spec.Data, &bundle.AppendOptions{
+			Timestamp:   spec.Timestamp,
+			Acquisition: spec.Acquisition,
+		}); err != nil {
 			return i, err
 		}
 	}
@@ -407,7 +477,10 @@ func AppendEventsToBundle(path string, events []EventSpec) (AppendSummary, error
 		return AppendSummary{}, err
 	}
 	for _, spec := range events {
-		if err := b.AppendWithOptions(spec.Type, spec.Data, &bundle.AppendOptions{Timestamp: spec.Timestamp}); err != nil {
+		if err := b.AppendWithOptions(spec.Type, spec.Data, &bundle.AppendOptions{
+			Timestamp:   spec.Timestamp,
+			Acquisition: spec.Acquisition,
+		}); err != nil {
 			return AppendSummary{}, fmt.Errorf("append events: %w", err)
 		}
 	}
