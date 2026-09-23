@@ -138,6 +138,9 @@ CAPTURE_SCOPE_EVENT_TYPE: Final = CAPTURE_SCOPE
 CAPTURE_REJECTED: Final = "atb.capture.rejected"
 CAPTURE_REJECTED_EVENT_TYPE: Final = CAPTURE_REJECTED
 
+ACQUISITION_FINDING: Final = "atb.acquisition.finding"
+ACQUISITION_FINDING_EVENT_TYPE: Final = ACQUISITION_FINDING
+
 LLM_REQUEST: Final = "atb.llm.request"
 LLM_REQUEST_EVENT_TYPE: Final = LLM_REQUEST
 
@@ -439,6 +442,13 @@ EVENT_TYPE_REGISTRY: list[EventTypeSpec] = [
         "required_fields": ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"],
     },
     {
+        "type": ACQUISITION_FINDING,
+        "description": "Acquisition continuity finding indicating a source record representation changed between imports",
+        "profiles": [],
+        "criticality": "informational",
+        "required_fields": ["finding_type", "source_system", "source_record_id", "previous_digest", "current_digest", "previous_acquired_at", "current_acquired_at", "adapter"],
+    },
+    {
         "type": LLM_REQUEST,
         "description": "Captured upstream LLM API request (proxy-internal)",
         "profiles": [],
@@ -510,6 +520,7 @@ EVENT_TYPE_REQUIRED_FIELDS: dict[str, list[str]] = {
     HUMAN_APPROVAL: ["session_id", "approved_action_id"],
     CAPTURE_SCOPE: ["targets", "capture_mode"],
     CAPTURE_REJECTED: ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"],
+    ACQUISITION_FINDING: ["finding_type", "source_system", "source_record_id", "previous_digest", "current_digest", "previous_acquired_at", "current_acquired_at", "adapter"],
     LLM_REQUEST: ["session_id", "host", "method", "path"],
     LLM_RESPONSE: ["session_id", "host", "method", "path", "status_code"],
     SESSION_CLOSE: ["session_id", "actor_id"],
@@ -602,6 +613,8 @@ __all__ = [
     "CAPTURE_SCOPE_EVENT_TYPE",
     "CAPTURE_REJECTED",
     "CAPTURE_REJECTED_EVENT_TYPE",
+    "ACQUISITION_FINDING",
+    "ACQUISITION_FINDING_EVENT_TYPE",
     "LLM_REQUEST",
     "LLM_REQUEST_EVENT_TYPE",
     "LLM_RESPONSE",

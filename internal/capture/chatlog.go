@@ -231,19 +231,48 @@ func normaliseRawChatMessage(line int, input rawChatMessage) (ChatMessage, error
 	return message, nil
 }
 
-// computeSourceDigest computes the SHA-256 digest of the raw source representation
-// BEFORE semantic translation. This enables verification that the imported ATB
-// evidence came from the same acquired source representation.
-func computeSourceDigest(rawLine string) string {
-	sum := sha256.Sum256([]byte(rawLine))
-	return "sha256:" + hex.EncodeToString(sum[:])
+// exchangeIdentities derives a stable per-exchange source identity for each
+// message: the request id of the user turn that opened the exchange. The source
+// digest covers the raw representation of every line in the exchange so a change
+// to any line (request, tool call, or response) is detectable. This makes a
+// chatlog source record an exchange, not an individual line or derived event.
+func exchangeIdentities(messages []ChatMessage) ([]string, map[string]string) {
+	namespace := chatNamespace(messages)
+	ids := make([]string, len(messages))
+	lines := make(map[string][]string)
+	counter := 0
+	current := ""
+	for i, message := range messages {
+		switch message.Role {
+		case "user":
+			counter++
+			requestID := message.RequestID
+			if requestID == "" {
+				requestID = generatedRequestID(namespace, counter)
+			}
+			current = requestID
+			ids[i] = requestID
+			lines[requestID] = append(lines[requestID], message.RawLine)
+		case "assistant", "tool":
+			ids[i] = current
+			if current != "" {
+				lines[current] = append(lines[current], message.RawLine)
+			}
+		default:
+			ids[i] = ""
+		}
+	}
+	digests := make(map[string]string, len(lines))
+	for requestID, rawLines := range lines {
+		sum := sha256.Sum256([]byte(strings.Join(rawLines, "\n")))
+		digests[requestID] = "sha256:" + hex.EncodeToString(sum[:])
+	}
+	return ids, digests
 }
 
-// buildAcquisitionInfo creates the AcquisitionInfo for a chatlog import.
-func buildAcquisitionInfo(message ChatMessage, adapter string) *event.AcquisitionInfo {
+// buildAcquisitionInfo creates the AcquisitionInfo for a chatlog exchange.
+func buildAcquisitionInfo(message ChatMessage, adapter, sourceRecordID, sourceDigest string) *event.AcquisitionInfo {
 	acquiredAt := time.Now().UTC().Format(time.RFC3339Nano)
-	sourceDigest := computeSourceDigest(message.RawLine)
-	sourceRecordID := fmt.Sprintf("line:%d", message.Line)
 
 	return &event.AcquisitionInfo{
 		Mode:            "retrospective",
@@ -257,7 +286,7 @@ func buildAcquisitionInfo(message ChatMessage, adapter string) *event.Acquisitio
 		Checkpoint: &event.CheckpointInfo{
 			SourceSystem:      "chatlog",
 			AcquisitionStream: "stdin", // Will be overridden by caller if needed
-			Position:          fmt.Sprintf("line:%d", message.Line),
+			Position:          sourceRecordID,
 			ObservedAt:        acquiredAt,
 			Adapter:           "atb.chatlog.generic-jsonl",
 			AdapterVersion:    "1.0.0",
@@ -313,6 +342,7 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 	requestCounter := 0
 	currentRequestID := ""
 	globalNamespace := chatNamespace(messages)
+	exchangeIDs, exchangeDigests := exchangeIdentities(messages)
 	modelTurnSeen := false
 
 	for index, message := range messages {
@@ -343,7 +373,7 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 				Type:        event.TypeAIRequestReceived,
 				Data:        data,
 				Timestamp:   message.Timestamp,
-				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl", exchangeIDs[index], exchangeDigests[exchangeIDs[index]]),
 			})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		case "tool":
@@ -376,7 +406,7 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 				Type:        event.TypeAIToolExec,
 				Data:        data,
 				Timestamp:   message.Timestamp,
-				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl", exchangeIDs[index], exchangeDigests[exchangeIDs[index]]),
 			})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		case "assistant":
@@ -402,7 +432,7 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 					Type:        event.TypeAIModelInvoked,
 					Data:        data,
 					Timestamp:   message.Timestamp,
-					Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+					Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl", exchangeIDs[index], exchangeDigests[exchangeIDs[index]]),
 				})
 
 				outputData := map[string]any{
@@ -417,7 +447,7 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 					Type:        event.TypeAIModelOutput,
 					Data:        outputData,
 					Timestamp:   message.Timestamp,
-					Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+					Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl", exchangeIDs[index], exchangeDigests[exchangeIDs[index]]),
 				})
 				modelTurnSeen = true
 			}
@@ -436,7 +466,7 @@ func mapMessagesToEventsInner(messages []ChatMessage) (MappingResult, error) {
 				Type:        event.TypeAIResponseSent,
 				Data:        responseData,
 				Timestamp:   message.Timestamp,
-				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl"),
+				Acquisition: buildAcquisitionInfo(message, "atb.chatlog.generic-jsonl", exchangeIDs[index], exchangeDigests[exchangeIDs[index]]),
 			})
 			promptWindow = append(promptWindow, promptWindowEntry(message))
 		default:

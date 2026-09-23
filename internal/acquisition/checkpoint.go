@@ -38,6 +38,9 @@ var ErrCheckpointSourceMismatch = errors.New("acquisition: checkpoint source mis
 // ErrCheckpointAdapterMismatch indicates the checkpoint adapter doesn't match.
 var ErrCheckpointAdapterMismatch = errors.New("acquisition: checkpoint adapter mismatch")
 
+// ErrNoTranslatableSpans indicates an OTLP payload contained no translatable spans.
+var ErrNoTranslatableSpans = errors.New("acquisition: no translatable spans found in OTLP payload")
+
 // Checkpoint represents an acquisition checkpoint for incremental continuation.
 type Checkpoint struct {
 	// FormatVersion is the checkpoint format version.

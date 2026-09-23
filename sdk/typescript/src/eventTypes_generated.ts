@@ -134,6 +134,9 @@ export const CAPTURE_SCOPE_EVENT_TYPE = CAPTURE_SCOPE;
 export const CAPTURE_REJECTED = "atb.capture.rejected" as const;
 export const CAPTURE_REJECTED_EVENT_TYPE = CAPTURE_REJECTED;
 
+export const ACQUISITION_FINDING = "atb.acquisition.finding" as const;
+export const ACQUISITION_FINDING_EVENT_TYPE = ACQUISITION_FINDING;
+
 export const LLM_REQUEST = "atb.llm.request" as const;
 export const LLM_REQUEST_EVENT_TYPE = LLM_REQUEST;
 
@@ -435,6 +438,13 @@ export const EVENT_TYPE_REGISTRY = [
     required_fields: ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"],
   },
   {
+    type: ACQUISITION_FINDING,
+    description: "Acquisition continuity finding indicating a source record representation changed between imports",
+    profiles: [],
+    criticality: "informational",
+    required_fields: ["finding_type", "source_system", "source_record_id", "previous_digest", "current_digest", "previous_acquired_at", "current_acquired_at", "adapter"],
+  },
+  {
     type: LLM_REQUEST,
     description: "Captured upstream LLM API request (proxy-internal)",
     profiles: [],
@@ -506,6 +516,7 @@ export const EVENT_TYPE_REQUIRED_FIELDS = {
   [HUMAN_APPROVAL]: ["session_id", "approved_action_id"],
   [CAPTURE_SCOPE]: ["targets", "capture_mode"],
   [CAPTURE_REJECTED]: ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"],
+  [ACQUISITION_FINDING]: ["finding_type", "source_system", "source_record_id", "previous_digest", "current_digest", "previous_acquired_at", "current_acquired_at", "adapter"],
   [LLM_REQUEST]: ["session_id", "host", "method", "path"],
   [LLM_RESPONSE]: ["session_id", "host", "method", "path", "status_code"],
   [SESSION_CLOSE]: ["session_id", "actor_id"],

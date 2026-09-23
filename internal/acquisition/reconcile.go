@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 )
 
@@ -157,8 +158,48 @@ func (r *Reconciler) identityKey(id event.SourceIdentity) string {
 
 // LoadFromBundle populates the reconciler's known records from an existing bundle.
 func (r *Reconciler) LoadFromBundle(bundleRecords []interface{}) error {
-	// This would iterate through bundle records and extract acquisition metadata
-	// For now, this is a placeholder - implementation depends on bundle iteration API
+	for _, rec := range bundleRecords {
+		record, ok := rec.(bundle.Record)
+		if !ok {
+			continue
+		}
+
+		// Skip manifest and other bundle-level records
+		if record.Event.Type == bundle.ManifestEventType {
+			continue
+		}
+
+		// Extract acquisition info
+		acq := record.Event.Acquisition
+		if acq == nil {
+			continue
+		}
+
+		// Build source identity from acquisition info
+		sourceIdentity := event.SourceIdentity{
+			System:   acq.SourceSystem,
+			RecordID: acq.SourceRecordID,
+			Derived:  true,
+		}
+
+		if sourceIdentity.System == "" || sourceIdentity.RecordID == "" {
+			continue
+		}
+
+		key := r.identityKey(sourceIdentity)
+
+		// Only keep the latest record for each identity (by sequence)
+		existing, exists := r.KnownRecords[key]
+		if !exists || record.Event.Sequence > existing.EventSequence {
+			r.KnownRecords[key] = &KnownRecord{
+				SourceIdentity: sourceIdentity,
+				Digest:         acq.SourceDigest,
+				AcquiredAt:     acq.AcquiredAt,
+				EventSequence:  record.Event.Sequence,
+				Acquisition:    acq,
+			}
+		}
+	}
 	return nil
 }
 

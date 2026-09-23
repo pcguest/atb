@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Added
+- Acquisition continuity for `atb import chatlog` and `atb import otel`: retrospective source provenance (`mode`, `source_system`, `source_record_id`, `source_timestamp`, `acquired_at`, `source_digest`, `adapter`, `adapter_version`, optional checkpoint), checkpoint persistence and validation (`--checkpoint`, `--continue`), and reconciliation of re-imports (`--reconcile`) into NEW / UNCHANGED / CHANGED / UNKNOWN.
+- A bounded `atb.acquisition.finding` event (`source_record_changed`) recorded once per changed source record when a re-import observes the same source identity with a different source digest. The event is registered in the generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
+
+### Changed
+- A chatlog source record is identified at exchange granularity (the request that opened the exchange) rather than per source line or derived event. A request/response exchange therefore reconciles as one record: an unchanged re-import appends no duplicate evidence, and a changed exchange yields exactly one finding.
 
 ## [v1.16.0] - 2026-09-03
 

@@ -7,26 +7,27 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pcguest/atb/internal/acquisition"
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	verifypkg "github.com/pcguest/atb/internal/verify"
-	"github.com/pcguest/atb/pkg/otel"
 )
 
 // importOTelConfig holds the parsed flags for `atb import otel`.
 type importOTelConfig struct {
-	InputPath     string
-	BundlePath    string
-	SnapshotName  string
-	Format        string
-	MaxInputBytes int64
+	InputPath      string
+	BundlePath     string
+	SnapshotName   string
+	Format         string
+	MaxInputBytes  int64
+	Continue       bool
+	Reconcile      bool
+	CheckpointPath string
 }
 
 type importOTelResult struct {
@@ -42,11 +43,8 @@ type importOTelError struct {
 	EventsWritten int    `json:"events_written"`
 }
 
-// runImportOTel ingests an OTLP/JSON trace export into a bundle: it decodes the
-// payload and translates every span to an ATB event via pkg/otel
-// (DecodeTraceJSON -> Receiver.ReceiveJSON), then appends the events with their
-// W3C trace linkage preserved. It is the documented OTLP ingest path; the
-// This command intentionally accepts files or standard input, not gRPC.
+// runImportOTel ingests an OTLP/JSON trace export into a bundle using the
+// acquisition package for checkpoint and reconciliation support.
 func runImportOTel(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if ctx == nil {
 		ctx = context.Background()
@@ -70,129 +68,99 @@ func runImportOTel(ctx context.Context, args []string, stdin io.Reader, stdout, 
 		return code
 	}
 
-	var rawReader io.Reader
+	// Use the acquisition package for core import logic
+	acqOpts := acquisition.ImportOptions{
+		Format:         "otel",
+		InputPath:      cfg.InputPath,
+		BundlePath:     cfg.BundlePath,
+		SnapshotName:   cfg.SnapshotName,
+		OutputFormat:   cfg.Format,
+		MaxInputBytes:  cfg.MaxInputBytes,
+		Continue:       cfg.Continue,
+		Reconcile:      cfg.Reconcile || cfg.Continue, // --continue implies --reconcile
+		CheckpointPath: cfg.CheckpointPath,
+	}
 	if cfg.InputPath == "-" {
-		if stdin == nil {
-			return fail(exitUserError, "open input: stdin not available")
+		acqOpts.Stdin = stdin
+	}
+
+	result, err := acquisition.ImportOTel(ctx, acqOpts)
+	if err != nil {
+		// Classify error for appropriate exit code
+		errStr := err.Error()
+		switch {
+		case strings.Contains(errStr, "input file not found"),
+			strings.Contains(errStr, "no such file"),
+			errors.Is(err, os.ErrNotExist):
+			return fail(exitUserError, fmt.Sprintf("input file not found: %s", cfg.InputPath))
+		case strings.Contains(errStr, "decode OTLP/JSON"),
+			errors.Is(err, acquisition.ErrCheckpointNotFound),
+			errors.Is(err, acquisition.ErrCheckpointSourceMismatch),
+			errors.Is(err, acquisition.ErrCheckpointAdapterMismatch),
+			errors.Is(err, acquisition.ErrNoTranslatableSpans):
+			return fail(exitUserError, err.Error())
+		default:
+			return fail(exitSystemError, err.Error())
 		}
-		rawReader = stdin
-	} else {
-		file, openErr := os.Open(filepath.Clean(cfg.InputPath))
-		if openErr != nil {
-			if errors.Is(openErr, fs.ErrNotExist) {
-				return fail(exitUserError, fmt.Sprintf("input file not found: %s", cfg.InputPath))
+	}
+
+	// Handle snapshot if requested (acquisition package doesn't handle snapshots yet)
+	if cfg.SnapshotName != "" {
+		if err := validateSnapshotName(cfg.SnapshotName); err != nil {
+			return fail(exitUserError, err.Error())
+		}
+		b, err := bundle.Load(result.BundlePath)
+		if err != nil {
+			return fail(exitSystemError, fmt.Sprintf("load bundle for snapshot: %v", err))
+		}
+		snapshotAt := time.Now().UTC().Format(time.RFC3339Nano)
+		bundleHash, err := verifypkg.SnapshotBundleHash(b.Records)
+		if err != nil {
+			return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
+		}
+		data := snapshotEventData{
+			Name:        cfg.SnapshotName,
+			BundleHash:  bundleHash,
+			RecordCount: len(b.Records),
+			SnapshotAt:  snapshotAt,
+		}
+		if err := b.AppendWithOptions(event.TypeSnapshot, data, &bundle.AppendOptions{Timestamp: snapshotAt}); err != nil {
+			return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
+		}
+		if err := b.Save(ctx, result.BundlePath); err != nil {
+			if isBundleLocked(err) {
+				return fail(exitLockContention, bundleLockedMessage(err))
 			}
-			return fail(exitSystemError, fmt.Sprintf("cannot open input file: %v", openErr))
+			return fail(exitSystemError, fmt.Sprintf("save: %v", err))
 		}
-		defer file.Close()
-		rawReader = file
-	}
-
-	data, err := io.ReadAll(&cappedReader{r: rawReader, max: cfg.MaxInputBytes})
-	if err != nil {
-		if errors.Is(err, errInputTooLarge) {
-			return fail(exitUserError, fmt.Sprintf("input exceeds maximum size (%d bytes); use --max-input-size to increase", cfg.MaxInputBytes))
-		}
-		return fail(exitSystemError, fmt.Sprintf("read input: %v", err))
-	}
-
-	receiver := &otel.Receiver{Translator: otel.DefaultTranslator{}}
-	result, err := receiver.ReceiveJSON(ctx, data)
-	if err != nil {
-		// Malformed OTLP/JSON, or a span that does not map to an ATB event type
-		// (the ingest is strict — it records only spans it can attribute).
-		return fail(exitUserError, fmt.Sprintf("decode/translate OTLP: %v", err))
-	}
-	if len(result.Events) == 0 {
-		return fail(exitUserError, "no translatable spans found in OTLP payload")
-	}
-
-	if cfg.SnapshotName != "" {
-		if err := validateSnapshotName(cfg.SnapshotName); err != nil {
-			return fail(exitUserError, err.Error())
-		}
-	}
-
-	b, created, err := loadSnapshotBundle(ctx, cfg.BundlePath, false)
-	if err != nil {
-		var loadErr mutationLoadError
-		if errors.As(err, &loadErr) {
-			return fail(classifyBundleLoadError(err), err.Error())
-		}
-		return fail(exitSystemError, err.Error())
-	}
-	if created {
-		fmt.Fprintf(stderr, "atb: created new bundle at %s\n", cfg.BundlePath)
-		if err := stampManifestProvenance(b, "bundle_provenance", bundle.BundleProvenanceRetrospective); err != nil {
-			return fail(exitSystemError, fmt.Sprintf("manifest provenance: %v", err))
-		}
-	}
-
-	written := 0
-	for _, ev := range result.Events {
-		if appendErr := b.AppendWithOptions(ev.Type, ev.Data, &bundle.AppendOptions{
-			Timestamp:    ev.Timestamp,
-			TraceID:      ev.TraceID,
-			SpanID:       ev.SpanID,
-			ParentSpanID: ev.ParentSpanID,
-			Acquisition:  ev.Acquisition,
-		}); appendErr != nil {
-			return fail(exitSystemError, fmt.Sprintf("failed appending event %d/%d: %v", written+1, len(result.Events), appendErr))
-		}
-		written++
-	}
-
-	if cfg.SnapshotName != "" {
-		if err := validateSnapshotName(cfg.SnapshotName); err != nil {
-			return fail(exitUserError, err.Error())
-		}
-	}
-
-	snapshotAt := time.Now().UTC().Format(time.RFC3339Nano)
-	bundleHash, hashErr := verifypkg.SnapshotBundleHash(b.Records)
-	if hashErr != nil {
-		return fail(snapshotExitCode(hashErr), fmt.Sprintf("events not persisted because snapshot step failed: %v", hashErr))
-	}
-	snap := snapshotEventData{
-		Name:        cfg.SnapshotName,
-		BundleHash:  bundleHash,
-		RecordCount: len(b.Records),
-		SnapshotAt:  snapshotAt,
-	}
-	if err := b.AppendWithOptions(event.TypeSnapshot, snap, &bundle.AppendOptions{
-		Timestamp: snapshotAt,
-	}); err != nil {
-		return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
-	}
-
-	if err := b.Save(ctx, cfg.BundlePath); err != nil {
-		if isBundleLocked(err) {
-			return fail(exitLockContention, bundleLockedMessage(err))
-		}
-		return fail(exitSystemError, fmt.Sprintf("save: %v", err))
+		result.SnapshotAppended = true
+		result.SnapshotName = cfg.SnapshotName
 	}
 
 	if cfg.Format == formatJSON {
-		result := importOTelResult{
-			EventsWritten:    written,
-			SpansSkipped:     result.SkippedCount,
-			BundlePath:       cfg.BundlePath,
-			SnapshotAppended: cfg.SnapshotName != "",
-			SnapshotName:     cfg.SnapshotName,
+		jsonResult := importOTelResult{
+			EventsWritten:    result.EventsWritten,
+			SpansSkipped:     result.SkippedRecords,
+			BundlePath:       result.BundlePath,
+			SnapshotAppended: result.SnapshotAppended,
+			SnapshotName:     result.SnapshotName,
 		}
-		if err := json.NewEncoder(stdout).Encode(result); err != nil {
+		if err := json.NewEncoder(stdout).Encode(jsonResult); err != nil {
 			fmt.Fprintf(stderr, "atb import otel: encode json: %v\n", err)
 			return exitSystemError
 		}
 		return exitSuccess
 	}
 
-	fmt.Fprintf(stdout, "imported: %d events into %s", written, cfg.BundlePath)
-	if result.SkippedCount > 0 {
-		fmt.Fprintf(stdout, " (%d spans skipped)", result.SkippedCount)
+	fmt.Fprintf(stdout, "imported: %d events into %s", result.EventsWritten, result.BundlePath)
+	if result.SkippedRecords > 0 {
+		fmt.Fprintf(stdout, " (%d spans skipped)", result.SkippedRecords)
 	}
-	if cfg.SnapshotName != "" {
-		fmt.Fprintf(stdout, "; snapshot %s appended", cfg.SnapshotName)
+	if result.NewCount > 0 || result.ChangedCount > 0 || result.UnknownCount > 0 {
+		fmt.Fprintf(stdout, " (new: %d, changed: %d, unchanged: %d, unknown: %d)", result.NewCount, result.ChangedCount, result.UnchangedCount, result.UnknownCount)
+	}
+	if result.SnapshotAppended {
+		fmt.Fprintf(stdout, "; snapshot %s appended", result.SnapshotName)
 	}
 	fmt.Fprintln(stdout)
 	return exitSuccess
@@ -271,6 +239,18 @@ func parseImportOTelArgs(args []string) (importOTelConfig, error) {
 			cfg.SnapshotName = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--snapshot="):
 			cfg.SnapshotName = strings.TrimSpace(strings.TrimPrefix(arg, "--snapshot="))
+		case arg == "--continue":
+			cfg.Continue = true
+		case arg == "--reconcile":
+			cfg.Reconcile = true
+		case arg == "--checkpoint":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --checkpoint")
+			}
+			i++
+			cfg.CheckpointPath = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--checkpoint="):
+			cfg.CheckpointPath = strings.TrimSpace(strings.TrimPrefix(arg, "--checkpoint="))
 		default:
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		}
