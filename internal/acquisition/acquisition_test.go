@@ -158,7 +158,7 @@ func TestResolveCheckpointPathSanitizesStream(t *testing.T) {
 	if strings.ContainsAny(filepath.Base(p), `/\`) {
 		t.Fatalf("checkpoint basename contains a separator: %s", filepath.Base(p))
 	}
-	if !strings.Contains(p, CheckpointDir) {
+	if !strings.Contains(filepath.ToSlash(p), CheckpointDir) {
 		t.Fatalf("checkpoint not under %s: %s", CheckpointDir, p)
 	}
 	if p1, p2 := ResolveCheckpointPath("/tmp/b.atb", "chatlog", "a/x.jsonl"), ResolveCheckpointPath("/tmp/b.atb", "chatlog", "b/x.jsonl"); p1 == p2 {
