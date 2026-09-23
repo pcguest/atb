@@ -29,8 +29,30 @@ export const investigationFindingSchema = z.object({
   event_seqs: z.array(z.number().int()).optional().default([]),
 });
 
+// A bounded acquisition-continuity finding. It states a source-representation
+// change relationship; it does not establish tampering, intent, or truth.
+export const acquisitionFindingSchema = z.object({
+  flag: z.string(),
+  severity: z.string(),
+  title: z.string(),
+  detail: z.string(),
+  source_system: z.string().optional(),
+  source_record_id: z.string().optional(),
+  previous_digest: z.string().optional(),
+  current_digest: z.string().optional(),
+  previous_acquired_at: z.string().optional(),
+  current_acquired_at: z.string().optional(),
+  adapter: z.string().optional(),
+  adapter_version: z.string().optional(),
+  event_seq: z.number().int(),
+  boundedness: z.string(),
+  what_atb_can_conclude: z.string(),
+  what_atb_cannot_conclude: z.string(),
+});
+
 export const investigationFindingsSchema = z.object({
   findings: z.array(investigationFindingSchema),
+  acquisition_findings: z.array(acquisitionFindingSchema).optional().default([]),
 });
 
 export const timelineEventSchema = z.object({
@@ -120,4 +142,7 @@ export const investigationTrustSchema = z.object({
   external_corroboration: z.boolean(),
   custody_state: z.string(),
   limitations: z.array(z.string()),
+  acquisition_records: z.number().int().nonnegative().optional().default(0),
+  source_change_findings: z.number().int().nonnegative().optional().default(0),
+  acquisition_note: z.string().optional(),
 });

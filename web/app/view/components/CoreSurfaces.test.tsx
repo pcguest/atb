@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { FindingsSurface, RecordSurface } from "./CoreSurfaces";
-import type { InvestigationFinding, TimelineEvent } from "@/lib/types";
+import type { AcquisitionFinding, InvestigationFinding, TimelineEvent } from "@/lib/types";
 
 const findings: InvestigationFinding[] = [
   {
@@ -74,5 +74,33 @@ describe("forensic core surfaces", () => {
   it("moves keyboard focus to the selected timeline record", () => {
     render(<RecordSurface timeline={timeline} selectedSeq={42} select={vi.fn()} evidence={false} inspector={<div>Exact inspector</div>} />);
     expect(screen.getByRole("button", { name: /Captured tool call/ })).toHaveFocus();
+  });
+
+  it("shows acquisition continuity findings as bounded observations", () => {
+    const acquisitionFindings: AcquisitionFinding[] = [{
+      flag: "source_record_changed",
+      severity: "high",
+      title: "Source record representation changed",
+      detail: "Source record chatlog:r2 was previously acquired with a different representation digest.",
+      source_system: "chatlog",
+      source_record_id: "r2",
+      previous_digest: "sha256:prev",
+      current_digest: "sha256:curr",
+      previous_acquired_at: "2026-01-01T09:00:00Z",
+      current_acquired_at: "2026-01-02T09:00:00Z",
+      adapter: "atb.chatlog.generic-jsonl",
+      adapter_version: "1.0.0",
+      event_seq: 7,
+      boundedness: "bounded",
+      what_atb_can_conclude: "The source representation differs between acquisitions.",
+      what_atb_cannot_conclude: "ATB does not establish why it changed or that it was malicious.",
+    }];
+    render(<FindingsSurface findings={findings} acquisitionFindings={acquisitionFindings} selected={0} select={vi.fn()} openEvidence={vi.fn()} openTimeline={vi.fn()} />);
+    const section = screen.getByTestId("acquisition-findings");
+    expect(section.textContent).toContain("Acquisition continuity findings");
+    expect(section.textContent).toContain("chatlog:r2");
+    expect(section.textContent).toContain("sha256:prev");
+    expect(section.textContent).toContain("sha256:curr");
+    expect(section.textContent).toContain("not proof of tampering");
   });
 });

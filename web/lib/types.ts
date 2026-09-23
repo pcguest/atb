@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import {
+  acquisitionFindingSchema,
   apiErrorSchema,
   bundleEventsResponseSchema,
   bundleGraphResponseSchema,
@@ -48,6 +49,7 @@ export type EventTypeStatus = z.infer<typeof eventTypeStatusSchema>;
 export type SchemaStatusResponse = z.infer<typeof schemaStatusResponseSchema>;
 export type InvestigationOverview = z.infer<typeof investigationOverviewSchema>;
 export type InvestigationFinding = z.infer<typeof investigationFindingSchema>;
+export type AcquisitionFinding = z.infer<typeof acquisitionFindingSchema>;
 export type InvestigationFindings = z.infer<typeof investigationFindingsSchema>;
 export type TimelineEvent = z.infer<typeof timelineEventSchema>;
 export type InvestigationTimeline = z.infer<typeof investigationTimelineSchema>;

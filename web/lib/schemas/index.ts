@@ -1,5 +1,6 @@
 export { apiErrorSchema, hashStringSchema } from "@/lib/schemas/common";
 export {
+  acquisitionSchema,
   bundleEventsResponseSchema,
   bundleMetaResponseSchema,
   eventRecordSchema,
@@ -20,6 +21,7 @@ export {
 } from "@/lib/schemas/session";
 export { eventTypeStatusSchema, schemaStatusResponseSchema } from "@/lib/schemas/schema-status";
 export {
+  acquisitionFindingSchema,
   contextOperationSchema,
   contextUnitSchema,
   evidenceCapabilitySchema,

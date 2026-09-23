@@ -42,6 +42,7 @@ export default function ViewPage() {
   const effectiveSeq = selectedSeq ?? timeline[0]?.seq ?? null;
   const selectedEvent = events.find(event => event.seq === effectiveSeq) ?? null;
   const findings = findingsQuery.data?.findings ?? [];
+  const acquisitionFindings = findingsQuery.data?.acquisition_findings ?? [];
 
   useEffect(() => {
     const reset = () => { setSelectedSeq(null); setSelectedFinding(0); setSource(null); setSurface("incident"); setScopeGeneration(value => value + 1); };
@@ -80,7 +81,7 @@ export default function ViewPage() {
     <div className="min-h-0 flex-1 overflow-y-auto p-4 xl:p-6" key={`${scopeGeneration}-${overview.bundle_path}`}>
       {blocked ? <ErrorState title="Event-derived investigation is blocked"><p>Bundle integrity failed. Open Evidence status to inspect the verification boundary.</p><button className={`${actionClass} mt-3`} onClick={() => setSurface("trust")}>Open Evidence status</button></ErrorState> : <>
       {surface === "incident" && <IncidentSurface overview={overview} findings={findings} timeline={timeline} findingsState={valid && (findingsQuery.isLoading ? <LoadingState label="Deriving priority findings…"/> : findingsQuery.isError ? <ErrorState onRetry={() => void findingsQuery.refetch()}>Priority findings could not be loaded.</ErrorState> : undefined)} openFindings={openFindings} openEvidence={openEvidence} openTimeline={openTimeline} openTrust={() => setSurface("trust")}/>}
-      {surface === "findings" && <QueryContent query={findingsQuery}><FindingsSurface findings={findings} selected={selectedFinding} select={setSelectedFinding} openEvidence={openEvidence} openTimeline={openTimeline}/></QueryContent>}
+      {surface === "findings" && <QueryContent query={findingsQuery}><FindingsSurface findings={findings} acquisitionFindings={acquisitionFindings} selected={selectedFinding} select={setSelectedFinding} openEvidence={openEvidence} openTimeline={openTimeline}/></QueryContent>}
       {surface === "timeline" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={setSelectedSeq} inspector={inspector} evidence={false}/></QueryContent>}
       {surface === "evidence" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={setSelectedSeq} inspector={inspector} evidence/></QueryContent>}
       {surface === "context" && <QueryContent query={contextQuery}>{contextQuery.data && <ContextSurface data={contextQuery.data} onOpenEvidence={openEvidence}/>}</QueryContent>}

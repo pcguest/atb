@@ -701,6 +701,7 @@ func (s *APIServer) handleBundleEvents(w http.ResponseWriter, r *http.Request) {
 			SpanID:       record.Event.SpanID,
 			ParentSpanID: record.Event.ParentSpanID,
 			Data:         maskSensitive(record.Event.Data),
+			Acquisition:  acquisitionDTO(record.Event.Acquisition),
 		})
 	}
 

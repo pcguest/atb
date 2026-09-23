@@ -114,6 +114,24 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
           </dl>
         </details>}
 
+        {event.acquisition && (
+          <details className="rounded border border-border p-3 text-xs" data-testid="acquisition-provenance">
+            <summary className="cursor-pointer font-medium">Acquisition provenance</summary>
+            <dl className="mt-3 grid gap-2 break-all text-foreground">
+              {event.acquisition.mode && <div><dt className="inline text-muted-foreground">Acquisition mode: </dt><dd className="inline">{event.acquisition.mode}</dd></div>}
+              {event.acquisition.source_system && <div><dt className="inline text-muted-foreground">Source system: </dt><dd className="inline">{event.acquisition.source_system}</dd></div>}
+              {event.acquisition.source_record_id && <div><dt className="inline text-muted-foreground">Source record: </dt><dd className="inline font-mono">{event.acquisition.source_record_id}</dd></div>}
+              {event.acquisition.source_timestamp && <div><dt className="inline text-muted-foreground">Original timestamp: </dt><dd className="inline">{event.acquisition.source_timestamp}</dd></div>}
+              {event.acquisition.acquired_at && <div><dt className="inline text-muted-foreground">Acquired at: </dt><dd className="inline">{event.acquisition.acquired_at}</dd></div>}
+              {event.acquisition.adapter && <div><dt className="inline text-muted-foreground">Adapter: </dt><dd className="inline font-mono">{event.acquisition.adapter}{event.acquisition.adapter_version ? ` v${event.acquisition.adapter_version}` : ""}</dd></div>}
+              {event.acquisition.source_digest && <div><dt className="inline text-muted-foreground">Source digest: </dt><dd className="inline"><HashValue hash={event.acquisition.source_digest} className="text-foreground" /></dd></div>}
+              <div><dt className="inline text-muted-foreground">Raw source: </dt><dd className="inline">{event.acquisition.raw_source_available ? "Retained in this bundle" : "Not retained; only the digest is recorded"}</dd></div>
+              <div><dt className="inline text-muted-foreground">Checkpoint: </dt><dd className="inline">{event.acquisition.checkpoint_status === "recorded" ? `operational position ${event.acquisition.checkpoint_position ?? "recorded"}` : "not recorded"}</dd></div>
+            </dl>
+            <p className="mt-3 text-[10px] leading-4 text-muted-foreground">A source digest establishes source-representation identity and change, not truth. A checkpoint is operational state, not evidence truth. Retrospective means acquired after the original occurrence, not witnessed live.</p>
+          </details>
+        )}
+
         <details className="rounded border border-border p-3 text-xs" open>
           <summary className="cursor-pointer font-medium">Identifiers and hashes</summary>
           <dl className="mt-3 grid gap-2 text-foreground">
