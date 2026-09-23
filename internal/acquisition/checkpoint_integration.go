@@ -2,9 +2,12 @@
 package acquisition
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pcguest/atb/internal/event"
 )
@@ -85,14 +88,34 @@ func ResolveCheckpointPath(bundlePath, sourceSystem, acquisitionStream string) s
 	ext := filepath.Ext(baseName)
 	name := baseName[:len(baseName)-len(ext)]
 
-	// Sanitize acquisition stream for filename
-	streamName := acquisitionStream
-	if len(streamName) > 50 {
-		streamName = streamName[:50]
-	}
-
-	checkpointName := fmt.Sprintf("%s.%s.checkpoint.json", name, streamName)
+	checkpointName := fmt.Sprintf("%s.%s.checkpoint.json", name, sanitizeStreamName(acquisitionStream))
 	return filepath.Join(filepath.Dir(bundlePath), CheckpointDir, checkpointName)
+}
+
+// sanitizeStreamName reduces an acquisition stream (often a caller-supplied file
+// path) to a safe single filename component. It strips directory components and
+// any character that could traverse or alter the checkpoint path, and appends a
+// short digest so distinct streams with the same basename cannot collide.
+func sanitizeStreamName(stream string) string {
+	base := filepath.Base(stream)
+	var b strings.Builder
+	for _, r := range base {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
+			b.WriteRune(r)
+		default:
+			b.WriteRune('_')
+		}
+	}
+	name := strings.Trim(b.String(), "._-")
+	if name == "" {
+		name = "stream"
+	}
+	if len(name) > 40 {
+		name = name[:40]
+	}
+	sum := sha256.Sum256([]byte(stream))
+	return name + "-" + hex.EncodeToString(sum[:4])
 }
 
 // EnsureCheckpointDir ensures the checkpoint directory exists.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -136,6 +137,32 @@ func TestThreePassAcquisitionLifecycle(t *testing.T) {
 	}
 	if finding["previous_digest"] == finding["current_digest"] {
 		t.Fatal("previous_digest == current_digest for a CHANGED record")
+	}
+
+	// Acquisition stream must reflect the real input path, not the capture-time
+	// "stdin" placeholder.
+	for _, r := range b.Records {
+		if r.Event.Acquisition != nil && r.Event.Acquisition.Checkpoint != nil {
+			if r.Event.Acquisition.Checkpoint.AcquisitionStream == "stdin" {
+				t.Fatalf("record %d kept placeholder acquisition stream", r.Event.Sequence)
+			}
+		}
+	}
+}
+
+func TestResolveCheckpointPathSanitizesStream(t *testing.T) {
+	p := ResolveCheckpointPath("/tmp/bundles/b.atb", "chatlog", "../../etc/passwd")
+	if strings.Contains(p, "..") {
+		t.Fatalf("checkpoint path retains traversal: %s", p)
+	}
+	if strings.ContainsAny(filepath.Base(p), `/\`) {
+		t.Fatalf("checkpoint basename contains a separator: %s", filepath.Base(p))
+	}
+	if !strings.Contains(p, CheckpointDir) {
+		t.Fatalf("checkpoint not under %s: %s", CheckpointDir, p)
+	}
+	if p1, p2 := ResolveCheckpointPath("/tmp/b.atb", "chatlog", "a/x.jsonl"), ResolveCheckpointPath("/tmp/b.atb", "chatlog", "b/x.jsonl"); p1 == p2 {
+		t.Fatalf("distinct streams collided: %s", p1)
 	}
 }
 

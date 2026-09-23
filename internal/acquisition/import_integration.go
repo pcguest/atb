@@ -220,6 +220,7 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 			acquisition: spec.Acquisition,
 		})
 	}
+	stampAcquisitionStream(events, opts.InputPath)
 
 	counts, err := appendReconciled(b, events, reconciler, opts.Reconcile)
 	if err != nil {
@@ -376,6 +377,7 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 			acquisition:  ev.Acquisition,
 		})
 	}
+	stampAcquisitionStream(events, opts.InputPath)
 
 	counts, err := appendReconciled(b, events, reconciler, opts.Reconcile)
 	if err != nil {
@@ -429,6 +431,20 @@ type reconcileCounts struct {
 	changed   int
 	unchanged int
 	unknown   int
+}
+
+// stampAcquisitionStream records the real acquisition stream on each event's
+// checkpoint. Capture builds acquisition before the importer knows the input
+// path, so the per-record checkpoint stream would otherwise read "stdin".
+func stampAcquisitionStream(events []importEvent, stream string) {
+	if stream == "" {
+		return
+	}
+	for i := range events {
+		if acq := events[i].acquisition; acq != nil && acq.Checkpoint != nil {
+			acq.Checkpoint.AcquisitionStream = stream
+		}
+	}
 }
 
 // uniqueSourceRecords counts distinct acquisition source records in events.
