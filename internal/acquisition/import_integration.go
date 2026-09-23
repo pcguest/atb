@@ -201,6 +201,11 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 			return nil, fmt.Errorf("manifest provenance: %w", err)
 		}
 	}
+	if !created && (opts.Continue || opts.Reconcile) {
+		if err := b.Verify(); err != nil {
+			return nil, fmt.Errorf("existing bundle failed integrity verification; refusing to reconcile onto an unverified chain: %w", err)
+		}
+	}
 
 	// Reconciliation
 	reconciler := NewReconciler(nil)
@@ -354,6 +359,11 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 	if created {
 		if err := stampManifestProvenance(b, "bundle_provenance", bundle.BundleProvenanceRetrospective); err != nil {
 			return nil, fmt.Errorf("manifest provenance: %w", err)
+		}
+	}
+	if !created && (opts.Continue || opts.Reconcile) {
+		if err := b.Verify(); err != nil {
+			return nil, fmt.Errorf("existing bundle failed integrity verification; refusing to reconcile onto an unverified chain: %w", err)
 		}
 	}
 
