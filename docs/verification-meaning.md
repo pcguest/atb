@@ -100,7 +100,7 @@ When an import records acquisition provenance, each record carries a **source di
 
 > **A changed source digest proves the observed representation changed. It does not prove tampering, and it does not prove the previous or current content is true.**
 
-A `source_record_changed` finding is a **bounded anomaly conclusion**: at least one observed record of the same source identity differed between two acquisitions. The finding states what ATB can and cannot conclude; it never asserts truth, intent, or causation. Source identity, digest, and reproduction rules are defined in [Chatlog import](../integrations/chatlog-import.md).
+A `source_record_changed` finding is a **bounded anomaly conclusion**: at least one observed record of the same source identity differed between two acquisitions. The finding states what ATB can and cannot conclude; it never asserts truth, intent, or causation. Source identity, digest, and reproduction rules are defined in [Chatlog import](./integrations/chatlog-import.md).
 
 ---
 
@@ -152,8 +152,8 @@ ATB detects three tamper classes deterministically:
 
 ## Further Reading
 
-- [Quickstart Guide](../getting-started/quickstart.md) — Create and verify your first bundle
-- [Viewer Specification](../specification/viewer.md) — Investigation UI details
-- [Trust Model](../concepts/trust-model.md) — ATB's trust boundaries
-- [CAS Scoring](../evidence/cas.md) — Completeness Assurance Score details
-- [Incident Forensics](../investigate/incidents.md) — Incident investigation workflow
+- [Quickstart Guide](./getting-started/quickstart.md) — Create and verify your first bundle
+- [Viewer Specification](./specification/viewer.md) — Investigation UI details
+- [Trust Model](./concepts/trust-model.md) — ATB's trust boundaries
+- [CAS Scoring](./evidence/cas.md) — Completeness Assurance Score details
+- [Incident Forensics](./investigate/incidents.md) — Incident investigation workflow
