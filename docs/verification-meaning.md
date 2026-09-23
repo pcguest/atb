@@ -88,6 +88,22 @@ Example:
 
 ---
 
+## Source Change vs. Tampering
+
+When an import records acquisition provenance, each record carries a **source digest** of the external source it was read from. A later re-import that observes the same source identity with a **different** source digest produces a bounded `source_record_changed` finding.
+
+| Question | ATB Answers |
+|----------|-------------|
+| "Did the external source change since it was last observed?" | Yes/No (deterministic, per recorded observation) |
+| "Was the change malicious, unauthorised, or a correction?" | **ATB cannot determine this** |
+| "Was the source complete when read?" | **ATB cannot prove this** |
+
+> **A changed source digest proves the observed representation changed. It does not prove tampering, and it does not prove the previous or current content is true.**
+
+A `source_record_changed` finding is a **bounded anomaly conclusion**: at least one observed record of the same source identity differed between two acquisitions. The finding states what ATB can and cannot conclude; it never asserts truth, intent, or causation. Source identity, digest, and reproduction rules are defined in [Chatlog import](../integrations/chatlog-import.md).
+
+---
+
 ## CAS (Completeness Assurance Score)
 
 The CAS score estimates **profile-scoped evidence coverage**, not universal truth:
