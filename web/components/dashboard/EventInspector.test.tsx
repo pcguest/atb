@@ -73,6 +73,38 @@ describe("EventInspector", () => {
     expect(json).toHaveAttribute("tabindex", "0");
   });
 
+  it("shows bounded acquisition provenance with honest raw-source limits", () => {
+    const event = {
+      ...makeEvent("ai.request.received", { request_id: "r2" }),
+      acquisition: {
+        mode: "retrospective",
+        source_system: "chatlog",
+        source_record_id: "r2",
+        source_timestamp: "2026-01-01T10:00:02Z",
+        acquired_at: "2026-01-02T09:00:00Z",
+        adapter: "atb.chatlog.generic-jsonl",
+        adapter_version: "1.0.0",
+        source_digest: "sha256:" + "a".repeat(64),
+        raw_source_available: false,
+        checkpoint_position: "r2",
+        checkpoint_status: "recorded",
+      },
+    } as EventRecord;
+    render(<EventInspector event={event} onReveal={noReveal} />);
+    const section = screen.getByTestId("acquisition-provenance");
+    expect(section.textContent).toContain("retrospective");
+    expect(section.textContent).toContain("chatlog");
+    expect(section.textContent).toContain("r2");
+    expect(section.textContent).toContain("Not retained; only the digest is recorded");
+    expect(section.textContent).toContain("operational position r2");
+    expect(section.textContent).toContain("not truth");
+  });
+
+  it("omits acquisition provenance when the record has none", () => {
+    render(<EventInspector event={makeEvent("dev.session", { x: 1 })} onReveal={noReveal} />);
+    expect(screen.queryByTestId("acquisition-provenance")).toBeNull();
+  });
+
   it("does not apply a delayed reveal to a different selected event", async () => {
     let resolveReveal: ((value: unknown) => void) | undefined;
     const onReveal = vi.fn(() => new Promise<unknown>((resolve) => { resolveReveal = resolve; }));

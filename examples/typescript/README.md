@@ -5,32 +5,22 @@ This example demonstrates a minimal bundle creation workflow using the TypeScrip
 ## Prerequisites
 
 - Node.js 18 or newer
-- TypeScript execution (tsx or similar)
+- TypeScript execution (tsx)
 
 ## Installation
 
-The TypeScript SDK is available on npm. Use npx to run the example without installation:
-
 ```bash
-npx -y tsx quickstart.ts
-```
-
-Or install globally:
-
-```bash
-npm install -g tsx @pcguest/atb-sdk
+cd examples/typescript
+npm install
 ```
 
 ## How to run
 
-Using tsx (recommended):
-
 ```bash
-npm install -g tsx
-tsx quickstart.ts
+npm start
 ```
 
-Or using npx:
+Or using npx (after npm install):
 
 ```bash
 npx tsx quickstart.ts

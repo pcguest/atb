@@ -552,6 +552,21 @@
       },
       "required": ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"]
     },
+    "atb.acquisition.finding": {
+      "description": "Acquisition continuity finding indicating a source record representation changed between imports. Emitted by atb import when reconciliation detects a source record with the same identity but different content digest.",
+      "properties": {
+        "finding_type": { "type": "string", "enum": ["source_record_changed"], "description": "Type of acquisition finding." },
+        "source_system": { "type": "string", "description": "Source system identifier (e.g., chatlog, otel)." },
+        "source_record_id": { "type": "string", "description": "Stable identifier for the source record within the source system." },
+        "previous_digest": { "type": "string", "description": "SHA-256 digest of the previously acquired source representation." },
+        "current_digest": { "type": "string", "description": "SHA-256 digest of the current source representation." },
+        "previous_acquired_at": { "type": "string", "format": "date-time", "description": "RFC 3339 timestamp when the previous representation was acquired." },
+        "current_acquired_at": { "type": "string", "format": "date-time", "description": "RFC 3339 timestamp when the current representation was acquired." },
+        "adapter": { "type": "string", "description": "Adapter used for the acquisition (e.g., atb.chatlog.generic-jsonl)." },
+        "adapter_version": { "type": "string", "description": "Version of the adapter used." }
+      },
+      "required": ["finding_type", "source_system", "source_record_id", "previous_digest", "current_digest", "previous_acquired_at", "current_acquired_at", "adapter"]
+    },
     "atb.llm.request": {
       "description": "Captured upstream LLM API request. Proxy-internal; emitted by atb intercept for each request through the capture proxy.",
       "$comment": "Body content is recorded as a SHA-256 digest (body_sha256) and byte length (body_bytes) by default; the raw body is included only under atb intercept --capture-bodies. Only the conservative non-secret header allowlist declared by atb.capture.scope is eligible for recording. See internal/proxy/types.go RequestRecord.ToEvent.",
@@ -896,6 +911,13 @@
       "profiles": [],
       "criticality": "required",
       "required_fields": ["session_id", "host", "method", "path", "direction", "reason", "limit_bytes", "observed_bytes"]
+    },
+    {
+      "type": "atb.acquisition.finding",
+      "description": "Acquisition continuity finding indicating a source record representation changed between imports",
+      "profiles": [],
+      "criticality": "informational",
+      "required_fields": ["finding_type", "source_system", "source_record_id", "previous_digest", "current_digest", "previous_acquired_at", "current_acquired_at", "adapter"]
     },
     {
       "type": "atb.llm.request",

@@ -423,6 +423,17 @@ export function TrustSurface({
         Three independent questions. Integrity, profile coverage, and external custody are not
         collapsed into one score.
       </p>
+      {data.acquisition_records > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4" data-testid="acquisition-continuity">
+          <h3 className="text-sm font-semibold">Acquisition continuity</h3>
+          <p className="mt-2 text-sm leading-6 text-secondary-foreground">{data.acquisition_note}</p>
+          <dl className="mt-3 grid gap-2 text-xs text-foreground sm:grid-cols-2">
+            <div><dt className="text-muted-foreground">Records with acquisition provenance</dt><dd className="mt-1 font-medium">{data.acquisition_records}</dd></div>
+            <div><dt className="text-muted-foreground">Source representation changes</dt><dd className="mt-1 font-medium">{data.source_change_findings}</dd></div>
+          </dl>
+          <p className="mt-3 text-xs text-muted-foreground">A source change is bounded evidence; it does not establish tampering, intent, or truth.</p>
+        </div>
+      )}
       <div className="grid overflow-hidden rounded-lg border border-border bg-card lg:grid-cols-[minmax(15rem,2fr)_minmax(0,3fr)]">
         <div className="border-b border-border lg:border-b-0 lg:border-r">
           {questions.map((question) => (

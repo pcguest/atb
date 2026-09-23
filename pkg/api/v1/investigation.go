@@ -74,8 +74,78 @@ func (s *APIServer) handleInvestigationFindings(w http.ResponseWriter, r *http.R
 		return
 	}
 	writeJSON(w, http.StatusOK, InvestigationFindingsResponse{
-		Findings: findings,
+		Findings:            findings,
+		AcquisitionFindings: acquisitionFindings(s),
 	})
+}
+
+// acquisitionDTO exposes bounded acquisition provenance for one record.
+func acquisitionDTO(acq *event.AcquisitionInfo) *AcquisitionDTO {
+	if acq == nil {
+		return nil
+	}
+	dto := &AcquisitionDTO{
+		Mode:               acq.Mode,
+		SourceSystem:       acq.SourceSystem,
+		SourceRecordID:     acq.SourceRecordID,
+		SourceTimestamp:    acq.SourceTimestamp,
+		AcquiredAt:         acq.AcquiredAt,
+		Adapter:            acq.Adapter,
+		AdapterVersion:     acq.AdapterVersion,
+		SourceDigest:       acq.SourceDigest,
+		RawSourceAvailable: false, // ATB records the digest, not the raw source representation.
+	}
+	if acq.Checkpoint != nil {
+		dto.CheckpointPosition = acq.Checkpoint.Position
+		dto.CheckpointStatus = "recorded"
+	} else {
+		dto.CheckpointStatus = "absent"
+	}
+	return dto
+}
+
+// acquisitionFindings surfaces persisted acquisition-continuity findings as
+// bounded observations. They are not incident actions and do not imply tampering.
+func acquisitionFindings(s *APIServer) []AcquisitionFindingDTO {
+	if s.b == nil {
+		return nil
+	}
+	out := []AcquisitionFindingDTO{}
+	for _, record := range s.b.Records {
+		if record.Event.Type != event.TypeAcquisitionFinding {
+			continue
+		}
+		data, _ := record.Event.Data.(map[string]any)
+		str := func(key string) string {
+			v, _ := data[key].(string)
+			return v
+		}
+		flag := str("finding_type")
+		if flag == "" {
+			flag = "source_record_changed"
+		}
+		sourceSystem := str("source_system")
+		sourceRecordID := str("source_record_id")
+		out = append(out, AcquisitionFindingDTO{
+			Flag:               flag,
+			Severity:           "high",
+			Title:              "Source record representation changed",
+			Detail:             fmt.Sprintf("Source record %s:%s was previously acquired with a different representation digest.", sourceSystem, sourceRecordID),
+			SourceSystem:       sourceSystem,
+			SourceRecordID:     sourceRecordID,
+			PreviousDigest:     str("previous_digest"),
+			CurrentDigest:      str("current_digest"),
+			PreviousAcquiredAt: str("previous_acquired_at"),
+			CurrentAcquiredAt:  str("current_acquired_at"),
+			Adapter:            str("adapter"),
+			AdapterVersion:     str("adapter_version"),
+			EventSeq:           record.Event.Sequence,
+			Boundedness:        "bounded",
+			WhatCanConclude:    "The source representation for this record differs between two acquisitions of the same source identity.",
+			WhatCannotConclude: "ATB does not establish why the representation changed, who changed it, or that the change was malicious.",
+		})
+	}
+	return out
 }
 
 func (s *APIServer) investigationFindings(w http.ResponseWriter, r *http.Request) ([]incident.Finding, bool) {
@@ -170,9 +240,17 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 		for _, record := range s.b.Records {
 			if record.Event.Type == event.TypeCorroborationExternal {
 				response.ExternalCorroboration = true
-				break
+			}
+			if record.Event.Acquisition != nil {
+				response.AcquisitionRecords++
+			}
+			if record.Event.Type == event.TypeAcquisitionFinding {
+				response.SourceChangeFindings++
 			}
 		}
+	}
+	if response.AcquisitionRecords > 0 {
+		response.AcquisitionNote = "Some records were acquired retrospectively and carry source provenance. Acquisition mode and source digests describe how evidence was obtained; they do not establish truth, and a checkpoint is operational state, not evidence truth."
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -315,6 +393,7 @@ func humanEventLabel(eventType string) string {
 		event.TypeAIHumanApproval:     "Human approval recorded",
 		event.TypeAIActionExecuted:    "Action executed",
 		event.TypeAIResponseSent:      "Response sent",
+		event.TypeAcquisitionFinding:  "Source record changed",
 	}
 	if label := labels[eventType]; label != "" {
 		return label
@@ -341,6 +420,8 @@ func eventFamily(eventType string) string {
 		return "job"
 	case strings.HasPrefix(eventType, "atb.corroboration"):
 		return "corroboration"
+	case strings.HasPrefix(eventType, "atb.acquisition"):
+		return "acquisition"
 	case strings.HasPrefix(eventType, "ai.export"), strings.HasPrefix(eventType, "data.export"), strings.HasPrefix(eventType, "atb.data.export"):
 		return "export"
 	case strings.HasPrefix(eventType, "data.retention"):

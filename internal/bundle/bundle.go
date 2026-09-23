@@ -19,6 +19,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
 )
 
@@ -101,6 +102,7 @@ type AppendOptions struct {
 	TraceID      string
 	SpanID       string
 	ParentSpanID string
+	Acquisition  *event.AcquisitionInfo
 }
 
 // New creates a new empty bundle.
@@ -214,6 +216,9 @@ func (b *Bundle) AppendWithOptions(eventType string, data interface{}, opts *App
 		}
 		if opts.ParentSpanID != "" {
 			e.ParentSpanID = opts.ParentSpanID
+		}
+		if opts.Acquisition != nil {
+			e.Acquisition = opts.Acquisition
 		}
 	}
 	h, err := hash.Compute(e)

@@ -22,7 +22,30 @@ type InvestigationOverviewResponse struct {
 
 // InvestigationFindingsResponse contains bounded, evidence-linked findings.
 type InvestigationFindingsResponse struct {
-	Findings []incident.Finding `json:"findings"`
+	Findings            []incident.Finding      `json:"findings"`
+	AcquisitionFindings []AcquisitionFindingDTO `json:"acquisition_findings,omitempty"`
+}
+
+// AcquisitionFindingDTO is a bounded acquisition-continuity finding. It states a
+// source-representation change relationship; it does not establish tampering,
+// intent, or truth.
+type AcquisitionFindingDTO struct {
+	Flag               string `json:"flag"`
+	Severity           string `json:"severity"`
+	Title              string `json:"title"`
+	Detail             string `json:"detail"`
+	SourceSystem       string `json:"source_system,omitempty"`
+	SourceRecordID     string `json:"source_record_id,omitempty"`
+	PreviousDigest     string `json:"previous_digest,omitempty"`
+	CurrentDigest      string `json:"current_digest,omitempty"`
+	PreviousAcquiredAt string `json:"previous_acquired_at,omitempty"`
+	CurrentAcquiredAt  string `json:"current_acquired_at,omitempty"`
+	Adapter            string `json:"adapter,omitempty"`
+	AdapterVersion     string `json:"adapter_version,omitempty"`
+	EventSeq           int    `json:"event_seq"`
+	Boundedness        string `json:"boundedness"`
+	WhatCanConclude    string `json:"what_atb_can_conclude"`
+	WhatCannotConclude string `json:"what_atb_cannot_conclude"`
 }
 
 // TimelineEventDTO is a human-labelled chronology entry. Chronology alone is
@@ -76,4 +99,8 @@ type InvestigationTrustResponse struct {
 	ExternalCorroboration bool     `json:"external_corroboration"`
 	CustodyState          string   `json:"custody_state"`
 	Limitations           []string `json:"limitations"`
+	// Acquisition continuity is bounded operational/provenance context, not truth.
+	AcquisitionRecords   int    `json:"acquisition_records"`
+	SourceChangeFindings int    `json:"source_change_findings"`
+	AcquisitionNote      string `json:"acquisition_note,omitempty"`
 }

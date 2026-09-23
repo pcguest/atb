@@ -51,7 +51,7 @@ request, a pending action, and the policy outcome that blocked it. Use an
 explicit `--profile` for first-run verification so the result is stable
 even when a bundle contains events that could match more than one built-in
 profile. For
-the full local review and export path, continue with [Incident
+the full local review and export path, continue with [Run
 forensics](../investigate/incidents.md).
 
 ### What the output means
@@ -240,7 +240,7 @@ Viewer details:
 
 - [Viewer specification](../specification/viewer.md)
 
-## 6. Incident evidence export
+## 6. Run evidence export
 
 ```bash
 atb incident list --bundle run.atb/bundle.atb
@@ -282,7 +282,7 @@ atb export --format gdpr --type ropa --bundle run.atb/bundle.atb --output gdpr-r
 Reference docs:
 
 - [Compliance hub](../compliance/README.md)
-- [Incident forensics](../investigate/incidents.md)
+- [Run forensics](../investigate/incidents.md)
 
 ## 8. AI integrations
 

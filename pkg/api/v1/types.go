@@ -27,15 +27,37 @@ type BundleMetaResponse struct {
 
 // EventRecordDTO is a sanitized record representation for paginated event API responses.
 type EventRecordDTO struct {
-	Sequence     int         `json:"seq"`
-	Type         string      `json:"type"`
-	Hash         string      `json:"hash"`
-	PrevHash     string      `json:"prev_hash"`
-	Timestamp    string      `json:"timestamp,omitempty"`
-	TraceID      string      `json:"trace_id,omitempty"`
-	SpanID       string      `json:"span_id,omitempty"`
-	ParentSpanID string      `json:"parent_span_id,omitempty"`
-	Data         interface{} `json:"data"`
+	Sequence     int             `json:"seq"`
+	Type         string          `json:"type"`
+	Hash         string          `json:"hash"`
+	PrevHash     string          `json:"prev_hash"`
+	Timestamp    string          `json:"timestamp,omitempty"`
+	TraceID      string          `json:"trace_id,omitempty"`
+	SpanID       string          `json:"span_id,omitempty"`
+	ParentSpanID string          `json:"parent_span_id,omitempty"`
+	Data         interface{}     `json:"data"`
+	Acquisition  *AcquisitionDTO `json:"acquisition,omitempty"`
+}
+
+// AcquisitionDTO exposes bounded acquisition provenance for one record.
+//
+// These fields establish source-representation identity and change. They do NOT
+// establish truth, authenticity, or completeness. A checkpoint is operational
+// state, not evidence truth. ATB records the source digest but does not retain
+// the raw source representation, so raw_source_available is reported honestly
+// as false unless a future capture path proves otherwise.
+type AcquisitionDTO struct {
+	Mode               string `json:"mode,omitempty"`
+	SourceSystem       string `json:"source_system,omitempty"`
+	SourceRecordID     string `json:"source_record_id,omitempty"`
+	SourceTimestamp    string `json:"source_timestamp,omitempty"`
+	AcquiredAt         string `json:"acquired_at,omitempty"`
+	Adapter            string `json:"adapter,omitempty"`
+	AdapterVersion     string `json:"adapter_version,omitempty"`
+	SourceDigest       string `json:"source_digest,omitempty"`
+	RawSourceAvailable bool   `json:"raw_source_available"`
+	CheckpointPosition string `json:"checkpoint_position,omitempty"`
+	CheckpointStatus   string `json:"checkpoint_status,omitempty"`
 }
 
 // BundleEventsResponse contains a paginated slice of event records.

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, Search } from "lucide-react";
 import { EmptyState, StatusBadge, SurfaceHeader } from "./ui/investigation";
-import type { InvestigationFinding, InvestigationOverview, TimelineEvent } from "@/lib/types";
+import type { AcquisitionFinding, InvestigationFinding, InvestigationOverview, TimelineEvent } from "@/lib/types";
 
 export const actionClass = "inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 export const rowClass = "w-full border-b border-border px-4 py-3 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
@@ -30,12 +30,29 @@ export function FindingDetail({ finding, openEvidence, openTimeline }: { finding
   </article>;
 }
 
-export function FindingsSurface({ findings, selected, select, openEvidence, openTimeline }: { findings: InvestigationFinding[]; selected: number; select: (index: number) => void; openEvidence: (seq: number) => void; openTimeline: (seq: number) => void }) {
+export function AcquisitionFindingDetail({ finding }: { finding: AcquisitionFinding }) {
+  return <article className="rounded-lg border border-border bg-card p-4">
+    <div className="flex flex-wrap items-center justify-between gap-2"><StatusBadge tone="warning">{finding.severity || "bounded"}</StatusBadge><span className="text-xs text-muted-foreground">Acquisition continuity · record #{finding.event_seq}</span></div>
+    <h4 className="mt-2 text-sm font-semibold">{finding.title}</h4>
+    <p className="mt-1 text-sm text-secondary-foreground">{finding.detail}</p>
+    <dl className="mt-3 grid gap-2 break-all text-xs text-foreground">
+      <div><dt className="inline text-muted-foreground">Source: </dt><dd className="inline">{finding.source_system}{finding.source_record_id ? `:${finding.source_record_id}` : ""}</dd></div>
+      {finding.previous_digest && <div><dt className="inline text-muted-foreground">Previous digest: </dt><dd className="inline font-mono">{finding.previous_digest}</dd></div>}
+      {finding.current_digest && <div><dt className="inline text-muted-foreground">Current digest: </dt><dd className="inline font-mono">{finding.current_digest}</dd></div>}
+      {finding.previous_acquired_at && <div><dt className="inline text-muted-foreground">Previously acquired: </dt><dd className="inline">{finding.previous_acquired_at}</dd></div>}
+      {finding.current_acquired_at && <div><dt className="inline text-muted-foreground">Re-acquired: </dt><dd className="inline">{finding.current_acquired_at}</dd></div>}
+      {finding.adapter && <div><dt className="inline text-muted-foreground">Adapter: </dt><dd className="inline font-mono">{finding.adapter}{finding.adapter_version ? ` v${finding.adapter_version}` : ""}</dd></div>}
+    </dl>
+    <div className="mt-3 space-y-2 text-xs"><p><span className="font-semibold">ATB can conclude: </span>{finding.what_atb_can_conclude}</p><p className="text-secondary-foreground"><span className="font-semibold">ATB cannot conclude: </span>{finding.what_atb_cannot_conclude}</p></div>
+  </article>;
+}
+
+export function FindingsSurface({ findings, acquisitionFindings = [], selected, select, openEvidence, openTimeline }: { findings: InvestigationFinding[]; acquisitionFindings?: AcquisitionFinding[]; selected: number; select: (index: number) => void; openEvidence: (seq: number) => void; openTimeline: (seq: number) => void }) {
   const [search, setSearch] = useState("");
   const [severity, setSeverity] = useState("");
   const rows = findings.map((finding, index) => ({ finding, index })).filter(({ finding }) => (!severity || finding.severity === severity) && `${finding.title} ${finding.detail} ${finding.flag}`.toLowerCase().includes(search.toLowerCase()));
   const active = findings[selected] ?? findings[0];
-  return <section className="space-y-4"><SurfaceHeader title="Findings" description="Bounded anomaly conclusions and their supporting records; findings are not an action list."/><FilterBar search={search} setSearch={setSearch} label="Search findings" count={`${rows.length} of ${findings.length}`}><select aria-label="Finding severity" value={severity} onChange={event => setSeverity(event.target.value)} className="rounded border border-border bg-card p-1 text-sm"><option value="">All severities</option>{Array.from(new Set(findings.map(f => f.severity))).sort().map(value => <option key={value}>{value}</option>)}</select></FilterBar>
+  return <section className="space-y-4"><SurfaceHeader title="Findings" description="Bounded anomaly conclusions and their supporting records; findings are not an action list."/>{acquisitionFindings.length > 0 && <div className="space-y-2" data-testid="acquisition-findings"><h3 className="text-sm font-semibold">Acquisition continuity findings</h3><p className="text-xs text-muted-foreground">A changed source representation is bounded evidence; it is not proof of tampering or intent.</p>{acquisitionFindings.map((finding, index) => <AcquisitionFindingDetail key={`${finding.source_record_id}-${finding.event_seq}-${index}`} finding={finding}/>)}</div>}<FilterBar search={search} setSearch={setSearch} label="Search findings" count={`${rows.length} of ${findings.length}`}><select aria-label="Finding severity" value={severity} onChange={event => setSeverity(event.target.value)} className="rounded border border-border bg-card p-1 text-sm"><option value="">All severities</option>{Array.from(new Set(findings.map(f => f.severity))).sort().map(value => <option key={value}>{value}</option>)}</select></FilterBar>
     {findings.length === 0 ? <EmptyState title="No findings in recorded evidence">No findings. This does not prove complete capture or universal absence.</EmptyState> : <SplitWorkspace list={<div className="overflow-hidden rounded-lg border border-border bg-card">{rows.length === 0 ? <EmptyState title="No matching findings">Change or clear the filters to inspect other findings.</EmptyState> : rows.map(({ finding, index }) => <button key={`${finding.flag}-${index}`} onClick={() => select(index)} aria-pressed={index === selected} className={`${rowClass} ${index === selected ? "border-l-2 border-l-primary bg-primary/10" : ""}`}><div className="flex items-center justify-between gap-3"><span className="font-medium">{finding.title}</span><span className="text-xs text-muted-foreground">{finding.severity}</span></div><p className="mt-2 line-clamp-2 text-secondary-foreground">{finding.detail}</p><p className="mt-2 text-xs text-muted-foreground">{finding.event_seqs.length} supporting events{finding.session_id ? ` · ${finding.session_id}` : ""}</p></button>)}</div>} inspector={active && <FindingDetail finding={active} openEvidence={openEvidence} openTimeline={openTimeline}/>}/>}</section>;
 }
 

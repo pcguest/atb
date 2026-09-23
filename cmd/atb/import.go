@@ -7,13 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/pcguest/atb/internal/acquisition"
 	"github.com/pcguest/atb/internal/bundle"
 	capturepkg "github.com/pcguest/atb/internal/capture"
 	"github.com/pcguest/atb/internal/event"
@@ -22,35 +22,18 @@ import (
 
 var errImportHelp = errors.New("import help requested")
 
-// errInputTooLarge is returned by cappedReader when the cumulative number of
-// bytes read exceeds the configured cap. It surfaces through scanner.Err() and
-// is mapped to exitUserError at the CLI boundary.
-var errInputTooLarge = errors.New("import: input exceeds maximum size")
-
 const defaultMaxImportBytes = 256 * 1024 * 1024 // 256 MiB
 
 type importChatlogConfig struct {
-	From          string
-	InputPath     string
-	BundlePath    string
-	SnapshotName  string
-	Format        string
-	MaxInputBytes int64
-}
-
-type cappedReader struct {
-	r   io.Reader
-	n   int64
-	max int64
-}
-
-func (c *cappedReader) Read(p []byte) (int, error) {
-	n, err := c.r.Read(p)
-	c.n += int64(n)
-	if c.n > c.max {
-		return n, errInputTooLarge
-	}
-	return n, err
+	From           string
+	InputPath      string
+	BundlePath     string
+	SnapshotName   string
+	Format         string
+	MaxInputBytes  int64
+	Continue       bool
+	Reconcile      bool
+	CheckpointPath string
 }
 
 type importChatlogResult struct {
@@ -117,12 +100,15 @@ func runImport(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func printImportCommandUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb import chatlog --from <provider-type> --input <path|-> [--bundle <path>] [--snapshot <name>] [--format text|json] [--max-input-size <bytes>]")
-	fmt.Fprintln(w, "       atb import otel --input <path|-> [--bundle <path>] [--snapshot <name>] [--format text|json] [--max-input-size <bytes>]")
+	fmt.Fprintln(w, "Usage: atb import chatlog --from <provider-type> --input <path|-> [--bundle <path>] [--snapshot <name>] [--format text|json] [--max-input-size <bytes>] [--continue] [--reconcile] [--checkpoint <path>]")
+	fmt.Fprintln(w, "       atb import otel --input <path|-> [--bundle <path>] [--snapshot <name>] [--format text|json] [--max-input-size <bytes>] [--continue] [--reconcile] [--checkpoint <path>]")
 	fmt.Fprintln(w, "  --input -                read input from stdin")
 	fmt.Fprintln(w, "  --format text            default; single-line summary on stdout")
 	fmt.Fprintln(w, "  --format json            structured JSON object on stdout")
 	fmt.Fprintf(w, "  --max-input-size <bytes> reject inputs larger than this (default %d)\n", defaultMaxImportBytes)
+	fmt.Fprintln(w, "  --continue               continue from previous checkpoint (implies --reconcile)")
+	fmt.Fprintln(w, "  --reconcile              enable reconciliation mode for re-import")
+	fmt.Fprintln(w, "  --checkpoint <path>      override default checkpoint path")
 	fmt.Fprintln(w, "chatlog provider types:")
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatGenericJSONL)
 	fmt.Fprintf(w, "  %s\n", capturepkg.FormatOpenAIJSONL)
@@ -159,95 +145,53 @@ func runImportChatlogWithContext(ctx context.Context, args []string, stdin io.Re
 		return exitCode
 	}
 
-	var rawReader io.Reader
-	if cfg.InputPath == "-" {
-		if stdin == nil {
-			return fail(exitUserError, "open input: stdin not available")
-		}
-		rawReader = stdin
-	} else {
-		file, openErr := os.Open(filepath.Clean(cfg.InputPath))
-		if openErr != nil {
-			if errors.Is(openErr, fs.ErrNotExist) {
-				fmt.Fprintf(stderr, "atb: input file not found: %s\n", cfg.InputPath)
-				if cfg.Format == formatJSON {
-					_ = json.NewEncoder(stdout).Encode(importChatlogError{Error: fmt.Sprintf("input file not found: %s", cfg.InputPath)})
-				}
-				return exitUserError
-			}
-			fmt.Fprintf(stderr, "atb: cannot open input file: %v\n", openErr)
-			if cfg.Format == formatJSON {
-				_ = json.NewEncoder(stdout).Encode(importChatlogError{Error: fmt.Sprintf("cannot open input file: %v", openErr)})
-			}
-			return exitSystemError
-		}
-		defer file.Close()
-		rawReader = file
+	// Use the acquisition package for core import logic
+	acqOpts := acquisition.ImportOptions{
+		Format:         cfg.From,
+		InputPath:      cfg.InputPath,
+		BundlePath:     cfg.BundlePath,
+		SnapshotName:   cfg.SnapshotName,
+		OutputFormat:   cfg.Format,
+		MaxInputBytes:  cfg.MaxInputBytes,
+		Continue:       cfg.Continue,
+		Reconcile:      cfg.Reconcile || cfg.Continue, // --continue implies --reconcile
+		CheckpointPath: cfg.CheckpointPath,
 	}
 
-	// Size cap is enforced by the capture package parser before any bundle IO;
-	// cappedReader adds a total-input cap so a stream of small lines cannot
-	// exhaust memory or disk.
-	reader := &cappedReader{r: rawReader, max: cfg.MaxInputBytes}
-
-	messages, err := capturepkg.ParseChatlog(cfg.From, reader)
+	result, err := acquisition.ImportChatlog(ctx, acqOpts)
 	if err != nil {
+		// Classify error for appropriate exit code
+		errStr := err.Error()
 		switch {
-		case errors.Is(err, errInputTooLarge):
-			return fail(exitUserError, fmt.Sprintf("input exceeds maximum size (%d bytes); use --max-input-size to increase", cfg.MaxInputBytes))
+		case strings.Contains(errStr, "input file not found"),
+			strings.Contains(errStr, "no such file"),
+			errors.Is(err, os.ErrNotExist):
+			return fail(exitUserError, fmt.Sprintf("input file not found: %s", cfg.InputPath))
 		case errors.Is(err, capturepkg.ErrUnsupportedProvider), errors.Is(err, capturepkg.ErrMalformedChatlog):
+			return fail(exitUserError, err.Error())
+		case errors.Is(err, acquisition.ErrCheckpointNotFound),
+			errors.Is(err, acquisition.ErrCheckpointSourceMismatch),
+			errors.Is(err, acquisition.ErrCheckpointAdapterMismatch):
 			return fail(exitUserError, err.Error())
 		default:
 			return fail(exitSystemError, err.Error())
 		}
 	}
-	mapped, err := capturepkg.MapMessagesToEvents(messages)
-	if errors.Is(err, capturepkg.ErrUnknownTurn) {
-		var unknown []int
-		messages, unknown = capturepkg.FilterKnownTurns(messages)
-		for _, index := range unknown {
-			fmt.Fprintf(stderr, "skipping unrecognised turn %d\n", index)
-		}
-		mapped, err = capturepkg.MapMessagesToEvents(messages)
-		if err == nil {
-			mapped.SkippedRecords += len(unknown)
-		}
-	}
-	if err != nil {
-		if errors.Is(err, capturepkg.ErrMalformedChatlog) {
-			return fail(exitUserError, err.Error())
-		}
-		return fail(exitSystemError, err.Error())
+
+	// Print unknown turn messages
+	for _, idx := range result.UnknownTurnIndices {
+		fmt.Fprintf(stderr, "skipping unrecognised turn %d\n", idx)
 	}
 
+	// Handle snapshot if requested (acquisition package doesn't handle snapshots yet)
 	if cfg.SnapshotName != "" {
 		if err := validateSnapshotName(cfg.SnapshotName); err != nil {
 			return fail(exitUserError, err.Error())
 		}
-	}
-
-	b, created, err := loadSnapshotBundle(ctx, cfg.BundlePath, false)
-	if err != nil {
-		var loadErr mutationLoadError
-		if errors.As(err, &loadErr) {
-			return fail(classifyBundleLoadError(err), err.Error())
+		b, err := bundle.Load(result.BundlePath)
+		if err != nil {
+			return fail(exitSystemError, fmt.Sprintf("load bundle for snapshot: %v", err))
 		}
-		return fail(exitSystemError, err.Error())
-	}
-	if created {
-		fmt.Fprintf(stderr, "atb: created new bundle at %s\n", cfg.BundlePath)
-		if err := stampManifestProvenance(b, "bundle_provenance", bundle.BundleProvenanceRetrospective); err != nil {
-			return fail(exitSystemError, fmt.Sprintf("manifest provenance: %v", err))
-		}
-	}
-
-	totalEvents := len(mapped.Events)
-	written, err := capturepkg.AppendEventsToBundleInMemory(b, mapped.Events)
-	if err != nil {
-		return fail(exitSystemError, fmt.Sprintf("failed appending event %d/%d: %v", written+1, totalEvents, err))
-	}
-
-	if cfg.SnapshotName != "" {
 		snapshotAt := time.Now().UTC().Format(time.RFC3339Nano)
 		bundleHash, err := verifypkg.SnapshotBundleHash(b.Records)
 		if err != nil {
@@ -262,82 +206,43 @@ func runImportChatlogWithContext(ctx context.Context, args []string, stdin io.Re
 		if err := b.AppendWithOptions(event.TypeSnapshot, data, &bundle.AppendOptions{Timestamp: snapshotAt}); err != nil {
 			return fail(snapshotExitCode(err), fmt.Sprintf("events not persisted because snapshot step failed: %v", err))
 		}
-	}
-
-	if err := b.Save(ctx, cfg.BundlePath); err != nil {
-		if isBundleLocked(err) {
-			return fail(exitLockContention, bundleLockedMessage(err))
+		if err := b.Save(ctx, result.BundlePath); err != nil {
+			if isBundleLocked(err) {
+				return fail(exitLockContention, bundleLockedMessage(err))
+			}
+			return fail(exitSystemError, fmt.Sprintf("save: %v", err))
 		}
-		return fail(exitSystemError, fmt.Sprintf("save: %v", err))
+		result.SnapshotAppended = true
+		result.SnapshotName = cfg.SnapshotName
 	}
 
 	if cfg.Format == formatJSON {
-		result := importChatlogResult{
-			EventsWritten:    written,
-			SkippedRecords:   mapped.SkippedRecords,
-			BundlePath:       cfg.BundlePath,
-			SnapshotAppended: cfg.SnapshotName != "",
-			SnapshotName:     cfg.SnapshotName,
+		jsonResult := importChatlogResult{
+			EventsWritten:    result.EventsWritten,
+			SkippedRecords:   result.SkippedRecords,
+			BundlePath:       result.BundlePath,
+			SnapshotAppended: result.SnapshotAppended,
+			SnapshotName:     result.SnapshotName,
 		}
-		if err := json.NewEncoder(stdout).Encode(result); err != nil {
+		if err := json.NewEncoder(stdout).Encode(jsonResult); err != nil {
 			fmt.Fprintf(stderr, "atb import chatlog: encode json: %v\n", err)
 			return exitSystemError
 		}
 		return exitSuccess
 	}
 
-	fmt.Fprintf(stdout, "imported: %d events into %s", written, cfg.BundlePath)
-	if mapped.SkippedRecords > 0 {
-		fmt.Fprintf(stdout, " (%d source records skipped)", mapped.SkippedRecords)
+	fmt.Fprintf(stdout, "imported: %d events into %s", result.EventsWritten, result.BundlePath)
+	if result.SkippedRecords > 0 {
+		fmt.Fprintf(stdout, " (%d source records skipped)", result.SkippedRecords)
 	}
-	if cfg.SnapshotName != "" {
-		fmt.Fprintf(stdout, "; snapshot %s appended", cfg.SnapshotName)
+	if result.NewCount > 0 || result.ChangedCount > 0 || result.UnknownCount > 0 {
+		fmt.Fprintf(stdout, " (new: %d, changed: %d, unchanged: %d, unknown: %d)", result.NewCount, result.ChangedCount, result.UnchangedCount, result.UnknownCount)
+	}
+	if result.SnapshotAppended {
+		fmt.Fprintf(stdout, "; snapshot %s appended", result.SnapshotName)
 	}
 	fmt.Fprintln(stdout)
 	return exitSuccess
-}
-
-func stampManifestProvenance(b *bundle.Bundle, key, value string) error {
-	if b == nil || len(b.Records) == 0 {
-		return fmt.Errorf("bundle is empty")
-	}
-	if b.Records[0].Event.Type != bundle.ManifestEventType {
-		return fmt.Errorf("first record is not a manifest")
-	}
-	if strings.TrimSpace(key) == "" {
-		return fmt.Errorf("manifest metadata key is empty")
-	}
-
-	switch data := b.Records[0].Event.Data.(type) {
-	case map[string]any:
-		meta, _ := data["metadata"].(map[string]any)
-		if meta == nil {
-			meta = map[string]any{}
-		}
-		meta[key] = value
-		data["metadata"] = meta
-		b.Records[0].Event.Data = data
-		return nil
-	case string:
-		var payload map[string]any
-		if err := json.Unmarshal([]byte(data), &payload); err != nil {
-			return fmt.Errorf("parse manifest payload: %w", err)
-		}
-		meta, _ := payload["metadata"].(map[string]any)
-		if meta == nil {
-			meta = map[string]any{}
-		}
-		meta[key] = value
-		payload["metadata"] = meta
-		raw, err := json.Marshal(payload)
-		if err != nil {
-			return fmt.Errorf("encode manifest payload: %w", err)
-		}
-		b.Records[0].Event.Data = string(raw)
-		return nil
-	default:
-		return fmt.Errorf("manifest payload type %T is not supported", data)
-	}
 }
 
 func parseImportChatlogArgs(args []string) (importChatlogConfig, error) {
@@ -424,6 +329,18 @@ func parseImportChatlogArgs(args []string) (importChatlogConfig, error) {
 			cfg.SnapshotName = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--snapshot="):
 			cfg.SnapshotName = strings.TrimSpace(strings.TrimPrefix(arg, "--snapshot="))
+		case arg == "--continue":
+			cfg.Continue = true
+		case arg == "--reconcile":
+			cfg.Reconcile = true
+		case arg == "--checkpoint":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --checkpoint")
+			}
+			i++
+			cfg.CheckpointPath = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--checkpoint="):
+			cfg.CheckpointPath = strings.TrimSpace(strings.TrimPrefix(arg, "--checkpoint="))
 		default:
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		}

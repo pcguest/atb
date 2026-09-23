@@ -92,6 +92,9 @@ func (t DefaultTranslator) Translate(span OTelSpan) (*event.Event, error) {
 		phase = inferPhase(span)
 	}
 
+	// Build acquisition info (done later after data is built)
+	var acquisition *event.AcquisitionInfo
+
 	data := map[string]any{
 		"trace_id":          span.TraceID,
 		"span_id":           span.SpanID,
@@ -127,6 +130,8 @@ func (t DefaultTranslator) Translate(span OTelSpan) (*event.Event, error) {
 		data["error_class"] = errorClass
 	}
 
+	acquisition = buildAcquisitionInfo(span)
+
 	return &event.Event{
 		Type:         eventType,
 		HashAlgo:     "sha256",
@@ -135,7 +140,57 @@ func (t DefaultTranslator) Translate(span OTelSpan) (*event.Event, error) {
 		TraceID:      span.TraceID,
 		SpanID:       span.SpanID,
 		ParentSpanID: span.ParentSpanID,
+		Acquisition:  acquisition,
 	}, nil
+}
+
+// buildAcquisitionInfo creates the AcquisitionInfo for an OTel span.
+func buildAcquisitionInfo(span OTelSpan) *event.AcquisitionInfo {
+	acquiredAt := time.Now().UTC().Format(time.RFC3339Nano)
+	sourceDigest := computeSourceDigest(span)
+	sourceRecordID := span.SpanID
+
+	return &event.AcquisitionInfo{
+		Mode:            "retrospective",
+		SourceSystem:    "otel",
+		SourceRecordID:  sourceRecordID,
+		SourceTimestamp: span.StartTime.UTC().Format(time.RFC3339),
+		AcquiredAt:      acquiredAt,
+		SourceDigest:    sourceDigest,
+		Adapter:         "atb.otel.otlp-json",
+		AdapterVersion:  "1.0.0",
+		Checkpoint: &event.CheckpointInfo{
+			SourceSystem:      "otel",
+			AcquisitionStream: "otlp-json",
+			Position:          fmt.Sprintf("span:%s", span.SpanID),
+			ObservedAt:        acquiredAt,
+			Adapter:           "atb.otel.otlp-json",
+			AdapterVersion:    "1.0.0",
+		},
+	}
+}
+
+// computeSourceDigest computes the SHA-256 digest of the raw span representation
+// BEFORE semantic translation. This enables verification that the imported ATB
+// evidence came from the same acquired source representation.
+func computeSourceDigest(span OTelSpan) string {
+	// Create a minimal representation of the span for digest computation
+	digestData := map[string]any{
+		"trace_id":       span.TraceID,
+		"span_id":        span.SpanID,
+		"parent_span_id": span.ParentSpanID,
+		"name":           span.Name,
+		"kind":           span.Kind,
+		"start_time":     span.StartTime.UTC().Format(time.RFC3339Nano),
+		"end_time":       span.EndTime.UTC().Format(time.RFC3339Nano),
+		"status_code":    span.StatusCode,
+		"status_message": span.StatusMessage,
+		"attributes":     span.Attributes,
+		"events":         span.Events,
+	}
+	canonical, _ := json.Marshal(digestData)
+	sum := sha256.Sum256(canonical)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // preservedAttributes retains telemetry that the semantic mapper does not yet

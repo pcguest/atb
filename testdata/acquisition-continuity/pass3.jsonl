@@ -1,0 +1,6 @@
+{"role":"user","content":"A1","timestamp":"2026-01-01T10:00:00Z","session_id":"s","request_id":"r1","actor_id_hash":"sha256:u","purpose_tag":"rag_answer"}
+{"role":"assistant","content":"A1 response","timestamp":"2026-01-01T10:00:01Z","session_id":"s","model":"gpt-4o-mini","request_id":"r1"}
+{"role":"user","content":"B2","timestamp":"2026-01-01T10:00:02Z","session_id":"s","request_id":"r2","actor_id_hash":"sha256:u","purpose_tag":"rag_answer"}
+{"role":"assistant","content":"B2 response","timestamp":"2026-01-01T10:00:03Z","session_id":"s","model":"gpt-4o-mini","request_id":"r2"}
+{"role":"user","content":"C1","timestamp":"2026-01-01T10:00:04Z","session_id":"s","request_id":"r3","actor_id_hash":"sha256:u","purpose_tag":"rag_answer"}
+{"role":"assistant","content":"C1 response","timestamp":"2026-01-01T10:00:05Z","session_id":"s","model":"gpt-4o-mini","request_id":"r3"}

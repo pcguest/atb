@@ -77,6 +77,7 @@ var Registry = []EventInfo{
 	{TypeHumanApproval, "Human operator approved a pending action", "", "required"},
 	{TypeCaptureScope, "Capture-coverage attestation written by atb intercept at startup: what the recorder can and cannot see", "", "required"},
 	{TypeCaptureRejected, "Capture rejection or incomplete exchange (proxy-internal)", "", "required"},
+	{TypeAcquisitionFinding, "Acquisition continuity finding indicating a source record representation changed between imports", "", "informational"},
 	{TypeLLMRequest, "Captured upstream LLM API request (proxy-internal)", "", "informational"},
 	{TypeLLMResponse, "Captured upstream LLM API response (proxy-internal)", "", "informational"},
 	{TypeSessionClose, "Capture session closed (proxy-internal lifecycle marker)", "", "informational"},
