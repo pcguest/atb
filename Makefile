@@ -251,10 +251,10 @@ security-scan:
 	if [ -n "$$TRIVY_BIN" ] && [ "$$TRIVY_BIN" = "$(CURDIR)/.tmp/bin/trivy" ] && [ "$$TRIVY_FOUND_VERSION" != "$(TRIVY_VERSION)" ]; then \
 		echo "❌ repository-local Trivy version '$${TRIVY_FOUND_VERSION:-unknown}' does not match $(TRIVY_VERSION); rerun make bootstrap-scanners"; exit 1; \
 	elif [ "$$TRIVY_FOUND_VERSION" = "$(TRIVY_VERSION)" ]; then \
-		"$$TRIVY_BIN" fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
+		"$$TRIVY_BIN" fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .tmp-cleanroom --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output trivy-report.json .; \
 	else \
 		echo "⚠️ local Trivy version '$${TRIVY_FOUND_VERSION:-missing}' does not match $(TRIVY_VERSION); using pinned Docker image"; \
-		docker run --rm -v "$$(pwd):/work" $(TRIVY_IMAGE) fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
+		docker run --rm -v "$$(pwd):/work" $(TRIVY_IMAGE) fs --skip-dirs .gocache --skip-dirs .gomodcache --skip-dirs .tmp --skip-dirs .tmp-cleanroom --skip-dirs .venv --skip-dirs .venv-atb --skip-dirs web/node_modules --skip-dirs sdk/typescript/node_modules --scanners vuln --severity CRITICAL,HIGH --exit-code 1 --format json --output /work/trivy-report.json /work; \
 	fi
 	@GOSEC_BIN=""; \
 	if [ -e "$(CURDIR)/.tmp/bin/gosec" ]; then \

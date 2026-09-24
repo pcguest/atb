@@ -109,6 +109,7 @@ func (c *Checkpoint) Save(path string) error {
 
 // Load loads a checkpoint from the given path.
 func Load(path string) (*Checkpoint, error) {
+	// #nosec G304 -- --checkpoint is an intentional local operator-selected path; checkpoint state is operational, not remotely request-controlled evidence.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
