@@ -173,7 +173,7 @@ atb import chatlog --from generic-jsonl --input edited.jsonl --continue
 atb import chatlog --from generic-jsonl --input edited.jsonl --checkpoint ./cp.json
 ```
 
-Checkpoints are written atomically and validated on `--continue`/`--reconcile`: a checkpoint whose source system, stream, or adapter does not match the current import is rejected rather than silently resumed.
+Checkpoints are written atomically and validated on `--continue`/`--reconcile`: a checkpoint whose source system, stream, or adapter does not match the current import is rejected rather than silently resumed. An explicit `--checkpoint` path is an intentional local operator-selected path; checkpoint files are operational state, not evidence and are not exposed through a remote import API.
 
 Reconciliation builds on the acquisition provenance already recorded in the bundle, so ATB verifies the existing bundle's hash chain before appending. If the bundle does not verify, `--reconcile`/`--continue` fails explicitly rather than reconciling onto an unverified chain:
 

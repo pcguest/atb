@@ -372,9 +372,9 @@ func TestSecurityScanExcludesRepositoryBuildCaches(t *testing.T) {
 		t.Fatal("Makefile security-scan target not found")
 	}
 	securityTarget := makefile[start:]
-	for _, dir := range []string{".gocache", ".tmp"} {
+	for _, dir := range []string{".gocache", ".tmp", ".tmp-cleanroom"} {
 		flag := "--skip-dirs " + dir
-		if count := strings.Count(securityTarget, flag); count != 2 {
+		if count := strings.Count(securityTarget, flag+" "); count != 2 {
 			t.Errorf("security-scan must apply %q to native and Docker Trivy commands; found %d", flag, count)
 		}
 	}
