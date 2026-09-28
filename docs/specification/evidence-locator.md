@@ -53,10 +53,18 @@ There is exactly one canonical serialised form:
 - decimal `seq` with no leading zeros (`0` is permitted);
 - no fragment.
 
-`Parse` accepts the canonical form (and equivalent parameter orderings) and
-rejects spellings that are not canonical, so that any accepted locator
-canonicalises to one form: `Parse(String(Parse(x))) == Parse(x)` holds for any
-accepted locator.
+`Parse` accepts the canonical form. It also accepts supported equivalent query
+parameter orderings (for example `record` before `seq`); accepted textual
+variants parse to the same semantic `Locator`. `Locator.String()` always emits
+the one canonical serialisation (`?seq=<n>` and, if present, `&record=<hash>`),
+so `Parse(String(Parse(x))) == Parse(x)` holds for every accepted locator.
+
+`Parse` rejects forms that are genuinely invalid or non-canonical rather than
+normalising them: a non-`atb` or non-lowercase scheme/authority, userinfo and
+ports, a non-canonical or unsupported version segment (for example the
+non-canonical `01`), fragments (including a bare `#`), empty query components
+(a trailing, leading, or doubled `&`), unknown or duplicate parameters,
+malformed hashes, a `seq` with leading zeros, and percent-encoding.
 
 ## 5. Field semantics
 
