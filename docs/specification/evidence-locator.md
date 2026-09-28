@@ -193,3 +193,9 @@ Three questions stay separate:
    approved what? (Mortise)
 
 A locator answers only the first.
+
+A locator is intentionally orthogonal to attribution
+([evidence attribution](./attribution.md)): the locator answers *which record*,
+while attribution describes *what that record reports as its producer and
+context*. Resolving a locator neither verifies integrity nor asserts
+authorship or authority.
