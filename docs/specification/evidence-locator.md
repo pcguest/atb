@@ -38,8 +38,8 @@ atb://evidence/1/<bundle_head_hash>?seq=<event_sequence>[&record=<record_hash>]
   record's stored hash.
 
 Query parameters must be exactly `seq` and (optionally) `record`. Unknown
-parameters, duplicate parameters, empty query components (for example a
-trailing `&`), fragments (including a bare `#`), userinfo, ports, and
+parameters, duplicate parameters, empty query components (a trailing, leading,
+or doubled `&`), fragments (including a bare `#`), userinfo, ports, and
 percent-encoding are rejected.
 
 ## 4. Canonical form
@@ -59,12 +59,11 @@ variants parse to the same semantic `Locator`. `Locator.String()` always emits
 the one canonical serialisation (`?seq=<n>` and, if present, `&record=<hash>`),
 so `Parse(String(Parse(x))) == Parse(x)` holds for every accepted locator.
 
-`Parse` rejects forms that are genuinely invalid or non-canonical rather than
-normalising them: a non-`atb` or non-lowercase scheme/authority, userinfo and
-ports, a non-canonical or unsupported version segment (for example the
-non-canonical `01`), fragments (including a bare `#`), empty query components
-(a trailing, leading, or doubled `&`), unknown or duplicate parameters,
-malformed hashes, a `seq` with leading zeros, and percent-encoding.
+`Parse` rejects forms that are invalid or non-canonical rather than normalising
+them. The grammar-level rejections are catalogued in [§3](#3-grammar);
+additionally, `Parse` rejects a non-lowercase scheme or authority, a
+non-canonical or unsupported version segment (for example the non-canonical
+`01`), malformed hashes, and a `seq` with leading zeros.
 
 ## 5. Field semantics
 
