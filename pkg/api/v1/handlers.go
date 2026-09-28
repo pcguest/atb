@@ -22,6 +22,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/internal/locator"
 	"github.com/pcguest/atb/internal/sessionindex"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 	atbauth "github.com/pcguest/atb/pkg/auth"
@@ -188,6 +189,7 @@ func (s *APIServer) Register(mux *http.ServeMux) {
 	mux.Handle("/api/v1/verification", s.authMiddleware(http.HandlerFunc(s.handleVerification)))
 	mux.Handle("/api/v1/bundle/meta", s.authMiddleware(http.HandlerFunc(s.handleBundleMeta)))
 	mux.Handle("/api/v1/bundle/events", s.authMiddleware(http.HandlerFunc(s.handleBundleEvents)))
+	mux.Handle("/api/v1/bundle/locate", s.authMiddleware(http.HandlerFunc(s.handleBundleLocate)))
 	mux.Handle("/api/v1/bundle/graph", s.authMiddleware(http.HandlerFunc(s.handleBundleGraph)))
 	mux.Handle("/api/v1/bundle/profile", s.authMiddleware(http.HandlerFunc(s.handleBundleProfile)))
 	mux.Handle("/api/v1/bundle/verify", s.authMiddleware(http.HandlerFunc(s.handleBundleVerify)))
@@ -576,6 +578,59 @@ func (s *APIServer) handleVerification(w http.ResponseWriter, r *http.Request) {
 		out.Message = s.verifyErr.Error()
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+// @OpenAPI
+// @Summary      Resolve a semantic evidence locator
+// @Description  Resolves an atb://evidence/1/<bundle_head_hash>?seq=<n> locator to a record in the loaded bundle. Resolution is identity, not integrity: it does not verify the evidence, grant authority, or imply approval.
+// @Tags         viewer
+// @Produce      json
+// @Param        locator  query  string  true  "ATB semantic evidence locator"
+// @Success      200  {object}  LocateResponse
+// @Failure      400  {object}  APIError
+// @Failure      405  {object}  APIError
+// @Router       /api/v1/bundle/locate [get]
+func (s *APIServer) handleBundleLocate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, APIError{Error: "method not allowed"})
+		return
+	}
+	if !s.requireRole(w, r, atbauth.RoleViewer) {
+		return
+	}
+	raw := strings.TrimSpace(r.URL.Query().Get("locator"))
+	if raw == "" {
+		writeJSON(w, http.StatusBadRequest, APIError{Error: "locator query parameter is required"})
+		return
+	}
+	loc, err := locator.Parse(raw)
+	if err != nil {
+		writeJSON(w, http.StatusOK, LocateResponse{OK: false, ErrorCode: locateErrorCode(err), Message: err.Error()})
+		return
+	}
+	res, err := locator.Resolve(loc, s.b)
+	if err != nil {
+		writeJSON(w, http.StatusOK, LocateResponse{OK: false, Canonical: loc.String(), ErrorCode: locateErrorCode(err), Message: err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, LocateResponse{OK: true, Canonical: loc.String(), Seq: res.Seq, RecordHashMatched: res.RecordHashMatched})
+}
+
+func locateErrorCode(err error) string {
+	switch {
+	case errors.Is(err, locator.ErrMalformed):
+		return "LOCATOR_MALFORMED"
+	case errors.Is(err, locator.ErrUnsupportedVersion):
+		return "LOCATOR_VERSION_UNSUPPORTED"
+	case errors.Is(err, locator.ErrBundleUnavailable):
+		return "BUNDLE_NOT_AVAILABLE"
+	case errors.Is(err, locator.ErrEventNotFound):
+		return "EVENT_NOT_FOUND"
+	case errors.Is(err, locator.ErrRecordHashMismatch):
+		return "RECORD_HASH_MISMATCH"
+	default:
+		return "LOCATOR_ERROR"
+	}
 }
 
 // @OpenAPI

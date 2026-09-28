@@ -23,7 +23,7 @@ Auditor success bar:
 ## CLI interface
 
 ```bash
-atb view [--port 8080] [--bundle path/to/file.atb] [--profile <id-or-path>] [--sessions <glob-or-dir>]
+atb view [--port 8080] [--bundle path/to/file.atb] [--profile <id-or-path>] [--sessions <glob-or-dir>] [--focus <atb-locator>]
 ```
 
 Supported forms:
@@ -32,11 +32,19 @@ Supported forms:
 - `atb view --profile atb.profile.rag_answer`
 - `atb view --profile ./profiles/custom.yaml`
 - `atb view --bundle ./session.atb --sessions ./sessions/`
+- `atb view --bundle ./session.atb --focus 'atb://evidence/1/<bundle_head_hash>?seq=4'`
 
 `--profile`: optional. Evaluates the bundle against the named built-in profile or a DSL YAML
 file at startup. When the chain is intact the profile/CAS summary is served immediately via
 `GET /api/v1/bundle/profile`. Without `--profile` the endpoint returns 204 until triggered
 via `POST /api/v1/bundle/verify` from the UI.
+
+`--focus`: optional. An [ATB semantic evidence locator](./evidence-locator.md) that selects a
+single record to focus. The referenced bundle must be supplied explicitly via `--bundle` or a
+positional path; a locator head hash is not a filesystem path and is never used for global
+discovery. The viewer resolves the locator against the loaded bundle and focuses the referenced
+record. Focusing is a location result: it is not an integrity verification and does not imply
+approval.
 
 Additional flags:
 - `--no-open`: do not auto-open browser
@@ -64,6 +72,7 @@ Chosen flow: **Go API server + Next.js viewer UI**.
    - `GET /api/v1/verification`
    - `GET /api/v1/bundle/meta`
    - `GET /api/v1/bundle/events?offset=&limit=`
+   - `GET /api/v1/bundle/locate?locator=<atb-locator>`
    - `GET /api/v1/bundle/graph`
    - `POST /api/v1/privacy/reveal`
    - `GET /api/v1/bundle/profile` (204 if no report; 200 + ProfileReportSummary if computed)
@@ -88,6 +97,20 @@ Rationale:
   - `GET /api/v1/verification` returns `status=invalid`
   - data endpoints return `403`
 
+### Evidence deep link
+
+- `atb view --focus '<locator>'` resolves the locator against the loaded bundle and focuses the
+  referenced record. The browser `?focus=` parameter carries the locator; it is a transport
+  detail, not the canonical evidence identity (the locator is).
+- A location failure is shown as a non-blocking "reference not focused" notice. It is never
+  rendered as tamper detection, and it is not an integrity verdict. The notice covers a browser
+  `?focus=` value that is malformed or cannot be resolved; on the CLI, `--focus` is parsed and
+  rejected before the viewer starts, so a CLI syntax error is a startup error rather than an
+  in-viewer notice.
+- Resolving a locator does not verify integrity and does not imply governance approval.
+- Locator parsing lives in `internal/locator` and is exposed to the UI through
+  `GET /api/v1/bundle/locate`; the client does not re-implement the grammar.
+
 ### Privacy defaults
 
 - sensitive fields are masked by default in event payload API responses
@@ -100,6 +123,14 @@ Rationale:
 - `VerificationResponse`: status, message, bundle_path, chain_length, head_hash
 - `BundleMetaResponse`: event_count, type_counts, timestamp bounds, verification summary
 - `BundleEventsResponse`: paginated event list with sanitized data
+- `LocateResponse`: result of resolving an [evidence locator](./evidence-locator.md) against the
+  loaded bundle — `ok`, `canonical`, `seq`, `record_hash_matched`, and a stable `error_code`
+  (`LOCATOR_MALFORMED`, `LOCATOR_VERSION_UNSUPPORTED`, `BUNDLE_NOT_AVAILABLE`,
+  `EVENT_NOT_FOUND`, `RECORD_HASH_MISMATCH`) when `ok=false`. Resolution reports identity only;
+  it is not an integrity or approval verdict. Unlike the other `/api/v1/bundle/*` read
+  endpoints, `locate` is deliberately **not** gated on bundle verification: identifying a record
+  is a location question, and the endpoint returns no event payload. The tamper-first treatment
+  of evidence remains enforced by the data endpoints and the viewer shell.
 - `BundleGraphResponse`: nodes and edges for trace/span graph rendering
 - `PrivacyRevealRequest` / `PrivacyRevealResponse`: single field reveal flow
 - `ProfileReportSummary`: profile_id, pass, chain_valid, anchor_status, cas_score, cas_grade,

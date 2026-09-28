@@ -68,6 +68,23 @@ type BundleEventsResponse struct {
 	Events []EventRecordDTO `json:"events"`
 }
 
+// LocateResponse is the result of resolving an ATB semantic evidence locator
+// against the loaded bundle.
+//
+// OK reports whether a single record was identified. It does NOT report
+// integrity, truth, or governance status: location is not verification.
+// ErrorCode is a stable machine-readable reason when OK is false, one of
+// LOCATOR_MALFORMED, LOCATOR_VERSION_UNSUPPORTED, BUNDLE_NOT_AVAILABLE,
+// EVENT_NOT_FOUND, or RECORD_HASH_MISMATCH.
+type LocateResponse struct {
+	OK                bool   `json:"ok"`
+	Canonical         string `json:"canonical,omitempty"`
+	Seq               int    `json:"seq"`
+	RecordHashMatched bool   `json:"record_hash_matched"`
+	ErrorCode         string `json:"error_code,omitempty"`
+	Message           string `json:"message,omitempty"`
+}
+
 // GraphNodeDTO models a single node in trace/span visualizations.
 type GraphNodeDTO struct {
 	ID        string `json:"id"`
