@@ -3,11 +3,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,6 +17,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/locator"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 )
 
@@ -34,6 +37,21 @@ func TestParseViewArgs(t *testing.T) {
 			name: "default config",
 			args: nil,
 			want: viewConfig{Host: defaultViewHost, Port: 8080},
+		},
+		{
+			name: "focus locator",
+			args: []string{"--bundle=run.atb", "--focus", "atb://evidence/1/" + strings.Repeat("a", 64) + "?seq=1"},
+			want: viewConfig{
+				BundlePath:   "run.atb",
+				Host:         defaultViewHost,
+				Port:         8080,
+				FocusLocator: "atb://evidence/1/" + strings.Repeat("a", 64) + "?seq=1",
+			},
+		},
+		{
+			name:    "invalid focus locator",
+			args:    []string{"--focus", "not-a-locator"},
+			wantErr: true,
 		},
 		{
 			name: "path and port",
@@ -367,6 +385,46 @@ func TestBuildViewServerFallbackExposesNoData(t *testing.T) {
 	}
 	if !strings.Contains(verifyRR.Body.String(), `"status":"valid"`) {
 		t.Fatalf("expected valid verification response, got %s", verifyRR.Body.String())
+	}
+}
+
+func TestBuildViewServerLocateEndpoint(t *testing.T) {
+	tmp := t.TempDir()
+	bundlePath := filepath.Join(tmp, "bundle.atb")
+
+	b := newTestBundle(t)
+	appendTestBundleEvent(t, b, "agent.prompt", map[string]interface{}{"prompt": "x"})
+	appendTestBundleEvent(t, b, "agent.output", map[string]interface{}{"text": "y"})
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
+	}
+
+	handler, _, _, _, err := buildViewServer(bundlePath, false, "", testViewSessionToken, "", "")
+	if err != nil {
+		t.Fatalf("buildViewServer error: %v", err)
+	}
+
+	head := b.Records[len(b.Records)-1].Hash
+	target := b.Records[1]
+	loc := locator.Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence, RecordHash: target.Hash}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/locate?locator="+url.QueryEscape(loc.String()), nil)
+	req.Header.Set(testViewSessionHeader, testViewSessionToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("locate status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var out struct {
+		OK      bool `json:"ok"`
+		Seq     int  `json:"seq"`
+		Matched bool `json:"record_hash_matched"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &out); err != nil {
+		t.Fatalf("decode locate response: %v", err)
+	}
+	if !out.OK || out.Seq != target.Event.Sequence || !out.Matched {
+		t.Fatalf("locate response = %+v, want ok seq=%d matched", out, target.Event.Sequence)
 	}
 }
 

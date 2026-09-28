@@ -8,7 +8,7 @@ import { CopyAction, EmptyState, ErrorState, LoadingState, StatusBadge } from ".
 import { FindingsSurface, IncidentSurface, RecordSurface, actionClass } from "./components/CoreSurfaces";
 import { ContextSurface, RelationshipsSurface, TrustSurface } from "./components/AssuranceSurfaces";
 import { EventInspector } from "@/components/dashboard/EventInspector";
-import { flattenEventPages, useBundleEventsQuery, useInvestigationContextQuery, useInvestigationFindingsQuery, useInvestigationOverviewQuery, useInvestigationRelationshipsQuery, useInvestigationTimelineQuery, useInvestigationTrustQuery, useRevealFieldMutation, useRunBundleVerifyMutation } from "@/lib/api-client";
+import { flattenEventPages, locateEvidence, useBundleEventsQuery, useInvestigationContextQuery, useInvestigationFindingsQuery, useInvestigationOverviewQuery, useInvestigationRelationshipsQuery, useInvestigationTimelineQuery, useInvestigationTrustQuery, useRevealFieldMutation, useRunBundleVerifyMutation } from "@/lib/api-client";
 import { displayBundlePath } from "@/lib/display-path";
 
 const surfaces = [["incident", "Run", Info], ["findings", "Findings", ListChecks], ["timeline", "Timeline", Clock3], ["context", "Context", Boxes], ["relationships", "Relationships", GitBranch], ["evidence", "Evidence", FileJson2], ["trust", "Evidence status", ShieldCheck]] as const;
@@ -27,6 +27,7 @@ export default function ViewPage() {
   const [selectedFinding, setSelectedFinding] = useState(0);
   const [source, setSource] = useState<Surface | null>(null);
   const [scopeGeneration, setScopeGeneration] = useState(0);
+  const [focusNotice, setFocusNotice] = useState<{ code: string; message: string } | null>(null);
   const overviewQuery = useInvestigationOverviewQuery();
   const trustQuery = useInvestigationTrustQuery();
   const valid = overviewQuery.data?.integrity_valid === true;
@@ -49,6 +50,32 @@ export default function ViewPage() {
     window.addEventListener("popstate", reset);
     window.addEventListener("hashchange", reset);
     return () => { window.removeEventListener("popstate", reset); window.removeEventListener("hashchange", reset); };
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const focus = new URLSearchParams(window.location.search).get("focus");
+    if (!focus) return;
+    const controller = new AbortController();
+    void locateEvidence(focus, undefined, controller.signal)
+      .then((result) => {
+        if (result.ok && typeof result.seq === "number") {
+          setSelectedSeq(result.seq);
+          setSurface("evidence");
+          return;
+        }
+        setFocusNotice({
+          code: result.error_code ?? "LOCATOR_ERROR",
+          message: result.message ?? "The referenced evidence was not found in this bundle.",
+        });
+      })
+      .catch(() => {
+        setFocusNotice({
+          code: "LOCATOR_ERROR",
+          message: "The evidence reference could not be resolved.",
+        });
+      });
+    return () => controller.abort();
+    // Resolve the referenced record once on load. Later navigation is user-driven.
   }, []);
   useEffect(() => {
     if ((surface === "evidence" || surface === "timeline") && effectiveSeq !== null && !selectedEvent && eventsQuery.hasNextPage && !eventsQuery.isFetchingNextPage && !eventsQuery.isError) void eventsQuery.fetchNextPage();
@@ -77,6 +104,7 @@ export default function ViewPage() {
   return <div className="flex h-full min-h-0 w-full bg-background">
     <aside className="hidden w-44 shrink-0 flex-col border-r border-border bg-surface-1 md:flex xl:w-56" aria-label="Investigation navigation"><div className="border-b border-border px-4 py-5"><p className="font-semibold tracking-tight">ATB View</p><p className="mt-1 text-xs text-muted-foreground">Evidence investigation</p></div><nav className="flex-1 space-y-1 p-2" aria-label="Investigation sequence">{surfaces.map(([id, label, Icon]) => <button key={id} onClick={() => setSurface(id)} aria-label={label} aria-current={surface === id ? "page" : undefined} className={`flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${surface === id ? "border-primary/30 bg-primary/10 text-foreground" : "border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Icon className="h-4 w-4 shrink-0" aria-hidden="true"/>{label}{id === "findings" && overview.finding_count > 0 && <span className="ml-auto text-xs">{overview.finding_count}</span>}</button>)}</nav><div className="border-t border-border p-4 text-xs leading-5 text-muted-foreground">Local evidence<br/>Independent verification</div></aside>
     <main id="dashboard-content" className="flex min-w-0 flex-1 flex-col"><header className="shrink-0 border-b border-border bg-surface-1 px-4 py-3 xl:px-6"><div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h1 className="min-w-0 truncate text-sm font-semibold" title={overview.bundle_path}>{displayBundlePath(overview.bundle_path)}</h1><CopyAction value={overview.bundle_path} label="Copy bundle path"/></div><p className="mt-1 break-words text-xs text-muted-foreground">Bundle investigation <span aria-hidden="true">/</span> {surfaces.find(([id]) => id === surface)?.[1]}</p></div><div className="flex items-center gap-2"><CommandPalette actions={actions}/><RoleSelector/></div></div><div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs"><StatusBadge tone={valid ? "verified" : "danger"}>{valid ? "Hash chain verified" : "Integrity failed"}</StatusBadge><span className="break-all text-muted-foreground">Profile: <span className="text-foreground">{overview.profile?.profile_id || "Not selected"}</span></span><span className="text-muted-foreground">Custody: <span className="text-foreground">{overview.custody_state}</span></span></div></header>
+    {focusNotice && <div role="status" data-testid="focus-notice" className="shrink-0 border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">Evidence reference not focused. </span>{focusNotice.message}{focusNotice.code ? ` (${focusNotice.code})` : ""} This is a location result, not an integrity or tampering finding.</div>}
     <nav aria-label="Compact investigation navigation" className="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 md:hidden">{surfaces.map(([id, label]) => <button key={id} onClick={() => setSurface(id)} aria-current={surface === id ? "page" : undefined} className={`rounded px-3 py-2 text-sm ${surface === id ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>{label}</button>)}</nav>
     <div className="min-h-0 flex-1 overflow-y-auto p-4 xl:p-6" key={`${scopeGeneration}-${overview.bundle_path}`}>
       {blocked ? <ErrorState title="Event-derived investigation is blocked"><p>Bundle integrity failed. Open Evidence status to inspect the verification boundary.</p><button className={`${actionClass} mt-3`} onClick={() => setSurface("trust")}>Open Evidence status</button></ErrorState> : <>

@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Versioned ATB semantic evidence locators
+  (`atb://evidence/1/<bundle_head_hash>?seq=<event_sequence>[&record=<record_hash>]`),
+  a stable reference to one evidence record independent of ATB's file paths and UI
+  routes. Added `atb view --focus '<locator>'`, a `GET /api/v1/bundle/locate` viewer
+  endpoint, and stable viewer record focusing. Locators identify evidence; they do
+  not verify integrity, grant authority, or imply approval. No canonical event or
+  bundle schema changes and no golden-vector changes.
 - Acquisition continuity for `atb import chatlog` and `atb import otel`: retrospective source provenance (`mode`, `source_system`, `source_record_id`, `source_timestamp`, `acquired_at`, `source_digest`, `adapter`, `adapter_version`, optional checkpoint), checkpoint persistence and validation (`--checkpoint`, `--continue`), and reconciliation of re-imports (`--reconcile`) into NEW / UNCHANGED / CHANGED / UNKNOWN.
 - A bounded `atb.acquisition.finding` event (`source_record_changed`) recorded once per changed source record when a re-import observes the same source identity with a different source digest. The event is registered in the generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
 - Documented the chatlog source-digest contract (exchange granularity, exact bytes digested, encoding, join, field inclusion, and equality/inequality meaning) in `docs/integrations/chatlog-import.md`, and distinguished source change from tampering in `docs/verification-meaning.md`.

@@ -62,7 +62,17 @@ export function RecordSurface({ timeline, selectedSeq, select, inspector, eviden
   const rowRefs = useRef(new Map<number, HTMLButtonElement>());
   const rows = useMemo(() => [...timeline].sort((left, right) => left.seq - right.seq).filter(event => (!type || event.type === type) && `${event.seq} ${event.type} ${event.label} ${event.hash}`.toLowerCase().includes(search.toLowerCase())), [timeline, type, search]);
   useEffect(() => {
-    if (selectedSeq !== null) rowRefs.current.get(selectedSeq)?.focus();
+    if (selectedSeq === null) return;
+    const node = rowRefs.current.get(selectedSeq);
+    if (!node) return;
+    node.focus();
+    if (typeof node.scrollIntoView === "function") {
+      const reduceMotion =
+        typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      node.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
+    }
   }, [selectedSeq]);
   return <section className="space-y-4"><SurfaceHeader title={evidence ? "Exact records" : "Timeline"} description={evidence ? "Source records, hashes and audited field inspection." : "Recorded sequence is authoritative. Timestamps appear only when recorded."}/><FilterBar search={search} setSearch={setSearch} label="Search event identity, type or hash" count={`${rows.length} of ${timeline.length} records`}><select aria-label="Event type" value={type} onChange={event => setType(event.target.value)} className="max-w-64 rounded border border-border bg-card p-1 text-sm"><option value="">All event types</option>{Array.from(new Set(timeline.map(e => e.type))).sort().map(value => <option key={value}>{value}</option>)}</select></FilterBar><SplitWorkspace list={<div className="overflow-hidden rounded-lg border border-border bg-card"><div className="flex justify-between border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground"><span>Sequence / Event</span><span>Recorded time</span></div>{rows.map(event => <button key={event.seq} ref={node => { if (node) rowRefs.current.set(event.seq, node); else rowRefs.current.delete(event.seq); }} onClick={() => select(event.seq)} aria-pressed={event.seq === selectedSeq} className={`${rowClass} ${event.seq === selectedSeq ? "border-l-2 border-l-primary bg-primary/10" : ""}`}><div className="flex items-start gap-3"><span className="mt-0.5 w-10 shrink-0 font-mono text-xs text-muted-foreground">#{event.seq}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-medium">{event.label}</span><span className="font-mono text-xs text-muted-foreground">{event.timestamp || "time unavailable"}</span></div><p className="mt-1 break-all font-mono text-xs text-muted-foreground">{event.type}</p><p className="mt-2 truncate font-mono text-xs text-muted-foreground" title={event.hash}>{event.hash}</p></div></div></button>)}{rows.length === 0 && <EmptyState title={timeline.length ? "No matching records" : "No recorded events"}>{timeline.length ? "Change or clear the filters. Search covers record identity and metadata." : "No event-derived timeline is available for this bundle."}</EmptyState>}</div>} inspector={inspector}/></section>;
 }

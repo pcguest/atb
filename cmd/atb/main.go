@@ -249,9 +249,9 @@ func usageJSON() helpOutput {
 			},
 			{
 				Name:        "view",
-				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>]",
+				Usage:       "atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>] [--focus <atb-locator>]",
 				Description: "Open the local review UI. Requires building from source to include the embedded UI.",
-				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--profile", "--session-token", "--sessions", "--oidc-issuer", "--oidc-audience"},
+				Flags:       []string{"--bundle", "--host", "--port", "--no-open", "--log-reveals", "--profile", "--session-token", "--sessions", "--oidc-issuer", "--oidc-audience", "--focus"},
 				Mutating:    false,
 			},
 			{

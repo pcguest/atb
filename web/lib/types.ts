@@ -10,6 +10,7 @@ import {
   failureDTOSchema,
   graphEdgeSchema,
   graphNodeSchema,
+  locateResponseSchema,
   privacyRevealRequestSchema,
   privacyRevealResponseSchema,
   profileReportSummarySchema,
@@ -35,6 +36,7 @@ export type VerificationResponse = z.infer<typeof verificationResponseSchema>;
 export type BundleMetaResponse = z.infer<typeof bundleMetaResponseSchema>;
 export type EventRecord = z.infer<typeof eventRecordSchema>;
 export type BundleEventsResponse = z.infer<typeof bundleEventsResponseSchema>;
+export type LocateResponse = z.infer<typeof locateResponseSchema>;
 export type GraphNode = z.infer<typeof graphNodeSchema>;
 export type GraphEdge = z.infer<typeof graphEdgeSchema>;
 export type BundleGraphResponse = z.infer<typeof bundleGraphResponseSchema>;

@@ -17,6 +17,7 @@ import {
   bundleEventsResponseSchema,
   bundleGraphResponseSchema,
   bundleMetaResponseSchema,
+  locateResponseSchema,
   privacyRevealRequestSchema,
   privacyRevealResponseSchema,
   profileReportSummarySchema,
@@ -36,6 +37,7 @@ import type {
   BundleGraphResponse,
   BundleMetaResponse,
   EventRecord,
+  LocateResponse,
   PrivacyRevealRequest,
   PrivacyRevealResponse,
   ProfileReportSummary,
@@ -254,6 +256,23 @@ export function getBundleGraph(
   signal?: AbortSignal,
 ): Promise<BundleGraphResponse> {
   return requestJSON("/api/v1/bundle/graph", bundleGraphResponseSchema, { signal }, sessionToken);
+}
+
+// locateEvidence resolves an ATB semantic evidence locator against the loaded
+// bundle. The server owns locator parsing; the client never re-implements the
+// grammar. Resolution reports identity only, not integrity or approval.
+export function locateEvidence(
+  locator: string,
+  sessionToken = getSessionToken(),
+  signal?: AbortSignal,
+): Promise<LocateResponse> {
+  const params = new URLSearchParams({ locator });
+  return requestJSON(
+    `/api/v1/bundle/locate?${params.toString()}`,
+    locateResponseSchema,
+    { signal },
+    sessionToken,
+  );
 }
 
 export function listWorkspaceBundles(

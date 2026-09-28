@@ -17,7 +17,7 @@ export function RoleSelector() {
         htmlFor="role-selector"
         className="text-xs uppercase tracking-wide text-muted-foreground"
       >
-        Role
+        View
       </label>
       <Select.Root
         value={role}

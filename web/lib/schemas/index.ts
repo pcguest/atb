@@ -8,6 +8,7 @@ export {
 export { bundleGraphResponseSchema, graphEdgeSchema, graphNodeSchema } from "@/lib/schemas/graph";
 export { privacyRevealRequestSchema, privacyRevealResponseSchema } from "@/lib/schemas/privacy";
 export { verificationResponseSchema, verificationStatusSchema } from "@/lib/schemas/verification";
+export { locateResponseSchema } from "@/lib/schemas/locator";
 export { failureDTOSchema, profileReportSummarySchema } from "@/lib/schemas/profile";
 export {
   workspaceBundleSummarySchema,

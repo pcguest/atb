@@ -24,6 +24,7 @@ import (
 
 	atbembed "github.com/pcguest/atb"
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/locator"
 	"github.com/pcguest/atb/internal/sessionindex"
 	verifypkg "github.com/pcguest/atb/internal/verify"
 	apiv1 "github.com/pcguest/atb/pkg/api/v1"
@@ -44,6 +45,11 @@ type viewConfig struct {
 	SessionPaths []string
 	OIDCIssuer   string
 	OIDCAudience string
+	// FocusLocator is an optional ATB semantic evidence locator. It selects a
+	// single evidence record to focus in the viewer. The referenced bundle must
+	// be supplied explicitly; a locator head hash is not a filesystem path and
+	// is never used for global discovery.
+	FocusLocator string
 }
 
 const defaultViewHost = "127.0.0.1"
@@ -89,9 +95,17 @@ func cmdView() {
 	defer ln.Close()
 
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(port))
-	url := "http://" + addr + openPath
+	viewURL := "http://" + addr + openPath
+	if cfg.FocusLocator != "" {
+		loc, err := locator.Parse(cfg.FocusLocator)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "atb view: invalid --focus locator: %v\n", err)
+			os.Exit(exitUserError)
+		}
+		viewURL += "?focus=" + url.QueryEscape(loc.String())
+	}
 	if sessionToken != "" {
-		url += "#session=" + sessionToken
+		viewURL += "#session=" + sessionToken
 	}
 	if port != cfg.Port {
 		fmt.Fprintf(os.Stderr, "atb view: port %d unavailable; using %d\n", cfg.Port, port)
@@ -111,12 +125,12 @@ func cmdView() {
 	}()
 
 	if tamperDetected {
-		fmt.Printf("atb view: verification failed for %s; serving tamper warning at %s\n", bundlePath, url)
+		fmt.Printf("atb view: verification failed for %s; serving tamper warning at %s\n", bundlePath, viewURL)
 	} else {
-		fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, eventCount, url)
+		fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, eventCount, viewURL)
 	}
 	if !cfg.NoOpen {
-		if err := openBrowser(url); err != nil {
+		if err := openBrowser(viewURL); err != nil {
 			fmt.Fprintf(os.Stderr, "atb view: could not auto-open browser: %v\n", err)
 		}
 	}
@@ -490,7 +504,7 @@ func newInstallFallbackHandler() http.Handler {
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>] [--focus <atb-locator>]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -603,6 +617,14 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			cfg.OIDCAudience = strings.TrimSpace(args[i])
 		case strings.HasPrefix(arg, "--oidc-audience="):
 			cfg.OIDCAudience = strings.TrimSpace(strings.TrimPrefix(arg, "--oidc-audience="))
+		case arg == "--focus":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --focus")
+			}
+			i++
+			cfg.FocusLocator = strings.TrimSpace(args[i])
+		case strings.HasPrefix(arg, "--focus="):
+			cfg.FocusLocator = strings.TrimSpace(strings.TrimPrefix(arg, "--focus="))
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -621,6 +643,11 @@ func parseViewArgs(args []string) (viewConfig, error) {
 	}
 	if (cfg.OIDCIssuer == "") != (cfg.OIDCAudience == "") {
 		return cfg, fmt.Errorf("--oidc-issuer and --oidc-audience must be set together")
+	}
+	if cfg.FocusLocator != "" {
+		if _, err := locator.Parse(cfg.FocusLocator); err != nil {
+			return cfg, fmt.Errorf("invalid --focus locator: %w", err)
+		}
 	}
 	return cfg, nil
 }
