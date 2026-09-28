@@ -509,6 +509,7 @@ func printViewUsage() {
 
 func parseViewArgs(args []string) (viewConfig, error) {
 	cfg := viewConfig{Host: defaultViewHost, Port: 8080}
+	focusSet := false
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
@@ -623,8 +624,10 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			}
 			i++
 			cfg.FocusLocator = strings.TrimSpace(args[i])
+			focusSet = true
 		case strings.HasPrefix(arg, "--focus="):
 			cfg.FocusLocator = strings.TrimSpace(strings.TrimPrefix(arg, "--focus="))
+			focusSet = true
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -643,6 +646,9 @@ func parseViewArgs(args []string) (viewConfig, error) {
 	}
 	if (cfg.OIDCIssuer == "") != (cfg.OIDCAudience == "") {
 		return cfg, fmt.Errorf("--oidc-issuer and --oidc-audience must be set together")
+	}
+	if focusSet && cfg.FocusLocator == "" {
+		return cfg, fmt.Errorf("--focus requires a non-empty locator")
 	}
 	if cfg.FocusLocator != "" {
 		if _, err := locator.Parse(cfg.FocusLocator); err != nil {

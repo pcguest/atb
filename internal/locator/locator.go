@@ -87,8 +87,19 @@ func Parse(raw string) (Locator, error) {
 	if s == "" {
 		return Locator{}, fmt.Errorf("%w: empty locator", ErrMalformed)
 	}
+	// url.Parse lowercases the scheme and normalises the host, so verify the
+	// raw spellings here to keep a single canonical, lowercase form.
+	canonicalPrefix := scheme + "://" + authority + "/"
+	if !strings.HasPrefix(s, canonicalPrefix) && strings.HasPrefix(strings.ToLower(s), canonicalPrefix) {
+		return Locator{}, fmt.Errorf("%w: scheme and authority must be lowercase %q", ErrMalformed, scheme+"://"+authority)
+	}
 	if strings.ContainsRune(s, '%') {
 		return Locator{}, fmt.Errorf("%w: percent-encoding is not permitted", ErrMalformed)
+	}
+	// Reject the fragment delimiter itself, including an empty trailing `#`,
+	// which url.Parse would otherwise accept (u.Fragment == "").
+	if strings.ContainsRune(s, '#') {
+		return Locator{}, fmt.Errorf("%w: fragment is not permitted", ErrMalformed)
 	}
 
 	u, err := url.Parse(s)
@@ -119,11 +130,25 @@ func Parse(raw string) (Locator, error) {
 	if version != GrammarVersion {
 		return Locator{}, fmt.Errorf("%w: locator grammar version %d is not supported", ErrUnsupportedVersion, version)
 	}
+	// The version segment has exactly one canonical spelling. Reject a
+	// supported version that is written non-canonically (for example "01"),
+	// or the locator would have more than one accepted representation.
+	if segments[1] != strconv.Itoa(GrammarVersion) {
+		return Locator{}, fmt.Errorf("%w: version segment %q is not canonical", ErrMalformed, segments[1])
+	}
 	head := segments[2]
 	if !hex64Pattern.MatchString(head) {
 		return Locator{}, fmt.Errorf("%w: bundle head hash must be 64 lowercase hex characters", ErrMalformed)
 	}
 
+	// Reject empty query components (a trailing/leading/doubled `&`). Go's
+	// url.ParseQuery silently drops them, which would otherwise admit
+	// non-canonical spellings of the same locator.
+	for _, part := range strings.Split(u.RawQuery, "&") {
+		if part == "" {
+			return Locator{}, fmt.Errorf("%w: empty query component", ErrMalformed)
+		}
+	}
 	query, err := url.ParseQuery(u.RawQuery)
 	if err != nil {
 		return Locator{}, fmt.Errorf("%w: query: %v", ErrMalformed, err)

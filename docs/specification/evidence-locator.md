@@ -38,7 +38,8 @@ atb://evidence/1/<bundle_head_hash>?seq=<event_sequence>[&record=<record_hash>]
   record's stored hash.
 
 Query parameters must be exactly `seq` and (optionally) `record`. Unknown
-parameters, duplicate parameters, fragments, userinfo, ports, and
+parameters, duplicate parameters, empty query components (for example a
+trailing `&`), fragments (including a bare `#`), userinfo, ports, and
 percent-encoding are rejected.
 
 ## 4. Canonical form
@@ -46,14 +47,16 @@ percent-encoding are rejected.
 There is exactly one canonical serialised form:
 
 - scheme `atb`, authority `evidence`, version `1` (all lowercase);
+- the version segment has no leading zeros (`1`, never `01`);
 - one path segment: the head hash;
 - query in the order `seq` then (if present) `record`;
 - decimal `seq` with no leading zeros (`0` is permitted);
 - no fragment.
 
 `Parse` accepts the canonical form (and equivalent parameter orderings) and
-`String` emits the canonical form, so `Parse(Format(x)) == x` holds for any
-parsed locator.
+rejects spellings that are not canonical, so that any accepted locator
+canonicalises to one form: `Parse(String(Parse(x))) == Parse(x)` holds for any
+accepted locator.
 
 ## 5. Field semantics
 
@@ -104,7 +107,10 @@ database, or network lookup. The smallest truthful model is used:
 2. **The head hash is matched** against the bundle's terminal record hash. A
    mismatch (or no bundle) yields `BUNDLE_NOT_AVAILABLE`. A hash is not a path.
 3. **The sequence is matched** against the records. Absence yields
-   `EVENT_NOT_FOUND`.
+   `EVENT_NOT_FOUND`. If a (corrupt or tampered) bundle contains duplicate
+   `seq` values, the **first matching record in bundle order** is returned;
+   sequence uniqueness is an integrity property checked by bundle
+   verification, not by the locator.
 4. **The optional record hash is matched** against the referenced record's
    stored hash. Mismatch yields `RECORD_HASH_MISMATCH`.
 

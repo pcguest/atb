@@ -54,6 +54,16 @@ func TestParseViewArgs(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "empty focus value",
+			args:    []string{"--focus", ""},
+			wantErr: true,
+		},
+		{
+			name:    "empty focus equals form",
+			args:    []string{"--focus="},
+			wantErr: true,
+		},
+		{
 			name: "path and port",
 			args: []string{"trace.atb", "--port", "9090"},
 			want: viewConfig{BundlePath: "trace.atb", Host: defaultViewHost, Port: 9090, PortSet: true},

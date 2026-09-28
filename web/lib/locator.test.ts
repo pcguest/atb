@@ -28,13 +28,14 @@ describe("locateEvidence", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await locateEvidence(`atb://evidence/1/${head}?seq=2`, "tok");
+    const locator = `atb://evidence/1/${head}?seq=2`;
+    const result = await locateEvidence(locator, "tok");
 
     expect(result.ok).toBe(true);
     expect(result.seq).toBe(2);
     const called = fetchMock.mock.calls[0]?.[0] as string;
     expect(called).toContain("/api/v1/bundle/locate?");
-    expect(called).toContain("locator=");
+    expect(new URL(called, "http://localhost").searchParams.get("locator")).toBe(locator);
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
     expect(new Headers(init?.headers).get("X-ATB-Session-Token")).toBe("tok");
   });
@@ -43,7 +44,13 @@ describe("locateEvidence", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
-        jsonResponse({ ok: false, error_code: "EVENT_NOT_FOUND", message: "no such record" }),
+        jsonResponse({
+          ok: false,
+          seq: 0,
+          record_hash_matched: false,
+          error_code: "EVENT_NOT_FOUND",
+          message: "no such record",
+        }),
       ),
     );
 

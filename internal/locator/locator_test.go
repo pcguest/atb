@@ -85,8 +85,15 @@ func TestParseRejects(t *testing.T) {
 		{"uppercase head", "atb://evidence/1/" + strings.ToUpper(head) + "?seq=1", ErrMalformed},
 		{"short head", "atb://evidence/1/abcd?seq=1", ErrMalformed},
 		{"wrong scheme", "http://evidence/1/" + head + "?seq=1", ErrMalformed},
+		{"uppercase scheme", "ATB://evidence/1/" + head + "?seq=1", ErrMalformed},
+		{"uppercase authority", "atb://EVIDENCE/1/" + head + "?seq=1", ErrMalformed},
 		{"wrong authority", "atb://other/1/" + head + "?seq=1", ErrMalformed},
 		{"fragment", "atb://evidence/1/" + head + "?seq=1#x", ErrMalformed},
+		{"empty fragment delimiter", "atb://evidence/1/" + head + "?seq=1#", ErrMalformed},
+		{"trailing ampersand", "atb://evidence/1/" + head + "?seq=1&", ErrMalformed},
+		{"doubled ampersand", "atb://evidence/1/" + head + "?seq=1&&record=" + testRecord, ErrMalformed},
+		{"leading ampersand", "atb://evidence/1/" + head + "?&seq=1", ErrMalformed},
+		{"non-canonical version", "atb://evidence/01/" + head + "?seq=1", ErrMalformed},
 		{"percent encoding", "atb://evidence/1/" + head + "?seq=1&record=%20", ErrMalformed},
 		{"bad version text", "atb://evidence/x/" + head + "?seq=1", ErrMalformed},
 		{"extra path segment", "atb://evidence/1/" + head + "/x?seq=1", ErrMalformed},
@@ -116,7 +123,7 @@ func TestValidateRejectsNegativeSequence(t *testing.T) {
 }
 
 // buildBundle creates a manifest-bearing bundle with the given number of
-// additional events and returns it plus the head hash.
+// additional events and returns it.
 func buildBundle(t *testing.T, extra int) *bundle.Bundle {
 	t.Helper()
 	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV2})

@@ -102,9 +102,11 @@ Rationale:
 - `atb view --focus '<locator>'` resolves the locator against the loaded bundle and focuses the
   referenced record. The browser `?focus=` parameter carries the locator; it is a transport
   detail, not the canonical evidence identity (the locator is).
-- A location failure (malformed, unsupported version, unavailable bundle, event not found, or
-  record-hash mismatch) is shown as a non-blocking "reference not focused" notice. It is never
-  rendered as tamper detection, and it is not an integrity verdict.
+- A location failure is shown as a non-blocking "reference not focused" notice. It is never
+  rendered as tamper detection, and it is not an integrity verdict. The notice covers a browser
+  `?focus=` value that is malformed or cannot be resolved; on the CLI, `--focus` is parsed and
+  rejected before the viewer starts, so a CLI syntax error is a startup error rather than an
+  in-viewer notice.
 - Resolving a locator does not verify integrity and does not imply governance approval.
 - Locator parsing lives in `internal/locator` and is exposed to the UI through
   `GET /api/v1/bundle/locate`; the client does not re-implement the grammar.
