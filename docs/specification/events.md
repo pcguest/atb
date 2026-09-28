@@ -130,6 +130,26 @@ Required fields:
 }
 ```
 
+## Attribution
+
+How ATB evidence answers *who or what produced a record* — and how records
+relate — is specified in [evidence attribution](./attribution.md). Attribution
+reuses existing primitives across five distinct layers and adds no canonical
+envelope fields:
+
+- **Canonical envelope** (hashed): `actor_id`, `org_id`, `workspace_id`,
+  `trace_id`, `span_id`, `parent_span_id`.
+- **Payload convention** (inside `event.data`): `principal{type,id_hash,on_behalf_of}`,
+  `identity_evidence`, `model_id`/`model_provider`, `framework`/`framework_version`,
+  `run_id`, `session_id`, and tool fields.
+- **Bundle metadata**: `capture_run_id`.
+- **Import/acquisition metadata**: `acquisition`.
+- **Derived information**: incident findings, session index, viewer summaries.
+
+Attribution records producer assertions; it never establishes authorisation or
+trust. See [evidence attribution](./attribution.md) for the layer map and the
+forensic question → primitive table.
+
 ## Privacy modes
 
 Integrations MUST support privacy mode as an explicit option:

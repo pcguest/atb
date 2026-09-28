@@ -37,6 +37,7 @@ claims were true.
 
 - [Bundle format v1](./specification/bundle-v1.md)
 - [Event semantics](./specification/events.md)
+- [Evidence attribution](./specification/attribution.md)
 - [Profile DSL v1](./specification/profile-dsl-v1.md)
 - [Verifier report](./specification/verify-report.md)
 - [Local viewer](./specification/viewer.md)

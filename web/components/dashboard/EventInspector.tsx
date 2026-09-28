@@ -20,6 +20,39 @@ type EventInspectorProps = {
   onReveal: (seq: number, fieldPath: string) => Promise<unknown>;
 };
 
+// Reported attribution carried in an event's payload. ATB preserves these
+// producer assertions; it does not verify that the principal acted or was
+// authorised. Only fields the producer actually recorded are surfaced.
+type ReportedAttribution = {
+  principalType?: string;
+  principalIdHash?: string;
+  onBehalfOf?: string;
+  identityProvider?: string;
+  identitySubject?: string;
+  assertionType?: string;
+};
+
+function parseReportedAttribution(data: Record<string, unknown> | undefined): ReportedAttribution | null {
+  if (!data || typeof data !== "object") return null;
+  const out: ReportedAttribution = {};
+  const principal = data["principal"];
+  if (principal && typeof principal === "object") {
+    const p = principal as Record<string, unknown>;
+    if (typeof p.type === "string") out.principalType = p.type;
+    if (typeof p.id_hash === "string") out.principalIdHash = p.id_hash;
+    if (typeof p.on_behalf_of === "string") out.onBehalfOf = p.on_behalf_of;
+  }
+  const identity = data["identity_evidence"];
+  if (identity && typeof identity === "object") {
+    const e = identity as Record<string, unknown>;
+    if (typeof e.identity_provider === "string") out.identityProvider = e.identity_provider;
+    if (typeof e.subject === "string") out.identitySubject = e.subject;
+    if (typeof e.assertion_type === "string") out.assertionType = e.assertion_type;
+  }
+  if (!out.principalType && !out.principalIdHash && !out.identityProvider) return null;
+  return out;
+}
+
 export function EventInspector({ event, disabled = false, onReveal }: EventInspectorProps) {
   const [revealed, setRevealed] = useState<Record<string, unknown>>({});
   const [pending, setPending] = useState<string | null>(null);
@@ -53,6 +86,13 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
   }, [renderedData]);
 
   const canonicalRecord = useMemo(() => event ? { ...event, data: renderedData } : null, [event, renderedData]);
+  const attribution = useMemo(
+    () =>
+      renderedData && typeof renderedData === "object"
+        ? parseReportedAttribution(renderedData as Record<string, unknown>)
+        : null,
+    [renderedData],
+  );
 
   if (!event) {
     return (
@@ -113,6 +153,24 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
             {event.parent_span_id && <div><dt className="inline text-muted-foreground">Parent span: </dt><dd className="inline font-mono">{event.parent_span_id}</dd></div>}
           </dl>
         </details>}
+
+        {attribution && (
+          <details className="rounded border border-border p-3 text-xs" data-testid="attribution">
+            <summary className="cursor-pointer font-medium">Attribution (reported by producer)</summary>
+            <dl className="mt-3 grid gap-2 break-all text-foreground">
+              {(attribution.principalType || attribution.principalIdHash) && (
+                <div><dt className="inline text-muted-foreground">Acting principal: </dt><dd className="inline font-mono">{attribution.principalType ? `${attribution.principalType}` : "principal"}{attribution.principalIdHash ? `:${attribution.principalIdHash}` : ""}</dd></div>
+              )}
+              {(attribution.principalType || attribution.principalIdHash) && (
+                <div><dt className="inline text-muted-foreground">On behalf of: </dt><dd className="inline font-mono">{attribution.onBehalfOf && attribution.onBehalfOf.length > 0 ? attribution.onBehalfOf : "Not reported"}</dd></div>
+              )}
+              {attribution.identityProvider && (
+                <div><dt className="inline text-muted-foreground">Identity evidence: </dt><dd className="inline">{attribution.identityProvider}{attribution.identitySubject ? `/${attribution.identitySubject}` : ""}{attribution.assertionType ? ` (${attribution.assertionType})` : ""}</dd></div>
+              )}
+            </dl>
+            <p className="mt-3 text-[10px] leading-4 text-muted-foreground">Reported by the producer and preserved in this bundle. This is an assertion recorded as evidence; it is not a verification that the principal acted, is who it claims, or was authorised. Authority and policy are interpreted elsewhere.</p>
+          </details>
+        )}
 
         {event.acquisition && (
           <details className="rounded border border-border p-3 text-xs" data-testid="acquisition-provenance">

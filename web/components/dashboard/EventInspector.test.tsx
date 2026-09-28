@@ -105,6 +105,67 @@ describe("EventInspector", () => {
     expect(screen.queryByTestId("acquisition-provenance")).toBeNull();
   });
 
+  it("surfaces reported acting-principal attribution as an assertion, not a verification", () => {
+    render(
+      <EventInspector
+        event={makeEvent("ai.action.precommit", {
+          action_type: "deploy",
+          principal: { type: "agent", id_hash: "sha256:a1", on_behalf_of: "sha256:u9" },
+        })}
+        onReveal={noReveal}
+      />,
+    );
+    const section = screen.getByTestId("attribution");
+    expect(section.textContent).toContain("Attribution (reported by producer)");
+    expect(section.textContent).toContain("agent:sha256:a1");
+    expect(section.textContent).toContain("sha256:u9");
+    expect(section.textContent).toContain("not a verification");
+    expect(section.textContent?.toLowerCase()).not.toContain("verified");
+    expect(section.textContent?.toLowerCase()).not.toContain("authorised principal");
+  });
+
+  it("reports missing on_behalf_of as not reported and omits attribution when absent", () => {
+    const { unmount } = render(
+      <EventInspector
+        event={makeEvent("ai.action.precommit", {
+          action_type: "export",
+          principal: { type: "human", id_hash: "sha256:h1" },
+        })}
+        onReveal={noReveal}
+      />,
+    );
+    expect(screen.getByTestId("attribution").textContent).toContain("Not reported");
+    unmount();
+
+    render(<EventInspector event={makeEvent("dev.session", { x: 1 })} onReveal={noReveal} />);
+    expect(screen.queryByTestId("attribution")).toBeNull();
+  });
+
+  it("derives attribution from revealed values so adjacent views agree", async () => {
+    const onReveal = vi.fn().mockResolvedValue("sha256:revealed");
+    render(
+      <EventInspector
+        event={makeEvent("ai.action.precommit", {
+          action_type: "deploy",
+          principal: { type: "agent", id_hash: "[REDACTED]" },
+        })}
+        onReveal={onReveal}
+      />,
+    );
+    expect(screen.getByTestId("attribution").textContent).toContain("[REDACTED]");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reveal masked field data.principal.id_hash" }),
+    );
+    await waitFor(() => {
+      expect(onReveal).toHaveBeenCalledWith(3, "principal.id_hash");
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("attribution").textContent).toContain("sha256:revealed");
+    });
+    expect(screen.getByTestId("attribution").textContent).not.toContain("[REDACTED]");
+    expect(document.querySelector("pre")?.textContent).toContain("sha256:revealed");
+  });
+
   it("does not apply a delayed reveal to a different selected event", async () => {
     let resolveReveal: ((value: unknown) => void) | undefined;
     const onReveal = vi.fn(() => new Promise<unknown>((resolve) => { resolveReveal = resolve; }));
