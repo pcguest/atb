@@ -86,7 +86,13 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
   }, [renderedData]);
 
   const canonicalRecord = useMemo(() => event ? { ...event, data: renderedData } : null, [event, renderedData]);
-  const attribution = useMemo(() => parseReportedAttribution(event?.data), [event?.data]);
+  const attribution = useMemo(
+    () =>
+      renderedData && typeof renderedData === "object"
+        ? parseReportedAttribution(renderedData as Record<string, unknown>)
+        : null,
+    [renderedData],
+  );
 
   if (!event) {
     return (

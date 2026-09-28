@@ -141,6 +141,31 @@ describe("EventInspector", () => {
     expect(screen.queryByTestId("attribution")).toBeNull();
   });
 
+  it("derives attribution from revealed values so adjacent views agree", async () => {
+    const onReveal = vi.fn().mockResolvedValue("sha256:revealed");
+    render(
+      <EventInspector
+        event={makeEvent("ai.action.precommit", {
+          action_type: "deploy",
+          principal: { type: "agent", id_hash: "[REDACTED]" },
+        })}
+        onReveal={onReveal}
+      />,
+    );
+    expect(screen.getByTestId("attribution").textContent).toContain("[REDACTED]");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reveal masked field data.principal.id_hash" }),
+    );
+    await waitFor(() => {
+      expect(onReveal).toHaveBeenCalledWith(3, "principal.id_hash");
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("attribution").textContent).toContain("sha256:revealed");
+    });
+    expect(screen.getByTestId("attribution").textContent).not.toContain("[REDACTED]");
+    expect(document.querySelector("pre")?.textContent).toContain("sha256:revealed");
+  });
+
   it("does not apply a delayed reveal to a different selected event", async () => {
     let resolveReveal: ((value: unknown) => void) | undefined;
     const onReveal = vi.fn(() => new Promise<unknown>((resolve) => { resolveReveal = resolve; }));
