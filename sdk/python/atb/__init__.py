@@ -34,7 +34,7 @@ from atb.data_export_gate import (
     DataExportGate,
     DataExportInput,
 )
-from atb.event import Event
+from atb.event import Acquisition, AcquisitionCheckpoint, Event, normalize_acquisition
 from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import compute_hash, genesis_hash
 from atb.human_override_gate import (
@@ -155,6 +155,9 @@ __all__ = [
     "PolicyDecisionRecorder",
     "gate_langchain_tool",
     "Event",
+    "Acquisition",
+    "AcquisitionCheckpoint",
+    "normalize_acquisition",
     "IdentityEvidence",
     "ATBError",
     "ATBVerificationError",

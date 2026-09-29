@@ -145,6 +145,36 @@ func seedVectors() []canonicalVector {
 			}`),
 			PrevHash: vectorsGenesis,
 		},
+		{
+			Description: "acquisition provenance: fully populated acquisition with nested checkpoint",
+			Event: mustCompact(`{
+				"seq": 8,
+				"prev_hash": "` + vectorsGenesis + `",
+				"type": "test.acquisition_full",
+				"hash_algo": "sha256",
+				"timestamp": "2026-01-02T03:04:05Z",
+				"data": {"key": "value"},
+				"acquisition": {
+					"mode": "retrospective",
+					"source_system": "chatlog",
+					"source_record_id": "rec-1",
+					"source_timestamp": "2026-01-01T10:00:00Z",
+					"acquired_at": "2026-01-02T09:00:00Z",
+					"source_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+					"adapter": "atb.chatlog.generic-jsonl",
+					"adapter_version": "1.0.0",
+					"checkpoint": {
+						"source_system": "chatlog",
+						"acquisition_stream": "chatlog.jsonl",
+						"position": "42",
+						"observed_at": "2026-01-02T09:00:00Z",
+						"adapter": "atb.chatlog.generic-jsonl",
+						"adapter_version": "1.0.0"
+					}
+				}
+			}`),
+			PrevHash: vectorsGenesis,
+		},
 	}
 }
 

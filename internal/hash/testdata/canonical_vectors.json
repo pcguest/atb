@@ -109,5 +109,39 @@
     "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
     "expected_canonical_bytes": "eyJkYXRhIjp7ImJ1bmRsZV9pZCI6IjAwMTEyMjMzNDQ1NTY2Nzc4ODk5YWFiYmNjZGRlZWZmIiwiY3JlYXRlZF9hdCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDVaIiwidmVyc2lvbiI6Mn0sImhhc2hfYWxnbyI6InNoYTI1NiIsInByZXZfaGFzaCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJzZXEiOjAsInRpbWVzdGFtcCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDVaIiwidHlwZSI6ImF0Yi5idW5kbGUubWFuaWZlc3QifQ==",
     "expected_hash": "9537a098882aa06a026864af8582d3f7c33693a34294081a334c48f6fc5903f2"
+  },
+  {
+    "description": "acquisition provenance: fully populated acquisition with nested checkpoint",
+    "event": {
+      "seq": 8,
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "test.acquisition_full",
+      "hash_algo": "sha256",
+      "timestamp": "2026-01-02T03:04:05Z",
+      "data": {
+        "key": "value"
+      },
+      "acquisition": {
+        "mode": "retrospective",
+        "source_system": "chatlog",
+        "source_record_id": "rec-1",
+        "source_timestamp": "2026-01-01T10:00:00Z",
+        "acquired_at": "2026-01-02T09:00:00Z",
+        "source_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "adapter": "atb.chatlog.generic-jsonl",
+        "adapter_version": "1.0.0",
+        "checkpoint": {
+          "source_system": "chatlog",
+          "acquisition_stream": "chatlog.jsonl",
+          "position": "42",
+          "observed_at": "2026-01-02T09:00:00Z",
+          "adapter": "atb.chatlog.generic-jsonl",
+          "adapter_version": "1.0.0"
+        }
+      }
+    },
+    "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+    "expected_canonical_bytes": "eyJhY3F1aXNpdGlvbiI6eyJhY3F1aXJlZF9hdCI6IjIwMjYtMDEtMDJUMDk6MDA6MDBaIiwiYWRhcHRlciI6ImF0Yi5jaGF0bG9nLmdlbmVyaWMtanNvbmwiLCJhZGFwdGVyX3ZlcnNpb24iOiIxLjAuMCIsImNoZWNrcG9pbnQiOnsiYWNxdWlzaXRpb25fc3RyZWFtIjoiY2hhdGxvZy5qc29ubCIsImFkYXB0ZXIiOiJhdGIuY2hhdGxvZy5nZW5lcmljLWpzb25sIiwiYWRhcHRlcl92ZXJzaW9uIjoiMS4wLjAiLCJvYnNlcnZlZF9hdCI6IjIwMjYtMDEtMDJUMDk6MDA6MDBaIiwicG9zaXRpb24iOiI0MiIsInNvdXJjZV9zeXN0ZW0iOiJjaGF0bG9nIn0sIm1vZGUiOiJyZXRyb3NwZWN0aXZlIiwic291cmNlX2RpZ2VzdCI6InNoYTI1Njo5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5OTk5Iiwic291cmNlX3JlY29yZF9pZCI6InJlYy0xIiwic291cmNlX3N5c3RlbSI6ImNoYXRsb2ciLCJzb3VyY2VfdGltZXN0YW1wIjoiMjAyNi0wMS0wMVQxMDowMDowMFoifSwiZGF0YSI6eyJrZXkiOiJ2YWx1ZSJ9LCJoYXNoX2FsZ28iOiJzaGEyNTYiLCJwcmV2X2hhc2giOiIwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIiwic2VxIjo4LCJ0aW1lc3RhbXAiOiIyMDI2LTAxLTAyVDAzOjA0OjA1WiIsInR5cGUiOiJ0ZXN0LmFjcXVpc2l0aW9uX2Z1bGwifQ==",
+    "expected_hash": "d5d9d54f2eedeedc249d3511c6edbfef77250f7a807ffcd4ed48a3af47ec2c04"
   }
 ]
