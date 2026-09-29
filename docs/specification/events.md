@@ -143,7 +143,10 @@ envelope fields:
   `identity_evidence`, `model_id`/`model_provider`, `framework`/`framework_version`,
   `run_id`, `session_id`, and tool fields.
 - **Bundle metadata**: `capture_run_id`.
-- **Import/acquisition metadata**: `acquisition`.
+- **Import/acquisition metadata**: `acquisition` — an optional top-level (hashed)
+  envelope field recording how evidence entered ATB. It describes acquisition
+  provenance, not producer identity, authority, or the truth of the acquired
+  content.
 - **Derived information**: incident findings, session index, viewer summaries.
 
 Attribution records producer assertions; it never establishes authorisation or

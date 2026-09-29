@@ -619,6 +619,61 @@
         "raw_evidence_digest": { "type": "string", "minLength": 1 }
       },
       "additionalProperties": false
+    },
+    "acquisition": {
+      "type": "object",
+      "description": "Optional acquisition provenance recorded when an event entered ATB (for example a retrospective import of a chatlog or OTel source). It describes how the evidence was acquired and traces the original source representation. It is not a truth claim about the acquired content, does not authorise the source, and is not a trust score. When present, it is included in the canonical hash.",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "description": "How the event was acquired. Conventional values: live, retrospective, replayed, derived, manual."
+        },
+        "source_system": {
+          "type": "string",
+          "description": "Originating system of the acquired record (for example openai, anthropic, langsmith, otel, chatlog)."
+        },
+        "source_record_id": {
+          "type": "string",
+          "description": "Stable identifier for the source record within the source system (for example a chatlog line or an OTel span ID)."
+        },
+        "source_timestamp": {
+          "type": "string",
+          "description": "Original timestamp from the source record."
+        },
+        "acquired_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "RFC 3339 timestamp when ATB acquired this record."
+        },
+        "source_digest": {
+          "type": "string",
+          "description": "SHA-256 digest of the raw source representation before semantic translation. Establishes source-representation identity and change, not truth."
+        },
+        "adapter": {
+          "type": "string",
+          "description": "Importer/translator used (for example atb.chatlog.generic-jsonl, atb.otel.otlp-json)."
+        },
+        "adapter_version": {
+          "type": "string",
+          "description": "Version of the adapter/translator used."
+        },
+        "checkpoint": { "$ref": "#/$defs/acquisition_checkpoint" }
+      },
+      "additionalProperties": false
+    },
+    "acquisition_checkpoint": {
+      "type": "object",
+      "description": "Acquisition checkpoint state recorded with an imported event, enabling incremental continuation and reconciliation. Operational state, not evidence truth.",
+      "required": ["source_system", "acquisition_stream", "position", "observed_at", "adapter"],
+      "properties": {
+        "source_system": { "type": "string", "minLength": 1 },
+        "acquisition_stream": { "type": "string", "minLength": 1 },
+        "position": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string", "format": "date-time", "minLength": 1 },
+        "adapter": { "type": "string", "minLength": 1 },
+        "adapter_version": { "type": "string" }
+      },
+      "additionalProperties": false
     }
   },
   "event_types": [
@@ -1026,6 +1081,9 @@
       "type": "string",
       "pattern": "^[a-f0-9]{16}$",
       "description": "W3C trace context parent span identifier."
+    },
+    "acquisition": {
+      "$ref": "#/$defs/acquisition"
     }
   }
 }

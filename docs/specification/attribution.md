@@ -55,7 +55,7 @@ five categories that must not be blurred:
 | **Canonical envelope** | top-level event fields (hashed) | `seq`, `prev_hash`, `type`, `hash_algo`, `data`, `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, `parent_span_id` |
 | **Payload convention** | inside `event.data` | `principal{type,id_hash,on_behalf_of}`, `identity_evidence`, `model_id`/`model_provider`, `framework`/`framework_version`, `run_id`, `session_id`, `tool_name`/`tool_call_id` and digests |
 | **Bundle metadata** | bundle manifest | `capture_run_id` (capture run that created the bundle) |
-| **Import/acquisition metadata** | `event.acquisition` | `mode`, `source_system`, `source_record_id`, `source_timestamp`, `acquired_at`, `adapter`, `adapter_version`, `source_digest`, `checkpoint*` |
+| **Import/acquisition metadata** | top-level `event.acquisition` (hashed envelope field) | `mode`, `source_system`, `source_record_id`, `source_timestamp`, `acquired_at`, `adapter`, `adapter_version`, `source_digest`, `checkpoint*` |
 | **Derived information** | computed views | incident findings, session index, viewer summaries, `capabilities` |
 
 Notes:
@@ -67,11 +67,13 @@ Notes:
   of the event, but they are conventions per event type, not envelope fields.
   `principal` is defined for `ai.action.precommit`
   (`schemas/event.v1.json`, `documented_event_types`).
-- **Import/acquisition metadata** (`acquisition`) is attached to events by
-  import paths and is included in canonical hashing when present. It is not
-  currently listed among the canonical envelope properties in
-  `schemas/event.v1.json`; this is a known, separately tracked schema/runtime
-  drift (see *Deferred work*). It does not alter hashing semantics here.
+- **Import/acquisition metadata** (`acquisition`) is an optional top-level
+  canonical envelope field, declared in `schemas/event.v1.json` and included in
+  canonical hashing when present. It records how evidence entered ATB
+  (import/capture) and traces the original source representation. It is listed
+  as its own category because it is provenance about acquisition, not about the
+  acting producer: it is not producer identity, authority, or truth, and it does
+  not alter hashing semantics here.
 - **Derived information** is never canonical; it is a reading of canonical
   evidence and must be labelled as such.
 
@@ -239,8 +241,6 @@ or a replacement for distributed tracing.
 - `model_version` as a payload convenience (belongs inside the model payload).
 - Recording `principal` beyond `ai.action.precommit` where producers genuinely
   know it (payload convention only; never synthetic).
-- Fixing the `acquisition` schema/envelope documentation drift (separate
-  bounded change; must not alter hashing or golden vectors).
 
 None of the deferred items are forbidden; they are deferred because no
 demonstrated forensic question presently requires them.
