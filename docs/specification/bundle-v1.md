@@ -53,6 +53,7 @@ Each line in a bundle file is a JSON object with the following schema:
 | `event.trace_id` | string (optional) | W3C trace context trace identifier |
 | `event.span_id` | string (optional) | W3C trace context span identifier |
 | `event.parent_span_id` | string (optional) | W3C trace context parent span identifier |
+| `event.acquisition` | object (optional) | Acquisition provenance for how the event entered ATB (import/capture). Included in the canonical hash when present; see §3.4 |
 | `hash` | string | Hex-encoded SHA-256 hash of this event |
 
 > **NOTE — Manifest data encoding (v1 and v2)**
@@ -123,7 +124,7 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 
 This ensures that the same event produces the same hash in every language and runtime.
 
-Unset optional fields are omitted from canonicalisation output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, or `parent_span_id` are not set, they are excluded from the canonical JSON bytes before hashing.
+Unset optional fields are omitted from canonicalisation output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, `parent_span_id`, or `acquisition` are not set, they are excluded from the canonical JSON bytes before hashing.
 
 ### 3.4 Canonical hash input
 
@@ -149,6 +150,9 @@ where `event` is the JSON object containing the fields below — **and no others
 | `TraceID`      | `trace_id`        | string (32 hex) | conditional   | empty string                            |
 | `SpanID`       | `span_id`         | string (16 hex) | conditional   | empty string                            |
 | `ParentSpanID` | `parent_span_id`  | string (16 hex) | conditional   | empty string                            |
+| `Acquisition`  | `acquisition`     | object        | conditional     | nil pointer (field absent)              |
+
+`acquisition` is a structured object, unlike the other optional envelope fields; its full nested shape (including the `checkpoint` sub-object) is defined in `schemas/event.v1.json` under `$defs.acquisition` and `$defs.acquisition_checkpoint`. Acquisition metadata is canonicalised and hashed into the chain, so adapters and producers MUST NOT place secrets, tokens, or unnecessary personal data in these fields. The local viewer exposes a bounded, flattened projection of acquisition provenance for display; that projection is not the canonical envelope shape.
 
 **Stability note:** If you add a new field to the `Event` struct, it MUST appear in this table before the struct change lands, and the manifest version MUST be bumped (see §9 *Schema versioning*). Failure to do this silently breaks all existing bundle verification. The cross-language canonical-hash golden corpus at `internal/hash/testdata/golden.json` exists to detect such drift; any change that causes `TestCanonicalHashGolden` to fail is a breaking schema change.
 
@@ -453,6 +457,7 @@ ATB v1.0+ supports optional fields on events:
 - `trace_id`
 - `span_id`
 - `parent_span_id`
+- `acquisition`
 
 Compatibility rules:
 

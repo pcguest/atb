@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A bounded `atb.acquisition.finding` event (`source_record_changed`) recorded once per changed source record when a re-import observes the same source identity with a different source digest. The event is registered in the generated `event.v1` bindings and the frozen schema checksum is advanced deliberately.
 - Documented the chatlog source-digest contract (exchange granularity, exact bytes digested, encoding, join, field inclusion, and equality/inequality meaning) in `docs/integrations/chatlog-import.md`, and distinguished source change from tampering in `docs/verification-meaning.md`.
 
+### Fixed
+- The normative `schemas/event.v1.json` canonical envelope now declares the optional top-level `acquisition` field that the Go runtime already serialises and canonically hashes for imported/captured events. This is a representation correction only: no runtime change, no canonical-byte change, no hash change, and no golden-vector change. The frozen schema checksum is advanced deliberately. `docs/specification/bundle-v1.md` (envelope table, canonical hash-input field table, and schema-evolution list) and `docs/specification/events.md` now list `acquisition` alongside the other optional envelope fields.
+
 ### Changed
 - A chatlog source record is identified at exchange granularity (the request that opened the exchange) rather than per source line or derived event. A request/response exchange therefore reconciles as one record: an unchanged re-import appends no duplicate evidence, and a changed exchange yields exactly one finding.
 - `atb import chatlog` and `atb import otel` with `--reconcile`/`--continue` now verify the existing bundle's hash chain first and fail explicitly if it is invalid, rather than reconciling onto an unverified chain. Plain imports are unchanged.
