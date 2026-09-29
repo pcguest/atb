@@ -12,12 +12,12 @@
  * record hashes computed by the Go implementation.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 import { Bundle } from "./bundle.js";
 import { canonicalize } from "./canonicalize.js";
@@ -26,6 +26,15 @@ import { computeHash, GENESIS_HASH } from "./hash.js";
 
 const NINE = "9".repeat(64);
 const A64 = "a".repeat(64);
+
+// Temp dirs (which also hold the isolated Go build cache) are removed even when
+// an assertion fails.
+const tempDirs: string[] = [];
+afterAll(() => {
+  for (const dir of tempDirs) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 const FULL_ACQUISITION = {
   mode: "retrospective",
@@ -159,6 +168,7 @@ describe("acquisition canonical vectors (Go-produced expectations)", () => {
 describe("Go -> TypeScript acquisition bundle verification", () => {
   it("loads and verifies a Go-produced acquisition-bearing bundle", () => {
     const dir = mkdtempSync(join(tmpdir(), "atb-ts-acq-"));
+    tempDirs.push(dir);
     const chatlogPath = join(dir, "chatlog.jsonl");
     const bundlePath = join(dir, "bundle.atb");
     const checkpointPath = join(dir, "checkpoint.json");

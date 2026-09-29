@@ -206,7 +206,10 @@ export function prepareForCanonical(event: Event): Record<string, unknown> {
     out.parent_span_id = event.parent_span_id;
   }
   if (event.acquisition !== undefined) {
-    out.acquisition = event.acquisition;
+    // Normalise here as well as in parseEvent so hand-built events cannot
+    // smuggle unset optional fields or unrecognised runtime fields into the
+    // canonical bytes. parseAcquisition is idempotent for parsed events.
+    out.acquisition = parseAcquisition(event.acquisition);
   }
   return out;
 }
