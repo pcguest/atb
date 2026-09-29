@@ -642,6 +642,7 @@
         },
         "acquired_at": {
           "type": "string",
+          "format": "date-time",
           "description": "RFC 3339 timestamp when ATB acquired this record."
         },
         "source_digest": {
@@ -668,7 +669,7 @@
         "source_system": { "type": "string", "minLength": 1 },
         "acquisition_stream": { "type": "string", "minLength": 1 },
         "position": { "type": "string", "minLength": 1 },
-        "observed_at": { "type": "string", "minLength": 1 },
+        "observed_at": { "type": "string", "format": "date-time", "minLength": 1 },
         "adapter": { "type": "string", "minLength": 1 },
         "adapter_version": { "type": "string" }
       },
