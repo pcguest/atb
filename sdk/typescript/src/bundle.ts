@@ -112,6 +112,9 @@ function withDerivedChain(event: Event, seq: number, prevHash: string): Event {
   if (event.parent_span_id !== undefined) {
     out.parent_span_id = event.parent_span_id;
   }
+  if (event.acquisition !== undefined) {
+    out.acquisition = event.acquisition;
+  }
   return out;
 }
 

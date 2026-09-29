@@ -87,7 +87,7 @@ export type {
   AnthropicMessagesParams,
   AnthropicMessagesResponse,
 } from "./sdk-capture.js";
-export { normalizeOptionalIdentity, prepareForCanonical } from "./event.js";
+export { normalizeOptionalIdentity, parseAcquisition, prepareForCanonical } from "./event.js";
 export { identityEvidencePayload } from "./identity-evidence.js";
 export type { IdentityEvidence } from "./identity-evidence.js";
 export type {
@@ -129,7 +129,7 @@ export type {
   WorkflowContextOptions,
   WorkflowPolicyDecision,
 } from "./workflow-common.js";
-export type { AppendIdentityOptions, Event } from "./event.js";
+export type { AppendIdentityOptions, Event, Acquisition, AcquisitionCheckpoint } from "./event.js";
 export type {
   ATBMiddleware,
   ATBMiddlewareOptions,
