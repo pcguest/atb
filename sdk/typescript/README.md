@@ -38,6 +38,16 @@ for (const record of received.records) {
 console.log(result.signatures);
 ```
 
+## Acquisition provenance
+
+Events produced by the Go importers (`atb import chatlog`, `atb import otel`)
+carry an optional top-level `acquisition` field describing how the evidence was
+acquired. The SDK preserves it through `parseEvent`, canonical preparation, and
+`Bundle.load().verify()`, and exposes it as `record.event.acquisition` (typed as
+`Acquisition`). Acquisition is provenance metadata — it records how evidence
+entered ATB, not who produced it, and does not establish truth, authority, or
+integrity.
+
 ## Generated event catalogue
 
 `src/eventTypes_generated.ts` is produced by `go generate ./internal/event/...`

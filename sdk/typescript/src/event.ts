@@ -2,6 +2,37 @@
  * Canonical ATB event model aligned with the Go runtime.
  */
 
+/**
+ * Acquisition checkpoint state recorded with an imported event. Operational
+ * position, not evidence truth. Mirrors the canonical Go `CheckpointInfo`.
+ */
+export interface AcquisitionCheckpoint {
+  source_system: string;
+  acquisition_stream: string;
+  position: string;
+  observed_at: string;
+  adapter: string;
+  adapter_version?: string;
+}
+
+/**
+ * Optional acquisition provenance: how an event entered ATB (import/capture).
+ * It is a canonical, hashed top-level envelope field when present. It is not a
+ * truth claim about the acquired content, does not authorise the source, and is
+ * not a trust score. Mirrors the canonical Go `AcquisitionInfo`.
+ */
+export interface Acquisition {
+  mode?: string;
+  source_system?: string;
+  source_record_id?: string;
+  source_timestamp?: string;
+  acquired_at?: string;
+  source_digest?: string;
+  adapter?: string;
+  adapter_version?: string;
+  checkpoint?: AcquisitionCheckpoint;
+}
+
 /** Canonical ATB event shape used for hashing and bundle records. */
 export interface Event {
   seq: number;
@@ -16,6 +47,7 @@ export interface Event {
   trace_id?: string;
   span_id?: string;
   parent_span_id?: string;
+  acquisition?: Acquisition;
 }
 
 /** Optional identity and trace metadata accepted when appending events. */
@@ -27,6 +59,98 @@ export interface AppendIdentityOptions {
   traceId?: string;
   spanId?: string;
   parentSpanId?: string;
+}
+
+/**
+ * Canonical acquisition string fields (all optional, omitted when unset).
+ */
+const ACQUISITION_STRING_FIELDS = [
+  "mode",
+  "source_system",
+  "source_record_id",
+  "source_timestamp",
+  "acquired_at",
+  "source_digest",
+  "adapter",
+  "adapter_version",
+] as const;
+
+/**
+ * Canonical checkpoint fields that the runtime always emits when a checkpoint
+ * is present (no `omitempty` on the Go struct).
+ */
+const CHECKPOINT_REQUIRED_FIELDS = [
+  "source_system",
+  "acquisition_stream",
+  "position",
+  "observed_at",
+  "adapter",
+] as const;
+
+function requireObject(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError(`${label} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function requireStringField(
+  obj: Record<string, unknown>,
+  key: string,
+  label: string
+): string {
+  const value = obj[key];
+  if (typeof value !== "string") {
+    throw new TypeError(`${label}.${key} must be a string`);
+  }
+  return value;
+}
+
+/**
+ * Validate and copy a canonical acquisition object.
+ *
+ * Only recognised canonical fields are preserved. Unknown acquisition fields
+ * are dropped rather than passed through, so they never become canonical
+ * evidence. This fails closed: a record whose stored hash included an
+ * unrecognised acquisition field will not verify, rather than being silently
+ * accepted. Structural types are enforced here; schema-level constraints
+ * (patterns, formats, minLength) are enforced by schemas/event.v1.json.
+ *
+ * @param value Unknown acquisition value from parsed JSON.
+ * @returns A normalised acquisition object with unset optional fields omitted.
+ * @throws TypeError when the structure or a field type is invalid.
+ */
+export function parseAcquisition(value: unknown): Acquisition {
+  const raw = requireObject(value, "event.acquisition");
+  const acquisition: Record<string, unknown> = {};
+  for (const field of ACQUISITION_STRING_FIELDS) {
+    if (raw[field] !== undefined) {
+      acquisition[field] = requireStringField(raw, field, "event.acquisition");
+    }
+  }
+  if (raw.checkpoint !== undefined) {
+    const checkpointRaw = requireObject(
+      raw.checkpoint,
+      "event.acquisition.checkpoint"
+    );
+    const checkpoint: Record<string, unknown> = {};
+    for (const field of CHECKPOINT_REQUIRED_FIELDS) {
+      checkpoint[field] = requireStringField(
+        checkpointRaw,
+        field,
+        "event.acquisition.checkpoint"
+      );
+    }
+    if (checkpointRaw.adapter_version !== undefined) {
+      checkpoint.adapter_version = requireStringField(
+        checkpointRaw,
+        "adapter_version",
+        "event.acquisition.checkpoint"
+      );
+    }
+    acquisition.checkpoint = checkpoint;
+  }
+  return acquisition as unknown as Acquisition;
 }
 
 /**
@@ -80,6 +204,9 @@ export function prepareForCanonical(event: Event): Record<string, unknown> {
   }
   if (event.parent_span_id !== undefined) {
     out.parent_span_id = event.parent_span_id;
+  }
+  if (event.acquisition !== undefined) {
+    out.acquisition = event.acquisition;
   }
   return out;
 }
@@ -156,6 +283,9 @@ export function parseEvent(value: unknown): Event {
       throw new TypeError("event.parent_span_id must be a string");
     }
     event.parent_span_id = raw.parent_span_id;
+  }
+  if (raw.acquisition !== undefined) {
+    event.acquisition = parseAcquisition(raw.acquisition);
   }
 
   return event;
