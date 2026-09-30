@@ -54,7 +54,9 @@ def _acquisition_vector() -> dict:
     for vector in vectors:
         if "acquisition provenance" in vector["description"]:
             return vector
-    raise AssertionError("shared acquisition vector missing from canonical_vectors.json")
+    raise AssertionError(
+        "shared acquisition vector missing from canonical_vectors.json"
+    )
 
 
 # P1 — no-acquisition events retain previous canonical bytes.
@@ -126,6 +128,60 @@ def test_malformed_acquisition_fails_closed(bad: object) -> None:
     bundle = Bundle(records=[])
     with pytest.raises(TypeError):
         bundle.append("dev.session", {}, acquisition=bad)
+
+
+# P6b — explicit null for a recognised field is malformed (distinct from absent).
+def test_explicit_none_for_recognised_field_fails_closed() -> None:
+    with pytest.raises(TypeError):
+        normalize_acquisition({"mode": None})
+    with pytest.raises(TypeError):
+        normalize_acquisition({"checkpoint": None})
+    with pytest.raises(TypeError):
+        normalize_acquisition(
+            {
+                "checkpoint": {
+                    "source_system": "chatlog",
+                    "acquisition_stream": "chatlog.jsonl",
+                    "position": "1",
+                    "observed_at": "2026-01-02T09:00:00Z",
+                    "adapter": "atb.chatlog.generic-jsonl",
+                    "adapter_version": None,
+                }
+            }
+        )
+
+
+# P6c — Go `omitempty` parity: blank optional fields are unset/omitted, while
+# required checkpoint fields (no omitempty in Go) are emitted even when blank.
+def test_blank_optional_acquisition_fields_are_omitted() -> None:
+    assert normalize_acquisition({"mode": "", "source_system": "chatlog"}) == {
+        "source_system": "chatlog"
+    }
+    assert normalize_acquisition({"mode": "   "}) == {}
+
+
+def test_blank_required_checkpoint_fields_are_emitted() -> None:
+    normalized = normalize_acquisition(
+        {
+            "checkpoint": {
+                "source_system": "",
+                "acquisition_stream": "chatlog.jsonl",
+                "position": "",
+                "observed_at": "",
+                "adapter": "atb.chatlog.generic-jsonl",
+            }
+        }
+    )
+    assert normalized is not None
+    assert normalized["checkpoint"]["source_system"] == ""
+    assert normalized["checkpoint"]["position"] == ""
+
+
+def test_dataclass_none_fields_are_absent_not_malformed() -> None:
+    assert normalize_acquisition(Acquisition()) == {}
+    assert normalize_acquisition(Acquisition(mode=None, source_system="chatlog")) == {
+        "source_system": "chatlog"
+    }
 
 
 # P7 — unknown acquisition fields cannot silently enter canonical evidence.

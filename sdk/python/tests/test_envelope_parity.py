@@ -55,12 +55,14 @@ def test_event_represents_every_schema_envelope_property() -> None:
         trace_id="0" * 32,
         span_id="0" * 16,
         parent_span_id="0" * 16,
-        acquisition=Acquisition(**{
-            **FULLY_POPULATED_ACQUISITION,
-            "checkpoint": AcquisitionCheckpoint(
-                **FULLY_POPULATED_ACQUISITION["checkpoint"]
-            ),
-        }),
+        acquisition=Acquisition(
+            **{
+                **FULLY_POPULATED_ACQUISITION,
+                "checkpoint": AcquisitionCheckpoint(
+                    **FULLY_POPULATED_ACQUISITION["checkpoint"]
+                ),
+            }
+        ),
     )
     represented = sorted(event.to_dict().keys())
     assert represented == sorted(schema["properties"].keys())
