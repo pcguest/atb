@@ -1,228 +1,191 @@
-# W3 Practitioner Evaluation - Internal Dogfood Dry-Run
+# W3 Practitioner Evaluation — Internal Dogfood Dry-Run
 
-**Date:** 2026-09-19
 **Mode:** INTERNAL DOGFOOD / DRY-RUN
-**ATB Version:** v1.16.0
-**Purpose:** Reproducible study materials preparation and internal dogfood evaluation
-**Note:** These findings are INTERNAL DOGFOOD/DRY-RUN only. No claims about actual practitioner experience.
 
-## Job A: Obtain - Acquire or create an ATB evidence bundle
+**Participant status:** AGENT-EXECUTED — NO HUMAN PARTICIPANT
 
-### Test A1: Go CLI Installation
-```bash
-go install github.com/pcguest/atb/cmd/atb@v1.16.0
-```
-**Result:** ✅ SUCCESS
-**Observation:** Installation completed successfully via go install
-**Friction:** None
-**INTERNAL DOGFOOD:** Familiar with Go toolchain
+**Purpose:** Exercise the documented practitioner path and record executable
+behaviour without making claims about human comprehension or usability.
 
-### Test A2: Source Build
-```bash
-git clone https://github.com/pcguest/atb.git
-cd atb
-git checkout v1.16.0
-make build
-```
-**Result:** ✅ SUCCESS
-**Observation:** Source build requires web layer build first (npm ci && npm run build)
-**Friction:** Requires Node.js/npm for full build
-**INTERNAL DOGFOOD:** Familiar with Go and Node.js build processes
+Raw output is retained in `.local/runs/`. The local ledger records command,
+exit code, elapsed time, key output, and log path. Results below use
+`EXECUTED`, `FAILED`, or `NOT RE-RUN`; they do not represent an observed human
+study.
 
-### Test A3: Python SDK Installation
-```bash
-pip install atb-sdk==1.16.0
-```
-**Result:** ✅ SUCCESS
-**Observation:** Installation from PyPI successful
-**Friction:** None
-**INTERNAL DOGFOOD:** Familiar with pip
+## Job A — Obtain
 
-### Test A4: TypeScript SDK Installation
-```bash
-npm install @pcguest/atb-sdk@1.16.0
-```
-**Result:** ✅ SUCCESS
-**Observation:** Installation from npm successful
-**Friction:** None
-**INTERNAL DOGFOOD:** Familiar with npm
+### A1 Go CLI installation
 
-### Test A5: Bundle Creation (for B–H tests)
-```bash
-make demo-incident
-```
-**Result:** ✅ SUCCESS
-**Observation:** Demo incident bundle created at run.atb/incident-demo/incident.atb
-**Friction:** None
-**INTERNAL DOGFOOD:** Familiar with make targets
-**Note:** Jobs B–H below use this bundle for verification
+Command: `go install github.com/pcguest/atb/cmd/atb@v1.16.0`
 
-## Job B: Verify - Determine whether its integrity verifies
+Result: **EXECUTED — exit 0**
 
-### Test B1: Verification on intact bundle
-```bash
-atb verify --profile atb.profile.policy_decision run.atb/incident-demo/incident.atb
-```
-**Result:** ✅ SUCCESS
-**Observation:** Verification passed with profile evaluation
-**Friction:** None
-**Evidence:** Bundle integrity verified, CAS score computed
+Evidence: `.local/runs/track-b-stranger-install.log`
 
-### Test B2: Verification on tampered bundle
-**Procedure:** Modify a record in the bundle and verify
-**Result:** ✅ SUCCESS (correctly failed)
-**Observation:** Verification correctly detected tampering
-**Friction:** None
-**Evidence:** Hash chain integrity validation working as expected
+Observed output: the install completed and the installed CLI reported version
+`1.16.0` in the clean-room workflow.
 
-## Job C: Understand - Explain what the bundle contains
+### A2 Source build
 
-### Test C1: Viewer navigation
-```bash
-atb view run.atb/incident-demo/incident.atb --profile atb.profile.policy_decision
-```
-**Result:** ✅ SUCCESS
-**Observation:** Viewer launches successfully, shows Investigation view
-**Friction:** None
-**Evidence:** Incident → Findings → Timeline → Context → Relationships → Evidence → Trust sequence clear
+Command: `make build` in the clean-room clone
 
-### Test C2: Trust report comprehension
-**Result:** ✅ SUCCESS
-**Observation:** Trust report clearly distinguishes integrity from completeness
-**Friction:** None
-**Evidence:** Trust model documentation matches viewer presentation
+Result: **EXECUTED — exit 0**
 
-## Job D: Bound - Explain what the evidence does NOT establish
+Evidence: `.local/runs/track-b-make-build.log`
 
-### Test D1: Trust-model comprehension
-**Result:** ✅ SUCCESS
-**Observation:** docs/concepts/trust-model.md clearly states what ATB does and does not prove
-**Friction:** None
-**Evidence:** Documentation explicitly states that hash chaining "does not prove capture completeness"
+Observed output: `Built ./atb with embedded viewer`. The build invoked npm before
+the Go build; separate probes recorded failure when npm was absent or unusable.
 
-### Test D2: Integrity failure handling
-**Result:** ✅ SUCCESS
-**Observation:** Tampered bundle shows integrity failure, CAS score omitted
-**Friction:** None
-**Evidence:** System correctly bounds findings when integrity fails
+### A3 Python SDK installation
 
-## Job E: Investigate - Locate evidence relevant to a consequential event
+Command: `pip install atb-sdk==1.16.0`
 
-### Test E1: Demo-incident workflow
-```bash
-make demo-incident
-```
-**Result:** ✅ SUCCESS
-**Observation:** Complete incident forensics workflow executed deterministically
-**Friction:** None
-**Evidence:** Incident bundle created, verified, findings derived, tampering rejected
+Result: **EXECUTED — exit 0**
 
-### Test E2: Incident commands
-```bash
-atb incident list --bundle <bundle-file>
-atb incident report --bundle <bundle-file> --session <session-id>
-```
-**Result:** ✅ SUCCESS
-**Observation:** Incident listing and reporting working correctly
-**Friction:** None
-**Evidence:** Session index and finding derivation functional
+Evidence: `.local/runs/track-b-sdk-installs.log`
 
-## Job F: Detect tampering - Recognise modified/reordered/removed evidence
+### A4 TypeScript SDK installation
 
-### Test F1: Record modification detection
-**Procedure:** Modify a record in the bundle and verify
-**Result:** ✅ SUCCESS (correctly detected)
-**Observation:** Hash chain validation detects modification
-**Friction:** None
-**Evidence:** Tamper-evidence machinery working
+Command: `npm install @pcguest/atb-sdk@1.16.0`
 
-### Test F2: Record reordering detection
-**Procedure:** Reorder records in the bundle and verify
-**Result:** ✅ SUCCESS (correctly detected)
-**Observation:** Hash chain validation detects reordering
-**Friction:** None
-**Evidence:** Append-only semantics enforced
+Result: **EXECUTED — exit 0**
 
-### Test F3: Record removal detection
-**Procedure:** Remove a record from the bundle and verify
-**Result:** ✅ SUCCESS (correctly detected)
-**Observation:** Hash chain validation detects removal
-**Friction:** None
-**Evidence:** Chain integrity validation working
+Evidence: `.local/runs/track-b-sdk-installs.log`
 
-## Job G: Hand off - Give bundle to another practitioner with enough information
+### A5 Demo incident bundle creation
 
-### Test G1: Bundle export
-**Procedure:** Copy bundle to another directory
-**Result:** ✅ SUCCESS
-**Observation:** Bundle is self-contained, portable
-**Friction:** None
-**Evidence:** Bundle portability confirmed
+Command: `make demo-incident`
 
-### Test G2: Verification from new location
-**Procedure:** Verify bundle from new location
-**Result:** ✅ SUCCESS
-**Observation:** Bundle verifies independently of original location
-**Friction:** None
-**Evidence:** Local-first operation confirmed
+Result: **FAILED — exit 2 on both recorded runs**
 
-### Test G3: Verification instructions
-**Result:** ✅ SUCCESS
-**Observation:** Verification commands work independently
-**Friction:** None
-**Evidence:** Handoff instructions clear and executable
+Evidence: `.local/runs/track-b-demo-incident-1.log` and
+`.local/runs/track-b-demo-incident-2.log`
 
-## Job H: Act - Identify sensible next investigative action
+Observed output: the example raised `RuntimeError: expected
+tool_without_approval finding was not reported`; the Markdown output contained
+the escaped form `tool\_without\_approval`. Both runs recorded the same bundle
+SHA-256, so the generated bundle was deterministic even though the harness
+assertion failed.
 
-### Test H1: Residual risk recommendations
-**Result:** ✅ SUCCESS
-**Observation:** Residual risk section provides actionable recommendations
-**Friction:** None
-**Evidence:** Recommended next evidence listed
+## Job B — Verify
 
-### Test H2: Profile evaluation
-**Procedure:** Evaluate bundle against different profiles
-**Result:** ✅ SUCCESS
-**Observation:** Different profiles provide different CAS scores and findings
-**Friction:** None
-**Evidence:** Profile system functional
+### B1 Intact bundle
 
-## Summary of INTERNAL DOGFOOD Findings
+Command: `atb verify --profile atb.profile.policy_decision <bundle>`
 
-### Successful Jobs (8/8)
-- ✅ Job A: Obtain - All installation methods work
-- ✅ Job B: Verify - Integrity verification works correctly
-- ✅ Job C: Understand - Viewer navigation and trust report clear
-- ✅ Job D: Bound - Trust-model comprehension correct
-- ✅ Job E: Investigate - Incident analysis functional
-- ✅ Job F: Detect tampering - Tampering detection works
-- ✅ Job G: Hand off - Bundle portability confirmed
-- ✅ Job H: Act - Next-action identification functional
+Result: **EXECUTED — exit 0**
 
-### Friction Points (INTERNAL DOGFOOD)
-1. **Source build requires Node.js/npm:** Full build requires web layer build
-   - **Severity:** Low (go install available)
-   - **Workaround:** Use go install for CLI-only usage
-   - **Evidence:** Source build requires both Go and Node.js toolchains
+Evidence: `.local/runs/track-b-handoff.log` and
+`.local/runs/track-c-outputs.log`
 
-**Note:** Internal dogfood may not reveal unfamiliar practitioner friction; familiarity with toolchains may mask real practitioner barriers.
+Observed output included `Integrity: PASS`, `Profile: PASS`, and `Verification:
+PASS`. These strings describe integrity and profile evaluation of the supplied
+bundle; they do not establish completeness or truth.
 
-### Recommendations for Actual Practitioner Evaluation
-1. Test with practitioners unfamiliar with Go/Node.js toolchains
-2. Test with practitioners unfamiliar with cryptographic concepts
-3. Test with practitioners unfamiliar with evidence forensics
-4. Measure time-to-first-useful-evidence for unfamiliar users
-5. Record wrong turns and documentation searches
-6. Test handoff to completely unfamiliar practitioners
+### B2 Tampered bundles
 
-### Limitations
-- **INTERNAL DOGFOOD:** Tester is familiar with ATB, Go, Node.js, and cryptographic concepts
-- **DRY-RUN:** No actual unfamiliar practitioners involved
-- **Self-selection:** Findings may not represent true practitioner experience
-- **Toolchain familiarity:** May mask installation and configuration friction
+Procedure: verify copies with a modified, reordered, or removed record
 
-## Next Steps
-1. Conduct actual practitioner evaluation with unfamiliar participants
-2. Measure real practitioner friction points
-3. Compare INTERNAL DOGFOOD findings with actual practitioner results
-4. Apply smallest remediation based on actual practitioner evidence
+Result: **EXECUTED — each case rejected with exit 2**
+
+Evidence: `.local/runs/track-b-tamper-tests.log`
+
+## Job C — Inspect
+
+### C1 Local viewer start
+
+Command: `atb view <bundle>`
+
+Result: **EXECUTED — server start recorded**
+
+Evidence: `.local/runs/track-b-stranger-atb-view.log`
+
+Observed output: the installed CLI printed a local serving URL. Navigation and
+human interpretation were not observed.
+
+### C2 Trust-report output
+
+Result: **NOT RE-RUN**
+
+Evidence available: `.local/runs/track-c-outputs.log` contains captured output,
+but no human comprehension result can be inferred from it.
+
+## Job D — Bound the claim
+
+### D1 Trust-model text
+
+Result: **REPOSITORY-OBSERVED**
+
+Evidence: `docs/concepts/trust-model.md` states that hash-chain verification
+does not prove capture completeness. No comprehension test was run.
+
+### D2 Integrity failure handling
+
+Result: **EXECUTED**
+
+Evidence: `.local/runs/track-b-tamper-tests.log`
+
+Observed output: tampered inputs reported `Integrity: FAIL`, omitted meaningful
+coverage, and returned exit 2.
+
+## Job E — Investigate
+
+### E1 Demo incident workflow
+
+Result: **FAILED — exit 2**
+
+Evidence: `.local/runs/track-b-demo-incident-1.log` and
+`.local/runs/track-b-demo-incident-2.log`
+
+The workflow reached incident list and report output, then failed its strict
+finding assertion because Markdown escaped underscores.
+
+### E2 Incident commands
+
+Result: **PARTLY EXECUTED**
+
+Evidence: the demo logs contain list and report output. A machine-readable
+`--format json` mode exists in the command contract but was not used by these
+two recorded demo runs.
+
+## Job F — Detect tampering
+
+Modification, reordering, and record-removal cases were **EXECUTED** and each
+was rejected with exit 2. Evidence:
+`.local/runs/track-b-tamper-tests.log`.
+
+## Job G — Hand off
+
+Copying the bundle and verifying it from a second local path were **EXECUTED —
+exit 0**. Evidence: `.local/runs/track-b-handoff.log`. No separate unfamiliar
+practitioner received the bundle, so instruction sufficiency was not observed.
+
+## Job H — Act
+
+Residual-risk and alternate-profile output was captured in
+`.local/runs/track-b-act.log`. The log does not contain complete command timing
+and exit metadata, so this job is **NOT RE-RUN** for success reporting. No human
+selection of a next action was observed.
+
+## Additional automated checks
+
+- Accessibility Cypress spec: **EXECUTED — exit 0, 1/1 passing**
+  (`.local/runs/track-b-a11y.log`).
+- Investigation Cypress specs: **EXECUTED — exit 0, 3/3 passing**
+  (`.local/runs/track-b-e2e.log`).
+- Five invalid-input cases: **EXECUTED — each returned exit 1**
+  (`.local/runs/track-b-errors.log`).
+- JSON pipe check: **EXECUTED — pipeline exit 0 and stderr empty**
+  (`.local/runs/track-b-pipeability.log`).
+- Documentation command scan: recorded command invocations were accepted by
+  the scan (`.local/runs/track-b-command-drift.log`).
+- Local Markdown link scan: recorded links resolved
+  (`.local/runs/track-b-link-check.log`).
+
+## Empirical debt
+
+A real P01 participant study must still observe acquisition, verification,
+claim-bounding, tamper recognition, handoff, and next-action selection by
+someone unfamiliar with ATB. The study should record elapsed time, wrong turns,
+questions, and the participant's own explanation without treating successful
+command execution as evidence of comprehension.
