@@ -381,6 +381,41 @@ components:
         data:
           type: object
           additionalProperties: true
+        acquisition:
+          $ref: '#/components/schemas/AcquisitionDTO'
+    AcquisitionDTO:
+      type: object
+      description: >-
+        Bounded acquisition provenance for one record. These fields establish
+        source-representation identity and change; they do NOT establish truth,
+        authenticity, or completeness, and are not verified producer identity or
+        proof of tampering. A checkpoint is operational state, not evidence
+        truth. Raw source availability is reported honestly and is false unless
+        a capture path proves otherwise.
+      required: [raw_source_available]
+      properties:
+        mode:
+          type: string
+        source_system:
+          type: string
+        source_record_id:
+          type: string
+        source_timestamp:
+          type: string
+        acquired_at:
+          type: string
+        adapter:
+          type: string
+        adapter_version:
+          type: string
+        source_digest:
+          type: string
+        raw_source_available:
+          type: boolean
+        checkpoint_position:
+          type: string
+        checkpoint_status:
+          type: string
     BundleEventsResponse:
       type: object
       required: [offset, limit, total, events]

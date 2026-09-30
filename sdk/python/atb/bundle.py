@@ -143,6 +143,7 @@ class Bundle:
         trace_id: str | None = None,
         span_id: str | None = None,
         parent_span_id: str | None = None,
+        acquisition: Any | None = None,
     ) -> Record:
         """Append a new event to the bundle.
 
@@ -152,6 +153,9 @@ class Bundle:
             actor_id: Optional actor identifier.
             org_id: Optional organization identifier.
             workspace_id: Optional workspace identifier.
+            acquisition: Optional bounded acquisition provenance (an
+                :class:`~atb.event.Acquisition` or mapping). Unknown fields are
+                dropped and malformed values raise ``TypeError``.
 
         Returns:
             The newly created :class:`Record`.
@@ -173,6 +177,7 @@ class Bundle:
             trace_id=_normalize_optional_field(trace_id),
             span_id=_normalize_optional_field(span_id),
             parent_span_id=_normalize_optional_field(parent_span_id),
+            acquisition=acquisition,
         )
         event = event_obj.to_dict()
         h = compute_hash(event, prev_hash)
@@ -499,21 +504,21 @@ def append_events_in_memory(bundle: "Bundle", events: list[Any]) -> int:
 
     appended = 0
     for index, spec in enumerate(events):
-        event_type, data, timestamp = _coerce_event_spec(index, spec)
+        event_type, data, timestamp, acquisition = _coerce_event_spec(index, spec)
         if not _EVENT_TYPE_PATTERN.match(event_type):
             raise ValueError(
                 f"append_events_in_memory: event {index} type "
                 f"{event_type!r} does not match required pattern "
                 '(e.g. "ai.tool.exec")'
             )
-        bundle.append(event_type, data, timestamp=timestamp)
+        bundle.append(event_type, data, timestamp=timestamp, acquisition=acquisition)
         appended += 1
     return appended
 
 
-def _coerce_event_spec(index: int, spec: Any) -> tuple[str, Any, str | None]:
+def _coerce_event_spec(index: int, spec: Any) -> tuple[str, Any, str | None, Any]:
     if isinstance(spec, Event):
-        return spec.type, spec.data, spec.timestamp
+        return spec.type, spec.data, spec.timestamp, spec.acquisition
     if isinstance(spec, dict):
         if "type" not in spec:
             raise ValueError(
@@ -525,7 +530,12 @@ def _coerce_event_spec(index: int, spec: Any) -> tuple[str, Any, str | None]:
                 f"append_events_in_memory: event {index} 'type' must be str, "
                 f"got {type(event_type).__name__}"
             )
-        return event_type, spec.get("data"), spec.get("timestamp")
+        return (
+            event_type,
+            spec.get("data"),
+            spec.get("timestamp"),
+            spec.get("acquisition"),
+        )
     raise ValueError(
         f"append_events_in_memory: event {index} must be a dict or Event, "
         f"got {type(spec).__name__}"
