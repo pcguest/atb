@@ -320,9 +320,17 @@ func TestTamperedAcquisitionBundleRejected(t *testing.T) {
 	}
 }
 
-// TestLegacyBundleWithoutAcquisition verifies backwards compatibility: a bundle
-// with no acquisition metadata still loads, verifies, and accepts a reconciled
-// import (which treats the legacy records as having no stable source identity).
+// TestLegacyBundleWithoutAcquisition pins two properties of the manifest-version
+// floor:
+//
+//  1. A bundle with no acquisition metadata still loads and verifies unchanged
+//     under the current build (historical compatibility).
+//  2. Reconciling an acquisition-bearing import onto that pre-v3 bundle is
+//     refused. The acquisition envelope participates in the canonical hash, so
+//     appending it to a bundle that declares manifest v1/v2 would produce a
+//     mixed-version chain that a pre-acquisition reader silently mis-hashes
+//     (a spurious tamper). Per the migration policy, such evidence must be
+//     re-imported into a new bundle rather than appended in place.
 func TestLegacyBundleWithoutAcquisition(t *testing.T) {
 	dir := t.TempDir()
 	bundlePath := filepath.Join(dir, "legacy.atb")
@@ -340,11 +348,25 @@ func TestLegacyBundleWithoutAcquisition(t *testing.T) {
 		t.Fatalf("save legacy: %v", err)
 	}
 
-	res := importPass(t, bundlePath, fixturePath(t, "pass1.jsonl"), true)
-	if res.NewCount != 2 {
-		t.Fatalf("legacy reconcile new = %d, want 2", res.NewCount)
-	}
+	// 1. The legacy bundle still verifies unchanged.
 	if _, err := bundle.LoadVerified(bundlePath); err != nil {
-		t.Fatalf("LoadVerified after legacy reconcile: %v", err)
+		t.Fatalf("legacy LoadVerified: %v", err)
+	}
+
+	// 2. Reconciling an acquisition-bearing import onto it is refused loudly.
+	_, err = ImportChatlog(context.Background(), ImportOptions{
+		Format:        capturepkg.FormatGenericJSONL,
+		InputPath:     fixturePath(t, "pass1.jsonl"),
+		BundlePath:    bundlePath,
+		MaxInputBytes: 1 << 20,
+		Reconcile:     true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "manifest version < 3") {
+		t.Fatalf("legacy reconcile: want manifest-version-floor error, got %v", err)
+	}
+
+	// The refused operation must not have mutated the bundle.
+	if _, err := bundle.LoadVerified(bundlePath); err != nil {
+		t.Fatalf("LoadVerified after refused legacy reconcile: %v", err)
 	}
 }

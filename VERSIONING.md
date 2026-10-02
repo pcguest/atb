@@ -9,7 +9,7 @@ ATB has **four** independently-tracked version concepts. Confusing them is the m
 | Universe                       | Identifier                                    | Bump rule                                                                                          | Example                            |
 |--------------------------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|------------------------------------|
 | CLI / SDK release version      | `vMAJOR.MINOR.PATCH` (SemVer)                 | Bumped per release. SemVer applies to the user-observable CLI and to the public Python/TypeScript SDK API. | `v1.11.0`                          |
-| Bundle manifest version        | Integer (`ManifestVersion` constant)          | Bumped only when the **canonical hash input** or the **on-disk manifest schema** changes in a way that would cause an existing reader to mis-parse or mis-hash. | `1` (default), `2` (opt-in)         |
+| Bundle manifest version        | Integer (`ManifestVersion` constant)          | Bumped only when the **canonical hash input** or the **on-disk manifest schema** changes in a way that would cause an existing reader to mis-parse or mis-hash. | `1` (default), `2` (structured, opt-in), `3` (acquisition canonical profile) |
 | JSON schema version            | Filename: `schemas/event.v1.json`             | Bumped only when the JSON Schema describing event records gains required fields or removes existing ones. Additive optional fields stay on `v1`. | `event.v1.json`                    |
 | Canonicalisation profile       | Implicit in the canonicaliser's behaviour     | Bumped (de facto) when RFC 8785 implementation rules change in a way that produces different bytes for the same input. Treated as a manifest-version bump for compatibility purposes. | v1.1.2 float profile (current)      |
 
@@ -38,7 +38,8 @@ Schema.3 is additive: it adds optional `coverage_score`, `coverage_grade`,
 `assessment_coverage`, `dimension_assessments`, `integrity_valid`, and
 `assurance_valid` fields documented in `docs/specification/verify-report.md`.
 `report_version` remains `verify.report.v1`. Bundles continue to read manifest
-versions `1` and `2` and write manifest version `1` by default.
+versions `1`, `2`, and `3`, and write manifest version `1` by default (import
+commands write `3`; see *Acquisition canonical profile* below).
 
 ## Breaking vs non-breaking changes
 
@@ -111,6 +112,21 @@ This block records what was added in the Capture v1 development cycle. Every ite
 - **New exit code**: `exitLockContention` (value `9`) is returned when a bundle write path cannot acquire the advisory lock. Callers should retry after a short delay; the mutating subcommands accept `--lock-wait <duration>` to extend the in-process wait window before this exit code is surfaced. The constant is documented in `cmd/atb/exit_codes.go` and [CONTRIBUTING.md](CONTRIBUTING.md); it has a freshly-allocated numeric value and does not collide with any pre-existing exit code.
 - **Golden corpus integrity**: the cross-language canonical-hash corpus was *not* modified by Capture v1. Every Go, Python, and TypeScript golden vector that existed before the cycle still hashes byte-for-byte to the same value. New tests were added; no existing vector was edited or regenerated.
 
+## Acquisition canonical profile (manifest v3)
+
+The `acquisition` envelope was added to the canonical `Event` struct after v1.16.0. It is an **optional top-level field that participates in the canonical hash input when present** (see `docs/specification/bundle-v1.md` §3.4). Adding a canonical-hash input field is a breaking change under "When to bump the manifest version" trigger 1 above, even though `omitempty` keeps the canonical bytes of every historical (non-acquisition) bundle unchanged.
+
+The required treatment is therefore a manifest version bump:
+
+- **Manifest version 3** declares the acquisition-aware canonical profile. It uses the same structured-object wire form as v2; the version number, not the wire form, signals the profile.
+- `atb import chatlog` and `atb import otel` create new bundles as v3, because their events always carry acquisition provenance.
+- `ManifestVersionMax` is `3`. A reader whose maximum is lower (for example a `v1.16.0` build, whose maximum is `2`) now rejects a v3 bundle with `ErrMalformed` ("requires a newer version of atb") instead of silently dropping `acquisition`, recomputing a different hash, and reporting a spurious tamper.
+- **Historical compatibility is preserved**: v1 and v2 bundles — including every bundle written before acquisition existed — verify unchanged, because `omitempty` omits `acquisition` from their canonical bytes.
+- **No historical hash is redefined**: the bump declares the profile going forward; it does not rewrite any existing bundle. A pre-v3 bundle that must gain acquisition evidence is re-imported into a new v3 bundle, per the migration policy below.
+- The Go golden corpus and the cross-language canonical vectors include acquisition entries so Go, Python, and TypeScript agree byte-for-byte on the acquisition canonical form.
+
+This corrects the earlier "Capture v1 additions" claim that no canonical-hash input had changed: the Capture v1 features themselves (chatlog/otel import, capture run) were additive, but the `acquisition` envelope introduced with them is a canonical-hash input and required the v3 declaration.
+
 ## Bundle compatibility matrix
 
 | ATB version range            | Manifest versions read    | Manifest versions written (default)        |
@@ -118,6 +134,7 @@ This block records what was added in the Capture v1 development cycle. Every ite
 | `v1.0.x` – `v1.1.1`          | `1`                       | `1`                                        |
 | `v1.1.2` – `v1.9.x`          | `1`                       | `1` (post-v1.1.2 float profile)            |
 | `v1.10.x` and later          | `1`, `2`                  | `1` (default; `2` opt-in via `--manifest-version 2`) |
+| acquisition-aware build      | `1`, `2`, `3`             | `1` (default); `3` written by `atb import chatlog`/`otel` |
 
 Notes:
 

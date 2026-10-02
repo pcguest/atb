@@ -45,12 +45,21 @@ const (
 	ManifestVersion = "1"
 	// ManifestVersionV2 is the current structured-object manifest format.
 	ManifestVersionV2 = 2
+	// ManifestVersionV3 is the structured manifest format that declares the
+	// acquisition-aware canonical profile. Bundles that carry the optional
+	// `acquisition` envelope MUST declare version 3 so that a reader which
+	// predates that envelope fails loudly (ErrMalformed) instead of silently
+	// dropping the field, recomputing a different hash, and reporting a
+	// spurious tamper. It uses the same structured-object wire form as v2;
+	// the version number, not the wire form, is what signals the canonical
+	// profile. See docs/specification/bundle-v1.md §3.4 and §9.
+	ManifestVersionV3 = 3
 	// ManifestVersionMax is the highest manifest version this build of atb
 	// can read. A bundle whose manifest declares a higher version is
 	// rejected with ErrMalformed by parseManifestData so a forward-bumped
 	// bundle opened by a stale reader fails loudly instead of silently
 	// dropping fields.
-	ManifestVersionMax = 2
+	ManifestVersionMax = 3
 )
 
 // ErrMalformed, ErrNoManifest, ErrTamper, and ErrNotABundle are declared
@@ -121,9 +130,9 @@ func NewWithOptions(opts NewOptions) (*Bundle, error) {
 
 	switch opts.ManifestVersion {
 	case 0, 1:
-	case ManifestVersionV2:
+	case ManifestVersionV2, ManifestVersionV3:
 		data := map[string]any{
-			"version":    ManifestVersionV2,
+			"version":    opts.ManifestVersion,
 			"created_at": createdAt,
 			"bundle_id":  bundleID,
 		}
@@ -171,8 +180,16 @@ func (b *Bundle) AppendWithOptions(eventType string, data interface{}, opts *App
 		return fmt.Errorf("bundle: manifest record must be the first record in a new bundle")
 	}
 	if eventType != ManifestEventType && hasManifestRecord(b.Records) {
-		if _, err := parseManifestData(&b.Records[0]); err != nil {
+		manifest, err := parseManifestData(&b.Records[0])
+		if err != nil {
 			return fmt.Errorf("bundle: append with options: parse manifest: %w", err)
+		}
+		// Defence in depth: acquisition is a canonical-hash input, so appending
+		// it to a bundle that declares a pre-acquisition profile would create a
+		// mixed-version chain that an older reader silently mis-hashes. Enforce
+		// the version floor at the bundle layer so every caller is covered.
+		if opts != nil && opts.Acquisition != nil && manifest.Version != "3" {
+			return fmt.Errorf("bundle: append with options: cannot append an acquisition-bearing event to a bundle that declares manifest version < 3 (got %q); re-import into a new bundle so the acquisition canonical profile is declared", manifest.Version)
 		}
 	}
 
@@ -613,7 +630,7 @@ func parseManifestDataV2(fields map[string]any) (ManifestData, error) {
 	createdAt, _ := fields["created_at"].(string)
 	bundleID, _ := fields["bundle_id"].(string)
 	captureRunID, _ := fields["capture_run_id"].(string)
-	if version != "2" {
+	if version != "2" && version != "3" {
 		return ManifestData{}, fmt.Errorf("bundle: structured manifest version %s is not supported", version)
 	}
 	if createdAt == "" || bundleID == "" {
@@ -633,9 +650,15 @@ func manifestVersionString(value any) (string, error) {
 		if v == ManifestVersionV2 {
 			return "2", nil
 		}
+		if v == ManifestVersionV3 {
+			return "3", nil
+		}
 	case int:
 		if v == ManifestVersionV2 {
 			return "2", nil
+		}
+		if v == ManifestVersionV3 {
+			return "3", nil
 		}
 	case string:
 		if v != "" {
