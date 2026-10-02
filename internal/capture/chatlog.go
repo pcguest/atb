@@ -532,7 +532,10 @@ func loadOrCreateBundle(path string) (*bundle.Bundle, error) {
 	if !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
-	return bundle.New()
+	// Capture events carry acquisition provenance, so a freshly created bundle
+	// declares the acquisition-aware canonical profile (manifest v3). Appending
+	// acquisition to a pre-v3 bundle is refused at the bundle layer.
+	return bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV3})
 }
 
 func fallbackActorIDHash(message ChatMessage, namespace string, requestCounter int) string {
