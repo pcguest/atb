@@ -1,0 +1,3 @@
+# Harness scratch output — never commit run artefacts or raw source material.
+.runs/
+*.report.json
