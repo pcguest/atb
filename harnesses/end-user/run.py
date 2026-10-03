@@ -87,10 +87,16 @@ class Harness:
                 timeout=ATB_TIMEOUT,
             )
         except subprocess.TimeoutExpired as exc:
+            # A timeout can hand back partial output as bytes even when
+            # text=True, because decoding happens after the process completes.
+            # Decode defensively so callers always see str.
+            out = exc.stdout
+            if isinstance(out, bytes):
+                out = out.decode(errors="replace")
             return subprocess.CompletedProcess(
                 args=exc.cmd,
                 returncode=124,
-                stdout=exc.stdout or "",
+                stdout=out or "",
                 stderr=f"command timed out after {exc.timeout}s",
             )
 
