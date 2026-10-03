@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A chatlog source record is identified at exchange granularity (the request that opened the exchange) rather than per source line or derived event. A request/response exchange therefore reconciles as one record: an unchanged re-import appends no duplicate evidence, and a changed exchange yields exactly one finding.
 - `atb import chatlog` and `atb import otel` with `--reconcile`/`--continue` now verify the existing bundle's hash chain first and fail explicitly if it is invalid, rather than reconciling onto an unverified chain. Plain imports are unchanged.
 
+### Security
+- Bumped the web UI's `next` dependency from `16.3.3` to `16.3.8`, remediating the critical `next/og` ImageResponse remote-code-execution advisory (`GHSA-vcvr-r3jv-pc5j`).
+- Added an `axios` override (`1.20.0`) to remediate the high-severity Axios advisory cluster (including `GHSA-m8m8-qj5v-23w3`), which is reached transitively through the `start-server-and-test` → `wait-on` development dependency.
+- Known outstanding: the newly published `braces` stack-exhaustion advisory (`GHSA-vfj7-8cjw-p6xm`, affected range `<=3.0.3`) has no fixed release upstream; it cascades to `micromatch`, `fast-glob`, `chokidar`, `tailwindcss`, and `eslint-config-next` (all development/build dependencies). This remains flagged by `npm audit --audit-level=high` until upstream publishes a fix; the HIGH/CRITICAL gate is not being weakened or suppressed.
+
 ## [v1.16.0] - 2026-09-03
 
 ### Changed
