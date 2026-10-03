@@ -4,6 +4,7 @@ package apiv1
 import (
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,7 +17,13 @@ import (
 // Findings, Timeline) without a new top-level page, and that it stays bounded:
 // raw source is reported unavailable and checkpoint is labelled operational.
 func TestInvestigationAcquisitionProvenance(t *testing.T) {
-	bundlePath, b := createRichTestBundle(t)
+	// Acquisition-bearing evidence declares the v3 canonical profile, so this
+	// fixture uses a v3 bundle rather than the v1 rich test bundle.
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV3})
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
 
 	acq := &event.AcquisitionInfo{
 		Mode:            "retrospective",
@@ -53,6 +60,9 @@ func TestInvestigationAcquisitionProvenance(t *testing.T) {
 		"adapter":              "atb.chatlog.generic-jsonl",
 	}, &bundle.AppendOptions{Timestamp: "2026-01-02T09:00:00Z"}); err != nil {
 		t.Fatalf("append finding: %v", err)
+	}
+	if err := b.Save(bundlePath); err != nil {
+		t.Fatalf("save bundle: %v", err)
 	}
 
 	_, handler := buildTestAPIServer(t, APIConfig{BundlePath: bundlePath, Bundle: b})

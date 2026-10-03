@@ -226,6 +226,9 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 		})
 	}
 	stampAcquisitionStream(events, opts.InputPath)
+	if err := requireAcquisitionProfile(b, created, events); err != nil {
+		return nil, err
+	}
 
 	counts, err := appendReconciled(b, events, reconciler, opts.Reconcile)
 	if err != nil {
@@ -388,6 +391,9 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 		})
 	}
 	stampAcquisitionStream(events, opts.InputPath)
+	if err := requireAcquisitionProfile(b, created, events); err != nil {
+		return nil, err
+	}
 
 	counts, err := appendReconciled(b, events, reconciler, opts.Reconcile)
 	if err != nil {
@@ -579,8 +585,11 @@ func loadSnapshotBundle(ctx context.Context, bundlePath string, created bool) (*
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			// Create new bundle
-			b, err = bundle.New()
+			// Create a new bundle that declares the acquisition-aware canonical
+			// profile (manifest v3). Imported events always carry acquisition
+			// provenance, so a reader that predates the acquisition envelope
+			// must reject the bundle loudly rather than mis-hash it.
+			b, err = bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV3})
 			if err != nil {
 				return nil, false, err
 			}
@@ -589,6 +598,34 @@ func loadSnapshotBundle(ctx context.Context, bundlePath string, created bool) (*
 		return nil, false, fmt.Errorf("load bundle: %w", err)
 	}
 	return b, false, nil
+}
+
+// requireAcquisitionProfile enforces the manifest-version floor for bundles that
+// carry acquisition provenance. A freshly created import bundle declares v3; an
+// existing bundle that predates v3 (manifest v1/v2) must not receive
+// acquisition-bearing events, because a reader that predates the acquisition
+// envelope would silently drop the field and report a spurious tamper. Refuse
+// rather than create a mixed-version chain.
+func requireAcquisitionProfile(b *bundle.Bundle, created bool, events []importEvent) error {
+	if created || !eventsHaveAcquisition(events) {
+		return nil
+	}
+	m := b.Manifest()
+	if m != nil && m.Version == "3" {
+		return nil
+	}
+	return fmt.Errorf("cannot append acquisition-bearing events to a bundle that declares manifest version < 3; re-import into a new bundle so the acquisition canonical profile is declared")
+}
+
+// eventsHaveAcquisition reports whether any import event carries acquisition
+// provenance.
+func eventsHaveAcquisition(events []importEvent) bool {
+	for i := range events {
+		if events[i].acquisition != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // stampManifestProvenance stamps the manifest with provenance information.
