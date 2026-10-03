@@ -40,7 +40,7 @@ Review the provided diff/evidence against:
 Compact, matching the operating-model subagent contract:
 
 ```
-STATUS: REVIEWED | BLOCKED | NEEDS_INFO
+STATUS: BLOCKED | NEEDS_INFO | REVIEWED
 FINDINGS:
 BLOCKING: [Evidence: file:line, test failure, security issue, boundary violation]
 NON_BLOCKING: [Evidence: minor inconsistency, style, documentation clarity]
@@ -48,9 +48,15 @@ QUESTION: [Specific uncertainty requiring clarification]
 NO_FINDING: [No issues found in the reviewed scope]
 
 EVIDENCE_REFS: [file:line, test name, doc section]
-BLOCKERS: [List of blocking issues]
+BLOCKERS: [Must mirror the BLOCKING findings, one per line]
 FOLLOW_UP: [Recommended next steps]
 ```
+
+`STATUS` is derived, not independent: `BLOCKED` if and only if at least one
+`BLOCKING` finding exists, and `BLOCKERS` must mirror those findings. Use
+`NEEDS_INFO` only when an unanswered `QUESTION` prevents a verdict. Otherwise
+`REVIEWED`. Never emit `REVIEWED` alongside a `BLOCKING` finding, and never emit
+`BLOCKED` with an empty `BLOCKERS` list.
 
 ## Constraints
 
