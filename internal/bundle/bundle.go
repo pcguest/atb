@@ -179,16 +179,21 @@ func (b *Bundle) AppendWithOptions(eventType string, data interface{}, opts *App
 	if eventType == ManifestEventType && len(b.Records) > 0 {
 		return fmt.Errorf("bundle: manifest record must be the first record in a new bundle")
 	}
-	if eventType != ManifestEventType && hasManifestRecord(b.Records) {
+	// Defence in depth: acquisition is a canonical-hash input, so appending
+	// it to a bundle that declares a pre-acquisition profile would create a
+	// mixed-version chain that an older reader silently mis-hashes. Enforce
+	// the version floor at the bundle layer so every caller is covered. A
+	// manifest-less legacy bundle has no declared profile at all and must also
+	// refuse acquisition-bearing events.
+	if eventType != ManifestEventType && opts != nil && opts.Acquisition != nil {
+		if !hasManifestRecord(b.Records) {
+			return fmt.Errorf("bundle: append with options: cannot append an acquisition-bearing event to a bundle with no manifest record; create a new bundle that declares manifest version 3")
+		}
 		manifest, err := parseManifestData(&b.Records[0])
 		if err != nil {
 			return fmt.Errorf("bundle: append with options: parse manifest: %w", err)
 		}
-		// Defence in depth: acquisition is a canonical-hash input, so appending
-		// it to a bundle that declares a pre-acquisition profile would create a
-		// mixed-version chain that an older reader silently mis-hashes. Enforce
-		// the version floor at the bundle layer so every caller is covered.
-		if opts != nil && opts.Acquisition != nil && manifest.Version != "3" {
+		if manifest.Version != "3" {
 			return fmt.Errorf("bundle: append with options: cannot append an acquisition-bearing event to a bundle that declares manifest version < 3 (got %q); re-import into a new bundle so the acquisition canonical profile is declared", manifest.Version)
 		}
 	}
@@ -556,9 +561,16 @@ func parseManifestData(record *Record) (ManifestData, error) {
 	switch data := record.Event.Data.(type) {
 	case string:
 		// v1 (or absent — legacy bundles pre-versioned manifest) — string-encoded JSON path.
-		return parseManifestDataV1(data)
+		// A structured manifest (version >= 2) MUST be a JSON object; if it is
+		// presented as a JSON string, a stale reader could silently mis-hash it.
+		// Reject the string form for version >= 2 while preserving genuine v1
+		// legacy string manifests.
+		if version <= 1 {
+			return parseManifestDataV1(data)
+		}
+		return ManifestData{}, fmt.Errorf("bundle: manifest version %d must be a structured JSON object, not a JSON string: %w", version, ErrMalformed)
 	case map[string]any:
-		// v2 — structured-object path.
+		// v2/v3 — structured-object path.
 		return parseManifestDataV2(data)
 	default:
 		return ManifestData{}, fmt.Errorf("bundle: manifest data type %T is not supported: %w", record.Event.Data, ErrMalformed)
