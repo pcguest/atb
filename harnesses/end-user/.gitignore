@@ -1,0 +1,7 @@
+# Harness scratch output — never commit run artefacts or raw source material.
+.runs/
+*.report.json
+
+# Documented example output names (README, run.sh --help).
+report.json
+atb-enduser-report.json

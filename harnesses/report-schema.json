@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/pcguest/atb/harnesses/report-schema.json",
+  "title": "ATB/Mortise development run report",
+  "description": "Machine-readable record emitted by the end-user and interoperability harnesses. It is development evidence about the product experience, not ATB evidence itself.",
+  "type": "object",
+  "required": ["schema_version", "harness", "product", "started_at", "finished_at", "source_fixture", "steps", "findings", "gates"],
+  "properties": {
+    "schema_version": { "const": "atb.dev.run.v1" },
+    "harness": { "enum": ["end-user", "interoperability", "security", "release"] },
+    "product": { "enum": ["atb", "mortise", "atb+mortise"] },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "atb_version": { "type": "string" },
+        "atb_binary": { "type": "string" },
+        "mortise_binary": { "type": "string" },
+        "go_version": { "type": "string" },
+        "commit": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "source_fixture": {
+      "type": "object",
+      "required": ["path", "classification", "privacy_reviewed", "transformation"],
+      "properties": {
+        "path": { "type": "string" },
+        "classification": { "enum": ["REAL_EXPORT", "REPRESENTATIVE_FIXTURE"] },
+        "privacy_reviewed": { "type": "boolean" },
+        "transformation": { "type": "string", "description": "Honest note of any redaction or synthesis applied." }
+      },
+      "additionalProperties": true
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "task", "result", "path_class"],
+        "properties": {
+          "id": { "type": "string" },
+          "task": { "type": "string" },
+          "expected_goal": { "type": "string" },
+          "documented_path": { "type": "string" },
+          "actual_path": { "type": "string" },
+          "result": { "enum": ["PASS", "FAIL", "NOT_SUPPORTED", "FRICTION"] },
+          "path_class": { "enum": ["PRODUCT_PATH", "TEST_ONLY_PATH", "INTERNAL_SHORTCUT"] },
+          "evidence": { "type": "object", "additionalProperties": true },
+          "friction": { "type": "string" },
+          "internal_knowledge_required": { "type": "boolean" },
+          "severity": { "enum": ["none", "low", "medium", "high"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "classification", "summary"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "enum": ["none", "low", "medium", "high"] },
+          "classification": {
+            "enum": [
+              "BLOCKS_CONTINUATION",
+              "FIX_BEFORE_TENON",
+              "PRODUCT_HARDENING",
+              "SAFE_TO_DEFER",
+              "NOT_OUR_RESPONSIBILITY"
+            ]
+          },
+          "summary": { "type": "string" },
+          "evidence": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "gates": {
+      "type": "object",
+      "properties": {
+        "ATB_PRODUCT_GATE": { "enum": ["GO", "NO_GO", "CONDITIONAL"] },
+        "MORTISE_PRODUCT_GATE": { "enum": ["GO", "NO_GO", "CONDITIONAL"] },
+        "ATB_MORTISE_INTEROP_GATE": { "enum": ["GO", "NO_GO", "CONDITIONAL"] }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
