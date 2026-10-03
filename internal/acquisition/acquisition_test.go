@@ -2,6 +2,7 @@
 package acquisition
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -353,6 +354,13 @@ func TestLegacyBundleWithoutAcquisition(t *testing.T) {
 		t.Fatalf("legacy LoadVerified: %v", err)
 	}
 
+	// Snapshot the bundle before the refused import so we can prove no mutation.
+	beforeBytes, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle before refused import: %v", err)
+	}
+	beforeCount := recordCount(t, bundlePath)
+
 	// 2. Reconciling an acquisition-bearing import onto it is refused loudly.
 	_, err = ImportChatlog(context.Background(), ImportOptions{
 		Format:        capturepkg.FormatGenericJSONL,
@@ -365,7 +373,17 @@ func TestLegacyBundleWithoutAcquisition(t *testing.T) {
 		t.Fatalf("legacy reconcile: want manifest-version-floor error, got %v", err)
 	}
 
-	// The refused operation must not have mutated the bundle.
+	// The refused operation must not have mutated the bundle on disk.
+	afterBytes, err := os.ReadFile(bundlePath)
+	if err != nil {
+		t.Fatalf("read bundle after refused import: %v", err)
+	}
+	if !bytes.Equal(beforeBytes, afterBytes) {
+		t.Fatalf("refused import mutated bundle bytes: before %d bytes, after %d bytes", len(beforeBytes), len(afterBytes))
+	}
+	if got := recordCount(t, bundlePath); got != beforeCount {
+		t.Fatalf("refused import changed record count: before %d, after %d", beforeCount, got)
+	}
 	if _, err := bundle.LoadVerified(bundlePath); err != nil {
 		t.Fatalf("LoadVerified after refused legacy reconcile: %v", err)
 	}

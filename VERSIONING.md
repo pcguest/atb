@@ -103,7 +103,7 @@ The v1.1.2 break is the only sanctioned historical break in the canonicalisation
 
 ## Capture v1 additions (non-breaking)
 
-This block records what was added in the Capture v1 development cycle. Every item below is purely additive: no existing canonical-hash input, no existing JSON schema field, and no existing golden vector was modified, so the changes are appropriate to a MINOR release and do not require a manifest version bump on their own.
+This block records what was added in the Capture v1 development cycle. The items below are purely additive in the CLI/SDK surface: no existing JSON schema field and no existing golden vector was modified, and none of the listed items changes the canonical-hash input of a bundle that does not use them. The `acquisition` envelope, which arrived in the same cycle, is a new optional canonical-hash input and is documented separately below as requiring manifest v3.
 
 - **New CLI subcommands**: `atb import chatlog` (ingests chat transcripts via the `generic-jsonl` provider) and `atb capture run` (wraps a child process and exports capture context to it via environment variables). Both are documented in [CONTRIBUTING.md](CONTRIBUTING.md) § Maintainer rules and [docs/maintainers/release.md](docs/maintainers/release.md).
 - **New internal packages**: a `capture` package under `internal/` that owns chatlog parsing, mapping, and the in-memory append helpers shared by both subcommands. The bundle write path also gained an OS-level advisory lock helper (`flock` on Unix, `LockFileEx` on Windows) that surfaces `ErrBundleLocked` on contention.
@@ -125,7 +125,7 @@ The required treatment is therefore a manifest version bump:
 - **No historical hash is redefined**: the bump declares the profile going forward; it does not rewrite any existing bundle. A pre-v3 bundle that must gain acquisition evidence is re-imported into a new v3 bundle, per the migration policy below.
 - The Go golden corpus and the cross-language canonical vectors include acquisition entries so Go, Python, and TypeScript agree byte-for-byte on the acquisition canonical form.
 
-This corrects the earlier "Capture v1 additions" claim that no canonical-hash input had changed: the Capture v1 features themselves (chatlog/otel import, capture run) were additive, but the `acquisition` envelope introduced with them is a canonical-hash input and required the v3 declaration.
+The `acquisition` envelope is therefore not covered by the additive Capture v1 list above: it is a canonical-hash input and required the v3 declaration.
 
 ## Bundle compatibility matrix
 
@@ -133,13 +133,13 @@ This corrects the earlier "Capture v1 additions" claim that no canonical-hash in
 |------------------------------|---------------------------|--------------------------------------------|
 | `v1.0.x` – `v1.1.1`          | `1`                       | `1`                                        |
 | `v1.1.2` – `v1.9.x`          | `1`                       | `1` (post-v1.1.2 float profile)            |
-| `v1.10.x` and later          | `1`, `2`                  | `1` (default; `2` opt-in via `--manifest-version 2`) |
-| acquisition-aware build      | `1`, `2`, `3`             | `1` (default); `3` written by `atb import chatlog`/`otel` |
+| `v1.10.x` – `v1.16.x`        | `1`, `2`                  | `1` (default; `2` opt-in via `--manifest-version 2`) |
+| post-`v1.16.0` (unreleased)  | `1`, `2`, `3`             | `1` (default); `3` written by `atb import chatlog`/`otel` |
 
 Notes:
 
 - The default writer remains manifest version `1` for maximum compatibility with deployed readers.
-- A `v1.10+` build opening a bundle whose manifest declares any version greater than `ManifestVersionMax` (currently `2`) returns an error wrapping `ErrMalformed` rather than silently dropping fields.
+- A build whose `ManifestVersionMax` is lower than the declared manifest version rejects the bundle with an error wrapping `ErrMalformed` rather than silently dropping fields. Currently `ManifestVersionMax` is `3`.
 - Bundles created without a manifest record (legacy pre-v1.0 captures) are still readable; the reader treats them as implicit version `1`.
 
 ## Migration policy

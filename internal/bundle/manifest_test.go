@@ -5,6 +5,7 @@ package bundle
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -178,5 +179,89 @@ func TestAppendAcquisitionToV3BundleAllowed(t *testing.T) {
 	}
 	if err := b.Verify(); err != nil {
 		t.Fatalf("Verify: %v", err)
+	}
+}
+
+// manifestRecordFromStringData builds a manifest Record from a JSON-encoded
+// data payload (used to test string-form rejection/acceptance without going
+// through the writer).
+func manifestRecordFromStringData(t *testing.T, data string) Record {
+	t.Helper()
+	line := `{"event":{"seq":0,"prev_hash":"0000000000000000000000000000000000000000000000000000000000000000","type":"atb.bundle.manifest","hash_algo":"sha256","data":` + jsonEscape(data) + `},"hash":"0000000000000000000000000000000000000000000000000000000000000000"}`
+	var rec Record
+	if err := json.Unmarshal([]byte(line), &rec); err != nil {
+		t.Fatalf("unmarshal manifest record: %v", err)
+	}
+	return rec
+}
+
+func jsonEscape(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
+// TestManifestStringEncodedV2V3Rejected pins the string-form hardening: a
+// manifest whose extracted version is 2 or 3 must be a structured JSON object.
+// If it is presented as a JSON string, parseManifestData rejects it with
+// ErrMalformed rather than silently falling back to the v1 parser.
+func TestManifestStringEncodedV2V3Rejected(t *testing.T) {
+	cases := []int{ManifestVersionV2, ManifestVersionV3}
+	for _, v := range cases {
+		t.Run(fmt.Sprintf("v%d", v), func(t *testing.T) {
+			var payload string
+			if v == ManifestVersionV2 {
+				payload = `{"version":2,"created_at":"2026-04-26T00:00:00Z","bundle_id":"00112233445566778899aabbccddeeff"}`
+			} else {
+				payload = `{"version":3,"created_at":"2026-04-26T00:00:00Z","bundle_id":"00112233445566778899aabbccddeeff"}`
+			}
+			rec := manifestRecordFromStringData(t, payload)
+			_, err := parseManifestData(&rec)
+			if err == nil {
+				t.Fatal("expected string-encoded structured manifest to be rejected")
+			}
+			if !errors.Is(err, ErrMalformed) {
+				t.Fatalf("want ErrMalformed, got %v", err)
+			}
+			if !strings.Contains(err.Error(), "structured JSON object") {
+				t.Fatalf("expected structured-object error, got %v", err)
+			}
+		})
+	}
+}
+
+// TestManifestStringEncodedV1StillAccepted preserves genuine legacy v1 string
+// manifests: a JSON string payload with version "1" (or no version field)
+// continues to parse.
+func TestManifestStringEncodedV1StillAccepted(t *testing.T) {
+	rec := manifestRecordFromStringData(t, `{"version":"1","created_at":"2026-04-26T00:00:00Z","bundle_id":"00112233445566778899aabbccddeeff"}`)
+	manifest, err := parseManifestData(&rec)
+	if err != nil {
+		t.Fatalf("v1 string manifest rejected: %v", err)
+	}
+	if manifest.Version != "1" {
+		t.Fatalf("version = %q, want 1", manifest.Version)
+	}
+	if manifest.BundleID != "00112233445566778899aabbccddeeff" {
+		t.Fatalf("bundle_id = %q", manifest.BundleID)
+	}
+}
+
+// TestAppendAcquisitionToManifestLessBundleRefused pins the floor for legacy
+// manifest-less bundles: they have no declared profile, so an acquisition-
+// bearing append must be refused, while normal (non-acquisition) appends keep
+// working.
+func TestAppendAcquisitionToManifestLessBundleRefused(t *testing.T) {
+	b := &Bundle{}
+	if err := b.Append("ai.tool.exec", map[string]any{"ok": true}); err != nil {
+		t.Fatalf("non-acquisition append to manifest-less bundle failed: %v", err)
+	}
+	err := b.AppendWithOptions("ai.tool.exec", map[string]any{"ok": true}, &AppendOptions{
+		Acquisition: &event.AcquisitionInfo{Mode: "retrospective"},
+	})
+	if err == nil || !strings.Contains(err.Error(), "no manifest record") {
+		t.Fatalf("want no-manifest-record refusal, got %v", err)
+	}
+	if len(b.Records) != 1 {
+		t.Fatalf("refused append mutated bundle: got %d records", len(b.Records))
 	}
 }
