@@ -28,9 +28,10 @@ preferences.
    deterministic_gate_summary, diff_summary, architecture_context, typed questions.
 2. Ask a small library of typed questions (Noul / Choice / Score). Never ask
    vague questions like "is this good?".
-3. Use `scripts/jev_decision_plane.py` (local). Record a DecisionObservation:
-   execution_status, model identity, question schema, typed answers,
-   probabilities, confidence, latency/usage, decision = ADVISORY_ONLY.
+3. Use the Jev decision plane via an optional external tool (not maintained in
+   this repository). Record a DecisionObservation: execution_status, model
+   identity, question schema, typed answers, probabilities, confidence,
+   latency/usage, decision = ADVISORY_ONLY.
 4. execution_status is explicit: SUCCESS / UNAVAILABLE / ERROR / NOT_RUN /
    NOT_RUN_NO_DIFF. SUCCESS means a parseable typed observation was returned;
    it does NOT mean engineering approval.
@@ -44,13 +45,10 @@ preferences.
 
 ## Canonical references
 
-- .devin/README_AUDIT.md (local)
-- .devin/jev_decision_plane.py (local)
 - docs/concepts/trust-model.md (why Jev is not ATB trust)
 
 ## Tests / checks
 
-- `.devin/test_jev_decision_plane.py`
 - CREDENTIAL_AVAILABLE / CREDENTIAL_UNAVAILABLE only; never log key/prefix/length
 - Record disagreement honestly; remove question families that add no value
 

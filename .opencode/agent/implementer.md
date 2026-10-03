@@ -47,7 +47,7 @@ PROHIBITED SCOPE:    [What must NOT be done]
 - Fix a specific test failure with minimal change
 - Update documentation to match implementation
 - Correct a terminology inconsistency in bounded scope
-- Adjust a validation assertion to match actual behavior
+- Strengthen a validation assertion to match correct behavior (never weaken it to fit broken behavior)
 - Fix a Cypress test selector after UI text change
 
 ## Anti-Patterns (Do Not Do)

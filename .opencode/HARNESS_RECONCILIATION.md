@@ -1,14 +1,14 @@
 # HARNESS RECONCILIATION LEDGER
 
 Date: 2026-09-23
-Scope: LOCAL OpenCode development harness only. `.opencode/` is excluded from
-git via `.git/info/exclude`. ATB product code must never depend on this harness.
+Scope: LOCAL OpenCode development harness only. `.opencode/` is committed in
+this branch as development harness configuration. ATB product code must never depend on this harness.
 
 ## Starting state (verified, not assumed)
 
 - Branch `feat/acquisition-continuity`, HEAD `d5bd611`, `origin/main` `ebcb97d`.
 - Working tree: 11 modified product files + 3 untracked acquisition fixtures.
-- `.opencode/` was entirely untracked and NOT git-excluded (commit hazard).
+- `.opencode/` is committed in this branch as development harness configuration.
 - OpenCode 1.18.32. Providers: `openai` (oauth), `google` (api),
   `opencode` (OpenCode Zen api), plus `opencode-go`.
 
@@ -31,7 +31,7 @@ git via `.git/info/exclude`. ATB product code must never depend on this harness.
 | `.local/dev/state/*` (run_*.json, jev_learning_*.json) | TEMPORAL | Retained; superseded by a new consolidated continuation record. |
 | `.local/dev/run.py` | STALE / SUPERSEDE | Points at the old single-review Jev harness; superseded by `jev_decision_plane.py`. Kept (local) but no longer the entry point. |
 | `.devin/audit_code.*` | UPDATE / KEEP | Correct execution-status contract retained; extended by `jev_decision_plane.py`. |
-| `.git/info/exclude` | UPDATE | Added `.opencode/` (local-only, never commit). |
+| `.git/info/exclude` | REVERT / NOT NEEDED | `.local/` remains excluded; `.opencode/` is now tracked as committed development tooling. |
 | `~/.config/opencode/opencode.jsonc` | KEEP | Empty schema stub; no change needed. |
 
 ## Verification performed

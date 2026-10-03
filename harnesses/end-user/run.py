@@ -32,6 +32,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DEFAULT_FIXTURE = HERE / "fixtures" / "development-session.jsonl"
 SESSION_TOKEN = "harness-local-session-token"
+ATB_TIMEOUT = 60  # seconds; bounded to prevent a hung CLI from stalling the harness
 
 
 def now() -> str:
@@ -77,12 +78,21 @@ class Harness:
 
     # -- helpers ---------------------------------------------------------
     def run(self, *args: str, check: bool = False) -> subprocess.CompletedProcess:
-        return subprocess.run(
-            [self.atb, *args],
-            capture_output=True,
-            text=True,
-            check=check,
-        )
+        try:
+            return subprocess.run(
+                [self.atb, *args],
+                capture_output=True,
+                text=True,
+                check=check,
+                timeout=ATB_TIMEOUT,
+            )
+        except subprocess.TimeoutExpired as exc:
+            return subprocess.CompletedProcess(
+                args=exc.cmd,
+                returncode=124,
+                stdout=exc.stdout or "",
+                stderr=f"command timed out after {exc.timeout}s",
+            )
 
     def step(self, **kw) -> None:
         kw.setdefault("severity", "none")
@@ -113,6 +123,8 @@ class Harness:
                 return e.code, json.loads(e.read().decode())
             except Exception:
                 return e.code, {}
+        except (urllib.error.URLError, OSError) as e:
+            return 0, {"transport_error": f"{type(e).__name__}: {e}"}
 
     # -- journey ---------------------------------------------------------
     def a1_discover(self) -> None:
@@ -246,7 +258,13 @@ class Harness:
             return
         q = urllib.parse.quote(self.locator, safe="")
         status, body = self.http_get(f"/api/v1/bundle/locate?locator={q}")
+        transport_err = body.get("transport_error")
         ok = status == 200 and body.get("ok") and body.get("canonical") == self.locator
+        friction = ""
+        if transport_err:
+            friction = transport_err
+        elif not ok:
+            friction = "locator must be assembled by hand; no `atb locate`/`--emit-locator` command exists"
         self.step(
             id="A5",
             task="Derive and resolve a semantic evidence locator",
@@ -256,7 +274,7 @@ class Harness:
             result="PASS" if ok else "FAIL",
             path_class="PRODUCT_PATH",
             evidence={"http": status, "canonical": body.get("canonical"), "record_hash_matched": body.get("record_hash_matched")},
-            friction="locator must be assembled by hand; no `atb locate`/`--emit-locator` command exists",
+            friction=friction,
             internal_knowledge_required=False,
         )
         if ok:
@@ -269,6 +287,7 @@ class Harness:
         q = urllib.parse.quote("not-a-locator", safe="")
         status, body = self.http_get(f"/api/v1/bundle/locate?locator={q}")
         malformed_ok = body.get("error_code") == "LOCATOR_MALFORMED" and body.get("ok") is False
+        transport_err = body.get("transport_error")
         self.step(
             id="A6a",
             task="Probe a malformed locator",
@@ -278,11 +297,13 @@ class Harness:
             result="PASS" if malformed_ok else "FRICTION",
             path_class="PRODUCT_PATH",
             evidence={"http": status, "error_code": body.get("error_code")},
+            friction=transport_err if transport_err else "",
         )
         # Unknown head hash -> BUNDLE_NOT_AVAILABLE (still a location outcome).
         wrong = "atb://evidence/1/" + ("0" * 64) + "?seq=1"
         q = urllib.parse.quote(wrong, safe="")
         status, body = self.http_get(f"/api/v1/bundle/locate?locator={q}")
+        transport_err = body.get("transport_error")
         self.step(
             id="A6b",
             task="Resolve a locator whose head hash is not in the loaded bundle",
@@ -292,6 +313,7 @@ class Harness:
             result="PASS" if body.get("error_code") == "BUNDLE_NOT_AVAILABLE" else "FRICTION",
             path_class="PRODUCT_PATH",
             evidence={"http": status, "error_code": body.get("error_code")},
+            friction=transport_err if transport_err else "",
         )
         # Source representation changed -> reconcile records a bounded finding.
         edited = self.work / "edited.jsonl"
@@ -309,7 +331,11 @@ class Harness:
             records = []
         changed = [r for r in records if r["event"].get("type") == "atb.acquisition.finding"]
         ver = self.run("verify", "--bundle", str(self.bundle), "--format", "json")
-        still_valid = '"chain_valid": true' in ver.stdout
+        try:
+            ver_rep = json.loads(ver.stdout)
+        except Exception:
+            ver_rep = {}
+        still_valid = bool(ver_rep.get("gate_result", {}).get("chain_valid"))
         self.step(
             id="A6c",
             task="Re-import an edited copy of the same source (representation changed)",
@@ -359,8 +385,13 @@ def main() -> int:
     finally:
         h.stop()
 
-    results = [s["result"] for s in h.steps]
-    hard_fail = any(r == "FAIL" for r in results)
+    required_pass = all(
+        s["result"] == "PASS"
+        for s in h.steps
+        if s["path_class"] == "PRODUCT_PATH"
+    )
+    gate = "GO" if required_pass else "NO_GO"
+    exit_code = 0 if required_pass else 1
     report = {
         "schema_version": "atb.dev.run.v1",
         "harness": "end-user",
@@ -376,14 +407,16 @@ def main() -> int:
         },
         "steps": h.steps,
         "findings": h.findings,
-        "gates": {"ATB_PRODUCT_GATE": "NO_GO" if hard_fail else "GO"},
+        "gates": {"ATB_PRODUCT_GATE": gate},
     }
     text = json.dumps(report, indent=2)
     if args.out:
-        Path(args.out).write_text(text + "\n")
+        out_path = Path(args.out)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(text + "\n")
     print(text)
-    print(f"\n# ATB end-user harness: {'FAIL' if hard_fail else 'PASS'} ({len(h.steps)} steps, {len(h.findings)} findings)")
-    return 1 if hard_fail else 0
+    print(f"\n# ATB end-user harness: {'PASS' if required_pass else 'FAIL'} ({len(h.steps)} steps, {len(h.findings)} findings)")
+    return exit_code
 
 
 if __name__ == "__main__":

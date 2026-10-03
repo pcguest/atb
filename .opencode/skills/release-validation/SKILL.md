@@ -19,17 +19,16 @@ override these results.
 ## Bounded procedure (run in order; record raw results)
 
 1. `git diff --check`
-2. `make hygiene-quick`
-3. `make test-go` and `go test ./...`
-4. `make test-golden`
-5. `make demo-incident`
-6. Python SDK: `pytest sdk/python/tests`
-7. TypeScript SDK: typecheck + tests + build + consumer typecheck
-8. Web: lint, typecheck, unit tests, production build
-9. Acquisition: three-pass fixture, dedupe, changed source, finding idempotence,
+2. `make hygiene-quick` (already ends with `make test-go`)
+3. `make test-golden`
+4. `make demo-incident`
+5. Python SDK: `pytest sdk/python/tests`
+6. TypeScript SDK: typecheck + tests + build + consumer typecheck
+7. Web: lint, typecheck, unit tests, production build
+8. Acquisition: three-pass fixture, dedupe, changed source, finding idempotence,
    checkpoint restart/mismatch, legacy bundle, mixed retrospective/live, tamper
-10. Viewer: Firefox Cypress, strict axe, keyboard, desktop/narrow/small,
-    long digest, legacy bundle, mixed acquisition, SOURCE_RECORD_CHANGED
+9. Viewer: Firefox Cypress, strict axe, keyboard, desktop/narrow/small,
+   long digest, legacy bundle, mixed acquisition, SOURCE_RECORD_CHANGED
 
 ## Stop conditions
 

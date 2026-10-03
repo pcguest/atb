@@ -16,8 +16,8 @@ It is development tooling. **No ATB product code depends on it.**
 | Role contract | `.opencode/agent/` | yes | bounded responsibilities and output formats per agent |
 | Routing | `.opencode/opencode.jsonc` | yes (no secrets) | model routing and least-privilege permissions; single source of truth |
 | Executable validation | `harnesses/` | yes | deterministic product harnesses (end-user, interoperability, security, release) |
-| Run state | `.local/dev/` | no (ignored) | continuation records, ledgers, ephemeral reports |
-| Raw source material | `.local/` or scratch | no | chat exports / fixtures under review; never committed |
+| Run state | `.local/dev/` | no (ignored via `.gitignore`) | continuation records, ledgers, ephemeral reports |
+| Raw source material | `.local/` or scratch | no (ignored via `.gitignore`) | chat exports / fixtures under review; never committed |
 
 Rule of thumb: **architecture invariant → durable instruction; repeated
 procedure → skill; temporary state → local continuation record; changing

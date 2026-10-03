@@ -4,8 +4,8 @@
   // This file is the SINGLE SOURCE OF TRUTH for local model routing.
   // No ATB product code (Go/TS/Python) may contain model names.
   //
-  // Boundary: this directory is LOCAL development tooling only. It is
-  // excluded from git via .git/info/exclude. ATB must never depend on it.
+  // Boundary: this directory is LOCAL development tooling. It is committed
+  // in this branch as development harness configuration. ATB must never depend on it.
   //
   // Correct OpenCode keys: `agent` (singular), `permission`, `mcp`, `skills`.
   // The previous `agents` key and `permission.yaml` were NOT enforced by OpenCode.
@@ -49,21 +49,21 @@
       "mode": "subagent",
       "description": "Independent falsification reviewer. Different family from the implementer.",
       "prompt": ".opencode/agent/reviewer.md",
-      "permission": { "edit": "deny", "task": "deny" }
+      "permission": { "read": "allow", "edit": "deny", "bash": "deny", "task": "deny", "external_directory": "deny" }
     },
     "adversarial-reviewer": {
       "model": "opencode-go/minimax-m3",
       "mode": "subagent",
       "description": "Security/trust/edge-case adversarial reviewer. Read-only.",
       "prompt": ".opencode/agent/adversarial-reviewer.md",
-      "permission": { "edit": "deny", "task": "deny" }
+      "permission": { "read": "allow", "edit": "deny", "bash": "deny", "task": "deny", "external_directory": "deny" }
     },
     "practitioner": {
       "model": "opencode-go/mimo-v2.5",
       "mode": "subagent",
       "description": "Task-based unfamiliar-user simulation. Read-only; reports friction, never implements.",
       "prompt": ".opencode/agent/practitioner.md",
-      "permission": { "edit": "deny", "task": "deny" }
+      "permission": { "read": "allow", "edit": "deny", "bash": "deny", "task": "deny", "external_directory": "deny" }
     }
   },
 
@@ -88,7 +88,18 @@
       "git reset --hard*": "deny",
       "git clean*": "deny",
       "git restore*": "deny",
+      // Broad destructive-pattern denies (not only `rm -rf /*`).
       "rm -rf /*": "deny",
+      "rm -rf /": "deny",
+      "rm -f /*": "deny",
+      "rm -f /": "deny",
+      "rm --no-preserve-root*": "deny",
+      "dd if=* of=/dev/*": "deny",
+      "mkfs.*": "deny",
+      "mkfs* /dev/*": "deny",
+      "chmod -R 000 /": "deny",
+      "chmod -R 000 /*": "deny",
+      ":(){ :|:& };:": "deny",
       "curl*": "ask",
       "wget*": "ask",
       "ssh*": "deny",
