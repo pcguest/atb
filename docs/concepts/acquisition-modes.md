@@ -33,7 +33,7 @@ begins; the wire field is `event.acquisition.mode`, whose vocabulary is `live`,
 are not scored.
 
 > **Shipped vs proposed.** Today only **IMPORT** is implemented, and the only
-> mode ATB writes is `retrospective` (the chatlog importer). `atb capture run`
+> mode ATB writes is `retrospective` (the chatlog and OTel importers). `atb capture run`
 > and `atb intercept` exist but currently write **no** `acquisition` envelope.
 > START, ATTACH, and CONTINUOUS are direction only; their `live` mode is a
 > proposal, not current behaviour, and how the existing capture surfaces map to
