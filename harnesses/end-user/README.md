@@ -9,7 +9,7 @@ evidence locator, and probe bounded failure states.
 
 ```bash
 # Needs python3 and an `atb` binary (ATB_BIN, PATH, or ../../atb).
-harnesses/end-user/run.sh --atb /path/to/atb --out /tmp/atb-enduser-report.json
+harnesses/end-user/run.sh --atb /path/to/atb --out harnesses/end-user/atb-enduser.report.json
 ```
 
 Exit code 0 means every required step passed. The JSON report conforms to

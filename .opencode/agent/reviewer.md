@@ -37,18 +37,19 @@ Review the provided diff/evidence against:
 
 ## Output Format (Required)
 
+Compact, matching the operating-model subagent contract:
+
 ```
-BLOCKING
-[Evidence: file:line, test failure, security issue, boundary violation]
+STATUS: REVIEWED | BLOCKED | NEEDS_INFO
+FINDINGS:
+BLOCKING: [Evidence: file:line, test failure, security issue, boundary violation]
+NON_BLOCKING: [Evidence: minor inconsistency, style, documentation clarity]
+QUESTION: [Specific uncertainty requiring clarification]
+NO_FINDING: [No issues found in the reviewed scope]
 
-NON_BLOCKING
-[Evidence: minor inconsistency, style, documentation clarity]
-
-QUESTION
-[Specific uncertainty requiring clarification]
-
-NO_FINDING
-[No issues found in the reviewed scope]
+EVIDENCE_REFS: [file:line, test name, doc section]
+BLOCKERS: [List of blocking issues]
+FOLLOW_UP: [Recommended next steps]
 ```
 
 ## Constraints

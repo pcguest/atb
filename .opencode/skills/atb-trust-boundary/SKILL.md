@@ -29,8 +29,8 @@ correctness, causality, safety, or absence of uncaptured activity.
    - Mortise = private, execution/control/governance authority.
    - Tenon = private, longitudinal/system continuity.
    - Jev = probabilistic typed decision primitive, advisory only.
-5. Enforce invariant: JEV MAY ANALYSE ATB EVIDENCE; ATB MUST NOT DEPEND ON JEV
-   TO ESTABLISH THAT EVIDENCE IS VALID.
+5. Enforce this skill-level guardrail (not a canonical claim): JEV MAY ANALYSE
+   ATB EVIDENCE; ATB MUST NOT DEPEND ON JEV TO ESTABLISH THAT EVIDENCE IS VALID.
 
 ## Stop conditions
 

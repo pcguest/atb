@@ -9,8 +9,16 @@
     "schema_version": { "const": "atb.dev.run.v1" },
     "harness": { "enum": ["end-user", "interoperability", "security", "release"] },
     "product": { "enum": ["atb", "mortise", "atb+mortise"] },
-    "started_at": { "type": "string", "format": "date-time" },
-    "finished_at": { "type": "string", "format": "date-time" },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+    },
     "environment": {
       "type": "object",
       "properties": {
