@@ -113,21 +113,37 @@ jobs:
             if (Test-Path $d) { Remove-Item -Recurse -Force $d }
           }
 
+      - name: Gate self-test (deterministic)
+        run: bash scripts/test-npm-audit-gate.sh
+
       - name: Install TypeScript SDK dependencies
         working-directory: sdk/typescript
         run: npm ci
 
-      - name: Run npm audit (HIGH/CRITICAL) — TypeScript SDK
+      # Two-signal Node dependency model (see docs/maintainers/security-gate-policy.md):
+      #   runtime    production HIGH/CRITICAL is release-blocking (fail-closed);
+      #   visibility the full tree is reported, including development/build-only
+      #              advisories, without blocking release. Both signals fail closed
+      #              on an audit execution failure.
+      - name: Runtime dependency audit (release-blocking) — TypeScript SDK
         working-directory: sdk/typescript
-        run: npm audit --audit-level=high
+        run: node ../../scripts/npm-audit-gate.mjs runtime
+
+      - name: Full-tree dependency audit (visibility) — TypeScript SDK
+        working-directory: sdk/typescript
+        run: node ../../scripts/npm-audit-gate.mjs visibility
 
       - name: Install web UI dependencies
         working-directory: web
         run: npm ci
 
-      - name: Run npm audit (HIGH/CRITICAL) — web UI
+      - name: Runtime dependency audit (release-blocking) — web UI
         working-directory: web
-        run: npm audit --audit-level=high
+        run: node ../scripts/npm-audit-gate.mjs runtime
+
+      - name: Full-tree dependency audit (visibility) — web UI
+        working-directory: web
+        run: node ../scripts/npm-audit-gate.mjs visibility
 
   # Layer D: scheduled/manual filesystem vulnerability sweep; no Docker image build required.
   trivy-fs:
