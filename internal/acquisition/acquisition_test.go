@@ -13,6 +13,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	capturepkg "github.com/pcguest/atb/internal/capture"
 	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/internal/hash"
 )
 
 func fixturePath(t *testing.T, name string) string {
@@ -387,4 +388,110 @@ func TestLegacyBundleWithoutAcquisition(t *testing.T) {
 	if _, err := bundle.LoadVerified(bundlePath); err != nil {
 		t.Fatalf("LoadVerified after refused legacy reconcile: %v", err)
 	}
+}
+
+// TestLegacyBundleNoOpReconcileAllowed pins the other half of the
+// manifest-version floor: the refusal is only justified when an
+// acquisition-bearing record would actually be written. A pre-v3 bundle that
+// already contains the imported source records (as written by a build that
+// predates the v3 declaration) reconciles as UNCHANGED, writes nothing, and so
+// must not be refused.
+func TestLegacyBundleNoOpReconcileAllowed(t *testing.T) {
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "v3.atb")
+
+	// Produce a bundle whose records carry acquisition, using the current writer.
+	importPass(t, srcPath, fixturePath(t, "pass1.jsonl"), true)
+	src, err := bundle.Load(srcPath)
+	if err != nil {
+		t.Fatalf("load v3 bundle: %v", err)
+	}
+
+	// Rebuild the same records as a pre-v3 bundle: a v1 manifest plus identical
+	// acquisition-bearing events. This models a bundle written before the v3
+	// declaration, when the acquisition envelope already participated in the
+	// canonical hash but the manifest still declared v1.
+	legacy, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new legacy bundle: %v", err)
+	}
+	for _, rec := range src.Records {
+		if rec.Event.Type == bundle.ManifestEventType {
+			continue
+		}
+		appendLegacyAcquisitionRecord(t, legacy, rec)
+	}
+	legacyPath := filepath.Join(dir, "legacy.atb")
+	if err := legacy.Save(legacyPath); err != nil {
+		t.Fatalf("save legacy bundle: %v", err)
+	}
+	if _, err := bundle.LoadVerified(legacyPath); err != nil {
+		t.Fatalf("legacy LoadVerified: %v", err)
+	}
+
+	beforeBytes, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatalf("read legacy before import: %v", err)
+	}
+	beforeCount := recordCount(t, legacyPath)
+
+	// A reconcile that changes nothing must succeed and write nothing, even
+	// though the bundle is pre-v3 and its records carry acquisition.
+	res, err := ImportChatlog(context.Background(), ImportOptions{
+		Format:        capturepkg.FormatGenericJSONL,
+		InputPath:     fixturePath(t, "pass1.jsonl"),
+		BundlePath:    legacyPath,
+		MaxInputBytes: 1 << 20,
+		Reconcile:     true,
+	})
+	if err != nil {
+		t.Fatalf("no-op reconcile on pre-v3 bundle: %v", err)
+	}
+	if res.EventsWritten != 0 {
+		t.Fatalf("no-op reconcile wrote %d events, want 0", res.EventsWritten)
+	}
+	if res.UnchangedCount != 2 {
+		t.Fatalf("no-op reconcile unchanged = %d, want 2", res.UnchangedCount)
+	}
+	if got := recordCount(t, legacyPath); got != beforeCount {
+		t.Fatalf("no-op reconcile changed record count: before %d, after %d", beforeCount, got)
+	}
+	if _, err := bundle.LoadVerified(legacyPath); err != nil {
+		t.Fatalf("LoadVerified after no-op reconcile: %v", err)
+	}
+	afterBytes, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatalf("read legacy after import: %v", err)
+	}
+	if !bytes.Equal(beforeBytes, afterBytes) {
+		t.Fatal("no-op reconcile mutated the pre-v3 bundle bytes")
+	}
+}
+
+// appendLegacyAcquisitionRecord copies one acquisition-bearing event onto a
+// pre-v3 bundle without passing through the bundle-layer floor (which refuses
+// acquisition on a v1/v2 manifest), reconstructing the exact on-disk shape a
+// pre-v3 writer produced: event data plus acquisition, hashed under the
+// canonical profile of the time.
+func appendLegacyAcquisitionRecord(t *testing.T, b *bundle.Bundle, src bundle.Record) {
+	t.Helper()
+	e := src.Event
+	if err := b.AppendWithOptions(e.Type, e.Data, &bundle.AppendOptions{
+		ActorID:      e.ActorID,
+		OrgID:        e.OrgID,
+		WorkspaceID:  e.WorkspaceID,
+		Timestamp:    e.Timestamp,
+		TraceID:      e.TraceID,
+		SpanID:       e.SpanID,
+		ParentSpanID: e.ParentSpanID,
+	}); err != nil {
+		t.Fatalf("append legacy event %s: %v", e.Type, err)
+	}
+	rec := &b.Records[len(b.Records)-1]
+	rec.Event.Acquisition = e.Acquisition
+	h, err := hash.Compute(rec.Event)
+	if err != nil {
+		t.Fatalf("hash legacy event %s: %v", e.Type, err)
+	}
+	rec.Hash = h
 }
