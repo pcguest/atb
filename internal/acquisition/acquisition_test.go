@@ -468,6 +468,73 @@ func TestLegacyBundleNoOpReconcileAllowed(t *testing.T) {
 	}
 }
 
+// TestLegacyBundleChangedReconcileRefused pins the complement of
+// TestLegacyBundleNoOpReconcileAllowed: when a reconcile against a pre-v3
+// bundle WOULD write an acquisition-bearing record (a changed source record or
+// a new one), the manifest floor is enforced and the operation is refused
+// rather than silently writing v3 canonical semantics into a legacy bundle.
+func TestLegacyBundleChangedReconcileRefused(t *testing.T) {
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "v3.atb")
+
+	// Reconstruct pass1 (A1, B1) as a pre-v3 bundle carrying acquisition.
+	importPass(t, srcPath, fixturePath(t, "pass1.jsonl"), true)
+	src, err := bundle.Load(srcPath)
+	if err != nil {
+		t.Fatalf("load v3 bundle: %v", err)
+	}
+
+	legacy, err := bundle.New()
+	if err != nil {
+		t.Fatalf("new legacy bundle: %v", err)
+	}
+	for _, rec := range src.Records {
+		if rec.Event.Type == bundle.ManifestEventType {
+			continue
+		}
+		appendLegacyAcquisitionRecord(t, legacy, rec)
+	}
+	legacyPath := filepath.Join(dir, "legacy.atb")
+	if err := legacy.Save(legacyPath); err != nil {
+		t.Fatalf("save legacy bundle: %v", err)
+	}
+	if _, err := bundle.LoadVerified(legacyPath); err != nil {
+		t.Fatalf("legacy LoadVerified: %v", err)
+	}
+
+	beforeBytes, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatalf("read legacy before import: %v", err)
+	}
+	beforeCount := recordCount(t, legacyPath)
+
+	// pass2 changes B1->B2 and adds C1, so this reconcile must write records.
+	_, err = ImportChatlog(context.Background(), ImportOptions{
+		Format:        capturepkg.FormatGenericJSONL,
+		InputPath:     fixturePath(t, "pass2.jsonl"),
+		BundlePath:    legacyPath,
+		MaxInputBytes: 1 << 20,
+		Reconcile:     true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "manifest version < 3") {
+		t.Fatalf("changed reconcile on pre-v3 bundle: want manifest-version-floor error, got %v", err)
+	}
+
+	afterBytes, err := os.ReadFile(legacyPath)
+	if err != nil {
+		t.Fatalf("read legacy after refused import: %v", err)
+	}
+	if !bytes.Equal(beforeBytes, afterBytes) {
+		t.Fatal("refused changed reconcile mutated the pre-v3 bundle bytes")
+	}
+	if got := recordCount(t, legacyPath); got != beforeCount {
+		t.Fatalf("refused changed reconcile changed record count: before %d, after %d", beforeCount, got)
+	}
+	if _, err := bundle.LoadVerified(legacyPath); err != nil {
+		t.Fatalf("LoadVerified after refused changed reconcile: %v", err)
+	}
+}
+
 // appendLegacyAcquisitionRecord copies one acquisition-bearing event onto a
 // pre-v3 bundle without passing through the bundle-layer floor (which refuses
 // acquisition on a v1/v2 manifest), reconstructing the exact on-disk shape a
