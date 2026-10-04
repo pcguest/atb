@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Security
+- Hardened the Python release/publishing toolchain: regenerated `sdk/python/requirements-release.txt` so `urllib3` advances from `2.7.0` to `2.8.0`, remediating `PYSEC-2026-4175`, `PYSEC-2026-4176`, and `PYSEC-2026-4177` (all fixed in `2.8.0`). This is release-tooling/supply-chain hardening; it does not change the SDK runtime dependency graph or any product behaviour.
+- Added a pinned `pip-audit` dependency gate (`scripts/pip-audit-gate.sh`, `pip-audit==2.10.1`) that audits the release-tooling lock, the SDK runtime dependency graph (`sdk/python/requirements-runtime.txt`, compiled from `pyproject.toml`), and the security-tooling lock itself, with `--no-deps --strict`, and fails closed (exit `2`) if the tool is unavailable. It is additive to the existing Bandit source scan, which is unchanged. The runtime lock is pinned at the audit interpreter (3.11) because pip-audit requires Python 3.10+ and skips marker-guarded entries; the Python 3.9 install path is proven by the "Python 3.9 Runtime Compatibility" job.
 
 ## [v1.17.0] - 2026-10-05
 

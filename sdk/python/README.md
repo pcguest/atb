@@ -20,8 +20,11 @@ python -m pip install -e .[dev] --no-deps
 ```
 
 Release tooling is intentionally separate in `requirements-release.txt`; it is
-not required for normal SDK development. CI-only Bandit dependencies are kept
-in `requirements-security.txt`.
+not required for normal SDK development. `requirements-runtime.txt` pins the
+SDK's own runtime dependency graph. CI-only security tooling (Bandit for
+source SAST and pip-audit for dependency advisories) is kept in
+`requirements-security.txt`; see
+`docs/maintainers/security-gate-policy.md`.
 
 ## Quick example
 
