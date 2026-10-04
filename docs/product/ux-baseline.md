@@ -19,8 +19,9 @@ those instead.
   locally, gitignored.
 - Tenon `07cf627`: **docs-only** (README, docs/, evaluation/ metadata, Python
   doc/contract validators). No module manifest, no runtime, no ActionRequest
-  acceptor. Programme state Phase 0 "foundation-established". No
-  `TENON_IMPLEMENTATION_GATE` exists.
+  acceptor. Programme state Phase 0 "foundation-established". With no runtime,
+  the programme-level `TENON_IMPLEMENTATION_GATE` stands at `NO_GO` (see D7 and
+  §8); it is a programme gate, not a Tenon code artifact.
 - Security: `braces` `GHSA-vfj7-8cjw-p6xm` remains the sole web HIGH root
   (dev/build-only, no upstream fix); #41 `Node Security` red, `Trivy FS` green.
 - `ActionRequest` has **no HTTP create route** (Mortise H-MOR-01 open); H-MOR-02
@@ -164,11 +165,12 @@ Rule: improve **explanatory labels** before changing domain names.
 
 A synthetic practitioner (P4 auditor / P2 governance reviewer) ran the real
 surfaces (Mortise on `:9095`; source-built ATB viewer on `:18080`) plus code.
-Findings confirmed/refined against §25 observations:
+Findings were confirmed/refined against the Phase UX-0 archaeology and code
+inspection above:
 
 | # | Sev | Finding | Owner |
 |---|---|---|---|
-| V1 | HIGH | Mortise governance has **no UI path to start a review** (empty queue; no create-observation control). B1–B4 cannot be exercised by a user. | GOVERNANCE |
+| V1 | HIGH | Mortise governance has **no UI path to start a review** (empty queue; no create-observation control). The review→decision flow cannot be exercised by a user. | GOVERNANCE |
 | V2 | HIGH | The **installed ATB binary without an embedded build serves only "UI not available"**; practitioners must rebuild from source to get the viewer. | EVIDENCE |
 | V3 | MED | ATB Run **"Evidence coverage 80%"** can read as capture completeness; the profile-scoped bound lives only on Evidence status. | EVIDENCE |
 | V4 | MED | Mortise queue **"Success"** (observation status) is the loudest signal and can be misread as evidence/governance validity. | GOVERNANCE |
@@ -177,7 +179,7 @@ Findings confirmed/refined against §25 observations:
 | V7 | MED | ATB Evidence/Timeline open **full canonical JSON + hashes at selection default** (forensic depth before orientation). | EVIDENCE |
 | V8 | LOW | ATB surface switches do not retain **search/filter or nav return-path**; locator focus without `record=` reports `record_hash_matched:false` while still selecting seq. | EVIDENCE |
 
-These **confirm** most of §25 and add V2/V4. None change the product-boundary
+These **confirm** most of the Phase UX-0 archaeology and add V2/V4. None change the product-boundary
 architecture; V1 is a product-coverage gap, not a doctrine change.
 
 ## 6. Current user journeys
@@ -207,8 +209,8 @@ Current products frequently expose **L3 before L1**.
 
 ## 8. Gates
 
-- `PRODUCT_UX_ARCHITECTURE_GATE` — this document + independent review (see
-  report).
+- `PRODUCT_UX_ARCHITECTURE_GATE` — this document (Phase UX-0 archaeology);
+  independent review is pending a linked report.
 - `ATB_INVESTIGATION_UX_GATE`, `ATB_FORENSIC_UX_GATE`,
   `MORTISE_GOVERNANCE_UX_GATE`, `MORTISE_REVIEW_UX_GATE`,
   `ATB_MORTISE_PRODUCT_JOURNEY_GATE`, `ATB_PUBLIC_WEB_GATE` — **NOT_STARTED**.

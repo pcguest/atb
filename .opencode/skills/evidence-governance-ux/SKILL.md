@@ -1,6 +1,6 @@
 ---
 name: evidence-governance-ux
-description: Use when changing any human-facing ATB or Mortise surface (viewer, embedded UI, governance UI, CLI output that presents evidence/governance state). Acts as a GATE over UX changes, not an autonomous design agent. Trigger on: viewer/app/router changes, governance review/decision/action UI, evidence-status copy, cross-product ATB↔Mortise handoff, terminology visible to users, empty/loading/error states, progressive disclosure, data density, accessibility of the operational product.
+description: "Use when changing any human-facing ATB or Mortise surface (viewer, embedded UI, governance UI, CLI output that presents evidence/governance state). Acts as a GATE over UX changes, not an autonomous design agent. Trigger on: viewer/app/router changes, governance review/decision/action UI, evidence-status copy, cross-product ATB↔Mortise handoff, terminology visible to users, empty/loading/error states, progressive disclosure, data density, accessibility of the operational product."
 ---
 
 # Evidence / Governance UX Gate
@@ -60,7 +60,9 @@ stated reason.
 - Any "trust score", "safe", "true", "AI verified", "definitely malicious", percentage-confidence-as-verdict.
 - Presenting an **interpretation** (model/evaluator observation) as an approved outcome.
 - Any surface that implies an **ActionRequest executed** (there is no executor).
-- Adding an **"Approve" / action** control to ATB.
+- Adding an **approval / decision / authorisation** control to ATB. (ATB may
+  offer capture, export, verify, and reference operations; it must never
+  approve, decide, or authorise, and must not present those operations as such.)
 - Revealing private fields by **hover/accident**, or without explaining the consequence.
 - Treating **location unavailable** as **integrity failed**, or **not recorded** as **did not occur**.
 - Treating **relationship** as **causation**, or **successful parse** as **approved/correct/safe**.
@@ -96,6 +98,11 @@ FINDINGS: <bounded, each with screen + severity>
 INVARIANTS_AT_RISK: <list or none>
 ```
 
-`BLOCK` when the change would cross a layer boundary, fabricate state, imply
-execution, or collapse a distinction above. `NEEDS_WORK` when the layer is
-correct but questions 3–18 have gaps. `GO` only when all 18 are satisfied.
+`BLOCK` when the change would **violate** a layer boundary — a surface claiming
+or performing another layer's job (ATB deciding, Mortise executing, ACTION
+implying a live executor) — fabricate state, imply execution, or collapse a
+distinction above. A legitimate, explicit, context-preserving ownership
+transition (for example an ATB→Mortise handoff that answers Q16) is **not** a
+boundary violation. `NEEDS_WORK` when no `BLOCK` condition applies but any of
+questions 1–18 has a gap; a wrong or absent owner layer is already routed to
+`BLOCK` by the guard above. `GO` only when all 18 are satisfied.
