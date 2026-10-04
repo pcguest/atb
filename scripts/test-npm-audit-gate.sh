@@ -59,13 +59,41 @@ cat > "$tmp/inconsistent.json" <<'JSON'
 }
 JSON
 
+# metadata counts must be non-negative integers; a non-numeric count must not
+# silently become NaN and let a HIGH finding pass.
+cat > "$tmp/nonnumeric.json" <<'JSON'
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": { "example-pkg": { "severity": "high", "via": [{ "title": "Synthetic high advisory" }] } },
+  "metadata": { "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": "7", "critical": 0, "total": "7" } }
+}
+JSON
+
 printf 'not json' > "$tmp/bad.json"
 
-node "$gate" runtime --report "$tmp/high.json" >/dev/null 2>&1
+run_out="$(node "$gate" runtime --report "$tmp/high.json" 2>&1)"
 check "runtime HIGH blocks" 1 $?
+if printf '%s' "$run_out" | grep -q "RUNTIME_HIGH_CRITICAL"; then
+  echo "ok: runtime output contains RUNTIME_HIGH_CRITICAL marker"
+else
+  echo "FAIL: runtime output missing RUNTIME_HIGH_CRITICAL marker"
+  fail=1
+fi
 
-node "$gate" visibility --report "$tmp/high.json" >/dev/null 2>&1
+vis_out="$(node "$gate" visibility --report "$tmp/high.json" 2>&1)"
 check "visibility reports HIGH without blocking" 0 $?
+if printf '%s' "$vis_out" | grep -q "DEVELOPMENT_VISIBILITY"; then
+  echo "ok: visibility output contains DEVELOPMENT_VISIBILITY marker"
+else
+  echo "FAIL: visibility output missing DEVELOPMENT_VISIBILITY marker"
+  fail=1
+fi
+if printf '%s' "$vis_out" | grep -q "example-pkg"; then
+  echo "ok: visibility output names the HIGH advisory"
+else
+  echo "FAIL: visibility output does not name the HIGH advisory"
+  fail=1
+fi
 
 node "$gate" runtime --report "$tmp/clean.json" >/dev/null 2>&1
 check "runtime clean passes" 0 $?
@@ -84,6 +112,9 @@ check "unparseable report fails closed" 2 $?
 
 node "$gate" runtime --report "$tmp/inconsistent.json" >/dev/null 2>&1
 check "inconsistent report fails closed (runtime)" 2 $?
+
+node "$gate" runtime --report "$tmp/nonnumeric.json" >/dev/null 2>&1
+check "non-numeric metadata fails closed" 2 $?
 
 node "$gate" visibility --report "$tmp/inconsistent.json" >/dev/null 2>&1
 check "inconsistent report fails closed (visibility)" 2 $?

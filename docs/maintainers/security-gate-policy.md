@@ -37,9 +37,10 @@ npm audit --json --omit=dev
 npm audit --json --include=dev
 ```
 
-- The full dependency tree is always audited and its findings are printed in
-  CI, so unresolved development/build advisories remain **visible and
-  auditable**.
+- The full dependency tree is always audited. CI prints aggregate counts plus
+  the name and advisory title of every HIGH/CRITICAL finding; lower-severity
+  findings are counted but not individually listed. Unresolved development/build
+  advisories therefore remain **visible and auditable**.
 - The scope is forced with `--include=dev`, which overrides an `omit`/`production`
   config, so the visibility signal cannot be silently reduced to production
   only.
@@ -124,7 +125,13 @@ not rely on this policy.
 ## Verifying locally
 
 ```bash
-cd web   # or sdk/typescript
+# Web UI
+cd web
 node ../scripts/npm-audit-gate.mjs runtime     # release-blocking signal
 node ../scripts/npm-audit-gate.mjs visibility  # full-tree visibility signal
+
+# TypeScript SDK
+cd sdk/typescript
+node ../../scripts/npm-audit-gate.mjs runtime
+node ../../scripts/npm-audit-gate.mjs visibility
 ```

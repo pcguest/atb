@@ -66,8 +66,16 @@ function loadReport() {
 
   const args = ["audit", "--json", omitDev ? "--omit=dev" : "--include=dev"];
   const env = { ...process.env };
-  for (const key of ["NPM_CONFIG_OMIT", "NPM_CONFIG_PRODUCTION", "NPM_CONFIG_ONLY", "NPM_CONFIG_INCLUDE"]) {
-    delete env[key];
+  // npm reads npm_config_* environment config case-insensitively; clear the
+  // keys that could override the forced tree scope.
+  const scopeConfigKeys = new Set([
+    "npm_config_omit",
+    "npm_config_production",
+    "npm_config_only",
+    "npm_config_include",
+  ]);
+  for (const key of Object.keys(env)) {
+    if (scopeConfigKeys.has(key.toLowerCase())) delete env[key];
   }
 
   const run = spawnSync("npm", args, { encoding: "utf8", env });
@@ -113,7 +121,24 @@ for (const entry of Object.values(report.vulnerabilities || {})) {
   if (severity && severity in objectCounts) objectCounts[severity] += 1;
 }
 
-const metaHighCritical = (meta.high || 0) + (meta.critical || 0);
+function finiteCount(label, value) {
+  if (value === undefined || value === null) return 0;
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    console.error(
+      `AUDIT_EXECUTION_FAILURE: metadata.vulnerabilities.${label} is not a non-negative integer ` +
+        `(${JSON.stringify(value)}); failing closed`,
+    );
+    process.exit(EXIT_EXECUTION_FAILURE);
+  }
+  return value;
+}
+
+const metaCounts = {};
+for (const severity of ["info", "low", "moderate", "high", "critical", "total"]) {
+  metaCounts[severity] = finiteCount(severity, meta[severity]);
+}
+
+const metaHighCritical = metaCounts.high + metaCounts.critical;
 const objectHighCritical = objectCounts.high + objectCounts.critical;
 if (objectHighCritical > 0 && metaHighCritical === 0) {
   console.error(
@@ -123,13 +148,13 @@ if (objectHighCritical > 0 && metaHighCritical === 0) {
   process.exit(EXIT_EXECUTION_FAILURE);
 }
 
-const high = Math.max(meta.high || 0, objectCounts.high);
-const critical = Math.max(meta.critical || 0, objectCounts.critical);
+const high = Math.max(metaCounts.high, objectCounts.high);
+const critical = Math.max(metaCounts.critical, objectCounts.critical);
 const scope = omitDev ? "production/runtime dependencies" : "full dependency tree";
 
 console.log(
-  `npm audit (${scope}): ${meta.total || 0} vulnerable ` +
-    `(info ${meta.info || 0}, low ${meta.low || 0}, moderate ${meta.moderate || 0}, ` +
+  `npm audit (${scope}): ${metaCounts.total} vulnerable ` +
+    `(info ${metaCounts.info}, low ${metaCounts.low}, moderate ${metaCounts.moderate}, ` +
     `high ${high}, critical ${critical})`,
 );
 
