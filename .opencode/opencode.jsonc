@@ -88,11 +88,13 @@
       "git reset --hard*": "deny",
       "git clean*": "deny",
       "git restore*": "deny",
-      // Broad destructive-pattern denies (not only `rm -rf /*`).
-      "rm -rf /*": "deny",
-      "rm -rf /": "deny",
-      "rm -f /*": "deny",
-      "rm -f /": "deny",
+      // Any `rm` asks; recursive+force deletion is denied regardless of target.
+      // Last matching rule wins, so the broad ask precedes the specific denials.
+      "rm *": "ask",
+      "rm -rf*": "deny",
+      "rm -fr*": "deny",
+      "rm -r -f*": "deny",
+      "rm -f -r*": "deny",
       "rm --no-preserve-root*": "deny",
       "dd if=* of=/dev/*": "deny",
       "mkfs.*": "deny",

@@ -38,7 +38,7 @@ this branch as development harness configuration. ATB product code must never de
 
 - `opencode debug agent <name>` for all 6 agents → correct provider/model from config.
 - `opencode debug skill` → all 7 project skills discovered at `.opencode/skills/`.
-- `git check-ignore` → `.opencode/` now locally excluded.
+- `git ls-files .opencode/` → all harness files (config, agents, skills, this ledger) are tracked in this branch as committed development tooling. `.git/info/exclude` continues to exclude `.local/` only; `git check-ignore` reports already-tracked paths only for the untracked `.local/` tree, never for committed `.opencode/` files.
 
 ## Context architecture (target)
 
