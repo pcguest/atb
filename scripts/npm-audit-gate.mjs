@@ -78,7 +78,14 @@ function loadReport() {
     if (scopeConfigKeys.has(key.toLowerCase())) delete env[key];
   }
 
-  const run = spawnSync("npm", args, { encoding: "utf8", env });
+  // Bounded so a stalled registry fails closed promptly and a large report is
+  // not truncated into a spurious child error.
+  const run = spawnSync("npm", args, {
+    encoding: "utf8",
+    env,
+    timeout: 120_000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
   if (run.error) {
     console.error(`AUDIT_EXECUTION_FAILURE: cannot run npm: ${run.error.message}`);
     process.exit(EXIT_EXECUTION_FAILURE);
