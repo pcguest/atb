@@ -1,6 +1,6 @@
 ---
 name: atb-trust-boundary
-description: Use when a change could alter what ATB claims to prove or when reasoning about evidence authority. Covers the ATB epistemic boundary (integrity not truth), the public/private product boundary (ATB vs Mortise/Tenon), and the Jev advisory boundary. Trigger on: verification claims, "trust"/"score" wording, completeness/truth/causality language, Mortise/Tenon features in ATB, Jev influencing ATB verification.
+description: "Use when a change could alter what ATB claims to prove or when reasoning about evidence authority. Covers the ATB epistemic boundary (integrity not truth), the public/private product boundary (ATB vs Mortise/Tenon), and the Jev advisory boundary. Trigger on: verification claims, \"trust\"/\"score\" wording, completeness/truth/causality language, Mortise/Tenon features in ATB, Jev influencing ATB verification."
 ---
 
 # ATB Trust Boundary
@@ -21,8 +21,9 @@ correctness, causality, safety, or absence of uncaptured activity.
 ## Bounded procedure
 
 1. Identify the exact claim the change makes (sentence, field, label, finding).
-2. Classify it: PROVEN (hash-chain/order/signature), OBSERVED (captured
-   events/findings), or INTERPRETED (practitioner priority).
+2. Classify it: PROVEN (hash-chain/order, and signatures verified against
+   independently controlled keys), OBSERVED (captured events/findings), or
+   INTERPRETED (practitioner priority).
 3. Reject any INTERPRETED claim presented as PROVEN.
 4. Check product boundary:
    - ATB = public, deterministic evidence/integrity.

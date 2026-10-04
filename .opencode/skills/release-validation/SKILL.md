@@ -1,6 +1,6 @@
 ---
 name: release-validation
-description: Use before declaring a slice complete or before any remote step. Covers the canonical deterministic validation gates for ATB, web, SDKs, and acquisition. Trigger on: "is it done", final validation, pre-commit, pre-PR, hygiene, golden, demo-incident, web build, SDK tests.
+description: "Use before declaring a slice complete or before any remote step. Covers the canonical deterministic validation gates for ATB, web, SDKs, and acquisition. Trigger on: \"is it done\", final validation, pre-commit, pre-PR, hygiene, golden, demo-incident, web build, SDK tests."
 ---
 
 # Release Validation
@@ -22,13 +22,12 @@ override these results.
 2. `make hygiene-quick` (already ends with `make test-go`)
 3. `make test-golden`
 4. `make demo-incident`
-5. Python SDK: `pytest sdk/python/tests`
-6. TypeScript SDK: typecheck + tests + build + consumer typecheck
-7. Web: lint, typecheck, unit tests, production build
-8. Acquisition: three-pass fixture, dedupe, changed source, finding idempotence,
-   checkpoint restart/mismatch, legacy bundle, mixed retrospective/live, tamper
-9. Viewer: Firefox Cypress, strict axe, keyboard, desktop/narrow/small,
-   long digest, legacy bundle, mixed acquisition, SOURCE_RECORD_CHANGED
+5. End-user harness: `harnesses/end-user/run.sh --out .local/dev/atb-enduser.report.json`
+6. Python SDK: `.venv/bin/python -m pytest sdk/python/tests`
+7. TypeScript SDK: `npm --prefix sdk/typescript run typecheck && npm --prefix sdk/typescript test && npm --prefix sdk/typescript run build`
+8. Web: `npm --prefix web run lint && npm --prefix web run typecheck && npm --prefix web test && npm --prefix web run build`
+9. Acquisition: `go test ./internal/acquisition/...`
+10. Viewer: `make test-e2e` and `npm --prefix web run test:a11y`
 
 ## Stop conditions
 
@@ -44,7 +43,8 @@ override these results.
 
 ## Tests / checks
 
-Exactly the commands above. Loopback binding may require elevated local-listener
+Run the exact invocations listed in the steps above; each numbered item is a
+literal command. Loopback binding may require elevated local-listener
 permission; a sandbox denial is not a product failure, but must be reported as
 such rather than as a pass.
 

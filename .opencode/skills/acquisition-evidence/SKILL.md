@@ -1,6 +1,6 @@
 ---
 name: acquisition-evidence
-description: Use when working on acquisition continuity — source provenance, source digests, checkpoints, reconciliation, retrospective vs live capture, and re-import. Trigger on: import chatlog/otel, --continue, --reconcile, --checkpoint, SourceIdentity, AcquisitionInfo, source_record_changed, SOURCE_RECORD_CHANGED, checkpoint mismatch/staleness, dedupe, source mutation.
+description: "Use when working on acquisition continuity — source provenance, source digests, checkpoints, reconciliation, retrospective vs live capture, and re-import. Trigger on: import chatlog/otel, --continue, --reconcile, --checkpoint, SourceIdentity, AcquisitionInfo, source_record_changed, SOURCE_RECORD_CHANGED, checkpoint mismatch/staleness, dedupe, source mutation."
 ---
 
 # Acquisition Evidence
@@ -30,9 +30,12 @@ capture supports.
 
 1. Keep SourceIdentity stable and explicit (`system` + `record_id`, `derived` flag).
 2. Ensure digests are computed from the raw source representation before translation.
-3. On re-import: UNCHANGED is skipped (idempotent); CHANGED persists a finding;
-   NEW is appended; UNKNOWN is treated as new and counted.
-4. Checkpoint save is atomic; load validates source system/stream/adapter.
+3. With `--reconcile`: UNCHANGED records are skipped (idempotent); CHANGED
+   records append a finding and the new representation; NEW/UNKNOWN records
+   append, with UNKNOWN counted separately. A plain import (no `--reconcile`)
+   appends every record.
+4. Checkpoint save is atomic; on `--continue`/`--reconcile`, load validates
+   source system/stream/adapter.
 5. Never fabricate raw-source availability. Report availability honestly.
 6. Legacy/bundle compatibility: absent acquisition fields must degrade gracefully.
 

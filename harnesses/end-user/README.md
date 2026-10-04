@@ -9,7 +9,7 @@ evidence locator, and probe bounded failure states.
 
 ```bash
 # Needs python3 and an `atb` binary (ATB_BIN, PATH, or ../../atb).
-harnesses/end-user/run.sh --atb /path/to/atb --out harnesses/end-user/atb-enduser.report.json
+harnesses/end-user/run.sh --atb /path/to/atb --out .local/dev/atb-enduser.report.json
 ```
 
 Exit code 0 means every required step passed. The JSON report conforms to
@@ -31,7 +31,9 @@ Exit code 0 means every required step passed. The JSON report conforms to
 `fixtures/development-session.jsonl` is a **REPRESENTATIVE_FIXTURE** synthesised
 from a small, non-sensitive excerpt of the ATB/Mortise development workflow. It
 contains no secrets, credentials, or private chat content. The harness never
-commits raw source material and writes only to a scratch directory.
+commits raw source material; transient work files go to a temp directory
+(`--work`) and the JSON report is written to the caller-selected `--out` path
+(prefer the gitignored `.local/dev/`).
 
 ## Known friction (recorded, not hidden)
 

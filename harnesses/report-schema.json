@@ -43,6 +43,7 @@
     },
     "steps": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "required": ["id", "task", "result", "path_class"],
@@ -87,6 +88,7 @@
     },
     "gates": {
       "type": "object",
+      "minProperties": 1,
       "properties": {
         "ATB_PRODUCT_GATE": { "enum": ["GO", "NO_GO", "CONDITIONAL"] },
         "MORTISE_PRODUCT_GATE": { "enum": ["GO", "NO_GO", "CONDITIONAL"] },

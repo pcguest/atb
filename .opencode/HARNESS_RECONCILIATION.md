@@ -4,9 +4,10 @@ Date: 2026-09-23
 Scope: LOCAL OpenCode development harness only. `.opencode/` is committed in
 this branch as development harness configuration. ATB product code must never depend on this harness.
 
-## Starting state (verified, not assumed)
+## Starting state (historical snapshot, 2026-09-23)
 
-- Branch `feat/acquisition-continuity`, HEAD `d5bd611`, `origin/main` `ebcb97d`.
+- At capture time on branch `feat/acquisition-continuity`, local HEAD was
+  `d5bd611` and `origin/main` was `ebcb97d` (current repository HEAD: `fefba25`).
 - Working tree: 11 modified product files + 3 untracked acquisition fixtures.
 - `.opencode/` is committed in this branch as development harness configuration.
 - OpenCode 1.18.32. Providers: `openai` (oauth), `google` (api),
@@ -83,7 +84,10 @@ Confirmed again during post-merge certification:
   defines `adversarial-reviewer` on `opencode-go/minimax-m3`.
 - Recovery that worked: fresh `opencode run --model opencode-go/qwen3.7-plus`
   and `opencode run --model opencode-go/minimax-m3`, each a new process reading
-  current config. Both models are present in `opencode models` output.
+  current config. Both models are present in `opencode models` output. These
+  one-shot runs use the default agent and inherit the global `edit`/`bash`
+  permissions, not the read-only reviewer agents, so treat their output as
+  advisory evidence only, not as a substitute for the configured reviewers.
 - `repo-explorer` via the `task` tool worked (read-only).
 - The `-f`/`--dir` flags plus a prompt file in `.tmp/` gave bounded, reviewable
   runs; capturing stdout to a file was necessary because tool-call output is
@@ -93,5 +97,5 @@ Rule reinforced: registered agents and runtime-callable agents are not
 automatically equivalent. Verify the actual runtime route; if stale, use fresh
 explicit-model runs and record the substitution honestly.
 
-Certification outcome for this run: MORTISE_TRANSITION_GATE: GO.
+Certification outcome for this run: ATB_MORTISE_INTEROP_GATE: GO.
 

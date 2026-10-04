@@ -1,6 +1,6 @@
 ---
 name: investigation-ux
-description: Use when changing the ATB viewer investigation experience — Run/Findings/Timeline/Context/Relationships/Evidence/Evidence status, progressive disclosure, digests, raw JSON, source-change comparison. Trigger on: web/app/view/**, Cypress investigation specs, viewer API projection, evidence detail, finding detail, acquisition provenance in the viewer.
+description: "Use when changing the ATB viewer investigation experience — Run/Findings/Timeline/Context/Relationships/Evidence/Evidence status, progressive disclosure, digests, raw JSON, source-change comparison. Trigger on: web/app/view/**, Cypress investigation specs, viewer API projection, evidence detail, finding detail, acquisition provenance in the viewer."
 ---
 
 # Investigation UX

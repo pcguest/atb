@@ -1,6 +1,6 @@
 ---
 name: canonical-parity
-description: Use when changing canonicalisation, hashing, event schema, or generated event types across Go/Python/TypeScript. Trigger on: RFC8785, canonical JSON, record hash, prev_hash, genesis sentinel, schemas/event.v1.json, *_generated.*, cross-language vectors, breaking schema change, version migration.
+description: "Use when changing canonicalisation, hashing, event schema, or generated event types across Go/Python/TypeScript. Trigger on: RFC8785, canonical JSON, record hash, prev_hash, genesis sentinel, schemas/event.v1.json, *_generated.*, cross-language vectors, breaking schema change, version migration."
 ---
 
 # Canonical Parity
@@ -17,7 +17,9 @@ TypeScript, and that schema/generated artefacts stay consistent.
 - Bundles are append-only NDJSON
 - Schema changes require a CHANGELOG entry
 - Canonicalisation changes require version migration
-- Breaking changes require a major version bump
+- Breaking changes must follow the applicable versioning rules in
+  `VERSIONING.md`, including manifest-version bumps for canonical hash input
+  changes.
 
 ## When to invoke
 

@@ -68,9 +68,10 @@ surfaces** wherever practical and classify every step as:
 | Interoperability | (Mortise) | the same evidence identity survives ATB→Mortise |
 | Security / release | `test/` + `make` gates | existing deterministic suites |
 
-Harness reports conform to `harnesses/report-schema.json`. Reports are written to
-a scratch directory (`.runs/`, ignored) and are development evidence about the
-product experience — never ATB evidence.
+Harness reports conform to `harnesses/report-schema.json`. The report goes to
+the caller-selected `--out` path and transient work files go to a temp directory;
+keep reports under the gitignored `.local/dev/`. They are development evidence
+about the product experience — never ATB evidence.
 
 ## 5. Fixtures and privacy
 
@@ -87,7 +88,7 @@ product experience — never ATB evidence.
 2. Correctness reviewer attempts falsification (different family).
 3. Adversarial reviewer probes hostile inputs and trust boundaries.
 4. Practitioner re-tests through the product surface.
-5. Deterministic gates run (`make hygiene-quick`, `make test-golden`, `make test-go`, `go test ./...`).
+5. Deterministic gates run (`make hygiene-quick`, `make test-golden`; hygiene-quick already runs `make test-go`).
 6. Orchestrator decides; no auto-merge. Commit/push/merge/tag are human-authorised
    and denied by the local permission config.
 

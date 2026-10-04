@@ -49,7 +49,7 @@ def find_atb(explicit: str | None) -> str:
     if onpath:
         return onpath
     repo = HERE.parent.parent / "atb"
-    if repo.exists():
+    if repo.is_file():
         return str(repo)
     raise SystemExit("harness: cannot find an `atb` binary (set ATB_BIN)")
 
@@ -239,11 +239,11 @@ class Harness:
         )
         for _ in range(50):
             time.sleep(0.2)
-            try:
-                self.http_get("/api/v1/verification")
+            # http_get converts connection failures to status 0 rather than
+            # raising, so readiness must be confirmed by an HTTP 200.
+            status, _ = self.http_get("/api/v1/verification")
+            if status == 200:
                 return True
-            except Exception:
-                continue
         return False
 
     def a5_locator(self) -> None:
@@ -265,7 +265,7 @@ class Harness:
         q = urllib.parse.quote(self.locator, safe="")
         status, body = self.http_get(f"/api/v1/bundle/locate?locator={q}")
         transport_err = body.get("transport_error")
-        ok = status == 200 and body.get("ok") and body.get("canonical") == self.locator
+        ok = status == 200 and body.get("ok") and body.get("canonical") == self.locator and body.get("record_hash_matched")
         friction = ""
         if transport_err:
             friction = transport_err
@@ -335,7 +335,16 @@ class Harness:
             records = json.loads(insp.stdout)
         except Exception:
             records = []
-        changed = [r for r in records if r["event"].get("type") == "atb.acquisition.finding"]
+
+        def source_record_changed(record: dict) -> bool:
+            if record["event"].get("type") != "atb.acquisition.finding":
+                return False
+            data = record["event"].get("data")
+            if not isinstance(data, dict):
+                return False
+            return data.get("finding_type") == "source_record_changed"
+
+        changed = [r for r in records if source_record_changed(r)]
         ver = self.run("verify", "--bundle", str(self.bundle), "--format", "json")
         try:
             ver_rep = json.loads(ver.stdout)
@@ -345,13 +354,13 @@ class Harness:
         self.step(
             id="A6c",
             task="Re-import an edited copy of the same source (representation changed)",
-            expected_goal="A bounded source_record_changed finding; integrity still valid; no tamper claim",
+            expected_goal="Exactly one bounded source_record_changed finding; integrity still valid; no tamper claim",
             documented_path="docs/integrations/chatlog-import.md (reconciliation)",
             actual_path="atb import chatlog --reconcile",
-            result="PASS" if (changed and still_valid) else "FRICTION",
+            result="PASS" if (len(changed) == 1 and still_valid) else "FRICTION",
             path_class="PRODUCT_PATH",
             evidence={"exit": proc.returncode, "findings": len(changed), "chain_valid_after": still_valid},
-            friction="" if changed else "reconcile did not surface a source_record_changed finding",
+            friction="" if len(changed) == 1 else "reconcile did not surface exactly one source_record_changed finding",
         )
 
     def stop(self) -> None:

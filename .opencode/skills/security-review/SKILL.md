@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: Use when reviewing a change for security, trust-boundary, or hostile-input weaknesses. Trigger on: import/parsing untrusted input, checkpoint files, paths/symlinks, secrets, CLI args, raw-source reveal, model/Jev authority, permission or tool expansion, before a material commit.
+description: "Use when reviewing a change for security, trust-boundary, or hostile-input weaknesses. Trigger on: import/parsing untrusted input, checkpoint files, paths/symlinks, secrets, CLI args, raw-source reveal, model/Jev authority, permission or tool expansion, before a material commit."
 ---
 
 # Security Review

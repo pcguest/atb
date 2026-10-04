@@ -1,6 +1,6 @@
 ---
 name: jev-decision-review
-description: Use when semantic ambiguity survives deterministic gates and independent review, and a typed probabilistic observation would help. Covers the Jev/System One decision plane (Score/Noul/Choice) used through an optional external advisory tool that is not maintained in this repository, its execution statuses, and the escalation policy. Trigger on: ambiguous root cause, reviewer/implementer disagreement, claim leakage, scope drift, "should we escalate", running the Jev decision plane.
+description: "Use when semantic ambiguity survives deterministic gates and independent review, and a typed probabilistic observation would help. Covers the Jev/System One decision plane (Score/Noul/Choice) used through an optional external advisory tool that is not maintained in this repository, its execution statuses, and the escalation policy. Trigger on: ambiguous root cause, reviewer/implementer disagreement, claim leakage, scope drift, \"should we escalate\", running the Jev decision plane."
 ---
 
 # Jev Decision Review
@@ -26,6 +26,8 @@ preferences.
 
 1. Build a DecisionPacket: task_id, change_scope, evidence_refs,
    deterministic_gate_summary, diff_summary, architecture_context, typed questions.
+   Redact secrets, credentials, and personal data before any transmission, and
+   send only the minimum context the external tool needs.
 2. Ask a small library of typed questions (Noul / Choice / Score). Never ask
    vague questions like "is this good?".
 3. Use the Jev decision plane via an optional external tool (not maintained in

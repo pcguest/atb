@@ -36,6 +36,10 @@ IMPLEMENT (implementer) — bounded area, explicit invariants
     ↓
 REVIEW (reviewer) — falsification attempt
     ↓
+ADVERSARIAL REVIEW (adversarial-reviewer) — hostile inputs, trust boundaries
+    ↓
+PRACTITIONER RE-TEST (practitioner) — product-surface journey
+    ↓
 DETERMINISTIC VALIDATION (make test-golden, make hygiene-quick, etc.)
     ↓
 OPTIONAL JEV (if semantic uncertainty remains)

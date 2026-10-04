@@ -27,42 +27,36 @@
     "atb-engineer": {
       "model": "opencode-go/gpt-5.6-luna",
       "mode": "primary",
-      "description": "Primary orchestrator. Owns architecture continuity, decomposition, delegation, final deterministic validation.",
-      "prompt": ".opencode/agent/atb-engineer.md"
+      "description": "Primary orchestrator. Owns architecture continuity, decomposition, delegation, final deterministic validation."
     },
     "repo-explorer": {
       "model": "opencode-go/deepseek-v4-flash",
       "mode": "subagent",
       "description": "Read-only repository exploration and tracing.",
-      "prompt": ".opencode/agent/repo-explorer.md",
       "permission": { "edit": "deny", "bash": "deny", "task": "deny" }
     },
     "implementer": {
       "model": "opencode-go/kimi-k2.7-code",
       "mode": "subagent",
       "description": "Bounded write agent. Smallest coherent patch within an explicit task packet.",
-      "prompt": ".opencode/agent/implementer.md",
       "permission": { "edit": "allow", "task": "deny" }
     },
     "reviewer": {
       "model": "opencode-go/qwen3.7-plus",
       "mode": "subagent",
       "description": "Independent falsification reviewer. Different family from the implementer.",
-      "prompt": ".opencode/agent/reviewer.md",
       "permission": { "read": "allow", "edit": "deny", "bash": "deny", "task": "deny", "external_directory": "deny" }
     },
     "adversarial-reviewer": {
       "model": "opencode-go/minimax-m3",
       "mode": "subagent",
       "description": "Security/trust/edge-case adversarial reviewer. Read-only.",
-      "prompt": ".opencode/agent/adversarial-reviewer.md",
       "permission": { "read": "allow", "edit": "deny", "bash": "deny", "task": "deny", "external_directory": "deny" }
     },
     "practitioner": {
       "model": "opencode-go/mimo-v2.5",
       "mode": "subagent",
       "description": "Task-based unfamiliar-user simulation. Read-only; reports friction, never implements.",
-      "prompt": ".opencode/agent/practitioner.md",
       "permission": { "read": "allow", "edit": "deny", "bash": "deny", "task": "deny", "external_directory": "deny" }
     }
   },
@@ -80,6 +74,10 @@
     "external_directory": "ask",
     "bash": {
       "*": "allow",
+      // Route every Git command through an ask default so global options
+      // (e.g. `git -C <repo> push`) cannot bypass the mutation denies below.
+      // Read-only Git commands are re-allowed after the denies; last match wins.
+      "git *": "ask",
       "git commit*": "deny",
       "git push*": "deny",
       "git merge*": "deny",
@@ -88,6 +86,17 @@
       "git reset --hard*": "deny",
       "git clean*": "deny",
       "git restore*": "deny",
+      // Safe read-only Git commands (explicit allow after the ask default).
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git show*": "allow",
+      "git rev-parse*": "allow",
+      "git ls-files*": "allow",
+      "git describe*": "allow",
+      "git grep*": "allow",
+      "git blame*": "allow",
+      "git config --get*": "allow",
       // Any `rm` asks; recursive+force deletion is denied regardless of target.
       // Last matching rule wins, so the broad ask precedes the specific denials.
       "rm *": "ask",
