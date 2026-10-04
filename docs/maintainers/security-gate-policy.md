@@ -14,26 +14,35 @@ npm advisories to that file.
 
 The gate runs two signals over `sdk/typescript` and `web`.
 
+Both signals run through `scripts/npm-audit-gate.mjs`, which invokes
+`npm audit --json` with an explicitly forced tree scope and classifies the
+report.
+
 ### Signal A — release-blocking runtime audit (fail-closed)
 
 ```
-npm audit --omit=dev --audit-level=high
+npm audit --json --omit=dev
 ```
 
 - Any **HIGH or CRITICAL** advisory in the **production/runtime** dependency
   tree fails the job.
-- The command is not wrapped in `|| true`; its exit status is preserved.
+- The scope is forced with `--omit=dev` and hostile `NPM_CONFIG_OMIT` /
+  `NPM_CONFIG_PRODUCTION` config is cleared, so a committed `.npmrc` cannot
+  make the gate skip production advisories.
 - A failure to execute the audit also fails the job (see below).
 
 ### Signal B — full-tree development visibility
 
 ```
-npm audit --audit-level=high     # full dependency tree, including dev/build
+npm audit --json --include=dev
 ```
 
 - The full dependency tree is always audited and its findings are printed in
   CI, so unresolved development/build advisories remain **visible and
   auditable**.
+- The scope is forced with `--include=dev`, which overrides an `omit`/`production`
+  config, so the visibility signal cannot be silently reduced to production
+  only.
 - Development/build HIGH/CRITICAL advisories are **not** automatically
   release-blocking, but only when **all** of the following hold:
   - the affected package is not present in the production dependency tree;
@@ -67,10 +76,25 @@ inspects the `--json` report and distinguishes:
 - `AUDIT_COMPLETED_WITH_ADVISORIES` — a well-formed report with
   `metadata.vulnerabilities`; classified by signal;
 - `AUDIT_EXECUTION_FAILURE` — a report with an `error` object, unparseable
-  output, or missing metadata.
+  output, missing metadata, or an internally inconsistent report (the
+  `vulnerabilities` object reports HIGH/CRITICAL while
+  `metadata.vulnerabilities` reports none).
 
 An execution failure exits non-zero and fails the job. It is never reported as
 a clean audit or as a harmless development advisory.
+
+## Trust boundary (residual risk)
+
+The gate trusts the installed `npm` and the committed lockfile, as any
+dependency audit must:
+
+- a tampered lockfile that mislabels a production dependency as a development
+  one can make `--omit=dev` treat it as out of scope;
+- a substituted `npm` on `PATH` can report anything.
+
+These are toolchain-integrity and code-review concerns rather than audit
+classification concerns. The runtime/container scanner (Trivy) and normal PR
+review of `package-lock.json` diffs remain the independent backstops.
 
 The gate is implemented in `scripts/npm-audit-gate.mjs`. Exit codes:
 

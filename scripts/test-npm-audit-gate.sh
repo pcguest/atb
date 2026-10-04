@@ -49,6 +49,16 @@ cat > "$tmp/error.json" <<'JSON'
 { "error": { "code": "ENOLOCK", "summary": "This command requires an existing lockfile." } }
 JSON
 
+# metadata claims zero HIGH/CRITICAL while the vulnerabilities object reports one:
+# a report that must never be trusted as clean.
+cat > "$tmp/inconsistent.json" <<'JSON'
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": { "example-pkg": { "severity": "high", "via": [{ "title": "Synthetic high advisory" }] } },
+  "metadata": { "vulnerabilities": { "info": 0, "low": 0, "moderate": 0, "high": 0, "critical": 0, "total": 0 } }
+}
+JSON
+
 printf 'not json' > "$tmp/bad.json"
 
 node "$gate" runtime --report "$tmp/high.json" >/dev/null 2>&1
@@ -71,6 +81,12 @@ check "visibility audit error fails closed" 2 $?
 
 node "$gate" runtime --report "$tmp/bad.json" >/dev/null 2>&1
 check "unparseable report fails closed" 2 $?
+
+node "$gate" runtime --report "$tmp/inconsistent.json" >/dev/null 2>&1
+check "inconsistent report fails closed (runtime)" 2 $?
+
+node "$gate" visibility --report "$tmp/inconsistent.json" >/dev/null 2>&1
+check "inconsistent report fails closed (visibility)" 2 $?
 
 if [ "$fail" -ne 0 ]; then
   echo "npm-audit-gate self-test: FAIL"

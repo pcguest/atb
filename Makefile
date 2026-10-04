@@ -198,7 +198,8 @@ deps-audit-go:
 
 deps-audit-npm:
 	@echo "🔍 Auditing NPM dependencies..."
-	cd web && npm audit --audit-level=high
+	cd web && node ../scripts/npm-audit-gate.mjs runtime
+	cd web && node ../scripts/npm-audit-gate.mjs visibility
 
 deps-fix-npm:
 	@echo "🔧 Fixing NPM vulnerabilities..."
@@ -279,5 +280,7 @@ security-scan:
 		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.7@sha256:45a5f7a810238aabcbad211d70b9ae082022d96f7c7259e94041ad1b933575ac sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
 	@$(MAKE) govuln-scan
-	cd web && npm audit --audit-level=high
-	cd sdk/typescript && npm audit --audit-level=high
+	cd web && node ../scripts/npm-audit-gate.mjs runtime
+	cd web && node ../scripts/npm-audit-gate.mjs visibility
+	cd sdk/typescript && node ../../scripts/npm-audit-gate.mjs runtime
+	cd sdk/typescript && node ../../scripts/npm-audit-gate.mjs visibility

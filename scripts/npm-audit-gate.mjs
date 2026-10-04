@@ -5,15 +5,26 @@
 //   visibility  full dependency tree: HIGH/CRITICAL advisories are reported,
 //               including development/build-only ones, but do not fail the run.
 //
-// Both modes fail closed on an audit execution failure. `npm audit` exits with
-// code 1 both when advisories are found and when the audit itself cannot run,
-// so the exit code alone is ambiguous; the JSON `error` field is the reliable
-// discriminator between AUDIT_EXECUTION_FAILURE and AUDIT_COMPLETED_WITH_ADVISORIES.
+// Both modes fail closed on an audit execution failure, an unparseable report,
+// or an internally inconsistent report. `npm audit` exits with code 1 both when
+// advisories are found and when the audit itself cannot run, so the exit code
+// alone is ambiguous; the JSON body is the reliable discriminator.
+//
+// Tree scope is forced explicitly (`--omit=dev` for runtime, `--include=dev`
+// for visibility) and hostile omit/production config is cleared from the
+// environment, so a committed `.npmrc` cannot silently reduce the full-tree
+// visibility signal to a production-only scan.
+//
+// Trust boundary: this gate trusts the installed npm and the committed
+// lockfile. A tampered lockfile that mislabels a production dependency as a
+// development one, or a substituted `npm` on PATH, is outside what a dependency
+// audit can prove; those remain a code-review and toolchain-integrity concern.
 //
 // Exit codes:
 //   0  audit completed; no blocking condition
 //   1  audit completed; runtime HIGH/CRITICAL found (release-blocking)
-//   2  audit execution failure (registry/network/tool/lockfile error)
+//   2  execution/integrity failure (registry/network/tool/lockfile, unparseable
+//      or internally inconsistent report)
 //
 // Usage:
 //   node scripts/npm-audit-gate.mjs <runtime|visibility> [--report <path>]
@@ -53,10 +64,13 @@ function loadReport() {
     }
   }
 
-  const args = ["audit", "--json"];
-  if (omitDev) args.push("--omit=dev");
+  const args = ["audit", "--json", omitDev ? "--omit=dev" : "--include=dev"];
+  const env = { ...process.env };
+  for (const key of ["NPM_CONFIG_OMIT", "NPM_CONFIG_PRODUCTION", "NPM_CONFIG_ONLY", "NPM_CONFIG_INCLUDE"]) {
+    delete env[key];
+  }
 
-  const run = spawnSync("npm", args, { encoding: "utf8" });
+  const run = spawnSync("npm", args, { encoding: "utf8", env });
   if (run.error) {
     console.error(`AUDIT_EXECUTION_FAILURE: cannot run npm: ${run.error.message}`);
     process.exit(EXIT_EXECUTION_FAILURE);
@@ -84,19 +98,38 @@ if (report && report.error) {
   process.exit(EXIT_EXECUTION_FAILURE);
 }
 
-const counts = report?.metadata?.vulnerabilities;
-if (!counts || typeof counts !== "object") {
+const meta = report?.metadata?.vulnerabilities;
+if (!meta || typeof meta !== "object") {
   console.error(`AUDIT_EXECUTION_FAILURE: audit report missing metadata.vulnerabilities (${mode})`);
   process.exit(EXIT_EXECUTION_FAILURE);
 }
 
-const high = counts.high || 0;
-const critical = counts.critical || 0;
+// Derive counts from the vulnerabilities object as an independent cross-check
+// of metadata, so a report cannot present HIGH/CRITICAL in one field and zero
+// in the other.
+const objectCounts = { info: 0, low: 0, moderate: 0, high: 0, critical: 0 };
+for (const entry of Object.values(report.vulnerabilities || {})) {
+  const severity = entry && entry.severity;
+  if (severity && severity in objectCounts) objectCounts[severity] += 1;
+}
+
+const metaHighCritical = (meta.high || 0) + (meta.critical || 0);
+const objectHighCritical = objectCounts.high + objectCounts.critical;
+if (objectHighCritical > 0 && metaHighCritical === 0) {
+  console.error(
+    "AUDIT_EXECUTION_FAILURE: inconsistent audit report — vulnerabilities object contains " +
+      "HIGH/CRITICAL but metadata.vulnerabilities reports none; failing closed",
+  );
+  process.exit(EXIT_EXECUTION_FAILURE);
+}
+
+const high = Math.max(meta.high || 0, objectCounts.high);
+const critical = Math.max(meta.critical || 0, objectCounts.critical);
 const scope = omitDev ? "production/runtime dependencies" : "full dependency tree";
 
 console.log(
-  `npm audit (${scope}): ${counts.total || 0} vulnerable ` +
-    `(info ${counts.info || 0}, low ${counts.low || 0}, moderate ${counts.moderate || 0}, ` +
+  `npm audit (${scope}): ${meta.total || 0} vulnerable ` +
+    `(info ${meta.info || 0}, low ${meta.low || 0}, moderate ${meta.moderate || 0}, ` +
     `high ${high}, critical ${critical})`,
 );
 
@@ -123,7 +156,7 @@ if (mode === "runtime") {
   process.exit(EXIT_PASS);
 }
 
-// visibility: report, never block on advisories, fail only on execution failure above.
+// visibility: report, never block on advisories, fail only on execution/integrity failure above.
 if (high > 0 || critical > 0) {
   console.error(
     `DEVELOPMENT_VISIBILITY: unresolved HIGH/CRITICAL advisories present ` +
