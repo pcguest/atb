@@ -72,7 +72,7 @@ Each line in a bundle file is a JSON object with the following schema:
 >
 > The manifest version is independent of the bundle schema version. v1 data is a JSON-encoded string; v2 data is a structured JSON object. Both are hashed by the same RFC 8785 canonicaliser as any other event — the difference is only what `data` contains.
 >
-> Readers MUST handle both shapes. A reader that encounters a manifest with `version` greater than the highest version it understands (`ManifestVersionMax`, currently 2) MUST refuse to open the bundle and return an error wrapping `ErrMalformed`.
+> Readers MUST handle both shapes. A reader that encounters a manifest with `version` greater than the highest version it understands (`ManifestVersionMax`, currently 3) MUST refuse to open the bundle and return an error wrapping `ErrMalformed`.
 
 ---
 
@@ -464,6 +464,7 @@ Compatibility rules:
 - Old bundles (created before the manifest record or optional fields were added) verify unchanged with newer SDKs.
 - New bundles that set optional fields produce different hashes (expected, because those fields are included in canonicalisation).
 - Unset optional fields are omitted from canonicalisation (`omitempty` behaviour), preserving canonical byte compatibility with legacy events that did not define them.
+- Bundles whose events carry `acquisition` are written as **manifest version 3** (see §9), so a reader that predates the acquisition envelope fails loudly with `ErrMalformed` instead of silently mis-hashing. Adding `acquisition` to the canonical `Event` is a breaking canonical-hash-input change and required this bump.
 
 ### TypeScript SDK
 
@@ -490,12 +491,20 @@ const eventWithActor: Event = {
 
 ## 9. Schema versioning
 
-The manifest `version` field governs bundle compatibility. The default writer
-format remains **1**. Version **1** stores manifest `data` as a JSON-encoded
-string and is retained for compatibility with existing bundles. Version **2**
-is the opt-in structured-object manifest format. The product
-CLI/SDK SemVer policy is separate and lives
-in `VERSIONING.md`; this section governs the on-disk bundle format only.
+The manifest `version` field governs bundle compatibility. Version **1** stores
+manifest `data` as a JSON-encoded string and is retained for compatibility with
+existing bundles. Version **2** is the opt-in structured-object manifest format.
+Version **3** uses the same structured-object wire form as v2 and declares the
+**acquisition-aware canonical profile**: events in the bundle may carry the
+optional `acquisition` envelope, which is included in the canonical hash input.
+`atb import chatlog` and `atb import otel` create new bundles as v3 because
+their events always carry acquisition provenance. The default writer for all
+other bundle creators — including `atb capture run`, `atb append`, and direct
+SDK writes — remains **v1** unless the caller explicitly opts into v2 or v3. A
+reader whose `ManifestVersionMax` is below 3 rejects a v3 bundle with
+`ErrMalformed` rather than silently dropping `acquisition` and reporting a
+spurious tamper. The product CLI/SDK SemVer policy is separate and lives in
+`VERSIONING.md`; this section governs the on-disk bundle format only.
 
 **Breaking change (requires manifest version bump):**
 

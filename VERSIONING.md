@@ -9,7 +9,7 @@ ATB has **four** independently-tracked version concepts. Confusing them is the m
 | Universe                       | Identifier                                    | Bump rule                                                                                          | Example                            |
 |--------------------------------|-----------------------------------------------|----------------------------------------------------------------------------------------------------|------------------------------------|
 | CLI / SDK release version      | `vMAJOR.MINOR.PATCH` (SemVer)                 | Bumped per release. SemVer applies to the user-observable CLI and to the public Python/TypeScript SDK API. | `v1.11.0`                          |
-| Bundle manifest version        | Integer (`ManifestVersion` constant)          | Bumped only when the **canonical hash input** or the **on-disk manifest schema** changes in a way that would cause an existing reader to mis-parse or mis-hash. | `1` (default), `2` (opt-in)         |
+| Bundle manifest version        | Integer (`ManifestVersion` constant)          | Bumped only when the **canonical hash input** or the **on-disk manifest schema** changes in a way that would cause an existing reader to mis-parse or mis-hash. | `1` (default), `2` (structured, opt-in), `3` (acquisition canonical profile) |
 | JSON schema version            | Filename: `schemas/event.v1.json`             | Bumped only when the JSON Schema describing event records gains required fields or removes existing ones. Additive optional fields stay on `v1`. | `event.v1.json`                    |
 | Canonicalisation profile       | Implicit in the canonicaliser's behaviour     | Bumped (de facto) when RFC 8785 implementation rules change in a way that produces different bytes for the same input. Treated as a manifest-version bump for compatibility purposes. | v1.1.2 float profile (current)      |
 
@@ -38,7 +38,8 @@ Schema.3 is additive: it adds optional `coverage_score`, `coverage_grade`,
 `assessment_coverage`, `dimension_assessments`, `integrity_valid`, and
 `assurance_valid` fields documented in `docs/specification/verify-report.md`.
 `report_version` remains `verify.report.v1`. Bundles continue to read manifest
-versions `1` and `2` and write manifest version `1` by default.
+versions `1`, `2`, and `3`, and write manifest version `1` by default (import
+commands write `3`; see *Acquisition canonical profile* below).
 
 ## Breaking vs non-breaking changes
 
@@ -102,7 +103,7 @@ The v1.1.2 break is the only sanctioned historical break in the canonicalisation
 
 ## Capture v1 additions (non-breaking)
 
-This block records what was added in the Capture v1 development cycle. Every item below is purely additive: no existing canonical-hash input, no existing JSON schema field, and no existing golden vector was modified, so the changes are appropriate to a MINOR release and do not require a manifest version bump on their own.
+This block records what was added in the Capture v1 development cycle. The items below are purely additive in the CLI/SDK surface: no existing JSON schema field and no existing golden vector was modified, and none of the listed items changes the canonical-hash input of a bundle that does not use them. The `acquisition` envelope, which arrived in the same cycle, is a new optional canonical-hash input and is documented separately below as requiring manifest v3.
 
 - **New CLI subcommands**: `atb import chatlog` (ingests chat transcripts via the `generic-jsonl` provider) and `atb capture run` (wraps a child process and exports capture context to it via environment variables). Both are documented in [CONTRIBUTING.md](CONTRIBUTING.md) § Maintainer rules and [docs/maintainers/release.md](docs/maintainers/release.md).
 - **New internal packages**: a `capture` package under `internal/` that owns chatlog parsing, mapping, and the in-memory append helpers shared by both subcommands. The bundle write path also gained an OS-level advisory lock helper (`flock` on Unix, `LockFileEx` on Windows) that surfaces `ErrBundleLocked` on contention.
@@ -111,18 +112,34 @@ This block records what was added in the Capture v1 development cycle. Every ite
 - **New exit code**: `exitLockContention` (value `9`) is returned when a bundle write path cannot acquire the advisory lock. Callers should retry after a short delay; the mutating subcommands accept `--lock-wait <duration>` to extend the in-process wait window before this exit code is surfaced. The constant is documented in `cmd/atb/exit_codes.go` and [CONTRIBUTING.md](CONTRIBUTING.md); it has a freshly-allocated numeric value and does not collide with any pre-existing exit code.
 - **Golden corpus integrity**: the cross-language canonical-hash corpus was *not* modified by Capture v1. Every Go, Python, and TypeScript golden vector that existed before the cycle still hashes byte-for-byte to the same value. New tests were added; no existing vector was edited or regenerated.
 
+## Acquisition canonical profile (manifest v3)
+
+The `acquisition` envelope was added to the canonical `Event` struct after v1.16.0. It is an **optional top-level field that participates in the canonical hash input when present** (see `docs/specification/bundle-v1.md` §3.4). Adding a canonical-hash input field is a breaking change under "When to bump the manifest version" trigger 1 above, even though `omitempty` keeps the canonical bytes of every historical (non-acquisition) bundle unchanged.
+
+The required treatment is therefore a manifest version bump:
+
+- **Manifest version 3** declares the acquisition-aware canonical profile. It uses the same structured-object wire form as v2; the version number, not the wire form, signals the profile.
+- `atb import chatlog` and `atb import otel` create new bundles as v3, because their events always carry acquisition provenance.
+- `ManifestVersionMax` is `3`. A reader whose maximum is lower (for example a `v1.16.0` build, whose maximum is `2`) now rejects a v3 bundle with `ErrMalformed` ("requires a newer version of atb") instead of silently dropping `acquisition`, recomputing a different hash, and reporting a spurious tamper.
+- **Historical compatibility is preserved**: v1 and v2 bundles — including every bundle written before acquisition existed — verify unchanged, because `omitempty` omits `acquisition` from their canonical bytes.
+- **No historical hash is redefined**: the bump declares the profile going forward; it does not rewrite any existing bundle. A pre-v3 bundle that must gain acquisition evidence is re-imported into a new v3 bundle, per the migration policy below.
+- The Go golden corpus and the cross-language canonical vectors include acquisition entries so Go, Python, and TypeScript agree byte-for-byte on the acquisition canonical form.
+
+The `acquisition` envelope is therefore not covered by the additive Capture v1 list above: it is a canonical-hash input and required the v3 declaration.
+
 ## Bundle compatibility matrix
 
 | ATB version range            | Manifest versions read    | Manifest versions written (default)        |
 |------------------------------|---------------------------|--------------------------------------------|
 | `v1.0.x` – `v1.1.1`          | `1`                       | `1`                                        |
 | `v1.1.2` – `v1.9.x`          | `1`                       | `1` (post-v1.1.2 float profile)            |
-| `v1.10.x` and later          | `1`, `2`                  | `1` (default; `2` opt-in via `--manifest-version 2`) |
+| `v1.10.x` – `v1.16.x`        | `1`, `2`                  | `1` (default; `2` opt-in via `--manifest-version 2`) |
+| post-`v1.16.0` (unreleased)  | `1`, `2`, `3`             | `1` (default); `3` written by `atb import chatlog`/`otel` |
 
 Notes:
 
 - The default writer remains manifest version `1` for maximum compatibility with deployed readers.
-- A `v1.10+` build opening a bundle whose manifest declares any version greater than `ManifestVersionMax` (currently `2`) returns an error wrapping `ErrMalformed` rather than silently dropping fields.
+- A build whose `ManifestVersionMax` is lower than the declared manifest version rejects the bundle with an error wrapping `ErrMalformed` rather than silently dropping fields. Currently `ManifestVersionMax` is `3`.
 - Bundles created without a manifest record (legacy pre-v1.0 captures) are still readable; the reader treats them as implicit version `1`.
 
 ## Migration policy

@@ -226,8 +226,17 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 		})
 	}
 	stampAcquisitionStream(events, opts.InputPath)
+	plan, err := planReconciliation(events, reconciler, opts.Reconcile)
+	if err != nil {
+		return nil, err
+	}
+	if plan.writesAcquisition() {
+		if err := requireAcquisitionProfile(b, created); err != nil {
+			return nil, err
+		}
+	}
 
-	counts, err := appendReconciled(b, events, reconciler, opts.Reconcile)
+	counts, err := applyReconciliation(b, plan)
 	if err != nil {
 		return nil, err
 	}
@@ -388,8 +397,17 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 		})
 	}
 	stampAcquisitionStream(events, opts.InputPath)
+	plan, err := planReconciliation(events, reconciler, opts.Reconcile)
+	if err != nil {
+		return nil, err
+	}
+	if plan.writesAcquisition() {
+		if err := requireAcquisitionProfile(b, created); err != nil {
+			return nil, err
+		}
+	}
 
-	counts, err := appendReconciled(b, events, reconciler, opts.Reconcile)
+	counts, err := applyReconciliation(b, plan)
 	if err != nil {
 		return nil, err
 	}
@@ -486,24 +504,55 @@ func appendAcquisitionFinding(b *bundle.Bundle, f *FindingInfo, acq *event.Acqui
 	})
 }
 
-// appendReconciled appends events, reconciling once per source record.
+// reconcileAction is one planned append: the event to write and, for a CHANGED
+// source record, the single bounded finding that accompanies it.
+type reconcileAction struct {
+	event   importEvent
+	finding *FindingInfo
+	skip    bool
+}
+
+// reconciliationPlan is the side-effect-free result of reconciling an import
+// against an existing bundle. Planning never mutates the bundle; records are
+// only appended when the plan is applied.
+type reconciliationPlan struct {
+	actions []reconcileAction
+	counts  reconcileCounts
+}
+
+// writesAcquisition reports whether applying the plan would append any
+// acquisition-bearing event. The manifest-version floor is enforced only when
+// this is true, so an import that reconciles every source record as UNCHANGED
+// (writing nothing) is never refused for targeting a pre-v3 bundle.
+func (p reconciliationPlan) writesAcquisition() bool {
+	for i := range p.actions {
+		if !p.actions[i].skip && p.actions[i].event.acquisition != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// planReconciliation decides, per source record, whether each event is appended
+// or skipped.
 //
 // A source record is identified by its acquisition SourceIdentity. Every event
 // derived from the same source record shares one decision: UNCHANGED skips the
 // whole record (no duplicate evidence); CHANGED emits exactly one finding and
 // appends the new representation; NEW/UNKNOWN append. This makes re-import
 // idempotent for unchanged sources and bounded for changed ones.
-func appendReconciled(b *bundle.Bundle, events []importEvent, reconciler *Reconciler, reconcile bool) (reconcileCounts, error) {
-	var counts reconcileCounts
+func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile bool) (reconciliationPlan, error) {
+	var plan reconciliationPlan
 	type decision struct {
-		skip    bool
 		result  ReconciliationResult
+		skip    bool
 		finding *FindingInfo
-		acq     *event.AcquisitionInfo
 	}
 	decisions := make(map[string]*decision)
+	plan.actions = make([]reconcileAction, 0, len(events))
 
-	for i, ev := range events {
+	for i := range events {
+		ev := events[i]
 		acq := ev.acquisition
 		key := fmt.Sprintf("__unknown__:%d", i)
 		if acq != nil && acq.SourceRecordID != "" {
@@ -512,14 +561,14 @@ func appendReconciled(b *bundle.Bundle, events []importEvent, reconciler *Reconc
 
 		d, ok := decisions[key]
 		if !ok {
-			d = &decision{acq: acq}
+			d = &decision{}
 			if reconcile && acq != nil && acq.SourceRecordID != "" {
 				outcome, err := reconciler.Reconcile(
 					event.SourceIdentity{System: acq.SourceSystem, RecordID: acq.SourceRecordID, Derived: true},
 					acq.SourceDigest, acq.AcquiredAt, acq,
 				)
 				if err != nil {
-					return counts, fmt.Errorf("reconcile: %w", err)
+					return reconciliationPlan{}, fmt.Errorf("reconcile: %w", err)
 				}
 				d.result = outcome.Result
 				d.finding = outcome.Finding
@@ -530,33 +579,45 @@ func appendReconciled(b *bundle.Bundle, events []importEvent, reconciler *Reconc
 			decisions[key] = d
 			switch d.result {
 			case ReconciliationNew:
-				counts.newCount++
+				plan.counts.newCount++
 			case ReconciliationChanged:
-				counts.changed++
+				plan.counts.changed++
 			case ReconciliationUnchanged:
-				counts.unchanged++
+				plan.counts.unchanged++
 			case ReconciliationUnknown:
-				counts.unknown++
+				plan.counts.unknown++
 			}
 		}
 
-		if d.skip {
-			continue
-		}
-
+		action := reconcileAction{event: ev, skip: d.skip}
 		if d.finding != nil {
-			if err := appendAcquisitionFinding(b, d.finding, d.acq); err != nil {
-				return counts, fmt.Errorf("append finding: %w", err)
-			}
+			action.finding = d.finding
 			d.finding = nil // emit once per source record
 		}
+		plan.actions = append(plan.actions, action)
+	}
+	return plan, nil
+}
 
-		if err := b.AppendWithOptions(ev.typ, ev.data, &bundle.AppendOptions{
-			Timestamp:    ev.timestamp,
-			TraceID:      ev.traceID,
-			SpanID:       ev.spanID,
-			ParentSpanID: ev.parentSpanID,
-			Acquisition:  ev.acquisition,
+// applyReconciliation appends the events selected by a plan to the bundle.
+func applyReconciliation(b *bundle.Bundle, plan reconciliationPlan) (reconcileCounts, error) {
+	counts := plan.counts
+	for i := range plan.actions {
+		action := plan.actions[i]
+		if action.skip {
+			continue
+		}
+		if action.finding != nil {
+			if err := appendAcquisitionFinding(b, action.finding, action.event.acquisition); err != nil {
+				return counts, fmt.Errorf("append finding: %w", err)
+			}
+		}
+		if err := b.AppendWithOptions(action.event.typ, action.event.data, &bundle.AppendOptions{
+			Timestamp:    action.event.timestamp,
+			TraceID:      action.event.traceID,
+			SpanID:       action.event.spanID,
+			ParentSpanID: action.event.parentSpanID,
+			Acquisition:  action.event.acquisition,
 		}); err != nil {
 			return counts, fmt.Errorf("append event: %w", err)
 		}
@@ -579,8 +640,11 @@ func loadSnapshotBundle(ctx context.Context, bundlePath string, created bool) (*
 	b, err := bundle.Load(bundlePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			// Create new bundle
-			b, err = bundle.New()
+			// Create a new bundle that declares the acquisition-aware canonical
+			// profile (manifest v3). Imported events always carry acquisition
+			// provenance, so a reader that predates the acquisition envelope
+			// must reject the bundle loudly rather than mis-hash it.
+			b, err = bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV3})
 			if err != nil {
 				return nil, false, err
 			}
@@ -589,6 +653,25 @@ func loadSnapshotBundle(ctx context.Context, bundlePath string, created bool) (*
 		return nil, false, fmt.Errorf("load bundle: %w", err)
 	}
 	return b, false, nil
+}
+
+// requireAcquisitionProfile enforces the manifest-version floor for bundles that
+// carry acquisition provenance. A freshly created import bundle declares v3; an
+// existing bundle that predates v3 (manifest v1/v2) must not receive
+// acquisition-bearing events, because a reader that predates the acquisition
+// envelope would silently drop the field and report a spurious tamper. Refuse
+// rather than create a mixed-version chain. Callers invoke this only when the
+// plan would actually append acquisition, so a no-op reconciliation of an
+// unchanged source is never refused.
+func requireAcquisitionProfile(b *bundle.Bundle, created bool) error {
+	if created {
+		return nil
+	}
+	m := b.Manifest()
+	if m != nil && m.Version == "3" {
+		return nil
+	}
+	return fmt.Errorf("cannot append acquisition-bearing events to a bundle that declares manifest version < 3; re-import into a new bundle so the acquisition canonical profile is declared")
 }
 
 // stampManifestProvenance stamps the manifest with provenance information.
