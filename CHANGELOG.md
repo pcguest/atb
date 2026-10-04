@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.17.0] - 2026-10-05
+
 ### Added
 - Versioned ATB semantic evidence locators
   (`atb://evidence/1/<bundle_head_hash>?seq=<event_sequence>[&record=<record_hash>]`),
@@ -30,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 - Bumped the web UI's `next` dependency from `16.3.3` to `16.3.8`, remediating the critical `next/og` ImageResponse remote-code-execution advisory (`GHSA-vcvr-r3jv-pc5j`).
 - Added an `axios` override (`1.20.0`) to remediate the high-severity Axios advisory cluster (including `GHSA-m8m8-qj5v-23w3`), which is reached transitively through the `start-server-and-test` → `wait-on` development dependency.
-- Known outstanding: the newly published `braces` stack-exhaustion advisory (`GHSA-vfj7-8cjw-p6xm`, affected range `<=3.0.3`) has no fixed release upstream; it cascades to `micromatch`, `fast-glob`, `chokidar`, `tailwindcss`, and `eslint-config-next` (all development/build dependencies). This remains flagged by `npm audit --audit-level=high` until upstream publishes a fix; the HIGH/CRITICAL gate is not being weakened or suppressed.
+- Changed the Node dependency security gate to a two-signal model (see `docs/maintainers/security-gate-policy.md`): production/runtime dependencies remain release-blocking at HIGH/CRITICAL (`npm audit --omit=dev`, fail-closed), while the full dependency tree is still audited and its advisories are printed for visibility. Audit execution failures fail closed; the npm exit code is not trusted as the sole signal. This is a gate-scope policy, not a suppression — no advisory is ignored, downgraded, or whitelisted.
+- Known outstanding and tracked: the `braces` stack-exhaustion advisory (`GHSA-vfj7-8cjw-p6xm`, affected range `<=3.0.3`) has no fixed release upstream; it cascades to `micromatch`, `fast-glob`, `chokidar`, `tailwindcss`, and `eslint-config-next`. Every affected path is a development/build dependency and absent from the production tree (`npm audit --omit=dev` reports zero vulnerabilities), so it is visible but not release-blocking under the policy above. It remains tracked and must be re-checked when upstream publishes a fix.
 
 ## [v1.16.0] - 2026-09-03
 

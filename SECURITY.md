@@ -10,7 +10,7 @@ Security fixes are shipped on the current release tag only.
 
 | Version | Supported |
 | --- | --- |
-| `v1.16.0` | Yes |
+| `v1.17.0` | Yes |
 | `v1.15.1` and older | No |
 
 ## Reporting a vulnerability
