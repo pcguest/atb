@@ -29,7 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.544.0",
-    "next": "16.3.3",
+    "next": "16.3.8",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-window": "^1.8.10",
@@ -65,6 +65,7 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
+    "axios": "1.20.0",
     "browserslist": "4.28.8",
     "glob": "^11.0.0",
     "minimatch": "9.0.7",

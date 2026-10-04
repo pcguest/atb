@@ -36,3 +36,7 @@ The inline directive is the authoritative per-occurrence entry because it
 travels with the code and states the exact data-flow control. This document is
 the reviewed category register and must be updated when a new rule or boundary
 class is introduced.
+
+This register covers Go gosec directives only and is **not** an npm/Trivy
+exception register. The scope of the release-blocking Node dependency gate is
+defined in `docs/maintainers/security-gate-policy.md`.
