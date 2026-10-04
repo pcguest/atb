@@ -170,7 +170,7 @@ inspection above:
 
 | # | Sev | Finding | Owner |
 |---|---|---|---|
-| V1 | HIGH | Mortise governance has **no UI path to start a review** (empty queue; no create-observation control). The review→decision flow cannot be exercised by a user. | GOVERNANCE |
+| V1 | HIGH | Mortise governance has **no UI path to start a review** (empty queue; no create-observation control). The §6 journey is therefore not reachable from the UI alone; it requires crafting `POST /governance/reviews` directly. | GOVERNANCE |
 | V2 | HIGH | The **installed ATB binary without an embedded build serves only "UI not available"**; practitioners must rebuild from source to get the viewer. | EVIDENCE |
 | V3 | MED | ATB Run **"Evidence coverage 80%"** can read as capture completeness; the profile-scoped bound lives only on Evidence status. | EVIDENCE |
 | V4 | MED | Mortise queue **"Success"** (observation status) is the loudest signal and can be misread as evidence/governance validity. | GOVERNANCE |
