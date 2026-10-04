@@ -22,7 +22,7 @@ override these results.
 2. `make hygiene-quick` (already ends with `make test-go`)
 3. `make test-golden`
 4. `make demo-incident`
-5. End-user harness: `harnesses/end-user/run.sh --out .local/dev/atb-enduser.report.json`
+5. `make build` (the harness needs the `./atb` binary), then end-user harness: `harnesses/end-user/run.sh --out .local/dev/atb-enduser.report.json` (or pass a built binary via `--atb`/`ATB_BIN`)
 6. Python SDK: `.venv/bin/python -m pytest sdk/python/tests`
 7. TypeScript SDK: `npm --prefix sdk/typescript run typecheck && npm --prefix sdk/typescript test && npm --prefix sdk/typescript run build`
 8. Web: `npm --prefix web run lint && npm --prefix web run typecheck && npm --prefix web test && npm --prefix web run build`

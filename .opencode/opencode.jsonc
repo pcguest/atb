@@ -94,7 +94,6 @@
       "git rev-parse*": "allow",
       "git ls-files*": "allow",
       "git describe*": "allow",
-      "git grep*": "allow",
       "git blame*": "allow",
       "git config --get*": "allow",
       // Any `rm` asks; recursive+force deletion is denied regardless of target.
