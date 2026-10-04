@@ -37,10 +37,11 @@ npm audit --json --omit=dev
 npm audit --json --include=dev
 ```
 
-- The full dependency tree is always audited. CI prints aggregate counts plus
-  the name and advisory title of every HIGH/CRITICAL finding; lower-severity
-  findings are counted but not individually listed. Unresolved development/build
-  advisories therefore remain **visible and auditable**.
+- The full dependency tree is always audited. CI prints aggregate counts plus,
+  for every HIGH/CRITICAL finding, the package name and — where npm reports one
+  — the advisory title; lower-severity findings are counted but not individually
+  listed. Unresolved development/build advisories therefore remain **visible and
+  auditable**.
 - The scope is forced with `--include=dev`, which overrides an `omit`/`production`
   config, so the visibility signal cannot be silently reduced to production
   only.
