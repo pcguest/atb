@@ -1,3 +1,7 @@
 # Python-only CI security tooling. Keep separate from SDK runtime, contributor,
 # and release dependencies.
 bandit==1.9.4
+# Dependency-vulnerability audit for the pinned release-tooling lock and the
+# SDK runtime dependency graph (see scripts/pip-audit-gate.sh). Bandit remains
+# the source-level (SAST) scan; pip-audit covers known-vulnerable dependencies.
+pip-audit==2.10.1

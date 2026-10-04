@@ -85,12 +85,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Bandit
+      - name: Install Python security tooling
         run: |
           python -m pip install -r sdk/python/requirements-security.txt
 
       - name: Run Bandit (HIGH severity/high confidence)
         run: python -m bandit -q -r sdk/python/atb -lll -iii
+
+      - name: Run pip-audit (release tooling + SDK runtime graph)
+        run: PYTHON=python scripts/pip-audit-gate.sh
 
   # Layer D: Node dependency vulnerability scan over the TypeScript SDK and web UI.
   node-security:

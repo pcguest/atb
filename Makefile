@@ -1,4 +1,4 @@
-.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-audit-python deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -206,7 +206,12 @@ deps-fix-npm:
 	@cd web && npm audit fix || (echo "⚠️ Some vulnerabilities require manual review (likely major upgrades)"; true)
 	@echo "✅ NPM audit fix run complete"
 
-deps-audit: deps-audit-go deps-audit-npm
+# Requires the pinned CI-only tooling: pip install -r sdk/python/requirements-security.txt
+deps-audit-python:
+	@echo "🔍 Auditing Python dependencies..."
+	@bash scripts/pip-audit-gate.sh
+
+deps-audit: deps-audit-go deps-audit-npm deps-audit-python
 	@echo "✅ Dependency audit complete"
 
 install-hooks:
