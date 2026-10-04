@@ -130,7 +130,7 @@ replace or weaken it. It runs `scripts/pip-audit-gate.sh` from the
 `python-security` job, using the pinned tooling in
 `sdk/python/requirements-security.txt` (`pip-audit==2.10.1`).
 
-It audits two fully-pinned inputs with `--no-deps --strict`:
+It audits three fully-pinned inputs with `--no-deps --strict`:
 
 1. **Release-tooling lock** — `sdk/python/requirements-release.txt`, the
    build/publish toolchain (`build`, `setuptools`, `twine`, `wheel` and their
@@ -138,11 +138,25 @@ It audits two fully-pinned inputs with `--no-deps --strict`:
 2. **SDK runtime dependency graph** — `sdk/python/requirements-runtime.txt`,
    compiled from `sdk/python/pyproject.toml` (currently `cryptography` and its
    closure).
+3. **Security-tooling lock** — `sdk/python/requirements-security.txt`, so the
+   audit tool's own pinned closure is itself scanned.
 
 `--no-deps` audits exactly the pinned closure rather than re-resolving from the
 network, so the checked set is reproducible. `--strict` fails closed if a
 dependency cannot be audited. The gate exits `2` if `pip-audit` is unavailable,
 so a missing tool is never reported as a clean audit.
+
+### Interpreter scope
+
+`pip-audit` requires Python `>= 3.10` and evaluates the environment markers in
+`-r` inputs against the running interpreter, silently skipping entries whose
+markers do not match. The runtime lock is therefore compiled at the audit
+interpreter (`--python-version 3.11`) so that **every** entry is audited rather
+than a marker-guarded subset. Python 3.9 remains a supported SDK runtime
+(`requires-python = ">=3.9"`); its install path and SDK contract are proven by
+the dedicated "Python 3.9 Runtime Compatibility" CI job, and its resolved
+`cryptography` is the same audited `50.x` release (the `>=3.9.2` marker routing
+selects it; `cryptography` itself excludes `3.9.0`/`3.9.1`).
 
 The gate trusts the pinned lockfiles and the pip-audit advisory source, as any
 dependency audit must; a tampered lockfile that removes a vulnerable pin is a
@@ -163,5 +177,5 @@ node ../../scripts/npm-audit-gate.mjs visibility
 
 # Python: release tooling + SDK runtime graph (requires the CI-only tooling)
 python3 -m pip install -r sdk/python/requirements-security.txt
-python3 scripts/pip-audit-gate.sh
+bash scripts/pip-audit-gate.sh
 ```
