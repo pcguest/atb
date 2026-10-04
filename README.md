@@ -23,7 +23,7 @@ every registry or GitHub release artefact has been published; check the
 installed CLI/SDK version and the relevant registry before relying on a
 particular release.
 
-v1.16.0 Docker images are multi-architecture (`linux/amd64` and
+v1.17.0 Docker images are multi-architecture (`linux/amd64` and
 `linux/arm64`). Pull the published `atb` image for that tag from Docker Hub
 when the registry publication for the tag is available. Image publication is
 independent of the source tag.
