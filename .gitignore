@@ -149,3 +149,6 @@ test-atb-pypi/
 # local artefacts
 bin/
 scratch/
+
+# Local development state (continuation records, ledgers, ephemeral reports).
+.local/
