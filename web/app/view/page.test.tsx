@@ -122,11 +122,15 @@ vi.mock("@/lib/api-client", () => ({
   useRunBundleVerifyMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRevealFieldMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   flattenEventPages: () => [],
+  locateEvidence: vi.fn(),
 }));
 
 import ViewPage from "./page";
 
-beforeEach(() => useUIStore.setState({ role: "engineer" }));
+beforeEach(() => {
+  window.history.replaceState(null, "", "/");
+  useUIStore.setState({ role: "engineer" });
+});
 afterEach(() => {
   cleanup();
   overview.integrity_valid = true;
@@ -201,12 +205,12 @@ describe("ATB View investigation model", () => {
       warnings: [],
     };
     render(<ViewPage />);
-    expect(screen.getByText("Evidence coverage")).toBeInTheDocument();
-    expect(screen.getByText("Not assessed")).toBeInTheDocument();
+    expect(screen.getByText("Coverage")).toBeInTheDocument();
+    expect(screen.getAllByText("Not assessed").length).toBeGreaterThan(0);
     expect(screen.queryByText("0%")).not.toBeInTheDocument();
   });
 
-  it("renders assessed coverage as a percentage", () => {
+  it("shows the recorded profile coverage grade, never a bare completeness percentage", () => {
     overview.profile = {
       profile_id: "atb.profile.privileged_tool_action",
       pass: true,
@@ -220,7 +224,8 @@ describe("ATB View investigation model", () => {
     trust.profile_id = "atb.profile.privileged_tool_action";
     trust.profile_pass = true;
     render(<ViewPage />);
-    expect(screen.getByText("76%")).toBeInTheDocument();
+    expect(screen.getAllByText("Moderate coverage").length).toBeGreaterThan(0);
+    expect(screen.queryByText("76%")).not.toBeInTheDocument();
     expect(screen.queryByText("Not assessed")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
     expect(screen.getByText("Pass")).toBeInTheDocument();
@@ -274,14 +279,17 @@ describe("ATB View investigation model", () => {
     expect(screen.getByText(/Open optional graph/)).toBeInTheDocument();
   });
 
-  it("makes failed integrity visibly untrusted", () => {
+  it("keeps integrity failure distinct from coverage and corroboration", () => {
     overview.integrity_valid = false;
     trust.integrity_valid = false;
     render(<ViewPage />);
-    expect(screen.getByText("Integrity failed")).toBeInTheDocument();
-    expect(screen.getByText("Untrusted")).toBeInTheDocument();
+    expect(screen.getAllByText("Integrity failed").length).toBeGreaterThan(0);
+    // A broken chain makes coverage unavailable; it is not a coverage verdict
+    // and must not be relabelled "untrusted".
+    expect(screen.getAllByText("Unavailable while integrity is invalid").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Untrusted")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
-    expect(screen.getAllByText("Hash chain failed")).not.toHaveLength(0);
+    expect(screen.getAllByText("Hash chain failed").length).toBeGreaterThan(0);
   });
 
   it("blocks event-derived findings and timeline when integrity is invalid", () => {
@@ -347,5 +355,66 @@ describe("ATB View investigation model", () => {
     overviewError = true;
     rerender(<ViewPage />);
     expect(screen.getByRole("alert")).toHaveTextContent(/local viewer session/);
+  });
+
+  it("presents evidence-object identity and the active surface", () => {
+    render(<ViewPage />);
+    expect(screen.getByText("Evidence bundle")).toBeInTheDocument();
+    expect(screen.getByText(/3 records/)).toBeInTheDocument();
+  });
+
+  it("restores the active investigation surface from the URL on load", () => {
+    window.history.replaceState(null, "", "/?surface=timeline&seq=2");
+    render(<ViewPage />);
+    expect(screen.getByRole("heading", { name: "Timeline" })).toBeInTheDocument();
+  });
+
+  it("fails safe to Run for an unknown surface or invalid sequence in the URL", () => {
+    window.history.replaceState(null, "", "/?surface=bogus&seq=notanumber");
+    render(<ViewPage />);
+    expect(screen.getByText("What happened?")).toBeInTheDocument();
+  });
+
+  it("follows presentation location on browser back/forward (popstate)", () => {
+    window.history.replaceState(null, "", "/?surface=timeline&seq=2");
+    render(<ViewPage />);
+    expect(screen.getByRole("heading", { name: "Timeline" })).toBeInTheDocument();
+    window.history.replaceState(null, "", "/?surface=evidence&seq=2");
+    fireEvent.popState(window);
+    expect(screen.getByRole("heading", { name: "Exact records" })).toBeInTheDocument();
+  });
+
+  it("keeps the viewer session token in the fragment when navigation changes the query", () => {
+    window.history.replaceState(null, "", "/view/#session=secret-token");
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    expect(window.location.search).toContain("surface=timeline");
+    expect(window.location.search).not.toContain("secret-token");
+    expect(window.location.hash).toBe("#session=secret-token");
+  });
+
+  it("records the selected record sequence in the URL for continuity", () => {
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    expect(window.location.search).toContain("surface=timeline");
+    expect(window.location.search).toContain("seq=2");
+  });
+
+  it("records the origin surface so Evidence offers a stable return path", () => {
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open in Evidence →" }));
+    expect(window.location.search).toContain("surface=evidence");
+    expect(window.location.search).toContain("from=timeline");
+    expect(screen.getByRole("button", { name: "← Return to Timeline" })).toBeInTheDocument();
+  });
+
+  it("is honest about an unrecognised investigation surface in a deep link", () => {
+    window.history.replaceState(null, "", "/?surface=bogus");
+    render(<ViewPage />);
+    expect(screen.getByTestId("location-notice")).toHaveTextContent(/not recognised/);
+    expect(screen.getByText("What happened?")).toBeInTheDocument();
   });
 });

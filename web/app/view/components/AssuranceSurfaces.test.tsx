@@ -206,7 +206,10 @@ describe("assurance inspection", () => {
       limitations: [],
     });
     render(<TrustSurface data={data} timeline={[]} onOpenEvidence={vi.fn()} />);
-    expect(screen.getByText("Untrusted")).toBeVisible();
+    expect(screen.queryByText("Untrusted")).toBeNull();
+    expect(screen.getAllByText("Hash chain failed").length).toBeGreaterThan(0);
+    // A broken chain makes coverage unavailable; it is not a coverage verdict.
+    expect(screen.getAllByText("Unavailable while integrity is invalid").length).toBeGreaterThan(0);
     expect(screen.getByText(/cannot establish the integrity or order/)).toBeVisible();
     expect(screen.queryByText("ATB proves the integrity and order of records presented in a bundle.")).toBeNull();
   });
