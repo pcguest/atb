@@ -211,10 +211,62 @@ Current products frequently expose **L3 before L1**.
 
 - `PRODUCT_UX_ARCHITECTURE_GATE` — this document (Phase UX-0 archaeology);
   independent review is pending a linked report.
-- `ATB_INVESTIGATION_UX_GATE`, `ATB_FORENSIC_UX_GATE`,
-  `MORTISE_GOVERNANCE_UX_GATE`, `MORTISE_REVIEW_UX_GATE`,
-  `ATB_MORTISE_PRODUCT_JOURNEY_GATE`, `ATB_PUBLIC_WEB_GATE` — **NOT_STARTED**.
+- `ATB_INVESTIGATION_UX_GATE` — **GO_WITH_RESIDUAL_ASSURANCE** (UX-1; see §9).
+- `ATB_FORENSIC_UX_GATE`, `MORTISE_GOVERNANCE_UX_GATE`,
+  `MORTISE_REVIEW_UX_GATE`, `ATB_MORTISE_PRODUCT_JOURNEY_GATE`,
+  `ATB_PUBLIC_WEB_GATE` — **NOT_STARTED**.
 
 Engineering: `ATB_RELEASE_GATE` NO_GO · `RELEASED_INTEROP_GATE` NO_GO ·
 `ATB_ACQUISITION_PRODUCTISATION_GATE` NEEDS_MORE_FOUNDATION ·
 `TENON_READINESS_GATE` NO_GO · `TENON_IMPLEMENTATION_GATE` NO_GO.
+
+---
+
+## 9. UX-1 investigation-workbench baseline (addendum)
+
+Status: **CERTIFIED (synthetic) — human assurance outstanding.** The Phase UX-0
+archaeology and its findings (§1–§7) remain historically accurate and are not
+rewritten here; §8's `ATB_INVESTIGATION_UX_GATE` line is updated (see below) and
+this addendum records what UX-1 actually delivered.
+
+**Scope.** UX-1 (UX1-A investigation shell + UX1-B evidence workbench) reworked
+the ATB `atb view` investigation application only. No Mortise, Tenon, Action,
+acquisition or public-web change.
+
+**Merged (ATB `origin/main` `379a11b`).**
+- UX1-A (PR #46, `8b5e63b`): grouped, keyboard-complete navigation
+  (Run → Findings → Timeline → Context → Relationships → Evidence → Evidence
+  status); evidence-object identity header; `?surface=`/`?seq=`/`?from=` URL
+  continuity with Back/Forward; coverage as a deterministic state, never a score.
+- UX1-B (PR #47, `9e65864`): verification banner owns verification state only
+  (L1 summary; chain length and head hash behind an `Integrity details`
+  disclosure); Timeline vs Evidence differentiated (recorded sequence vs exact
+  forensic records); Evidence-status scan hierarchy; bounded Context absence;
+  Relationships labelled by recorded event. Reviewer findings and R1–R4
+  residuals raised during **synthetic practitioner validation** (not an
+  independent human session; see Assurance status) were remediated.
+
+**Certified properties.**
+- Seven investigation surfaces preserved; not collapsed into a dashboard.
+- Integrity / Coverage / Custody distinct; no trust/confidence/coverage score.
+- Bounded readiness/precondition/completeness wording throughout.
+- L1 → L2 → L3 progressive disclosure intact; raw forensic inspection retained.
+- Deep links (`?focus=<locator>`) resolve to Evidence; session token stays in
+  the fragment; history continuity predictable.
+- Hash-chain failure is presented in ATB's own summary copy as an integrity-check
+  failure, not as proven tampering, cause or intent (static viewer wall and
+  verification banner). The banner's `Integrity details` disclosure retains the
+  raw verifier diagnostic verbatim (attributed as "Verifier output"), which may
+  itself contain upstream verifier wording such as "tamper detected"; that is
+  attributed raw output, not an ATB conclusion.
+
+**Assurance status.**
+- `PRACTITIONER_MODE = SYNTHETIC`; `SYNTHETIC_PRACTITIONER_VALIDATION = PASS`.
+- `INDEPENDENT_HUMAN_PRACTITIONER_VALIDATION = OUTSTANDING` — a genuine
+  independent human session remains an open assurance item and is **not** a
+  development blocker.
+
+**Next legitimate product UX boundary.** Mortise governance/review workspace
+(evidence → interpretation → policy/rule → review → decision → ActionRequest
+state), then the Action-layer owner decision (Tenon repurpose vs separate
+repository). Do not start UX-2/public web without owner direction.
