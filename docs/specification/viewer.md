@@ -93,7 +93,8 @@ Rationale:
 
 - `bundle.Verify()` runs before event APIs are available.
 - If verification fails:
-  - root page shows full-width red warning: `TAMPER DETECTED`
+  - root page shows full-width red warning: `INTEGRITY CHECK FAILED` (stating that
+    hash-chain verification did not succeed, without attributing cause or intent)
   - `GET /api/v1/verification` returns `status=invalid`
   - data endpoints return `403`
 

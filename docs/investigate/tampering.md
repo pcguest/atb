@@ -60,8 +60,9 @@ Rebuild with embedded UI if needed (`cd web && npm ci && npm run build && cd .. 
 
 On a **valid** bundle: green verification banner, timeline and inspector load.
 
-On a **tampered** bundle: red `TAMPER DETECTED` banner; event APIs return `403`;
-no event payloads are served.
+On a bundle that fails hash-chain verification: red `INTEGRITY CHECK FAILED` wall;
+event APIs return `403`; no event payloads are served. The wall reports that
+verification did not succeed and does not attribute a cause or intent.
 
 ## 5. Restore or regenerate
 

@@ -106,15 +106,16 @@ export function viewerLocationUrl(
 }
 
 /**
- * Strip all presentation-location parameters while preserving the fragment, so a
- * session-token change can reset to Run without leaving stale `?surface`/`?seq`
- * for the new session scope.
+ * Strip presentation-location parameters while preserving the fragment and the
+ * evidence locator, so a session-token change can reset to Run without leaving
+ * stale `?surface`/`?seq` for the new session scope. `?focus=<locator>` is the
+ * canonical evidence deep link (not presentation state), so it is preserved: an
+ * unresolved evidence reference survives a scope reset rather than being erased.
  */
 export function clearViewerLocation(href: string): string {
   const url = new URL(href);
   url.searchParams.delete("surface");
   url.searchParams.delete("seq");
   url.searchParams.delete("from");
-  url.searchParams.delete("focus");
   return `${url.pathname}${url.search}${url.hash}`;
 }

@@ -466,7 +466,7 @@ func TestBuildViewServerTamperMode(t *testing.T) {
 	if rr.Code != http.StatusOK {
 		t.Fatalf("unexpected status: got %d want %d", rr.Code, http.StatusOK)
 	}
-	if !strings.Contains(rr.Body.String(), "TAMPER DETECTED") {
+	if !strings.Contains(rr.Body.String(), "INTEGRITY CHECK FAILED") {
 		t.Fatalf("expected tamper warning page")
 	}
 
@@ -521,7 +521,7 @@ func TestBuildViewServerTamperModeCatchesAllRoutes(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		rr := httptest.NewRecorder()
 		handler.ServeHTTP(rr, req)
-		if !strings.Contains(rr.Body.String(), "TAMPER DETECTED") {
+		if !strings.Contains(rr.Body.String(), "INTEGRITY CHECK FAILED") {
 			t.Fatalf("expected tamper warning page at %s, got %s", path, rr.Body.String())
 		}
 	}

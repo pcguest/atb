@@ -522,7 +522,7 @@ func NewTamperHandler(bundlePath string, verifyErr error) http.Handler {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>ATB Viewer — Tamper Detected</title>
+  <title>ATB Viewer — Integrity Check Failed</title>
   <style>
     body { margin: 0; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f0a0a; color: #fee2e2; }
     main { max-width: 900px; margin: 48px auto; padding: 24px; }
@@ -533,9 +533,10 @@ func NewTamperHandler(bundlePath string, verifyErr error) http.Handler {
 </head>
 <body>
   <main>
-    <h1 class="banner">TAMPER DETECTED — HASH CHAIN VERIFICATION FAILED</h1>
+    <h1 class="banner">INTEGRITY CHECK FAILED — HASH CHAIN VERIFICATION FAILED</h1>
     <p class="meta">Bundle: <code>%s</code></p>
-    <p class="meta">Details: <code>%s</code></p>
+    <p class="meta">Verification did not succeed: the presented records do not match their recorded hash chain and recorded order. This does not by itself establish the cause or intent.</p>
+    <p class="meta">Verifier output (verbatim): <code>%s</code></p>
     <p class="meta">Event data is blocked. Review <code>/api/v1/verification</code> for machine-readable status.</p>
   </main>
 </body>

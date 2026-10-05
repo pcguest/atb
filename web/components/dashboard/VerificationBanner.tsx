@@ -87,7 +87,7 @@ export function VerificationBanner({
             type="button"
             onClick={() => setDetailsOpen((open) => !open)}
             aria-expanded={detailsOpen}
-            aria-controls={detailsId}
+            aria-controls={detailsOpen ? detailsId : undefined}
             className="rounded-sm text-xs text-green-200 underline underline-offset-2 hover:text-green-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             Integrity details
@@ -117,14 +117,14 @@ export function VerificationBanner({
     );
   }
 
-  const diagnosis = message?.trim() || "hash chain verification failed";
+  const diagnosis = message?.trim() || null;
   const recheckPath = bundlePath ? displayBundlePath(bundlePath) : null;
 
   return (
     <div
       role="alert"
       aria-live="assertive"
-      aria-label={`Bundle tamper detected. Interaction restricted. ${diagnosis}`}
+      aria-label="Bundle integrity check failed. Interaction restricted."
       className="fixed inset-x-0 top-0 z-50 flex min-h-[var(--banner-h)] w-full flex-col justify-center gap-0.5 border-b border-red-500 bg-red-950 px-4 py-1.5"
     >
       <div className="flex items-center gap-2">
@@ -133,17 +133,54 @@ export function VerificationBanner({
           aria-hidden="true"
         />
         <span className="font-mono text-xs font-bold uppercase tracking-widest text-red-300">
-          ⚠ TAMPER DETECTED
+          ⚠ INTEGRITY CHECK FAILED
         </span>
         <span className="font-mono text-xs text-red-300">{chainLength ?? 0} recorded events</span>
-        {headHash && (
-          <span className="ml-auto min-w-0 flex-1 truncate text-right font-mono text-xs text-red-300" title={headHash}>
-            {headHash}
-          </span>
-        )}
+        <div className="relative ml-auto" ref={detailsRef}>
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((open) => !open)}
+            aria-expanded={detailsOpen}
+            aria-controls={detailsOpen ? detailsId : undefined}
+            className="rounded-sm font-mono text-xs text-red-200 underline underline-offset-2 hover:text-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            Integrity details
+          </button>
+          {detailsOpen && (
+            <div
+              id={detailsId}
+              className="absolute right-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-popover p-3 text-xs text-foreground shadow-lg"
+            >
+              <dl className="space-y-2">
+                <div>
+                  <dt className="text-muted-foreground">Chain length</dt>
+                  <dd className="mt-0.5">{chainLength ?? 0} recorded events</dd>
+                </div>
+                {headHash && (
+                  <div>
+                    <dt className="text-muted-foreground">Head hash</dt>
+                    <dd className="mt-0.5 break-all font-mono">{headHash}</dd>
+                  </div>
+                )}
+              </dl>
+              <p className="mt-2 leading-5 text-muted-foreground">
+                Verification did not succeed: the presented records do not match their recorded
+                hash chain and recorded order. This does not by itself establish the cause or intent.
+              </p>
+              {diagnosis && (
+                <p className="mt-2 leading-5 text-muted-foreground">
+                  Verifier output (verbatim): <code className="break-all font-mono">{diagnosis}</code>
+                </p>
+              )}
+              <p className="mt-2 leading-5 text-muted-foreground">
+                Machine-readable status: <code className="font-mono">/api/v1/verification</code>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-      <p className="truncate font-mono text-xs text-red-200" title={diagnosis}>
-        {diagnosis}
+      <p className="truncate font-mono text-xs text-red-200">
+        The recorded hash-chain verification did not succeed. Event data is blocked.
       </p>
       {recheckPath && (
         <p className="truncate font-mono text-xs text-red-300/90">

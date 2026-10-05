@@ -11,6 +11,7 @@ import { ObjectIdentityHeader } from "./components/ObjectIdentityHeader";
 import { EventInspector } from "@/components/dashboard/EventInspector";
 import { flattenEventPages, locateEvidence, useBundleEventsQuery, useInvestigationContextQuery, useInvestigationFindingsQuery, useInvestigationOverviewQuery, useInvestigationRelationshipsQuery, useInvestigationTimelineQuery, useInvestigationTrustQuery, useRevealFieldMutation, useRunBundleVerifyMutation } from "@/lib/api-client";
 import { clearViewerLocation, parseViewerLocation, viewerLocationUrl, type ViewerLocation } from "@/lib/viewer-location";
+import type { TimelineEvent } from "@/lib/types";
 
 type QueryState = { isLoading?: boolean; isError?: boolean; data?: unknown; refetch?: () => unknown };
 
@@ -105,8 +106,11 @@ export default function ViewPage() {
     // than render stale records against a new scope.
     const onHash = () => {
       // A new session scope invalidates any presentation location for the old
-      // one; drop the query params (keeping the fragment token) so a refresh
-      // cannot restore a stale surface/selection against the new scope.
+      // one; drop the query params (keeping the fragment token and the evidence
+      // locator) so a refresh cannot restore a stale surface/selection against
+      // the new scope. Mark the scope as navigated so an in-flight `?focus=`
+      // lookup cannot yank the new scope back to a record from the old one.
+      navigatedRef.current = true;
       if (typeof window !== "undefined") window.history.replaceState(null, "", clearViewerLocation(window.location.href));
       setSelectedSeq(null); setSelectedFinding(0); setSource(null); setLocationNotice(null); setSurface("incident"); setScopeGeneration(value => value + 1);
     };
@@ -162,7 +166,7 @@ export default function ViewPage() {
   function selectRecord(seq: number) { navigate(surface, seq, { from: surface === "evidence" ? source : null }); }
   async function reveal(seq: number, fieldPath: string) { return (await revealMutation.mutateAsync({ seq, field_path: fieldPath, reason: "investigation_review" })).value; }
   const actions: PaletteAction[] = [
-    ...investigationSurfaces.map(([id, label]) => ({ id, label: `Open ${label.toLowerCase()}`, group: "navigate" as const, run: () => navigate(id, selectedSeq) })),
+    ...investigationSurfaces.map(([id, label]) => ({ id, label: `Open ${label.toLowerCase()}`, group: "navigate" as const, run: () => selectSurface(id) })),
     ...(!verifyMutation.isPending ? [{ id: "verify", label: "Verify bundle", group: "verify" as const, run: async () => { await verifyMutation.mutateAsync(); await Promise.all([overviewQuery.refetch(), trustQuery.refetch()]); } }] : []),
     ...(selectedEvent ? [
       { id: "inspect-selected", label: "Inspect selected evidence", group: "inspect" as const, run: () => openEvidence(selectedEvent.seq) },
@@ -176,8 +180,10 @@ export default function ViewPage() {
   const overview = overviewQuery.data;
   if (!overview) return <LoadingState/>;
   const blocked = !valid && surface !== "incident" && surface !== "trust";
-  const evidenceInspector = <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Exact record {effectiveSeq !== null ? `#${effectiveSeq}` : ""}</h3>{source && <button className={actionClass} onClick={() => navigate(source, selectedSeq)}>← Return to {surfaceLabel(source)}</button>}</div>{eventsQuery.isError ? <ErrorState onRetry={() => void eventsQuery.refetch()}>This record could not be loaded. Your selection is retained.</ErrorState> : eventsQuery.isLoading || (!selectedEvent && eventsQuery.hasNextPage) ? <LoadingState label="Loading selected record…"/> : selectedEvent ? <EventInspector key={`${scopeGeneration}-${overview.bundle_path}-${selectedEvent.seq}-${selectedEvent.hash}`} event={selectedEvent} disabled={!valid || revealMutation.isPending} onReveal={reveal}/> : <EmptyState title={effectiveSeq !== null ? `Event #${effectiveSeq} unavailable` : "Select an event"}>{effectiveSeq !== null ? "The requested sequence was not found in the returned evidence. Choose another record or retry." : "Choose a recorded event to inspect its fields and hash."}</EmptyState>}</div>;
-  const timelineInspector = <TimelineInspector event={selectedTimelineEvent} seq={effectiveSeq} timeline={timeline} onSelect={selectRecord} onOpenEvidence={openEvidence}/>;
+  const evidenceInspector = () => <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Exact record {effectiveSeq !== null ? `#${effectiveSeq}` : ""}</h3>{source && <button className={actionClass} onClick={() => navigate(source, selectedSeq)}>← Return to {surfaceLabel(source)}</button>}</div>{eventsQuery.isError ? <ErrorState onRetry={() => void eventsQuery.refetch()}>This record could not be loaded. Your selection is retained.</ErrorState> : eventsQuery.isLoading || (!selectedEvent && eventsQuery.hasNextPage) ? <LoadingState label="Loading selected record…"/> : selectedEvent ? <EventInspector key={`${scopeGeneration}-${overview.bundle_path}-${selectedEvent.seq}-${selectedEvent.hash}`} event={selectedEvent} disabled={!valid || revealMutation.isPending} onReveal={reveal}/> : <EmptyState title={effectiveSeq !== null ? `Event #${effectiveSeq} unavailable` : "Select an event"}>{effectiveSeq !== null ? "The requested sequence was not found in the returned evidence. Choose another record or retry." : "Choose a recorded event to inspect its fields and hash."}</EmptyState>}</div>;
+  // The inspector receives the visible (filtered) rows so Timeline movement
+  // never selects a record hidden by the active filter.
+  const timelineInspector = (visible: TimelineEvent[]) => <TimelineInspector event={selectedTimelineEvent} seq={effectiveSeq} timeline={visible} onSelect={selectRecord} onOpenEvidence={openEvidence}/>;
   return <div className="flex h-full min-h-0 w-full bg-background">
     <button type="button" onClick={() => document.getElementById("dashboard-content")?.focus()} className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Skip to investigation content</button>
     <aside className="hidden w-44 shrink-0 flex-col border-r border-border bg-surface-1 md:flex xl:w-56" aria-label="Investigation navigation"><div className="border-b border-border px-4 py-5"><p className="font-semibold tracking-tight">ATB View</p><p className="mt-1 text-xs text-muted-foreground">Evidence investigation</p></div><InvestigationNavigation active={surface} onSelect={selectSurface} findingCount={overview.finding_count}/><div className="border-t border-border p-4 text-xs leading-5 text-muted-foreground">Local evidence<br/>Independent verification</div></aside>

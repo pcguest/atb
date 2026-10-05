@@ -234,7 +234,8 @@ export function RelationshipsSurface({
       .includes(query.toLowerCase()),
   );
   const active = filtered.find((relationship) => relationship.id === selected) ?? filtered[0];
-  const labelFor = (seq: number) => timeline.find((event) => event.seq === seq)?.label ?? null;
+  const eventsBySeq = new Map(timeline.map((event) => [event.seq, event] as const));
+  const labelFor = (seq: number) => eventsBySeq.get(seq)?.label ?? null;
   const graph = (() => {
     const seqs = [
       ...new Set(
@@ -243,7 +244,7 @@ export function RelationshipsSurface({
     ].sort((a, b) => a - b);
     return {
       nodes: seqs.map((seq) => {
-        const event = timeline.find((item) => item.seq === seq);
+        const event = eventsBySeq.get(seq);
         return {
           id: `evt-${seq}`,
           label: `#${seq} · ${event?.label || event?.type || "Recorded event"}`,

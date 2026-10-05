@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useUIStore } from "@/lib/state/ui-store";
@@ -126,6 +126,7 @@ vi.mock("@/lib/api-client", () => ({
 }));
 
 import ViewPage from "./page";
+import { locateEvidence } from "@/lib/api-client";
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/");
@@ -151,6 +152,7 @@ afterEach(() => {
   eventPages = [];
   eventsHasNextPage = false;
   fetchNextPage.mockReset();
+  vi.mocked(locateEvidence).mockReset();
 });
 
 describe("ATB View investigation model", () => {
@@ -451,5 +453,39 @@ describe("ATB View investigation model", () => {
     expect(push).not.toHaveBeenCalled();
     push.mockRestore();
     replace.mockRestore();
+  });
+
+  it("resolves a ?focus= evidence locator into Evidence without leaking the session token", async () => {
+    eventPages = [{ events: [{ seq: 2, type: "atb.tool.call", hash: "sha256:tool", prev_hash: "sha256:prev", data: {} }] }];
+    vi.mocked(locateEvidence).mockResolvedValue({ ok: true, seq: 2 } as never);
+    window.history.replaceState(null, "", "/view/?focus=atb%3A%2F%2Fevidence%2F1%2Fabc%3Fseq%3D2&surface=timeline#session=secret-token");
+    render(<ViewPage />);
+    await screen.findByTestId("event-inspector");
+    expect(window.location.search).toContain("surface=evidence");
+    expect(window.location.search).toContain("seq=2");
+    expect(window.location.search).not.toContain("focus=");
+    expect(window.location.search).not.toContain("secret-token");
+    expect(window.location.hash).toBe("#session=secret-token");
+  });
+
+  it("ignores an in-flight ?focus= lookup after the session scope changes, preserving the locator", async () => {
+    let resolveFocus: ((value: { ok: boolean; seq: number }) => void) | undefined;
+    vi.mocked(locateEvidence).mockImplementation(
+      () => new Promise((resolve) => { resolveFocus = resolve as (value: { ok: boolean; seq: number }) => void; }) as never,
+    );
+    window.history.replaceState(null, "", "/view/?focus=atb%3A%2F%2Fevidence%2F1%2Fabc%3Fseq%3D2&surface=evidence&seq=2#session=old");
+    render(<ViewPage />);
+    act(() => { window.dispatchEvent(new Event("hashchange")); });
+    // The session change resets the scope and drops stale presentation state...
+    expect(window.location.search).not.toContain("surface=");
+    expect(window.location.search).not.toContain("seq=");
+    // ...but the canonical evidence locator must survive.
+    expect(window.location.search).toContain("focus=");
+    expect(window.location.hash).toBe("#session=old");
+    await act(async () => { resolveFocus?.({ ok: true, seq: 2 }); await Promise.resolve(); });
+    // The stale lookup must not yank the new scope back to the old record.
+    expect(window.location.search).not.toContain("seq=");
+    expect(screen.queryByTestId("event-inspector")).not.toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).toContain("focus="));
   });
 });
