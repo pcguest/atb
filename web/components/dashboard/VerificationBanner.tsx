@@ -1,11 +1,10 @@
 "use client";
 
 import { Lock, ShieldOff } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { useBundleMetaQuery, useVerificationQuery } from "@/lib/api-client";
 import { displayBundlePath } from "@/lib/display-path";
-import { truncateSha256 } from "@/lib/hash-display";
 
 // ─── Pure / presentational ───────────────────────────────────────────────────
 
@@ -18,8 +17,15 @@ type VerificationBannerProps = {
 };
 
 const BASE =
-  "fixed inset-x-0 top-0 z-50 flex h-[var(--banner-h)] w-full items-center gap-2 border-b px-4";
+  "fixed inset-x-0 top-0 z-50 flex h-[var(--banner-h)] w-full items-center gap-3 border-b px-4";
 
+/**
+ * The verification banner owns the *verification state* of the loaded object
+ * (L1: is the presented recorded sequence intact?), not object identity — the
+ * investigation shell's ObjectIdentityHeader owns identity and evidence-state
+ * facts. Exact chain/hash detail is Level 3 and is reachable behind the
+ * "Integrity details" disclosure; it is never replaced by a score.
+ */
 export function VerificationBanner({
   status,
   chainLength,
@@ -27,6 +33,22 @@ export function VerificationBanner({
   bundlePath,
   message,
 }: VerificationBannerProps) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const detailsId = useId();
+  const detailsRef = useRef<HTMLDivElement>(null);
+
+  // Dismiss the disclosure on Escape or an outside click.
+  useEffect(() => {
+    if (!detailsOpen) return;
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setDetailsOpen(false); };
+    const onPointer = (event: MouseEvent) => {
+      if (detailsRef.current && !detailsRef.current.contains(event.target as Node)) setDetailsOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onPointer);
+    return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("mousedown", onPointer); };
+  }, [detailsOpen]);
+
   useEffect(() => {
     if (status === "invalid") {
       document.documentElement.setAttribute("data-tamper", "true");
@@ -52,26 +74,45 @@ export function VerificationBanner({
     return (
       <div
         role="status"
-        aria-label={`Bundle integrity verified. Chain length: ${chainLength ?? 0}`}
+        aria-label="Bundle integrity verified: the presented records match their hash chain and recorded order"
         className={`${BASE} border-green-800/50 bg-green-950/80`}
       >
-        <Lock className="h-3 w-3 shrink-0 text-green-300" aria-hidden="true" />
-        <span className="font-mono text-xs font-medium tracking-wider text-green-400">
-          chain: {chainLength ?? 0} events
+        <Lock className="h-3.5 w-3.5 shrink-0 text-green-300" aria-hidden="true" />
+        <span className="text-xs font-medium text-green-300">Hash chain verified</span>
+        <span className="hidden text-xs text-green-200/80 sm:inline">
+          — {chainLength ?? 0} recorded events, in recorded order
         </span>
-        {headHash && (
-          <span className="font-mono text-xs text-green-300" title={headHash}>
-            {truncateSha256(headHash)}
-          </span>
-        )}
-        {bundlePath && (
-          <span
-            className="ml-auto min-w-0 flex-1 truncate text-right font-mono text-xs text-green-200"
-            title={displayBundlePath(bundlePath)}
+        <div className="relative ml-auto" ref={detailsRef}>
+          <button
+            type="button"
+            onClick={() => setDetailsOpen((open) => !open)}
+            aria-expanded={detailsOpen}
+            aria-controls={detailsId}
+            className="rounded-sm text-xs text-green-200 underline underline-offset-2 hover:text-green-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            {displayBundlePath(bundlePath)}
-          </span>
-        )}
+            Integrity details
+          </button>
+          {detailsOpen && (
+            <div id={detailsId} className="absolute right-0 top-full z-50 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-popover p-3 text-xs text-foreground shadow-lg">
+              <dl className="space-y-2">
+                <div>
+                  <dt className="text-muted-foreground">Chain length</dt>
+                  <dd className="mt-0.5">{chainLength ?? 0} recorded events</dd>
+                </div>
+                {headHash && (
+                  <div>
+                    <dt className="text-muted-foreground">Head hash</dt>
+                    <dd className="mt-0.5 break-all font-mono">{headHash}</dd>
+                  </div>
+                )}
+              </dl>
+              <p className="mt-2 leading-5 text-muted-foreground">
+                Verification establishes the integrity and recorded order of the records presented. It
+                does not establish truth, completeness, or independent custody.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -94,20 +135,17 @@ export function VerificationBanner({
         <span className="font-mono text-xs font-bold uppercase tracking-widest text-red-300">
           ⚠ TAMPER DETECTED
         </span>
-        <span className="font-mono text-xs text-red-300">chain: {chainLength ?? 0} events</span>
-        {recheckPath && (
-          <span
-            className="ml-auto min-w-0 flex-1 truncate text-right font-mono text-xs text-red-200"
-            title={recheckPath}
-          >
-            {recheckPath}
+        <span className="font-mono text-xs text-red-300">{chainLength ?? 0} recorded events</span>
+        {headHash && (
+          <span className="ml-auto min-w-0 flex-1 truncate text-right font-mono text-xs text-red-300" title={headHash}>
+            {headHash}
           </span>
         )}
       </div>
       <p className="truncate font-mono text-xs text-red-200" title={diagnosis}>
         {diagnosis}
       </p>
-      {bundlePath && (
+      {recheckPath && (
         <p className="truncate font-mono text-xs text-red-300/90">
           {/* The copyable command needs the real path; the shortened display
               form may not resolve when pasted into a shell. */}

@@ -35,9 +35,15 @@ const SLUG_BY_SURFACE: Record<SurfaceId, string> = {
   trust: "status",
 };
 
-const SURFACE_BY_SLUG: Record<string, SurfaceId> = Object.fromEntries(
-  (Object.entries(SLUG_BY_SURFACE) as Array<[SurfaceId, string]>).map(([surface, slug]) => [slug, surface]),
-);
+// Null-prototype so a query value such as `surface=constructor` or
+// `from=toString` cannot resolve to an inherited Object.prototype member.
+const SURFACE_BY_SLUG: Record<string, SurfaceId> = Object.create(null);
+for (const id of SURFACE_IDS) SURFACE_BY_SLUG[SLUG_BY_SURFACE[id]] = id;
+
+function slugToSurface(value: string | null): SurfaceId | null {
+  if (!value) return null;
+  return Object.prototype.hasOwnProperty.call(SURFACE_BY_SLUG, value) ? SURFACE_BY_SLUG[value] : null;
+}
 
 export function isSurfaceId(value: string | null | undefined): value is SurfaceId {
   return typeof value === "string" && (SURFACE_IDS as readonly string[]).includes(value);
@@ -58,17 +64,17 @@ export type ViewerLocation = {
  * default rather than rendering an inconsistent state.
  *
  * A sequence is only accepted alongside a valid surface, so an invalid surface
- * cannot leave an invisible selection armed. An unrecognised surface is
- * reported so the caller can be honest about a bad link rather than silently
- * pretending the link was absent.
+ * cannot leave an invisible selection armed. An unrecognised surface — including
+ * a present-but-empty value — is reported so the caller can be honest about a
+ * bad link rather than silently pretending the link was absent.
  */
 export function parseViewerLocation(search: string): ViewerLocation {
   const params = new URLSearchParams(search);
+  const hasSurface = params.has("surface");
   const slug = params.get("surface");
-  const surface = slug ? SURFACE_BY_SLUG[slug] ?? null : null;
-  const unrecognisedSurface = slug && !surface ? slug : null;
-  const fromSlug = params.get("from");
-  const from = fromSlug ? SURFACE_BY_SLUG[fromSlug] ?? null : null;
+  const surface = slugToSurface(slug);
+  const unrecognisedSurface = hasSurface && !surface ? (slug && slug.length > 0 ? slug : "(empty)") : null;
+  const from = slugToSurface(params.get("from"));
   const rawSeq = params.get("seq");
   let seq: number | null = null;
   if (surface && rawSeq !== null && /^\d+$/.test(rawSeq)) {
@@ -95,6 +101,20 @@ export function viewerLocationUrl(
   else url.searchParams.set("seq", String(seq));
   if (from && from !== surface) url.searchParams.set("from", SLUG_BY_SURFACE[from]);
   else url.searchParams.delete("from");
+  url.searchParams.delete("focus");
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+/**
+ * Strip all presentation-location parameters while preserving the fragment, so a
+ * session-token change can reset to Run without leaving stale `?surface`/`?seq`
+ * for the new session scope.
+ */
+export function clearViewerLocation(href: string): string {
+  const url = new URL(href);
+  url.searchParams.delete("surface");
+  url.searchParams.delete("seq");
+  url.searchParams.delete("from");
   url.searchParams.delete("focus");
   return `${url.pathname}${url.search}${url.hash}`;
 }

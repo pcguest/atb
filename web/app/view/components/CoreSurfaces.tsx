@@ -21,20 +21,13 @@ export function FilterBar({ search, setSearch, label, count, children }: { searc
  *
  * Coverage is a distinct question from integrity and corroboration, so:
  * - a broken hash chain makes coverage *unavailable*, not "untrusted";
- * - an unselected profile is "not assessed";
- * - a bare percentage is never rendered here (it over-reads as capture
- *   completeness). When a profile is assessed, its recorded grade is shown;
- *   the numeric profile signal stays in Evidence status as Level 2 detail.
+ * - an unselected or ungraded profile is "not assessed";
+ * - no numeric coverage/confidence/trust value is rendered anywhere.
  */
 export function coverageLabel(valid: boolean, profile: InvestigationOverview["profile"]) {
   if (!valid) return "Unavailable while integrity is invalid";
   if (!profile?.profile_id || !profile.coverage_grade?.trim()) return "Not assessed";
   return profile.coverage_grade;
-}
-
-/** Visually shortens a digest for orientation; the full value stays in `title` and Evidence. */
-export function shortDigest(hash: string) {
-  return hash.length > 16 ? `${hash.slice(0, 12)}…${hash.slice(-4)}` : hash;
 }
 
 export function FindingDetail({ finding, openEvidence, openTimeline }: { finding: InvestigationFinding; openEvidence: (seq: number) => void; openTimeline: (seq: number) => void }) {
@@ -89,7 +82,40 @@ export function RecordSurface({ timeline, selectedSeq, select, inspector, eviden
       node.scrollIntoView({ block: "nearest", behavior: reduceMotion ? "auto" : "smooth" });
     }
   }, [selectedSeq]);
-  return <section className="space-y-4"><SurfaceHeader title={evidence ? "Exact records" : "Timeline"} description={evidence ? "Source records, hashes and audited field inspection." : "Recorded sequence is authoritative. Timestamps appear only when recorded."}/><FilterBar search={search} setSearch={setSearch} label="Search event identity, type or hash" count={`${rows.length} of ${timeline.length} records`}><select aria-label="Event type" value={type} onChange={event => setType(event.target.value)} className="max-w-64 rounded border border-border bg-card p-1 text-sm"><option value="">All event types</option>{Array.from(new Set(timeline.map(e => e.type))).sort().map(value => <option key={value}>{value}</option>)}</select></FilterBar><SplitWorkspace list={<div className="overflow-hidden rounded-lg border border-border bg-card"><div className="flex justify-between border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground"><span>Sequence / Event</span><span>Recorded time</span></div>{rows.map(event => <button key={event.seq} ref={node => { if (node) rowRefs.current.set(event.seq, node); else rowRefs.current.delete(event.seq); }} onClick={() => select(event.seq)} aria-pressed={event.seq === selectedSeq} className={`${rowClass} ${event.seq === selectedSeq ? "border-l-2 border-l-primary bg-primary/10" : ""}`}><div className="flex items-start gap-3"><span className="mt-0.5 w-10 shrink-0 font-mono text-xs text-muted-foreground">#{event.seq}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-medium">{event.label}</span><span className="font-mono text-xs text-muted-foreground">{event.timestamp || "time unavailable"}</span></div><p className="mt-1 break-all font-mono text-xs text-muted-foreground">{event.type}</p><p className="mt-2 truncate font-mono text-xs text-muted-foreground" title={event.hash}>{evidence ? event.hash : shortDigest(event.hash)}</p></div></div></button>)}{rows.length === 0 && <EmptyState title={timeline.length ? "No matching records" : "No recorded events"}>{timeline.length ? "Change or clear the filters. Search covers record identity and metadata." : "No event-derived timeline is available for this bundle."}</EmptyState>}</div>} inspector={inspector}/></section>;
+  return <section className="space-y-4"><SurfaceHeader title={evidence ? "Exact records" : "Timeline"} description={evidence ? "Source records, hashes and audited field inspection." : "Recorded sequence is authoritative. Timestamps appear only when recorded."}/><FilterBar search={search} setSearch={setSearch} label="Search event identity, type or hash" count={`${rows.length} of ${timeline.length} records`}><select aria-label="Event type" value={type} onChange={event => setType(event.target.value)} className="max-w-64 rounded border border-border bg-card p-1 text-sm"><option value="">All event types</option>{Array.from(new Set(timeline.map(e => e.type))).sort().map(value => <option key={value}>{value}</option>)}</select></FilterBar><SplitWorkspace list={<div className="overflow-hidden rounded-lg border border-border bg-card"><div className="flex justify-between border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground"><span>Sequence / Event</span><span>Recorded time</span></div>{rows.map(event => <button key={event.seq} ref={node => { if (node) rowRefs.current.set(event.seq, node); else rowRefs.current.delete(event.seq); }} onClick={() => select(event.seq)} aria-pressed={event.seq === selectedSeq} className={`${rowClass} ${event.seq === selectedSeq ? "border-l-2 border-l-primary bg-primary/10" : ""}`}><div className="flex items-start gap-3"><span className="mt-0.5 w-10 shrink-0 font-mono text-xs text-muted-foreground">#{event.seq}</span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-baseline justify-between gap-2"><span className="font-medium">{event.label}</span><span className="font-mono text-xs text-muted-foreground">{event.timestamp || "time unavailable"}</span></div><p className="mt-1 break-all font-mono text-xs text-muted-foreground">{event.type}</p>{evidence && <p className="mt-2 break-all font-mono text-xs text-muted-foreground" title={event.hash}>{event.hash}</p>}</div></div></button>)}{rows.length === 0 && <EmptyState title={timeline.length ? "No matching records" : "No recorded events"}>{timeline.length ? "Change or clear the filters. Search covers record identity and metadata." : "No event-derived timeline is available for this bundle."}</EmptyState>}</div>} inspector={inspector}/></section>;
+}
+
+/**
+ * Timeline selection surface. Timeline answers "what was recorded, in what
+ * sequence, and what is around this point?" — so its inspector is a record
+ * summary plus sequence movement, not the canonical forensic inspector. Exact
+ * identifiers and canonical records live on the Evidence surface.
+ */
+export function TimelineInspector({ event, seq, timeline, onSelect, onOpenEvidence }: { event: TimelineEvent | null; seq: number | null; timeline: TimelineEvent[]; onSelect: (seq: number) => void; onOpenEvidence: (seq: number) => void }) {
+  if (!event) {
+    return seq !== null
+      ? <EmptyState title={`Event #${seq} unavailable`}>The requested sequence was not found in the recorded timeline. Choose another record or open Evidence for exact inspection.</EmptyState>
+      : <EmptyState title="Select a record">Choose a recorded event to see its place in the recorded sequence.</EmptyState>;
+  }
+  const ordered = [...timeline].sort((left, right) => left.seq - right.seq);
+  const index = ordered.findIndex(item => item.seq === event.seq);
+  const previous = index > 0 ? ordered[index - 1] : null;
+  const next = index >= 0 && index < ordered.length - 1 ? ordered[index + 1] : null;
+  return <div className="space-y-4">
+    <div>
+      <h3 className="font-semibold">{event.label}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">#{event.seq} · recorded {event.timestamp || "time unavailable"} · {event.type}</p>
+    </div>
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sequence context</p>
+      <div className="mt-2 space-y-2 text-sm">
+        {previous ? <button type="button" className="block w-full rounded-md border border-border bg-card px-3 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onSelect(previous.seq)}>← #{previous.seq} · {previous.label}</button> : <p className="text-xs text-muted-foreground">First recorded event in this bundle.</p>}
+        {next ? <button type="button" className="block w-full rounded-md border border-border bg-card px-3 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => onSelect(next.seq)}>#{next.seq} · {next.label} →</button> : <p className="text-xs text-muted-foreground">Last recorded event in this bundle.</p>}
+      </div>
+    </div>
+    <p className="text-xs text-muted-foreground">Timeline shows recorded sequence. Open the exact record for hashes, identifiers and canonical representation.</p>
+    <button className={actionClass} onClick={() => onOpenEvidence(event.seq)}>Open exact evidence →</button>
+  </div>;
 }
 
 export function IncidentSurface({ overview, findings, timeline, findingsState, openFindings, openEvidence, openTimeline, openTrust }: { overview: InvestigationOverview; findings: InvestigationFinding[]; timeline: TimelineEvent[]; findingsState?: ReactNode; openFindings: (index: number) => void; openEvidence: (seq: number) => void; openTimeline: (seq?: number) => void; openTrust: () => void }) {

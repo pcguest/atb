@@ -32,6 +32,23 @@ describe("viewer location state", () => {
     });
   });
 
+  it("treats prototype keys and empty surface values as unrecognised (no prototype access)", () => {
+    expect(parseViewerLocation("?surface=constructor")).toEqual({
+      surface: null,
+      seq: null,
+      from: null,
+      unrecognisedSurface: "constructor",
+    });
+    expect(parseViewerLocation("?surface=toString&seq=3").seq).toBeNull();
+    expect(parseViewerLocation("?surface=")).toEqual({
+      surface: null,
+      seq: null,
+      from: null,
+      unrecognisedSurface: "(empty)",
+    });
+    expect(parseViewerLocation("?surface=evidence&from=constructor").from).toBeNull();
+  });
+
   it("does not accept a sequence without a valid surface", () => {
     expect(parseViewerLocation("?surface=bogus&seq=5").seq).toBeNull();
     expect(parseViewerLocation("?seq=5").seq).toBeNull();

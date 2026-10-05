@@ -121,7 +121,7 @@ vi.mock("@/lib/api-client", () => ({
   useBundleGraphQuery: () => ({ data: null, isFetching: false }),
   useRunBundleVerifyMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRevealFieldMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  flattenEventPages: () => [],
+  flattenEventPages: (pages: Array<{ events?: unknown[] }> = []) => pages.flatMap(page => page.events ?? []),
   locateEvidence: vi.fn(),
 }));
 
@@ -268,7 +268,7 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Open in Evidence →" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open exact evidence →" }));
     expect(screen.getByText("Exact records")).toBeInTheDocument();
   });
 
@@ -283,9 +283,10 @@ describe("ATB View investigation model", () => {
     overview.integrity_valid = false;
     trust.integrity_valid = false;
     render(<ViewPage />);
-    expect(screen.getAllByText("Integrity failed").length).toBeGreaterThan(0);
-    // A broken chain makes coverage unavailable; it is not a coverage verdict
-    // and must not be relabelled "untrusted".
+    // The verification banner (rendered by the view layout, not this page
+    // component) owns the integrity verdict; the shell still keeps coverage
+    // distinct from it. A broken chain makes coverage unavailable — it is not a
+    // coverage verdict and must not be relabelled "untrusted".
     expect(screen.getAllByText("Unavailable while integrity is invalid").length).toBeGreaterThan(0);
     expect(screen.queryByText("Untrusted")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
@@ -405,7 +406,7 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Open in Evidence →" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open exact evidence →" }));
     expect(window.location.search).toContain("surface=evidence");
     expect(window.location.search).toContain("from=timeline");
     expect(screen.getByRole("button", { name: "← Return to Timeline" })).toBeInTheDocument();
@@ -416,5 +417,39 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     expect(screen.getByTestId("location-notice")).toHaveTextContent(/not recognised/);
     expect(screen.getByText("What happened?")).toBeInTheDocument();
+  });
+
+  it("skip link focuses content without destroying the session fragment", () => {
+    window.history.replaceState(null, "", "/view/#session=secret-token");
+    render(<ViewPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Skip to investigation content" }));
+    expect(window.location.hash).toBe("#session=secret-token");
+    expect(document.getElementById("dashboard-content")).toHaveFocus();
+  });
+
+  it("shows a sequence summary on Timeline and the forensic inspector on Evidence", () => {
+    eventPages = [{ events: [{ seq: 2, type: "atb.tool.call", hash: "sha256:tool", prev_hash: "sha256:prev", data: {} }] }];
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    expect(screen.getByText("Sequence context")).toBeInTheDocument();
+    expect(screen.queryByTestId("event-inspector")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open exact evidence →" }));
+    expect(screen.getByTestId("event-inspector")).toBeInTheDocument();
+  });
+
+  it("pushes history for a surface change but replaces it for within-surface selection", () => {
+    const push = vi.spyOn(window.history, "pushState");
+    const replace = vi.spyOn(window.history, "replaceState");
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    expect(push).toHaveBeenCalled();
+    push.mockClear();
+    replace.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    expect(replace).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    push.mockRestore();
+    replace.mockRestore();
   });
 });

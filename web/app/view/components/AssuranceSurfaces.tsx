@@ -43,9 +43,11 @@ function RecordLink({
 export function ContextSurface({
   data,
   onOpenEvidence,
+  onOpenTimeline,
 }: {
   data: InvestigationContext;
   onOpenEvidence: (seq: number) => void;
+  onOpenTimeline?: () => void;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const entries = [
@@ -83,33 +85,40 @@ export function ContextSurface({
       {noLineage && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h2 className="font-semibold">No structured context lineage</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             <span>
               {data.capabilities.length
                 ? "Retrieval was recorded; structured lineage units were not."
                 : "No context lineage units or retrieval capabilities were recorded."}
             </span>{" "}
-            This does not prove retrieval did not occur.
+            This does not prove retrieval did not occur. This lineage response does not establish
+            invocation binding.
           </p>
-          <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="font-medium">What would appear here</dt>
-              <dd className="mt-1 text-muted-foreground">
-                Recorded context sources, parent references, selection, transformations and
-                invocation references.
-              </dd>
-            </div>
-            <div>
-              <dt className="font-medium">What was checked</dt>
-              <dd className="mt-1 text-muted-foreground">
-                Structured lineage units, operations and mapped retrieval capabilities in this
-                bundle. This lineage response does not establish invocation binding.
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Inspect related records below, or open Evidence from the investigation navigation.
-          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {onOpenTimeline && (
+              <button type="button" className={control} onClick={onOpenTimeline}>
+                Follow the recorded timeline
+              </button>
+            )}
+            {entries.length > 0 && (
+              <button type="button" className={control} onClick={() => onOpenEvidence(entries[0].seq)}>
+                Open related evidence #{entries[0].seq}
+              </button>
+            )}
+          </div>
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs text-muted-foreground">What would appear here, and what was checked</summary>
+            <dl className="mt-2 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2">
+              <div>
+                <dt className="font-medium text-foreground">What would appear here</dt>
+                <dd className="mt-0.5">Recorded context sources, parent references, selection, transformations and invocation references.</dd>
+              </div>
+              <div>
+                <dt className="font-medium text-foreground">What was checked</dt>
+                <dd className="mt-0.5">Structured lineage units, operations and mapped retrieval capabilities in this bundle.</dd>
+              </div>
+            </dl>
+          </details>
         </div>
       )}
       {data.lineage.warnings.length > 0 && (
@@ -225,6 +234,7 @@ export function RelationshipsSurface({
       .includes(query.toLowerCase()),
   );
   const active = filtered.find((relationship) => relationship.id === selected) ?? filtered[0];
+  const labelFor = (seq: number) => timeline.find((event) => event.seq === seq)?.label ?? null;
   const graph = (() => {
     const seqs = [
       ...new Set(
@@ -302,6 +312,9 @@ export function RelationshipsSurface({
                       >
                         Source #{relationship.source_seq}
                       </button>
+                      {labelFor(relationship.source_seq) && (
+                        <span className="mt-1 block text-xs text-muted-foreground">{labelFor(relationship.source_seq)}</span>
+                      )}
                     </td>
                     <td className="p-3">{human(relationship.kind)}</td>
                     <td className="p-3">
@@ -312,6 +325,9 @@ export function RelationshipsSurface({
                       >
                         Target #{relationship.target_seq}
                       </button>
+                      {labelFor(relationship.target_seq) && (
+                        <span className="mt-1 block text-xs text-muted-foreground">{labelFor(relationship.target_seq)}</span>
+                      )}
                     </td>
                     <td className="max-w-64 break-all p-3 font-mono text-xs">
                       {relationship.evidence_value}
@@ -419,10 +435,13 @@ export function TrustSurface({
         </h2>
         <p className="mt-2 text-lg font-semibold">{data.proof_statement}</p>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Three independent questions. Integrity, profile coverage, and external custody are not
-        collapsed into one score.
-      </p>
+      <div>
+        <h2 className="text-sm font-semibold">Assurance questions</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Three independent questions. Integrity, profile coverage, and external custody are not
+          collapsed into one score.
+        </p>
+      </div>
       {data.acquisition_records > 0 && (
         <div className="rounded-lg border border-border bg-card p-4" data-testid="acquisition-continuity">
           <h3 className="text-sm font-semibold">Acquisition continuity</h3>
@@ -520,6 +539,7 @@ export function TrustSurface({
           </p>
         </article>
       </div>
+      <h2 className="text-sm font-semibold">Verification metadata</h2>
       <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Signature", data.signature_status, "Verifier signature assessment"],
