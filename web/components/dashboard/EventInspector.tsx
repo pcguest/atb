@@ -85,7 +85,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
     return collectMaskedPaths(renderedData, "data");
   }, [renderedData]);
 
-  const canonicalRecord = useMemo(() => event ? { ...event, data: renderedData } : null, [event, renderedData]);
+  const renderedRecord = useMemo(() => event ? { ...event, data: renderedData } : null, [event, renderedData]);
   const attribution = useMemo(
     () =>
       renderedData && typeof renderedData === "object"
@@ -139,7 +139,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
         <details className="rounded border border-border p-3 text-xs" open>
           <summary className="cursor-pointer font-medium">Technical metadata</summary>
           <dl className="mt-3 grid gap-2 text-foreground">
-            <div><dt className="inline text-muted-foreground">Canonical event type: </dt><dd className={`inline font-medium ${eventFamilyClass(event.type)}`}>{event.type}</dd></div>
+            <div><dt className="inline text-muted-foreground">Event type: </dt><dd className={`inline font-medium ${eventFamilyClass(event.type)}`}>{event.type}</dd></div>
             <div><dt className="inline text-muted-foreground">Sequence: </dt><dd className="inline">{event.seq}</dd></div>
             {event.timestamp && <div><dt className="inline text-muted-foreground">Recorded timestamp: </dt><dd className="inline break-all">{event.timestamp}</dd></div>}
           </dl>
@@ -239,9 +239,14 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
         {error && <div role="alert" className="text-xs text-red-300">{error}</div>}
 
         <details className="rounded border border-border" open>
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Canonical record</summary>
-          <pre tabIndex={0} className="max-h-[380px] overflow-auto border-t border-border bg-muted p-3 text-xs text-foreground">
-            {JSON.stringify(canonicalRecord, null, 2)}
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Rendered record (projection)</summary>
+          <p className="border-t border-border px-3 pt-2 text-[10px] leading-4 text-muted-foreground">
+            This is the display/API projection of the record, formatted for reading. It is not the exact
+            canonical event bytes used for hashing, and any revealed fields reflect a privacy-reveal
+            overlay rather than the stored record. The record hash above is the stable identity.
+          </p>
+          <pre tabIndex={0} className="max-h-[380px] overflow-auto bg-muted p-3 text-xs text-foreground">
+            {JSON.stringify(renderedRecord, null, 2)}
           </pre>
         </details>
       </div>

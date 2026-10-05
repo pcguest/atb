@@ -2,7 +2,7 @@
 
 ## The Short Answer
 
-**ATB verification proves the integrity and order of records in a bundle.**
+**ATB verification proves the integrity and order of the records presented in a bundle.**
 
 It does **not** prove:
 - That every relevant event was captured
@@ -18,7 +18,7 @@ When `atb verify` (or `bundle.verify()`) returns **PASS**:
 
 | Property | What It Means |
 |----------|---------------|
-| **Hash-chain integrity** | Every record's hash matches the computed hash of its canonical JSON + previous hash. No record was modified, reordered, inserted, or deleted without detection. |
+| **Hash-chain integrity** | Every present record's hash matches the computed hash of its canonical JSON + previous hash. A modified, reordered, or inserted record breaks the chain. A mid-sequence removal leaves a sequence/hash gap. Both are detected. |
 | **Event order** | The sequence numbers (1, 2, 3...) match the actual order records were appended. |
 | **Profile obligations** | The required event types for the selected profile are present. |
 | **Relation consistency** | Declared relations between events (e.g., policy decision → action) are satisfied. |
@@ -123,17 +123,28 @@ The CAS score estimates **profile-scoped evidence coverage**, not universal trut
 
 ---
 
-## Tamper Detection
+## Detecting modification
 
-ATB detects three tamper classes deterministically:
+Verification detects, deterministically, any modification of the records **presented** to it:
 
-| Tamper Type | Detection |
-|-------------|-----------|
-| **Content mutation** | Hash mismatch at modified event |
+| Change | Detection |
+|--------|-----------|
+| **Content mutation** | Record hash mismatch at the modified event |
 | **Reordering** | Sequence number mismatch |
-| **Removal** | Sequence gap detected |
+| **Removal (non-tail)** | Sequence gap detected |
 
-> Verification **FAIL** on tampered bundle is definitive proof of tampering.
+> Verification **FAIL** means the presented records **could not be verified against their recorded hash chain**. It is not, by itself, proof of tampering, and it does not establish cause or intent.
+
+### Limitation: unsigned tail truncation
+
+Verification checks the internal chaining of the records presented to it. On its
+own it does **not** establish that the last record is the true head of the bundle.
+Removing trailing records from an unsigned bundle still yields a shorter but
+internally consistent prefix, so the truncation is not detected unless an
+independent commitment to the expected head exists — for example an RFC 3161
+anchor, a signature over the head, or a custody receipt that records the expected
+head hash. To bind the head, supply the expected head hash out of band and
+compare it against the bundle's head hash.
 
 ---
 

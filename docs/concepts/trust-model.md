@@ -8,7 +8,8 @@ storage, identity verification, or hosted control-plane governance.
 
 1. Integrity by default
 - Event records are hash chained with SHA-256.
-- Verification fails on mutation, reorder, insertion, or deletion.
+- Verification fails on mutation, reorder, or insertion of a present record, and on deletion that leaves an internal sequence gap.
+- Verification does **not**, by itself, detect unsigned tail truncation: a shorter, internally consistent prefix verifies unless an independent commitment to the expected head exists (see [What verification means](../verification-meaning.md#limitation-unsigned-tail-truncation)).
 
 2. Deterministic canonicalisation
 - Event payloads are canonicalised with RFC 8785 before hashing.

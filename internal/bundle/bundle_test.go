@@ -522,8 +522,8 @@ func TestVerifyDetectsHashTampering(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected hash tampering to be detected")
 	}
-	if !strings.Contains(err.Error(), "tamper detected") {
-		t.Fatalf("expected tamper detected error, got %v", err)
+	if !strings.Contains(err.Error(), "record hash mismatch") {
+		t.Fatalf("expected record hash mismatch error, got %v", err)
 	}
 }
 

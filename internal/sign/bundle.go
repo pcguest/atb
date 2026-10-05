@@ -17,10 +17,11 @@ import (
 )
 
 // ErrTamper indicates that a bundle's signature record does not validate
-// against the bundle bytes — i.e. content has been altered after signing.
-// Capability gaps (e.g. unsupported algorithms) are NOT wrapped in this
-// error; only true tamper signals are.
-var ErrTamper = errors.New("bundle signature: tamper detected")
+// against the bundle bytes. This establishes a signature mismatch, not a cause
+// or intent: the wrong key, a stale signature, or altered content all produce
+// the same failure. Capability gaps (e.g. unsupported algorithms) are NOT
+// wrapped in this error; only signature-mismatch signals are.
+var ErrTamper = errors.New("bundle signature: signature does not match bundle bytes")
 
 // BundleSignature is the parsed in-memory view of an atb.bundle.signature
 // data payload. JSON tags reflect the on-disk wire format. New optional

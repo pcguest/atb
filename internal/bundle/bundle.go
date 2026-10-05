@@ -726,7 +726,7 @@ func verifyManifestBundle(records []Record) error {
 		}
 		if computed != record.Hash {
 			return fmt.Errorf(
-				"bundle: verify: tamper detected at event %d (seq %d): expected %s, got %s: %w",
+				"bundle: verify: record hash mismatch at event %d (seq %d): expected %s, got %s: %w",
 				i,
 				expectedSeq,
 				record.Hash,

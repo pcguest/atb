@@ -27,7 +27,7 @@ describe("VerificationBanner", () => {
         chainLength={7}
         headHash="sha256:abc123"
         bundlePath="/tmp/run.atb/bundle.atb"
-        message="hash: verify: tamper detected at event 3 (seq 3): expected a, got b"
+        message="hash: verify: record hash mismatch at event 3 (seq 3): expected a, got b"
       />,
     );
     expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -46,7 +46,7 @@ describe("VerificationBanner", () => {
         chainLength={7}
         headHash="sha256:abc123"
         bundlePath="/tmp/run.atb/bundle.atb"
-        message="hash: verify: tamper detected at event 3 (seq 3): expected a, got b"
+        message="hash: verify: record hash mismatch at event 3 (seq 3): expected a, got b"
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Integrity details" }));
@@ -55,7 +55,7 @@ describe("VerificationBanner", () => {
     expect(screen.getByText(/could not be verified against their recorded hash chain and order/i)).toBeVisible();
     expect(screen.getByText(/Verifier output \(verbatim\)/)).toBeVisible();
     // The supplied verifier output itself must be rendered, not only its label.
-    expect(screen.getByText(/tamper detected at event 3 \(seq 3\): expected a, got b/)).toBeVisible();
+    expect(screen.getByText(/record hash mismatch at event 3 \(seq 3\): expected a, got b/)).toBeVisible();
   });
 
   it("does not reference an unmounted panel while the disclosure is closed", () => {

@@ -73,6 +73,15 @@ describe("EventInspector", () => {
     expect(json).toHaveAttribute("tabindex", "0");
   });
 
+  it("labels the inspector JSON as a display projection, not canonical bytes", () => {
+    render(<EventInspector event={makeEvent("dev.session", { x: 1 })} onReveal={noReveal} />);
+    expect(screen.getByText("Rendered record (projection)")).toBeInTheDocument();
+    expect(screen.queryByText("Canonical record")).toBeNull();
+    expect(
+      screen.getByText(/not the exact canonical event bytes used for hashing/),
+    ).toBeInTheDocument();
+  });
+
   it("shows bounded acquisition provenance with honest raw-source limits", () => {
     const event = {
       ...makeEvent("ai.request.received", { request_id: "r2" }),

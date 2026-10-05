@@ -1570,7 +1570,7 @@ func verifyWithTrace(b *bundle.Bundle, out io.Writer) error {
 		)
 		if !match {
 			return fmt.Errorf(
-				"hash: verify: tamper detected at event %d (seq %d): expected %s, got %s",
+				"hash: verify: record hash mismatch at event %d (seq %d): expected %s, got %s",
 				i,
 				event.Sequence,
 				record.Hash,
