@@ -13,7 +13,7 @@ describe("ATB investigation against the embedded server", () => {
         cy.clearLocalStorage("atb-ui-store-v1");
         cy.visit(`/view/#session=${SESSION_TOKEN}`);
         if (!integrityValid) {
-          return cy.contains("TAMPER DETECTED — HASH CHAIN VERIFICATION FAILED").should("be.visible");
+          return cy.contains("INTEGRITY CHECK FAILED — HASH CHAIN VERIFICATION FAILED").should("be.visible");
         }
         cy.contains("ATB View", { timeout: 10000 }).should("be.visible");
         cy.get('[aria-label="Investigation navigation"]', { timeout: 10000 })

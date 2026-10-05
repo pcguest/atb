@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CommandPalette, type PaletteAction } from "./components/CommandPalette";
 import { RoleSelector } from "./components/role-selector/RoleSelector";
-import { EmptyState, ErrorState, LoadingState, StatusBadge } from "./components/ui/investigation";
-import { FindingsSurface, IncidentSurface, RecordSurface, actionClass, coverageLabel } from "./components/CoreSurfaces";
+import { EmptyState, ErrorState, LoadingState } from "./components/ui/investigation";
+import { FindingsSurface, IncidentSurface, RecordSurface, TimelineInspector, actionClass, coverageLabel } from "./components/CoreSurfaces";
 import { ContextSurface, RelationshipsSurface, TrustSurface } from "./components/AssuranceSurfaces";
 import { CompactInvestigationNavigation, InvestigationNavigation, investigationSurfaces, surfaceLabel, type Surface } from "./components/InvestigationNavigation";
 import { ObjectIdentityHeader } from "./components/ObjectIdentityHeader";
 import { EventInspector } from "@/components/dashboard/EventInspector";
 import { flattenEventPages, locateEvidence, useBundleEventsQuery, useInvestigationContextQuery, useInvestigationFindingsQuery, useInvestigationOverviewQuery, useInvestigationRelationshipsQuery, useInvestigationTimelineQuery, useInvestigationTrustQuery, useRevealFieldMutation, useRunBundleVerifyMutation } from "@/lib/api-client";
-import { parseViewerLocation, viewerLocationUrl, type ViewerLocation } from "@/lib/viewer-location";
+import { clearViewerLocation, parseViewerLocation, viewerLocationUrl, type ViewerLocation } from "@/lib/viewer-location";
+import type { TimelineEvent } from "@/lib/types";
 
 type QueryState = { isLoading?: boolean; isError?: boolean; data?: unknown; refetch?: () => unknown };
 
@@ -49,10 +50,11 @@ export default function ViewPage() {
   const eventsQuery = useBundleEventsQuery(valid && (surface === "evidence" || surface === "timeline"));
   const verifyMutation = useRunBundleVerifyMutation();
   const revealMutation = useRevealFieldMutation();
-  const events = flattenEventPages(eventsQuery.data?.pages);
+  const events = useMemo(() => flattenEventPages(eventsQuery.data?.pages), [eventsQuery.data?.pages]);
   const timeline = (timelineQuery.data?.events ?? []).filter(event => event.type !== "atb.bundle.manifest");
   const effectiveSeq = selectedSeq ?? timeline[0]?.seq ?? null;
   const selectedEvent = events.find(event => event.seq === effectiveSeq) ?? null;
+  const selectedTimelineEvent = timeline.find(event => event.seq === effectiveSeq) ?? null;
   const findings = findingsQuery.data?.findings ?? [];
   const acquisitionFindings = findingsQuery.data?.acquisition_findings ?? [];
 
@@ -61,6 +63,10 @@ export default function ViewPage() {
   // token (which stays in the fragment) or revealed field values.
   function navigate(nextSurface: Surface, nextSeq: number | null, options?: { replace?: boolean; from?: Surface | null }) {
     const from = options?.from ?? null;
+    // Within-surface record selection replaces the current history entry;
+    // meaningful surface transitions push a new one, so Back leaves the
+    // surface rather than replaying every selected record.
+    const replace = options?.replace ?? nextSurface === surface;
     navigatedRef.current = true;
     setSurface(nextSurface);
     setSelectedSeq(nextSeq);
@@ -68,11 +74,16 @@ export default function ViewPage() {
     setLocationNotice(null);
     if (typeof window === "undefined") return;
     const url = viewerLocationUrl(window.location.href, nextSurface, nextSeq, from);
-    if (options?.replace) window.history.replaceState(null, "", url);
+    if (replace) window.history.replaceState(null, "", url);
     else window.history.pushState(null, "", url);
   }
 
-  function selectSurface(id: Surface) { navigate(id, selectedSeq); }
+  function selectSurface(id: Surface) {
+    // Re-selecting the active surface is a no-op: it must not clear the Evidence
+    // return path or add a meaningless history entry.
+    if (id === surface) return;
+    navigate(id, selectedSeq);
+  }
 
   useEffect(() => {
     const apply = (markNavigated: boolean) => {
@@ -93,7 +104,16 @@ export default function ViewPage() {
     const onPop = () => apply(true);
     // A session-token change swaps the whole data scope; reset selection rather
     // than render stale records against a new scope.
-    const onHash = () => { setSelectedSeq(null); setSelectedFinding(0); setSource(null); setLocationNotice(null); setSurface("incident"); setScopeGeneration(value => value + 1); };
+    const onHash = () => {
+      // A new session scope invalidates any presentation location for the old
+      // one; drop the query params (keeping the fragment token and the evidence
+      // locator) so a refresh cannot restore a stale surface/selection against
+      // the new scope. Mark the scope as navigated so an in-flight `?focus=`
+      // lookup cannot yank the new scope back to a record from the old one.
+      navigatedRef.current = true;
+      if (typeof window !== "undefined") window.history.replaceState(null, "", clearViewerLocation(window.location.href));
+      setSelectedSeq(null); setSelectedFinding(0); setSource(null); setLocationNotice(null); setSurface("incident"); setScopeGeneration(value => value + 1);
+    };
     window.addEventListener("popstate", onPop);
     window.addEventListener("hashchange", onHash);
     return () => { window.removeEventListener("popstate", onPop); window.removeEventListener("hashchange", onHash); };
@@ -146,7 +166,7 @@ export default function ViewPage() {
   function selectRecord(seq: number) { navigate(surface, seq, { from: surface === "evidence" ? source : null }); }
   async function reveal(seq: number, fieldPath: string) { return (await revealMutation.mutateAsync({ seq, field_path: fieldPath, reason: "investigation_review" })).value; }
   const actions: PaletteAction[] = [
-    ...investigationSurfaces.map(([id, label]) => ({ id, label: `Open ${label.toLowerCase()}`, group: "navigate" as const, run: () => navigate(id, selectedSeq) })),
+    ...investigationSurfaces.map(([id, label]) => ({ id, label: `Open ${label.toLowerCase()}`, group: "navigate" as const, run: () => selectSurface(id) })),
     ...(!verifyMutation.isPending ? [{ id: "verify", label: "Verify bundle", group: "verify" as const, run: async () => { await verifyMutation.mutateAsync(); await Promise.all([overviewQuery.refetch(), trustQuery.refetch()]); } }] : []),
     ...(selectedEvent ? [
       { id: "inspect-selected", label: "Inspect selected evidence", group: "inspect" as const, run: () => openEvidence(selectedEvent.seq) },
@@ -160,12 +180,15 @@ export default function ViewPage() {
   const overview = overviewQuery.data;
   if (!overview) return <LoadingState/>;
   const blocked = !valid && surface !== "incident" && surface !== "trust";
-  const inspector = <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Exact record {effectiveSeq !== null ? `#${effectiveSeq}` : ""}</h3>{surface === "timeline" && effectiveSeq !== null && <button className={actionClass} onClick={() => openEvidence(effectiveSeq)}>Open in Evidence →</button>}{surface === "evidence" && source && <button className={actionClass} onClick={() => navigate(source, selectedSeq)}>← Return to {surfaceLabel(source)}</button>}</div>{eventsQuery.isError ? <ErrorState onRetry={() => void eventsQuery.refetch()}>This record could not be loaded. Your selection is retained.</ErrorState> : eventsQuery.isLoading || (!selectedEvent && eventsQuery.hasNextPage) ? <LoadingState label="Loading selected record…"/> : selectedEvent ? <EventInspector key={`${scopeGeneration}-${overview.bundle_path}-${selectedEvent.seq}-${selectedEvent.hash}`} event={selectedEvent} disabled={!valid || revealMutation.isPending} onReveal={reveal}/> : <EmptyState title={effectiveSeq !== null ? `Event #${effectiveSeq} unavailable` : "Select an event"}>{effectiveSeq !== null ? "The requested sequence was not found in the returned evidence. Choose another record or retry." : "Choose a recorded event to inspect its fields and hash."}</EmptyState>}</div>;
+  const evidenceInspector = () => <div className="space-y-3"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-sm font-semibold">Exact record {effectiveSeq !== null ? `#${effectiveSeq}` : ""}</h3>{source && <button className={actionClass} onClick={() => navigate(source, selectedSeq)}>← Return to {surfaceLabel(source)}</button>}</div>{eventsQuery.isError ? <ErrorState onRetry={() => void eventsQuery.refetch()}>This record could not be loaded. Your selection is retained.</ErrorState> : eventsQuery.isLoading || (!selectedEvent && eventsQuery.hasNextPage) ? <LoadingState label="Loading selected record…"/> : selectedEvent ? <EventInspector key={`${scopeGeneration}-${overview.bundle_path}-${selectedEvent.seq}-${selectedEvent.hash}`} event={selectedEvent} disabled={!valid || revealMutation.isPending} onReveal={reveal}/> : <EmptyState title={effectiveSeq !== null ? `Event #${effectiveSeq} unavailable` : "Select an event"}>{effectiveSeq !== null ? "The requested sequence was not found in the returned evidence. Choose another record or retry." : "Choose a recorded event to inspect its fields and hash."}</EmptyState>}</div>;
+  // The inspector receives the visible (filtered) rows so Timeline movement
+  // never selects a record hidden by the active filter.
+  const timelineInspector = (visible: TimelineEvent[]) => <TimelineInspector event={selectedTimelineEvent} seq={effectiveSeq} timeline={visible} onSelect={selectRecord} onOpenEvidence={openEvidence}/>;
   return <div className="flex h-full min-h-0 w-full bg-background">
-    <a href="#dashboard-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Skip to investigation content</a>
+    <button type="button" onClick={() => document.getElementById("dashboard-content")?.focus()} className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Skip to investigation content</button>
     <aside className="hidden w-44 shrink-0 flex-col border-r border-border bg-surface-1 md:flex xl:w-56" aria-label="Investigation navigation"><div className="border-b border-border px-4 py-5"><p className="font-semibold tracking-tight">ATB View</p><p className="mt-1 text-xs text-muted-foreground">Evidence investigation</p></div><InvestigationNavigation active={surface} onSelect={selectSurface} findingCount={overview.finding_count}/><div className="border-t border-border p-4 text-xs leading-5 text-muted-foreground">Local evidence<br/>Independent verification</div></aside>
-    <main id="dashboard-content" className="flex min-w-0 flex-1 flex-col">
-      <ObjectIdentityHeader bundlePath={overview.bundle_path} eventCount={overview.event_count} surfaceLabel={surfaceLabel(surface)} controls={<><CommandPalette actions={actions}/><RoleSelector/></>} status={<><StatusBadge tone={valid ? "verified" : "danger"}>{valid ? "Hash chain verified" : "Integrity failed"}</StatusBadge><span className="text-muted-foreground">Coverage: <span className="text-foreground">{coverageLabel(overview.integrity_valid, overview.profile)}</span></span><span className="text-muted-foreground">Custody: <span className="text-foreground">{overview.custody_state}</span></span></>}/>
+    <main id="dashboard-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col focus:outline-none">
+      <ObjectIdentityHeader bundlePath={overview.bundle_path} eventCount={overview.event_count} surfaceLabel={surfaceLabel(surface)} controls={<><CommandPalette actions={actions}/><RoleSelector/></>} status={<><span className="text-muted-foreground">Coverage: <span className="text-foreground">{coverageLabel(overview.integrity_valid, overview.profile)}</span></span><span className="text-muted-foreground">Custody: <span className="text-foreground">{overview.custody_state}</span></span></>}/>
     {locationNotice && <div role="status" data-testid="location-notice" className="shrink-0 border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground">{locationNotice}</div>}
     {focusNotice && <div role="status" data-testid="focus-notice" className="shrink-0 border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">Evidence reference not focused. </span>{focusNotice.message}{focusNotice.code ? ` (${focusNotice.code})` : ""} This is a location result, not an integrity or tampering finding.</div>}
     <CompactInvestigationNavigation active={surface} onSelect={selectSurface} findingCount={overview.finding_count}/>
@@ -173,9 +196,9 @@ export default function ViewPage() {
       {blocked ? <ErrorState title="Event-derived investigation is blocked"><p>Bundle integrity failed. Open Evidence status to inspect the verification boundary.</p><button className={`${actionClass} mt-3`} onClick={() => navigate("trust", selectedSeq)}>Open Evidence status</button></ErrorState> : <>
       {surface === "incident" && <IncidentSurface overview={overview} findings={findings} timeline={timeline} findingsState={valid && (findingsQuery.isLoading ? <LoadingState label="Deriving priority findings…"/> : findingsQuery.isError ? <ErrorState onRetry={() => void findingsQuery.refetch()}>Priority findings could not be loaded.</ErrorState> : undefined)} openFindings={openFindings} openEvidence={openEvidence} openTimeline={openTimeline} openTrust={() => navigate("trust", selectedSeq)}/>}
       {surface === "findings" && <QueryContent query={findingsQuery}><FindingsSurface findings={findings} acquisitionFindings={acquisitionFindings} selected={selectedFinding} select={setSelectedFinding} openEvidence={openEvidence} openTimeline={openTimeline}/></QueryContent>}
-      {surface === "timeline" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={inspector} evidence={false}/></QueryContent>}
-      {surface === "evidence" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={inspector} evidence/></QueryContent>}
-      {surface === "context" && <QueryContent query={contextQuery}>{contextQuery.data && <ContextSurface data={contextQuery.data} onOpenEvidence={openEvidence}/>}</QueryContent>}
+      {surface === "timeline" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={timelineInspector} evidence={false}/></QueryContent>}
+      {surface === "evidence" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={evidenceInspector} evidence/></QueryContent>}
+      {surface === "context" && <QueryContent query={contextQuery}>{contextQuery.data && <ContextSurface data={contextQuery.data} onOpenEvidence={openEvidence} onOpenTimeline={() => openTimeline()}/>}</QueryContent>}
       {surface === "relationships" && <QueryContent query={relationshipsQuery}>{relationshipsQuery.data && <RelationshipsSurface data={relationshipsQuery.data} timeline={timeline} onOpenEvidence={openEvidence}/>}</QueryContent>}
       {surface === "trust" && <QueryContent query={trustQuery}>{trustQuery.data && <TrustSurface data={trustQuery.data} profile={overview.profile ?? undefined} timeline={timeline} onOpenEvidence={openEvidence}/>}</QueryContent>}
       </>}

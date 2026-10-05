@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FindingsSurface, RecordSurface } from "./CoreSurfaces";
+import { FindingsSurface, RecordSurface, TimelineInspector } from "./CoreSurfaces";
 import type { AcquisitionFinding, InvestigationFinding, TimelineEvent } from "@/lib/types";
 
 const findings: InvestigationFinding[] = [
@@ -59,20 +59,43 @@ describe("forensic core surfaces", () => {
     expect(screen.getByText("No matching findings")).toBeInTheDocument();
   });
 
-  it("searches event identity and type, filters types, and marks missing recorded time", () => {
+  it("searches and filters timeline records by visible fields, not the hidden hash", () => {
     const select = vi.fn();
-    render(<RecordSurface timeline={timeline} selectedSeq={41} select={select} evidence={false} inspector={<div>Exact inspector</div>} />);
+    render(<RecordSurface timeline={timeline} selectedSeq={41} select={select} evidence={false} inspector={() => <div>Exact inspector</div>} />);
     expect(screen.getByText("time unavailable")).toBeInTheDocument();
-    fireEvent.change(screen.getByRole("textbox", { name: "Search event identity, type or hash" }), { target: { value: "sha256:two" } });
+    const search = screen.getByRole("textbox", { name: "Search sequence, type or label" });
+    fireEvent.change(search, { target: { value: "atb.tool.call" } });
     expect(screen.getByText("Captured tool call")).toBeInTheDocument();
+    // Timeline hides hashes, so a hash search must not produce an unexplained match.
+    fireEvent.change(search, { target: { value: "sha256:two" } });
+    expect(screen.getByText("No matching records")).toBeInTheDocument();
+    fireEvent.change(search, { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
     expect(select).toHaveBeenCalledWith(42);
     fireEvent.change(screen.getByRole("combobox", { name: "Event type" }), { target: { value: "atb.context.unit" } });
-    expect(screen.getByText("No matching records")).toBeInTheDocument();
+    expect(screen.queryByText("Captured tool call")).not.toBeInTheDocument();
+  });
+
+  it("searches the full hash on the Evidence surface, where it is shown", () => {
+    render(<RecordSurface timeline={timeline} selectedSeq={42} select={vi.fn()} evidence inspector={() => <div>Exact inspector</div>} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search sequence, type, label or hash" }), { target: { value: "sha256:two" } });
+    expect(screen.getByText("Captured tool call")).toBeInTheDocument();
+  });
+
+  it("binds the inspector to the visible rows so movement cannot select a hidden record", () => {
+    const seen: number[][] = [];
+    render(<RecordSurface timeline={timeline} selectedSeq={41} select={vi.fn()} evidence={false} inspector={(visible) => { seen.push(visible.map((event) => event.seq)); return <div>Exact inspector</div>; }} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Search sequence, type or label" }), { target: { value: "atb.tool.call" } });
+    expect(seen[seen.length - 1]).toEqual([42]);
+  });
+
+  it("reports when a selected record falls outside the current filter instead of showing false boundaries", () => {
+    render(<TimelineInspector event={timeline[0]} seq={41} timeline={[timeline[1]]} onSelect={vi.fn()} onOpenEvidence={vi.fn()} />);
+    expect(screen.getByText(/outside the current filter/i)).toBeInTheDocument();
   });
 
   it("moves keyboard focus to the selected timeline record", () => {
-    render(<RecordSurface timeline={timeline} selectedSeq={42} select={vi.fn()} evidence={false} inspector={<div>Exact inspector</div>} />);
+    render(<RecordSurface timeline={timeline} selectedSeq={42} select={vi.fn()} evidence={false} inspector={() => <div>Exact inspector</div>} />);
     expect(screen.getByRole("button", { name: /Captured tool call/ })).toHaveFocus();
   });
 

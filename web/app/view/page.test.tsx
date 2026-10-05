@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useUIStore } from "@/lib/state/ui-store";
@@ -121,11 +121,12 @@ vi.mock("@/lib/api-client", () => ({
   useBundleGraphQuery: () => ({ data: null, isFetching: false }),
   useRunBundleVerifyMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRevealFieldMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  flattenEventPages: () => [],
+  flattenEventPages: (pages: Array<{ events?: unknown[] }> = []) => pages.flatMap(page => page.events ?? []),
   locateEvidence: vi.fn(),
 }));
 
 import ViewPage from "./page";
+import { locateEvidence } from "@/lib/api-client";
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/");
@@ -151,6 +152,7 @@ afterEach(() => {
   eventPages = [];
   eventsHasNextPage = false;
   fetchNextPage.mockReset();
+  vi.mocked(locateEvidence).mockReset();
 });
 
 describe("ATB View investigation model", () => {
@@ -268,7 +270,7 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Open in Evidence →" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open exact evidence →" }));
     expect(screen.getByText("Exact records")).toBeInTheDocument();
   });
 
@@ -283,9 +285,10 @@ describe("ATB View investigation model", () => {
     overview.integrity_valid = false;
     trust.integrity_valid = false;
     render(<ViewPage />);
-    expect(screen.getAllByText("Integrity failed").length).toBeGreaterThan(0);
-    // A broken chain makes coverage unavailable; it is not a coverage verdict
-    // and must not be relabelled "untrusted".
+    // The verification banner (rendered by the view layout, not this page
+    // component) owns the integrity verdict; the shell still keeps coverage
+    // distinct from it. A broken chain makes coverage unavailable — it is not a
+    // coverage verdict and must not be relabelled "untrusted".
     expect(screen.getAllByText("Unavailable while integrity is invalid").length).toBeGreaterThan(0);
     expect(screen.queryByText("Untrusted")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Evidence status" })[0]);
@@ -405,7 +408,7 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
     fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Open in Evidence →" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open exact evidence →" }));
     expect(window.location.search).toContain("surface=evidence");
     expect(window.location.search).toContain("from=timeline");
     expect(screen.getByRole("button", { name: "← Return to Timeline" })).toBeInTheDocument();
@@ -416,5 +419,73 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     expect(screen.getByTestId("location-notice")).toHaveTextContent(/not recognised/);
     expect(screen.getByText("What happened?")).toBeInTheDocument();
+  });
+
+  it("skip link focuses content without destroying the session fragment", () => {
+    window.history.replaceState(null, "", "/view/#session=secret-token");
+    render(<ViewPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Skip to investigation content" }));
+    expect(window.location.hash).toBe("#session=secret-token");
+    expect(document.getElementById("dashboard-content")).toHaveFocus();
+  });
+
+  it("shows a sequence summary on Timeline and the forensic inspector on Evidence", () => {
+    eventPages = [{ events: [{ seq: 2, type: "atb.tool.call", hash: "sha256:tool", prev_hash: "sha256:prev", data: {} }] }];
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    expect(screen.getByText("Sequence context")).toBeInTheDocument();
+    expect(screen.queryByTestId("event-inspector")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open exact evidence →" }));
+    expect(screen.getByTestId("event-inspector")).toBeInTheDocument();
+  });
+
+  it("pushes history for a surface change but replaces it for within-surface selection", () => {
+    const push = vi.spyOn(window.history, "pushState");
+    const replace = vi.spyOn(window.history, "replaceState");
+    render(<ViewPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Timeline" })[0]);
+    expect(push).toHaveBeenCalled();
+    push.mockClear();
+    replace.mockClear();
+    fireEvent.click(screen.getByRole("button", { name: /Captured tool call/ }));
+    expect(replace).toHaveBeenCalled();
+    expect(push).not.toHaveBeenCalled();
+    push.mockRestore();
+    replace.mockRestore();
+  });
+
+  it("resolves a ?focus= evidence locator into Evidence without leaking the session token", async () => {
+    eventPages = [{ events: [{ seq: 2, type: "atb.tool.call", hash: "sha256:tool", prev_hash: "sha256:prev", data: {} }] }];
+    vi.mocked(locateEvidence).mockResolvedValue({ ok: true, seq: 2 } as never);
+    window.history.replaceState(null, "", "/view/?focus=atb%3A%2F%2Fevidence%2F1%2Fabc%3Fseq%3D2&surface=timeline#session=secret-token");
+    render(<ViewPage />);
+    await screen.findByTestId("event-inspector");
+    expect(window.location.search).toContain("surface=evidence");
+    expect(window.location.search).toContain("seq=2");
+    expect(window.location.search).not.toContain("focus=");
+    expect(window.location.search).not.toContain("secret-token");
+    expect(window.location.hash).toBe("#session=secret-token");
+  });
+
+  it("ignores an in-flight ?focus= lookup after the session scope changes, preserving the locator", async () => {
+    let resolveFocus: ((value: { ok: boolean; seq: number }) => void) | undefined;
+    vi.mocked(locateEvidence).mockImplementation(
+      () => new Promise((resolve) => { resolveFocus = resolve as (value: { ok: boolean; seq: number }) => void; }) as never,
+    );
+    window.history.replaceState(null, "", "/view/?focus=atb%3A%2F%2Fevidence%2F1%2Fabc%3Fseq%3D2&surface=evidence&seq=2#session=old");
+    render(<ViewPage />);
+    act(() => { window.dispatchEvent(new Event("hashchange")); });
+    // The session change resets the scope and drops stale presentation state...
+    expect(window.location.search).not.toContain("surface=");
+    expect(window.location.search).not.toContain("seq=");
+    // ...but the canonical evidence locator must survive.
+    expect(window.location.search).toContain("focus=");
+    expect(window.location.hash).toBe("#session=old");
+    await act(async () => { resolveFocus?.({ ok: true, seq: 2 }); await Promise.resolve(); });
+    // The stale lookup must not yank the new scope back to the old record.
+    expect(window.location.search).not.toContain("seq=");
+    expect(screen.queryByTestId("event-inspector")).not.toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).toContain("focus="));
   });
 });

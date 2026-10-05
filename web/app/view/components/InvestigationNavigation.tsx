@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Boxes, Clock3, FileJson2, GitBranch, Info, ListChecks, ShieldCheck, type LucideIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -56,11 +57,13 @@ function NavButton({ id, label, Icon, active, onSelect, findingCount, compact }:
   compact?: boolean;
 }) {
   const showsCount = id === "findings" && findingCount !== undefined && findingCount > 0;
+  const countId = useId();
   return (
     <button
       type="button"
       onClick={() => onSelect(id)}
       aria-label={label}
+      aria-describedby={showsCount ? countId : undefined}
       aria-current={active === id ? "page" : undefined}
       className={cn(
         "flex items-center gap-3 rounded-md border px-3 py-2.5 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
@@ -73,9 +76,14 @@ function NavButton({ id, label, Icon, active, onSelect, findingCount, compact }:
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
       {label}
       {showsCount && (
-        <span className="ml-auto text-xs" aria-hidden="true">
-          {findingCount}
-        </span>
+        <>
+          <span className="ml-auto text-xs" aria-hidden="true">
+            {findingCount}
+          </span>
+          <span id={countId} className="sr-only">
+            {findingCount} {findingCount === 1 ? "finding" : "findings"}
+          </span>
+        </>
       )}
     </button>
   );

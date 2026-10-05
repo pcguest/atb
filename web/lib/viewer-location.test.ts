@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseViewerLocation, viewerLocationUrl } from "./viewer-location";
+import { clearViewerLocation, parseViewerLocation, viewerLocationUrl } from "./viewer-location";
 
 describe("viewer location state", () => {
   it("parses a valid surface slug and sequence", () => {
@@ -30,6 +30,23 @@ describe("viewer location state", () => {
       from: null,
       unrecognisedSurface: "trust",
     });
+  });
+
+  it("treats prototype keys and empty surface values as unrecognised (no prototype access)", () => {
+    expect(parseViewerLocation("?surface=constructor")).toEqual({
+      surface: null,
+      seq: null,
+      from: null,
+      unrecognisedSurface: "constructor",
+    });
+    expect(parseViewerLocation("?surface=toString&seq=3").seq).toBeNull();
+    expect(parseViewerLocation("?surface=")).toEqual({
+      surface: null,
+      seq: null,
+      from: null,
+      unrecognisedSurface: "(empty)",
+    });
+    expect(parseViewerLocation("?surface=evidence&from=constructor").from).toBeNull();
   });
 
   it("does not accept a sequence without a valid surface", () => {
@@ -76,5 +93,18 @@ describe("viewer location state", () => {
     expect(url).not.toContain("seq=");
     expect(url).not.toContain("focus=");
     expect(url).toContain("surface=run");
+  });
+});
+
+describe("clearViewerLocation", () => {
+  it("drops presentation state but preserves the evidence locator and the session fragment", () => {
+    const cleared = clearViewerLocation(
+      "http://127.0.0.1:18888/view/?surface=evidence&seq=7&from=timeline&focus=atb%3A%2F%2Fevidence#session=secret-token",
+    );
+    expect(cleared).not.toContain("surface=");
+    expect(cleared).not.toContain("seq=");
+    expect(cleared).not.toContain("from=");
+    expect(cleared).toContain("focus=atb%3A%2F%2Fevidence");
+    expect(cleared).toContain("#session=secret-token");
   });
 });

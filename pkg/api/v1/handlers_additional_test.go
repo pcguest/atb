@@ -564,6 +564,12 @@ func TestFindRecordTamperHandlerAndPIIRuleLoad(t *testing.T) {
 	if !strings.Contains(body, "&lt;bundle&gt;") || !strings.Contains(body, "&lt;tamper&gt;") {
 		t.Fatalf("tamper handler should escape HTML content, body=%s", body)
 	}
+	if !strings.Contains(body, "INTEGRITY CHECK FAILED") || !strings.Contains(body, "could not be verified against their recorded hash chain and order") {
+		t.Fatalf("failure wall should use bounded verification wording, body=%s", body)
+	}
+	if strings.Contains(body, "TAMPER DETECTED") {
+		t.Fatalf("failure wall must not assert tampering, body=%s", body)
+	}
 
 	tmp := t.TempDir()
 	configPath := filepath.Join(tmp, "pii-fields.json")
