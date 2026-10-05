@@ -205,6 +205,9 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 		if err := b.Verify(); err != nil {
 			return nil, fmt.Errorf("existing bundle failed integrity verification; refusing to reconcile onto an unverified chain: %w", err)
 		}
+		if err := cm.ValidateBundle(committedBundleHead(b), len(b.Records)); err != nil {
+			return nil, fmt.Errorf("checkpoint bundle binding: %w", err)
+		}
 	}
 
 	// Reconciliation
@@ -226,7 +229,7 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 		})
 	}
 	stampAcquisitionStream(events, opts.InputPath)
-	plan, err := planReconciliation(events, reconciler, opts.Reconcile)
+	plan, err := planReconciliation(events, reconciler, opts.Reconcile || opts.Continue)
 	if err != nil {
 		return nil, err
 	}
@@ -242,15 +245,15 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 	}
 	written := counts.written
 
-	// Update checkpoint
-	cm.UpdateCheckpoint(fmt.Sprintf("exchange:%d", uniqueSourceRecords(events)), "", written)
-
-	// Save bundle
+	// Save the bundle durably before the checkpoint, so a checkpoint can never
+	// name a head that is not yet committed.
 	if err := b.Save(opts.BundlePath); err != nil {
 		return nil, fmt.Errorf("save bundle: %w", err)
 	}
 
-	// Save checkpoint
+	// Update and bind the checkpoint to the committed bundle head.
+	cm.UpdateCheckpoint(fmt.Sprintf("exchange:%d", uniqueSourceRecords(events)), "", written)
+	cm.BindBundle(committedBundleHead(b), len(b.Records))
 	if err := cm.Save(); err != nil {
 		return nil, fmt.Errorf("save checkpoint: %w", err)
 	}
@@ -397,7 +400,7 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 		})
 	}
 	stampAcquisitionStream(events, opts.InputPath)
-	plan, err := planReconciliation(events, reconciler, opts.Reconcile)
+	plan, err := planReconciliation(events, reconciler, opts.Reconcile || opts.Continue)
 	if err != nil {
 		return nil, err
 	}
@@ -413,15 +416,15 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 	}
 	written := counts.written
 
-	// Update checkpoint
-	cm.UpdateCheckpoint(fmt.Sprintf("span:%d", len(result.Events)), "", written)
-
-	// Save bundle
+	// Save the bundle durably before the checkpoint, so a checkpoint can never
+	// name a head that is not yet committed.
 	if err := b.Save(opts.BundlePath); err != nil {
 		return nil, fmt.Errorf("save bundle: %w", err)
 	}
 
-	// Save checkpoint
+	// Update and bind the checkpoint to the committed bundle head.
+	cm.UpdateCheckpoint(fmt.Sprintf("span:%d", len(result.Events)), "", written)
+	cm.BindBundle(committedBundleHead(b), len(b.Records))
 	if err := cm.Save(); err != nil {
 		return nil, fmt.Errorf("save checkpoint: %w", err)
 	}
@@ -450,6 +453,16 @@ type importEvent struct {
 	spanID       string
 	parentSpanID string
 	acquisition  *event.AcquisitionInfo
+}
+
+// committedBundleHead returns the record hash of the last committed bundle
+// record, used to bind a checkpoint to the exact evidence it describes. It is
+// identity, not integrity: callers that care about validity verify separately.
+func committedBundleHead(b *bundle.Bundle) string {
+	if b == nil || len(b.Records) == 0 {
+		return ""
+	}
+	return b.Records[len(b.Records)-1].Hash
 }
 
 // reconcileCounts summarises per-source-record reconciliation.

@@ -74,6 +74,24 @@ func (cm *CheckpointManager) UpdateCheckpoint(position, lastRecordDigest string,
 	cm.Checkpoint.UpdatePosition(position, lastRecordDigest, processedCount)
 }
 
+// BindBundle records the committed bundle head and record count on the
+// checkpoint. Call after the bundle has been durably saved.
+func (cm *CheckpointManager) BindBundle(headHash string, recordCount int) {
+	if cm.Checkpoint == nil {
+		return
+	}
+	cm.Checkpoint.BindBundle(headHash, recordCount)
+}
+
+// ValidateBundle fails closed when the checkpoint was bound to a different
+// committed bundle head than the one now loaded.
+func (cm *CheckpointManager) ValidateBundle(headHash string, recordCount int) error {
+	if cm.Checkpoint == nil {
+		return fmt.Errorf("checkpoint not loaded")
+	}
+	return cm.Checkpoint.ValidateBundle(headHash, recordCount)
+}
+
 // Save persists the checkpoint to disk.
 func (cm *CheckpointManager) Save() error {
 	if cm.Checkpoint == nil {
