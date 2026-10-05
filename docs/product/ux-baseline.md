@@ -225,8 +225,9 @@ Engineering: `ATB_RELEASE_GATE` NO_GO · `RELEASED_INTEROP_GATE` NO_GO ·
 ## 9. UX-1 investigation-workbench baseline (addendum)
 
 Status: **CERTIFIED (synthetic) — human assurance outstanding.** The Phase UX-0
-archaeology and its findings (§1–§8) remain historically accurate and are not
-rewritten here; this addendum records what UX-1 actually delivered.
+archaeology and its findings (§1–§7) remain historically accurate and are not
+rewritten here; §8's `ATB_INVESTIGATION_UX_GATE` line is updated (see below) and
+this addendum records what UX-1 actually delivered.
 
 **Scope.** UX-1 (UX1-A investigation shell + UX1-B evidence workbench) reworked
 the ATB `atb view` investigation application only. No Mortise, Tenon, Action,
@@ -242,7 +243,8 @@ acquisition or public-web change.
   disclosure); Timeline vs Evidence differentiated (recorded sequence vs exact
   forensic records); Evidence-status scan hierarchy; bounded Context absence;
   Relationships labelled by recorded event. Reviewer findings and R1–R4
-  residuals from independent validation were remediated.
+  residuals raised during **synthetic practitioner validation** (not an
+  independent human session; see Assurance status) were remediated.
 
 **Certified properties.**
 - Seven investigation surfaces preserved; not collapsed into a dashboard.
@@ -251,8 +253,12 @@ acquisition or public-web change.
 - L1 → L2 → L3 progressive disclosure intact; raw forensic inspection retained.
 - Deep links (`?focus=<locator>`) resolve to Evidence; session token stays in
   the fragment; history continuity predictable.
-- Hash-chain failure is presented as an integrity-check failure, not as proven
-  tampering, cause or intent (static viewer wall and verification banner).
+- Hash-chain failure is presented in ATB's own summary copy as an integrity-check
+  failure, not as proven tampering, cause or intent (static viewer wall and
+  verification banner). The banner's `Integrity details` disclosure retains the
+  raw verifier diagnostic verbatim (attributed as "Verifier output"), which may
+  itself contain upstream verifier wording such as "tamper detected"; that is
+  attributed raw output, not an ATB conclusion.
 
 **Assurance status.**
 - `PRACTITIONER_MODE = SYNTHETIC`; `SYNTHETIC_PRACTITIONER_VALIDATION = PASS`.
