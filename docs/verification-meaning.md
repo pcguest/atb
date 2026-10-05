@@ -18,7 +18,7 @@ When `atb verify` (or `bundle.verify()`) returns **PASS**:
 
 | Property | What It Means |
 |----------|---------------|
-| **Hash-chain integrity** | Every present record's hash matches the computed hash of its canonical JSON + previous hash. A modified, reordered, or inserted record breaks the chain. A mid-sequence removal leaves a sequence/hash gap. Both are detected. |
+| **Hash-chain integrity** | Every present record's hash matches the computed hash of its canonical JSON + previous hash. A change that is inconsistent with the recorded hashes (a modified, reordered, or inserted record; a non-tail removal) is detected. A fully recomputed chain is not detected without an independent head commitment — see [Limitation: recomputed chains and unsigned tail truncation](#limitation-recomputed-chains-and-unsigned-tail-truncation). |
 | **Event order** | The sequence numbers (1, 2, 3...) match the actual order records were appended. |
 | **Profile obligations** | The required event types for the selected profile are present. |
 | **Relation consistency** | Declared relations between events (e.g., policy decision → action) are satisfied. |
@@ -125,7 +125,7 @@ The CAS score estimates **profile-scoped evidence coverage**, not universal trut
 
 ## Detecting modification
 
-Verification detects, deterministically, any modification of the records **presented** to it:
+Verification recomputes each present record's hash and compares it with the recorded hash. It reports failure, deterministically, when a change to the records **presented** is inconsistent with the recorded hashes:
 
 | Change | Detection |
 |--------|-----------|
@@ -135,16 +135,25 @@ Verification detects, deterministically, any modification of the records **prese
 
 > Verification **FAIL** means the presented records **could not be verified against their recorded hash chain**. It is not, by itself, proof of tampering, and it does not establish cause or intent.
 
-### Limitation: unsigned tail truncation
+### Limitation: recomputed chains and unsigned tail truncation
 
-Verification checks the internal chaining of the records presented to it. On its
-own it does **not** establish that the last record is the true head of the bundle.
-Removing trailing records from an unsigned bundle still yields a shorter but
-internally consistent prefix, so the truncation is not detected unless an
-independent commitment to the expected head exists — for example an RFC 3161
-anchor, a signature over the head, or a custody receipt that records the expected
-head hash. To bind the head, supply the expected head hash out of band and
-compare it against the bundle's head hash.
+Verification checks the internal consistency of the records presented to it
+against their recorded hashes. It does **not**, on its own, establish that those
+hashes are the originals. Two cases are therefore not detected by verification
+alone:
+
+- **A fully recomputed chain.** A party who can rewrite a record and recompute
+  every subsequent recorded hash produces a different but self-consistent chain
+  that verifies. Without an independent commitment to the expected content/head,
+  the rewrite is indistinguishable from the original.
+- **Unsigned tail truncation.** Removing trailing records from an unsigned bundle
+  yields a shorter but internally consistent prefix.
+
+Detecting either requires an independent commitment to the expected content/head
+that the rewriter cannot recompute — for example an RFC 3161 anchor, a signature
+over the head, or a custody receipt that records the expected head hash. To bind
+the head, supply the expected head hash out of band and compare it against the
+bundle's head hash.
 
 ---
 
