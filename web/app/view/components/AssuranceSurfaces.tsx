@@ -386,12 +386,12 @@ export function TrustSurface({
     {
       name: "Coverage",
       question: "Does the selected evidence profile pass?",
-      status: !data.integrity_valid ? "Untrusted" : !data.profile_id ? "Not assessed" : data.profile_pass ? "Pass" : "Does not pass",
+      status: !data.integrity_valid ? "Unavailable while integrity is invalid" : !data.profile_id ? "Not assessed" : data.profile_pass ? "Pass" : "Does not pass",
       reason:
         "Profile-scoped completeness of recorded evidence, not proof that everything was captured.",
       source: data.profile_id || "No selected profile recorded",
-      gap: "A passing profile does not establish universal capture completeness.",
-      tone: !data.integrity_valid ? ("danger" as const) : !data.profile_id ? ("unknown" as const) : data.profile_pass ? ("verified" as const) : ("danger" as const),
+      gap: "A passing profile does not establish universal capture completeness. A broken chain is an integrity failure, not a coverage verdict.",
+      tone: !data.integrity_valid ? ("unknown" as const) : !data.profile_id ? ("unknown" as const) : data.profile_pass ? ("verified" as const) : ("danger" as const),
     },
     {
       name: "Corroboration",
@@ -470,7 +470,7 @@ export function TrustSurface({
               <p>
                 Profile {profile.profile_id}
                 {profile.profile_version ? ` · version ${profile.profile_version}` : ""} ·{" "}
-                {!data.integrity_valid ? "Untrusted" : profile.pass ? "Pass" : "Does not pass"}
+                {!data.integrity_valid ? "Unavailable while integrity is invalid" : profile.pass ? "Pass" : "Does not pass"}
               </p>
               {profile.critical_failures.map((failure, index) => (
                 <p key={index} className="text-muted-foreground">

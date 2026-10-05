@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hardened the Python release/publishing toolchain: regenerated `sdk/python/requirements-release.txt` so `urllib3` advances from `2.7.0` to `2.8.0`, remediating `PYSEC-2026-4175`, `PYSEC-2026-4176`, and `PYSEC-2026-4177` (all fixed in `2.8.0`). This is release-tooling/supply-chain hardening; it does not change the SDK runtime dependency graph or any product behaviour.
 - Added a pinned `pip-audit` dependency gate (`scripts/pip-audit-gate.sh`, `pip-audit==2.10.1`) that audits the release-tooling lock, the SDK runtime dependency graph (`sdk/python/requirements-runtime.txt`, compiled from `pyproject.toml`), and the security-tooling lock itself, with `--no-deps --strict`, and fails closed (exit `2`) if the tool is unavailable. It is additive to the existing Bandit source scan, which is unchanged. The runtime lock is pinned at the audit interpreter (3.11) because pip-audit requires Python 3.10+ and skips marker-guarded entries; the Python 3.9 install path is proven by the "Python 3.9 Runtime Compatibility" job.
 
+### Changed
+- ATB viewer investigation shell (UX1-A): the seven investigation surfaces are now presented as a grouped, keyboard-complete navigation (Run → Findings → Timeline → Context → Relationships → Evidence → Evidence status) beneath an evidence-object identity header that states the object, its recorded-record count and the active surface without fabricating a run/session identity. Investigation location is encoded in the URL (`?surface=<slug>&seq=<n>`) so Back/Forward and direct deep links restore continuity; `?focus=` still resolves the referenced record, and the `#session=` token stays in the fragment and is never copied into the query string or navigation state.
+- Coverage is presented as a deterministic state rather than a score: a selected profile's recorded grade, or "Not assessed", or "Unavailable while integrity is invalid". A broken hash chain is an integrity failure and is no longer relabelled as "untrusted" coverage; no numeric coverage/confidence/trust value is rendered. Integrity, coverage and corroboration remain distinct.
+- Timeline rows show an abbreviated digest at orientation; the full hash and canonical record remain available through the Evidence surface and the selected-record inspector (progressive disclosure). No new score is introduced.
+
+### Fixed
+- Regenerated `THIRD_PARTY_NOTICES` so it matches a clean `npm ci`; the committed file listed an extraneous `immer@10.2.0` that no lockfile declares, which made `make check-notices` fail in a fresh checkout.
+
 ## [v1.17.0] - 2026-10-05
 
 ### Added
