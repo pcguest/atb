@@ -535,7 +535,7 @@ func NewTamperHandler(bundlePath string, verifyErr error) http.Handler {
   <main>
     <h1 class="banner">INTEGRITY CHECK FAILED — HASH CHAIN VERIFICATION FAILED</h1>
     <p class="meta">Bundle: <code>%s</code></p>
-    <p class="meta">Verification did not succeed: the presented records do not match their recorded hash chain and recorded order. This does not by itself establish the cause or intent.</p>
+    <p class="meta">Verification did not succeed: the presented records could not be verified against their recorded hash chain and order. This does not by itself establish the cause or intent.</p>
     <p class="meta">Verifier output (verbatim): <code>%s</code></p>
     <p class="meta">Event data is blocked. Review <code>/api/v1/verification</code> for machine-readable status.</p>
   </main>

@@ -164,8 +164,8 @@ export function VerificationBanner({
                 )}
               </dl>
               <p className="mt-2 leading-5 text-muted-foreground">
-                Verification did not succeed: the presented records do not match their recorded
-                hash chain and recorded order. This does not by itself establish the cause or intent.
+                Verification did not succeed: the presented records could not be verified against
+                their recorded hash chain and order. This does not by itself establish the cause or intent.
               </p>
               {diagnosis && (
                 <p className="mt-2 leading-5 text-muted-foreground">

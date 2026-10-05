@@ -51,7 +51,11 @@ describe("VerificationBanner", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Integrity details" }));
     expect(screen.getByText("sha256:abc123")).toBeVisible();
+    // Bounded conclusion: it must not assert that the recorded order is wrong.
+    expect(screen.getByText(/could not be verified against their recorded hash chain and order/i)).toBeVisible();
     expect(screen.getByText(/Verifier output \(verbatim\)/)).toBeVisible();
+    // The supplied verifier output itself must be rendered, not only its label.
+    expect(screen.getByText(/tamper detected at event 3 \(seq 3\): expected a, got b/)).toBeVisible();
   });
 
   it("does not reference an unmounted panel while the disclosure is closed", () => {
