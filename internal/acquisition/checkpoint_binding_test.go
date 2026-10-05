@@ -4,6 +4,7 @@ package acquisition
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -122,5 +123,33 @@ func TestContinueRejectsCheckpointBundleHeadMismatch(t *testing.T) {
 	})
 	if !errors.Is(err, ErrCheckpointBundleMismatch) {
 		t.Fatalf("expected ErrCheckpointBundleMismatch, got %v", err)
+	}
+}
+
+// A bound checkpoint must fail closed even when the bundle file is gone:
+// otherwise a surviving checkpoint would be silently rebound to a new empty
+// bundle. Unbound (first-run) checkpoints remain acceptable.
+func TestContinueRejectsBoundCheckpointWhenBundleMissing(t *testing.T) {
+	dir := t.TempDir()
+	bundlePath := filepath.Join(dir, "acq.atb")
+	cpPath := filepath.Join(dir, "cp.json")
+	input := fixturePath(t, "pass1.jsonl")
+
+	if _, err := ImportChatlog(context.Background(), ImportOptions{
+		Format: capturepkg.FormatGenericJSONL, InputPath: input,
+		BundlePath: bundlePath, MaxInputBytes: 1 << 20, CheckpointPath: cpPath,
+	}); err != nil {
+		t.Fatalf("first import: %v", err)
+	}
+	if err := os.Remove(bundlePath); err != nil {
+		t.Fatalf("remove bundle: %v", err)
+	}
+
+	_, err := ImportChatlog(context.Background(), ImportOptions{
+		Format: capturepkg.FormatGenericJSONL, InputPath: input,
+		BundlePath: bundlePath, MaxInputBytes: 1 << 20, CheckpointPath: cpPath, Continue: true,
+	})
+	if !errors.Is(err, ErrCheckpointBundleMismatch) {
+		t.Fatalf("expected ErrCheckpointBundleMismatch when a bound checkpoint outlives its bundle, got %v", err)
 	}
 }

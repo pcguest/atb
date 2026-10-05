@@ -201,10 +201,15 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 			return nil, fmt.Errorf("manifest provenance: %w", err)
 		}
 	}
-	if !created && (opts.Continue || opts.Reconcile) {
-		if err := b.Verify(); err != nil {
-			return nil, fmt.Errorf("existing bundle failed integrity verification; refusing to reconcile onto an unverified chain: %w", err)
+	if opts.Continue || opts.Reconcile {
+		if !created {
+			if err := b.Verify(); err != nil {
+				return nil, fmt.Errorf("existing bundle failed integrity verification; refusing to reconcile onto an unverified chain: %w", err)
+			}
 		}
+		// Validate the checkpoint binding even when the bundle was just created:
+		// a surviving bound checkpoint with no matching bundle must fail closed
+		// rather than be silently rebound to a new empty bundle.
 		if err := cm.ValidateBundle(committedBundleHead(b), len(b.Records)); err != nil {
 			return nil, fmt.Errorf("checkpoint bundle binding: %w", err)
 		}
@@ -373,9 +378,17 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 			return nil, fmt.Errorf("manifest provenance: %w", err)
 		}
 	}
-	if !created && (opts.Continue || opts.Reconcile) {
-		if err := b.Verify(); err != nil {
-			return nil, fmt.Errorf("existing bundle failed integrity verification; refusing to reconcile onto an unverified chain: %w", err)
+	if opts.Continue || opts.Reconcile {
+		if !created {
+			if err := b.Verify(); err != nil {
+				return nil, fmt.Errorf("existing bundle failed integrity verification; refusing to reconcile onto an unverified chain: %w", err)
+			}
+		}
+		// Validate the checkpoint binding even when the bundle was just created:
+		// a surviving bound checkpoint with no matching bundle must fail closed
+		// rather than be silently rebound to a new empty bundle.
+		if err := cm.ValidateBundle(committedBundleHead(b), len(b.Records)); err != nil {
+			return nil, fmt.Errorf("checkpoint bundle binding: %w", err)
 		}
 	}
 

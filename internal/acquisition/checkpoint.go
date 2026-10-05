@@ -107,6 +107,10 @@ func (c *Checkpoint) Save(path string) error {
 
 	cleanPath := filepath.Clean(path)
 	dir := filepath.Dir(cleanPath)
+	dirExisted := true
+	if _, statErr := os.Stat(dir); errors.Is(statErr, os.ErrNotExist) {
+		dirExisted = false
+	}
 	if err := os.MkdirAll(dir, 0750); err != nil {
 		return fmt.Errorf("checkpoint: mkdir: %w", err)
 	}
@@ -150,6 +154,15 @@ func (c *Checkpoint) Save(path string) error {
 
 	if err := syncDir(dir); err != nil {
 		return fmt.Errorf("checkpoint: fsync parent: %w", err)
+	}
+	if !dirExisted {
+		// A newly created directory's own entry lives in its parent directory;
+		// fsync that too so the new directory survives a crash.
+		if parent := filepath.Dir(dir); parent != dir {
+			if err := syncDir(parent); err != nil {
+				return fmt.Errorf("checkpoint: fsync grandparent: %w", err)
+			}
+		}
 	}
 	return nil
 }
