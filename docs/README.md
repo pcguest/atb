@@ -10,6 +10,7 @@ claims were true.
 - [Five-minute quickstart](./getting-started/quickstart.md)
 - [Configuration](./getting-started/configuration.md)
 - [Capture paths and boundaries](./capture/overview.md)
+- [Continuous capture with atb intercept (external pilot)](./capture/continuous-capture.md)
 - [Automated acquisition (roadmap)](./concepts/acquisition-modes.md)
 
 ## Understand the evidence

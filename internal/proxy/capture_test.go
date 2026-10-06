@@ -2,8 +2,6 @@
 package proxy
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,7 +12,6 @@ import (
 
 	"github.com/pcguest/atb/internal/acquisition"
 	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/canonicalize"
 	"github.com/pcguest/atb/internal/capturejournal"
 	"github.com/pcguest/atb/internal/event"
 )
@@ -454,17 +451,21 @@ func fabricateJournalEntry(t *testing.T, bundlePath, typ string, data map[string
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	canonical, err := canonicalize.Marshal(payload)
+	digest, err := digestRepresentation(payload)
 	if err != nil {
-		t.Fatalf("canonicalize: %v", err)
+		t.Fatalf("digest payload: %v", err)
 	}
-	sum := sha256.Sum256(canonical)
 	pos := j.LastPosition() + 1
+	incarnation := journalIncarnation(j)
+	if incarnation == "" {
+		incarnation = "inc-test"
+	}
 	entry, err := j.Append(capturejournal.Entry{
-		ObservationID:         fmt.Sprintf("%s:%d", streamID, pos),
+		ObservationID:         fmt.Sprintf("%s/%s:%d", incarnation, streamID, pos),
 		SourceSystem:          captureSourceSystem,
+		SourceIncarnation:     incarnation,
 		RepresentationVersion: captureRepresentationVersion,
-		RepresentationDigest:  hex.EncodeToString(sum[:]),
+		RepresentationDigest:  digest,
 		ObservationType:       typ,
 		Payload:               payload,
 		ObservedAt:            time.Now().UTC().Format(time.RFC3339Nano),

@@ -179,7 +179,7 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
               {event.acquisition.mode && <div><dt className="inline text-muted-foreground">Acquisition mode: </dt><dd className="inline">{event.acquisition.mode}</dd></div>}
               {event.acquisition.source_system && <div><dt className="inline text-muted-foreground">Source system: </dt><dd className="inline">{event.acquisition.source_system}</dd></div>}
               {event.acquisition.source_record_id && <div><dt className="inline text-muted-foreground">Source record: </dt><dd className="inline font-mono">{event.acquisition.source_record_id}</dd></div>}
-              {event.acquisition.source_timestamp && <div><dt className="inline text-muted-foreground">Original timestamp: </dt><dd className="inline">{event.acquisition.source_timestamp}</dd></div>}
+              {event.acquisition.source_timestamp && <div><dt className="inline text-muted-foreground">Reported timestamp (adapter-dependent): </dt><dd className="inline">{event.acquisition.source_timestamp}</dd></div>}
               {event.acquisition.acquired_at && <div><dt className="inline text-muted-foreground">Acquired at: </dt><dd className="inline">{event.acquisition.acquired_at}</dd></div>}
               {event.acquisition.adapter && <div><dt className="inline text-muted-foreground">Adapter: </dt><dd className="inline font-mono">{event.acquisition.adapter}{event.acquisition.adapter_version ? ` v${event.acquisition.adapter_version}` : ""}</dd></div>}
               {event.acquisition.source_digest && <div><dt className="inline text-muted-foreground">Source digest: </dt><dd className="inline"><HashValue hash={event.acquisition.source_digest} className="text-foreground" /></dd></div>}

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"strings"
 )
 
@@ -31,8 +32,8 @@ func (t ToolCall) InputDigest() string {
 // (output[] function_call items), and the streamed (SSE) forms of the Chat
 // Completions and Anthropic Messages APIs. Unrecognised bodies yield no calls.
 func ExtractToolCalls(body []byte) []ToolCall {
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
+	payload, ok := decodeJSONObject(body)
+	if !ok {
 		// Not a single JSON object; it may be a Server-Sent Events stream.
 		if bytes.Contains(body, []byte("data:")) {
 			return extractStreamingToolCalls(body)
@@ -221,8 +222,8 @@ func (e ToolResultError) DetailDigest() string {
 // is_error=true; OpenAI tool messages carry no standard error flag, so they are
 // not classified as failures here.
 func ExtractToolResultErrors(body []byte) []ToolResultError {
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
+	payload, ok := decodeJSONObject(body)
+	if !ok {
 		return nil
 	}
 
@@ -256,6 +257,59 @@ func ExtractToolResultErrors(body []byte) []ToolResultError {
 func asSlice(v any) []any {
 	s, _ := v.([]any)
 	return s
+}
+
+// decodeJSONObject decodes a single JSON object using json.Number so large
+// integer tool arguments survive re-marshalling for digesting instead of being
+// silently rounded through float64.
+func decodeJSONObject(body []byte) (map[string]any, bool) {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	var payload map[string]any
+	if err := dec.Decode(&payload); err != nil {
+		return nil, false
+	}
+	// Reject trailing data after the first JSON value, matching json.Unmarshal.
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, false
+	}
+	return normalizeNumbers(payload).(map[string]any), true
+}
+
+// normalizeNumbers canonicalises JSON numbers so equivalent spellings (1 and
+// 1.0) produce the same digest, while integers beyond the exact float64 range
+// (|n| > 2^53) keep their original literal so precision is not lost.
+func normalizeNumbers(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, vv := range t {
+			t[k] = normalizeNumbers(vv)
+		}
+		return t
+	case []any:
+		for i, vv := range t {
+			t[i] = normalizeNumbers(vv)
+		}
+		return t
+	case json.Number:
+		return normalizeNumber(t)
+	default:
+		return v
+	}
+}
+
+func normalizeNumber(n json.Number) any {
+	const maxExact = int64(1) << 53
+	if i, err := n.Int64(); err == nil {
+		if i > maxExact || i < -maxExact {
+			return n
+		}
+		return float64(i)
+	}
+	if f, err := n.Float64(); err == nil {
+		return f
+	}
+	return n
 }
 
 func str(v any) string {

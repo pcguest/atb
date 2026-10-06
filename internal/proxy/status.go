@@ -35,6 +35,11 @@ type CaptureStatus struct {
 
 	LastObservationAt   string `json:"last_observation_at,omitempty"`
 	LastDurableCommitAt string `json:"last_durable_commit_at,omitempty"`
+	// ObservationCurrency is the offline view of whether observation is
+	// currently happening. It is "none" when nothing was ever observed and
+	// "unknown" otherwise, because an offline read cannot assert liveness. It
+	// exists so a consistent-but-stopped capture is never read as live.
+	ObservationCurrency string `json:"observation_currency"`
 
 	KnownGap           bool   `json:"known_gap"`
 	PossibleUnknownGap bool   `json:"possible_unknown_gap"`
@@ -50,11 +55,12 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 	checkpointPath := acquisition.ResolveCheckpointPath(clean, captureSourceSystem, streamID)
 
 	st := &CaptureStatus{
-		BundlePath:    clean,
-		Integrity:     "unknown",
-		ProcessHealth: "unknown",
-		CaptureState:  string(captureUnknown),
-		JournalPath:   journalPath,
+		BundlePath:          clean,
+		Integrity:           "unknown",
+		ProcessHealth:       "unknown",
+		CaptureState:        string(captureUnknown),
+		JournalPath:         journalPath,
+		ObservationCurrency: "none",
 	}
 
 	b, err := bundle.LoadVerified(clean)
@@ -73,7 +79,8 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 	v3 := false
 	hasAcquisition := false
 	for _, rec := range b.Records {
-		if rec.Event.Acquisition != nil {
+		acq := rec.Event.Acquisition
+		if acq != nil && acq.Mode == "live" && acq.SourceSystem == captureSourceSystem && acq.Adapter == captureAdapter {
 			hasAcquisition = true
 			break
 		}
@@ -113,6 +120,47 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		st.JournalBacklog = st.JournalLastPosition - st.CommittedPosition
 	}
 
+	// Validate every durable journal entry against the capture contract and
+	// re-derive its representation digest, so a substituted or mutated journal
+	// cannot be reported as continuous. Digest verification is unconditional;
+	// the checkpoint-relative checks are applied when a checkpoint is present.
+	journalInconsistent := false
+	if len(entries) > 0 {
+		seenIncarnation := map[string]bool{}
+		for _, e := range entries {
+			if e.SourceSystem != captureSourceSystem || e.Adapter != captureAdapter || e.AdapterVersion != captureAdapterVersion || e.RepresentationVersion != captureRepresentationVersion {
+				journalInconsistent = true
+				break
+			}
+			if d, err := digestRepresentation(e.Payload); err != nil || d != e.RepresentationDigest {
+				journalInconsistent = true
+				break
+			}
+			seenIncarnation[e.SourceIncarnation] = true
+		}
+		// A single journal must describe a single incarnation, even when the
+		// checkpoint is legacy and blank.
+		if !journalInconsistent && len(seenIncarnation) > 1 {
+			journalInconsistent = true
+		}
+		if !journalInconsistent && checkpointPresent && cp.SourceIncarnation != "" && !seenIncarnation[cp.SourceIncarnation] {
+			journalInconsistent = true
+		}
+	}
+
+	// An observation occurred if the journal has entries, the bundle holds live
+	// acquisition evidence, or the checkpoint records a committed position.
+	if st.LastObservationAt != "" || hasAcquisition || st.CommittedPosition > 0 {
+		st.ObservationCurrency = "unknown"
+	}
+
+	checkpointMismatch := false
+	if checkpointPresent {
+		if err := cp.Validate(captureSourceSystem, streamID, captureAdapter, captureAdapterVersion, ""); err != nil {
+			checkpointMismatch = true
+		}
+	}
+
 	// Continuity assessment. A healthy state requires a verified v3 bundle, a
 	// readable checkpoint bound to this capture's source/adapter/version, and a
 	// journal that is not behind the committed position.
@@ -128,6 +176,10 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		st.CaptureState = string(captureDegraded)
 		st.KnownGap = true
 		st.Detail = "journal torn tail detected (repaired on open); observations may be incomplete"
+	case journalInconsistent:
+		st.CaptureState = string(captureDegraded)
+		st.KnownGap = true
+		st.Detail = "journal entries do not match the capture contract (source/adapter/version/incarnation) or their representation digest"
 	case checkpointUnreadable:
 		st.CaptureState = string(captureDegraded)
 		st.Detail = "checkpoint unreadable or malformed; continuity cannot be established"
@@ -135,6 +187,16 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		st.CaptureState = string(captureDegraded)
 		st.PossibleUnknownGap = true
 		st.Detail = "journal ends before the committed position; observations may be missing"
+	case checkpointMismatch:
+		st.CaptureState = string(captureDegraded)
+		st.Detail = "checkpoint does not match this capture's source/adapter/version"
+	case st.CommittedPosition == 0 && len(entries) == 0 && hasAcquisition:
+		st.CaptureState = string(captureDegraded)
+		st.PossibleUnknownGap = true
+		st.Detail = "bundle holds acquisition evidence but no journal or committed position; operational continuity cannot be established"
+	case st.CommittedPosition == 0 && len(entries) == 0 && !hasAcquisition:
+		st.CaptureState = "not_established"
+		st.Detail = "no capture journal, committed position, or live acquisition evidence present; no observations recorded"
 	case st.JournalBacklog > 0:
 		st.CaptureState = string(captureRecoveryRequired)
 		st.Detail = "durable observations exist that are not yet committed to evidence"

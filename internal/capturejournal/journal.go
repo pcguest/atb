@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/pcguest/atb/internal/hash"
 )
@@ -125,16 +126,33 @@ func Open(path, streamID string) (*Journal, error) {
 	}
 	_, statErr := os.Stat(clean)
 	created := os.IsNotExist(statErr)
+	if created {
+		// A brand-new journal at this path is not the journal a stale repair
+		// marker describes; drop the marker so a fresh journal is not reported
+		// degraded by a previous instance's repair.
+		_ = os.Remove(repairMarkerPath(clean))
+	}
 
 	entries, repaired, err := readEntries(clean)
 	if err != nil {
 		return nil, err
 	}
 	if repaired {
+		// Record the repair durably BEFORE truncating, so a crash cannot leave
+		// a clean journal with no degradation signal. A repair is a real
+		// continuity signal, not a transient one.
+		if err := writeRepairMarker(clean, discardedTailBytes(clean)); err != nil {
+			return nil, fmt.Errorf("capturejournal: persist repair marker: %w", err)
+		}
 		// Truncate the torn trailing partial line so appends start clean.
 		if err := os.Truncate(clean, lastCompleteOffset(clean)); err != nil {
 			return nil, fmt.Errorf("capturejournal: repair torn tail: %w", err)
 		}
+	}
+	// A prior repair (marker present) keeps the journal in a degraded state even
+	// though the file itself is now clean.
+	if markerPresent(clean) {
+		repaired = true
 	}
 
 	f, err := os.OpenFile(clean, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600) // #nosec G304 -- operator-selected local journal path
@@ -166,9 +184,64 @@ func syncDirChain(dir string) error {
 }
 
 // Read reads and verifies a journal file without creating it or opening it for
-// append. It returns (nil, false, nil) when the file does not exist.
+// append. It returns (nil, false, nil) when the file does not exist. The
+// repaired flag is true when the current file has a torn tail OR a prior repair
+// marker is present, so an offline read still reports a past repair.
 func Read(path string) ([]Entry, bool, error) {
-	return readEntries(filepath.Clean(path))
+	clean := filepath.Clean(path)
+	entries, repaired, err := readEntries(clean)
+	if err != nil {
+		return nil, false, err
+	}
+	// A leftover marker beside a deleted journal describes a journal that no
+	// longer exists; journal loss must be reported as loss, not as a repair.
+	if _, statErr := os.Stat(clean); statErr == nil && markerPresent(clean) {
+		repaired = true
+	}
+	return entries, repaired, nil
+}
+
+// repairMarkerPath is the sidecar file recording that a torn tail was repaired.
+func repairMarkerPath(path string) string { return path + ".repair" }
+
+func markerPresent(path string) bool {
+	_, err := os.Stat(repairMarkerPath(path))
+	return err == nil
+}
+
+// writeRepairMarker durably records a torn-tail repair next to the journal.
+func writeRepairMarker(path string, discarded int64) error {
+	rec := fmt.Sprintf("{\"repaired_at\":%q,\"discarded_bytes\":%d}\n",
+		time.Now().UTC().Format(time.RFC3339Nano), discarded)
+	marker := repairMarkerPath(path)
+	f, err := os.OpenFile(marker, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- operator-selected local journal path
+	if err != nil {
+		return err
+	}
+	if _, err := f.WriteString(rec); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(marker))
+}
+
+// discardedTailBytes returns the number of bytes in the torn trailing fragment.
+func discardedTailBytes(path string) int64 {
+	data, err := os.ReadFile(path) // #nosec G304 -- operator-selected local journal path
+	if err != nil || len(data) == 0 {
+		return 0
+	}
+	if data[len(data)-1] == '\n' {
+		return 0
+	}
+	return int64(len(data)) - lastCompleteOffset(path)
 }
 
 // Path returns the journal file path.

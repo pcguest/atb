@@ -53,15 +53,20 @@ type AcquisitionInfo struct {
 	// For chatlog imports, this is the line number. For OTel, this is the span ID.
 	SourceRecordID string `json:"source_record_id,omitempty"`
 
-	// SourceTimestamp is the original timestamp from the source record.
+	// SourceTimestamp is the timestamp attributed to the source record by the
+	// adapter. It is adapter-dependent: some adapters extract a provider-supplied
+	// time, while others (e.g. the live intercept adapter) record the observing
+	// clock. It is not guaranteed to be a provider-original timestamp.
 	SourceTimestamp string `json:"source_timestamp,omitempty"`
 
 	// AcquiredAt is the RFC 3339 timestamp when ATB acquired this record.
 	AcquiredAt string `json:"acquired_at,omitempty"`
 
-	// SourceDigest is the SHA-256 digest of the raw source representation BEFORE
-	// semantic translation. This enables verification that the imported ATB evidence
-	// came from the same acquired source representation.
+	// SourceDigest is the SHA-256 digest of the source representation recorded by
+	// the adapter. The exact representation is adapter-dependent (for the live
+	// intercept adapter it is the digested observation envelope, not the provider
+	// body, whose digest is recorded separately). It establishes representation
+	// identity and change, not the provider-original object.
 	SourceDigest string `json:"source_digest,omitempty"`
 
 	// Adapter identifies the importer/translator used (e.g., "atb.chatlog.generic-jsonl",

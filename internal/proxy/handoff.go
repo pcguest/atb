@@ -49,6 +49,8 @@ func BuildHandoff(bundlePath string, sequence int) (*Handoff, error) {
 			"Absence of a recorded event does not prove the event did not occur.",
 			"Recorded order is append order, not causal order.",
 			"A digest identifies a captured representation, not the provider-original object.",
+			"Source incarnation is an operational token, not an authenticated origin.",
+			"A capture state of healthy is a static consistency verdict, not proof that observation is live or complete.",
 		},
 		ExportInstructions: "atb export --format soc2 --bundle " + filepath.Clean(bundlePath) + " --output <file>  (offline; no capture service or Mortise required)",
 	}
@@ -70,7 +72,7 @@ func BuildHandoff(bundlePath string, sequence int) (*Handoff, error) {
 	h.Sequence = rec.Event.Sequence
 	h.RecordHash = rec.Hash
 	h.RecordType = rec.Event.Type
-	h.EvidenceReference = fmt.Sprintf("atb://evidence/1/%s?seq=%d", head, rec.Event.Sequence)
+	h.EvidenceReference = fmt.Sprintf("atb://evidence/1/%s?seq=%d&record=%s", head, rec.Event.Sequence, rec.Hash)
 	if rec.Event.Acquisition != nil {
 		h.SourceSystem = rec.Event.Acquisition.SourceSystem
 	}

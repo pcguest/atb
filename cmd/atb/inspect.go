@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
@@ -51,7 +52,7 @@ func runInspect(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "atb inspect: %v\n", err)
 			return exitUserError
 		}
-		if _, err := fmt.Fprintln(stdout, string(data)); err != nil {
+		if _, err := fmt.Fprintln(newEscapingWriter(stdout), string(data)); err != nil {
 			fmt.Fprintf(stderr, "atb inspect: write output: %v\n", err)
 			return exitSystemError
 		}
@@ -59,7 +60,7 @@ func runInspect(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if cfg.JSON {
-		enc := json.NewEncoder(stdout)
+		enc := json.NewEncoder(newEscapingWriter(stdout))
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(b.Records); err != nil {
 			fmt.Fprintf(stderr, "atb inspect: encode json output: %v\n", err)
@@ -157,7 +158,7 @@ func renderInspectTable(w io.Writer, b *bundle.Bundle) error {
 		return err
 	}
 	if manifest := b.Manifest(); manifest != nil && manifest.CaptureRunID != "" {
-		if _, err := fmt.Fprintf(w, "Capture run: %s\n", manifest.CaptureRunID); err != nil {
+		if _, err := fmt.Fprintf(w, "Capture run: %s\n", sanitizeForTerminal(manifest.CaptureRunID)); err != nil {
 			return err
 		}
 	}
@@ -167,8 +168,8 @@ func renderInspectTable(w io.Writer, b *bundle.Bundle) error {
 			w,
 			"%3d  %-23s  %-20s  %s\n",
 			record.Event.Sequence,
-			record.Event.Type,
-			record.Event.Timestamp,
+			sanitizeForTerminal(record.Event.Type),
+			sanitizeForTerminal(record.Event.Timestamp),
 			inspectDataPreview(record.Event.Data, 80),
 		); err != nil {
 			return err
@@ -202,6 +203,7 @@ func marshalInspectData(data any) ([]byte, error) {
 func inspectDataPreview(data any, limit int) string {
 	preview := inspectDataString(data)
 	preview = strings.Join(strings.Fields(preview), " ")
+	preview = sanitizeForTerminal(preview)
 
 	runes := []rune(preview)
 	if len(runes) <= limit {
@@ -211,6 +213,89 @@ func inspectDataPreview(data any, limit int) string {
 		return string(runes[:limit])
 	}
 	return string(runes[:limit-3]) + "..."
+}
+
+// sanitizeForTerminal replaces ASCII control characters (C0 including ESC), C1
+// controls, and Unicode line/paragraph separators and bidi overrides with a
+// visible escape, so attacker-controlled evidence cannot inject terminal escape
+// sequences or spoof rendered output.
+func sanitizeForTerminal(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch {
+		case r == '\t':
+			b.WriteByte(' ')
+		case r < 0x20 || (r >= 0x7f && r <= 0x9f):
+			fmt.Fprintf(&b, "\\x%02x", r)
+		case r == 0x2028 || r == 0x2029,
+			r >= 0x202a && r <= 0x202e,
+			r >= 0x2066 && r <= 0x2069,
+			r == 0x061c,
+			r >= 0x200b && r <= 0x200f,
+			r == 0x2060 || r == 0xfeff:
+			fmt.Fprintf(&b, "\\u%04x", r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// escapingWriter escapes bidi and zero-width control runes that encoding/json
+// emits raw into their \uXXXX escapes as it streams, so large bundles are not
+// buffered a second time. The output remains valid JSON (parsing yields the
+// identical string) but cannot visually spoof a terminal.
+type escapingWriter struct {
+	w   io.Writer
+	buf []byte
+}
+
+func newEscapingWriter(w io.Writer) *escapingWriter { return &escapingWriter{w: w} }
+
+func (e *escapingWriter) Write(p []byte) (int, error) {
+	data := p
+	if len(e.buf) > 0 {
+		data = append(append([]byte(nil), e.buf...), p...)
+		e.buf = nil
+	}
+	var out bytes.Buffer
+	for i := 0; i < len(data); {
+		r, size := utf8.DecodeRune(data[i:])
+		if r == utf8.RuneError && size == 1 && !utf8.FullRune(data[i:]) {
+			// Incomplete rune at the end of this chunk; carry it over.
+			e.buf = append(e.buf, data[i:]...)
+			break
+		}
+		if isBidiOrZeroWidth(r) {
+			fmt.Fprintf(&out, "\\u%04x", r)
+		} else {
+			out.Write(data[i : i+size])
+		}
+		i += size
+	}
+	if _, err := e.w.Write(out.Bytes()); err != nil {
+		return len(p), err
+	}
+	return len(p), nil
+}
+
+func isBidiOrZeroWidth(r rune) bool {
+	switch {
+	case r == 0x2028 || r == 0x2029:
+		return true
+	case r >= 0x202a && r <= 0x202e:
+		return true
+	case r >= 0x2066 && r <= 0x2069:
+		return true
+	case r == 0x061c:
+		return true
+	case r >= 0x200b && r <= 0x200f:
+		return true
+	case r == 0x2060 || r == 0xfeff:
+		return true
+	}
+	return false
 }
 
 func inspectDataString(data any) string {
