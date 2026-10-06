@@ -43,12 +43,11 @@ type BundleFileManager struct {
 	sessions map[SessionID]*fileSessionRecord
 	now      func() time.Time
 
-	// lastErr is the most recent durability failure (append/save/close). It is
-	// cleared on the next success. It lets /healthz distinguish "process up"
-	// from "capture actually working", so a green health check never implies
+	// lastErr is the most recent durability failure (open/append/save/close).
+	// It is cleared on the next success. It lets /healthz distinguish "process
+	// up" from "capture actually working", so a green health check never implies
 	// evidence is being durably captured.
-	lastErr   error
-	lastErrAt time.Time
+	lastErr error
 }
 
 // NewBundleFileManager constructs a disk-backed session manager rooted at dataDir.
@@ -61,13 +60,14 @@ func NewBundleFileManager(dataDir string) *BundleFileManager {
 }
 
 // OpenSession creates or resumes a bundle at the session path and persists it.
-func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) (SessionID, error) {
+func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) (id SessionID, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	defer func() { m.recordHealthLocked(err) }()
 	if err := m.openRoot(); err != nil {
 		return "", err
 	}
-	id, err := newSessionID()
+	id, err = newSessionID()
 	if err != nil {
 		return "", err
 	}
@@ -213,14 +213,19 @@ func (m *BundleFileManager) Shutdown(context.Context) error {
 
 // recordHealthLocked records the most recent durability error. Callers must
 // hold m.mu.
+//
+// Normal session-state errors (a stale or already-closed session id) are not
+// durability failures: they say nothing about whether evidence can be written,
+// so they neither set nor clear the health state.
 func (m *BundleFileManager) recordHealthLocked(err error) {
+	if errors.Is(err, ErrSessionNotFound) || errors.Is(err, ErrSessionClosed) {
+		return
+	}
 	if err == nil {
 		m.lastErr = nil
-		m.lastErrAt = time.Time{}
 		return
 	}
 	m.lastErr = err
-	m.lastErrAt = m.now().UTC()
 }
 
 // Health reports the most recent durability failure, if any. A nil result means

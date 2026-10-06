@@ -59,6 +59,13 @@ type ImportOptions struct {
 	// SourceIdentity overrides the source identity for the import.
 	SourceIdentity event.SourceIdentity
 
+	// SourceIncarnation is an optional opaque token for the specific incarnation
+	// (process/instance/deployment) of the logical source. When set, it is
+	// recorded on the checkpoint and continuation fails closed if a later
+	// import presents a different incarnation. Empty for sources that cannot
+	// supply one (the default for file-based imports).
+	SourceIncarnation string
+
 	// Stdin is an optional reader for stdin input (used when InputPath is "-").
 	// If nil, os.Stdin is used.
 	Stdin io.Reader
@@ -134,6 +141,7 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 		"1.0.0",
 		sourceIdentity,
 	)
+	cm.SourceIncarnation = opts.SourceIncarnation
 
 	if err := cm.LoadOrInitialize(); err != nil {
 		return nil, fmt.Errorf("checkpoint: %w", err)
@@ -322,6 +330,7 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 		"1.0.0",
 		sourceIdentity,
 	)
+	cm.SourceIncarnation = opts.SourceIncarnation
 
 	if err := cm.LoadOrInitialize(); err != nil {
 		return nil, fmt.Errorf("checkpoint: %w", err)
@@ -580,7 +589,6 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 	var plan reconciliationPlan
 	type decision struct {
 		result  ReconciliationResult
-		digest  string
 		skip    bool
 		finding *FindingInfo
 	}
@@ -590,18 +598,15 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 	for i := range events {
 		ev := events[i]
 		acq := ev.acquisition
-		hasID := acq != nil && acq.SourceRecordID != ""
 		key := fmt.Sprintf("__unknown__:%d", i)
-		if hasID {
+		if acq != nil && acq.SourceRecordID != "" {
 			key = acq.SourceSystem + ":" + acq.SourceRecordID
 		}
 
 		d, ok := decisions[key]
-		action := reconcileAction{event: ev}
-		switch {
-		case !ok:
+		if !ok {
 			d = &decision{}
-			if reconcile && hasID {
+			if reconcile && acq != nil && acq.SourceRecordID != "" {
 				outcome, err := reconciler.Reconcile(
 					event.SourceIdentity{System: acq.SourceSystem, RecordID: acq.SourceRecordID, Derived: true},
 					acq.SourceDigest, acq.AcquiredAt, acq,
@@ -611,16 +616,11 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 				}
 				d.result = outcome.Result
 				d.finding = outcome.Finding
-				d.digest = acq.SourceDigest
 				d.skip = outcome.Result == ReconciliationUnchanged
 			} else if reconcile {
 				d.result = ReconciliationUnknown
 			}
-			if hasID {
-				d.digest = acq.SourceDigest
-			}
 			decisions[key] = d
-			action.skip = d.skip
 			switch d.result {
 			case ReconciliationNew:
 				plan.counts.newCount++
@@ -631,31 +631,14 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 			case ReconciliationUnknown:
 				plan.counts.unknown++
 			}
-		case reconcile && hasID && acq.SourceDigest != d.digest:
-			// The same source identity appears again within this pass with a
-			// different representation. Surface one changed-source finding and
-			// append the new representation; never silently collapse the change.
-			action.finding = &FindingInfo{
-				Flag:           "source_record_changed",
-				Severity:       "high",
-				Title:          "Source record changed within a single acquisition pass",
-				SourceRecordID: acq.SourceRecordID,
-				PreviousDigest: d.digest,
-				CurrentDigest:  acq.SourceDigest,
-				AcquiredAt:     acq.AcquiredAt,
-			}
-			action.skip = false
-			d.digest = acq.SourceDigest
-			d.finding = nil
-		case reconcile && hasID:
-			// Same identity and identical representation repeated within one
-			// pass: idempotent replay, so never append it twice.
-			action.skip = true
-		default:
-			// Non-reconcile (plain import) keeps historical append semantics.
-			action.skip = d.skip
 		}
 
+		// Every event derived from one source record shares that record's single
+		// decision: a chatlog exchange legitimately emits several events (request,
+		// model, tool, output, response) under one identity and digest, and all of
+		// them must be appended (or skipped) together. Deduplication is therefore
+		// per complete source record, never per individual event.
+		action := reconcileAction{event: ev, skip: d.skip}
 		if d.finding != nil {
 			action.finding = d.finding
 			d.finding = nil // emit once per source record

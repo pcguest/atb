@@ -38,71 +38,98 @@ func TestCheckpointAdapterVersionAndIncarnationMismatch(t *testing.T) {
 	if err := got.Validate("proxy", "stream", "atb.intercept", "1.0.0", "inc-2"); !errors.Is(err, ErrCheckpointIncarnationMismatch) {
 		t.Fatalf("incarnation mismatch: got %v", err)
 	}
-	// A legacy checkpoint with no recorded version/incarnation remains usable.
+	// A caller that supplies no version/incarnation must not fail a checkpoint
+	// that has them (the other side of the && guard).
 	if err := got.Validate("proxy", "stream", "atb.intercept", "", ""); err != nil {
 		t.Fatalf("empty expected version/incarnation should not fail: %v", err)
 	}
 }
 
-func TestPlanReconciliationSuppressesIntraPassDuplicate(t *testing.T) {
-	acq := &event.AcquisitionInfo{
-		Mode:           "live",
-		SourceSystem:   "proxy",
-		SourceRecordID: "session:1",
-		SourceDigest:   "digest-a",
-		AcquiredAt:     "2026-01-01T00:00:00Z",
-	}
-	events := []importEvent{
-		{typ: "atb.llm.request", acquisition: acq},
-		{typ: "atb.llm.request", acquisition: acq},
-	}
+func TestCheckpointLegacyWithoutVersionOrIncarnationRemainsUsable(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "legacy.json")
 
-	plan, err := planReconciliation(events, NewReconciler(nil), true)
+	// A legacy checkpoint recorded no adapter version or incarnation.
+	legacy := &Checkpoint{
+		SourceSystem:      "chatlog",
+		AcquisitionStream: "stream",
+		Adapter:           "atb.chatlog.generic-jsonl",
+	}
+	if err := legacy.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	got, err := Load(path)
 	if err != nil {
-		t.Fatalf("plan: %v", err)
+		t.Fatalf("load: %v", err)
 	}
-	if len(plan.actions) != 2 {
-		t.Fatalf("actions = %d, want 2", len(plan.actions))
-	}
-	if plan.actions[0].skip {
-		t.Fatalf("first occurrence should be appended")
-	}
-	if !plan.actions[1].skip {
-		t.Fatalf("intra-pass duplicate must be suppressed, not appended twice")
+	// Presenting non-empty expected values must still accept the legacy record:
+	// a missing recorded value is unknown, not a mismatch.
+	if err := got.Validate("chatlog", "stream", "atb.chatlog.generic-jsonl", "2.0.0", "inc-2"); err != nil {
+		t.Fatalf("legacy checkpoint should remain usable: %v", err)
 	}
 }
 
-func TestPlanReconciliationSurfacesIntraPassChange(t *testing.T) {
-	first := &event.AcquisitionInfo{
-		Mode:           "live",
-		SourceSystem:   "proxy",
-		SourceRecordID: "session:1",
+// A single source record can legitimately emit several events that share one
+// identity and digest (chatlog request/model/tool/output/response). All of them
+// must be appended together; none may be dropped as an intra-pass duplicate.
+func TestPlanReconciliationKeepsAllEventsOfOneRecord(t *testing.T) {
+	acq := &event.AcquisitionInfo{
+		Mode:           "retrospective",
+		SourceSystem:   "chatlog",
+		SourceRecordID: "exchange:1",
 		SourceDigest:   "digest-a",
 		AcquiredAt:     "2026-01-01T00:00:00Z",
 	}
-	second := &event.AcquisitionInfo{
-		Mode:           "live",
-		SourceSystem:   "proxy",
-		SourceRecordID: "session:1",
-		SourceDigest:   "digest-b",
-		AcquiredAt:     "2026-01-01T00:00:01Z",
-	}
 	events := []importEvent{
-		{typ: "atb.llm.request", acquisition: first},
-		{typ: "atb.llm.request", acquisition: second},
+		{typ: "atb.llm.request", acquisition: acq},
+		{typ: "ai.model.invoked", acquisition: acq},
+		{typ: "atb.tool.call", acquisition: acq},
+		{typ: "atb.llm.response", acquisition: acq},
 	}
 
-	plan, err := planReconciliation(events, NewReconciler(nil), true)
+	for _, reconcile := range []bool{false, true} {
+		plan, err := planReconciliation(events, NewReconciler(nil), reconcile)
+		if err != nil {
+			t.Fatalf("plan (reconcile=%v): %v", reconcile, err)
+		}
+		if len(plan.actions) != len(events) {
+			t.Fatalf("actions = %d, want %d", len(plan.actions), len(events))
+		}
+		for i, action := range plan.actions {
+			if action.skip {
+				t.Fatalf("event %d (reconcile=%v) was skipped; all events of one new record must be appended", i, reconcile)
+			}
+		}
+	}
+}
+
+// Across passes, an unchanged record is skipped as a whole: all of its events
+// share one decision, so re-importing produces no duplicates.
+func TestPlanReconciliationSkipsUnchangedRecordAsAWhole(t *testing.T) {
+	acq := &event.AcquisitionInfo{
+		Mode:           "retrospective",
+		SourceSystem:   "chatlog",
+		SourceRecordID: "exchange:1",
+		SourceDigest:   "digest-a",
+		AcquiredAt:     "2026-01-01T00:00:00Z",
+	}
+	reconciler := NewReconciler(nil)
+	// Seed the reconciler by reconciling once, then plan the same record again.
+	if _, err := reconciler.Reconcile(event.SourceIdentity{System: "chatlog", RecordID: "exchange:1", Derived: true}, "digest-a", acq.AcquiredAt, acq); err != nil {
+		t.Fatalf("seed reconcile: %v", err)
+	}
+
+	events := []importEvent{
+		{typ: "atb.llm.request", acquisition: acq},
+		{typ: "atb.llm.response", acquisition: acq},
+	}
+	plan, err := planReconciliation(events, reconciler, true)
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
-	if plan.actions[1].skip {
-		t.Fatalf("changed representation within a pass must be appended")
-	}
-	if plan.actions[1].finding == nil {
-		t.Fatalf("changed representation within a pass must surface a finding")
-	}
-	if plan.actions[1].finding.PreviousDigest != "digest-a" || plan.actions[1].finding.CurrentDigest != "digest-b" {
-		t.Fatalf("finding digests = %+v", plan.actions[1].finding)
+	for i, action := range plan.actions {
+		if !action.skip {
+			t.Fatalf("event %d of an unchanged record must be skipped", i)
+		}
 	}
 }
