@@ -233,12 +233,16 @@ func (c *captureCoordinator) recover() error {
 			acquisition.ErrCheckpointBundleMismatch, committedPos, c.journal.LastPosition())
 	}
 
-	pending := c.journal.EntriesFrom(committedPos)
-	for i := range pending {
-		if err := c.validateEntry(pending[i]); err != nil {
+	// Validate every durable entry, including committed ones, so a re-chained
+	// committed entry with a payload/digest mismatch fails closed rather than
+	// being silently trusted.
+	for _, e := range c.journal.Entries() {
+		if err := c.validateEntry(e); err != nil {
 			return err
 		}
 	}
+
+	pending := c.journal.EntriesFrom(committedPos)
 
 	index := indexAcquisition(b)
 	appended := 0
@@ -417,14 +421,20 @@ func verifyEntryDigest(e capturejournal.Entry) error {
 	return nil
 }
 
-// bundleHasAcquisition reports whether any record carries live acquisition
-// provenance.
+// bundleHasAcquisition reports whether any record carries live intercept
+// acquisition provenance. Retrospective import records also carry an
+// Acquisition envelope, so they must not be mistaken for this capture stream's
+// live evidence.
 func bundleHasAcquisition(b *bundle.Bundle) bool {
 	if b == nil {
 		return false
 	}
 	for _, rec := range b.Records {
-		if rec.Event.Acquisition != nil {
+		acq := rec.Event.Acquisition
+		if acq == nil {
+			continue
+		}
+		if acq.Mode == "live" && acq.SourceSystem == captureSourceSystem && acq.Adapter == captureAdapter {
 			return true
 		}
 	}
@@ -446,6 +456,9 @@ func journalAccountsForEvidence(b *bundle.Bundle, j *capturejournal.Journal) err
 	for _, rec := range b.Records {
 		acq := rec.Event.Acquisition
 		if acq == nil || acq.SourceRecordID == "" {
+			continue
+		}
+		if acq.Mode != "live" || acq.SourceSystem != captureSourceSystem || acq.Adapter != captureAdapter {
 			continue
 		}
 		if !present[acq.SourceRecordID] {

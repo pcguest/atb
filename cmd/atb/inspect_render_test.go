@@ -3,6 +3,8 @@ package main
 
 import (
 	"bytes"
+	"io"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -50,5 +52,34 @@ func TestInspectTableSanitizesControlCharacters(t *testing.T) {
 	}
 	if !strings.Contains(out, `\x1b[31m`) {
 		t.Fatalf("expected the escape to be rendered visibly, got %q", out)
+	}
+}
+
+// TestInspectJSONEscapesBidiControls proves --json output cannot spoof a
+// terminal: bidi overrides are emitted as \uXXXX escapes while remaining valid
+// JSON.
+func TestInspectJSONEscapesBidiControls(t *testing.T) {
+	b, err := bundle.NewWithOptions(bundle.NewOptions{ManifestVersion: bundle.ManifestVersionV3})
+	if err != nil {
+		t.Fatalf("new bundle: %v", err)
+	}
+	if err := b.Append("test.bidi", map[string]any{"note": "safe\u202eevil"}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "bidi.atb")
+	if err := b.Save(path); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if code := runInspect([]string{"--bundle", path, "--json"}, &buf, io.Discard); code != exitSuccess {
+		t.Fatalf("runInspect exit = %d", code)
+	}
+	out := buf.String()
+	if strings.ContainsRune(out, 0x202e) {
+		t.Fatalf("raw bidi override leaked into JSON output")
+	}
+	if !strings.Contains(out, `\u202e`) {
+		t.Fatalf("expected escaped bidi override, got %q", out)
 	}
 }

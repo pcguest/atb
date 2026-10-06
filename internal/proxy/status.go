@@ -79,7 +79,8 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 	v3 := false
 	hasAcquisition := false
 	for _, rec := range b.Records {
-		if rec.Event.Acquisition != nil {
+		acq := rec.Event.Acquisition
+		if acq != nil && acq.Mode == "live" && acq.SourceSystem == captureSourceSystem && acq.Adapter == captureAdapter {
 			hasAcquisition = true
 			break
 		}
@@ -119,17 +120,15 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		st.JournalBacklog = st.JournalLastPosition - st.CommittedPosition
 	}
 
-	// Validate every durable journal entry against the checkpoint's source
-	// contract and re-derive its representation digest, so a substituted or
-	// mutated journal cannot be reported as continuous.
+	// Validate every durable journal entry against the capture contract and
+	// re-derive its representation digest, so a substituted or mutated journal
+	// cannot be reported as continuous. Digest verification is unconditional;
+	// the checkpoint-relative checks are applied when a checkpoint is present.
 	journalInconsistent := false
-	if checkpointPresent && len(entries) > 0 {
+	if len(entries) > 0 {
+		seenIncarnation := map[string]bool{}
 		for _, e := range entries {
-			if e.SourceSystem != cp.SourceSystem || e.Adapter != cp.Adapter || e.AdapterVersion != cp.AdapterVersion {
-				journalInconsistent = true
-				break
-			}
-			if cp.SourceIncarnation != "" && e.SourceIncarnation != cp.SourceIncarnation {
+			if e.SourceSystem != captureSourceSystem || e.Adapter != captureAdapter || e.AdapterVersion != captureAdapterVersion || e.RepresentationVersion != captureRepresentationVersion {
 				journalInconsistent = true
 				break
 			}
@@ -137,10 +136,21 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 				journalInconsistent = true
 				break
 			}
+			seenIncarnation[e.SourceIncarnation] = true
+		}
+		// A single journal must describe a single incarnation, even when the
+		// checkpoint is legacy and blank.
+		if !journalInconsistent && len(seenIncarnation) > 1 {
+			journalInconsistent = true
+		}
+		if !journalInconsistent && checkpointPresent && cp.SourceIncarnation != "" && !seenIncarnation[cp.SourceIncarnation] {
+			journalInconsistent = true
 		}
 	}
 
-	if st.LastObservationAt != "" {
+	// An observation occurred if the journal has entries, the bundle holds live
+	// acquisition evidence, or the checkpoint records a committed position.
+	if st.LastObservationAt != "" || hasAcquisition || st.CommittedPosition > 0 {
 		st.ObservationCurrency = "unknown"
 	}
 
@@ -186,7 +196,7 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		st.Detail = "bundle holds acquisition evidence but no journal or committed position; operational continuity cannot be established"
 	case st.CommittedPosition == 0 && len(entries) == 0 && !hasAcquisition:
 		st.CaptureState = "not_established"
-		st.Detail = "capture is configured but no observations have been recorded yet"
+		st.Detail = "no capture journal, committed position, or live acquisition evidence present; no observations recorded"
 	case st.JournalBacklog > 0:
 		st.CaptureState = string(captureRecoveryRequired)
 		st.Detail = "durable observations exist that are not yet committed to evidence"

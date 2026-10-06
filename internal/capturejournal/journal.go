@@ -138,15 +138,16 @@ func Open(path, streamID string) (*Journal, error) {
 		return nil, err
 	}
 	if repaired {
+		// Record the repair durably BEFORE truncating, so a crash cannot leave
+		// a clean journal with no degradation signal. A repair is a real
+		// continuity signal, not a transient one.
+		if err := writeRepairMarker(clean, discardedTailBytes(clean)); err != nil {
+			return nil, fmt.Errorf("capturejournal: persist repair marker: %w", err)
+		}
 		// Truncate the torn trailing partial line so appends start clean.
-		discarded := discardedTailBytes(clean)
 		if err := os.Truncate(clean, lastCompleteOffset(clean)); err != nil {
 			return nil, fmt.Errorf("capturejournal: repair torn tail: %w", err)
 		}
-		// Record the repair durably so an offline status read still reports the
-		// degradation after the process exits. A repair is a real continuity
-		// signal, not a transient one.
-		writeRepairMarker(clean, discarded)
 	}
 	// A prior repair (marker present) keeps the journal in a degraded state even
 	// though the file itself is now clean.
@@ -192,7 +193,9 @@ func Read(path string) ([]Entry, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	if markerPresent(clean) {
+	// A leftover marker beside a deleted journal describes a journal that no
+	// longer exists; journal loss must be reported as loss, not as a repair.
+	if _, statErr := os.Stat(clean); statErr == nil && markerPresent(clean) {
 		repaired = true
 	}
 	return entries, repaired, nil
@@ -207,19 +210,26 @@ func markerPresent(path string) bool {
 }
 
 // writeRepairMarker durably records a torn-tail repair next to the journal.
-func writeRepairMarker(path string, discarded int64) {
+func writeRepairMarker(path string, discarded int64) error {
 	rec := fmt.Sprintf("{\"repaired_at\":%q,\"discarded_bytes\":%d}\n",
 		time.Now().UTC().Format(time.RFC3339Nano), discarded)
-	f, err := os.OpenFile(repairMarkerPath(path), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- operator-selected local journal path
+	marker := repairMarkerPath(path)
+	f, err := os.OpenFile(marker, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- operator-selected local journal path
 	if err != nil {
-		return
+		return err
 	}
 	if _, err := f.WriteString(rec); err != nil {
 		_ = f.Close()
-		return
+		return err
 	}
-	_ = f.Sync()
-	_ = f.Close()
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(marker))
 }
 
 // discardedTailBytes returns the number of bytes in the torn trailing fragment.

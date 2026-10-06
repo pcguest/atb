@@ -273,7 +273,43 @@ func decodeJSONObject(body []byte) (map[string]any, bool) {
 	if _, err := dec.Token(); err != io.EOF {
 		return nil, false
 	}
-	return payload, true
+	return normalizeNumbers(payload).(map[string]any), true
+}
+
+// normalizeNumbers canonicalises JSON numbers so equivalent spellings (1 and
+// 1.0) produce the same digest, while integers beyond the exact float64 range
+// (|n| > 2^53) keep their original literal so precision is not lost.
+func normalizeNumbers(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, vv := range t {
+			t[k] = normalizeNumbers(vv)
+		}
+		return t
+	case []any:
+		for i, vv := range t {
+			t[i] = normalizeNumbers(vv)
+		}
+		return t
+	case json.Number:
+		return normalizeNumber(t)
+	default:
+		return v
+	}
+}
+
+func normalizeNumber(n json.Number) any {
+	const maxExact = int64(1) << 53
+	if i, err := n.Int64(); err == nil {
+		if i > maxExact || i < -maxExact {
+			return n
+		}
+		return float64(i)
+	}
+	if f, err := n.Float64(); err == nil {
+		return f
+	}
+	return n
 }
 
 func str(v any) string {

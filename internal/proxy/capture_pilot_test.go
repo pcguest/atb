@@ -119,6 +119,125 @@ func TestCapturePartialJournalLossFailsClosed(t *testing.T) {
 	}
 }
 
+// TestCaptureMarkerIgnoredAfterJournalLoss proves a leftover repair marker does
+// not mask journal loss as a repair.
+func TestCaptureMarkerIgnoredAfterJournalLoss(t *testing.T) {
+	dir := t.TempDir()
+	bundlePath := filepath.Join(dir, "capture.atb")
+	r := NewBundleRecorder(bundlePath, nil)
+	if err := r.EnableCapture("inc-marker"); err != nil {
+		t.Fatalf("EnableCapture: %v", err)
+	}
+	if _, err := r.AppendEventHash(newCaptureEvent(event.TypeLLMRequest, "s1")); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	_ = r.Close()
+
+	// Torn tail, then repair (writes the marker).
+	f, err := os.OpenFile(journalPath(bundlePath), os.O_WRONLY|os.O_APPEND, 0o600)
+	if err != nil {
+		t.Fatalf("open journal: %v", err)
+	}
+	_, _ = f.WriteString(`{"format_version":1,"position":999,"observation`)
+	_ = f.Close()
+	r2 := NewBundleRecorder(bundlePath, nil)
+	if err := r2.EnableCapture("inc-marker"); err != nil {
+		t.Fatalf("repair EnableCapture: %v", err)
+	}
+	_ = r2.Close()
+
+	// Now the journal disappears but the marker remains.
+	if err := os.Remove(journalPath(bundlePath)); err != nil {
+		t.Fatalf("remove journal: %v", err)
+	}
+	st, err := ReadCaptureStatus(bundlePath)
+	if err != nil {
+		t.Fatalf("ReadCaptureStatus: %v", err)
+	}
+	if !st.PossibleUnknownGap {
+		t.Fatalf("journal loss with a stale marker should report possible_unknown_gap, got %s (%s)", st.CaptureState, st.Detail)
+	}
+	if strings.Contains(st.Detail, "torn tail") {
+		t.Fatalf("journal loss was masked as a repair: %s", st.Detail)
+	}
+}
+
+// TestCaptureStatusRejectsUnsupportedRepresentationVersion proves offline
+// status rejects a journal entry with an unsupported representation version.
+func TestCaptureStatusRejectsUnsupportedRepresentationVersion(t *testing.T) {
+	dir := t.TempDir()
+	bundlePath := filepath.Join(dir, "capture.atb")
+	enableAndAppend(t, bundlePath)
+
+	j, err := capturejournal.Open(journalPath(bundlePath), filepath.Base(bundlePath))
+	if err != nil {
+		t.Fatalf("open journal: %v", err)
+	}
+	payload, _ := json.Marshal(observationPayload{Type: event.TypeLLMResponse, Data: json.RawMessage(`{"session_id":"s1"}`)})
+	digest, _ := digestRepresentation(payload)
+	if _, err := j.Append(capturejournal.Entry{
+		ObservationID:         "inc-fail/" + filepath.Base(bundlePath) + ":2",
+		SourceSystem:          captureSourceSystem,
+		SourceIncarnation:     "inc-fail",
+		RepresentationVersion: "atb.intercept.event.v0",
+		RepresentationDigest:  digest,
+		ObservationType:       event.TypeLLMResponse,
+		Payload:               payload,
+		ObservedAt:            time.Now().UTC().Format(time.RFC3339Nano),
+		Adapter:               captureAdapter,
+		AdapterVersion:        captureAdapterVersion,
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	_ = j.Close()
+
+	st, err := ReadCaptureStatus(bundlePath)
+	if err != nil {
+		t.Fatalf("ReadCaptureStatus: %v", err)
+	}
+	if st.CaptureState != string(captureDegraded) || !st.KnownGap {
+		t.Fatalf("capture_state = %s known_gap = %t, want degraded/known", st.CaptureState, st.KnownGap)
+	}
+}
+
+// TestCaptureStatusRejectsMixedIncarnations proves a journal mixing two source
+// incarnations is not reported as continuous.
+func TestCaptureStatusRejectsMixedIncarnations(t *testing.T) {
+	dir := t.TempDir()
+	bundlePath := filepath.Join(dir, "capture.atb")
+	enableAndAppend(t, bundlePath)
+
+	j, err := capturejournal.Open(journalPath(bundlePath), filepath.Base(bundlePath))
+	if err != nil {
+		t.Fatalf("open journal: %v", err)
+	}
+	payload, _ := json.Marshal(observationPayload{Type: event.TypeLLMResponse, Data: json.RawMessage(`{"session_id":"s1"}`)})
+	digest, _ := digestRepresentation(payload)
+	if _, err := j.Append(capturejournal.Entry{
+		ObservationID:         "inc-other/" + filepath.Base(bundlePath) + ":2",
+		SourceSystem:          captureSourceSystem,
+		SourceIncarnation:     "inc-other",
+		RepresentationVersion: captureRepresentationVersion,
+		RepresentationDigest:  digest,
+		ObservationType:       event.TypeLLMResponse,
+		Payload:               payload,
+		ObservedAt:            time.Now().UTC().Format(time.RFC3339Nano),
+		Adapter:               captureAdapter,
+		AdapterVersion:        captureAdapterVersion,
+	}); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	_ = j.Close()
+
+	st, err := ReadCaptureStatus(bundlePath)
+	if err != nil {
+		t.Fatalf("ReadCaptureStatus: %v", err)
+	}
+	if st.CaptureState != string(captureDegraded) || !st.KnownGap {
+		t.Fatalf("capture_state = %s known_gap = %t, want degraded/known", st.CaptureState, st.KnownGap)
+	}
+}
+
 // TestCaptureStatusDetectsDigestMismatch proves a self-asserted representation
 // digest that does not match its payload is reported as a known gap.
 func TestCaptureStatusDetectsDigestMismatch(t *testing.T) {

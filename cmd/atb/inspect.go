@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/pcguest/atb/internal/bundle"
 )
@@ -51,7 +52,7 @@ func runInspect(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "atb inspect: %v\n", err)
 			return exitUserError
 		}
-		if _, err := fmt.Fprintln(stdout, string(data)); err != nil {
+		if _, err := fmt.Fprintln(stdout, string(escapeJSONUnsafeRunes(data))); err != nil {
 			fmt.Fprintf(stderr, "atb inspect: write output: %v\n", err)
 			return exitSystemError
 		}
@@ -59,10 +60,15 @@ func runInspect(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if cfg.JSON {
-		enc := json.NewEncoder(stdout)
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(b.Records); err != nil {
 			fmt.Fprintf(stderr, "atb inspect: encode json output: %v\n", err)
+			return exitSystemError
+		}
+		if _, err := stdout.Write(escapeJSONUnsafeRunes(buf.Bytes())); err != nil {
+			fmt.Fprintf(stderr, "atb inspect: write output: %v\n", err)
 			return exitSystemError
 		}
 		return exitSuccess
@@ -157,7 +163,7 @@ func renderInspectTable(w io.Writer, b *bundle.Bundle) error {
 		return err
 	}
 	if manifest := b.Manifest(); manifest != nil && manifest.CaptureRunID != "" {
-		if _, err := fmt.Fprintf(w, "Capture run: %s\n", manifest.CaptureRunID); err != nil {
+		if _, err := fmt.Fprintf(w, "Capture run: %s\n", sanitizeForTerminal(manifest.CaptureRunID)); err != nil {
 			return err
 		}
 	}
@@ -229,13 +235,52 @@ func sanitizeForTerminal(s string) string {
 			fmt.Fprintf(&b, "\\x%02x", r)
 		case r == 0x2028 || r == 0x2029,
 			r >= 0x202a && r <= 0x202e,
-			r >= 0x2066 && r <= 0x2069:
+			r >= 0x2066 && r <= 0x2069,
+			r == 0x061c,
+			r >= 0x200b && r <= 0x200f,
+			r == 0x2060 || r == 0xfeff:
 			fmt.Fprintf(&b, "\\u%04x", r)
 		default:
 			b.WriteRune(r)
 		}
 	}
 	return b.String()
+}
+
+// escapeJSONUnsafeRunes rewrites bidi and zero-width control runes that
+// encoding/json emits raw into their \uXXXX escapes. The result is still valid
+// JSON (parsing yields the identical string) but cannot visually spoof a
+// terminal rendering the output.
+func escapeJSONUnsafeRunes(b []byte) []byte {
+	var out bytes.Buffer
+	for i := 0; i < len(b); {
+		r, size := utf8.DecodeRune(b[i:])
+		if r != utf8.RuneError && isBidiOrZeroWidth(r) {
+			fmt.Fprintf(&out, "\\u%04x", r)
+		} else {
+			out.Write(b[i : i+size])
+		}
+		i += size
+	}
+	return out.Bytes()
+}
+
+func isBidiOrZeroWidth(r rune) bool {
+	switch {
+	case r == 0x2028 || r == 0x2029:
+		return true
+	case r >= 0x202a && r <= 0x202e:
+		return true
+	case r >= 0x2066 && r <= 0x2069:
+		return true
+	case r == 0x061c:
+		return true
+	case r >= 0x200b && r <= 0x200f:
+		return true
+	case r == 0x2060 || r == 0xfeff:
+		return true
+	}
+	return false
 }
 
 func inspectDataString(data any) string {

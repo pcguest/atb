@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/locator"
 	"github.com/pcguest/atb/internal/proxy"
 )
@@ -52,6 +53,11 @@ func TestInterceptPilotIncident(t *testing.T) {
 	rec := proxy.NewBundleRecorder(bundlePath, nil)
 	if err := rec.EnableCapture("pilot-e2e-2026-10"); err != nil {
 		t.Fatalf("EnableCapture: %v", err)
+	}
+	// The real startup path records the capture-coverage attestation before any
+	// traffic; replicate it so the incident evidence states the capture boundary.
+	if err := rec.AppendEvent(proxy.CaptureScopeEvent(cfg)); err != nil {
+		t.Fatalf("append capture scope: %v", err)
 	}
 	roundTrip(t, rec, cfg, "api.openai.com", "/v1/chat/completions",
 		`{"model":"gpt-4.1-mini","messages":[{"role":"user","content":"list my orders"}]}`,
@@ -96,7 +102,11 @@ func TestInterceptPilotIncident(t *testing.T) {
 		t.Fatalf("load verified: %v", err)
 	}
 	consequential := -1
+	hasScope := false
 	for _, r := range b.Records {
+		if r.Event.Type == event.TypeCaptureScope {
+			hasScope = true
+		}
 		if r.Event.Type == "atb.tool.call" {
 			if s, ok := r.Event.Data.(map[string]any); ok {
 				if tn, _ := s["tool_name"].(string); tn == "delete_account" {
@@ -104,6 +114,9 @@ func TestInterceptPilotIncident(t *testing.T) {
 				}
 			}
 		}
+	}
+	if !hasScope {
+		t.Fatalf("bundle is missing the capture-scope attestation")
 	}
 	if consequential < 0 {
 		t.Fatalf("consequential delete_account tool call not found in evidence")

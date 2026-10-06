@@ -36,3 +36,16 @@ func TestToolInputDigestDistinguishesLargeIntegers(t *testing.T) {
 		t.Fatalf("distinct large integers produced the same tool-input digest")
 	}
 }
+
+// TestToolInputDigestCanonicalisesEquivalentNumbers proves equivalent numeric
+// spellings (1 and 1.0) produce the same tool-input digest.
+func TestToolInputDigestCanonicalisesEquivalentNumbers(t *testing.T) {
+	a := ExtractToolCalls([]byte(`{"content":[{"type":"tool_use","name":"t","input":{"n":1}}]}`))
+	b := ExtractToolCalls([]byte(`{"content":[{"type":"tool_use","name":"t","input":{"n":1.0}}]}`))
+	if len(a) != 1 || len(b) != 1 {
+		t.Fatalf("calls = %d/%d, want 1/1", len(a), len(b))
+	}
+	if a[0].InputDigest() != b[0].InputDigest() {
+		t.Fatalf("equivalent numbers produced different digests: %s vs %s", a[0].Arguments, b[0].Arguments)
+	}
+}
