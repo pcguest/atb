@@ -178,6 +178,9 @@ func (p *Proxy) Stop() error {
 	if p.sessions != nil {
 		p.sessions.CloseAll()
 	}
+	if p.recorder != nil {
+		p.recorder.closeCapture()
+	}
 	p.started = false
 	if p.logger != nil {
 		p.logger.Info("proxy stopped", "listen_addr", p.cfg.ListenAddr)

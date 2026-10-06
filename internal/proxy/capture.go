@@ -336,6 +336,21 @@ func (r *BundleRecorder) EnableCapture(sourceIncarnation string) error {
 	return r.enableCapture(sourceIncarnation)
 }
 
+// closeCapture releases the journal file handle. It must be called when the
+// recorder is stopped: on Windows an open handle prevents the file from being
+// removed or rotated.
+func (r *BundleRecorder) closeCapture() {
+	if r == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.capture != nil && r.capture.journal != nil {
+		_ = r.capture.journal.Close()
+	}
+	r.capture = nil
+}
+
 // CaptureHealth reports the last capture durability error, if any. It is nil
 // when capture is disabled or healthy.
 func (r *BundleRecorder) CaptureHealth() error {
