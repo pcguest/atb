@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/locator"
 	"github.com/pcguest/atb/internal/proxy"
 )
 
@@ -130,6 +131,15 @@ func TestInterceptPilotIncident(t *testing.T) {
 	}
 	if h.CaptureState != "degraded" || len(h.KnownGaps) == 0 {
 		t.Fatalf("handoff did not carry the capture limitation: %+v", h)
+	}
+
+	// The portable handoff reference is machine-resolvable to the exact record.
+	loc, err := locator.Parse(h.EvidenceReference)
+	if err != nil {
+		t.Fatalf("parse handoff evidence reference %q: %v", h.EvidenceReference, err)
+	}
+	if loc.BundleHeadHash != h.BundleHead || loc.EventSequence != h.Sequence || loc.RecordHash != h.RecordHash {
+		t.Fatalf("handoff reference does not resolve to the exact record: %+v vs %+v", loc, h)
 	}
 
 	// The credential canary is absent from every artefact.
