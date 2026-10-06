@@ -4,6 +4,7 @@ import { profileReportSummarySchema } from "@/lib/schemas/profile";
 
 export const investigationOverviewSchema = z.object({
   bundle_path: z.string(),
+  head_hash: z.string().optional(),
   event_count: z.number().int().nonnegative(),
   integrity_valid: z.boolean(),
   integrity_status: z.string(),

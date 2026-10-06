@@ -8,8 +8,16 @@ import (
 )
 
 // InvestigationOverviewResponse is the human-first summary for the loaded bundle.
+//
+// HeadHash is the recorded hash of the last presented record, used as a stable
+// label for the presented head independent of the filesystem path. It is not a
+// verification of the whole file: it is read from the bundle without recomputation,
+// so a file whose middle records were edited (without recomputing the tail) can
+// present the same HeadHash. Treat it as identity for orientation, and verify
+// separately for integrity. BundlePath is a location, not an identity.
 type InvestigationOverviewResponse struct {
 	BundlePath       string                `json:"bundle_path"`
+	HeadHash         string                `json:"head_hash,omitempty"`
 	EventCount       int                   `json:"event_count"`
 	IntegrityValid   bool                  `json:"integrity_valid"`
 	IntegrityStatus  string                `json:"integrity_status"`
