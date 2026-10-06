@@ -18,6 +18,16 @@ type BundleRecorder struct {
 	path          string
 	mortisePusher MortisePusherInterface
 	mu            sync.Mutex
+
+	// capture is non-nil once continuous capture is enabled. When set, every
+	// append is routed through the durable journal + checkpoint commit protocol
+	// instead of the legacy direct-to-bundle path.
+	capture *captureCoordinator
+
+	// captureStopped is set by closeCapture. Once set, appends are refused
+	// rather than silently falling back to the legacy path (which would write
+	// unjournalled evidence into a capture bundle).
+	captureStopped bool
 }
 
 // NewBundleRecorder returns a recorder for the given bundle path.
@@ -121,6 +131,12 @@ func (r *BundleRecorder) sessionCloseCallback(sess *Session) error {
 }
 
 func (r *BundleRecorder) appendEventLocked(ev *event.Event) (string, error) {
+	if r.captureStopped {
+		return "", errors.New("proxy: capture is stopped")
+	}
+	if r.capture != nil {
+		return r.capture.commit(ev)
+	}
 	b, err := loadBundleForAppend(r.path)
 	if err != nil {
 		return "", err
