@@ -71,6 +71,18 @@ func TestAppendReopenAndReplay(t *testing.T) {
 	if e.Position != 4 {
 		t.Fatalf("position = %d, want 4", e.Position)
 	}
+	if err := reopened.Close(); err != nil {
+		t.Fatalf("close after append: %v", err)
+	}
+	// Re-open once more to confirm the post-reopen append kept the chain valid.
+	again, err := Open(path, "stream-1")
+	if err != nil {
+		t.Fatalf("reopen after append: %v", err)
+	}
+	defer again.Close()
+	if again.Len() != 4 {
+		t.Fatalf("len after reopen = %d, want 4", again.Len())
+	}
 }
 
 func TestOpenRepairsTornTail(t *testing.T) {

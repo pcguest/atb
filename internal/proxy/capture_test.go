@@ -289,17 +289,20 @@ func TestCapturePathSecretCanary(t *testing.T) {
 	if err := r.EnableCapture("inc-test"); err != nil {
 		t.Fatalf("EnableCapture: %v", err)
 	}
-	ev := &event.Event{
-		Type:      event.TypeLLMRequest,
-		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
-		Data: map[string]any{
-			"session_id": "s1",
-			"host":       "api.openai.com",
-			"headers":    map[string]string{"user-agent": "test"},
-		},
+	rec := RequestRecord{
+		SessionID:  "s1",
+		Host:       "api.openai.com",
+		Method:     "POST",
+		Path:       "/v1/chat/completions",
+		APIKey:     canary,
+		RecordedAt: time.Now().UTC(),
 	}
-	// The API key is resolved for identity only; it must never enter the event.
-	ev.ActorID = strptr("unresolved")
+	ev, err := rec.ToEvent()
+	if err != nil {
+		t.Fatalf("ToEvent: %v", err)
+	}
+	// The API key is used for identity resolution only; it must never enter the
+	// event, the journal, or the bundle.
 	if _, err := r.AppendEventHash(ev); err != nil {
 		t.Fatalf("append: %v", err)
 	}
@@ -315,8 +318,6 @@ func TestCapturePathSecretCanary(t *testing.T) {
 		}
 	}
 }
-
-func strptr(s string) *string { return &s }
 
 func TestBuildHandoffCarriesIdentityAndLimitations(t *testing.T) {
 	dir := t.TempDir()

@@ -35,11 +35,16 @@ capture state is reported separately (see *Inspect capture health*).
 ## Start
 
 ```bash
-# First run creates ~/.atb/ca.crt and ~/.atb/ca.key (mode 0600).
+# Terminal 1: this blocks until shutdown (Ctrl-C). First run creates
+# ~/.atb/ca.crt and ~/.atb/ca.key (mode 0600).
 atb intercept --bundle ./capture.atb --target openai,anthropic \
   --source-incarnation prod-acme-2026-01
+```
 
-# Route the workload through the proxy in its own environment:
+In the workload's own environment (Terminal 2, or the workload's service
+definition), route traffic through the proxy:
+
+```bash
 export HTTPS_PROXY=http://127.0.0.1:8080
 export SSL_CERT_FILE=$HOME/.atb/ca.crt
 export NODE_EXTRA_CA_CERTS=$HOME/.atb/ca.crt
@@ -53,8 +58,9 @@ deployment/instance of the proxied source. It does not authenticate the source.
   generate one on first run.
 - Supplying a token that differs from the checkpoint's incarnation **fails
   startup** rather than silently resuming the wrong source. To start a genuinely
-  new incarnation against an existing bundle, use a new bundle path (or remove
-  the checkpoint directory).
+  new incarnation, use a **new bundle path**; deleting only the checkpoint
+  directory would leave the journal and bundle in place and resume the same
+  observation stream under a fresh incarnation.
 
 ## Where state lives
 
@@ -127,7 +133,7 @@ provider never sent through the proxy.
   credential material (not even a suffix) enters evidence, the journal, logs, or
   the checkpoint.
 - Do **not** pass secrets on the command line. `--identity-map key=name` puts a
-  raw API key on argv and persists it in `~/.atb/identity-map.yaml`; prefer the
+  raw API key on argv (and in the process environment/history); prefer the
   identity environment/chain. `--capture-bodies` stores raw prompts,
   completions, and tool payloads; apply access controls and retention limits.
 

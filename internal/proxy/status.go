@@ -3,7 +3,6 @@ package proxy
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -71,6 +70,7 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 	}
 	st.Integrity = "verified"
 
+	v3 := false
 	hasAcquisition := false
 	for _, rec := range b.Records {
 		if rec.Event.Acquisition != nil {
@@ -78,52 +78,76 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 			break
 		}
 	}
-
-	cp, cpErr := acquisition.Load(checkpointPath)
-	checkpointPresent := cpErr == nil
-	if cpErr != nil && !errors.Is(cpErr, acquisition.ErrCheckpointNotFound) {
-		st.CaptureState = string(captureDegraded)
-		st.Detail = fmt.Sprintf("checkpoint unreadable: %v", cpErr)
-		return st, nil
-	}
-	if checkpointPresent {
-		st.SourceSystem = cp.SourceSystem
-		st.SourceIncarnation = cp.SourceIncarnation
-		st.Adapter = cp.Adapter
-		st.AdapterVersion = cp.AdapterVersion
-		st.CommittedPosition = parsePosition(cp.Position)
-		st.LastDurableCommitAt = cp.ObservedAt
+	if m := b.Manifest(); m != nil && m.Version == "3" {
+		v3 = true
 	}
 
-	entries, repaired, err := capturejournal.Read(journalPath)
-	if err != nil {
-		st.CaptureState = string(captureDegraded)
+	// Read journal state independently of checkpoint readability, so operators
+	// can still see durable recovery material when the checkpoint is damaged.
+	entries, repaired, jerr := capturejournal.Read(journalPath)
+	if jerr != nil {
 		st.KnownGap = true
-		st.Detail = "journal corrupted; continuity cannot be established"
-		return st, nil
 	}
 	st.JournalEntries = len(entries)
 	if n := len(entries); n > 0 {
 		st.JournalLastPosition = entries[n-1].Position
 		st.LastObservationAt = entries[n-1].ObservedAt
 	}
+
+	cp, cpErr := acquisition.Load(checkpointPath)
+	checkpointPresent := cpErr == nil
+	checkpointUnreadable := cpErr != nil && !errors.Is(cpErr, acquisition.ErrCheckpointNotFound)
+	if checkpointPresent {
+		st.SourceSystem = cp.SourceSystem
+		st.SourceIncarnation = cp.SourceIncarnation
+		st.Adapter = cp.Adapter
+		st.AdapterVersion = cp.AdapterVersion
+		if pos, err := checkpointPosition(cp); err == nil {
+			st.CommittedPosition = pos
+		} else {
+			checkpointUnreadable = true
+		}
+		st.LastDurableCommitAt = cp.ObservedAt
+	}
 	if st.JournalLastPosition > st.CommittedPosition {
 		st.JournalBacklog = st.JournalLastPosition - st.CommittedPosition
 	}
-	st.KnownGap = repaired
 
-	// Continuity assessment.
+	// Continuity assessment. A healthy state requires a verified v3 bundle, a
+	// readable checkpoint bound to this capture's source/adapter/version, and a
+	// journal that is not behind the committed position.
 	switch {
+	case !v3:
+		st.CaptureState = string(captureDegraded)
+		st.Detail = "bundle is not manifest v3; continuous capture does not apply"
+		return st, nil
 	case len(entries) == 0 && !checkpointPresent && !hasAcquisition:
 		st.CaptureState = "not_established"
 		st.Detail = "no capture journal, checkpoint, or acquisition evidence present"
+	case jerr != nil:
+		st.CaptureState = string(captureDegraded)
+		st.KnownGap = true
+		st.Detail = "journal corrupted; continuity cannot be established"
 	case repaired:
 		st.CaptureState = string(captureDegraded)
-		st.Detail = "journal torn tail repaired on read; observations may be incomplete"
+		st.KnownGap = true
+		st.Detail = "journal torn tail detected (repaired on open); observations may be incomplete"
+	case checkpointUnreadable:
+		st.CaptureState = string(captureDegraded)
+		st.Detail = "checkpoint unreadable or malformed; continuity cannot be established"
+	case st.JournalLastPosition < st.CommittedPosition:
+		st.CaptureState = string(captureDegraded)
+		st.PossibleUnknownGap = true
+		st.Detail = "journal ends before the committed position; observations may be missing"
 	case st.JournalBacklog > 0:
 		st.CaptureState = string(captureRecoveryRequired)
 		st.Detail = "durable observations exist that are not yet committed to evidence"
-	case checkpointPresent && cp.BundleHeadHash != "":
+	case checkpointPresent:
+		if err := cp.Validate(captureSourceSystem, streamID, captureAdapter, captureAdapterVersion, cp.SourceIncarnation); err != nil {
+			st.CaptureState = string(captureDegraded)
+			st.Detail = "checkpoint does not match this capture's source/adapter/version"
+			break
+		}
 		if err := validateCheckpointPrefix(cp, b); err != nil {
 			st.CaptureState = string(captureDegraded)
 			st.Detail = "checkpoint binding does not match the evidence"

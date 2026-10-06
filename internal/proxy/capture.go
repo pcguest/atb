@@ -108,13 +108,24 @@ func (r *BundleRecorder) enableCapture(sourceIncarnation string) error {
 		return fmt.Errorf("capture: load checkpoint: %w", err)
 	}
 
+	journal, err := capturejournal.Open(journalPath, streamID)
+	if err != nil {
+		return fmt.Errorf("capture: open journal: %w", err)
+	}
+
 	incarnation := strings.TrimSpace(sourceIncarnation)
 	if incarnation == "" {
-		if !fresh && existing.SourceIncarnation != "" {
+		switch {
+		case !fresh && existing.SourceIncarnation != "":
 			incarnation = existing.SourceIncarnation
-		} else {
+		case journalIncarnation(journal) != "":
+			// A lost checkpoint but a surviving journal: adopt the incarnation
+			// the journal was written with rather than inventing a new source.
+			incarnation = journalIncarnation(journal)
+		default:
 			incarnation, err = newIncarnation()
 			if err != nil {
+				_ = journal.Close()
 				return err
 			}
 		}
@@ -130,18 +141,20 @@ func (r *BundleRecorder) enableCapture(sourceIncarnation string) error {
 	)
 	cm.SourceIncarnation = incarnation
 	if err := cm.LoadOrInitialize(); err != nil {
+		_ = journal.Close()
 		return fmt.Errorf("capture: load checkpoint: %w", err)
 	}
 	if !fresh {
 		// Fails closed on a wrong source, adapter version, or incarnation.
 		if err := cm.ValidateSource(); err != nil {
+			_ = journal.Close()
 			return fmt.Errorf("capture: checkpoint validation: %w", err)
 		}
 	}
-
-	journal, err := capturejournal.Open(journalPath, streamID)
-	if err != nil {
-		return fmt.Errorf("capture: open journal: %w", err)
+	// Bind the incarnation onto a checkpoint that predates incarnation tracking,
+	// so a later different token cannot silently resume the same source.
+	if cm.Checkpoint.SourceIncarnation == "" {
+		cm.Checkpoint.SourceIncarnation = incarnation
 	}
 
 	c := &captureCoordinator{
@@ -166,7 +179,8 @@ func (r *BundleRecorder) enableCapture(sourceIncarnation string) error {
 
 // recover establishes continuity and replays any durable-but-uncommitted
 // observations. It never starts fresh silently: a bound checkpoint that does
-// not match the loaded bundle fails closed.
+// not match the loaded bundle, a checkpoint ahead of the journal, or a journal
+// entry inconsistent with this capture all fail closed.
 func (c *captureCoordinator) recover() error {
 	b, created, err := loadBundleForCapture(c.bundlePath)
 	if err != nil {
@@ -185,12 +199,27 @@ func (c *captureCoordinator) recover() error {
 		return fmt.Errorf("capture: checkpoint bundle binding: %w", err)
 	}
 
-	committedPos := parsePosition(c.cm.Checkpoint.Position)
-	existing := indexAcquisition(b)
+	committedPos, err := checkpointPosition(c.cm.Checkpoint)
+	if err != nil {
+		return fmt.Errorf("capture: checkpoint position: %w", err)
+	}
+	if committedPos > c.journal.LastPosition() {
+		// The checkpoint names a position the journal cannot account for.
+		return fmt.Errorf("%w: checkpoint position %d is ahead of journal position %d",
+			acquisition.ErrCheckpointBundleMismatch, committedPos, c.journal.LastPosition())
+	}
 
-	replayed := 0
-	for _, e := range c.journal.EntriesFrom(committedPos) {
-		if d, ok := existing[e.ObservationID]; ok {
+	pending := c.journal.EntriesFrom(committedPos)
+	for i := range pending {
+		if err := c.validateEntry(pending[i]); err != nil {
+			return err
+		}
+	}
+
+	index := indexAcquisition(b)
+	appended := 0
+	for _, e := range pending {
+		if d, ok := index[e.ObservationID]; ok {
 			if d == e.RepresentationDigest {
 				// Committed but the checkpoint lagged the crash; do not duplicate.
 				continue
@@ -200,35 +229,38 @@ func (c *captureCoordinator) recover() error {
 		if err := appendMaterialised(b, e, c.streamID); err != nil {
 			return fmt.Errorf("capture: replay %s: %w", e.ObservationID, err)
 		}
-		existing[e.ObservationID] = e.RepresentationDigest
-		replayed++
+		index[e.ObservationID] = e.RepresentationDigest
+		appended++
 	}
 
-	if replayed > 0 {
+	if appended > 0 {
 		if err := b.Save(c.bundlePath); err != nil {
 			return fmt.Errorf("capture: save recovered bundle: %w", err)
 		}
 	}
-	c.cm.UpdateCheckpoint(strconv.FormatInt(c.journal.LastPosition(), 10), "", c.journal.Len())
 	// Bind only to a bundle that is actually durable. A freshly-created bundle
 	// that has not been saved has a non-deterministic manifest (created_at,
-	// bundle_id), so binding to it would fail closed on the next start. The
-	// first successful commit binds after its durable save.
-	if !created || replayed > 0 {
+	// bundle_id), so binding to it would fail closed on the next start.
+	if !created || appended > 0 {
 		c.cm.BindBundle(committedHead(b), len(b.Records))
+	}
+	if appended > 0 || !created {
+		// Only advance/reset the checkpoint when recovery actually changed
+		// durable state; otherwise preserve the recorded commit timestamp.
+		c.cm.UpdateCheckpoint(strconv.FormatInt(c.journal.LastPosition(), 10), "", c.journal.Len())
 	}
 	if err := c.cm.Save(); err != nil {
 		return fmt.Errorf("capture: save checkpoint: %w", err)
 	}
 
-	c.replayed = replayed
-	c.lastCommitAt = time.Now().UTC().Format(time.RFC3339Nano)
+	c.replayed = appended
+	c.lastCommitAt = c.cm.Checkpoint.ObservedAt
 	switch {
 	case c.knownGap:
 		c.state = captureDegraded
-	case replayed > 0:
+	case appended > 0:
 		c.state = captureHealthy
-		c.stateDetail = fmt.Sprintf("recovered %d durable observation(s) after restart", replayed)
+		c.stateDetail = fmt.Sprintf("recovered %d durable observation(s) after restart", appended)
 	default:
 		c.state = captureHealthy
 	}
@@ -237,51 +269,22 @@ func (c *captureCoordinator) recover() error {
 
 // commit runs the full commit protocol for one observation:
 //
-//	observation -> durable journal append -> materialise ATB event ->
+//	observation -> durable journal append -> materialise ATB event(s) ->
 //	durable bundle save -> checkpoint bound -> journal position committed.
+//
+// It drains every durable-but-uncommitted journal entry, so an earlier failed
+// commit can never be skipped by a later one.
 func (c *captureCoordinator) commit(ev *event.Event) (string, error) {
 	entry, err := c.journalObservation(ev)
 	if err != nil {
-		c.lastErr = err
-		c.state = captureDegraded
+		c.fail(err)
 		return "", err
 	}
-
-	b, created, err := loadBundleForCapture(c.bundlePath)
+	hash, err := c.commitPending(entry.ObservationID)
 	if err != nil {
-		c.lastErr = err
-		c.state = captureDegraded
+		c.fail(err)
 		return "", err
 	}
-	if created {
-		if m := b.Manifest(); m == nil || m.Version != "3" {
-			err := errors.New("capture: new bundle did not initialise as manifest v3")
-			c.lastErr = err
-			c.state = captureDegraded
-			return "", err
-		}
-	}
-	if err := appendMaterialised(b, entry, c.streamID); err != nil {
-		c.lastErr = err
-		c.state = captureDegraded
-		return "", err
-	}
-	if err := b.Save(c.bundlePath); err != nil {
-		c.lastErr = err
-		c.state = captureDegraded
-		return "", err
-	}
-
-	c.cm.UpdateCheckpoint(strconv.FormatInt(entry.Position, 10), entry.RepresentationDigest, c.journal.Len())
-	c.cm.BindBundle(committedHead(b), len(b.Records))
-	if err := c.cm.Save(); err != nil {
-		// The evidence is durable but the checkpoint lags; replay will recover
-		// it idempotently on the next start. Surface the degraded state.
-		c.lastErr = err
-		c.state = captureRecoveryRequired
-		return "", err
-	}
-
 	c.lastErr = nil
 	c.lastObservationAt = entry.ObservedAt
 	c.lastCommitAt = time.Now().UTC().Format(time.RFC3339Nano)
@@ -290,8 +293,88 @@ func (c *captureCoordinator) commit(ev *event.Event) (string, error) {
 	} else {
 		c.state = captureHealthy
 	}
-	rec := b.Records[len(b.Records)-1]
-	return rec.Hash, nil
+	return hash, nil
+}
+
+// commitPending materialises every durable journal entry after the committed
+// position, saves the bundle once, binds the checkpoint to the committed head,
+// and advances the committed position. It returns the record hash for wantID.
+func (c *captureCoordinator) commitPending(wantID string) (string, error) {
+	committedPos, err := checkpointPosition(c.cm.Checkpoint)
+	if err != nil {
+		return "", err
+	}
+	b, created, err := loadBundleForCapture(c.bundlePath)
+	if err != nil {
+		return "", err
+	}
+	if created {
+		if m := b.Manifest(); m == nil || m.Version != "3" {
+			return "", errors.New("capture: new bundle did not initialise as manifest v3")
+		}
+	}
+
+	index := indexAcquisition(b)
+	appended := 0
+	for _, e := range c.journal.EntriesFrom(committedPos) {
+		if err := c.validateEntry(e); err != nil {
+			return "", err
+		}
+		if d, ok := index[e.ObservationID]; ok {
+			if d != e.RepresentationDigest {
+				return "", fmt.Errorf("capture: observation %s present with a different digest", e.ObservationID)
+			}
+			continue
+		}
+		if err := appendMaterialised(b, e, c.streamID); err != nil {
+			return "", err
+		}
+		index[e.ObservationID] = e.RepresentationDigest
+		appended++
+	}
+	if appended > 0 {
+		if err := b.Save(c.bundlePath); err != nil {
+			return "", err
+		}
+	}
+
+	c.cm.UpdateCheckpoint(strconv.FormatInt(c.journal.LastPosition(), 10), "", c.journal.Len())
+	c.cm.BindBundle(committedHead(b), len(b.Records))
+	if err := c.cm.Save(); err != nil {
+		// The evidence is durable but the checkpoint lags; a later commit or
+		// restart will reconcile idempotently.
+		return "", err
+	}
+
+	for i := len(b.Records) - 1; i >= 0; i-- {
+		if acq := b.Records[i].Event.Acquisition; acq != nil && acq.SourceRecordID == wantID {
+			return b.Records[i].Hash, nil
+		}
+	}
+	return "", fmt.Errorf("capture: materialised record for %s not found", wantID)
+}
+
+// validateEntry fails closed when a journal entry is not consistent with this
+// capture's source, adapter, incarnation, or representation contract.
+func (c *captureCoordinator) validateEntry(e capturejournal.Entry) error {
+	if e.SourceSystem != captureSourceSystem {
+		return fmt.Errorf("capture: journal entry source %q does not match %q", e.SourceSystem, captureSourceSystem)
+	}
+	if e.Adapter != captureAdapter {
+		return fmt.Errorf("capture: journal entry adapter %q does not match %q", e.Adapter, captureAdapter)
+	}
+	if e.RepresentationVersion != captureRepresentationVersion {
+		return fmt.Errorf("capture: journal entry representation version %q does not match %q", e.RepresentationVersion, captureRepresentationVersion)
+	}
+	if e.SourceIncarnation != "" && e.SourceIncarnation != c.incarnation {
+		return fmt.Errorf("capture: journal entry incarnation %q does not match %q", e.SourceIncarnation, c.incarnation)
+	}
+	return nil
+}
+
+func (c *captureCoordinator) fail(err error) {
+	c.lastErr = err
+	c.state = captureDegraded
 }
 
 // journalObservation durably journals one event and returns its entry.
@@ -363,6 +446,19 @@ func (r *BundleRecorder) CaptureHealth() error {
 		return nil
 	}
 	return r.capture.Health()
+}
+
+// journalIncarnation returns the source incarnation recorded on the first
+// journal entry, or "" when the journal is empty or has none.
+func journalIncarnation(j *capturejournal.Journal) string {
+	if j == nil {
+		return ""
+	}
+	entries := j.Entries()
+	if len(entries) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(entries[0].SourceIncarnation)
 }
 
 func newIncarnation() (string, error) {
@@ -438,6 +534,8 @@ func appendMaterialised(b *bundle.Bundle, e capturejournal.Entry, streamID strin
 	opts := &bundle.AppendOptions{
 		Timestamp:    p.Timestamp,
 		ActorID:      p.ActorID,
+		OrgID:        p.OrgID,
+		WorkspaceID:  p.WorkspaceID,
 		TraceID:      p.TraceID,
 		SpanID:       p.SpanID,
 		ParentSpanID: p.ParentSpanID,
@@ -471,18 +569,22 @@ func loadBundleForCapture(path string) (*bundle.Bundle, bool, error) {
 // describes evidence that is not durably present. Unlike an exact head match,
 // it accepts a bundle that is legitimately AHEAD of the checkpoint (evidence
 // was committed but the checkpoint lagged a crash), while still failing closed
-// when the checkpoint is ahead of the evidence or names a head that is not a
-// prefix of the current bundle (foreign or rewound bundle).
+// when the checkpoint is ahead of the evidence, is internally inconsistent, or
+// names a head that is not a prefix of the current bundle.
 func validateCheckpointPrefix(cp *acquisition.Checkpoint, b *bundle.Bundle) error {
-	if cp == nil || cp.BundleHeadHash == "" {
+	if cp == nil {
 		return nil
+	}
+	if cp.BundleHeadHash == "" && cp.BundleRecordCount == 0 {
+		return nil
+	}
+	if cp.BundleHeadHash == "" || cp.BundleRecordCount <= 0 {
+		return fmt.Errorf("%w: checkpoint has an inconsistent bundle binding (head %q, count %d)",
+			acquisition.ErrCheckpointBundleMismatch, cp.BundleHeadHash, cp.BundleRecordCount)
 	}
 	if cp.BundleRecordCount > len(b.Records) {
 		return fmt.Errorf("%w: checkpoint describes %d records but bundle has %d",
 			acquisition.ErrCheckpointBundleMismatch, cp.BundleRecordCount, len(b.Records))
-	}
-	if cp.BundleRecordCount <= 0 {
-		return nil
 	}
 	if b.Records[cp.BundleRecordCount-1].Hash != cp.BundleHeadHash {
 		return fmt.Errorf("%w: checkpoint head is not a prefix of the current bundle",
@@ -491,19 +593,28 @@ func validateCheckpointPrefix(cp *acquisition.Checkpoint, b *bundle.Bundle) erro
 	return nil
 }
 
+// checkpointPosition parses the committed journal position. A missing or
+// unset ("start") position is zero; any other malformed value fails closed.
+func checkpointPosition(cp *acquisition.Checkpoint) (int64, error) {
+	if cp == nil {
+		return 0, nil
+	}
+	pos := strings.TrimSpace(cp.Position)
+	if pos == "" || pos == "start" {
+		return 0, nil
+	}
+	n, err := strconv.ParseInt(pos, 10, 64)
+	if err != nil || n < 0 {
+		return 0, fmt.Errorf("%w: invalid checkpoint position %q", acquisition.ErrCheckpointCorrupted, pos)
+	}
+	return n, nil
+}
+
 func committedHead(b *bundle.Bundle) string {
 	if b == nil || len(b.Records) == 0 {
 		return ""
 	}
 	return b.Records[len(b.Records)-1].Hash
-}
-
-func parsePosition(pos string) int64 {
-	n, err := strconv.ParseInt(strings.TrimSpace(pos), 10, 64)
-	if err != nil {
-		return 0
-	}
-	return n
 }
 
 // indexAcquisition maps source_record_id -> source_digest for every committed

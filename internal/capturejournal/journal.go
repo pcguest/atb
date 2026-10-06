@@ -110,6 +110,10 @@ type Journal struct {
 	f        *os.File
 	entries  []Entry
 	repaired bool
+	// failed is set when a write or fsync error occurred. Once failed, the
+	// journal refuses further appends: the in-memory tail no longer matches the
+	// durable file, so continuing would reuse a position and corrupt the chain.
+	failed bool
 }
 
 // Open opens or creates the journal at path for the given stream identifier,
@@ -138,13 +142,27 @@ func Open(path, streamID string) (*Journal, error) {
 		return nil, fmt.Errorf("capturejournal: open: %w", err)
 	}
 	if created {
-		// Make the new directory entry durable before it can hold observations.
-		if err := syncDir(filepath.Dir(clean)); err != nil {
+		// Make the new file and any newly created parent directories durable
+		// before the journal can hold observations.
+		if err := syncDirChain(filepath.Dir(clean)); err != nil {
 			_ = f.Close()
 			return nil, fmt.Errorf("capturejournal: fsync dir: %w", err)
 		}
 	}
 	return &Journal{path: clean, streamID: streamID, f: f, entries: entries, repaired: repaired}, nil
+}
+
+// syncDirChain fsyncs dir and each newly created ancestor so a power loss
+// cannot lose the new journal path.
+func syncDirChain(dir string) error {
+	if err := syncDir(dir); err != nil {
+		return err
+	}
+	parent := filepath.Dir(dir)
+	if parent != dir {
+		return syncDir(parent)
+	}
+	return nil
 }
 
 // Read reads and verifies a journal file without creating it or opening it for
@@ -195,6 +213,12 @@ func (j *Journal) EntriesFrom(position int64) []Entry {
 // assigned position and hash. It fsyncs before returning, so a returned entry
 // is durable.
 func (j *Journal) Append(e Entry) (Entry, error) {
+	if j.f == nil {
+		return Entry{}, ErrJournalClosed
+	}
+	if j.failed {
+		return Entry{}, fmt.Errorf("%w: journal failed after a prior write error", ErrJournalFailed)
+	}
 	if e.FormatVersion == 0 {
 		e.FormatVersion = JournalFormatVersion
 	}
@@ -220,10 +244,17 @@ func (j *Journal) Append(e Entry) (Entry, error) {
 		return Entry{}, fmt.Errorf("capturejournal: marshal: %w", err)
 	}
 	line = append(line, '\n')
+	if len(line) > maxLineBytes {
+		// Reject before writing: a persisted oversized line would poison every
+		// subsequent read (the scanner would fail on it).
+		return Entry{}, fmt.Errorf("%w: entry is %d bytes, limit %d", ErrJournalEntryTooLarge, len(line), maxLineBytes)
+	}
 	if _, err := j.f.Write(line); err != nil {
+		j.failed = true
 		return Entry{}, fmt.Errorf("capturejournal: write: %w", err)
 	}
 	if err := j.f.Sync(); err != nil {
+		j.failed = true
 		return Entry{}, fmt.Errorf("capturejournal: fsync: %w", err)
 	}
 	j.entries = append(j.entries, e)
@@ -286,6 +317,9 @@ func readEntries(path string) ([]Entry, bool, error) {
 		var e Entry
 		if err := json.Unmarshal([]byte(line), &e); err != nil {
 			return nil, false, fmt.Errorf("%w: line %d: %v", ErrJournalCorrupted, lineNo, err)
+		}
+		if e.FormatVersion != JournalFormatVersion {
+			return nil, false, fmt.Errorf("%w: line %d: unsupported format_version %d", ErrJournalVersionUnsupported, lineNo, e.FormatVersion)
 		}
 		wantPos := int64(len(entries) + 1)
 		if e.Position != wantPos {

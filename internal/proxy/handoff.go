@@ -50,7 +50,7 @@ func BuildHandoff(bundlePath string, sequence int) (*Handoff, error) {
 			"Recorded order is append order, not causal order.",
 			"A digest identifies a captured representation, not the provider-original object.",
 		},
-		ExportInstructions: "atb export --bundle " + filepath.Clean(bundlePath) + "  (offline; no capture service or Mortise required)",
+		ExportInstructions: "atb export --format soc2 --bundle " + filepath.Clean(bundlePath) + " --output <file>  (offline; no capture service or Mortise required)",
 	}
 
 	rec := b.Records[len(b.Records)-1]
@@ -78,11 +78,12 @@ func BuildHandoff(bundlePath string, sequence int) (*Handoff, error) {
 	if st, err := ReadCaptureStatus(bundlePath); err == nil {
 		h.CaptureState = st.CaptureState
 		h.SourceIncarnation = st.SourceIncarnation
-		if st.KnownGap {
-			h.KnownGaps = append(h.KnownGaps, "journal torn tail repaired; observations may be incomplete")
-		}
-		if st.PossibleUnknownGap {
-			h.KnownGaps = append(h.KnownGaps, "possible unknown gap: acquisition evidence present without a checkpoint")
+		if st.KnownGap || st.PossibleUnknownGap {
+			detail := st.Detail
+			if detail == "" {
+				detail = "capture continuity is not fully established"
+			}
+			h.KnownGaps = append(h.KnownGaps, detail)
 		}
 		if st.JournalBacklog > 0 {
 			h.KnownGaps = append(h.KnownGaps, fmt.Sprintf("%d durable observation(s) not yet committed to evidence", st.JournalBacklog))

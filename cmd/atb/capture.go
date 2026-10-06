@@ -92,6 +92,8 @@ func runCaptureHandoff(args []string, stdout, stderr io.Writer) int {
 			i++
 		case strings.HasPrefix(arg, "--bundle="):
 			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "--bundle="))
+		case strings.HasPrefix(arg, "-b="):
+			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "-b="))
 		case arg == "--seq":
 			if i+1 >= len(args) {
 				fmt.Fprintln(stderr, "atb capture handoff: missing value for --seq")
@@ -140,6 +142,7 @@ func runCaptureStatus(args []string, stdout, stderr io.Writer) int {
 		return code
 	}
 	bundlePath := ""
+	bundleSet := false
 	format := "text"
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -152,11 +155,14 @@ func runCaptureStatus(args []string, stdout, stderr io.Writer) int {
 				return fail(exitUserError, "missing value for --bundle")
 			}
 			bundlePath = strings.TrimSpace(args[i+1])
+			bundleSet = true
 			i++
 		case strings.HasPrefix(arg, "--bundle="):
 			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "--bundle="))
+			bundleSet = true
 		case strings.HasPrefix(arg, "-b="):
 			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "-b="))
+			bundleSet = true
 		case arg == "--format":
 			if i+1 >= len(args) {
 				return fail(exitUserError, "missing value for --format")
@@ -168,6 +174,12 @@ func runCaptureStatus(args []string, stdout, stderr io.Writer) int {
 		default:
 			return fail(exitUserError, fmt.Sprintf("unknown argument %q", arg))
 		}
+	}
+	if bundleSet && bundlePath == "" {
+		return fail(exitUserError, "--bundle requires a non-empty path")
+	}
+	if format != "text" && format != formatJSON {
+		return fail(exitUserError, fmt.Sprintf("invalid --format %q (want text or json)", format))
 	}
 	if bundlePath == "" {
 		bundlePath = bundle.DefaultPath()

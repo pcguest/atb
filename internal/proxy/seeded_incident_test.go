@@ -74,8 +74,12 @@ func TestSeededIncidentContinuousCapture(t *testing.T) {
 
 	var toolCalls []string
 	sawScope := false
-	liveAcq := 0
+	nonManifest := 0
 	for _, rec := range b.Records {
+		if rec.Event.Type == bundle.ManifestEventType {
+			continue
+		}
+		nonManifest++
 		switch rec.Event.Type {
 		case event.TypeCaptureScope:
 			sawScope = true
@@ -86,24 +90,25 @@ func TestSeededIncidentContinuousCapture(t *testing.T) {
 				}
 			}
 		}
-		if rec.Event.Acquisition != nil {
-			if rec.Event.Acquisition.Mode != "live" {
-				t.Fatalf("acquisition mode = %q, want live", rec.Event.Acquisition.Mode)
-			}
-			if rec.Event.Acquisition.SourceDigest == "" || rec.Event.Acquisition.SourceRecordID == "" {
-				t.Fatalf("acquisition missing identity: %+v", rec.Event.Acquisition)
-			}
-			liveAcq++
+		acq := rec.Event.Acquisition
+		if acq == nil {
+			t.Fatalf("non-manifest record seq %d (%s) has no acquisition provenance", rec.Event.Sequence, rec.Event.Type)
+		}
+		if acq.Mode != "live" {
+			t.Fatalf("acquisition mode = %q, want live", acq.Mode)
+		}
+		if acq.SourceDigest == "" || acq.SourceRecordID == "" {
+			t.Fatalf("acquisition missing identity: %+v", acq)
 		}
 	}
 	if !sawScope {
 		t.Fatalf("capture scope attestation missing")
 	}
+	if nonManifest == 0 {
+		t.Fatalf("no captured records")
+	}
 	if !contains(toolCalls, "list_orders") || !contains(toolCalls, "delete_account") {
 		t.Fatalf("tool calls = %v, want list_orders and delete_account", toolCalls)
-	}
-	if liveAcq == 0 {
-		t.Fatalf("no live acquisition provenance recorded")
 	}
 
 	// Capture health is readable offline and reflects established continuity.

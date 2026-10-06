@@ -96,6 +96,17 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 	captureBodies := false
 	maxBodyBytes := int64(0)
 	sourceIncarnation := ""
+	setSourceIncarnation := func(value string) error {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return fmt.Errorf("--source-incarnation requires a non-empty value")
+		}
+		if strings.HasPrefix(value, "-") {
+			return fmt.Errorf("invalid --source-incarnation value %q", value)
+		}
+		sourceIncarnation = value
+		return nil
+	}
 	setMortiseEndpoint := func(flag, value string) error {
 		if mortiseEndpointFlag != "" {
 			return fmt.Errorf("cannot combine %s with %s", mortiseEndpointFlag, flag)
@@ -179,10 +190,14 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 			if i+1 >= len(args) {
 				return proxy.ProxyConfig{}, fmt.Errorf("missing value for --source-incarnation")
 			}
-			sourceIncarnation = strings.TrimSpace(args[i+1])
+			if err := setSourceIncarnation(args[i+1]); err != nil {
+				return proxy.ProxyConfig{}, err
+			}
 			i++
 		case strings.HasPrefix(arg, "--source-incarnation="):
-			sourceIncarnation = strings.TrimSpace(strings.TrimPrefix(arg, "--source-incarnation="))
+			if err := setSourceIncarnation(strings.TrimPrefix(arg, "--source-incarnation=")); err != nil {
+				return proxy.ProxyConfig{}, err
+			}
 		case arg == "--capture-bodies":
 			captureBodies = true
 		case arg == "--max-body-bytes":
