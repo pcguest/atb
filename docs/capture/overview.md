@@ -34,6 +34,10 @@ For provider API traffic, use `atb intercept` as an HTTPS forward proxy.
 See [Incident forensics](../investigate/incidents.md) for setup, CA trust, and
 session review.
 
+Continuous capture (durable journal, live acquisition provenance, restart
+recovery, capture-state reporting, and the bounded external-pilot envelope) is
+documented in [Continuous capture with atb intercept](./continuous-capture.md).
+
 ## Framework integrations
 
 | Integration | Doc |

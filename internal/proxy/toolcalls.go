@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"strings"
 )
 
@@ -31,8 +32,8 @@ func (t ToolCall) InputDigest() string {
 // (output[] function_call items), and the streamed (SSE) forms of the Chat
 // Completions and Anthropic Messages APIs. Unrecognised bodies yield no calls.
 func ExtractToolCalls(body []byte) []ToolCall {
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
+	payload, ok := decodeJSONObject(body)
+	if !ok {
 		// Not a single JSON object; it may be a Server-Sent Events stream.
 		if bytes.Contains(body, []byte("data:")) {
 			return extractStreamingToolCalls(body)
@@ -221,8 +222,8 @@ func (e ToolResultError) DetailDigest() string {
 // is_error=true; OpenAI tool messages carry no standard error flag, so they are
 // not classified as failures here.
 func ExtractToolResultErrors(body []byte) []ToolResultError {
-	var payload map[string]any
-	if err := json.Unmarshal(body, &payload); err != nil {
+	payload, ok := decodeJSONObject(body)
+	if !ok {
 		return nil
 	}
 
@@ -256,6 +257,23 @@ func ExtractToolResultErrors(body []byte) []ToolResultError {
 func asSlice(v any) []any {
 	s, _ := v.([]any)
 	return s
+}
+
+// decodeJSONObject decodes a single JSON object using json.Number so large
+// integer tool arguments survive re-marshalling for digesting instead of being
+// silently rounded through float64.
+func decodeJSONObject(body []byte) (map[string]any, bool) {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.UseNumber()
+	var payload map[string]any
+	if err := dec.Decode(&payload); err != nil {
+		return nil, false
+	}
+	// Reject trailing data after the first JSON value, matching json.Unmarshal.
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, false
+	}
+	return payload, true
 }
 
 func str(v any) string {

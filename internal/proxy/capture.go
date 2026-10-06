@@ -57,6 +57,10 @@ type captureCoordinator struct {
 	incarnation string
 	journal     *capturejournal.Journal
 	cm          *acquisition.CheckpointManager
+	// fresh reports whether no checkpoint existed at startup, so a bundle that
+	// already holds acquisition evidence cannot be resumed without operational
+	// continuity.
+	fresh bool
 
 	// Health / operator state.
 	state             captureState
@@ -165,6 +169,7 @@ func (r *BundleRecorder) enableCapture(sourceIncarnation string) error {
 		incarnation: incarnation,
 		journal:     journal,
 		cm:          cm,
+		fresh:       fresh,
 		state:       captureUnknown,
 	}
 	if journal.Repaired() {
@@ -204,6 +209,23 @@ func (c *captureCoordinator) recover() error {
 	committedPos, err := checkpointPosition(c.cm.Checkpoint)
 	if err != nil {
 		return fmt.Errorf("capture: checkpoint position: %w", err)
+	}
+	if bundleHasAcquisition(b) && c.journal.Len() == 0 && committedPos == 0 {
+		// The bundle already holds live evidence, but the journal and committed
+		// position are gone. Resuming would silently reuse observation
+		// identities and could lose or suppress distinct observations, so fail
+		// closed instead of claiming continuity.
+		return fmt.Errorf("%w: bundle holds live acquisition evidence but no checkpoint position or journal remains; operational continuity was lost",
+			acquisition.ErrCheckpointBundleMismatch)
+	}
+	if c.fresh {
+		// No checkpoint anchors this run. The surviving journal must fully
+		// account for every committed observation; a partial journal (some
+		// committed observations lost) must fail closed rather than report
+		// healthy over incomplete capture.
+		if err := journalAccountsForEvidence(b, c.journal); err != nil {
+			return err
+		}
 	}
 	if committedPos > c.journal.LastPosition() {
 		// The checkpoint names a position the journal cannot account for.
@@ -374,6 +396,63 @@ func (c *captureCoordinator) validateEntry(e capturejournal.Entry) error {
 	if e.SourceIncarnation != "" && e.SourceIncarnation != c.incarnation {
 		return fmt.Errorf("capture: journal entry incarnation %q does not match %q", e.SourceIncarnation, c.incarnation)
 	}
+	if err := verifyEntryDigest(e); err != nil {
+		return err
+	}
+	return nil
+}
+
+// verifyEntryDigest fails closed when a journal entry's recorded representation
+// digest does not match the representation it carries, so a self-asserted
+// provenance digest can never be bound to a different payload.
+func verifyEntryDigest(e capturejournal.Entry) error {
+	got, err := digestRepresentation(e.Payload)
+	if err != nil {
+		return fmt.Errorf("capture: recompute digest for %s: %w", e.ObservationID, err)
+	}
+	if got != e.RepresentationDigest {
+		return fmt.Errorf("%w: journal entry %s representation digest does not match its payload",
+			acquisition.ErrCheckpointCorrupted, e.ObservationID)
+	}
+	return nil
+}
+
+// bundleHasAcquisition reports whether any record carries live acquisition
+// provenance.
+func bundleHasAcquisition(b *bundle.Bundle) bool {
+	if b == nil {
+		return false
+	}
+	for _, rec := range b.Records {
+		if rec.Event.Acquisition != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// journalAccountsForEvidence fails closed when the bundle holds committed
+// acquisition evidence that the surviving journal cannot account for. It is
+// used when no checkpoint anchors the run, so a partially-lost journal cannot
+// be mistaken for a complete one.
+func journalAccountsForEvidence(b *bundle.Bundle, j *capturejournal.Journal) error {
+	if !bundleHasAcquisition(b) {
+		return nil
+	}
+	present := map[string]bool{}
+	for _, e := range j.Entries() {
+		present[e.ObservationID] = true
+	}
+	for _, rec := range b.Records {
+		acq := rec.Event.Acquisition
+		if acq == nil || acq.SourceRecordID == "" {
+			continue
+		}
+		if !present[acq.SourceRecordID] {
+			return fmt.Errorf("%w: no checkpoint and the journal does not account for committed observation %q; operational continuity was lost",
+				acquisition.ErrCheckpointBundleMismatch, acq.SourceRecordID)
+		}
+	}
 	return nil
 }
 
@@ -393,7 +472,10 @@ func (c *captureCoordinator) journalObservation(ev *event.Event) (capturejournal
 		return capturejournal.Entry{}, err
 	}
 	pos := c.journal.LastPosition() + 1
-	observationID := fmt.Sprintf("%s:%d", c.streamID, pos)
+	// The observation identity is scoped by incarnation as well as position, so
+	// a fresh incarnation can never reuse a prior run's identity and silently
+	// suppress a distinct observation.
+	observationID := fmt.Sprintf("%s/%s:%d", c.incarnation, c.streamID, pos)
 	return c.journal.Append(capturejournal.Entry{
 		ObservationID:         observationID,
 		SourceSystem:          captureSourceSystem,
@@ -530,6 +612,14 @@ func appendMaterialised(b *bundle.Bundle, e capturejournal.Entry, streamID strin
 	if err := json.Unmarshal(e.Payload, &p); err != nil {
 		return fmt.Errorf("capture: decode observation: %w", err)
 	}
+	digest, err := digestRepresentation(e.Payload)
+	if err != nil {
+		return fmt.Errorf("capture: recompute digest for %s: %w", e.ObservationID, err)
+	}
+	if digest != e.RepresentationDigest {
+		return fmt.Errorf("%w: journal entry %s representation digest does not match its payload",
+			acquisition.ErrCheckpointCorrupted, e.ObservationID)
+	}
 	var data any
 	if len(p.Data) > 0 {
 		if err := json.Unmarshal(p.Data, &data); err != nil {
@@ -542,7 +632,7 @@ func appendMaterialised(b *bundle.Bundle, e capturejournal.Entry, streamID strin
 		SourceRecordID:  e.ObservationID,
 		SourceTimestamp: e.SourceTimestamp,
 		AcquiredAt:      e.ObservedAt,
-		SourceDigest:    e.RepresentationDigest,
+		SourceDigest:    digest,
 		Adapter:         e.Adapter,
 		AdapterVersion:  e.AdapterVersion,
 		Checkpoint: &event.CheckpointInfo{

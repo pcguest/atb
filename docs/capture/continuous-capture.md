@@ -82,8 +82,11 @@ This reads state offline and separates:
 
 - **process_health** — always `unknown` offline; a running process is never
   reported as complete capture.
+- **observation_currency** — `none` when nothing was ever observed, otherwise
+  `unknown`; an offline read cannot assert that observation is live.
 - **capture_state** — `healthy`, `recovery_required`, `degraded`, `unknown`, or
-  `not_established`.
+  `not_established`. `healthy` is a static consistency verdict, not proof of
+  live or complete observation.
 - **journal backlog** — durable observations not yet committed to evidence.
 - **known_gap / possible_unknown_gap** — bounded gap disclosure. ATB does not
   invent missing-event counts it cannot prove.
@@ -104,7 +107,7 @@ atb verify --bundle ./capture.atb
 atb inspect --bundle ./capture.atb --json      # full records incl. acquisition provenance
 atb capture status --bundle ./capture.atb
 atb capture handoff --bundle ./capture.atb --seq <n>   # portable handoff (no Mortise)
-atb export --bundle ./capture.atb              # offline export
+atb export --format soc2 --bundle ./capture.atb --output ./capture-export.zip
 ```
 
 ## Verify offline
@@ -144,12 +147,70 @@ Stop `atb intercept`, remove the trust environment variables from the workload,
 delete `~/.atb/ca.crt` and `~/.atb/ca.key`, and delete the bundle plus its
 `.atb/` directory.
 
+## Operational envelope (pilot)
+
+The supported pilot envelope is deliberately small:
+
+- **one** local/customer-operated `atb intercept` process per bundle;
+- **one** supported workload shape routed through the proxy;
+- **one** journal and **one** evidence stream per bundle;
+- bounded pilot duration and bounded storage (see below);
+- **no** journal rotation, remote shipping, hosted control plane, multi-region,
+  arbitrary connector support, or Action execution.
+
+Bodies larger than `--max-body-bytes` (default 32 MiB, hard limit 256 MiB) are
+rejected and recorded as a privacy-safe rejection event rather than buffered.
+The journal grows without rotation for the life of the pilot; size the pilot
+duration and disk accordingly, or restart with a new bundle path at a safe
+boundary.
+
+**Observation volume.** The commit protocol currently re-writes the whole
+bundle on each observation, so commit cost grows with the bundle size (measured
+on the pilot host: ~2,000 observations took ~2m20s to commit; cost per
+observation rises roughly linearly with the number of committed records). The
+pilot envelope is therefore **bounded to a few thousand observations per
+bundle**. Beyond that, restart with a new `--bundle` path at a safe boundary
+(e.g. per session). Incremental (append-only) bundle commits are the planned
+remediation before higher-volume pilots.
+
+## If the journal is lost
+
+The journal is operational state, not evidence. If the journal (or the journal
+and checkpoint together) is lost while the bundle still holds live acquisition
+evidence, startup **fails closed** and `capture status` reports `degraded` with
+`possible_unknown_gap = true`. ATB does not regenerate an empty journal and
+declare success, and it does not invent missing-event counts. Committed evidence
+already in the bundle remains verifiable with `atb verify` / `atb inspect`; what
+cannot be re-established is whether durable-but-uncommitted observations were
+lost.
+
+## If credentials expire
+
+`atb intercept` itself needs no provider credential: it observes traffic the
+workload sends. If the workload's credential expires, the provider returns a 4xx
+response, which is captured as an ordinary exchange; capture continuity is
+unaffected. Do not pass provider credentials to ATB on the command line.
+
 ## Known limitations
 
 - Coverage is bounded by proxy routing; ATB cannot see traffic that bypasses it.
+- **Late start:** observations begin when `atb intercept` starts; activity
+  before that is not observed, and ATB does not claim it covered the whole
+  session. `capture status` reports `not_established` until the first
+  observation and never asserts complete coverage.
+- **Source time:** `acquisition.source_timestamp` is adapter-dependent. The
+  intercept adapter records the observing clock; it is not a provider-original
+  timestamp. Recorded order (`seq`) is append order, not causal order.
 - The source incarnation is operator-supplied and is not authenticated.
 - Source incarnation is recorded in operational state (checkpoint/status), not
   in the canonical evidence envelope; promoting it to portable evidence requires
   a manifest-version migration and is not done in this pilot.
 - The journal is local operational state with no rotation or remote shipping.
+- Commit cost grows with bundle size (the bundle is re-written per observation);
+  the pilot is bounded to a few thousand observations per bundle. Restart with a
+  new bundle path beyond that; incremental commits are planned.
+- Event data is encoded per RFC 8785 JSON canonicalisation. Integer values above
+  2^53 are not exactly representable and may be normalised; tool-argument digests
+  preserve the source integer literals, but do not rely on ATB to round-trip
+  arbitrary large integers in event `data`.
 - ATB proves recorded integrity, not truth, completeness, or causation.

@@ -204,6 +204,7 @@ func runCaptureStatus(args []string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "Integrity:            %s\n", st.Integrity)
 	fmt.Fprintf(stdout, "Process health:       %s (offline)\n", st.ProcessHealth)
 	fmt.Fprintf(stdout, "Capture state:        %s\n", st.CaptureState)
+	fmt.Fprintf(stdout, "Observation currency: %s (offline; not a liveness assertion)\n", st.ObservationCurrency)
 	if st.SourceSystem != "" {
 		fmt.Fprintf(stdout, "Source system:        %s\n", st.SourceSystem)
 	}

@@ -167,8 +167,8 @@ func renderInspectTable(w io.Writer, b *bundle.Bundle) error {
 			w,
 			"%3d  %-23s  %-20s  %s\n",
 			record.Event.Sequence,
-			record.Event.Type,
-			record.Event.Timestamp,
+			sanitizeForTerminal(record.Event.Type),
+			sanitizeForTerminal(record.Event.Timestamp),
 			inspectDataPreview(record.Event.Data, 80),
 		); err != nil {
 			return err
@@ -202,6 +202,7 @@ func marshalInspectData(data any) ([]byte, error) {
 func inspectDataPreview(data any, limit int) string {
 	preview := inspectDataString(data)
 	preview = strings.Join(strings.Fields(preview), " ")
+	preview = sanitizeForTerminal(preview)
 
 	runes := []rune(preview)
 	if len(runes) <= limit {
@@ -211,6 +212,30 @@ func inspectDataPreview(data any, limit int) string {
 		return string(runes[:limit])
 	}
 	return string(runes[:limit-3]) + "..."
+}
+
+// sanitizeForTerminal replaces ASCII control characters (C0 including ESC), C1
+// controls, and Unicode line/paragraph separators and bidi overrides with a
+// visible escape, so attacker-controlled evidence cannot inject terminal escape
+// sequences or spoof rendered output.
+func sanitizeForTerminal(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch {
+		case r == '\t':
+			b.WriteByte(' ')
+		case r < 0x20 || (r >= 0x7f && r <= 0x9f):
+			fmt.Fprintf(&b, "\\x%02x", r)
+		case r == 0x2028 || r == 0x2029,
+			r >= 0x202a && r <= 0x202e,
+			r >= 0x2066 && r <= 0x2069:
+			fmt.Fprintf(&b, "\\u%04x", r)
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 func inspectDataString(data any) string {
