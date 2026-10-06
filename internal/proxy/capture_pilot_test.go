@@ -3,6 +3,7 @@ package proxy
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -237,6 +238,78 @@ func TestCaptureStatusRejectsMixedIncarnations(t *testing.T) {
 	}
 	if st.CaptureState != string(captureDegraded) || !st.KnownGap {
 		t.Fatalf("capture_state = %s known_gap = %t, want degraded/known", st.CaptureState, st.KnownGap)
+	}
+}
+
+// TestCapturePathJournalsRejectionEvents proves source-unavailable and
+// oversized-input rejections are journalled and committed with live
+// acquisition provenance on the capture path, not silently dropped.
+func TestCapturePathJournalsRejectionEvents(t *testing.T) {
+	dir := t.TempDir()
+	bundlePath := filepath.Join(dir, "capture.atb")
+	rec := NewBundleRecorder(bundlePath, nil)
+	if err := rec.EnableCapture("inc-reject"); err != nil {
+		t.Fatalf("EnableCapture: %v", err)
+	}
+	cfg := ProxyConfig{ListenAddr: "127.0.0.1:0", BundlePath: bundlePath, TargetHosts: []string{"api.openai.com"}}
+	p, err := NewProxy(cfg, LoggingHandler{}, nil)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+	p.recorder = rec
+	p.sessions = NewSessionManager(rec.sessionCloseCallback)
+	f := &forwarder{proxy: p}
+	req, err := http.NewRequest(http.MethodPost, "https://api.openai.com/v1/chat/completions", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	f.recordCaptureRejection("api.openai.com", req, "response", "upstream_connect_error", 1024, 0)
+	f.recordCaptureRejection("api.openai.com", req, "request", "body_too_large", 1024, 2048)
+	_ = rec.Close()
+
+	b, err := bundle.LoadVerified(bundlePath)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rejections := 0
+	for _, r := range b.Records {
+		if r.Event.Type != event.TypeCaptureRejected {
+			continue
+		}
+		rejections++
+		if r.Event.Acquisition == nil || r.Event.Acquisition.Mode != "live" {
+			t.Fatalf("rejection record missing live acquisition provenance: %+v", r.Event.Acquisition)
+		}
+	}
+	if rejections != 2 {
+		t.Fatalf("rejection records = %d, want 2", rejections)
+	}
+
+	// The durable journal must carry the correct direction and reason for each
+	// rejection, not merely the event type.
+	entries, _, err := capturejournal.Read(journalPath(bundlePath))
+	if err != nil {
+		t.Fatalf("read journal: %v", err)
+	}
+	got := map[string]string{}
+	for _, e := range entries {
+		var p observationPayload
+		if err := json.Unmarshal(e.Payload, &p); err != nil {
+			t.Fatalf("decode journal payload: %v", err)
+		}
+		if p.Type != event.TypeCaptureRejected {
+			continue
+		}
+		var d map[string]any
+		if err := json.Unmarshal(p.Data, &d); err != nil {
+			t.Fatalf("decode rejection data: %v", err)
+		}
+		dir, _ := d["direction"].(string)
+		reason, _ := d["reason"].(string)
+		got[dir] = reason
+	}
+	if got["response"] != "upstream_connect_error" || got["request"] != "body_too_large" {
+		t.Fatalf("journalled rejections = %v, want response/upstream_connect_error and request/body_too_large", got)
 	}
 }
 
