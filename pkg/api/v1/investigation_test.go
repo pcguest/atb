@@ -66,6 +66,29 @@ func TestInvestigationEndpointsExposeHumanFirstReadModels(t *testing.T) {
 	}
 }
 
+func TestInvestigationOverviewExposesStableHeadIdentity(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+	_, handler := buildTestAPIServer(t, APIConfig{BundlePath: bundlePath, Bundle: b})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/investigation/overview", nil)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	var got InvestigationOverviewResponse
+	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+		t.Fatalf("decode overview: %v", err)
+	}
+	if len(b.Records) == 0 {
+		t.Fatal("test bundle has no records")
+	}
+	want := b.Records[len(b.Records)-1].Hash
+	if got.HeadHash != want {
+		t.Fatalf("head_hash must be the stable bundle head: got %q want %q", got.HeadHash, want)
+	}
+}
+
 func TestInvestigationCoverageSurvivesValidIntegrityClone(t *testing.T) {
 	bundlePath, b := createRichTestBundle(t)
 	_, handler := buildTestAPIServer(t, APIConfig{

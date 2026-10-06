@@ -15,6 +15,7 @@ vi.mock("@/components/dashboard/TraceGraph", () => ({
 
 const overview: {
   bundle_path: string;
+  head_hash?: string;
   event_count: number;
   integrity_valid: boolean;
   integrity_status: string;
@@ -32,6 +33,7 @@ const overview: {
   summary: string;
 } = {
   bundle_path: "demo.atb",
+  head_hash: "e".repeat(64),
   event_count: 3,
   integrity_valid: true,
   integrity_status: "VERIFIED",
@@ -364,6 +366,13 @@ describe("ATB View investigation model", () => {
     render(<ViewPage />);
     expect(screen.getByText("Evidence bundle")).toBeInTheDocument();
     expect(screen.getByText(/3 records/)).toBeInTheDocument();
+  });
+
+  it("shows the stable bundle head as evidential identity, not just the path", () => {
+    render(<ViewPage />);
+    expect(screen.getByText("Bundle head")).toBeInTheDocument();
+    expect(screen.getByText("path is a locator, not identity")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Copy full hash e{64}/ })).toBeInTheDocument();
   });
 
   it("restores the active investigation surface from the URL on load", () => {

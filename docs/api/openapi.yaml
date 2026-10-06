@@ -63,7 +63,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
         '403':
-          description: Bundle is not verified (tamper detected)
+          description: "Forbidden: bundle is not verified, or the caller lacks the required role"
           content:
             application/json:
               schema:
@@ -118,7 +118,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
         '403':
-          description: Bundle is not verified (tamper detected)
+          description: "Forbidden: bundle is not verified, or the caller lacks the required role"
           content:
             application/json:
               schema:
@@ -151,7 +151,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
         '403':
-          description: Bundle is not verified (tamper detected)
+          description: "Forbidden: bundle is not verified, or the caller lacks the required role"
           content:
             application/json:
               schema:
@@ -186,7 +186,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
         '403':
-          description: Bundle is not verified (tamper detected)
+          description: "Forbidden: bundle is not verified, or the caller lacks the required role"
           content:
             application/json:
               schema:
@@ -219,7 +219,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
         '403':
-          description: Bundle is not verified (tamper detected)
+          description: "Forbidden: bundle is not verified, or the caller lacks the required role"
           content:
             application/json:
               schema:
@@ -270,7 +270,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIError'
         '403':
-          description: Bundle is not verified (tamper detected)
+          description: "Forbidden: bundle is not verified, or the caller lacks the required role"
           content:
             application/json:
               schema:

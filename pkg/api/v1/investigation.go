@@ -54,6 +54,7 @@ func (s *APIServer) handleInvestigationOverview(w http.ResponseWriter, r *http.R
 	}
 	writeJSON(w, http.StatusOK, InvestigationOverviewResponse{
 		BundlePath:       s.bundlePath,
+		HeadHash:         headHash(s),
 		EventCount:       recordCount(s),
 		IntegrityValid:   integrityValid,
 		IntegrityStatus:  status,
@@ -438,6 +439,16 @@ func recordCount(s *APIServer) int {
 		return 0
 	}
 	return len(s.b.Records)
+}
+
+// headHash returns the stable evidential identity of the presented bundle (the
+// record hash of the last loaded record). It is identity, not integrity: it is
+// reported even when verification failed so the presented object is named.
+func headHash(s *APIServer) string {
+	if s.b == nil || len(s.b.Records) == 0 {
+		return ""
+	}
+	return s.b.Records[len(s.b.Records)-1].Hash
 }
 
 func signatureStatus(s *APIServer) string {

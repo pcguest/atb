@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { CopyAction } from "./ui/investigation";
+import { HashValue } from "@/components/dashboard/HashValue";
 import { displayBundlePath } from "@/lib/display-path";
 
 /**
@@ -10,18 +11,23 @@ import { displayBundlePath } from "@/lib/display-path";
  *
  * It communicates the evidence object, its human-readable identity, the
  * current investigation surface and bounded summary facts. It deliberately
- * does NOT invent a Run/Session identity that the backend has not established:
- * only the loaded bundle path, its recorded-record count and the active surface
- * are shown. The exact path stays available via copy.
+ * does NOT invent a Run/Session identity that the backend has not established.
+ *
+ * Evidential identity is the bundle head hash (content-addressed). The bundle
+ * path is shown as a locator only: a path can be reused, moved, or renamed and
+ * is not the stable identity of the evidence. When the head hash is available
+ * it is shown with the path; both stay available via copy.
  */
 export function ObjectIdentityHeader({
   bundlePath,
+  headHash,
   eventCount,
   surfaceLabel,
   controls,
   status,
 }: {
   bundlePath: string;
+  headHash?: string;
   eventCount: number;
   surfaceLabel: string;
   controls?: ReactNode;
@@ -45,6 +51,14 @@ export function ObjectIdentityHeader({
             <span aria-hidden="true"> · </span>
             {surfaceLabel}
           </p>
+          {headHash ? (
+            <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+              <span>Bundle head</span>
+              <HashValue hash={headHash} className="text-foreground" />
+              <span aria-hidden="true">·</span>
+              <span>path is a locator, not identity</span>
+            </p>
+          ) : null}
         </div>
         {controls ? <div className="flex items-center gap-2">{controls}</div> : null}
       </div>

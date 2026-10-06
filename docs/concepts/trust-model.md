@@ -8,7 +8,9 @@ storage, identity verification, or hosted control-plane governance.
 
 1. Integrity by default
 - Event records are hash chained with SHA-256.
-- Verification fails on mutation, reorder, insertion, or deletion.
+- Verification recomputes each present record's hash and compares it with the recorded hash. It reports failure when a mutation, reorder, or insertion is **inconsistent with the recorded hashes**, and when a non-tail deletion leaves an internal sequence gap.
+- Verification does **not**, on its own, detect a party who rewrites a record and recomputes all subsequent recorded hashes: that produces a different but self-consistent chain. It also does not detect unsigned tail truncation, which yields a shorter but internally consistent prefix.
+- Detecting either requires an independent commitment to the expected content/head that the rewriter cannot recompute — for example a signature over the head, an RFC 3161 anchor, or an external custody receipt recording the expected head hash (see [What verification means](../verification-meaning.md#limitation-recomputed-chains-and-unsigned-tail-truncation)).
 
 2. Deterministic canonicalisation
 - Event payloads are canonicalised with RFC 8785 before hashing.

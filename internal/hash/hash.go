@@ -79,7 +79,7 @@ func Verify(events []Event, hashes []string) error {
 				i, prev, storedPrevHash)
 		}
 		if computed != hashes[i] {
-			return fmt.Errorf("hash: verify: tamper detected at event %d (seq %d): expected %s, got %s",
+			return fmt.Errorf("hash: verify: record hash mismatch at event %d (seq %d): expected %s, got %s",
 				i, expectedSeq, hashes[i], computed)
 		}
 		prev = computed

@@ -4,16 +4,17 @@ package bundle
 import "errors"
 
 // ErrTamper is returned when the bundle's hash chain or sequence numbering
-// fails to verify, indicating the bundle has been altered after it was
-// written. Callers should treat any error matchable via errors.Is(err,
+// fails to verify. A failure means the presented records could not be verified
+// against their recorded hash chain; it does not by itself establish cause or
+// intent. Callers should treat any error matchable via errors.Is(err,
 // ErrTamper) as a hard integrity failure.
-var ErrTamper = errors.New("bundle: tampered")
+var ErrTamper = errors.New("bundle: integrity verification failed")
 
 // ErrMalformed is returned when a bundle is structurally invalid in a way
 // the reader cannot recover from — including a manifest version that this
 // build of atb does not understand. Wrapped errors should retain
 // errors.Is(err, ErrMalformed) for callers that want to distinguish
-// malformed bundles from tamper detection.
+// malformed bundles from integrity failures.
 var ErrMalformed = errors.New("bundle: malformed")
 
 // ErrResourceLimit is returned when an untrusted bundle exceeds a reader
