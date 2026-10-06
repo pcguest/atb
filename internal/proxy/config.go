@@ -66,6 +66,12 @@ type ProxyConfig struct {
 	// memory for capture and forwarding. Zero means DefaultMaxBodyBytes.
 	// Negative values are invalid.
 	MaxBodyBytes int64
+	// SourceIncarnation is an opaque, operator-supplied token identifying the
+	// incarnation (deployment) of the proxied source. Empty means the recorder
+	// reuses the checkpoint's incarnation, or generates one on first run. A
+	// supplied token that differs from the checkpoint's incarnation fails
+	// startup rather than silently resuming the wrong source.
+	SourceIncarnation string
 }
 
 // Validate checks required fields without mutating the configuration.

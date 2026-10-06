@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -12,11 +13,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/internal/proxy"
 )
 
 var (
@@ -48,6 +51,10 @@ func runCapture(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	switch args[0] {
 	case "run":
 		return runCaptureRun(args[1:], stdin, stdout, stderr)
+	case "status":
+		return runCaptureStatus(args[1:], stdout, stderr)
+	case "handoff":
+		return runCaptureHandoff(args[1:], stdout, stderr)
 	case "-h", "--help", "help":
 		printCaptureCommandUsage(stdout)
 		return exitSuccess
@@ -61,6 +68,154 @@ func runCapture(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 func printCaptureCommandUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage: atb capture run [--bundle <path>] [--snapshot <name>] [--env-prefix <NAME>] [--profile <id>] [--lock-wait <duration>] -- <command> [args...]")
 	fmt.Fprintln(w, "The child receives ATB_BUNDLE_PATH, ATB_CAPTURE_RUN_ID, and ATB_CAPTURE_MODE=run. The child or an ATB SDK integration must emit workflow events; capture run does not inspect arbitrary process traffic.")
+	fmt.Fprintln(w, "Usage: atb capture status [--bundle <path>] [--format text|json]")
+	fmt.Fprintln(w, "Reports the persisted continuity state of an intercept capture run (journal, checkpoint, gaps). It cannot observe a live process, so process_health is always unknown offline.")
+	fmt.Fprintln(w, "Usage: atb capture handoff [--bundle <path>] [--seq <n>]")
+	fmt.Fprintln(w, "Emits a portable, Mortise-independent incident handoff carrying the exact evidence identity and capture limitations.")
+}
+
+func runCaptureHandoff(args []string, stdout, stderr io.Writer) int {
+	bundlePath := ""
+	sequence := 0
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-h", arg == "--help", arg == "help":
+			printCaptureCommandUsage(stdout)
+			return exitSuccess
+		case arg == "--bundle", arg == "-b":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "atb capture handoff: missing value for --bundle")
+				return exitUserError
+			}
+			bundlePath = strings.TrimSpace(args[i+1])
+			i++
+		case strings.HasPrefix(arg, "--bundle="):
+			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "--bundle="))
+		case arg == "--seq":
+			if i+1 >= len(args) {
+				fmt.Fprintln(stderr, "atb capture handoff: missing value for --seq")
+				return exitUserError
+			}
+			n, err := strconv.Atoi(strings.TrimSpace(args[i+1]))
+			if err != nil || n < 0 {
+				fmt.Fprintf(stderr, "atb capture handoff: invalid --seq %q\n", args[i+1])
+				return exitUserError
+			}
+			sequence = n
+			i++
+		case strings.HasPrefix(arg, "--seq="):
+			n, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(arg, "--seq=")))
+			if err != nil || n < 0 {
+				fmt.Fprintf(stderr, "atb capture handoff: invalid --seq\n")
+				return exitUserError
+			}
+			sequence = n
+		default:
+			fmt.Fprintf(stderr, "atb capture handoff: unknown argument %q\n", arg)
+			return exitUserError
+		}
+	}
+	if bundlePath == "" {
+		bundlePath = bundle.DefaultPath()
+	}
+
+	h, err := proxy.BuildHandoff(bundlePath, sequence)
+	if err != nil {
+		fmt.Fprintf(stderr, "atb capture handoff: %v\n", err)
+		return exitSystemError
+	}
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(h); err != nil {
+		fmt.Fprintf(stderr, "atb capture handoff: encode json: %v\n", err)
+		return exitSystemError
+	}
+	return exitSuccess
+}
+
+func runCaptureStatus(args []string, stdout, stderr io.Writer) int {
+	fail := func(code int, msg string) int {
+		fmt.Fprintf(stderr, "atb capture status: %s\n", msg)
+		return code
+	}
+	bundlePath := ""
+	format := "text"
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-h", arg == "--help", arg == "help":
+			printCaptureCommandUsage(stdout)
+			return exitSuccess
+		case arg == "--bundle", arg == "-b":
+			if i+1 >= len(args) {
+				return fail(exitUserError, "missing value for --bundle")
+			}
+			bundlePath = strings.TrimSpace(args[i+1])
+			i++
+		case strings.HasPrefix(arg, "--bundle="):
+			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "--bundle="))
+		case strings.HasPrefix(arg, "-b="):
+			bundlePath = strings.TrimSpace(strings.TrimPrefix(arg, "-b="))
+		case arg == "--format":
+			if i+1 >= len(args) {
+				return fail(exitUserError, "missing value for --format")
+			}
+			format = strings.TrimSpace(args[i+1])
+			i++
+		case strings.HasPrefix(arg, "--format="):
+			format = strings.TrimSpace(strings.TrimPrefix(arg, "--format="))
+		default:
+			return fail(exitUserError, fmt.Sprintf("unknown argument %q", arg))
+		}
+	}
+	if bundlePath == "" {
+		bundlePath = bundle.DefaultPath()
+	}
+
+	st, err := proxy.ReadCaptureStatus(bundlePath)
+	if err != nil {
+		return fail(exitSystemError, fmt.Sprintf("capture status: %v", err))
+	}
+
+	if format == formatJSON {
+		enc := json.NewEncoder(stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(st); err != nil {
+			fmt.Fprintf(stderr, "atb capture status: encode json: %v\n", err)
+			return exitSystemError
+		}
+		return exitSuccess
+	}
+
+	fmt.Fprintf(stdout, "Bundle:               %s\n", st.BundlePath)
+	fmt.Fprintf(stdout, "Integrity:            %s\n", st.Integrity)
+	fmt.Fprintf(stdout, "Process health:       %s (offline)\n", st.ProcessHealth)
+	fmt.Fprintf(stdout, "Capture state:        %s\n", st.CaptureState)
+	if st.SourceSystem != "" {
+		fmt.Fprintf(stdout, "Source system:        %s\n", st.SourceSystem)
+	}
+	if st.SourceIncarnation != "" {
+		fmt.Fprintf(stdout, "Source incarnation:   %s\n", st.SourceIncarnation)
+	}
+	if st.Adapter != "" {
+		fmt.Fprintf(stdout, "Adapter:              %s %s\n", st.Adapter, st.AdapterVersion)
+	}
+	fmt.Fprintf(stdout, "Journal entries:      %d (last position %d)\n", st.JournalEntries, st.JournalLastPosition)
+	fmt.Fprintf(stdout, "Committed position:   %d (backlog %d)\n", st.CommittedPosition, st.JournalBacklog)
+	if st.LastObservationAt != "" {
+		fmt.Fprintf(stdout, "Last observation:     %s\n", st.LastObservationAt)
+	}
+	if st.LastDurableCommitAt != "" {
+		fmt.Fprintf(stdout, "Last durable commit:  %s\n", st.LastDurableCommitAt)
+	}
+	fmt.Fprintf(stdout, "Known gap:            %t\n", st.KnownGap)
+	fmt.Fprintf(stdout, "Possible unknown gap: %t\n", st.PossibleUnknownGap)
+	if st.Detail != "" {
+		fmt.Fprintf(stdout, "Detail:               %s\n", st.Detail)
+	}
+	fmt.Fprintln(stdout, "Note: a healthy capture state means ATB can account for what it recorded; it is not proof of complete observation.")
+	return exitSuccess
 }
 
 func runCaptureRun(args []string, stdin io.Reader, stdout, stderr io.Writer) int {

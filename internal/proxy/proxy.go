@@ -103,6 +103,15 @@ func (p *Proxy) Start(ctx context.Context) error {
 		PrintInstallInstructions(p.loggerWriter(), ca.CertPath)
 	}
 
+	// Enable continuous capture and run recovery before the first append, so
+	// the capture-scope attestation is committed on a consistent bundle and any
+	// durable-but-uncommitted observations are replayed first.
+	if p.recorder != nil {
+		if err := p.recorder.EnableCapture(p.cfg.SourceIncarnation); err != nil {
+			return fmt.Errorf("capture setup: %w", err)
+		}
+	}
+
 	runCtx, cancel := context.WithCancel(ctx)
 	p.cancel = cancel
 	p.started = true

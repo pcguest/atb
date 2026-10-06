@@ -95,6 +95,7 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 	mortiseEndpointFlag := ""
 	captureBodies := false
 	maxBodyBytes := int64(0)
+	sourceIncarnation := ""
 	setMortiseEndpoint := func(flag, value string) error {
 		if mortiseEndpointFlag != "" {
 			return fmt.Errorf("cannot combine %s with %s", mortiseEndpointFlag, flag)
@@ -174,6 +175,14 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 			if err := setMortiseEndpoint("--custos", strings.TrimPrefix(arg, "--custos=")); err != nil {
 				return proxy.ProxyConfig{}, err
 			}
+		case arg == "--source-incarnation":
+			if i+1 >= len(args) {
+				return proxy.ProxyConfig{}, fmt.Errorf("missing value for --source-incarnation")
+			}
+			sourceIncarnation = strings.TrimSpace(args[i+1])
+			i++
+		case strings.HasPrefix(arg, "--source-incarnation="):
+			sourceIncarnation = strings.TrimSpace(strings.TrimPrefix(arg, "--source-incarnation="))
 		case arg == "--capture-bodies":
 			captureBodies = true
 		case arg == "--max-body-bytes":
@@ -211,9 +220,10 @@ func parseInterceptArgs(args []string) (proxy.ProxyConfig, error) {
 		MortiseEndpoint: mortiseEndpoint,
 		// The token comes from the environment, not a flag, so it never
 		// lands in shell history or process listings.
-		MortiseToken:  mortiseToken,
-		CaptureBodies: captureBodies,
-		MaxBodyBytes:  maxBodyBytes,
+		MortiseToken:      mortiseToken,
+		CaptureBodies:     captureBodies,
+		MaxBodyBytes:      maxBodyBytes,
+		SourceIncarnation: sourceIncarnation,
 	}
 	return cfg, cfg.Validate()
 }
@@ -281,6 +291,9 @@ Flags:
   --mortise <endpoint>       Mortise ingest endpoint for auto-push on session close
                              (set ATB_MORTISE_TOKEN to authenticate with a Bearer token)
   --custos <endpoint>        Deprecated compatibility alias for --mortise
+  --source-incarnation <tok> Opaque token identifying the proxied source incarnation.
+                             Omit to reuse the checkpoint's incarnation or generate one.
+                             A different token than the checkpoint's fails startup.
   --capture-bodies           Record raw request/response bodies (default: digest only)
   --max-body-bytes <n>       Max request/response body buffered in memory
                              (default 33554432, maximum 268435456)
