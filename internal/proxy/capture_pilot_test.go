@@ -284,6 +284,33 @@ func TestCapturePathJournalsRejectionEvents(t *testing.T) {
 	if rejections != 2 {
 		t.Fatalf("rejection records = %d, want 2", rejections)
 	}
+
+	// The durable journal must carry the correct direction and reason for each
+	// rejection, not merely the event type.
+	entries, _, err := capturejournal.Read(journalPath(bundlePath))
+	if err != nil {
+		t.Fatalf("read journal: %v", err)
+	}
+	got := map[string]string{}
+	for _, e := range entries {
+		var p observationPayload
+		if err := json.Unmarshal(e.Payload, &p); err != nil {
+			t.Fatalf("decode journal payload: %v", err)
+		}
+		if p.Type != event.TypeCaptureRejected {
+			continue
+		}
+		var d map[string]any
+		if err := json.Unmarshal(p.Data, &d); err != nil {
+			t.Fatalf("decode rejection data: %v", err)
+		}
+		dir, _ := d["direction"].(string)
+		reason, _ := d["reason"].(string)
+		got[dir] = reason
+	}
+	if got["response"] != "upstream_connect_error" || got["request"] != "body_too_large" {
+		t.Fatalf("journalled rejections = %v, want response/upstream_connect_error and request/body_too_large", got)
+	}
 }
 
 // TestCaptureStatusDetectsDigestMismatch proves a self-asserted representation
