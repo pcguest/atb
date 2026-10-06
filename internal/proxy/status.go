@@ -120,10 +120,6 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 	case !v3:
 		st.CaptureState = string(captureDegraded)
 		st.Detail = "bundle is not manifest v3; continuous capture does not apply"
-		return st, nil
-	case len(entries) == 0 && !checkpointPresent && !hasAcquisition:
-		st.CaptureState = "not_established"
-		st.Detail = "no capture journal, checkpoint, or acquisition evidence present"
 	case jerr != nil:
 		st.CaptureState = string(captureDegraded)
 		st.KnownGap = true
@@ -143,9 +139,15 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		st.CaptureState = string(captureRecoveryRequired)
 		st.Detail = "durable observations exist that are not yet committed to evidence"
 	case checkpointPresent:
-		if err := cp.Validate(captureSourceSystem, streamID, captureAdapter, captureAdapterVersion, cp.SourceIncarnation); err != nil {
+		if err := cp.Validate(captureSourceSystem, streamID, captureAdapter, captureAdapterVersion, ""); err != nil {
 			st.CaptureState = string(captureDegraded)
 			st.Detail = "checkpoint does not match this capture's source/adapter/version"
+			break
+		}
+		if st.CommittedPosition > 0 && (cp.BundleHeadHash == "" || cp.BundleRecordCount == 0) {
+			st.CaptureState = string(captureDegraded)
+			st.PossibleUnknownGap = true
+			st.Detail = "checkpoint has a committed position but no bundle binding"
 			break
 		}
 		if err := validateCheckpointPrefix(cp, b); err != nil {
@@ -154,6 +156,9 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 			break
 		}
 		st.CaptureState = string(captureHealthy)
+	case len(entries) == 0 && !hasAcquisition:
+		st.CaptureState = "not_established"
+		st.Detail = "no capture journal, checkpoint, or acquisition evidence present"
 	case hasAcquisition:
 		st.CaptureState = string(captureUnknown)
 		st.PossibleUnknownGap = true

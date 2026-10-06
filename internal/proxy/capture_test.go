@@ -319,6 +319,52 @@ func TestCapturePathSecretCanary(t *testing.T) {
 	}
 }
 
+func TestBuildHandoffReportsGapWhenDegraded(t *testing.T) {
+	dir := t.TempDir()
+	bundlePath := filepath.Join(dir, "capture.atb")
+	r := NewBundleRecorder(bundlePath, nil)
+	if err := r.EnableCapture("inc-handoff"); err != nil {
+		t.Fatalf("EnableCapture: %v", err)
+	}
+	if _, err := r.AppendEventHash(newCaptureEvent(event.TypeLLMRequest, "s1")); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	_ = r.capture.journal.Close()
+
+	// Corrupt the journal interior so status reports a degraded state.
+	data, err := os.ReadFile(journalPath(bundlePath))
+	if err != nil {
+		t.Fatalf("read journal: %v", err)
+	}
+	firstEnd := 0
+	for i, b := range data {
+		if b == '\n' {
+			firstEnd = i
+			break
+		}
+	}
+	var e capturejournal.Entry
+	if err := json.Unmarshal(data[:firstEnd], &e); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	e.Hash = "deadbeef"
+	line, _ := json.Marshal(e)
+	if err := os.WriteFile(journalPath(bundlePath), append(append(line, '\n'), data[firstEnd+1:]...), 0o600); err != nil {
+		t.Fatalf("write corrupt: %v", err)
+	}
+
+	h, err := BuildHandoff(bundlePath, 0)
+	if err != nil {
+		t.Fatalf("BuildHandoff: %v", err)
+	}
+	if h.CaptureState == string(captureHealthy) {
+		t.Fatalf("handoff should not report healthy for a corrupted journal")
+	}
+	if len(h.KnownGaps) == 0 {
+		t.Fatalf("handoff should disclose the gap")
+	}
+}
+
 func TestBuildHandoffCarriesIdentityAndLimitations(t *testing.T) {
 	dir := t.TempDir()
 	bundlePath := filepath.Join(dir, "capture.atb")

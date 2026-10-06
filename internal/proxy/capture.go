@@ -92,9 +92,11 @@ func (r *BundleRecorder) enableCapture(sourceIncarnation string) error {
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if r.capture != nil {
+	if r.capture != nil && !r.captureStopped {
 		return nil
 	}
+	r.capture = nil
+	r.captureStopped = false
 
 	bundlePath := r.path
 	streamID := filepath.Base(bundlePath)
@@ -363,6 +365,9 @@ func (c *captureCoordinator) validateEntry(e capturejournal.Entry) error {
 	if e.Adapter != captureAdapter {
 		return fmt.Errorf("capture: journal entry adapter %q does not match %q", e.Adapter, captureAdapter)
 	}
+	if e.AdapterVersion != captureAdapterVersion {
+		return fmt.Errorf("capture: journal entry adapter version %q does not match %q", e.AdapterVersion, captureAdapterVersion)
+	}
 	if e.RepresentationVersion != captureRepresentationVersion {
 		return fmt.Errorf("capture: journal entry representation version %q does not match %q", e.RepresentationVersion, captureRepresentationVersion)
 	}
@@ -431,7 +436,9 @@ func (r *BundleRecorder) closeCapture() {
 	if r.capture != nil && r.capture.journal != nil {
 		_ = r.capture.journal.Close()
 	}
-	r.capture = nil
+	// Keep r.capture set but mark the recorder stopped, so a late append is
+	// refused instead of falling back to the unjournalled legacy path.
+	r.captureStopped = true
 }
 
 // CaptureHealth reports the last capture durability error, if any. It is nil

@@ -133,8 +133,9 @@ provider never sent through the proxy.
   credential material (not even a suffix) enters evidence, the journal, logs, or
   the checkpoint.
 - Do **not** pass secrets on the command line. `--identity-map key=name` puts a
-  raw API key on argv (and in the process environment/history); prefer the
-  identity environment/chain. `--capture-bodies` stores raw prompts,
+  raw API key on argv, where it may be exposed by process listings and shell
+  history depending on how the command is entered; prefer the identity
+  environment/chain. `--capture-bodies` stores raw prompts,
   completions, and tool payloads; apply access controls and retention limits.
 
 ## Remove the pilot

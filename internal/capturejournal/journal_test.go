@@ -6,7 +6,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/pcguest/atb/internal/hash"
 )
 
 func newTestEntry(id string) Entry {
@@ -174,6 +177,72 @@ func TestOpenFailsClosedOnInteriorCorruption(t *testing.T) {
 
 	if _, err := Open(path, "stream-1"); !errors.Is(err, ErrJournalCorrupted) {
 		t.Fatalf("expected ErrJournalCorrupted, got %v", err)
+	}
+}
+
+func TestAppendAfterCloseFailsClosed(t *testing.T) {
+	dir := t.TempDir()
+	j, err := Open(filepath.Join(dir, "capture.journal.ndjson"), "stream-1")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if err := j.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if _, err := j.Append(newTestEntry("obs-1")); !errors.Is(err, ErrJournalClosed) {
+		t.Fatalf("expected ErrJournalClosed, got %v", err)
+	}
+}
+
+func TestAppendAfterWriteFailureRefusesFurtherAppends(t *testing.T) {
+	dir := t.TempDir()
+	j, err := Open(filepath.Join(dir, "capture.journal.ndjson"), "stream-1")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer j.Close()
+	// Close the underlying file out from under the journal to force a write error.
+	if err := j.f.Close(); err != nil {
+		t.Fatalf("close fd: %v", err)
+	}
+	if _, err := j.Append(newTestEntry("obs-1")); err == nil {
+		t.Fatalf("expected a write error")
+	}
+	if _, err := j.Append(newTestEntry("obs-2")); !errors.Is(err, ErrJournalFailed) {
+		t.Fatalf("expected ErrJournalFailed after a prior write error, got %v", err)
+	}
+}
+
+func TestAppendRejectsOversizedEntry(t *testing.T) {
+	dir := t.TempDir()
+	j, err := Open(filepath.Join(dir, "capture.journal.ndjson"), "stream-1")
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer j.Close()
+	// A valid JSON string larger than the per-line limit.
+	big := json.RawMessage(`"` + strings.Repeat("a", maxLineBytes+1024) + `"`)
+	e := newTestEntry("obs-1")
+	e.Payload = big
+	if _, err := j.Append(e); !errors.Is(err, ErrJournalEntryTooLarge) {
+		t.Fatalf("expected ErrJournalEntryTooLarge, got %v", err)
+	}
+	// The rejected entry must not have been written.
+	if j.Len() != 0 {
+		t.Fatalf("journal len = %d, want 0", j.Len())
+	}
+}
+
+func TestReadRejectsUnsupportedVersion(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "capture.journal.ndjson")
+	// A structurally valid line with an unsupported format_version.
+	line := `{"format_version":2,"position":1,"prev_hash":"` + hash.GenesisHash + `","observation_id":"x:1","source_system":"atb.proxy","representation_version":"v1","representation_digest":"d","observation_type":"t","payload":{},"observed_at":"2026-01-01T00:00:00Z","adapter":"a","adapter_version":"1","hash":"deadbeef"}` + "\n"
+	if err := os.WriteFile(path, []byte(line), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, _, err := Read(path); !errors.Is(err, ErrJournalVersionUnsupported) {
+		t.Fatalf("expected ErrJournalVersionUnsupported, got %v", err)
 	}
 }
 
