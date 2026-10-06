@@ -42,6 +42,13 @@ type BundleFileManager struct {
 	mu       sync.RWMutex
 	sessions map[SessionID]*fileSessionRecord
 	now      func() time.Time
+
+	// lastErr is the most recent durability failure (append/save/close). It is
+	// cleared on the next success. It lets /healthz distinguish "process up"
+	// from "capture actually working", so a green health check never implies
+	// evidence is being durably captured.
+	lastErr   error
+	lastErrAt time.Time
 }
 
 // NewBundleFileManager constructs a disk-backed session manager rooted at dataDir.
@@ -113,9 +120,10 @@ func (m *BundleFileManager) OpenSession(ctx context.Context, params OpenParams) 
 }
 
 // AppendEvent writes a raw agent wrapper record and persists the bundle.
-func (m *BundleFileManager) AppendEvent(ctx context.Context, sessionID SessionID, event PendingEvent) error {
+func (m *BundleFileManager) AppendEvent(ctx context.Context, sessionID SessionID, event PendingEvent) (err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	defer func() { m.recordHealthLocked(err) }()
 
 	record, ok := m.sessions[sessionID]
 	if !ok {
@@ -144,9 +152,10 @@ func (m *BundleFileManager) AppendEvent(ctx context.Context, sessionID SessionID
 }
 
 // CloseSession marks the session closed and returns bundle metadata from disk state.
-func (m *BundleFileManager) CloseSession(ctx context.Context, sessionID SessionID, _ CloseSessionOpts) (BundleMetadata, error) {
+func (m *BundleFileManager) CloseSession(ctx context.Context, sessionID SessionID, _ CloseSessionOpts) (meta BundleMetadata, err error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	defer func() { m.recordHealthLocked(err) }()
 
 	record, ok := m.sessions[sessionID]
 	if !ok {
@@ -170,7 +179,7 @@ func (m *BundleFileManager) CloseSession(ctx context.Context, sessionID SessionI
 	record.closedAt = closedAt
 	record.bundle = verified
 
-	meta := BundleMetadata{
+	meta = BundleMetadata{
 		SessionID:  sessionID,
 		Path:       filepath.Join(m.dataDir, record.bundlePath),
 		ProfileID:  record.params.ProfileID,
@@ -200,6 +209,28 @@ func (m *BundleFileManager) Shutdown(context.Context) error {
 	m.rootErr = nil
 	m.rootOnce = sync.Once{}
 	return err
+}
+
+// recordHealthLocked records the most recent durability error. Callers must
+// hold m.mu.
+func (m *BundleFileManager) recordHealthLocked(err error) {
+	if err == nil {
+		m.lastErr = nil
+		m.lastErrAt = time.Time{}
+		return
+	}
+	m.lastErr = err
+	m.lastErrAt = m.now().UTC()
+}
+
+// Health reports the most recent durability failure, if any. A nil result means
+// the manager has not observed a failed append/save/close since start. It is
+// deliberately not a liveness check: a healthy process can still be failing to
+// capture, which is exactly what this surfaces.
+func (m *BundleFileManager) Health() error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.lastErr
 }
 
 // ActiveSessionCount returns open session handles. Used by tests.

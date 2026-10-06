@@ -249,13 +249,13 @@ func TestCheckpointRoundTripAndValidation(t *testing.T) {
 	if got.FormatVersion != CheckpointFormatVersion {
 		t.Fatalf("format version = %d", got.FormatVersion)
 	}
-	if err := got.Validate("chatlog", "stream-a", "atb.chatlog.generic-jsonl"); err != nil {
+	if err := got.Validate("chatlog", "stream-a", "atb.chatlog.generic-jsonl", "", ""); err != nil {
 		t.Fatalf("validate matching: %v", err)
 	}
-	if err := got.Validate("chatlog", "stream-b", "atb.chatlog.generic-jsonl"); !errors.Is(err, ErrCheckpointSourceMismatch) {
+	if err := got.Validate("chatlog", "stream-b", "atb.chatlog.generic-jsonl", "", ""); !errors.Is(err, ErrCheckpointSourceMismatch) {
 		t.Fatalf("stream mismatch: %v", err)
 	}
-	if err := got.Validate("chatlog", "stream-a", "other-adapter"); !errors.Is(err, ErrCheckpointAdapterMismatch) {
+	if err := got.Validate("chatlog", "stream-a", "other-adapter", "", ""); !errors.Is(err, ErrCheckpointAdapterMismatch) {
 		t.Fatalf("adapter mismatch: %v", err)
 	}
 

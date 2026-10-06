@@ -153,8 +153,8 @@ func TestResolveIdentity(t *testing.T) {
 	if got := cfg.ResolveIdentity("sk-test").DisplayName; got != "Paddy Guest" {
 		t.Fatalf("ResolveIdentity = %q", got)
 	}
-	if got := cfg.ResolveIdentity("sk-other").DisplayName; got != "api-key:ther" {
-		t.Fatalf("unexpected identity %q", got)
+	if got := cfg.ResolveIdentity("sk-other").DisplayName; got != identity.UnresolvedDisplayName {
+		t.Fatalf("unexpected identity %q, want %q", got, identity.UnresolvedDisplayName)
 	}
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pcguest/atb/internal/identity"
@@ -64,8 +65,11 @@ func TestChainResolverPrefersFile(t *testing.T) {
 }
 
 func TestFallbackDisplayName(t *testing.T) {
-	if got := identity.FallbackDisplayName("sk-abcd1234"); got != "api-key:1234" {
-		t.Fatalf("fallback = %q", got)
+	if got := identity.FallbackDisplayName("sk-abcd1234"); got != identity.UnresolvedDisplayName {
+		t.Fatalf("fallback = %q, want %q", got, identity.UnresolvedDisplayName)
+	}
+	if got := identity.FallbackDisplayName("sk-abcd1234"); strings.Contains(got, "1234") {
+		t.Fatalf("fallback leaked credential suffix: %q", got)
 	}
 }
 
@@ -216,8 +220,11 @@ func TestWriteMappingValidationUpdateAndActorApplication(t *testing.T) {
 	data := map[string]any{}
 	identity.ApplyActor(data, identity.Identity{}, "short")
 	actor := data["actor"].(map[string]string)
-	if actor["display_name"] != "api-key:hort" {
+	if actor["display_name"] != identity.UnresolvedDisplayName {
 		t.Fatalf("fallback actor = %+v", actor)
+	}
+	if strings.Contains(actor["display_name"], "hort") {
+		t.Fatalf("fallback actor leaked credential suffix: %+v", actor)
 	}
 	identity.ApplyActor(data, identity.Identity{
 		DisplayName: "Patrick",
@@ -229,8 +236,8 @@ func TestWriteMappingValidationUpdateAndActorApplication(t *testing.T) {
 		t.Fatalf("resolved actor = %+v", actor)
 	}
 
-	if got := identity.FallbackDisplayName("abc"); got != "api-key:[redacted]" {
-		t.Fatalf("short fallback = %q", got)
+	if got := identity.FallbackDisplayName("abc"); got != identity.UnresolvedDisplayName {
+		t.Fatalf("short fallback = %q, want %q", got, identity.UnresolvedDisplayName)
 	}
 	if got := identity.FallbackDisplayName(""); got != "" {
 		t.Fatalf("empty fallback = %q", got)

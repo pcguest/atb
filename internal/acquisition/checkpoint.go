@@ -44,6 +44,14 @@ var ErrCheckpointAdapterMismatch = errors.New("acquisition: checkpoint adapter m
 // resuming as if it described the current evidence.
 var ErrCheckpointBundleMismatch = errors.New("acquisition: checkpoint bundle binding mismatch")
 
+// ErrCheckpointIncarnationMismatch indicates the checkpoint was bound to a
+// different incarnation of the logical source than the one now presenting. A
+// logical source may restart or be redeployed while keeping a human-readable
+// name, so incarnation (not the name) distinguishes "same source, same
+// instance" from "same name, different instance". Reuse across incarnations
+// fails closed rather than silently resuming.
+var ErrCheckpointIncarnationMismatch = errors.New("acquisition: checkpoint source incarnation mismatch")
+
 // ErrNoTranslatableSpans indicates an OTLP payload contained no translatable spans.
 var ErrNoTranslatableSpans = errors.New("acquisition: no translatable spans found in OTLP payload")
 
@@ -72,6 +80,14 @@ type Checkpoint struct {
 
 	// SourceIdentity is the stable source identity for deduplication.
 	SourceIdentity event.SourceIdentity `json:"source_identity"`
+
+	// SourceIncarnation is an opaque, locally-generated token for the specific
+	// incarnation (process/instance/deployment) of the logical source that
+	// produced this checkpoint. It is operational state, not evidence, and is
+	// never credential-derived. Empty for legacy checkpoints and for sources
+	// that cannot supply an incarnation; when set on both sides, continuation
+	// fails closed if it differs.
+	SourceIncarnation string `json:"source_incarnation,omitempty"`
 
 	// ProcessedCount is the number of records processed up to this checkpoint.
 	ProcessedCount int `json:"processed_count"`
@@ -195,7 +211,11 @@ func Load(path string) (*Checkpoint, error) {
 }
 
 // LoadOrCreate loads an existing checkpoint or creates a new one if it doesn't exist.
-func LoadOrCreate(path string, sourceSystem, acquisitionStream, adapter string, sourceIdentity event.SourceIdentity) (*Checkpoint, error) {
+//
+// adapterVersion and sourceIncarnation are recorded on creation only; an
+// existing checkpoint keeps the values it was written with so that Validate can
+// detect a changed adapter version or a different source incarnation.
+func LoadOrCreate(path, sourceSystem, acquisitionStream, adapter, adapterVersion, sourceIncarnation string, sourceIdentity event.SourceIdentity) (*Checkpoint, error) {
 	cp, err := Load(path)
 	if err != nil {
 		if errors.Is(err, ErrCheckpointNotFound) {
@@ -204,6 +224,8 @@ func LoadOrCreate(path string, sourceSystem, acquisitionStream, adapter string, 
 				SourceSystem:      sourceSystem,
 				AcquisitionStream: acquisitionStream,
 				Adapter:           adapter,
+				AdapterVersion:    adapterVersion,
+				SourceIncarnation: sourceIncarnation,
 				SourceIdentity:    sourceIdentity,
 				ObservedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 				Position:          "start",
@@ -215,8 +237,14 @@ func LoadOrCreate(path string, sourceSystem, acquisitionStream, adapter string, 
 	return cp, nil
 }
 
-// Validate validates the checkpoint against expected source and adapter.
-func (c *Checkpoint) Validate(sourceSystem, acquisitionStream, adapter string) error {
+// Validate validates the checkpoint against the expected source, adapter,
+// adapter version, and source incarnation.
+//
+// Source, stream, and adapter must match exactly. Adapter version and source
+// incarnation are only compared when both the checkpoint and the caller supply
+// a non-empty value, so legacy checkpoints and incarnation-less sources remain
+// usable while a known mismatch fails closed.
+func (c *Checkpoint) Validate(sourceSystem, acquisitionStream, adapter, adapterVersion, sourceIncarnation string) error {
 	if c.SourceSystem != sourceSystem {
 		return fmt.Errorf("%w: expected %q, got %q", ErrCheckpointSourceMismatch, sourceSystem, c.SourceSystem)
 	}
@@ -225,6 +253,12 @@ func (c *Checkpoint) Validate(sourceSystem, acquisitionStream, adapter string) e
 	}
 	if c.Adapter != adapter {
 		return fmt.Errorf("%w: expected %q, got %q", ErrCheckpointAdapterMismatch, adapter, c.Adapter)
+	}
+	if adapterVersion != "" && c.AdapterVersion != "" && c.AdapterVersion != adapterVersion {
+		return fmt.Errorf("%w: expected version %q, checkpoint recorded %q", ErrCheckpointAdapterMismatch, adapterVersion, c.AdapterVersion)
+	}
+	if sourceIncarnation != "" && c.SourceIncarnation != "" && c.SourceIncarnation != sourceIncarnation {
+		return fmt.Errorf("%w: expected %q, checkpoint recorded %q", ErrCheckpointIncarnationMismatch, sourceIncarnation, c.SourceIncarnation)
 	}
 	return nil
 }

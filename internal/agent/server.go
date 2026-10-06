@@ -13,8 +13,15 @@ import (
 )
 
 // HealthResponse is returned by GET /healthz.
+//
+// Status is "ok" when the process is up and the capture manager has not
+// observed a durability failure, and "degraded" otherwise. Degraded=true and
+// Error are set on a degraded response so process health is never presented as
+// evidence that capture is actually working.
 type HealthResponse struct {
-	Status string `json:"status"`
+	Status   string `json:"status"`
+	Degraded bool   `json:"degraded,omitempty"`
+	Error    string `json:"error,omitempty"`
 }
 
 // InfoResponse is returned by GET /v1/info.
@@ -105,6 +112,16 @@ func (s *Server) Handler() http.Handler {
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, _ *http.Request) {
+	if h, ok := s.bundleManager.(interface{ Health() error }); ok {
+		if err := h.Health(); err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, HealthResponse{
+				Status:   "degraded",
+				Degraded: true,
+				Error:    err.Error(),
+			})
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, HealthResponse{Status: "ok"})
 }
 

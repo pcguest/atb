@@ -200,17 +200,32 @@ func WriteMapping(path, apiKey, displayName, email, orgRole string) error {
 	return os.WriteFile(path, out, 0o600)
 }
 
-// FallbackDisplayName returns api-key:<last-4> when a sufficiently long key has
-// no mapping. Short keys are redacted rather than copied into captured evidence.
+// FallbackDisplayName returns a constant, non-credential-derived actor label for
+// an API key that has no explicit identity mapping. It deliberately contains no
+// part of the credential — not even a suffix — so that neither credential
+// material nor a credential-derived identifier can reach captured evidence,
+// collector logs, exports, or the Mortise handoff.
+//
+// Callers that need to correlate events from the same unresolved key must
+// derive a separate, non-secret identity; this function returns a shared
+// sentinel and cannot be used for that.
 func FallbackDisplayName(apiKey string) string {
-	apiKey = strings.TrimSpace(apiKey)
-	if len(apiKey) >= 4 {
-		return "api-key:" + apiKey[len(apiKey)-4:]
+	if strings.TrimSpace(apiKey) == "" {
+		return ""
 	}
-	if apiKey != "" {
-		return "api-key:[redacted]"
-	}
-	return ""
+	return UnresolvedDisplayName
+}
+
+// UnresolvedDisplayName is the actor label recorded for an API key that has no
+// explicit identity mapping. It is a constant sentinel, never derived from the
+// credential.
+const UnresolvedDisplayName = "unresolved"
+
+// IsUnresolvedDisplayName reports whether an actor display name represents an
+// unresolved identity. It recognises both the current constant sentinel and the
+// legacy "api-key:<suffix>" form so historic bundles remain inspectable.
+func IsUnresolvedDisplayName(name string) bool {
+	return name == UnresolvedDisplayName || strings.HasPrefix(name, "api-key:")
 }
 
 // EnvVarName returns the environment variable name for a hashed API key.

@@ -74,6 +74,7 @@ type ImportResult struct {
 	UnchangedCount     int
 	UnknownCount       int
 	BundlePath         string
+	CheckpointPath     string
 	SnapshotAppended   bool
 	SnapshotName       string
 	UnknownTurnIndices []int
@@ -264,14 +265,19 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 	}
 
 	return &ImportResult{
+		// SkippedRecords counts every source record that produced no evidence in
+		// this pass: records the mapper deliberately dropped (e.g. system turns)
+		// plus records reconciliation found already committed. Reporting only the
+		// reconciliation count would let mapper-drop silently under-report.
 		EventsWritten:      written,
-		SkippedRecords:     counts.unchanged + len(unknownTurnIndices),
+		SkippedRecords:     mapped.SkippedRecords + counts.unchanged,
 		ReconciledCount:    counts.written,
 		NewCount:           counts.newCount,
 		ChangedCount:       counts.changed,
 		UnchangedCount:     counts.unchanged,
 		UnknownCount:       counts.unknown,
 		BundlePath:         opts.BundlePath,
+		CheckpointPath:     checkpointPath,
 		SnapshotAppended:   false,
 		SnapshotName:       "",
 		UnknownTurnIndices: unknownTurnIndices,
@@ -443,14 +449,17 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 	}
 
 	return &ImportResult{
+		// SkippedRecords includes spans the translator deliberately dropped
+		// (ErrUnsupported) plus records reconciliation found already committed.
 		EventsWritten:      written,
-		SkippedRecords:     counts.unchanged,
+		SkippedRecords:     result.SkippedCount + counts.unchanged,
 		ReconciledCount:    counts.written,
 		NewCount:           counts.newCount,
 		ChangedCount:       counts.changed,
 		UnchangedCount:     counts.unchanged,
 		UnknownCount:       counts.unknown,
 		BundlePath:         opts.BundlePath,
+		CheckpointPath:     checkpointPath,
 		SnapshotAppended:   false,
 		SnapshotName:       "",
 		UnknownTurnIndices: nil,
@@ -571,6 +580,7 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 	var plan reconciliationPlan
 	type decision struct {
 		result  ReconciliationResult
+		digest  string
 		skip    bool
 		finding *FindingInfo
 	}
@@ -580,15 +590,18 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 	for i := range events {
 		ev := events[i]
 		acq := ev.acquisition
+		hasID := acq != nil && acq.SourceRecordID != ""
 		key := fmt.Sprintf("__unknown__:%d", i)
-		if acq != nil && acq.SourceRecordID != "" {
+		if hasID {
 			key = acq.SourceSystem + ":" + acq.SourceRecordID
 		}
 
 		d, ok := decisions[key]
-		if !ok {
+		action := reconcileAction{event: ev}
+		switch {
+		case !ok:
 			d = &decision{}
-			if reconcile && acq != nil && acq.SourceRecordID != "" {
+			if reconcile && hasID {
 				outcome, err := reconciler.Reconcile(
 					event.SourceIdentity{System: acq.SourceSystem, RecordID: acq.SourceRecordID, Derived: true},
 					acq.SourceDigest, acq.AcquiredAt, acq,
@@ -598,11 +611,16 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 				}
 				d.result = outcome.Result
 				d.finding = outcome.Finding
+				d.digest = acq.SourceDigest
 				d.skip = outcome.Result == ReconciliationUnchanged
 			} else if reconcile {
 				d.result = ReconciliationUnknown
 			}
+			if hasID {
+				d.digest = acq.SourceDigest
+			}
 			decisions[key] = d
+			action.skip = d.skip
 			switch d.result {
 			case ReconciliationNew:
 				plan.counts.newCount++
@@ -613,9 +631,31 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 			case ReconciliationUnknown:
 				plan.counts.unknown++
 			}
+		case reconcile && hasID && acq.SourceDigest != d.digest:
+			// The same source identity appears again within this pass with a
+			// different representation. Surface one changed-source finding and
+			// append the new representation; never silently collapse the change.
+			action.finding = &FindingInfo{
+				Flag:           "source_record_changed",
+				Severity:       "high",
+				Title:          "Source record changed within a single acquisition pass",
+				SourceRecordID: acq.SourceRecordID,
+				PreviousDigest: d.digest,
+				CurrentDigest:  acq.SourceDigest,
+				AcquiredAt:     acq.AcquiredAt,
+			}
+			action.skip = false
+			d.digest = acq.SourceDigest
+			d.finding = nil
+		case reconcile && hasID:
+			// Same identity and identical representation repeated within one
+			// pass: idempotent replay, so never append it twice.
+			action.skip = true
+		default:
+			// Non-reconcile (plain import) keeps historical append semantics.
+			action.skip = d.skip
 		}
 
-		action := reconcileAction{event: ev, skip: d.skip}
 		if d.finding != nil {
 			action.finding = d.finding
 			d.finding = nil // emit once per source record
