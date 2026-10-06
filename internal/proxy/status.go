@@ -179,7 +179,7 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 	case journalInconsistent:
 		st.CaptureState = string(captureDegraded)
 		st.KnownGap = true
-		st.Detail = "journal entries do not match the checkpoint source/adapter/incarnation or their representation digest"
+		st.Detail = "journal entries do not match the capture contract (source/adapter/version/incarnation) or their representation digest"
 	case checkpointUnreadable:
 		st.CaptureState = string(captureDegraded)
 		st.Detail = "checkpoint unreadable or malformed; continuity cannot be established"

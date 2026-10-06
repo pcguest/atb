@@ -138,7 +138,9 @@ func TestCaptureMarkerIgnoredAfterJournalLoss(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open journal: %v", err)
 	}
-	_, _ = f.WriteString(`{"format_version":1,"position":999,"observation`)
+	if _, err := f.WriteString(`{"format_version":1,"position":999,"observation`); err != nil {
+		t.Fatalf("write torn tail: %v", err)
+	}
 	_ = f.Close()
 	r2 := NewBundleRecorder(bundlePath, nil)
 	if err := r2.EnableCapture("inc-marker"); err != nil {

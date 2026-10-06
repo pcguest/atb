@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"path/filepath"
 	"strings"
@@ -81,5 +82,8 @@ func TestInspectJSONEscapesBidiControls(t *testing.T) {
 	}
 	if !strings.Contains(out, `\u202e`) {
 		t.Fatalf("expected escaped bidi override, got %q", out)
+	}
+	if !json.Valid([]byte(out)) {
+		t.Fatalf("escaped output is not valid JSON: %q", out)
 	}
 }

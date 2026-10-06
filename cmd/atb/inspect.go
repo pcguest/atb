@@ -52,7 +52,7 @@ func runInspect(args []string, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "atb inspect: %v\n", err)
 			return exitUserError
 		}
-		if _, err := fmt.Fprintln(stdout, string(escapeJSONUnsafeRunes(data))); err != nil {
+		if _, err := fmt.Fprintln(newEscapingWriter(stdout), string(data)); err != nil {
 			fmt.Fprintf(stderr, "atb inspect: write output: %v\n", err)
 			return exitSystemError
 		}
@@ -60,15 +60,10 @@ func runInspect(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if cfg.JSON {
-		var buf bytes.Buffer
-		enc := json.NewEncoder(&buf)
+		enc := json.NewEncoder(newEscapingWriter(stdout))
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(b.Records); err != nil {
 			fmt.Fprintf(stderr, "atb inspect: encode json output: %v\n", err)
-			return exitSystemError
-		}
-		if _, err := stdout.Write(escapeJSONUnsafeRunes(buf.Bytes())); err != nil {
-			fmt.Fprintf(stderr, "atb inspect: write output: %v\n", err)
 			return exitSystemError
 		}
 		return exitSuccess
@@ -247,22 +242,42 @@ func sanitizeForTerminal(s string) string {
 	return b.String()
 }
 
-// escapeJSONUnsafeRunes rewrites bidi and zero-width control runes that
-// encoding/json emits raw into their \uXXXX escapes. The result is still valid
-// JSON (parsing yields the identical string) but cannot visually spoof a
-// terminal rendering the output.
-func escapeJSONUnsafeRunes(b []byte) []byte {
+// escapingWriter escapes bidi and zero-width control runes that encoding/json
+// emits raw into their \uXXXX escapes as it streams, so large bundles are not
+// buffered a second time. The output remains valid JSON (parsing yields the
+// identical string) but cannot visually spoof a terminal.
+type escapingWriter struct {
+	w   io.Writer
+	buf []byte
+}
+
+func newEscapingWriter(w io.Writer) *escapingWriter { return &escapingWriter{w: w} }
+
+func (e *escapingWriter) Write(p []byte) (int, error) {
+	data := p
+	if len(e.buf) > 0 {
+		data = append(append([]byte(nil), e.buf...), p...)
+		e.buf = nil
+	}
 	var out bytes.Buffer
-	for i := 0; i < len(b); {
-		r, size := utf8.DecodeRune(b[i:])
-		if r != utf8.RuneError && isBidiOrZeroWidth(r) {
+	for i := 0; i < len(data); {
+		r, size := utf8.DecodeRune(data[i:])
+		if r == utf8.RuneError && size == 1 && !utf8.FullRune(data[i:]) {
+			// Incomplete rune at the end of this chunk; carry it over.
+			e.buf = append(e.buf, data[i:]...)
+			break
+		}
+		if isBidiOrZeroWidth(r) {
 			fmt.Fprintf(&out, "\\u%04x", r)
 		} else {
-			out.Write(b[i : i+size])
+			out.Write(data[i : i+size])
 		}
 		i += size
 	}
-	return out.Bytes()
+	if _, err := e.w.Write(out.Bytes()); err != nil {
+		return len(p), err
+	}
+	return len(p), nil
 }
 
 func isBidiOrZeroWidth(r rune) bool {
