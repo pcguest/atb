@@ -20,6 +20,7 @@ func makeCaptureBundle(t *testing.T) string {
 	if err := r.EnableCapture("inc-cli"); err != nil {
 		t.Fatalf("EnableCapture: %v", err)
 	}
+	t.Cleanup(func() { _ = r.Close() })
 	ev := &event.Event{
 		Type:      event.TypeLLMRequest,
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),

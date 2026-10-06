@@ -441,6 +441,22 @@ func (r *BundleRecorder) closeCapture() {
 	r.captureStopped = true
 }
 
+// Close releases capture resources (the journal file handle). It is safe to
+// call when capture is disabled and is intended for callers that own the
+// recorder directly (e.g. tests and embedders); Proxy.Stop calls it
+// internally.
+func (r *BundleRecorder) Close() error {
+	if r == nil {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.capture != nil && r.capture.journal != nil {
+		return r.capture.journal.Close()
+	}
+	return nil
+}
+
 // CaptureHealth reports the last capture durability error, if any. It is nil
 // when capture is disabled or healthy.
 func (r *BundleRecorder) CaptureHealth() error {
