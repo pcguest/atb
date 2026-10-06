@@ -204,14 +204,17 @@ Returns a JSON object grouping sessions by `actor.display_name`:
 {
   "actors": {
     "Paddy Guest": [ { "...SessionEntry..." } ],
-    "api-key:1234": [ { "...SessionEntry..." } ]
+    "unresolved": [ { "...SessionEntry..." } ]
   }
 }
 ```
 
 Within each actor group, sessions are sorted by `started_at` descending (most
 recent first). Actor keys use `actor.display_name`; when absent, the fallback
-display name `api-key:<last-4>` applies.
+display name `unresolved` applies. The fallback is a constant sentinel that
+contains no part of the credential, so every unmapped key groups under the same
+`unresolved` key. Historic bundles that recorded the legacy `api-key:<last-4>`
+label continue to group under their recorded key.
 
 Returns `403` under the same integrity gate as `GET /api/v1/sessions`.
 
@@ -242,7 +245,7 @@ Anomaly flags are computed per session entry:
 | Flag | Rule |
 | --- | --- |
 | `tool_without_approval` | An `atb.tool.call` event exists in the session with no preceding `atb.human.approval` event (the canonical approval event type declared in the [event contract](./events.md)) in the same `session_id` (by event sequence order within the bundle). |
-| `unresolved_identity` | `actor.display_name` starts with the prefix `api-key:` |
+| `unresolved_identity` | `actor.display_name` is the constant sentinel `unresolved`, or (for historic bundles) starts with the legacy prefix `api-key:` |
 | `session_not_closed` | The session has no `atb.session.close` event |
 
 Multiple flags may apply to one session. The UI renders each flag independently.

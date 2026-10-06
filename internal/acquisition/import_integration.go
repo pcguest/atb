@@ -59,6 +59,13 @@ type ImportOptions struct {
 	// SourceIdentity overrides the source identity for the import.
 	SourceIdentity event.SourceIdentity
 
+	// SourceIncarnation is an optional opaque token for the specific incarnation
+	// (process/instance/deployment) of the logical source. When set, it is
+	// recorded on the checkpoint and continuation fails closed if a later
+	// import presents a different incarnation. Empty for sources that cannot
+	// supply one (the default for file-based imports).
+	SourceIncarnation string
+
 	// Stdin is an optional reader for stdin input (used when InputPath is "-").
 	// If nil, os.Stdin is used.
 	Stdin io.Reader
@@ -74,6 +81,7 @@ type ImportResult struct {
 	UnchangedCount     int
 	UnknownCount       int
 	BundlePath         string
+	CheckpointPath     string
 	SnapshotAppended   bool
 	SnapshotName       string
 	UnknownTurnIndices []int
@@ -133,6 +141,7 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 		"1.0.0",
 		sourceIdentity,
 	)
+	cm.SourceIncarnation = opts.SourceIncarnation
 
 	if err := cm.LoadOrInitialize(); err != nil {
 		return nil, fmt.Errorf("checkpoint: %w", err)
@@ -264,14 +273,19 @@ func ImportChatlog(ctx context.Context, opts ImportOptions) (*ImportResult, erro
 	}
 
 	return &ImportResult{
+		// SkippedRecords counts every source record that produced no evidence in
+		// this pass: records the mapper deliberately dropped (e.g. system turns)
+		// plus records reconciliation found already committed. Reporting only the
+		// reconciliation count would let mapper-drop silently under-report.
 		EventsWritten:      written,
-		SkippedRecords:     counts.unchanged + len(unknownTurnIndices),
+		SkippedRecords:     mapped.SkippedRecords + counts.unchanged,
 		ReconciledCount:    counts.written,
 		NewCount:           counts.newCount,
 		ChangedCount:       counts.changed,
 		UnchangedCount:     counts.unchanged,
 		UnknownCount:       counts.unknown,
 		BundlePath:         opts.BundlePath,
+		CheckpointPath:     checkpointPath,
 		SnapshotAppended:   false,
 		SnapshotName:       "",
 		UnknownTurnIndices: unknownTurnIndices,
@@ -316,6 +330,7 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 		"1.0.0",
 		sourceIdentity,
 	)
+	cm.SourceIncarnation = opts.SourceIncarnation
 
 	if err := cm.LoadOrInitialize(); err != nil {
 		return nil, fmt.Errorf("checkpoint: %w", err)
@@ -443,14 +458,17 @@ func ImportOTel(ctx context.Context, opts ImportOptions) (*ImportResult, error) 
 	}
 
 	return &ImportResult{
+		// SkippedRecords includes spans the translator deliberately dropped
+		// (ErrUnsupported) plus records reconciliation found already committed.
 		EventsWritten:      written,
-		SkippedRecords:     counts.unchanged,
+		SkippedRecords:     result.SkippedCount + counts.unchanged,
 		ReconciledCount:    counts.written,
 		NewCount:           counts.newCount,
 		ChangedCount:       counts.changed,
 		UnchangedCount:     counts.unchanged,
 		UnknownCount:       counts.unknown,
 		BundlePath:         opts.BundlePath,
+		CheckpointPath:     checkpointPath,
 		SnapshotAppended:   false,
 		SnapshotName:       "",
 		UnknownTurnIndices: nil,
@@ -615,6 +633,11 @@ func planReconciliation(events []importEvent, reconciler *Reconciler, reconcile 
 			}
 		}
 
+		// Every event derived from one source record shares that record's single
+		// decision: a chatlog exchange legitimately emits several events (request,
+		// model, tool, output, response) under one identity and digest, and all of
+		// them must be appended (or skipped) together. Deduplication is therefore
+		// per complete source record, never per individual event.
 		action := reconcileAction{event: ev, skip: d.skip}
 		if d.finding != nil {
 			action.finding = d.finding

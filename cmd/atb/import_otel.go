@@ -133,6 +133,12 @@ func runImportOTel(ctx context.Context, args []string, stdin io.Reader, stdout, 
 			}
 			return fail(exitSystemError, fmt.Sprintf("save: %v", err))
 		}
+		// The snapshot append changes the bundle head after the acquisition
+		// checkpoint was bound. Re-bind it so the next --continue validates
+		// against the actual committed evidence rather than failing closed.
+		if err := rebindCheckpointAfterSnapshot(result.CheckpointPath, b); err != nil {
+			return fail(exitSystemError, fmt.Sprintf("rebind checkpoint after snapshot: %v", err))
+		}
 		result.SnapshotAppended = true
 		result.SnapshotName = cfg.SnapshotName
 	}

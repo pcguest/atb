@@ -4,6 +4,7 @@ package acquisition
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,6 +33,10 @@ type CheckpointManager struct {
 	// AdapterVersion is the adapter version.
 	AdapterVersion string
 
+	// SourceIncarnation is the opaque token for the specific incarnation of the
+	// logical source. Empty when the source cannot supply one.
+	SourceIncarnation string
+
 	// SourceIdentity is the source identity for this acquisition.
 	SourceIdentity event.SourceIdentity
 }
@@ -50,7 +55,7 @@ func NewCheckpointManager(checkpointPath, sourceSystem, acquisitionStream, adapt
 
 // LoadOrInitialize loads an existing checkpoint or creates a new one.
 func (cm *CheckpointManager) LoadOrInitialize() error {
-	cp, err := LoadOrCreate(cm.CheckpointPath, cm.SourceSystem, cm.AcquisitionStream, cm.Adapter, cm.SourceIdentity)
+	cp, err := LoadOrCreate(cm.CheckpointPath, cm.SourceSystem, cm.AcquisitionStream, cm.Adapter, cm.AdapterVersion, cm.SourceIncarnation, cm.SourceIdentity)
 	if err != nil {
 		return fmt.Errorf("checkpoint: load or create: %w", err)
 	}
@@ -58,12 +63,29 @@ func (cm *CheckpointManager) LoadOrInitialize() error {
 	return nil
 }
 
-// ValidateSource validates that the checkpoint matches the expected source.
+// ValidateSource validates that the checkpoint matches the expected source,
+// adapter version, and source incarnation.
 func (cm *CheckpointManager) ValidateSource() error {
 	if cm.Checkpoint == nil {
 		return fmt.Errorf("checkpoint not loaded")
 	}
-	return cm.Checkpoint.Validate(cm.SourceSystem, cm.AcquisitionStream, cm.Adapter)
+	return cm.Checkpoint.Validate(cm.SourceSystem, cm.AcquisitionStream, cm.Adapter, cm.AdapterVersion, cm.SourceIncarnation)
+}
+
+// RebindBundleCheckpoint re-binds an existing checkpoint to a newly-committed
+// bundle head after an out-of-band append (for example a snapshot record).
+// It is a no-op when no checkpoint exists at the path, so it is safe to call
+// from callers that may not have used continuation.
+func RebindBundleCheckpoint(checkpointPath, headHash string, recordCount int) error {
+	cp, err := Load(checkpointPath)
+	if err != nil {
+		if errors.Is(err, ErrCheckpointNotFound) {
+			return nil
+		}
+		return err
+	}
+	cp.BindBundle(headHash, recordCount)
+	return cp.Save(checkpointPath)
 }
 
 // UpdateCheckpoint updates the checkpoint with the latest position and digest.

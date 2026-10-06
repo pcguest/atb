@@ -14,6 +14,7 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
 	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/internal/identity"
 	"github.com/pcguest/atb/internal/verify"
 )
 
@@ -293,7 +294,7 @@ func anomalyFlags(acc *sessionAccumulator) []string {
 	if acc.actionFailed {
 		flags = append(flags, "action_failed")
 	}
-	if strings.HasPrefix(acc.entry.Actor.DisplayName, "api-key:") {
+	if identity.IsUnresolvedDisplayName(acc.entry.Actor.DisplayName) {
 		flags = append(flags, "unresolved_identity")
 	}
 	if !acc.hasClose {

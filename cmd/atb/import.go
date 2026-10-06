@@ -24,6 +24,17 @@ var errImportHelp = errors.New("import help requested")
 
 const defaultMaxImportBytes = 256 * 1024 * 1024 // 256 MiB
 
+// rebindCheckpointAfterSnapshot re-binds an acquisition checkpoint to the
+// bundle head produced by an out-of-band snapshot append. Without this the
+// checkpoint would name a head that no longer exists, so the next --continue
+// would fail closed against evidence that is in fact current and valid.
+func rebindCheckpointAfterSnapshot(checkpointPath string, b *bundle.Bundle) error {
+	if checkpointPath == "" || b == nil || len(b.Records) == 0 {
+		return nil
+	}
+	return acquisition.RebindBundleCheckpoint(checkpointPath, b.Records[len(b.Records)-1].Hash, len(b.Records))
+}
+
 type importChatlogConfig struct {
 	From           string
 	InputPath      string
@@ -211,6 +222,12 @@ func runImportChatlogWithContext(ctx context.Context, args []string, stdin io.Re
 				return fail(exitLockContention, bundleLockedMessage(err))
 			}
 			return fail(exitSystemError, fmt.Sprintf("save: %v", err))
+		}
+		// The snapshot append changes the bundle head after the acquisition
+		// checkpoint was bound. Re-bind it so the next --continue validates
+		// against the actual committed evidence rather than failing closed.
+		if err := rebindCheckpointAfterSnapshot(result.CheckpointPath, b); err != nil {
+			return fail(exitSystemError, fmt.Sprintf("rebind checkpoint after snapshot: %v", err))
 		}
 		result.SnapshotAppended = true
 		result.SnapshotName = cfg.SnapshotName
