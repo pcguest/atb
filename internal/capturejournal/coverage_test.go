@@ -91,8 +91,12 @@ func TestReadReportsRepairMarker(t *testing.T) {
 	}
 	_ = j2.Close()
 
-	if _, repaired, err := Read(p); err != nil || !repaired {
+	entries, repaired, err := Read(p)
+	if err != nil || !repaired {
 		t.Fatalf("Read after repair = (repaired %v, err %v), want repaired", repaired, err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("Read after repair returned %d entries, want 1", len(entries))
 	}
 }
 

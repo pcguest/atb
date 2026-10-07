@@ -19,7 +19,7 @@ func TestParseCaptureRunArgsBranches(t *testing.T) {
 		{name: "duplicate bundle", args: []string{"--bundle", "a", "--bundle", "b"}, wantErr: true},
 		{name: "duplicate bundle eq", args: []string{"--bundle=a", "--bundle=b"}, wantErr: true},
 		{name: "missing snapshot value", args: []string{"--snapshot"}, wantErr: true},
-		{name: "invalid snapshot name", args: []string{"--snapshot", "bad name"}, wantErr: true},
+		{name: "invalid snapshot name", args: []string{"--snapshot", "bad/name", "--", "cmd"}, wantErr: true},
 		{name: "missing env prefix value", args: []string{"--env-prefix"}, wantErr: true},
 		{name: "invalid env prefix", args: []string{"--env-prefix=1BAD", "--", "x"}, wantErr: true},
 		{name: "missing profile value", args: []string{"--profile"}, wantErr: true},
