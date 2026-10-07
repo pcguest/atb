@@ -8,7 +8,9 @@ product conclusions.
 
 ## 1. Pilot evidence template (blank)
 
-Record exact commands and trimmed outputs. Exclude secrets.
+Record exact commands and trimmed outputs, but redact secret-bearing arguments
+(for example API keys passed via `--identity-map`) before recording. Exclude
+secrets.
 
 ### Environment
 
@@ -31,7 +33,7 @@ Record exact commands and trimmed outputs. Exclude secrets.
 | `capture status` (text + json) | |
 | Observation count | |
 | Checkpoint / committed position | |
-| Recovery / replay state | |
+| Recovery / replay state (offline status shows only the consistency verdict; explicit replay counts are not exposed offline — record any startup log/counter if available) | |
 | Known gaps (`known_gap` / `possible_unknown_gap`) | |
 | Degradation events | |
 | Final bundle path and identity | |
@@ -91,6 +93,11 @@ Record exact commands and trimmed outputs. Exclude secrets.
 
 ## 2. Semantic-understanding check
 
+First record the participant's unaided answers to tasks A–K; those are the valid
+result. Only afterwards probe the distinctions below. Do not read the false
+interpretations aloud before the unaided pass: doing so primes the participant
+and invalidates the result under the no-coaching rule.
+
 Record whether the participant correctly distinguished, with the evidence that
 shows it:
 
@@ -104,8 +111,9 @@ shows it:
 - governance;
 - execution.
 
-Explicitly probe these false interpretations. Any documentation or interface that
-materially encourages one is a product defect.
+The following are false interpretations to test for — never state them to the
+participant. Any documentation or interface that materially encourages one is a
+product defect.
 
     integrity = truth
     integrity failure = malicious tampering
@@ -200,8 +208,10 @@ incremental value, record that.
 
 ## 7. Mortise signal
 
-Observe where participants want ATB evidence to go. Use the pilot evidence to
-determine which hypothesis is supported:
+Observe where participants want ATB evidence to go. This is a qualitative
+participant signal, not a customer-level conclusion: a single design-partner
+session cannot establish H1/H2/H3. Record the signal, and require multiple
+independent customers before treating any hypothesis as supported.
 
 - **H1** — customers want a dedicated governance product.
 - **H2** — customers primarily want ATB evidence integrated into existing SIEM,

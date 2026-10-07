@@ -87,7 +87,7 @@ on.
 | E — Evidence | retrieve the exact supporting record | — |
 | F — Timeline | explain the recorded sequence without claiming causality | does the participant infer sequence = causality? |
 | G — Relationships | explain what relationships do and do not establish | does the participant infer relationship = causation? |
-| H — Recovery | determine whether capture restarted, replayed, or degraded | does the participant infer replay = no loss? |
+| H — Recovery | determine the observable recovery state (restarted/degraded) and whether replay can be established from the available output | does the participant infer replay = no loss? |
 | I — Export | produce an independently inspectable evidence package | — |
 | J — Verification | verify it independently of the running capture process | — |
 | K — Handoff | where Mortise is in scope, reach the same evidence from governance | does the participant infer decision = execution? |
@@ -191,4 +191,5 @@ this protocol.
 Stop and do not run a pilot if any hold: no genuine external participant; the
 participant is coached; the workload cannot be bounded; the security/privacy
 questionnaire (see the companion document) cannot be answered by the operator; or
-a P0 evidence-integrity/security defect is open.
+an open **pilot-blocking** evidence-integrity/security defect exists (a defect
+that would prevent safe or honest evaluation).
