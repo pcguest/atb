@@ -12,6 +12,8 @@ claims were true.
 - [Capture paths and boundaries](./capture/overview.md)
 - [Continuous capture with atb intercept (external pilot)](./capture/continuous-capture.md)
 - [Continuous-capture pilot kit (packaging/onboarding)](./pilot/continuous-capture-pilot-kit.md)
+- [External design-partner pilot protocol](./pilot/external-pilot-protocol.md)
+- [Pilot evidence collection, interview guide and security/privacy questionnaire](./pilot/pilot-evidence-and-interview.md)
 - [Automated acquisition (roadmap)](./concepts/acquisition-modes.md)
 
 ## Understand the evidence
