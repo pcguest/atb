@@ -3,7 +3,7 @@
 This is the packaging and onboarding guide for an **external technical pilot** of
 the `atb intercept` continuous-capture path. It is not a production product. The
 authoritative description of what capture does and does not prove is
-[Continuous capture with `atb intercept`](./continuous-capture.md); this document
+[Continuous capture with `atb intercept`](../capture/continuous-capture.md); this document
 says what a design partner receives and how to use it.
 
 ## What you receive
@@ -124,4 +124,4 @@ causation, intent, safety, or policy compliance. Absence of a record does not
 prove the event did not occur. A digest identifies a captured representation,
 not the provider-original object. A source incarnation is an operational token,
 not an authenticated origin. Recorded order is append order, not causal order.
-See [Continuous capture](./continuous-capture.md) for the full limitations.
+See [Continuous capture](../capture/continuous-capture.md) for the full limitations.

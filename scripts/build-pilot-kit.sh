@@ -14,6 +14,14 @@ goarch="${3:-$(go env GOARCH)}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
+# The kit records the commit it was built from, so the tree must be clean
+# unless the caller explicitly accepts an untraceable local build.
+if [ -n "$(git status --porcelain)" ] && [ "${ATB_PILOT_ALLOW_DIRTY:-0}" != "1" ]; then
+	echo "error: working tree is dirty; commit or stash so PILOT-COMMIT matches the artefacts" >&2
+	echo "       (set ATB_PILOT_ALLOW_DIRTY=1 to build a local, untraceable kit)" >&2
+	exit 1
+fi
+
 mkdir -p "$out"
 out="$(cd "$out" && pwd)"
 
