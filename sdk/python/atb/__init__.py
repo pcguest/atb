@@ -129,7 +129,7 @@ except ModuleNotFoundError as exc:
         ) from _encrypt_import_error
 
 
-__version__ = "1.17.0"
+__version__ = "1.18.0"
 __all__ = [
     "Bundle",
     "BundleResourceLimitError",
