@@ -65,7 +65,7 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 
 	b, err := bundle.LoadVerified(clean)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
 			st.Detail = "bundle not found"
 			return st, nil
 		}
