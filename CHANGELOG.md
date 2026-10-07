@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.18.0] - 2026-10-07
+
 ### Added
 - First continuous-capture vertical slice on `atb intercept`. Intercept now runs an explicit commit protocol: each observed event is durably journalled (`internal/capturejournal`, append-only NDJSON under `<bundle-dir>/.atb/capture/`, fsync per entry, hash-chained), then materialised as live ATB evidence (`AcquisitionInfo.Mode = "live"`) on a manifest-v3 bundle, then the acquisition checkpoint is bound to the committed bundle head, and only then is the journal position committed. A crash between the durable journal append and the evidence commit cannot silently lose the observation: startup recovery replays durable-but-uncommitted entries idempotently (keyed by observation identity and representation digest). `atb intercept --source-incarnation <token>` establishes the source incarnation; a token that differs from the checkpoint's incarnation, a changed adapter version, a corrupt/ahead/foreign checkpoint, or interior journal corruption all fail closed. `atb capture status [--bundle <path>]` reports offline continuity state (journal backlog, last observation, last durable commit, known/possible-unknown gaps) while explicitly separating process health from capture continuity, and `atb capture handoff [--bundle <path>] [--seq <n>]` emits a portable, Mortise-independent incident handoff carrying the exact evidence identity and the capture limitations. The journal and checkpoint are operational state, not evidence. Existing bundle formats are unchanged; intercept now emits manifest-v3 bundles whose acquisition envelope is hashed as before, so no encoding or existing-bundle bytes change.
 
