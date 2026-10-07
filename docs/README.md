@@ -11,6 +11,7 @@ claims were true.
 - [Configuration](./getting-started/configuration.md)
 - [Capture paths and boundaries](./capture/overview.md)
 - [Continuous capture with atb intercept (external pilot)](./capture/continuous-capture.md)
+- [Continuous-capture pilot kit (packaging/onboarding)](./pilot/continuous-capture-pilot-kit.md)
 - [Automated acquisition (roadmap)](./concepts/acquisition-modes.md)
 
 ## Understand the evidence
