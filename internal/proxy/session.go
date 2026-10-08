@@ -84,7 +84,14 @@ func (s *Session) setLastRequestEventHash(hash string) {
 	s.lastRequestEventHash = hash
 }
 
-func (s *Session) lastRequestEventHashLocked() string {
+// getLastRequestEventHash returns the bundle record hash of the latest request
+// event. It is thread-safe; callers must not hold sess.mu.
+func (s *Session) getLastRequestEventHash() string {
+	if s == nil {
+		return ""
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.lastRequestEventHash
 }
 

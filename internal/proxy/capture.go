@@ -176,6 +176,13 @@ func (r *BundleRecorder) enableCapture(sourceIncarnation string) error {
 		c.knownGap = true
 		c.stateDetail = "journal torn tail repaired on open; observations may be incomplete"
 	}
+	if degraded, reason := capturejournal.Degraded(journalPath); degraded {
+		c.knownGap = true
+		c.stateDetail = "journal recorded a durable degradation; observations may be missing"
+		if reason != "" {
+			c.stateDetail += " (" + reason + ")"
+		}
+	}
 	if err := c.recover(); err != nil {
 		_ = journal.Close()
 		return err
@@ -305,6 +312,16 @@ func (c *captureCoordinator) recover() error {
 func (c *captureCoordinator) commit(ev *event.Event) (string, error) {
 	entry, err := c.journalObservation(ev)
 	if err != nil {
+		// The observation never became durable. Record a durable gap
+		// (best-effort: if the storage cannot accept the marker, the in-memory
+		// state still degrades) so the loss is disclosed offline, and keep it
+		// sticky in memory so a later successful commit cannot report healthy
+		// over a dropped observation. This also covers failures before the
+		// journal append (representation marshal/digest errors).
+		c.knownGap = true
+		if c.journal != nil {
+			_ = c.journal.MarkDegraded(err.Error())
+		}
 		c.fail(err)
 		return "", err
 	}

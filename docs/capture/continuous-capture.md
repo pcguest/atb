@@ -17,9 +17,15 @@ happens and recorded into a manifest-v3 ATB bundle. Each observation is:
    bundle head.
 
 If the collector stops between steps 1 and 3, startup recovery replays the
-durable-but-uncommitted observations idempotently, so an observation is never
-silently lost. A healthy process is not evidence of complete capture; the
-capture state is reported separately (see *Inspect capture health*).
+durable-but-uncommitted observations idempotently, so a **durable** observation is
+never silently lost. A journal write that itself fails is different: the
+observation never became durable, and the collector records a best-effort
+degradation marker beside the journal so `capture status` reports `degraded` with
+`known_gap = true` rather than `healthy`. The marker shares the journal's storage,
+so if that storage cannot accept any write (for example total exhaustion),
+offline disclosure cannot be guaranteed; the live process still degrades. A
+healthy process is not evidence of complete capture; the capture state is
+reported separately (see *Inspect capture health*).
 
 ## Supported workload shape
 
