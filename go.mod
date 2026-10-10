@@ -1,6 +1,6 @@
 module github.com/pcguest/atb
 
-go 1.26.7
+go 1.26.9
 
 require (
 	cloud.google.com/go/kms v1.31.0

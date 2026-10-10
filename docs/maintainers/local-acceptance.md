@@ -4,7 +4,7 @@ Use this runbook to test an exact candidate as a new user would. Run it from a
 fresh clone, not a development checkout. Replace `<SHA>` with the candidate
 commit. Nothing in this procedure publishes ATB.
 
-Minimum supported tools are Go 1.26.7, Python 3.9, Node.js 22, and npm with the
+Minimum supported tools are Go 1.26.9, Python 3.9, Node.js 22, and npm with the
 committed lockfiles. Release tooling uses Python 3.11. The live viewer
 acceptance uses Firefox.
 

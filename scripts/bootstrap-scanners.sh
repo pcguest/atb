@@ -6,7 +6,7 @@ readonly TRIVY_VERSION="0.73.0"
 readonly GOSEC_VERSION="2.27.1"
 readonly STATICCHECK_VERSION="v0.7.0"
 readonly GOVULNCHECK_VERSION="v1.5.0"
-readonly GO_VERSION="go1.26.7"
+readonly GO_VERSION="go1.26.9"
 readonly DEST_DIR="${1:-.tmp/bin}"
 
 case "$(uname -s)" in
