@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v1.18.1] - 2026-10-10
+
 ### Fixed
 - Continuous capture (`atb intercept`) now journals every derived observation for an exchange even when an earlier evidence commit fails. Previously a bundle-save failure (permission or disk) during a multi-event exchange returned on the first append error, so `atb.exchange.complete`, `atb.tool.call` and `ai.action.error` were never journalled; after restart the recovered state reported `healthy` with the tool evidence silently dropped. The observations are now durable, recoverable backlog and replay exactly once.
 - A journal write/fsync failure that leaves no torn tail (a zero-byte write or a lost fsync) now records a best-effort durable degradation marker beside the journal, so `atb capture status` and `atb capture handoff` normally report `degraded` with `known_gap = true` instead of `healthy` over a dropped observation. The marker shares the journal's storage, so if that storage cannot accept any write (for example total exhaustion), offline disclosure cannot be guaranteed and the live process still degrades. A rejected oversized entry is recorded the same way while the journal remains usable. A stale session request hash is cleared when a request commit fails, so `atb.exchange.complete` cannot reference a stale or non-existent request record. No canonical evidence or existing-bundle bytes change.
+
+### Security
+- Bumped `golang.org/x/net` from v0.58.0 to v0.60.0 (CVE-2026-78669, HIGH: HTTP/2 denial of service) and the coupled `golang.org/x/crypto`, `x/sync`, `x/sys` and `x/text` transitive dependencies in the root and tools modules; regenerated `THIRD_PARTY_NOTICES`.
+- Bumped the pinned Go toolchain from 1.26.7 to 1.26.9 to remediate net/http denial-of-service CVEs in the Go 1.26.7 standard library (CVE-2026-78667, CVE-2026-78669) across the CLI, released binaries and the Docker builder image.
 
 ## [v1.18.0] - 2026-10-07
 
