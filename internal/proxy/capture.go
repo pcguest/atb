@@ -312,16 +312,12 @@ func (c *captureCoordinator) recover() error {
 func (c *captureCoordinator) commit(ev *event.Event) (string, error) {
 	entry, err := c.journalObservation(ev)
 	if err != nil {
-		// The observation never became durable. Record a durable gap
-		// (best-effort: if the storage cannot accept the marker, the in-memory
-		// state still degrades) so the loss is disclosed offline, and keep it
-		// sticky in memory so a later successful commit cannot report healthy
-		// over a dropped observation. This also covers failures before the
-		// journal append (representation marshal/digest errors).
+		// The observation never became durable. Keep the gap sticky in memory so
+		// a later successful commit cannot report healthy over it. The durable
+		// marker is written by the journal (write/fsync/oversize) or by
+		// journalObservation (pre-append representation errors), each with its
+		// specific reason, so it is not re-written here.
 		c.knownGap = true
-		if c.journal != nil {
-			_ = c.journal.MarkDegraded(err.Error())
-		}
 		c.fail(err)
 		return "", err
 	}
@@ -491,14 +487,26 @@ func (c *captureCoordinator) fail(err error) {
 	c.state = captureDegraded
 }
 
+// markDegraded records a durable gap for a failure the journal itself could not
+// record (pre-append representation errors). Journal write/fsync/oversize
+// failures are recorded by the journal with their specific reason.
+func (c *captureCoordinator) markDegraded(err error) {
+	if c == nil || c.journal == nil {
+		return
+	}
+	_ = c.journal.MarkDegraded(err.Error())
+}
+
 // journalObservation durably journals one event and returns its entry.
 func (c *captureCoordinator) journalObservation(ev *event.Event) (capturejournal.Entry, error) {
 	payload, err := marshalObservation(ev)
 	if err != nil {
+		c.markDegraded(err)
 		return capturejournal.Entry{}, err
 	}
 	digest, err := digestRepresentation(payload)
 	if err != nil {
+		c.markDegraded(err)
 		return capturejournal.Entry{}, err
 	}
 	pos := c.journal.LastPosition() + 1
