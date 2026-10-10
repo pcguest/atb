@@ -836,7 +836,7 @@ func TestBundleRecorderAndSessionLifecycle(t *testing.T) {
 	resolved.noteExchangeStarted(started)
 	resolved.setLastRequestEventHash("request-hash")
 	manager.NoteExchange(resolved, "model-2", 3, 4)
-	record := ExchangeCompleteRecord(resolved, "0001", resolved.lastRequestEventHashLocked(), "model-2", 3, 4, 1, time.Now().UTC())
+	record := ExchangeCompleteRecord(resolved, "0001", resolved.getLastRequestEventHash(), "model-2", 3, 4, 1, time.Now().UTC())
 	if record["actor_id"] != "actor-2" || record["request_event_id"] != "request-hash" {
 		t.Fatalf("exchange record = %+v", record)
 	}

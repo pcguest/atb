@@ -128,8 +128,11 @@ func Open(path, streamID string) (*Journal, error) {
 	created := os.IsNotExist(statErr)
 	if created {
 		// A brand-new journal at this path is not the journal a stale repair
-		// marker describes; drop the marker so a fresh journal is not reported
-		// degraded by a previous instance's repair.
+		// marker describes; drop the repair marker so a fresh journal is not
+		// reported as torn. A degradation marker is deliberately NOT dropped: it
+		// can only have been written after a journal existed, so a marker beside
+		// a missing journal means the journal was lost, which must stay
+		// disclosed rather than be reported healthy on a fresh start.
 		_ = os.Remove(repairMarkerPath(clean))
 	}
 
@@ -232,6 +235,68 @@ func writeRepairMarker(path string, discarded int64) error {
 	return syncDir(filepath.Dir(marker))
 }
 
+// degradedMarkerPath is the sidecar file recording that the journal could not
+// durably record one or more observations (a write/fsync failure, or a rejected
+// oversized entry). Unlike a torn-tail repair, this records observations that
+// were observed but never became durable.
+func degradedMarkerPath(path string) string { return path + ".degraded" }
+
+// writeDegradedMarker durably records that the journal lost one or more
+// observations, so an offline reader can disclose the gap even when the failed
+// write left the journal file byte-identical to the last commit.
+func writeDegradedMarker(path, reason string) error {
+	rec := fmt.Sprintf("{\"degraded_at\":%q,\"reason\":%q}\n",
+		time.Now().UTC().Format(time.RFC3339Nano), reason)
+	marker := degradedMarkerPath(path)
+	f, err := os.OpenFile(marker, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600) // #nosec G304 -- operator-selected local journal path
+	if err != nil {
+		return err
+	}
+	if _, err := f.WriteString(rec); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(marker))
+}
+
+// MarkDegraded durably records that the journal lost an observation. It is
+// best-effort: if the marker cannot itself be written, offline disclosure
+// cannot be guaranteed (the in-memory journal still refuses further appends
+// after a write/fsync failure).
+func (j *Journal) MarkDegraded(reason string) error {
+	if j == nil {
+		return nil
+	}
+	return writeDegradedMarker(j.path, reason)
+}
+
+// Degraded reports whether a durable degradation marker is present beside the
+// journal at path, and its recorded reason. It reads only; it never creates.
+func Degraded(path string) (bool, string) {
+	marker := degradedMarkerPath(filepath.Clean(path))
+	data, err := os.ReadFile(marker) // #nosec G304 -- operator-selected local journal path
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, ""
+		}
+		// An existing-but-unreadable marker must not be reported as absent;
+		// report it degraded rather than fail open.
+		return true, "degradation marker unreadable: " + err.Error()
+	}
+	var rec struct {
+		Reason string `json:"reason"`
+	}
+	_ = json.Unmarshal(data, &rec)
+	return true, rec.Reason
+}
+
 // discardedTailBytes returns the number of bytes in the torn trailing fragment.
 func discardedTailBytes(path string) int64 {
 	data, err := os.ReadFile(path) // #nosec G304 -- operator-selected local journal path
@@ -319,15 +384,23 @@ func (j *Journal) Append(e Entry) (Entry, error) {
 	line = append(line, '\n')
 	if len(line) > maxLineBytes {
 		// Reject before writing: a persisted oversized line would poison every
-		// subsequent read (the scanner would fail on it).
+		// subsequent read (the scanner would fail on it). The journal stays
+		// usable, but the dropped observation is recorded durably so it cannot
+		// be silently lost over a later healthy status.
+		_ = writeDegradedMarker(j.path, fmt.Sprintf("rejected oversized entry (%d bytes, limit %d)", len(line), maxLineBytes))
 		return Entry{}, fmt.Errorf("%w: entry is %d bytes, limit %d", ErrJournalEntryTooLarge, len(line), maxLineBytes)
 	}
 	if _, err := j.f.Write(line); err != nil {
 		j.failed = true
+		// Record the loss durably before returning. A zero-byte write leaves the
+		// journal byte-identical to the last commit, so without this marker a
+		// restart would report healthy over the dropped observation.
+		_ = writeDegradedMarker(j.path, fmt.Sprintf("journal write failed: %v", err))
 		return Entry{}, fmt.Errorf("capturejournal: write: %w", err)
 	}
 	if err := j.f.Sync(); err != nil {
 		j.failed = true
+		_ = writeDegradedMarker(j.path, fmt.Sprintf("journal fsync failed: %v", err))
 		return Entry{}, fmt.Errorf("capturejournal: fsync: %w", err)
 	}
 	j.entries = append(j.entries, e)

@@ -63,10 +63,27 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		ObservationCurrency: "none",
 	}
 
+	// Read the durable degradation marker before the bundle, so a lost journal
+	// is still disclosed even when the bundle file itself is missing, and set
+	// known_gap up front so no later branch can report a healthy capture over a
+	// confirmed loss.
+	degraded, degradedReason := capturejournal.Degraded(journalPath)
+	if degraded {
+		st.KnownGap = true
+	}
+
 	b, err := bundle.LoadVerified(clean)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			st.Detail = "bundle not found"
+			if degraded {
+				st.CaptureState = string(captureDegraded)
+				st.Detail = "bundle not found; journal recorded a durable degradation"
+				if degradedReason != "" {
+					st.Detail += ": " + degradedReason
+				}
+			} else {
+				st.Detail = "bundle not found"
+			}
 			return st, nil
 		}
 		st.Integrity = "failed"
@@ -172,6 +189,13 @@ func ReadCaptureStatus(bundlePath string) (*CaptureStatus, error) {
 		st.CaptureState = string(captureDegraded)
 		st.KnownGap = true
 		st.Detail = "journal corrupted; continuity cannot be established"
+	case degraded:
+		st.CaptureState = string(captureDegraded)
+		st.KnownGap = true
+		st.Detail = "journal recorded a durable degradation; observations may be missing"
+		if degradedReason != "" {
+			st.Detail += ": " + degradedReason
+		}
 	case repaired:
 		st.CaptureState = string(captureDegraded)
 		st.KnownGap = true

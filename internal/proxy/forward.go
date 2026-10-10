@@ -292,13 +292,25 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 	}
 	sess.noteExchangeStarted(rec.RecordedAt)
 
-	requestHash, err := f.proxy.recorder.AppendEventHash(ev)
-	if err != nil {
-		return err
+	requestHash, appendErr := f.proxy.recorder.AppendEventHash(ev)
+	if appendErr == nil {
+		sess.setLastRequestEventHash(requestHash)
+	} else {
+		// The request observation was not committed. Clear any previous
+		// exchange's request hash so a later atb.exchange.complete cannot point
+		// at a stale or non-existent request record. The derived observations
+		// are still journalled below so they are not silently lost.
+		sess.setLastRequestEventHash("")
 	}
-	sess.setLastRequestEventHash(requestHash)
+	// Journal the request-derived accountability detail even when the evidence
+	// commit failed. The commit protocol journals before it commits, so a
+	// bundle-save failure leaves the observation durable and recoverable;
+	// aborting here would leave the derived tool-result observation
+	// unjournalled. A journal-write failure is recorded durably as a gap by the
+	// journal, not silently dropped. The append error is still returned so the
+	// failure surfaces.
 	f.recordToolResultErrors(sess.ID, rec.RecordedAt, body)
-	return nil
+	return appendErr
 }
 
 func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.Response, body []byte) error {
@@ -345,8 +357,16 @@ func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.R
 	if err != nil {
 		return err
 	}
+	// Journal every observation for this exchange even if an earlier evidence
+	// commit failed. The commit protocol journals before it commits, so a
+	// bundle-save failure leaves the observation durable and recoverable;
+	// aborting here would leave the derived exchange/tool observations
+	// unjournalled. A journal-write failure is recorded durably as a gap by the
+	// journal, not silently dropped. The first error is still returned so the
+	// failure surfaces.
+	var firstErr error
 	if err := f.proxy.recorder.AppendEvent(responseEvent); err != nil {
-		return err
+		firstErr = err
 	}
 
 	completedAt := rec.RecordedAt
@@ -361,7 +381,7 @@ func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.R
 		Data: ExchangeCompleteRecord(
 			sess,
 			exchangeID,
-			sess.lastRequestEventHashLocked(),
+			sess.getLastRequestEventHash(),
 			model,
 			prompt,
 			output,
@@ -369,11 +389,11 @@ func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.R
 			completedAt,
 		),
 	}
-	if err := f.proxy.recorder.AppendEvent(exchangeEvent); err != nil {
-		return err
+	if err := f.proxy.recorder.AppendEvent(exchangeEvent); err != nil && firstErr == nil {
+		firstErr = err
 	}
 	f.recordToolCalls(sess, body, actorID, completedAt)
-	return nil
+	return firstErr
 }
 
 // recordToolCalls appends an atb.tool.call accountability event for each

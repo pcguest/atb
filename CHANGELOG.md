@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Fixed
+- Continuous capture (`atb intercept`) now journals every derived observation for an exchange even when an earlier evidence commit fails. Previously a bundle-save failure (permission or disk) during a multi-event exchange returned on the first append error, so `atb.exchange.complete`, `atb.tool.call` and `ai.action.error` were never journalled; after restart the recovered state reported `healthy` with the tool evidence silently dropped. The observations are now durable, recoverable backlog and replay exactly once.
+- A journal write/fsync failure that leaves no torn tail (a zero-byte write or a lost fsync) now records a best-effort durable degradation marker beside the journal, so `atb capture status` and `atb capture handoff` normally report `degraded` with `known_gap = true` instead of `healthy` over a dropped observation. The marker shares the journal's storage, so if that storage cannot accept any write (for example total exhaustion), offline disclosure cannot be guaranteed and the live process still degrades. A rejected oversized entry is recorded the same way while the journal remains usable. A stale session request hash is cleared when a request commit fails, so `atb.exchange.complete` cannot reference a stale or non-existent request record. No canonical evidence or existing-bundle bytes change.
 
 ## [v1.18.0] - 2026-10-07
 

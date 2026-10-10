@@ -1,6 +1,6 @@
 # ATB — independently verifiable evidence for AI agents
 
-[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.7-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.9-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
 > **Note**: Registry publication may occasionally lag behind the source tree. For the latest features, use `go install` for the CLI or build from source. Check the installed version against the documentation before relying on release-specific behavior.
 
