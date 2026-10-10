@@ -25,16 +25,20 @@ func TestAppendWriteFailurePersistsDegradedMarker(t *testing.T) {
 	}
 
 	// Swap the fd for a read-only handle so Write fails with zero bytes written
-	// (models ENOSPC-before-write / a lost fsync), leaving no torn tail.
+	// (models ENOSPC-before-write / a lost fsync), leaving no torn tail. Close
+	// the original append handle afterwards so the temp dir can be removed on
+	// Windows, where an open handle blocks deletion.
+	origF := j.f
 	ro, err := os.Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = ro.Close() }()
 	j.f = ro
 	if _, err := j.Append(Entry{ObservationID: "b", ObservationType: "x", Payload: []byte(`{}`)}); err == nil {
 		t.Fatal("expected append to fail after the fd became read-only")
 	}
+	_ = ro.Close()
+	_ = origF.Close()
 	j.f = nil
 
 	degraded, reason := Degraded(path)
