@@ -193,8 +193,7 @@ func (s *Session) markClosed() bool {
 	return true
 }
 
-// isClosed reports whether the session has been closed. A closed session must
-// not receive further accounting: its close record has already been emitted.
+// isClosed reports whether the session has been closed.
 func (s *Session) isClosed() bool {
 	if s == nil {
 		return true

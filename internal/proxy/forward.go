@@ -112,10 +112,6 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 		}
 		corr, reqErr := f.captureRequest(r.Host, req, body)
 		if reqErr != nil && f.proxy.logger != nil {
-			// codeql[go/clear-text-logging] -- reqErr can only be a constant
-			// internal capture/bundle error (RequestRecord.ToEvent and
-			// appendEventLocked); it never contains request, body or credential
-			// data. Verified false positive.
 			f.proxy.logger.Warn("proxy capture request failed", "error", reqErr)
 		}
 
@@ -186,10 +182,6 @@ func (f *forwarder) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	corr, reqErr := f.captureRequest(host, r, body)
 	if reqErr != nil && f.proxy.logger != nil {
-		// codeql[go/clear-text-logging] -- reqErr can only be a constant
-		// internal capture/bundle error (RequestRecord.ToEvent and
-		// appendEventLocked); it never contains request, body or credential
-		// data. Verified false positive.
 		f.proxy.logger.Warn("proxy capture request failed", "error", reqErr)
 	}
 

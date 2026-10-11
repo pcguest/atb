@@ -104,4 +104,28 @@ func TestResponseAfterSessionCloseUsesFreshSession(t *testing.T) {
 		t.Fatalf("closed session received late accounting: count=%d tokens=%d",
 			corr.sess.ExchangeCount, corr.sess.TotalTokens)
 	}
+	// The response must still be recorded, on a fresh session rather than the
+	// closed one: dropping the response entirely would also leave the closed
+	// session unchanged.
+	b, err := bundle.LoadVerified(bundlePath)
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	recorded := false
+	for _, rec := range b.Records {
+		if rec.Event.Type != TypeExchangeComplete {
+			continue
+		}
+		data, _ := rec.Event.Data.(map[string]any)
+		sid, _ := data["session_id"].(string)
+		if sid == corr.sess.ID {
+			t.Fatalf("exchange recorded against the closed session %q", sid)
+		}
+		if sid != "" {
+			recorded = true
+		}
+	}
+	if !recorded {
+		t.Fatalf("no exchange recorded against a fresh session after the original closed")
+	}
 }
