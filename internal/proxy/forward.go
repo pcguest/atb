@@ -110,8 +110,9 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 			releaseBudget()
 			break
 		}
-		if err := f.captureRequest(r.Host, req, body); err != nil && f.proxy.logger != nil {
-			f.proxy.logger.Warn("proxy capture request failed", "error", err)
+		corr, reqErr := f.captureRequest(r.Host, req, body)
+		if reqErr != nil && f.proxy.logger != nil {
+			f.proxy.logger.Warn("proxy capture request failed", "error", reqErr)
 		}
 
 		if err := req.Write(upstreamConn); err != nil {
@@ -135,7 +136,7 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
-		if err := f.captureResponse(r.Host, req, resp, respBody); err != nil && f.proxy.logger != nil {
+		if err := f.captureResponse(r.Host, req, resp, respBody, corr); err != nil && f.proxy.logger != nil {
 			f.proxy.logger.Warn("proxy capture response failed", "error", err)
 		}
 		if err := resp.Write(tlsConn); err != nil {
@@ -179,8 +180,9 @@ func (f *forwarder) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, message, status)
 		return
 	}
-	if err := f.captureRequest(host, r, body); err != nil && f.proxy.logger != nil {
-		f.proxy.logger.Warn("proxy capture request failed", "error", err)
+	corr, reqErr := f.captureRequest(host, r, body)
+	if reqErr != nil && f.proxy.logger != nil {
+		f.proxy.logger.Warn("proxy capture request failed", "error", reqErr)
 	}
 
 	targetURL := urlForHost(host)
@@ -197,7 +199,7 @@ func (f *forwarder) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = resp.Body.Close()
 		resp.Body = io.NopCloser(bytes.NewReader(respBody))
-		return f.captureResponse(host, r, resp, respBody)
+		return f.captureResponse(host, r, resp, respBody, corr)
 	}
 	proxy.ErrorHandler = func(rw http.ResponseWriter, _ *http.Request, err error) {
 		if !rejectionRecorded {
@@ -258,7 +260,16 @@ func writeTunnelError(conn io.Writer, req *http.Request, status int, message str
 	return resp.Write(conn)
 }
 
-func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) error {
+// exchangeCorrelation carries the identity of a specific request observation to
+// its matching response. It is threaded per request/connection rather than kept
+// on the Session, so overlapping requests that share a session cannot overwrite
+// one another's request record reference.
+type exchangeCorrelation struct {
+	requestEventID string
+	startedAt      time.Time
+}
+
+func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) (exchangeCorrelation, error) {
 	threadKey := ExtractThreadKey(host, req, body)
 	sess := f.proxy.sessions.Resolve(threadKey)
 	apiKey := ExtractAPIKey(req.Header)
@@ -284,24 +295,18 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 		sess.UpdateActorID(actorID)
 	}
 	if err := f.proxy.HandleRequest(context.Background(), rec); err != nil {
-		return err
+		return exchangeCorrelation{}, err
 	}
 	ev, err := rec.ToEvent()
 	if err != nil {
-		return err
+		return exchangeCorrelation{}, err
 	}
-	sess.noteExchangeStarted(rec.RecordedAt)
-
+	// Correlate this request with its own response. A session-global "last
+	// request" field would be overwritten by an overlapping request in the same
+	// session and misattribute this exchange's request record. AppendEventHash
+	// returns "" when the observation was not committed, so a later
+	// atb.exchange.complete cannot point at a stale or non-existent record.
 	requestHash, appendErr := f.proxy.recorder.AppendEventHash(ev)
-	if appendErr == nil {
-		sess.setLastRequestEventHash(requestHash)
-	} else {
-		// The request observation was not committed. Clear any previous
-		// exchange's request hash so a later atb.exchange.complete cannot point
-		// at a stale or non-existent request record. The derived observations
-		// are still journalled below so they are not silently lost.
-		sess.setLastRequestEventHash("")
-	}
 	// Journal the request-derived accountability detail even when the evidence
 	// commit failed. The commit protocol journals before it commits, so a
 	// bundle-save failure leaves the observation durable and recoverable;
@@ -310,10 +315,10 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 	// journal, not silently dropped. The append error is still returned so the
 	// failure surfaces.
 	f.recordToolResultErrors(sess.ID, rec.RecordedAt, body)
-	return appendErr
+	return exchangeCorrelation{requestEventID: requestHash, startedAt: rec.RecordedAt}, appendErr
 }
 
-func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.Response, body []byte) error {
+func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.Response, body []byte, corr exchangeCorrelation) error {
 	threadKey := ExtractThreadKey(host, req, nil)
 	sess := f.proxy.sessions.Resolve(threadKey)
 	prompt, output, total := ParseUsageFromResponse(body)
@@ -381,12 +386,13 @@ func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.R
 		Data: ExchangeCompleteRecord(
 			sess,
 			exchangeID,
-			sess.getLastRequestEventHash(),
+			corr.requestEventID,
 			model,
 			prompt,
 			output,
 			toolCalls,
 			completedAt,
+			corr.startedAt,
 		),
 	}
 	if err := f.proxy.recorder.AppendEvent(exchangeEvent); err != nil && firstErr == nil {
@@ -468,10 +474,11 @@ func RoundTripFixture(host string, req *http.Request, reqBody []byte, resp *http
 		return recorder.AppendSessionClose(sess)
 	})
 	f := &forwarder{proxy: p}
-	if err := f.captureRequest(host, req, reqBody); err != nil {
+	corr, err := f.captureRequest(host, req, reqBody)
+	if err != nil {
 		return nil, err
 	}
-	if err := f.captureResponse(host, req, resp, respBody); err != nil {
+	if err := f.captureResponse(host, req, resp, respBody, corr); err != nil {
 		return nil, err
 	}
 	return p, nil

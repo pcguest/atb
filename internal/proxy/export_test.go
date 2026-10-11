@@ -18,13 +18,13 @@ func NewProxyForTest(cfg ProxyConfig, rec *BundleRecorder) (*Proxy, error) {
 }
 
 // CaptureRequestForTest exposes request capture to black-box tests.
-func (p *Proxy) CaptureRequestForTest(host string, req *http.Request, body []byte) error {
+func (p *Proxy) CaptureRequestForTest(host string, req *http.Request, body []byte) (exchangeCorrelation, error) {
 	f := &forwarder{proxy: p}
 	return f.captureRequest(host, req, body)
 }
 
 // CaptureResponseForTest exposes response capture to black-box tests.
-func (p *Proxy) CaptureResponseForTest(host string, req *http.Request, resp *http.Response, body []byte) error {
+func (p *Proxy) CaptureResponseForTest(host string, req *http.Request, resp *http.Response, body []byte, corr exchangeCorrelation) error {
 	f := &forwarder{proxy: p}
-	return f.captureResponse(host, req, resp, body)
+	return f.captureResponse(host, req, resp, body, corr)
 }

@@ -28,17 +28,15 @@ const (
 
 // Session tracks one conversational capture thread inside the proxy.
 type Session struct {
-	ID                   string
-	ThreadKey            string
-	Model                string
-	ExchangeCount        int
-	TotalTokens          int
-	ActorID              string
-	ExchangeCounter      int
-	lastRequestEventHash string
-	exchangeStartedAt    time.Time
-	lastActivity         time.Time
-	idleTimer            *time.Timer
+	ID              string
+	ThreadKey       string
+	Model           string
+	ExchangeCount   int
+	TotalTokens     int
+	ActorID         string
+	ExchangeCounter int
+	lastActivity    time.Time
+	idleTimer       *time.Timer
 	// Fixed: closed prevents duplicate close events from timer and shutdown races.
 	closed bool
 	mu     sync.Mutex
@@ -62,37 +60,6 @@ func (s *Session) NextExchangeID() string {
 	defer s.mu.Unlock()
 	s.ExchangeCounter++
 	return fmt.Sprintf("%04d", s.ExchangeCounter)
-}
-
-// noteExchangeStarted records when the current exchange request was captured.
-func (s *Session) noteExchangeStarted(t time.Time) {
-	if s == nil || t.IsZero() {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.exchangeStartedAt = t.UTC()
-}
-
-// setLastRequestEventHash stores the bundle record hash of the latest request event.
-func (s *Session) setLastRequestEventHash(hash string) {
-	if s == nil {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.lastRequestEventHash = hash
-}
-
-// getLastRequestEventHash returns the bundle record hash of the latest request
-// event. It is thread-safe; callers must not hold sess.mu.
-func (s *Session) getLastRequestEventHash() string {
-	if s == nil {
-		return ""
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.lastRequestEventHash
 }
 
 // SessionManager owns session lifecycle and idle expiry.
@@ -274,6 +241,7 @@ func ExchangeCompleteRecord(
 	outputTokens int,
 	toolCallsCount int,
 	completedAt time.Time,
+	startedAt time.Time,
 ) map[string]any {
 	if sess == nil {
 		return map[string]any{}
@@ -288,7 +256,7 @@ func ExchangeCompleteRecord(
 	}
 
 	latencyMs := 0
-	if started := sess.exchangeStartedAt; !started.IsZero() {
+	if started := startedAt; !started.IsZero() {
 		latencyMs = int(completedAt.Sub(started).Milliseconds())
 		if latencyMs < 0 {
 			latencyMs = 0
