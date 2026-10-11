@@ -53,22 +53,34 @@ func TestOverlappingExchangeCorrelationIsPerRequest(t *testing.T) {
 		t.Fatalf("response A: %v", err)
 	}
 
-	b, err := bundle.LoadVerified(bundlePath)
-	if err != nil {
-		t.Fatalf("load bundle: %v", err)
-	}
 	refs := map[string]int{}
-	for _, rec := range b.Records {
-		if rec.Event.Type != TypeExchangeComplete {
-			continue
-		}
-		data, _ := rec.Event.Data.(map[string]any)
+	for _, data := range exchangeCompleteData(t, bundlePath) {
 		id, _ := data["request_event_id"].(string)
 		refs[id]++
 	}
 	if refs[corrA.requestEventID] != 1 || refs[corrB.requestEventID] != 1 {
 		t.Fatalf("exchange refs = %v, want one each for A=%q and B=%q", refs, corrA.requestEventID, corrB.requestEventID)
 	}
+}
+
+// exchangeCompleteData returns the data maps of every atb.exchange.complete
+// record in the bundle.
+func exchangeCompleteData(t *testing.T, bundlePath string) []map[string]any {
+	t.Helper()
+	b, err := bundle.LoadVerified(bundlePath)
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	var out []map[string]any
+	for _, rec := range b.Records {
+		if rec.Event.Type != TypeExchangeComplete {
+			continue
+		}
+		if data, ok := rec.Event.Data.(map[string]any); ok {
+			out = append(out, data)
+		}
+	}
+	return out
 }
 
 // TestResponseAfterSessionCloseUsesFreshSession verifies that a response whose
@@ -107,16 +119,8 @@ func TestResponseAfterSessionCloseUsesFreshSession(t *testing.T) {
 	// The response must still be recorded, on a fresh session rather than the
 	// closed one: dropping the response entirely would also leave the closed
 	// session unchanged.
-	b, err := bundle.LoadVerified(bundlePath)
-	if err != nil {
-		t.Fatalf("load bundle: %v", err)
-	}
 	recorded := false
-	for _, rec := range b.Records {
-		if rec.Event.Type != TypeExchangeComplete {
-			continue
-		}
-		data, _ := rec.Event.Data.(map[string]any)
+	for _, data := range exchangeCompleteData(t, bundlePath) {
 		sid, _ := data["session_id"].(string)
 		if sid == corr.sess.ID {
 			t.Fatalf("exchange recorded against the closed session %q", sid)
