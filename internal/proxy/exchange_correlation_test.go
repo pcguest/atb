@@ -25,6 +25,9 @@ func TestOverlappingExchangeCorrelationIsPerRequest(t *testing.T) {
 	if err := r.EnableCapture("inc-corr"); err != nil {
 		t.Fatalf("EnableCapture: %v", err)
 	}
+	// Close the journal before the test ends: on Windows an open handle
+	// prevents t.TempDir from removing the journal file.
+	defer func() { _ = r.Close() }()
 	p := captureProxyForTest(t, r, host)
 
 	corrA, err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
