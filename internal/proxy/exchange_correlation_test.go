@@ -70,3 +70,38 @@ func TestOverlappingExchangeCorrelationIsPerRequest(t *testing.T) {
 		t.Fatalf("exchange refs = %v, want one each for A=%q and B=%q", refs, corrA.requestEventID, corrB.requestEventID)
 	}
 }
+
+// TestResponseAfterSessionCloseUsesFreshSession verifies that a response whose
+// request session was closed during the request/response gap (for example the
+// idle timer firing during a long upstream response) is not recorded against
+// the closed session, which would append exchange accounting and events after
+// the session's close record.
+func TestResponseAfterSessionCloseUsesFreshSession(t *testing.T) {
+	host := "api.anthropic.com"
+	dir := t.TempDir()
+	bundlePath := filepath.Join(dir, "capture.atb")
+	r := NewBundleRecorder(bundlePath, nil)
+	if err := r.EnableCapture("inc-closed"); err != nil {
+		t.Fatalf("EnableCapture: %v", err)
+	}
+	defer func() { _ = r.Close() }()
+	p := captureProxyForTest(t, r, host)
+
+	corr, err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	// Simulate the idle timer closing the session during a long gap.
+	p.sessions.closeSession(corr.sess)
+	if !corr.sess.isClosed() {
+		t.Fatalf("session should be closed")
+	}
+
+	if err := captureResponseForTest(t, p, host, []byte(failureExchangeReqBody), []byte(failureExchangeRespBody), corr); err != nil {
+		t.Fatalf("response: %v", err)
+	}
+	if corr.sess.ExchangeCount != 0 || corr.sess.TotalTokens != 0 {
+		t.Fatalf("closed session received late accounting: count=%d tokens=%d",
+			corr.sess.ExchangeCount, corr.sess.TotalTokens)
+	}
+}

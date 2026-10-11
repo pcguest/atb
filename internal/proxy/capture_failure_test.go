@@ -363,8 +363,8 @@ func TestFailureExchangeCommitFailureJournalsAllObservationsAndRecovers(t *testi
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
-	_, reqErr := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
-	respErr := captureResponseForTest(t, p, host, []byte(failureExchangeReqBody), []byte(failureExchangeRespBody), exchangeCorrelation{})
+	corr, reqErr := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
+	respErr := captureResponseForTest(t, p, host, []byte(failureExchangeReqBody), []byte(failureExchangeRespBody), corr)
 	if reqErr == nil || respErr == nil {
 		t.Fatalf("expected commit failures, got reqErr=%v respErr=%v", reqErr, respErr)
 	}

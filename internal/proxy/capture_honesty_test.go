@@ -78,10 +78,9 @@ func TestHandoffSurfacesJournalDegradation(t *testing.T) {
 	}
 }
 
-// TestRequestFailureCarriesNoStaleRequestReference verifies that a request
-// observation is correlated with its own response, and that a failed request
-// commit carries no request reference, so a later atb.exchange.complete cannot
-// point at a stale or non-existent request record.
+// TestRequestFailureCarriesNoStaleRequestReference verifies that a failed
+// request commit carries no request reference, so a later atb.exchange.complete
+// cannot point at a stale or non-existent request record.
 func TestRequestFailureCarriesNoStaleRequestReference(t *testing.T) {
 	skipUnlessDirPermissionEnforced(t)
 	host := "api.anthropic.com"

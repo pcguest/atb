@@ -193,6 +193,17 @@ func (s *Session) markClosed() bool {
 	return true
 }
 
+// isClosed reports whether the session has been closed. A closed session must
+// not receive further accounting: its close record has already been emitted.
+func (s *Session) isClosed() bool {
+	if s == nil {
+		return true
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
 // Fixed: stopTimer follows the Stop-and-drain pattern to avoid late timer delivery.
 func stopTimer(timer *time.Timer) {
 	if timer == nil {

@@ -324,10 +324,13 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.Response, body []byte, corr exchangeCorrelation) error {
 	// Reuse the session the request resolved to, so a body-derived thread key
 	// (e.g. openai-thread:*) does not place the response in a different session
-	// than its request. Fall back to re-resolving only when the correlation
-	// carries no session (a request that failed before it resolved one).
+	// than its request. Fall back to re-resolving when the correlation carries
+	// no session (a request that failed before it resolved one) or when that
+	// session has since closed: the idle timer can fire during a long
+	// request/response gap, and appending response accounting after the
+	// session's close record would be an exchange-after-close ordering.
 	sess := corr.sess
-	if sess == nil {
+	if sess == nil || sess.isClosed() {
 		sess = f.proxy.sessions.Resolve(ExtractThreadKey(host, req, nil))
 	}
 	prompt, output, total := ParseUsageFromResponse(body)
