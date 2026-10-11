@@ -263,10 +263,13 @@ func writeTunnelError(conn io.Writer, req *http.Request, status int, message str
 // exchangeCorrelation carries the identity of a specific request observation to
 // its matching response. It is threaded per request/connection rather than kept
 // on the Session, so overlapping requests that share a session cannot overwrite
-// one another's request record reference.
+// one another's request record reference. It also carries the session the
+// request resolved to, so the response cannot land in a different session when
+// the thread key is derived from the request body.
 type exchangeCorrelation struct {
 	requestEventID string
 	startedAt      time.Time
+	sess           *Session
 }
 
 func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) (exchangeCorrelation, error) {
@@ -315,12 +318,18 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 	// journal, not silently dropped. The append error is still returned so the
 	// failure surfaces.
 	f.recordToolResultErrors(sess.ID, rec.RecordedAt, body)
-	return exchangeCorrelation{requestEventID: requestHash, startedAt: rec.RecordedAt}, appendErr
+	return exchangeCorrelation{requestEventID: requestHash, startedAt: rec.RecordedAt, sess: sess}, appendErr
 }
 
 func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.Response, body []byte, corr exchangeCorrelation) error {
-	threadKey := ExtractThreadKey(host, req, nil)
-	sess := f.proxy.sessions.Resolve(threadKey)
+	// Reuse the session the request resolved to, so a body-derived thread key
+	// (e.g. openai-thread:*) does not place the response in a different session
+	// than its request. Fall back to re-resolving only when the correlation
+	// carries no session (a request that failed before it resolved one).
+	sess := corr.sess
+	if sess == nil {
+		sess = f.proxy.sessions.Resolve(ExtractThreadKey(host, req, nil))
+	}
 	prompt, output, total := ParseUsageFromResponse(body)
 	model := ParseModelFromBody(body)
 	if model == "" {

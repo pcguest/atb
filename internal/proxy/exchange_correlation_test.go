@@ -8,14 +8,16 @@ import (
 	"github.com/pcguest/atb/internal/bundle"
 )
 
-// TestConcurrentExchangeCorrelationIsPerRequest verifies that two overlapping
+// TestOverlappingExchangeCorrelationIsPerRequest verifies that two overlapping
 // requests in the same session produce two atb.exchange.complete records that
 // each reference their own request record, rather than both referencing the
 // most recent request (the pre-fix session-global behaviour). The requests are
 // interleaved by hand: both requests are captured before either response, and
 // the responses complete in reverse order, which is the scheduling that a
-// delayed first response produces in production.
-func TestConcurrentExchangeCorrelationIsPerRequest(t *testing.T) {
+// delayed first response produces in production. This is a deterministic
+// ordering test; the released-binary before/after is captured in the clean-room
+// recertification.
+func TestOverlappingExchangeCorrelationIsPerRequest(t *testing.T) {
 	host := "api.anthropic.com"
 	dir := t.TempDir()
 	bundlePath := filepath.Join(dir, "capture.atb")

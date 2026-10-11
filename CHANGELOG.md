@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Fixed
+- Continuous capture (`atb intercept`) now correlates each `atb.exchange.complete` with its own request record per request, rather than through a session-global "last request" hash. Two requests that overlapped in one session (same thread key: connection, thread id, or `X-Session-Id`) could both reference the later request's record, misattributing the exchange — and its tool activity — to the wrong request during investigation. The committed request-record hash and the exchange start time are now carried per request, and the response reuses the session the request resolved to, so a body-derived thread key (for example `openai-thread:*`) no longer places the response in a different session than its request. No canonical evidence or existing-bundle bytes change.
 
 ## [v1.18.1] - 2026-10-10
 
