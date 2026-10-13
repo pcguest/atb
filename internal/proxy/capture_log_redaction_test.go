@@ -24,6 +24,14 @@ import (
 
 const captureLogRedactionSecret = "sk-test-secret-abc123"
 
+func setProxyTestHome(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	// Go resolves the home directory from USERPROFILE on Windows.
+	t.Setenv("USERPROFILE", home)
+}
+
 // leakingHandler is a custom capture Handler whose errors deliberately embed
 // sensitive record content (the API key on the request path, the body on the
 // response path). It models a handler that surfaces request data in its error,
@@ -215,7 +223,7 @@ func TestHTTPResponseErrorHandlerRedactsHandlerError(t *testing.T) {
 }
 
 func TestCONNECTRequestFailureLogRedactsHandlerError(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setProxyTestHome(t)
 	var logs bytes.Buffer
 	p, err := NewProxy(ProxyConfig{ListenAddr: "127.0.0.1:0", BundlePath: filepath.Join(t.TempDir(), "bundle.atb"), TargetHosts: []string{"localhost"}}, &leakingHandler{failRequest: true}, slog.New(slog.NewTextHandler(&logs, nil)))
 	if err != nil {
@@ -300,7 +308,7 @@ func TestCONNECTRequestFailureLogRedactsHandlerError(t *testing.T) {
 }
 
 func TestCONNECTResponseFailureLogRedactsHandlerError(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	setProxyTestHome(t)
 	var logs bytes.Buffer
 	p, err := NewProxy(ProxyConfig{ListenAddr: "127.0.0.1:0", BundlePath: filepath.Join(t.TempDir(), "bundle.atb"), TargetHosts: []string{"localhost"}}, &leakingHandler{failResponse: true}, slog.New(slog.NewTextHandler(&logs, nil)))
 	if err != nil {
