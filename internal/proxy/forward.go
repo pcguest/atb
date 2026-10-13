@@ -21,7 +21,8 @@ import (
 
 // forwarder performs HTTPS MITM forwarding and capture for configured targets.
 type forwarder struct {
-	proxy *Proxy
+	proxy   *Proxy
+	dialTLS func(*net.Dialer, string, string, *tls.Config) (net.Conn, error)
 }
 
 const upstreamConnectTimeout = 5 * time.Second
@@ -76,7 +77,13 @@ func (f *forwarder) handleConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	maxBody := f.proxy.cfg.EffectiveMaxBodyBytes()
-	upstreamConn, err := tls.DialWithDialer(&net.Dialer{Timeout: upstreamConnectTimeout}, "tcp", r.Host, &tls.Config{
+	dialTLS := f.dialTLS
+	if dialTLS == nil {
+		dialTLS = func(dialer *net.Dialer, network, address string, config *tls.Config) (net.Conn, error) {
+			return tls.DialWithDialer(dialer, network, address, config)
+		}
+	}
+	upstreamConn, err := dialTLS(&net.Dialer{Timeout: upstreamConnectTimeout}, "tcp", r.Host, &tls.Config{
 		ServerName: stripPort(r.Host),
 		MinVersion: tls.VersionTLS12,
 	})
@@ -272,6 +279,29 @@ type exchangeCorrelation struct {
 	sess           *Session
 }
 
+// handlerCaptureError bounds what a capture-failure log can carry when a custom
+// capture Handler rejects a record. Handlers are an extension point that
+// receives sensitive request data, including the API key, headers, and body;
+// response records contain response headers and body, while the response API
+// key is passed separately and is not populated on ResponseRecord. A handler's
+// error text may embed that content and must never be logged verbatim.
+// Wrapping keeps the error propagating to the caller (so a capture gap still
+// surfaces as a warning), while Error() returns a fixed stage description
+// instead of the handler's message. The underlying error remains reachable
+// through errors.Unwrap for callers that need it.
+type handlerCaptureError struct {
+	stage string
+	err   error
+}
+
+func (e *handlerCaptureError) Error() string {
+	return "proxy: capture " + e.stage + " handler failed"
+}
+
+func (e *handlerCaptureError) Unwrap() error {
+	return e.err
+}
+
 func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) (exchangeCorrelation, error) {
 	threadKey := ExtractThreadKey(host, req, body)
 	sess := f.proxy.sessions.Resolve(threadKey)
@@ -298,7 +328,7 @@ func (f *forwarder) captureRequest(host string, req *http.Request, body []byte) 
 		sess.UpdateActorID(actorID)
 	}
 	if err := f.proxy.HandleRequest(context.Background(), rec); err != nil {
-		return exchangeCorrelation{}, err
+		return exchangeCorrelation{}, &handlerCaptureError{stage: "request", err: err}
 	}
 	ev, err := rec.ToEvent()
 	if err != nil {
@@ -368,7 +398,7 @@ func (f *forwarder) captureResponse(host string, req *http.Request, resp *http.R
 		CaptureBody:  f.proxy.cfg.CaptureBodies,
 	}
 	if err := f.proxy.HandleResponse(context.Background(), rec, apiKey); err != nil {
-		return err
+		return &handlerCaptureError{stage: "response", err: err}
 	}
 	responseEvent, err := rec.ToEvent()
 	if err != nil {
