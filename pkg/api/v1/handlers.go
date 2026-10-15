@@ -10,6 +10,7 @@ import (
 	"html"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -29,13 +30,14 @@ import (
 )
 
 const (
-	defaultEventsLimit = 200
-	maxEventsLimit     = 1000
-	revealAuthCookie   = "atb_reveal_token"
-	revealAuthHeader   = "X-ATB-Viewer-Token"
-	revealLegacyHeader = "X-ATB-Reveal-Token"
-	sessionAuthHeader  = "X-ATB-Session-Token"
-	sessionAuthParam   = "session_token"
+	defaultEventsLimit    = 200
+	maxEventsLimit        = 1000
+	revealAuthCookie      = "atb_reveal_token"
+	revealAuthHeader      = "X-ATB-Viewer-Token"
+	revealLegacyHeader    = "X-ATB-Reveal-Token"
+	sessionAuthHeader     = "X-ATB-Session-Token"
+	sessionAuthParam      = "session_token"
+	sessionBundleDirError = "invalid query parameters"
 )
 
 const (
@@ -85,6 +87,9 @@ type APIServer struct {
 	jwtValidator       *atbauth.JWTValidator
 	mu                 sync.Mutex
 	rateMu             sync.Mutex
+	// indexSessions is a per-server test seam for observing entry to indexing.
+	// Production servers leave it nil and use the existing configured index path.
+	indexSessions func(*http.Request) ([]sessionindex.SessionEntry, error)
 }
 
 // authMiddleware enforces authentication and sets the role in the context.
@@ -239,6 +244,9 @@ func (s *APIServer) handleSessions(w http.ResponseWriter, r *http.Request) {
 	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
+	if !validSessionQuery(w, r) {
+		return
+	}
 	if !s.requireVerified(w) {
 		return
 	}
@@ -269,6 +277,9 @@ func (s *APIServer) handleSessionsByActor(w http.ResponseWriter, r *http.Request
 	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
+	if !validSessionQuery(w, r) {
+		return
+	}
 	if !s.requireVerified(w) {
 		return
 	}
@@ -280,6 +291,21 @@ func (s *APIServer) handleSessionsByActor(w http.ResponseWriter, r *http.Request
 	}
 
 	writeJSON(w, http.StatusOK, ActorsResponse{Actors: actors})
+}
+
+func validSessionQuery(w http.ResponseWriter, r *http.Request) bool {
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, APIError{Error: sessionBundleDirError})
+		return false
+	}
+	for _, value := range values["bundle_dir"] {
+		if value != "" {
+			writeJSON(w, http.StatusBadRequest, APIError{Error: sessionBundleDirError})
+			return false
+		}
+	}
+	return true
 }
 
 func (s *APIServer) actorsForRequest(r *http.Request) (map[string][]sessionindex.SessionEntry, error) {
@@ -297,6 +323,9 @@ func (s *APIServer) actorsForRequest(r *http.Request) (map[string][]sessionindex
 }
 
 func (s *APIServer) sessionsForRequest(r *http.Request) ([]sessionindex.SessionEntry, error) {
+	if s.indexSessions != nil {
+		return s.indexSessions(r)
+	}
 	if bundleDir := strings.TrimSpace(r.URL.Query().Get("bundle_dir")); bundleDir != "" {
 		return buildSessionIndexForDir(r.Context(), bundleDir)
 	}
