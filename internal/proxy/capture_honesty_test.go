@@ -2,8 +2,6 @@
 package proxy
 
 import (
-	"bytes"
-	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -80,10 +78,10 @@ func TestHandoffSurfacesJournalDegradation(t *testing.T) {
 	}
 }
 
-// TestRequestFailureClearsStaleRequestEventHash verifies that when a request
-// commit fails, the session's previous request hash is cleared, so a later
-// atb.exchange.complete cannot point at a stale or non-existent request record.
-func TestRequestFailureClearsStaleRequestEventHash(t *testing.T) {
+// TestRequestFailureCarriesNoStaleRequestReference verifies that a failed
+// request commit carries no request reference, so a later atb.exchange.complete
+// cannot point at a stale or non-existent request record.
+func TestRequestFailureCarriesNoStaleRequestReference(t *testing.T) {
 	skipUnlessDirPermissionEnforced(t)
 	host := "api.anthropic.com"
 	dir := t.TempDir()
@@ -95,31 +93,26 @@ func TestRequestFailureClearsStaleRequestEventHash(t *testing.T) {
 	defer func() { _ = os.Chmod(dir, 0o750) }()
 	p := captureProxyForTest(t, r, host)
 
-	threadKey := func() string {
-		req, err := http.NewRequest(http.MethodPost, "http://"+host+"/v1/messages", bytes.NewReader([]byte(failureExchangeReqBody)))
-		if err != nil {
-			t.Fatalf("new request: %v", err)
-		}
-		return ExtractThreadKey(host, req, []byte(failureExchangeReqBody))
-	}()
-
-	// First request commits and records a request hash.
-	if err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody)); err != nil {
+	// First request commits and returns its own request-event reference.
+	corr, err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
+	if err != nil {
 		t.Fatalf("first request should commit: %v", err)
 	}
-	sess := p.sessions.Resolve(threadKey)
-	if sess.getLastRequestEventHash() == "" {
+	if corr.requestEventID == "" {
 		t.Fatalf("expected a recorded request hash after a successful commit")
 	}
 
-	// Second request fails; the stale hash must be cleared.
+	// Second request fails; its correlation must carry no request reference, so
+	// a later atb.exchange.complete cannot point at a stale or non-existent
+	// request record.
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
-	if err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody)); err == nil {
+	corr2, err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
+	if err == nil {
 		t.Fatalf("expected the second request commit to fail")
 	}
-	if got := sess.getLastRequestEventHash(); got != "" {
-		t.Fatalf("stale request hash not cleared on failure: %q", got)
+	if corr2.requestEventID != "" {
+		t.Fatalf("failed request carried a request reference: %q", corr2.requestEventID)
 	}
 }

@@ -833,10 +833,8 @@ func TestBundleRecorderAndSessionLifecycle(t *testing.T) {
 		t.Fatalf("exchange id = %q", got)
 	}
 	started := time.Now().UTC().Add(-time.Second)
-	resolved.noteExchangeStarted(started)
-	resolved.setLastRequestEventHash("request-hash")
 	manager.NoteExchange(resolved, "model-2", 3, 4)
-	record := ExchangeCompleteRecord(resolved, "0001", resolved.getLastRequestEventHash(), "model-2", 3, 4, 1, time.Now().UTC())
+	record := ExchangeCompleteRecord(resolved, "0001", "request-hash", "model-2", 3, 4, 1, time.Now().UTC(), started)
 	if record["actor_id"] != "actor-2" || record["request_event_id"] != "request-hash" {
 		t.Fatalf("exchange record = %+v", record)
 	}
@@ -862,7 +860,7 @@ func TestBundleRecorderAndSessionLifecycle(t *testing.T) {
 	if got := SessionCloseRecord(nil); len(got) != 0 {
 		t.Fatalf("nil close record = %+v", got)
 	}
-	if got := ExchangeCompleteRecord(nil, "", "", "", 0, 0, 0, time.Time{}); len(got) != 0 {
+	if got := ExchangeCompleteRecord(nil, "", "", "", 0, 0, 0, time.Time{}, time.Time{}); len(got) != 0 {
 		t.Fatalf("nil exchange record = %+v", got)
 	}
 }

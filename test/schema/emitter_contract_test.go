@@ -169,6 +169,7 @@ func TestProxyLifecycleRecordsHonourSchemaContract(t *testing.T) {
 		40, // output tokens
 		2,  // tool calls
 		time.Now().UTC(),
+		time.Now().UTC().Add(-time.Second),
 	)
 	assertPayloadMatchesSchema(t, documented, proxy.TypeExchangeComplete, exchangeRec)
 }
