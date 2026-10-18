@@ -228,10 +228,11 @@ func TestExchangeCompleteEvent(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString(`{"usage":{"prompt_tokens":10,"completion_tokens":20}}`)),
 		Header:     make(http.Header),
 	}
-	if err := p.CaptureRequestForTest("api.openai.com", req1, []byte(`{"model":"gpt-3.5-turbo"}`)); err != nil {
+	corr1, err := p.CaptureRequestForTest("api.openai.com", req1, []byte(`{"model":"gpt-3.5-turbo"}`))
+	if err != nil {
 		t.Fatalf("CaptureRequest 1 failed: %v", err)
 	}
-	if err := p.CaptureResponseForTest("api.openai.com", req1, resp1, []byte(`{"usage":{"prompt_tokens":10,"completion_tokens":20}}`)); err != nil {
+	if err := p.CaptureResponseForTest("api.openai.com", req1, resp1, []byte(`{"usage":{"prompt_tokens":10,"completion_tokens":20}}`), corr1); err != nil {
 		t.Fatalf("CaptureResponse 1 failed: %v", err)
 	}
 
@@ -243,10 +244,11 @@ func TestExchangeCompleteEvent(t *testing.T) {
 		Body:       io.NopCloser(bytes.NewBufferString(`{"usage":{"prompt_tokens":15,"completion_tokens":25}}`)),
 		Header:     make(http.Header),
 	}
-	if err := p.CaptureRequestForTest("api.openai.com", req2, []byte(`{"model":"gpt-4"}`)); err != nil {
+	corr2, err := p.CaptureRequestForTest("api.openai.com", req2, []byte(`{"model":"gpt-4"}`))
+	if err != nil {
 		t.Fatalf("CaptureRequest 2 failed: %v", err)
 	}
-	if err := p.CaptureResponseForTest("api.openai.com", req2, resp2, []byte(`{"usage":{"prompt_tokens":15,"completion_tokens":25}}`)); err != nil {
+	if err := p.CaptureResponseForTest("api.openai.com", req2, resp2, []byte(`{"usage":{"prompt_tokens":15,"completion_tokens":25}}`), corr2); err != nil {
 		t.Fatalf("CaptureResponse 2 failed: %v", err)
 	}
 

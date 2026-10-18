@@ -253,7 +253,7 @@ func captureProxyForTest(t *testing.T, recorder *BundleRecorder, host string) *P
 	return p
 }
 
-func captureRequestForTest(t *testing.T, p *Proxy, host string, reqBody []byte) error {
+func captureRequestForTest(t *testing.T, p *Proxy, host string, reqBody []byte) (exchangeCorrelation, error) {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodPost, "http://"+host+"/v1/messages", bytes.NewReader(reqBody))
 	if err != nil {
@@ -262,14 +262,14 @@ func captureRequestForTest(t *testing.T, p *Proxy, host string, reqBody []byte) 
 	return (&forwarder{proxy: p}).captureRequest(host, req, reqBody)
 }
 
-func captureResponseForTest(t *testing.T, p *Proxy, host string, reqBody, respBody []byte) error {
+func captureResponseForTest(t *testing.T, p *Proxy, host string, reqBody, respBody []byte, corr exchangeCorrelation) error {
 	t.Helper()
 	req, err := http.NewRequest(http.MethodPost, "http://"+host+"/v1/messages", bytes.NewReader(reqBody))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
 	resp := &http.Response{StatusCode: 200, Header: http.Header{}, Body: http.NoBody}
-	return (&forwarder{proxy: p}).captureResponse(host, req, resp, respBody)
+	return (&forwarder{proxy: p}).captureResponse(host, req, resp, respBody, corr)
 }
 
 func journalObservationTypes(j *capturejournal.Journal) map[string]int {
@@ -363,8 +363,8 @@ func TestFailureExchangeCommitFailureJournalsAllObservationsAndRecovers(t *testi
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
-	reqErr := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
-	respErr := captureResponseForTest(t, p, host, []byte(failureExchangeReqBody), []byte(failureExchangeRespBody))
+	corr, reqErr := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
+	respErr := captureResponseForTest(t, p, host, []byte(failureExchangeReqBody), []byte(failureExchangeRespBody), corr)
 	if reqErr == nil || respErr == nil {
 		t.Fatalf("expected commit failures, got reqErr=%v respErr=%v", reqErr, respErr)
 	}
@@ -421,13 +421,14 @@ func TestFailureExchangePartialCommitBoundaryRecoversDerivedObservations(t *test
 	defer func() { _ = os.Chmod(dir, 0o750) }()
 	p := captureProxyForTest(t, r, host)
 
-	if err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody)); err != nil {
+	corr, err := captureRequestForTest(t, p, host, []byte(failureExchangeReqBody))
+	if err != nil {
 		t.Fatalf("request commit should succeed while writable: %v", err)
 	}
 	if err := os.Chmod(dir, 0o500); err != nil {
 		t.Fatalf("chmod: %v", err)
 	}
-	if err := captureResponseForTest(t, p, host, []byte(failureExchangeReqBody), []byte(failureExchangeRespBody)); err == nil {
+	if err := captureResponseForTest(t, p, host, []byte(failureExchangeReqBody), []byte(failureExchangeRespBody), corr); err == nil {
 		t.Fatalf("expected response-side commit failure")
 	}
 	_ = r.capture.journal.Close()
