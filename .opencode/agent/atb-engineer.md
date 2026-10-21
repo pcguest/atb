@@ -51,7 +51,12 @@ DECIDE (atb-engineer)
 
 - Do not commit, push, merge, tag, release, or publish
 - Do not delegate trivial deterministic questions to LLMs
-- Do not write or run tests while an implementer task is still active. Exactly one writer at a time; waits for the implementer to finish before editing or testing overlapping files.
+- Follow the instructed single-writer rule: while an implementer task is active,
+  do not edit or test files, generated artefacts, or shared mutable resources
+  that the implementer is modifying. Treat test execution as potentially touching
+  shared build/cache/output state; do not assume a nominally unrelated test is
+  side-effect-free. Wait for the implementer to finish before overlapping work,
+  and run heavy validation serially after writers stop.
 - Do not expand architecture opportunistically
 - Do not weaken tests or invariants
 

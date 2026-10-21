@@ -2,32 +2,41 @@
 
 Discovered via `opencode models` (OpenCode 1.18.32) on 2026-09-23; re-verified
 against `opencode models` on OpenCode 1.18.34 on 2026-10-21. No credentials are
-recorded here. Cost class is a routing heuristic, not a price quote.
+recorded here. This ledger records owner-selected routing and observed inventory;
+it is not a benchmark ranking or a price quote.
 
-## Available families relevant to ATB development
+## Current routed models
 
-| Model ID | Provider | Family | Cost class | Best role | Poor-fit roles | Fallback |
-| --- | --- | --- | --- | --- | --- | --- |
-| `opencode-go/gpt-5.6-luna` | opencode-go | OpenAI GPT | go allowance | Orchestration, architecture, final integration | Bulk search, mechanical edits | `opencode/gpt-5.6-luna` |
-| `opencode-go/kimi-k2.7-code` | opencode-go | Moonshot Kimi | go allowance | Bounded code implementation | Orchestration, security review | `opencode-go/kimi-k2.6` |
-| `opencode-go/deepseek-v4-flash` | opencode-go | DeepSeek | go allowance | Repo exploration, high-volume routine work | Final semantic review | `opencode/deepseek-v4-flash` |
-| `opencode-go/mimo-v2.5` | opencode-go | MiMo | go allowance | High-volume routine worker, practitioner A | Security review | `opencode-go/mimo-v2.6-flash` |
-| `opencode-go/qwen3.7-plus` | opencode-go | Qwen | go allowance | Independent reviewer | Hostile-input fuzzing | `opencode-go/qwen3.7-max` |
-| `opencode-go/minimax-m3` | opencode-go | MiniMax | go allowance | Adversarial / security review | Routine docs | `opencode-go/minimax-m2.7` |
-| `openai/gpt-5.6-sol` | openai | OpenAI GPT | expensive escalation | Consequential architecture ambiguity, hard security/debug | Routine work | `openai/gpt-5.6-terra` |
-| `opencode/nemotron-3-ultra-free` | opencode (Zen) | NVIDIA | free | Free overflow / fallback | Primary reasoning | `opencode/ling-3.0-flash-fin-free` |
-| `opencode/ling-3.0-flash-fin-free` | opencode (Zen) | Ling | free | Small/title/summarise tasks | Implementation | `opencode/mimo-v2.6-flash-free` |
-| `opencode/mimo-v2.6-flash-free` | opencode (Zen) | MiMo | free | Free overflow | Security review | `opencode/nemotron-3-ultra-free` |
-| `opencode-go/qwen3.7-max` | opencode-go | Qwen | go allowance | Escalated review | Routine work | `opencode-go/qwen3.7-plus` |
+Only models selected by the current harness are listed. Other inventory entries
+are not routing decisions and are not implied fallbacks.
 
-## Notes / deviations from the starting hypothesis
+| Role(s) | Model ID | Provider | Family | Route class | Fallback |
+| --- | --- | --- | --- | --- | --- |
+| Primary orchestrator; adversarial reviewer | `openai/gpt-6.1-sol-fast` | openai (OAuth) | OpenAI GPT | OAuth route | Global fallback only; no per-role fallback configured |
+| Repo explorer; bounded implementer | `opencode-go/deepseek-v4.1-flash` | opencode-go | DeepSeek | Go allowance | Global fallback only; no per-role fallback configured |
+| Normal reviewer | `opencode-go/glm-5.3-flash` | opencode-go | GLM | Go allowance | Global fallback only; no per-role fallback configured |
+| Synthetic practitioner A | `opencode-go/mimo-v2.5` | opencode-go | MiMo | Go allowance | Global fallback only; no per-role fallback configured |
+| Global fallback | `opencode/nemotron-3-ultra-free` | opencode (Zen) | NVIDIA | Free | Configured global fallback |
 
-- `MiMo-V2.5` and `Qwen3.7 Plus` and `MiniMax M3` exist only under the
-  `opencode-go/` provider (not `opencode/`), so routing uses `opencode-go/*`.
-- Kimi K3 is intentionally NOT the default; Kimi K2.7 Code is the bounded implementer.
-- The expensive OpenAI model is an escalation class only, not a routine worker.
-- Routing lives ONLY in `.opencode/opencode.jsonc` (`agent.<name>.model`).
-  No ATB product code contains model names.
+## Routing rationale and historical notes
+
+- The owner selected `openai/gpt-6.1-sol-fast` for the primary and adversarial
+  roles. This is not an escalation-only route, and no cost ranking is asserted.
+- The owner selected `opencode-go/deepseek-v4.1-flash` for repo exploration and
+  bounded implementation. The implementer's scope is an explicit task packet:
+  smallest coherent patch plus focused validation, not architecture selection or
+  self-certification. This is a routing choice, not a benchmark result or a claim
+  that DeepSeek is superior to another model. Kimi K2.7 Code remains available in
+  inventory but is not routed here.
+- The normal reviewer uses a different model family from the implementer. The
+  adversarial reviewer does not: it shares the primary's OpenAI model. See the
+  diversity limits below.
+- The former `opencode-go/deepseek-v4-flash` ID is absent from the current
+  inventory; the current DeepSeek ID is `opencode-go/deepseek-v4.1-flash`. Other
+  inventory entries are not fallbacks just because they are listed by
+  `opencode models`.
+- Routing lives ONLY in `.opencode/opencode.jsonc` (`agent.<name>.model`). No ATB
+  product code contains model names.
 
 ## Final routing (2026-10-21)
 
@@ -39,17 +48,22 @@ recorded here. Cost class is a routing heuristic, not a price quote.
 | Independent reviewer | reviewer | opencode-go/glm-5.3-flash |
 | Adversarial reviewer | adversarial-reviewer | openai/gpt-6.1-sol-fast |
 | Synthetic practitioner A | practitioner | opencode-go/mimo-v2.5 |
-| Synthetic practitioner B | (task-scoped) | opencode-go/deepseek-v4.1-flash |
+| Synthetic practitioner B | (task-scoped, not a configured agent) | opencode-go/deepseek-v4.1-flash |
 | Free overflow | global fallback | opencode/nemotron-3-ultra-free |
 
-Heterogeneity guarantee: implementer (DeepSeek) ≠ reviewer (GLM) ≠ adversarial
-reviewer (OpenAI OAuth). Primary and adversarial-reviewer share the OpenAI OAuth
-route but run in separate contexts; adversarial review stays read-only.
+## Model-family diversity and limits
+
+- Different families: implementer (DeepSeek) and normal reviewer (GLM).
+- The adversarial reviewer uses the same OpenAI GPT-6.1 Sol Fast model as the
+  primary. It is not an independent model family.
+- Its independence is procedural only: a fresh read-only context, hostile-input
+  review role, and no edit/bash/task/external-directory permissions.
+- This is an accepted owner-selected trade-off. It does not provide independent
+  model diversity from the primary and does not eliminate correlated model
+  errors. No immunity to correlated mistakes is claimed.
 
 `openai` is the connected OAuth provider. `console-openai` is a separate
-console/API provider and is not used for routine routing. The former
-`opencode-go/deepseek-v4-flash` ID is no longer listed; the current ID is
-`opencode-go/deepseek-v4.1-flash`.
+console/API provider and is not used for routine routing.
 
 ## MCP / plugin ledger
 

@@ -19,16 +19,18 @@
   "subagent_depth": 1,
 
   // ------------------------------------------------------------------
-  // MODEL ROUTING (replaceable). Heterogeneous families by role.
-  // Cost classes: go = OpenCode Go allowance; free = free overflow;
+  // MODEL ROUTING (replaceable). Owner-selected; family diversity is partial.
+  // Route classes: go = OpenCode Go allowance; free = free overflow;
   // openai = OpenAI OAuth (primary and adversarial review only).
-  // Exact IDs verified against `opencode models` on 2026-10-21.
+  // Primary and adversarial share the OpenAI model; adversarial runs in a
+  // separate read-only context. This is procedural, not model-diversity,
+  // independence. Exact IDs verified against `opencode models` on 2026-10-21.
   // ------------------------------------------------------------------
   "agent": {
     "atb-engineer": {
       "model": "openai/gpt-6.1-sol-fast",
       "mode": "primary",
-      "description": "Primary orchestrator. Owns architecture continuity, decomposition, delegation, final deterministic validation. Sole writer when no implementer task is active."
+      "description": "Primary orchestrator. Owns architecture continuity, decomposition, delegation, final deterministic validation. Follows the instructed single-writer rule during implementer tasks."
     },
     "repo-explorer": {
       "model": "opencode-go/deepseek-v4.1-flash",
@@ -51,7 +53,7 @@
     "adversarial-reviewer": {
       "model": "openai/gpt-6.1-sol-fast",
       "mode": "subagent",
-      "description": "Security/trust/edge-case adversarial reviewer. Read-only; fresh context.",
+      "description": "Security/trust/edge-case adversarial reviewer. Read-only; fresh context. Shares the primary's OpenAI model; procedural, not model-diversity, independence.",
       "permission": { "read": "allow", "edit": "deny", "bash": "deny", "task": "deny", "external_directory": "deny" }
     },
     "practitioner": {

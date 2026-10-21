@@ -99,7 +99,20 @@ explicit-model runs and record the substitution honestly.
 
 Certification outcome for this run: ATB_MORTISE_INTEROP_GATE: GO.
 
+Historical scope: this result belongs to the 2026-09-23 scenario and versions
+recorded above (OpenCode 1.18.32; reviewer `opencode-go/qwen3.7-plus`,
+implementer `opencode-go/kimi-k2.7-code`, adversarial reviewer
+`opencode-go/minimax-m3`). It is preserved as historical evidence for that
+scenario. It does not certify the 2026-10-21 routing or current ATB–Mortise
+interoperability, and no new interoperability run was performed for this harness
+change.
+
 ## Routing re-verification (2026-10-21, OpenCode 1.18.34)
+
+### Configuration validation (on-disk)
+
+This section validates the on-disk configuration only. It is not proof of what a
+long-running server loaded or of live delegation.
 
 Verified against `opencode models`, `opencode providers list` (names only; no
 credentials read or recorded), `opencode debug config` and `opencode agent list`.
@@ -118,7 +131,43 @@ credentials read or recorded), `opencode debug config` and `opencode agent list`
   practitioner `opencode-go/mimo-v2.5`.
 - `openai` is the connected OAuth provider. The primary is not routed through
   `opencode-go`.
-- Reviewers are read-only (`edit`/`bash`/`task` denied). `subagent_depth` is 1.
-  Only one writer is active at a time; the primary waits for the implementer
-  before editing or testing overlapping files.
+- Reviewers are read-only (`edit`/`bash`/`task` denied).
+- `subagent_depth` is 1, but it limits delegation depth; it is not a writer lock.
+  Single-writer discipline is an instructed behavioural rule, not a technical
+  serialization mechanism. While an implementer task is active, avoid edits or
+  tests against files, generated artefacts, or shared mutable resources that task
+  is modifying. Test execution can touch shared caches/build outputs, so do not
+  assume a nominally unrelated test is side-effect-free. Run heavy validation
+  serially after writers stop. No locking framework is introduced.
+
+### Runtime evidence (Phase 3B)
+
+The Phase 3B checkpoint and local session records separate actual runtime use from
+the on-disk validation above:
+
+- The original interactive primary remained
+  `opencode-go/deepseek-v4.1-flash` (`ses_ea4649ba7ffe7Hed0QM6wmAt0m`) and
+  predates the repair. It did not observe the new OpenAI primary route.
+- Fresh final review orchestration used `openai/gpt-6.1-sol-fast`
+  (`ses_ea43e9fcbffe6hx1vloO6oHvP6`) after one transient 429 retry.
+- Normal child route verified: `reviewer` / `opencode-go/glm-5.3-flash`
+  (`ses_ea43e9203ffeQbrBbJ2mAehXKF`).
+- Adversarial child route verified: `adversarial-reviewer` /
+  `openai/gpt-6.1-sol-fast` (`ses_ea4380e11ffefiHlNzI6Z0MGsp`).
+- Targeted evidence re-review used `reviewer` / `opencode-go/glm-5.3-flash`
+  (`ses_ea42bf214ffe30mAJsXYVR3IPy`).
+- Roles not invoked in Phase 3B: `repo-explorer`, `implementer`, `practitioner`.
+  Runtime coverage for those routes remains unverified beyond config validation.
+- No server restart was performed or observed. Live `task` delegation from the
+  original interactive primary was not observed and is not runtime evidence for
+  the new routes. The fresh-process child routes above are recorded in local
+  session metadata, not inferred from the configuration.
+
+### Residual coverage
+
+Runtime evidence covers the fresh primary, normal reviewer, and adversarial
+reviewer. It does not cover `repo-explorer`, `implementer`, or `practitioner`.
+Configuration parsing, model inventory, agent registration, and permission
+resolution are verified; live provider behaviour beyond the recorded sessions is
+unverified.
 
