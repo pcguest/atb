@@ -30,9 +30,8 @@ const (
 	BundleFile = "bundle.atb"
 	// MaxLineSizeBytes is the maximum supported size of a single NDJSON record.
 	MaxLineSizeBytes = 16 * 1024 * 1024
-	// MaxBundleSizeBytes is the default maximum number of bytes read from or
-	// emitted for one bundle. It bounds memory growth when loading untrusted
-	// evidence and caps the signed output.
+	// MaxBundleSizeBytes is the default maximum number of bytes read from a bundle or emitted by signing.
+	// It bounds memory growth when loading untrusted evidence and caps signed output.
 	MaxBundleSizeBytes int64 = 512 * 1024 * 1024
 	// MaxBundleRecords is the default maximum number of non-empty records read
 	// from one bundle.
