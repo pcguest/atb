@@ -7,7 +7,7 @@ it is not a benchmark ranking or a price quote.
 
 ## Current routed models
 
-Only models selected by the current harness are listed. Other inventory entries
+Only configured agent and root-default routes are listed; the separate `small_model` route (`opencode/ling-3.0-flash-fin-free`) is documented in `.opencode/opencode.jsonc`.
 are not routing decisions and are not implied fallbacks.
 
 | Role(s) | Model ID | Provider | Family | Route class | Fallback |
