@@ -12,11 +12,11 @@ are not routing decisions and are not implied fallbacks.
 
 | Role(s) | Model ID | Provider | Family | Route class | Fallback |
 | --- | --- | --- | --- | --- | --- |
-| Primary orchestrator; adversarial reviewer | `openai/gpt-6.1-sol-fast` | openai (OAuth) | OpenAI GPT | OAuth route | Global fallback only; no per-role fallback configured |
-| Repo explorer; bounded implementer | `opencode-go/deepseek-v4.1-flash` | opencode-go | DeepSeek | Go allowance | Global fallback only; no per-role fallback configured |
-| Normal reviewer | `opencode-go/glm-5.3-flash` | opencode-go | GLM | Go allowance | Global fallback only; no per-role fallback configured |
-| Synthetic practitioner A | `opencode-go/mimo-v2.5` | opencode-go | MiMo | Go allowance | Global fallback only; no per-role fallback configured |
-| Global fallback | `opencode/nemotron-3-ultra-free` | opencode (Zen) | NVIDIA | Free | Configured global fallback |
+| Primary orchestrator; adversarial reviewer | `openai/gpt-6.1-sol-fast` | openai (OAuth) | OpenAI GPT | OAuth route | No per-role fallback configured |
+| Repo explorer; bounded implementer | `opencode-go/deepseek-v4.1-flash` | opencode-go | DeepSeek | Go allowance | No per-role fallback configured |
+| Normal reviewer | `opencode-go/glm-5.3-flash` | opencode-go | GLM | Go allowance | No per-role fallback configured |
+| Synthetic practitioner A | `opencode-go/mimo-v2.5` | opencode-go | MiMo | Go allowance | No per-role fallback configured |
+| Root default | `opencode/nemotron-3-ultra-free` | opencode (Zen) | NVIDIA | Free | Configured root default; not a failover target |
 
 ## Routing rationale and historical notes
 
