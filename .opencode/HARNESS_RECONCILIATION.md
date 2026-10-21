@@ -99,3 +99,26 @@ explicit-model runs and record the substitution honestly.
 
 Certification outcome for this run: ATB_MORTISE_INTEROP_GATE: GO.
 
+## Routing re-verification (2026-10-21, OpenCode 1.18.34)
+
+Verified against `opencode models`, `opencode providers list` (names only; no
+credentials read or recorded), `opencode debug config` and `opencode agent list`.
+
+- Config key is `agent` (singular). No root `agents` key remains.
+- `.opencode/permission.yaml` is absent; its permissions live in the
+  `permission` block of `opencode.jsonc`. `.opencode/astra/` is absent and
+  unreferenced.
+- No model routing remains in agent frontmatter; `opencode.jsonc` is the single
+  routing source. All six roles are native agents (`atb-engineer`,
+  `repo-explorer`, `implementer`, `reviewer`, `adversarial-reviewer`,
+  `practitioner`); no parallel agent layout.
+- Current routes: atb-engineer `openai/gpt-6.1-sol-fast`; repo-explorer and
+  implementer `opencode-go/deepseek-v4.1-flash`; reviewer
+  `opencode-go/glm-5.3-flash`; adversarial-reviewer `openai/gpt-6.1-sol-fast`;
+  practitioner `opencode-go/mimo-v2.5`.
+- `openai` is the connected OAuth provider. The primary is not routed through
+  `opencode-go`.
+- Reviewers are read-only (`edit`/`bash`/`task` denied). `subagent_depth` is 1.
+  Only one writer is active at a time; the primary waits for the implementer
+  before editing or testing overlapping files.
+

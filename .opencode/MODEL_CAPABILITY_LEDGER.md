@@ -1,7 +1,8 @@
 # MODEL CAPABILITY LEDGER (local)
 
-Discovered via `opencode models` (OpenCode 1.18.32) on 2026-09-23. No credentials
-are recorded here. Cost class is a routing heuristic, not a price quote.
+Discovered via `opencode models` (OpenCode 1.18.32) on 2026-09-23; re-verified
+against `opencode models` on OpenCode 1.18.34 on 2026-10-21. No credentials are
+recorded here. Cost class is a routing heuristic, not a price quote.
 
 ## Available families relevant to ATB development
 
@@ -28,21 +29,27 @@ are recorded here. Cost class is a routing heuristic, not a price quote.
 - Routing lives ONLY in `.opencode/opencode.jsonc` (`agent.<name>.model`).
   No ATB product code contains model names.
 
-## Final routing
+## Final routing (2026-10-21)
 
 | Role | Agent | Model |
 | --- | --- | --- |
-| Primary orchestrator | atb-engineer | opencode-go/gpt-5.6-luna |
-| Repo explorer | repo-explorer | opencode-go/deepseek-v4-flash |
-| Bounded implementer | implementer | opencode-go/kimi-k2.7-code |
-| Independent reviewer | reviewer | opencode-go/qwen3.7-plus |
-| Adversarial reviewer | adversarial-reviewer | opencode-go/minimax-m3 |
+| Primary orchestrator | atb-engineer | openai/gpt-6.1-sol-fast |
+| Repo explorer | repo-explorer | opencode-go/deepseek-v4.1-flash |
+| Bounded implementer | implementer | opencode-go/deepseek-v4.1-flash |
+| Independent reviewer | reviewer | opencode-go/glm-5.3-flash |
+| Adversarial reviewer | adversarial-reviewer | openai/gpt-6.1-sol-fast |
 | Synthetic practitioner A | practitioner | opencode-go/mimo-v2.5 |
-| Synthetic practitioner B | (task-scoped) | opencode-go/deepseek-v4-flash |
+| Synthetic practitioner B | (task-scoped) | opencode-go/deepseek-v4.1-flash |
 | Free overflow | global fallback | opencode/nemotron-3-ultra-free |
-| Escalation | (manual) | openai/gpt-5.6-sol |
 
-Heterogeneity guarantee: implementer (Kimi) ≠ reviewer (Qwen) ≠ adversarial (MiniMax).
+Heterogeneity guarantee: implementer (DeepSeek) ≠ reviewer (GLM) ≠ adversarial
+reviewer (OpenAI OAuth). Primary and adversarial-reviewer share the OpenAI OAuth
+route but run in separate contexts; adversarial review stays read-only.
+
+`openai` is the connected OAuth provider. `console-openai` is a separate
+console/API provider and is not used for routine routing. The former
+`opencode-go/deepseek-v4-flash` ID is no longer listed; the current ID is
+`opencode-go/deepseek-v4.1-flash`.
 
 ## MCP / plugin ledger
 
