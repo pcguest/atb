@@ -4,7 +4,7 @@ backports-tarfile==1.2.0 ; python_full_version < '3.12' and platform_machine != 
     # via jaraco-context
 build==1.5.0
     # via -r sdk/python/requirements-release.in
-certifi==2026.7.22
+certifi==2026.10.19
     # via requests
 cffi==2.1.1 ; platform_machine != 'ppc64le' and platform_machine != 's390x' and platform_python_implementation != 'PyPy' and sys_platform == 'linux'
     # via cryptography

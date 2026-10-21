@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -104,6 +105,18 @@ func SignToWithSignerRetry(
 }
 
 func signToWithSignerUnlocked(ctx context.Context, bundlePath string, outputPath string, s signer.Signer) (string, error) {
+	return signToWithSignerLimited(ctx, bundlePath, outputPath, s, MaxBundleSizeBytes)
+}
+
+// signToWithSignerLimited keeps the read bound explicit so boundary tests do not
+// need large inputs or a mutable process-wide limit. The caller holds the lock.
+func signToWithSignerLimited(
+	ctx context.Context,
+	bundlePath string,
+	outputPath string,
+	s signer.Signer,
+	maxBytes int64,
+) (string, error) {
 	// Open the bundle once and derive everything from that single read so the
 	// digest, the parsed bundle, and the file mode all describe the same on-
 	// disk bytes. A previous implementation called os.ReadFile and then
@@ -115,7 +128,7 @@ func signToWithSignerUnlocked(ctx context.Context, bundlePath string, outputPath
 	if err != nil {
 		return "", fmt.Errorf("read bundle: %w", err)
 	}
-	rawBundle, err := io.ReadAll(f)
+	rawBundle, err := readSigningInput(f, maxBytes)
 	if err != nil {
 		_ = f.Close()
 		return "", fmt.Errorf("read bundle: %w", err)
@@ -176,11 +189,27 @@ func signToWithSignerUnlocked(ctx context.Context, bundlePath string, outputPath
 	if filepath.Clean(bundlePath) == filepath.Clean(outputPath) {
 		outputMode = sourceMode
 	}
-	if err := appendSignedRecord(outputPath, rawBundle, signedRecord, outputMode); err != nil {
+	if err := appendSignedRecord(outputPath, rawBundle, signedRecord, outputMode, maxBytes); err != nil {
 		return "", err
 	}
 
 	return hex.EncodeToString(digest[:]), nil
+}
+
+func readSigningInput(r io.Reader, maxBytes int64) ([]byte, error) {
+	if maxBytes <= 0 || maxBytes == math.MaxInt64 {
+		return nil, fmt.Errorf("sign bundle: invalid read limit: %w", ErrResourceLimit)
+	}
+	// Probe one byte beyond the policy, without trusting a stat/check-then-read
+	// size or draining an oversized source. Hash only the accepted original bytes.
+	raw, err := io.ReadAll(io.LimitReader(r, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(raw)) > maxBytes {
+		return nil, fmt.Errorf("sign bundle: input exceeds %d bytes: %w", maxBytes, ErrResourceLimit)
+	}
+	return raw, nil
 }
 
 func signArgs(args []any) (context.Context, string, ed25519.PrivateKey, error) {
@@ -259,15 +288,27 @@ func signToArgs(args []any) (context.Context, string, string, ed25519.PrivateKey
 	}
 }
 
-func appendSignedRecord(outputPath string, rawBundle []byte, record Record, outputMode os.FileMode) error {
+func appendSignedRecord(outputPath string, rawBundle []byte, record Record, outputMode os.FileMode, maxBytes int64) error {
 	encodedRecord, err := json.Marshal(record)
 	if err != nil {
 		return fmt.Errorf("encode signature record: %w", err)
 	}
 
-	payload := make([]byte, 0, len(rawBundle)+len(encodedRecord)+2)
+	needsSeparator := len(rawBundle) > 0 && rawBundle[len(rawBundle)-1] != '\n'
+	outputSize, capacity, err := signedPayloadMetrics(len(rawBundle), len(encodedRecord), needsSeparator)
+	if err != nil {
+		return err
+	}
+	if maxBytes <= 0 {
+		return fmt.Errorf("sign bundle: invalid output limit: %w", ErrResourceLimit)
+	}
+	if int64(outputSize) > maxBytes {
+		return fmt.Errorf("sign bundle: output exceeds %d bytes: %w", maxBytes, ErrResourceLimit)
+	}
+
+	payload := make([]byte, 0, capacity)
 	payload = append(payload, rawBundle...)
-	if len(payload) > 0 && payload[len(payload)-1] != '\n' {
+	if needsSeparator {
 		payload = append(payload, '\n')
 	}
 	payload = append(payload, encodedRecord...)
@@ -280,4 +321,31 @@ func appendSignedRecord(outputPath string, rawBundle []byte, record Record, outp
 		return fmt.Errorf("write signed bundle: %w", err)
 	}
 	return nil
+}
+
+func signedPayloadCapacity(rawSize, recordSize int) (int, error) {
+	// Reserve both possible newlines before adding lengths. Subtractions are
+	// checked in order, so neither the guard nor the final sum can overflow.
+	if rawSize < 0 || recordSize < 0 || rawSize > math.MaxInt-2 {
+		return 0, fmt.Errorf("sign bundle: output size exceeds capacity: %w", ErrResourceLimit)
+	}
+	if recordSize > math.MaxInt-2-rawSize {
+		return 0, fmt.Errorf("sign bundle: output size exceeds capacity: %w", ErrResourceLimit)
+	}
+	return rawSize + recordSize + 2, nil
+}
+
+func signedPayloadMetrics(rawSize, recordSize int, needsSeparator bool) (int, int, error) {
+	// capacity reserves the separator and final LF. The actual emitted size is
+	// one byte smaller when no separator is needed; an empty input never needs
+	// one. Both values are derived after the overflow guard above.
+	capacity, err := signedPayloadCapacity(rawSize, recordSize)
+	if err != nil {
+		return 0, 0, err
+	}
+	outputSize := capacity - 1
+	if needsSeparator && rawSize > 0 {
+		outputSize = capacity
+	}
+	return outputSize, capacity, nil
 }

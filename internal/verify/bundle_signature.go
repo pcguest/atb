@@ -3,8 +3,10 @@ package verify
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
 	"github.com/pcguest/atb/internal/event"
@@ -57,7 +59,7 @@ func inspectBundleSignature(b *bundle.Bundle, bundlePath string) *BundleSignatur
 	}
 	result.BundleHash = signature.BundleHash
 
-	expectedHash, err := hashBundleSnapshotBeforeRecord(bundlePath, signatureIndex)
+	expectedHash, err := hashBundleSnapshotBeforeRecord(bundlePath, signatureIndex, signature.BundleHash)
 	if err != nil {
 		result.Error = fmt.Sprintf("hash bundle snapshot: %v", err)
 		return result
@@ -128,7 +130,7 @@ func buildSignatureProvenance(record bundle.Record, index int, bundlePath string
 	}
 	prov.BundleHash = signature.BundleHash
 
-	expectedHash, err := hashBundleSnapshotBeforeRecord(bundlePath, index)
+	expectedHash, err := hashBundleSnapshotBeforeRecord(bundlePath, index, signature.BundleHash)
 	if err != nil {
 		prov.Error = "hash bundle snapshot: " + err.Error()
 		return prov
@@ -156,7 +158,7 @@ func stringField(fields map[string]any, key string) string {
 	return text
 }
 
-func hashBundleSnapshotBeforeRecord(bundlePath string, targetRecordIndex int) ([]byte, error) {
+func hashBundleSnapshotBeforeRecord(bundlePath string, targetRecordIndex int, signedHash string) ([]byte, error) {
 	if targetRecordIndex < 0 {
 		return nil, fmt.Errorf("record index must be non-negative")
 	}
@@ -174,9 +176,24 @@ func hashBundleSnapshotBeforeRecord(bundlePath string, targetRecordIndex int) ([
 			lineEnd++
 		}
 
-		if lineEnd > lineStart {
+		// The loader skips blank lines, including the CRLF form that scanner
+		// line splitting reduces to an empty record. Count physical records the
+		// same way so a blank CRLF line cannot consume a signature index.
+		blank := lineEnd == lineStart || (lineEnd == lineStart+1 && raw[lineStart] == '\r')
+		if !blank {
 			if recordIndex == targetRecordIndex {
 				sum := sha256.Sum256(raw[:lineStart])
+				// Sign hashes the original input bytes, then inserts one LF only
+				// if that input was unterminated. Recover that original prefix
+				// only when the recorded digest matches exactly; do not trim
+				// whitespace, CRs or an already terminated/blank line. Signature
+				// verification against this digest is still mandatory below.
+				if lineStart > 1 && raw[lineStart-1] == '\n' && raw[lineStart-2] != '\n' {
+					original := sha256.Sum256(raw[:lineStart-1])
+					if strings.EqualFold(strings.TrimSpace(signedHash), hex.EncodeToString(original[:])) {
+						return original[:], nil
+					}
+				}
 				return sum[:], nil
 			}
 			recordIndex++
