@@ -235,6 +235,20 @@ The signed pre-image is **`SHA-256(pre-signature bundle NDJSON bytes)`** — i.e
 
 Optional fields (current, additive):
 
+**Unterminated input compatibility.** The Go signer accepts a parseable final
+record without an LF and signs the exact original input bytes, as it has in
+previous releases. It inserts one LF solely to separate that record from the
+appended signature record. That newly inserted separator was not in the signed
+input. A verifier first considers the complete physical prefix; it may also
+recognise that prefix without exactly one separator LF when the preceding byte
+is not LF and the recorded `bundle_hash` matches that original prefix exactly.
+The cryptographic signature must still verify over the matching digest. No CR,
+spaces, other bytes or extra blank lines may be discarded. Normal LF/CRLF inputs
+retain their complete byte preimage. This reader correction recognises existing
+signer output; it changes no record hash, schema, signature algorithm, emitted
+bytes or signer preimage. Older readers can still report a mismatch on an
+originally unterminated input; use an updated reader, not a rewritten bundle.
+
 The following optional fields may appear in the `atb.bundle.signature` data payload. Implementations MUST ignore unknown fields and MUST NOT reject signatures that omit them.
 
 | JSON key       | Type    | Description                                                                                     |
