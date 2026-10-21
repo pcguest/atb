@@ -189,7 +189,7 @@ func signToWithSignerLimited(
 	if filepath.Clean(bundlePath) == filepath.Clean(outputPath) {
 		outputMode = sourceMode
 	}
-	if err := appendSignedRecord(outputPath, rawBundle, signedRecord, outputMode); err != nil {
+	if err := appendSignedRecord(outputPath, rawBundle, signedRecord, outputMode, maxBytes); err != nil {
 		return "", err
 	}
 
@@ -288,19 +288,27 @@ func signToArgs(args []any) (context.Context, string, string, ed25519.PrivateKey
 	}
 }
 
-func appendSignedRecord(outputPath string, rawBundle []byte, record Record, outputMode os.FileMode) error {
+func appendSignedRecord(outputPath string, rawBundle []byte, record Record, outputMode os.FileMode, maxBytes int64) error {
 	encodedRecord, err := json.Marshal(record)
 	if err != nil {
 		return fmt.Errorf("encode signature record: %w", err)
 	}
 
-	capacity, err := signedPayloadCapacity(len(rawBundle), len(encodedRecord))
+	needsSeparator := len(rawBundle) > 0 && rawBundle[len(rawBundle)-1] != '\n'
+	outputSize, capacity, err := signedPayloadMetrics(len(rawBundle), len(encodedRecord), needsSeparator)
 	if err != nil {
 		return err
 	}
+	if maxBytes <= 0 {
+		return fmt.Errorf("sign bundle: invalid output limit: %w", ErrResourceLimit)
+	}
+	if int64(outputSize) > maxBytes {
+		return fmt.Errorf("sign bundle: output exceeds %d bytes: %w", maxBytes, ErrResourceLimit)
+	}
+
 	payload := make([]byte, 0, capacity)
 	payload = append(payload, rawBundle...)
-	if len(payload) > 0 && payload[len(payload)-1] != '\n' {
+	if needsSeparator {
 		payload = append(payload, '\n')
 	}
 	payload = append(payload, encodedRecord...)
@@ -325,4 +333,19 @@ func signedPayloadCapacity(rawSize, recordSize int) (int, error) {
 		return 0, fmt.Errorf("sign bundle: output size exceeds capacity: %w", ErrResourceLimit)
 	}
 	return rawSize + recordSize + 2, nil
+}
+
+func signedPayloadMetrics(rawSize, recordSize int, needsSeparator bool) (int, int, error) {
+	// capacity reserves the separator and final LF. The actual emitted size is
+	// one byte smaller when no separator is needed; an empty input never needs
+	// one. Both values are derived after the overflow guard above.
+	capacity, err := signedPayloadCapacity(rawSize, recordSize)
+	if err != nil {
+		return 0, 0, err
+	}
+	outputSize := capacity - 1
+	if needsSeparator && rawSize > 0 {
+		outputSize = capacity
+	}
+	return outputSize, capacity, nil
 }

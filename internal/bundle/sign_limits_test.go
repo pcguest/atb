@@ -68,6 +68,50 @@ func (s *countingSigningSigner) Sign(ctx context.Context, digest []byte) ([]byte
 	return s.Signer.Sign(ctx, digest)
 }
 
+func signingFixture(t *testing.T, terminated bool) []byte {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "fixture.atb")
+	b, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Append("ai.tool.exec", map[string]any{"ok": true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = bytes.TrimSuffix(raw, []byte("\n"))
+	if terminated {
+		raw = append(raw, '\n')
+	}
+	return raw
+}
+
+func signedOutputSizeFor(t *testing.T, raw []byte) int {
+	t.Helper()
+	dir := t.TempDir()
+	input := filepath.Join(dir, "input.atb")
+	output := filepath.Join(dir, "output.atb")
+	if err := os.WriteFile(input, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	key := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
+	s := &countingSigningSigner{Signer: signer.NewLocalSigner(key)}
+	if _, err := signToWithSignerLimited(context.Background(), input, output, s, MaxBundleSizeBytes); err != nil {
+		t.Fatal(err)
+	}
+	signed, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(signed)
+}
+
 func TestSigningLimitRejectsBeforeSignerAndWrite(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -154,7 +198,10 @@ func TestSigningAtLimitPreservesPrefixAndSignature(t *testing.T) {
 			}
 			key := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
 			s := &countingSigningSigner{Signer: signer.NewLocalSigner(key)}
-			if _, err := signToWithSignerLimited(context.Background(), path, path, s, int64(len(raw))); err != nil {
+			// The injected policy now bounds the emitted bundle as well as the
+			// input read. The exact input-read boundary is covered separately.
+			limit := int64(signedOutputSizeFor(t, raw))
+			if _, err := signToWithSignerLimited(context.Background(), path, path, s, limit); err != nil {
 				t.Fatal(err)
 			}
 			if s.calls != 1 {
@@ -193,6 +240,104 @@ func TestSigningAtLimitPreservesPrefixAndSignature(t *testing.T) {
 	}
 }
 
+func TestSigningOutputLimitBoundary(t *testing.T) {
+	t.Parallel()
+	for _, terminated := range []bool{true, false} {
+		ending := "unterminated"
+		if terminated {
+			ending = "terminated"
+		}
+		raw := signingFixture(t, terminated)
+		emitted := signedOutputSizeFor(t, raw)
+		for _, tc := range []struct {
+			name  string
+			delta int
+			mode  string
+		}{
+			{name: "below", delta: 1, mode: "in-place"},
+			{name: "exact", mode: "in-place"},
+			{name: "over", delta: -1, mode: "in-place"},
+			{name: "below", delta: 1, mode: "existing-output"},
+			{name: "exact", mode: "existing-output"},
+			{name: "over", delta: -1, mode: "existing-output"},
+			{name: "below", delta: 1, mode: "missing-output"},
+			{name: "exact", mode: "missing-output"},
+			{name: "over", delta: -1, mode: "missing-output"},
+		} {
+			tc := tc
+			t.Run(ending+"/"+tc.name+"/"+tc.mode, func(t *testing.T) {
+				t.Parallel()
+				dir := t.TempDir()
+				input := filepath.Join(dir, "input.atb")
+				before := bytes.Clone(raw)
+				if err := os.WriteFile(input, before, 0600); err != nil {
+					t.Fatal(err)
+				}
+				output := input
+				if tc.mode != "in-place" {
+					output = filepath.Join(dir, "output.atb")
+				}
+				if tc.mode == "existing-output" {
+					if err := os.WriteFile(output, []byte("preserve output"), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+
+				key := ed25519.NewKeyFromSeed(make([]byte, ed25519.SeedSize))
+				s := &countingSigningSigner{Signer: signer.NewLocalSigner(key)}
+				_, err := signToWithSignerLimited(context.Background(), input, output, s, int64(emitted+tc.delta))
+				if tc.delta < 0 {
+					if !errors.Is(err, ErrResourceLimit) || !strings.Contains(err.Error(), "output") {
+						t.Fatalf("error = %v, want output ErrResourceLimit", err)
+					}
+					if s.calls != 1 {
+						t.Fatalf("signer calls = %d, want 1 after output-size rejection", s.calls)
+					}
+					after, readErr := os.ReadFile(input)
+					if readErr != nil || !bytes.Equal(before, after) {
+						t.Fatalf("input changed: %v", readErr)
+					}
+					switch tc.mode {
+					case "existing-output":
+						after, readErr = os.ReadFile(output)
+						if readErr != nil || string(after) != "preserve output" {
+							t.Fatalf("existing output changed: %v", readErr)
+						}
+					case "missing-output":
+						if _, statErr := os.Stat(output); !errors.Is(statErr, os.ErrNotExist) {
+							t.Fatalf("missing output created: %v", statErr)
+						}
+					}
+					return
+				}
+
+				if err != nil {
+					t.Fatalf("sign: %v", err)
+				}
+				if s.calls != 1 {
+					t.Fatalf("signer calls = %d, want 1", s.calls)
+				}
+				signed, readErr := os.ReadFile(output)
+				if readErr != nil {
+					t.Fatal(readErr)
+				}
+				if len(signed) != emitted {
+					t.Fatalf("output length = %d, want %d (limit %d)", len(signed), emitted, emitted+tc.delta)
+				}
+				if !bytes.HasPrefix(signed, before) {
+					t.Fatal("original prefix changed")
+				}
+				if tc.mode != "in-place" {
+					after, readErr := os.ReadFile(input)
+					if readErr != nil || !bytes.Equal(before, after) {
+						t.Fatalf("separate input changed: %v", readErr)
+					}
+				}
+			})
+		}
+	}
+}
+
 func TestSigningAtLimitReachesParser(t *testing.T) {
 	t.Parallel()
 	path := filepath.Join(t.TempDir(), "malformed.atb")
@@ -203,6 +348,41 @@ func TestSigningAtLimitReachesParser(t *testing.T) {
 	_, err := signToWithSignerLimited(context.Background(), path, path, s, 8)
 	if !errors.Is(err, ErrMalformed) || s.calls != 0 {
 		t.Fatalf("expected parse rejection at exact read limit, got %v, calls=%d", err, s.calls)
+	}
+}
+
+func TestSignedPayloadMetrics(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name                   string
+		raw, record            int
+		separator              bool
+		wantSize, wantCapacity int
+		wantErr                bool
+	}{
+		{name: "empty", record: 1, wantSize: 2, wantCapacity: 3},
+		{name: "terminated", raw: 5, record: 7, wantSize: 13, wantCapacity: 14},
+		{name: "unterminated", raw: 5, record: 7, separator: true, wantSize: 14, wantCapacity: 14},
+		{name: "empty-separator-ignored", record: 7, separator: true, wantSize: 8, wantCapacity: 9},
+		{name: "exact-max-no-separator", raw: math.MaxInt - 3, record: 1, wantSize: math.MaxInt - 1, wantCapacity: math.MaxInt},
+		{name: "exact-max-separator", raw: math.MaxInt - 3, record: 1, separator: true, wantSize: math.MaxInt, wantCapacity: math.MaxInt},
+		{name: "sum-overflow", raw: math.MaxInt - 3, record: 2, wantErr: true},
+		{name: "newline-overflow", raw: math.MaxInt - 1, wantErr: true},
+		{name: "negative-raw", raw: -1, wantErr: true},
+		{name: "negative-record", record: -1, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gotSize, gotCapacity, err := signedPayloadMetrics(tc.raw, tc.record, tc.separator)
+			if errors.Is(err, ErrResourceLimit) != tc.wantErr {
+				t.Fatalf("err = %v, want limit=%v", err, tc.wantErr)
+			}
+			if tc.wantErr {
+				return
+			}
+			if err != nil || gotSize != tc.wantSize || gotCapacity != tc.wantCapacity {
+				t.Fatalf("size=%d capacity=%d err=%v, want size=%d capacity=%d", gotSize, gotCapacity, err, tc.wantSize, tc.wantCapacity)
+			}
+		})
 	}
 }
 

@@ -249,6 +249,17 @@ signer output; it changes no record hash, schema, signature algorithm, emitted
 bytes or signer preimage. Older readers can still report a mismatch on an
 originally unterminated input; use an updated reader, not a rewritten bundle.
 
+**Signed output limit.** The Go signer applies the same 512 MiB policy to the
+emitted bundle. It computes the exact emitted size from the original bytes, one
+separator LF only when the input does not already end in LF, the encoded
+signature record, and one final LF. If that size exceeds the policy, signing
+fails with a resource-limit error before allocating the combined payload or
+writing the output. The input file, any existing separate output, and an absent
+output are left unchanged. The signature record has already been produced at
+this point; the rejection is an output-size rejection, not an input-read
+rejection. This limit does not apply to separate signature-verification rereads
+and is not a process-wide memory ceiling.
+
 The following optional fields may appear in the `atb.bundle.signature` data payload. Implementations MUST ignore unknown fields and MUST NOT reject signatures that omit them.
 
 | JSON key       | Type    | Description                                                                                     |
