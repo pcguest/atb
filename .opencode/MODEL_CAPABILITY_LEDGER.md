@@ -5,18 +5,31 @@ against `opencode models` on OpenCode 1.18.34 on 2026-10-21. No credentials are
 recorded here. This ledger records owner-selected routing and observed inventory;
 it is not a benchmark ranking or a price quote.
 
-## Current routed models
+## Agent routing (explicit assignments)
 
-Only configured agent and root-default routes are listed; the separate `small_model` route (`opencode/ling-3.0-flash-fin-free`) is documented in `.opencode/opencode.jsonc`.
-are not routing decisions and are not implied fallbacks.
+These are explicit `agent.<name>.model` assignments. None has a configured
+per-role failover; an unavailable explicit assignment is not replaced
+automatically by the root default or another inventory model.
 
-| Role(s) | Model ID | Provider | Family | Route class | Fallback |
+| Role(s) | Model ID | Provider | Family | Route class | Per-role failover |
 | --- | --- | --- | --- | --- | --- |
-| Primary orchestrator; adversarial reviewer | `openai/gpt-6.1-sol-fast` | openai (OAuth) | OpenAI GPT | OAuth route | No per-role fallback configured |
-| Repo explorer; bounded implementer | `opencode-go/deepseek-v4.1-flash` | opencode-go | DeepSeek | Go allowance | No per-role fallback configured |
-| Normal reviewer | `opencode-go/glm-5.3-flash` | opencode-go | GLM | Go allowance | No per-role fallback configured |
-| Synthetic practitioner A | `opencode-go/mimo-v2.5` | opencode-go | MiMo | Go allowance | No per-role fallback configured |
-| Root default | `opencode/nemotron-3-ultra-free` | opencode (Zen) | NVIDIA | Free | Configured root default; not a failover target |
+| Primary orchestrator; adversarial reviewer | `openai/gpt-6.1-sol-fast` | openai (OAuth) | OpenAI GPT | OAuth route | None configured |
+| Repo explorer; bounded implementer | `opencode-go/deepseek-v4.1-flash` | opencode-go | DeepSeek | Go allowance | None configured |
+| Normal reviewer | `opencode-go/glm-5.3-flash` | opencode-go | GLM | Go allowance | None configured |
+| Synthetic practitioner A | `opencode-go/mimo-v2.5` | opencode-go | MiMo | Go allowance | None configured |
+
+## Root default and auxiliary small model
+
+These settings are not agent routes and are not failover mechanisms.
+
+| Setting | Model ID | Provider | Meaning |
+| --- | --- | --- | --- |
+| Root default | `opencode/nemotron-3-ultra-free` | opencode (Zen) | Root `model` default used when no explicit agent model applies. It is not an automatic fallback/failover, and no recovery behaviour is asserted. |
+| Auxiliary small model | `opencode/mimo-v2.6-flash-free` | opencode (Zen) | Auxiliary `small_model` setting. Replaces the unavailable `opencode/ling-3.0-flash-fin-free` with an active, zero-cost, text-capable model (200k context / 32k output) from the already connected `opencode` provider. It is not an agent route, not the root default, and not a failover. |
+
+Selection note: the previous `small_model` ID is absent from refreshed inventory.
+The replacement uses the existing `opencode` provider rather than adding a
+provider; no recovery or failover behaviour is implied.
 
 ## Routing rationale and historical notes
 
@@ -33,7 +46,7 @@ are not routing decisions and are not implied fallbacks.
   diversity limits below.
 - The former `opencode-go/deepseek-v4-flash` ID is absent from the current
   inventory; the current DeepSeek ID is `opencode-go/deepseek-v4.1-flash`. Other
-  inventory entries are not fallbacks just because they are listed by
+  inventory entries are not failovers just because they are listed by
   `opencode models`.
 - Routing lives ONLY in `.opencode/opencode.jsonc` (`agent.<name>.model`). No ATB
   product code contains model names.
@@ -49,18 +62,17 @@ are not routing decisions and are not implied fallbacks.
 | Adversarial reviewer | adversarial-reviewer | openai/gpt-6.1-sol-fast |
 | Synthetic practitioner A | practitioner | opencode-go/mimo-v2.5 |
 | Synthetic practitioner B | (task-scoped, not a configured agent) | opencode-go/deepseek-v4.1-flash |
-| Free overflow | global fallback | opencode/nemotron-3-ultra-free |
 
 ## Model-family diversity and limits
 
-- Different families: implementer (DeepSeek) and normal reviewer (GLM).
-- The adversarial reviewer uses the same OpenAI GPT-6.1 Sol Fast model as the
-  primary. It is not an independent model family.
-- Its independence is procedural only: a fresh read-only context, hostile-input
-  review role, and no edit/bash/task/external-directory permissions.
-- This is an accepted owner-selected trade-off. It does not provide independent
-  model diversity from the primary and does not eliminate correlated model
-  errors. No immunity to correlated mistakes is claimed.
+Both the normal reviewer (GLM) and adversarial reviewer (OpenAI) differ from the
+implementer (DeepSeek). The adversarial reviewer shares the primary's OpenAI
+model; its separation from the primary is procedural, not model-family diversity.
+
+Its independence is procedural only: a fresh read-only context, hostile-input
+review role, and no edit/bash/task/external-directory permissions. This is an
+accepted owner-selected trade-off. It does not eliminate correlated model errors;
+no immunity to correlated mistakes is claimed.
 
 `openai` is the connected OAuth provider. `console-openai` is a separate
 console/API provider and is not used for routine routing.

@@ -11,16 +11,19 @@
   // The previous `agents` key and `permission.yaml` were NOT enforced by OpenCode.
   "$schema": "https://opencode.ai/config.json",
 
-  // Global fallback model (free overflow). Per-agent routing is below.
+  // Root default model. It applies when no explicit agent model is assigned;
+  // it is not an automatic fallback/failover.
   "model": "opencode/nemotron-3-ultra-free",
-  "small_model": "opencode/ling-3.0-flash-fin-free",
+  // Auxiliary small-model setting; not agent routing or a failover.
+  // Replaces unavailable opencode/ling-3.0-flash-fin-free.
+  "small_model": "opencode/mimo-v2.6-flash-free",
 
   // Prevent recursive swarms. atb-engineer -> specialist/worker -> STOP.
   "subagent_depth": 1,
 
   // ------------------------------------------------------------------
   // MODEL ROUTING (replaceable). Owner-selected; family diversity is partial.
-  // Route classes: go = OpenCode Go allowance; free = free overflow;
+  // Route classes: go = OpenCode Go allowance; free = free-tier route;
   // openai = OpenAI OAuth (primary and adversarial review only).
   // Primary and adversarial share the OpenAI model; adversarial runs in a
   // separate read-only context. This is procedural, not model-diversity,
