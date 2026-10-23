@@ -1,9 +1,9 @@
 # ATB: portable evidence for AI-agent incidents
 
-Source version: `v1.18.1`
+Source version: [`v1.18.1`](CHANGELOG.md)
 
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
-[![Go version](https://img.shields.io/badge/go-1.26.9-blue)](https://go.dev/)
+[![Go version](https://img.shields.io/badge/go-1.26.10-blue)](https://go.dev/)
 [![MIT licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
 ATB captures agent and tool activity in portable, tamper-evident bundles that

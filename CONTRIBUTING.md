@@ -89,8 +89,8 @@ If GitHub Actions is unavailable (for example, a billing or spending-limit
 block), run the release gates locally before merging to `main`:
 
 ```sh
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 go test ./... -count=1
 bash scripts/check-versions.sh
 ```
 
@@ -152,8 +152,8 @@ without external or hosted services.
 Before a public release:
 
 ```bash
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 go test ./... -count=1
 /bin/bash scripts/check-versions.sh
 ```
 

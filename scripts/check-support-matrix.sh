@@ -26,12 +26,12 @@ require_file_contains() {
 
 GO_MOD_VERSION="$(awk '/^go / { print $2; exit }' "$ROOT_DIR/go.mod")"
 MAKEFILE_TOOLCHAIN="$(awk '/^GOTOOLCHAIN[[:space:]]*\?=/ { print $3; exit }' "$ROOT_DIR/Makefile")"
-expect "go.mod Go version" "$GO_MOD_VERSION" "1.26.9"
-expect "Makefile GOTOOLCHAIN" "$MAKEFILE_TOOLCHAIN" "go1.26.9"
+expect "go.mod Go version" "$GO_MOD_VERSION" "1.26.10"
+expect "Makefile GOTOOLCHAIN" "$MAKEFILE_TOOLCHAIN" "go1.26.10"
 
 while IFS= read -r wf; do
   if grep -q "setup-go@" "$wf"; then
-    if grep -q 'go-version:' "$wf" && ! grep -q 'go-version: "1.26.9"' "$wf"; then
+    if grep -q 'go-version:' "$wf" && ! grep -q 'go-version: "1.26.10"' "$wf"; then
       fail "${wf#"$ROOT_DIR/"} has non-matrix go-version"
     fi
   fi

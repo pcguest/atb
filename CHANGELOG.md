@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Updated the pinned Go toolchain and builder images to Go 1.26.10 to address CVE-2026-111943 in `crypto/x509`; aligned CI, local validation, and support-matrix pins.
+
 ### Breaking Changes
 - **NEXT MAJOR ONLY (2.0.0; not a v1 backport):** The authenticated `GET /api/v1/sessions` and `GET /api/v1/sessions/by-actor` endpoints reject non-empty `bundle_dir` query values, including whitespace and any non-empty value among repeated parameters, with HTTP 400 and the fixed API error `invalid query parameters`. Malformed query encoding is rejected with the same response. Rejection occurs before filesystem selection or session indexing, without returning or logging the supplied path. Missing and empty values retain server-configured indexing, including configured multi-bundle indexes; callers must select evidence through server configuration or the existing CLI `--sessions` option instead. This is a deliberate compatibility break, not a security exception or v1 patch. Published version metadata remains unchanged until major-release preparation; bundle formats, canonical hashes and SDK contracts are unchanged. This change is limited to these two endpoints, not a claim that every viewer route rejects filesystem selectors.
 
