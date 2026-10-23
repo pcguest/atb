@@ -35,4 +35,4 @@ The layout avoids runtime font requests so offline builds and local review are
 deterministic. Component and Vitest tests are the isolated state harness;
 Cypress exercises the full mocked flow and the embedded server in Firefox.
 See the [viewer specification](../docs/specification/viewer.md) and
-[visual-system guidance](../docs/maintainers/visual-system.md).
+[ATB viewer design rationale](../docs/product/ux-baseline.md).

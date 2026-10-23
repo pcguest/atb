@@ -88,7 +88,7 @@ relying on bundles as primary evidence.
 The Go, Python, and TypeScript readers cap each NDJSON record at 16 MiB and
 default to 512 MiB and 1,000,000 non-empty records per bundle. SDK callers can
 set lower positive total limits. Chatlog and OTLP/JSON imports, proxy bodies,
-Mortise responses, remote-signer responses, and TSA responses also have
+custody-service responses, remote-signer responses, and TSA responses also have
 explicit byte limits.
 
 These are process-safety bounds, not format changes: a larger file can still be
@@ -160,9 +160,9 @@ Roles are extracted from JWT claims (or default to `viewer`) and enforced via RB
 - `viewer` and `auditor`: read-only review APIs.
 - `operator` and `admin`: privacy reveal and other mutating review actions.
 
-Mortise authentication is independent. ATB can read `ATB_MORTISE_TOKEN` for an
-explicit handoff, but does not share viewer sessions, roles, or identity state
-with Mortise.
+Optional custody handoff authentication is independent. The historical
+`ATB_MORTISE_TOKEN` name is used only for an explicit handoff; it is unrelated
+to viewer sessions, roles, or identity state.
 
 `--host` accepts only `localhost` or a loopback IP address. ATB deliberately
 does not provide a network-hosted or multi-tenant viewer mode.

@@ -34,8 +34,8 @@ When `atb verify` (or `bundle.verify()`) returns **PASS**:
 | **Policy correctness** | A recorded policy decision "deny" is verified as recorded; ATB doesn't judge if the policy logic was correct. |
 | **Safety** | No claim about whether the agent's behaviour was safe or appropriate. |
 | **Causality** | Event A before Event B doesn't prove A caused B. |
-| **External authority** | ATB doesn't verify who had permission to act; that's Mortise's domain. |
-| **Objective continuity** | ATB doesn't track whether an agent's objective drifted; that's Tenon's domain. |
+| **External authority** | ATB doesn't verify who had permission to act; that requires an independent identity and policy authority. |
+| **Objective continuity** | ATB doesn't determine whether an agent's objective drifted; that requires application-specific policy and review outside ATB. |
 
 ---
 

@@ -1,197 +1,74 @@
-# ATB — independently verifiable evidence for AI agents
+# ATB: portable evidence for AI-agent incidents
 
-[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml) ![Go version](https://img.shields.io/badge/go-1.26.9-blue) [![Licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
+Source version: `v1.18.1`
 
-> **Note**: Registry publication may occasionally lag behind the source tree. For the latest features, use `go install` for the CLI or build from source. Check the installed version against the documentation before relying on release-specific behavior.
+[![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
+[![Go version](https://img.shields.io/badge/go-1.26.9-blue)](https://go.dev/)
+[![MIT licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
-ATB is an open-source, local-first evidence system for AI agents. It captures
-agent and tool activity into portable, tamper-evident bundles that can be
-independently verified offline.
+ATB captures agent and tool activity in portable, tamper-evident bundles that
+can be verified offline.
 
-**ATB proves the integrity and order of records presented in a bundle. It does
-not prove that every relevant event was captured, that an actor was honest
-before capture, or that the recorded activity was correct.**
+**ATB proves the integrity and order of records in a bundle. It does not prove
+that every relevant event was captured, that the actor was honest, or that a
+recorded claim is true.**
 
-When an agent incident occurs, ATB lets an investigator verify the evidence,
-reconstruct recorded actions, and trace deterministic findings back to
-hash-addressed bundle events without relying on the agent application's own
-logs. It requires no service, cloud account, external database, or hosted
-verifier.
-
-Source version: [`v1.18.1`](CHANGELOG.md). A source tag does not imply that
-every registry or GitHub release artefact has been published; check the
-installed CLI/SDK version and the relevant registry before relying on a
-particular release.
-
-v1.17.0 Docker images are multi-architecture (`linux/amd64` and
-`linux/arm64`). Pull the published `atb` image for that tag from Docker Hub
-when the registry publication for the tag is available. Image publication is
-independent of the source tag.
-
-## Try ATB in five minutes
+## Quickstart
 
 Install the CLI:
 
-```bash
+```sh
 go install github.com/pcguest/atb/cmd/atb@latest
 ```
 
-Create a bundle, record a decision, and verify its integrity and evidence
-obligations:
+Create a bundle, record an event, and verify it:
 
-```bash
+```sh
 atb bundle new
-atb append ai.request.received --data='{"request_id":"req-1042","purpose_tag":"support-triage"}'
-atb append ai.policy.decision --data='{"policy_id":"routing","policy_version":"1","decision":"deny","decision_reason_codes":["manual_review"],"subject_id_hash":"sha256-subject","action_id":"act-1042"}'
-atb verify --profile atb.profile.policy_decision run.atb/bundle.atb
+atb append ai.request.received --data='{"request_id":"req-1042"}'
+atb verify run.atb/bundle.atb
 ```
 
-`go install` provides the CLI and a minimal install-guidance page for
-`atb view`. The full embedded local viewer is included by a source build:
+For a complete walkthrough, including Python and TypeScript SDKs, see the
+[five-minute quickstart](docs/getting-started/quickstart.md). To build the
+embedded local viewer from source:
 
-```bash
+```sh
 git clone https://github.com/pcguest/atb.git
 cd atb
 make build
-./atb view run.atb/bundle.atb --profile atb.profile.policy_decision
+./atb view run.atb/bundle.atb
 ```
 
-See the [five-minute quickstart](./docs/getting-started/quickstart.md) for Python and TypeScript
-SDK installation, capture paths, and the complete local review flow.
+## Use ATB
 
-The product flow is **capture → bundle → verify → investigate → export**. Each
-stage leaves a portable artefact or an explicit result; nothing requires a
-hosted ATB service.
+- [Examples](examples/README.md), including a reproducible incident walkthrough
+- [Capture and integrations](docs/integrations/README.md)
+- [Go, Python, and TypeScript SDKs](sdk/README.md)
+- [Offline verification](docs/investigate/verify.md)
+- [Incident investigation and evidence export](docs/investigate/incidents.md)
 
-## What ATB records
-
-```text
-AI agent / application / framework
-              │
-              ▼
-           CAPTURE
-   ┌──────────┼──────────┐
-   │          │          │
-  SDK      intercept    import
-   │          │          │
-   └──────────┼──────────┘
-              ▼
-       canonical ATB event
-              │
-              ▼
-       RFC 8785 canonicalise
-              │
-              ▼
-         SHA-256 chain
-              │
-              ▼
-          .atb bundle
-              │
-       ┌──────┼─────────────┐
-       ▼      ▼             ▼
-    verify  incident      view
-              │
-              ▼
-        evidence pack
-              │ optional
-              ▼
-           Mortise
-        custody boundary
-```
-
-Optional Ed25519 or configured KMS signatures, RFC 3161 timestamp evidence,
-and AES-256-GCM encryption add provenance, time evidence, and confidentiality.
-They do not change the capture-completeness boundary.
-
-## Incident forensics
-
-`atb intercept` records routed provider traffic, tool calls, and failures. By
-default it stores body digests and byte lengths rather than raw prompts or
-completions, and strips credential headers. Raw capture is explicit and emits
-a sensitive-content warning.
-
-```bash
-atb incident list --bundle <bundle-file>
-atb incident report --bundle <bundle-file> --session <session-id>
-atb incident export --bundle <bundle-file> --session <session-id> --out incident-evidence.zip
-```
-
-Findings such as `tool_without_approval` mean that no matching approval is
-present in the recorded evidence before the located tool call. They do not
-prove that no approval existed anywhere outside the capture boundary. Follow
-the reproducible [incident-forensics walkthrough](./docs/investigate/incidents.md).
-
-Run the complete offline workflow from a source checkout:
-
-```bash
-make demo-incident
-```
-
-It creates the same incident bundle twice and checks byte-for-byte determinism,
-verifies the intact evidence, reconstructs the session, asserts the expected
-finding, and proves content mutation, record reordering, and record removal all
-fail verification.
-
-## Independent implementations
-
-Go, Python, and TypeScript independently implement the ATB bundle semantics.
-They share schemas, event vocabulary, and deterministic golden vectors; the
-Python and TypeScript SDKs do not call a hidden Go service.
-
-| Language | Package |
-| --- | --- |
-| Go | The `atb` CLI (`cmd/atb`) and supporting libraries. [`pkg/api/v1`](./pkg/api/v1) is the **local viewer HTTP API** used by `atb view`, not a general-purpose product SDK. |
-| Python | [`sdk/python`](./sdk/python) |
-| TypeScript | [`sdk/typescript`](./sdk/typescript) |
-
-`make test-golden` blocks release unless all three implementations agree on
-canonical bytes and hashes.
-
-## Tenon, ATB, and Mortise
-
-```text
-Tenon
-├── ATB      open-source, local-first evidence core
-└── Mortise  optional commercial custody and organisational layer
-```
-
-Tenon is the umbrella product identity, not an ATB runtime component or hosted
-dependency. ATB remains independently useful for capture, verification,
-incident analysis, local review, profile evaluation, and evidence-pack
-generation.
-
-Mortise is an optional integration boundary for custody of record, WORM
-retention, signed receipts, organisational evidence management, and enterprise
-controls. ATB's optional Mortise client does not make Mortise part of the ATB
-runtime. Operator-controlled S3/Object Lock export is also supported; ATB
-records a successful retention request but does not prove continuing
-storage-side enforcement.
-
-## Evidence profiles and packs
-
-ATB obligation profiles are declarative evidence models evaluated against the
-records in a bundle. The Completeness Assurance Score (CAS) estimates
-profile-scoped evidence coverage; it is not proof of universal capture and not
-an external audit opinion.
-
-`atb compliance pack` is the CLI name for a deterministic, mapping-oriented
-evidence archive. It packages verification artefacts; it does not certify legal
-or regulatory compliance.
+Verification is local. Optional signing, timestamp, encryption, and external
+custody integrations add capabilities without changing ATB's capture boundary.
 
 ## Documentation
 
-| Read | Purpose |
-| --- | --- |
-| [Documentation hub](./docs/README.md) | Canonical map of current documentation |
-| [Architecture](./docs/concepts/architecture.md) | Components, implementations, and trust boundaries |
-| [Security model](./docs/concepts/trust-model.md) | Guarantees, threats, and explicit limits |
-| [Incident forensics](./docs/investigate/incidents.md) | Reproducible post-incident workflow |
-| [Profiles and CAS](./docs/evidence/profiles.md) | Evidence obligations and profile-scoped scoring |
-| [Bundle specification](./docs/specification/bundle-v1.md) | Frozen format, hashing, and canonicalisation contract |
-| [Glossary](./docs/concepts/glossary.md) | Canonical product and evidence terminology |
-| [Contributing](./CONTRIBUTING.md) | Local development and review gates |
-| [Versioning](./VERSIONING.md) | SemVer and compatibility rules |
+Start with the [quickstart](docs/getting-started/quickstart.md) →
+[architecture](docs/concepts/architecture.md) →
+[verification and limitations](docs/verification-meaning.md) →
+[integrations](docs/integrations/README.md) →
+[contributing](CONTRIBUTING.md). See the [documentation hub](docs/README.md) for
+reference material and task guides.
 
-## Licence
+[Documentation hub](docs/README.md) ·
+[Architecture](docs/concepts/architecture.md) ·
+[Trust model](docs/concepts/trust-model.md) ·
+[Bundle format](docs/specification/bundle-v1.md) ·
+[Event semantics](docs/specification/events.md) ·
+[Local viewer API](docs/api/README.md)
 
-[MIT](./LICENSE)
+## Security and contributing
+
+See [SECURITY.md](SECURITY.md) for private vulnerability reporting and
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup, development, and validation.
+ATB's licence is [MIT](LICENSE).

@@ -119,7 +119,7 @@ atb export --format soc2 --bundle ./capture.atb --output ./capture-export.zip
 
 ## Verify offline
 
-Capture, Mortise, and any paid tooling are optional for verification. With the
+External custody and any paid tooling are optional for verification. With the
 capture process stopped and no network, `atb verify`, `atb inspect`, and
 `atb export` operate on the bundle alone.
 
@@ -172,13 +172,12 @@ duration and disk accordingly, or restart with a new bundle path at a safe
 boundary.
 
 **Observation volume.** The commit protocol currently re-writes the whole
-bundle on each observation, so commit cost grows with the bundle size (measured
-on the pilot host: ~2,000 observations took ~2m20s to commit; cost per
-observation rises roughly linearly with the number of committed records). The
-pilot envelope is therefore **bounded to a few thousand observations per
-bundle**. Beyond that, restart with a new `--bundle` path at a safe boundary
-(e.g. per session). Incremental (append-only) bundle commits are the planned
-remediation before higher-volume pilots.
+bundle on each observation, so commit cost grows with bundle size. A historical
+pilot measurement recorded about 2,000 observations taking 2m20s on one
+unspecified host; treat that as an indicative result, not a current benchmark.
+The pilot guide therefore bounds use to a few thousand observations per bundle.
+For larger workloads, start a new bundle at a safe boundary (for example, per
+session). Incremental bundle commits are not implemented.
 
 ## If the journal is lost
 
@@ -214,8 +213,8 @@ unaffected. Do not pass provider credentials to ATB on the command line.
   a manifest-version migration and is not done in this pilot.
 - The journal is local operational state with no rotation or remote shipping.
 - Commit cost grows with bundle size (the bundle is re-written per observation);
-  the pilot is bounded to a few thousand observations per bundle. Restart with a
-  new bundle path beyond that; incremental commits are planned.
+  the pilot is bounded to a few thousand observations per bundle. Start a new
+  bundle at a safe boundary beyond that; incremental commits are not implemented.
 - Event data is encoded per RFC 8785 JSON canonicalisation. Integer values above
   2^53 are not exactly representable and may be normalised; tool-argument digests
   preserve the source integer literals, but do not rely on ATB to round-trip

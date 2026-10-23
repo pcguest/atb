@@ -151,8 +151,8 @@ not establish the external truth of the claim.
 
 ATB must not render, or imply, that a principal is verified, authorised,
 trusted, or permitted to execute. Authority, policy, delegation validity,
-approval, and trust are interpreted outside ATB (Mortise governance; Tenon
-execution). `on_behalf_of` must never be used for gating or authorisation.
+approval, and trust must be established by an independent identity or policy
+authority outside ATB. `on_behalf_of` must never be used for gating or authorisation.
 
 ## Interoperability
 

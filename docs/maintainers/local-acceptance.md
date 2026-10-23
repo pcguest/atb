@@ -238,5 +238,5 @@ pretending to contain the full embedded viewer.
 - To package incident evidence: use `atb incident export`.
 - To package mapped review evidence: use `atb compliance pack`; it is technical
   evidence, not certification.
-- Optional Mortise hand-off begins only when durable organisational custody,
+- Optional external custody hand-off begins only when durable organisational custody,
   retention, receipts, shared access, or governance is required.

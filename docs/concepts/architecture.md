@@ -37,8 +37,8 @@ AI agent / application / framework
         evidence pack
               │ optional
               ▼
-           Mortise
-        custody boundary
+    optional external
+   custody service
 ```
 
 Signing, RFC 3161 timestamp evidence, and encryption are optional operations
@@ -138,19 +138,21 @@ web production build.
 
 Explicit network integrations include configured provider traffic, TSA
 requests, OIDC/JWKS retrieval, corroboration adapters, remote signers, S3
-pushes, and optional Mortise endpoints. Core capture, verification, incident
+pushes, and optional custody endpoints. Core capture, verification, incident
 analysis, profile evaluation, packs, and local review require none of them.
 
-Mortise is the optional commercial custody and organisational layer for ATB
-evidence. The ATB repository contains an integration client and conformance
-surface, not the Mortise runtime. Operator-controlled S3/Object Lock is another
-explicit custody option; an accepted upload request is evidence of API
-acceptance, not proof of continuing storage enforcement.
+ATB provides an optional client contract for sending evidence to an external
+custody service. The public integration reference uses a historical product
+name for that contract; this repository contains no custody-service runtime.
+Operator-controlled S3/Object Lock is another explicit custody option; an
+accepted upload request is evidence of API acceptance, not proof of continuing
+storage enforcement. The current status and implementation of any external
+product are outside this repository’s verified scope.
 
 ## Resource and trust limits
 
 ATB caps individual bundle records, total bundle bytes, record count,
-chatlog/OTel imports, proxy bodies, Mortise responses, and TSA responses.
+chatlog/OTel imports, proxy bodies, custody-service responses, and TSA responses.
 Treat bundles as untrusted input and see the [trust model](./trust-model.md) for
 the current hardening classification.
 

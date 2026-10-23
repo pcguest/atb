@@ -1,62 +1,22 @@
-# ATB Development Instructions
+# ATB repository guidance
 
-## Product Identity
+ATB is the public, open-source foundation for portable AI-agent evidence. Keep its build, verification, and documentation independent of any external product.
 
-ATB is the public/open-source technical foundation for portable AI agent evidence.
-Mortise and Tenon are private products built on ATB.
+## Core contracts
 
-## Public/Private Boundary
+- Bundles are append-only NDJSON. Record hashes use `SHA-256(UTF-8(hex(prev_hash)) || RFC8785(event))`; the genesis hash is 64 zero hex characters.
+- ATB proves integrity of recorded data, not capture completeness, truth, identity, or correct behaviour.
+- Preserve public wire identifiers and compatibility aliases unless a versioned migration authorises a change. Schema changes need a CHANGELOG entry; canonicalisation changes need a migration.
+- Keep optional integrations optional. Verification must not depend on hosted or private services. Never commit credentials or private URLs.
 
-- **ATB**: PUBLIC / OPEN SOURCE
-- **Mortise**: PRIVATE / PROPRIETARY
-- **Tenon**: PRIVATE / PROPRIETARY
+## Development
 
-ATB must not depend on private Mortise or Tenon implementation.
-Private products may depend on ATB.
+- Run `make hygiene-quick`, `make test-golden`, and `go test ./...` for relevant changes.
+- See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, workflow, and documentation rules; see [docs/README.md](docs/README.md) for the reading route.
+- Personal agent configuration, model choices, experiments, and operating records belong outside the public tree.
 
-## Architectural Invariants
+## Repository map
 
-- Bundles are append-only NDJSON
-- Record hash: `SHA-256(UTF-8(hex(prev_hash)) || RFC8785(event))`
-- Genesis sentinel: 64 zero hex characters
-- Local-first by default
-- ATB proves integrity, not completeness or truth
-
-## Canonical Validation Commands
-
-```bash
-make hygiene-quick
-make test-go
-make test-golden
-go test ./...
-```
-
-## Security Boundaries
-
-- Never commit secrets or credentials
-- Never expose private URLs in public documentation
-- Never make ATB verification dependent on private services
-
-## Repository Structure
-
-- `cmd/atb/` - CLI entry point
-- `internal/` - Core implementation
-- `pkg/` - Public APIs (`pkg/api/v1` is local viewer API, not product SDK)
-- `sdk/python/` - Python SDK
-- `sdk/typescript/` - TypeScript SDK
-- `web/` - Embedded viewer UI
-- `docs/` - Canonical documentation
-- `test/` - Tests and golden vectors
-
-## Allowed Change Discipline
-
-- Schema changes require CHANGELOG entry
-- Canonicalisation changes require version migration
-- Breaking changes require major version bump
-- All changes must pass `hygiene-quick` and `test-golden`
-
-## Generated File Policy
-
-- Embedded docs: `docs_embed.go`, `trust_embed.go`
-- Generated fixtures: `examples/bundles/profiles/`
-- Web build: `web/out/` (not committed)
+- `cmd/atb/`: CLI; `internal/`: implementation; `pkg/`: public Go packages.
+- `sdk/`: Python and TypeScript SDKs; `web/`: embedded viewer; `docs/`: canonical documentation; `test/`: tests and golden vectors.
+- Generated content includes `docs_embed.go`, `trust_embed.go`, profile fixtures, and `web/out/`; see the relevant build scripts before editing generated files.

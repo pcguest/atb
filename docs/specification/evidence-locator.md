@@ -4,7 +4,7 @@
 
 A **semantic evidence locator** is a stable, versioned reference to a single
 evidence record inside one ATB bundle. It lets another system (for example a
-Mortise governance workspace, or an agent that cites evidence) name a specific
+an external governance workspace, or an agent that cites evidence) name a specific
 record without depending on ATB's file paths, viewer routes, or UI structure.
 
 > An ATB evidence locator identifies evidence. It does not grant authority,
@@ -169,9 +169,9 @@ l, _ := locator.Parse(s)
 locator.Parse(l.String()) // == l
 ```
 
-## 11. ATB ↔ Mortise use
+## 11. External governance use
 
-Mortise (or an agent citing evidence) may store or display a locator so a human
+An external system (or an agent citing evidence) may store or display a locator so a human
 can open the referenced record in the local ATB viewer:
 
 ```
@@ -181,7 +181,7 @@ atb view --bundle path/to/session.atb --focus 'atb://evidence/1/<head>?seq=4'
 The viewer focuses the referenced record and continues to show the bundle
 context. Opening evidence does not imply that the evidence has been verified:
 integrity remains a separate, explicitly performed step, and governance
-approval remains a Mortise concern.
+approval remains an external governance concern.
 
 ## 12. Location is not integrity
 
@@ -190,7 +190,7 @@ Three questions stay separate:
 1. **Location** — which record does this reference name? (this spec)
 2. **Integrity** — does the bundle hash-chain verify? (`atb verify`, viewer gate)
 3. **Interpretation / governance** — what does the evidence mean, and who
-   approved what? (Mortise)
+   approved what? (external governance)
 
 A locator answers only the first.
 

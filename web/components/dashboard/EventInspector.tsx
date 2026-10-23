@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { eventFamilyClass, eventSummary } from "@/lib/event-family";
 import { HashValue } from "@/components/dashboard/HashValue";
@@ -13,6 +13,8 @@ import {
 import { collectMaskedPaths, setByPath } from "@/lib/pii";
 import { copyTextToClipboard } from "@/lib/hash-display";
 import type { EventRecord } from "@/lib/types";
+
+const EMPTY_REVEALED: Record<string, unknown> = {};
 
 type EventInspectorProps = {
   event: EventRecord | null;
@@ -54,18 +56,17 @@ function parseReportedAttribution(data: Record<string, unknown> | undefined): Re
 }
 
 export function EventInspector({ event, disabled = false, onReveal }: EventInspectorProps) {
-  const [revealed, setRevealed] = useState<Record<string, unknown>>({});
-  const [pending, setPending] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [inspection, setInspection] = useState<{
+    selectionKey: string;
+    revealed: Record<string, unknown>;
+    pending: string | null;
+    error: string | null;
+  } | null>(null);
   const selectionKey = event ? `${event.seq}:${event.hash}` : "none";
-  const activeSelection = useRef(selectionKey);
-  activeSelection.current = selectionKey;
-
-  useEffect(() => {
-    setRevealed({});
-    setPending(null);
-    setError(null);
-  }, [selectionKey]);
+  const currentInspection = inspection?.selectionKey === selectionKey ? inspection : null;
+  const revealed = currentInspection ? currentInspection.revealed : EMPTY_REVEALED;
+  const pending = currentInspection?.pending ?? null;
+  const error = currentInspection?.error ?? null;
 
   const renderedData = useMemo(() => {
     if (!event) {
@@ -109,18 +110,26 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
     const eventSeq = event.seq;
     const fieldPath = path.replace(/^data\./, "");
     const requestSelection = selectionKey;
-    setPending(path);
-    setError(null);
+    setInspection((previous) => ({
+      selectionKey: requestSelection,
+      revealed: previous?.selectionKey === requestSelection ? previous.revealed : {},
+      pending: path,
+      error: null,
+    }));
     try {
       const value = await onReveal(eventSeq, fieldPath);
-      if (activeSelection.current !== requestSelection) return;
-      setRevealed((prev) => ({ ...prev, [fieldPath]: value }));
+      setInspection((previous) => previous?.selectionKey === requestSelection
+        ? { ...previous, revealed: { ...previous.revealed, [fieldPath]: value } }
+        : previous);
     } catch (err) {
-      if (activeSelection.current !== requestSelection) return;
       const message = err instanceof Error ? err.message : "Reveal failed";
-      setError(message);
+      setInspection((previous) => previous?.selectionKey === requestSelection
+        ? { ...previous, error: message }
+        : previous);
     } finally {
-      if (activeSelection.current === requestSelection) setPending(null);
+      setInspection((previous) => previous?.selectionKey === requestSelection
+        ? { ...previous, pending: null }
+        : previous);
     }
   }
 

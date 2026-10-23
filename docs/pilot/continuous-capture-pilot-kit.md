@@ -75,7 +75,7 @@ static consistency verdict, not proof that observation is live or complete.
 
 ## Investigate and verify offline
 
-Capture, Mortise, and any paid tooling are optional for verification. With the
+External custody and any paid tooling are optional for verification. With the
 capture process stopped and no network:
 
 ```bash
