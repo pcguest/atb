@@ -56,7 +56,7 @@ done
 TS_ENGINE="$(python3 -c "import json; print(json.load(open('$ROOT_DIR/sdk/typescript/package.json'))['engines']['node'])")"
 expect "sdk/typescript engines.node" "$TS_ENGINE" ">=22"
 
-require_file_contains "docs/maintainers/support-matrix.md" "Go 1\\.26\\.9" "Go support matrix entry"
+require_file_contains "docs/maintainers/support-matrix.md" "Go 1\\.26\\.10" "Go support matrix entry"
 require_file_contains "docs/maintainers/support-matrix.md" "Python 3\\.9-3\\.12" "Python SDK support matrix entry"
 require_file_contains "docs/maintainers/support-matrix.md" "Python 3\\.9 compatibility; Python 3\\.11 release tooling" "Python CI support matrix entry"
 require_file_contains "docs/maintainers/support-matrix.md" "Node\\.js >=22" "Node SDK support matrix entry"
