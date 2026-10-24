@@ -542,9 +542,9 @@ type sourcePrefixTracker struct {
 }
 
 func (t *sourcePrefixTracker) add(rawLine []byte) {
-	if t.withLF == nil {
-		t.withLF = sha256.New()
-		t.withoutLastByte = sha256.New()
+	t.ensure()
+	if len(rawLine) == 0 {
+		return
 	}
 	if t.processedBytes > 0 {
 		_, _ = t.withoutLastByte.Write([]byte{t.previousByte})
@@ -557,16 +557,21 @@ func (t *sourcePrefixTracker) add(rawLine []byte) {
 	if len(rawLine) >= 2 {
 		t.byteBeforePreviousByte = rawLine[len(rawLine)-2]
 		t.previousByte = rawLine[len(rawLine)-1]
-	} else if len(rawLine) == 1 {
+	} else {
 		t.byteBeforePreviousByte = t.previousByte
 		t.previousByte = rawLine[0]
 	}
 }
 
-func (t *sourcePrefixTracker) snapshot() (withLF, withoutLF []byte, hasWithoutLF bool) {
+func (t *sourcePrefixTracker) ensure() {
 	if t.withLF == nil {
-		return nil, nil, false
+		t.withLF = sha256.New()
+		t.withoutLastByte = sha256.New()
 	}
+}
+
+func (t *sourcePrefixTracker) snapshot() (withLF, withoutLF []byte, hasWithoutLF bool) {
+	t.ensure()
 	withLF = append([]byte(nil), t.withLF.Sum(nil)...)
 	if t.processedBytes > 1 && t.previousByte == '\n' && t.byteBeforePreviousByte != '\n' {
 		withoutLF = append([]byte(nil), t.withoutLastByte.Sum(nil)...)

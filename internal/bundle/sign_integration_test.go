@@ -124,6 +124,34 @@ func TestBundleSignAndVerify(t *testing.T) {
 	}
 }
 
+func TestBundleSignAndVerifyEmptyPrefix(t *testing.T) {
+	_, privateKey, err := ed25519.GenerateKey(cryptorand.Reader)
+	if err != nil {
+		t.Fatalf("generate Ed25519 keypair: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "empty.atb")
+	b, err := bundle.New()
+	if err != nil {
+		t.Fatalf("create bundle: %v", err)
+	}
+	if err := b.Save(context.Background(), path); err != nil {
+		t.Fatalf("save empty bundle: %v", err)
+	}
+	if err := bundle.Sign(context.Background(), path, privateKey); err != nil {
+		t.Fatalf("sign empty bundle: %v", err)
+	}
+
+	signedBundle, err := bundle.Load(context.Background(), path)
+	if err != nil {
+		t.Fatalf("load signed empty bundle: %v", err)
+	}
+	report := verify.Verify(signedBundle, path, "")
+	if report.BundleSignature == nil || !report.BundleSignature.Verified {
+		t.Fatalf("empty-prefix signature verification = %+v, want verified", report.BundleSignature)
+	}
+}
+
 func TestBundleSignTwiceVerifiesFullChain(t *testing.T) {
 	_, firstPrivateKey, err := ed25519.GenerateKey(cryptorand.Reader)
 	if err != nil {
