@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -71,6 +72,23 @@ var eventTypeRegexp = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`
 type Record struct {
 	Event hash.Event `json:"event"`
 	Hash  string     `json:"hash"`
+
+	// sourcePrefixHash and sourcePrefixWithoutLFHash bind signature checks to
+	// the exact bytes parsed for this record. They are intentionally excluded
+	// from the wire format and travel with Record copies in memory.
+	sourcePrefixHash             []byte
+	sourcePrefixWithoutLFHash    []byte
+	sourcePrefixWithoutLFPresent bool
+}
+
+// SourcePrefixHashes returns the SHA-256 of the original input bytes before
+// this record, with and (when applicable) without the final line-feed. The
+// second form preserves signatures made before an unterminated input was
+// normalized by appending the signature record.
+func (r Record) SourcePrefixHashes() (withLF, withoutLF []byte, hasWithoutLF bool) {
+	return append([]byte(nil), r.sourcePrefixHash...),
+		append([]byte(nil), r.sourcePrefixWithoutLFHash...),
+		r.sourcePrefixWithoutLFPresent
 }
 
 // Bundle represents an in-memory ATB bundle.
@@ -339,6 +357,7 @@ func (b *Bundle) saveUnlocked(ctx context.Context, path string) error {
 	if err := writeAtomic(path, buf.Bytes(), bundleFileMode); err != nil {
 		return fmt.Errorf("bundle: save: %w", err)
 	}
+	setSourcePrefixHashes(b.Records, buf.Bytes())
 	return nil
 }
 
@@ -449,7 +468,31 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 	counted := &countingReader{reader: r}
 	b := &Bundle{}
 	scanner := bufio.NewScanner(counted)
-	scanner.Buffer(make([]byte, 64*1024), MaxLineSizeBytes)
+	scanner.Split(scanRawLines)
+	scanner.Buffer(make([]byte, 64*1024), MaxLineSizeBytes+2)
+	prefixHash := sha256.New()
+	prefixWithoutLastByteHash := sha256.New()
+	var previousByte, byteBeforePrevious byte
+	var processedBytes int64
+	updateSourcePrefix := func(rawLine []byte) {
+		// Keep one byte out of this hash so a following signature record can
+		// cheaply compare the prefix with and without its final line-feed.
+		if processedBytes > 0 {
+			_, _ = prefixWithoutLastByteHash.Write([]byte{previousByte})
+		}
+		if len(rawLine) > 1 {
+			_, _ = prefixWithoutLastByteHash.Write(rawLine[:len(rawLine)-1])
+		}
+		_, _ = prefixHash.Write(rawLine)
+		processedBytes += int64(len(rawLine))
+		if len(rawLine) >= 2 {
+			byteBeforePrevious = rawLine[len(rawLine)-2]
+			previousByte = rawLine[len(rawLine)-1]
+		} else if len(rawLine) == 1 {
+			byteBeforePrevious = previousByte
+			previousByte = rawLine[0]
+		}
+	}
 	for scanner.Scan() {
 		if counted.bytesRead > limits.MaxBytes {
 			return nil, fmt.Errorf(
@@ -458,8 +501,21 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 				ErrResourceLimit,
 			)
 		}
-		line := scanner.Bytes()
+		rawLine := scanner.Bytes()
+		prefixAtRecord := append([]byte(nil), prefixHash.Sum(nil)...)
+		canUsePrefixWithoutLF := processedBytes > 1 && previousByte == '\n' && byteBeforePrevious != '\n'
+		line := rawLine
+		if len(line) > 0 && line[len(line)-1] == '\n' {
+			line = line[:len(line)-1]
+		}
+		if len(line) > 0 && line[len(line)-1] == '\r' {
+			line = line[:len(line)-1]
+		}
+		if len(line) > MaxLineSizeBytes {
+			return nil, fmt.Errorf("bundle: load: line exceeds %d bytes: %w", MaxLineSizeBytes, ErrResourceLimit)
+		}
 		if len(line) == 0 {
+			updateSourcePrefix(rawLine)
 			continue
 		}
 		if len(b.Records) >= limits.MaxRecords {
@@ -473,7 +529,15 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 		if err := json.Unmarshal(line, &rec); err != nil {
 			return nil, fmt.Errorf("bundle: load: unmarshal: %w", errors.Join(err, ErrMalformed))
 		}
+		if rec.Event.Type == event.TypeBundleSignature {
+			rec.sourcePrefixHash = prefixAtRecord
+			if canUsePrefixWithoutLF {
+				rec.sourcePrefixWithoutLFHash = append([]byte(nil), prefixWithoutLastByteHash.Sum(nil)...)
+				rec.sourcePrefixWithoutLFPresent = true
+			}
+		}
 		b.Records = append(b.Records, rec)
+		updateSourcePrefix(rawLine)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("bundle: load: scan: %w", err)
@@ -491,6 +555,74 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 		}
 	}
 	return b, nil
+}
+
+func scanRawLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	if index := bytes.IndexByte(data, '\n'); index >= 0 {
+		return index + 1, data[:index+1], nil
+	}
+	if atEOF && len(data) > 0 {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
+}
+
+// setSourcePrefixHashes binds in-memory signature records to the exact bytes
+// emitted by Save. It also refreshes metadata after an append followed by save.
+func setSourcePrefixHashes(records []Record, raw []byte) {
+	for i := range records {
+		records[i].sourcePrefixHash = nil
+		records[i].sourcePrefixWithoutLFHash = nil
+		records[i].sourcePrefixWithoutLFPresent = false
+	}
+	prefixHash := sha256.New()
+	prefixWithoutLastByteHash := sha256.New()
+	position := 0
+	var previousByte byte
+	recordIndex := 0
+	for position < len(raw) {
+		lineStart := position
+		lineEnd := bytes.IndexByte(raw[position:], '\n')
+		var rawLine []byte
+		if lineEnd < 0 {
+			rawLine = raw[position:]
+			position = len(raw)
+		} else {
+			lineEnd += position
+			rawLine = raw[position : lineEnd+1]
+			position = lineEnd + 1
+		}
+		line := rawLine
+		if len(line) > 0 && line[len(line)-1] == '\n' {
+			line = line[:len(line)-1]
+		}
+		if len(line) > 0 && line[len(line)-1] == '\r' {
+			line = line[:len(line)-1]
+		}
+		if len(line) > 0 && recordIndex < len(records) {
+			record := &records[recordIndex]
+			if record.Event.Type == event.TypeBundleSignature {
+				record.sourcePrefixHash = append([]byte(nil), prefixHash.Sum(nil)...)
+				if lineStart > 1 && raw[lineStart-1] == '\n' && raw[lineStart-2] != '\n' {
+					record.sourcePrefixWithoutLFHash = append([]byte(nil), prefixWithoutLastByteHash.Sum(nil)...)
+					record.sourcePrefixWithoutLFPresent = true
+				}
+			}
+			recordIndex++
+		}
+		if lineStart > 0 {
+			_, _ = prefixWithoutLastByteHash.Write([]byte{previousByte})
+		}
+		if len(rawLine) > 1 {
+			_, _ = prefixWithoutLastByteHash.Write(rawLine[:len(rawLine)-1])
+		}
+		_, _ = prefixHash.Write(rawLine)
+		if len(rawLine) >= 2 {
+			previousByte = rawLine[len(rawLine)-1]
+		} else if len(rawLine) == 1 {
+			previousByte = rawLine[0]
+		}
+	}
 }
 
 type countingReader struct {

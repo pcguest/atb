@@ -61,7 +61,11 @@ func (b *Bundle) SaveRooted(ctx context.Context, root *os.Root, path string) err
 			return err
 		}
 	}
-	return WriteAtomicRooted(root, path, buf.Bytes())
+	if err := WriteAtomicRooted(root, path, buf.Bytes()); err != nil {
+		return err
+	}
+	setSourcePrefixHashes(b.Records, buf.Bytes())
+	return nil
 }
 
 // WriteAtomicRooted replaces a file using only operations relative to root.
