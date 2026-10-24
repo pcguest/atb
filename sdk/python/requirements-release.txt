@@ -73,7 +73,7 @@ rich==15.0.0
     # via twine
 secretstorage==3.5.0 ; platform_machine != 'ppc64le' and platform_machine != 's390x' and sys_platform == 'linux'
     # via keyring
-setuptools==83.0.0
+setuptools==84.1.0
     # via -r sdk/python/requirements-release.in
 twine==7.0.0
     # via -r sdk/python/requirements-release.in
