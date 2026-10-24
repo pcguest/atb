@@ -132,7 +132,7 @@ Component inventory
 - use-callback-ref@1.3.3 — MIT — text cf5fc964bc60
 - use-sidecar@1.1.3 — MIT — text cf5fc964bc60
 - use-sync-external-store@1.6.0 — MIT — text 968e559e5b83
-- zod@4.3.6 — MIT — text 198a9ddb0277
+- zod@4.6.7 — MIT — text 198a9ddb0277
 - zustand@4.5.7 — MIT — text b0ced2153829
 - zustand@5.0.12 — MIT — text b0ced2153829
 
@@ -167,7 +167,7 @@ SOFTWARE.
 
 ================================================================================
 Licence text 198a9ddb0277
-Used by: zod@4.3.6
+Used by: zod@4.6.7
 ================================================================================
 
 LICENSE

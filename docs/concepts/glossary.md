@@ -4,11 +4,11 @@ These terms are canonical across current ATB documentation.
 
 ## ATB
 
-The open-source, local-first evidence software for recording and verifying portable records of AI-agent activity.
+The open-source, local-first evidence software for recording and independently verifying portable records of AI-agent activity.
 
 ## External custody integration
 
-An optional ATB client boundary for handing off bundles and related verification data to an external custody service. The public integration reference uses a historical product name for this contract; ATB does not implement that service.
+An optional ATB client boundary for handing off bundles and related verification data to an external custody service. See the [Mortise custody integration](../integrations/mortise.md); ATB does not implement the receiving service.
 
 ## Bundle
 
@@ -28,7 +28,7 @@ The process through which external activity becomes ATB evidence. Capture is bou
 
 ## Verification
 
-Evaluation of bundle integrity and configured evidence properties, including supported signatures, timestamp evidence, and profiles.
+Independent evaluation of bundle integrity and configured evidence properties, including supported signatures, timestamp evidence, and profiles.
 
 ## Profile
 

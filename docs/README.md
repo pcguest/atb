@@ -33,10 +33,14 @@ without a hosted ATB service or an external custody product.
 ## Reference
 
 - [Architecture](concepts/architecture.md)
+- [Evidence model](concepts/evidence-model.md)
+- [Glossary](concepts/glossary.md)
 - [Bundle format and hashing](specification/bundle-v1.md)
 - [Event semantics](specification/events.md)
 - [Evidence attribution](specification/attribution.md)
 - [Profiles and assurance scoring](evidence/profiles.md)
+- [CAS](evidence/cas.md)
+- [Key management](evidence/key-management.md)
 - [Verifier report](specification/verify-report.md)
 - [Local viewer API](api/README.md)
 

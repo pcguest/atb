@@ -1,4 +1,4 @@
-# Optional custody handoff (historical Mortise naming)
+# Optional Mortise custody handoff
 
 This page documents ATB’s optional client and compatibility contracts for
 handing off evidence to an external custody endpoint. It does not describe or
@@ -36,7 +36,9 @@ atb incident export \
 `atb intercept --mortise <endpoint>` can lodge a completed session bundle, and
 `atb compliance pack ... --mortise-endpoint <endpoint>` can include the returned
 receipt. The authoritative object handed to custody is the bundle, not a derived
-report archive.
+report archive. A compatible receiver should verify bundle integrity with the
+ATB custody verifier before persistence; this contract does not attest that an
+external receiver follows that requirement.
 
 The legacy `--custos`, `--custos-endpoint`, and `ATB_CUSTOS_TOKEN` names remain
 compatibility aliases for the documented migration window. The historical

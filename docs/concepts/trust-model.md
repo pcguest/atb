@@ -160,8 +160,9 @@ Roles are extracted from JWT claims (or default to `viewer`) and enforced via RB
 - `viewer` and `auditor`: read-only review APIs.
 - `operator` and `admin`: privacy reveal and other mutating review actions.
 
-Optional custody handoff authentication is independent. The historical
-`ATB_MORTISE_TOKEN` name is used only for an explicit handoff; it is unrelated
+Optional custody handoff authentication is independent. `ATB_MORTISE_TOKEN` is
+the current name for the token used by an explicit handoff; the legacy
+`ATB_CUSTOS_TOKEN` spelling remains a compatibility alias. Neither is related
 to viewer sessions, roles, or identity state.
 
 `--host` accepts only `localhost` or a loopback IP address. ATB deliberately

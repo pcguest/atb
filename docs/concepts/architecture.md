@@ -141,9 +141,9 @@ requests, OIDC/JWKS retrieval, corroboration adapters, remote signers, S3
 pushes, and optional custody endpoints. Core capture, verification, incident
 analysis, profile evaluation, packs, and local review require none of them.
 
-ATB provides an optional client contract for sending evidence to an external
-custody service. The public integration reference uses a historical product
-name for that contract; this repository contains no custody-service runtime.
+ATB provides an optional Mortise-named client contract for sending evidence to
+an external custody service; for example, the CLI accepts
+`--mortise-endpoint`. This repository contains no custody-service runtime.
 Operator-controlled S3/Object Lock is another explicit custody option; an
 accepted upload request is evidence of API acceptance, not proof of continuing
 storage enforcement. The current status and implementation of any external

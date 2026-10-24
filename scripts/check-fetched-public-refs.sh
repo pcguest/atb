@@ -2,14 +2,23 @@
 set -euo pipefail
 
 remote="${1:-origin}"
+snapshot="${2:-}"
 if ! git remote get-url "$remote" >/dev/null 2>&1; then
   echo "Git remote not configured: $remote" >&2
   exit 2
 fi
 
-if ! remote_refs="$(git ls-remote --refs "$remote")"; then
-  echo "unable to enumerate advertised refs from $remote" >&2
-  exit 2
+if [[ -n "$snapshot" ]]; then
+  if [[ ! -s "$snapshot" ]]; then
+    echo "advertised-ref snapshot is missing or empty: $snapshot" >&2
+    exit 2
+  fi
+  remote_refs="$(cat "$snapshot")"
+else
+  if ! remote_refs="$(git ls-remote --refs "$remote")"; then
+    echo "unable to enumerate advertised refs from $remote" >&2
+    exit 2
+  fi
 fi
 
 branches=0
@@ -34,8 +43,13 @@ while read -r sha remote_ref; do
       local_ref="refs/remotes/$remote/pr/$number"
       pull_heads=$((pull_heads + 1))
       ;;
-    *)
+    refs/pull/*/merge)
+      # GitHub-generated merge refs are synthetic and are not source history.
       continue
+      ;;
+    *)
+      echo "unrecognised advertised ref namespace: $remote_ref" >&2
+      exit 2
       ;;
   esac
 

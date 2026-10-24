@@ -3,8 +3,8 @@
 ## 1. Purpose
 
 A **semantic evidence locator** is a stable, versioned reference to a single
-evidence record inside one ATB bundle. It lets another system (for example a
-an external governance workspace, or an agent that cites evidence) name a specific
+evidence record inside one ATB bundle. It lets another system (for example an
+external governance workspace, or an agent that cites evidence) name a specific
 record without depending on ATB's file paths, viewer routes, or UI structure.
 
 > An ATB evidence locator identifies evidence. It does not grant authority,

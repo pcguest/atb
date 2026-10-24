@@ -35,10 +35,15 @@ jobs:
         run: go install github.com/zricethezav/gitleaks/v8@v8.30.1
 
       - name: Fetch advertised branches, tags, and pull-request heads
-        run: git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*' '+refs/pull/*/head:refs/remotes/origin/pr/*'
+        run: |
+          git ls-remote --refs origin > "$RUNNER_TEMP/advertised-public-refs.txt"
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*' '+refs/pull/*/head:refs/remotes/origin/pr/*'
 
       - name: Verify every advertised public ref was fetched
-        run: bash scripts/check-fetched-public-refs.sh origin
+        run: bash scripts/check-fetched-public-refs.sh origin "$RUNNER_TEMP/advertised-public-refs.txt"
+
+      - name: Exercise advertised-ref regressions
+        run: bash scripts/test-fetched-public-refs.sh
 
       - name: Exercise scanner on synthetic fixtures
         run: bash scripts/test-secret-scan-fixtures.sh "$(go env GOPATH)/bin/gitleaks"

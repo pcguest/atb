@@ -56,7 +56,7 @@ if ! git check-ignore --quiet --no-index -- .venv; then
   fail "root .venv must be ignored whether it is a file, symlink, or directory"
 fi
 
-if git grep -nIE '/Users/[^/[:space:]]+/(atb|custos)(/|$)|file:///Users/' -- '*.md' '*.yaml' '*.yml'; then
+if git grep -nIE '(/Users/|file:///Users/)' -- '*.md' '*.yaml' '*.yml'; then
   fail "machine-specific checkout paths found in public documentation"
 fi
 

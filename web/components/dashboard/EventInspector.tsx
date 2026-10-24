@@ -14,8 +14,6 @@ import { collectMaskedPaths, setByPath } from "@/lib/pii";
 import { copyTextToClipboard } from "@/lib/hash-display";
 import type { EventRecord } from "@/lib/types";
 
-const EMPTY_REVEALED: Record<string, unknown> = {};
-
 type EventInspectorProps = {
   event: EventRecord | null;
   disabled?: boolean;
@@ -55,18 +53,15 @@ function parseReportedAttribution(data: Record<string, unknown> | undefined): Re
   return out;
 }
 
-export function EventInspector({ event, disabled = false, onReveal }: EventInspectorProps) {
-  const [inspection, setInspection] = useState<{
-    selectionKey: string;
-    revealed: Record<string, unknown>;
-    pending: string | null;
-    error: string | null;
-  } | null>(null);
-  const selectionKey = event ? `${event.seq}:${event.hash}` : "none";
-  const currentInspection = inspection?.selectionKey === selectionKey ? inspection : null;
-  const revealed = currentInspection ? currentInspection.revealed : EMPTY_REVEALED;
-  const pending = currentInspection?.pending ?? null;
-  const error = currentInspection?.error ?? null;
+export function EventInspector(props: EventInspectorProps) {
+  const selectionKey = props.event ? `${props.event.seq}:${props.event.hash}` : "none";
+  return <EventInspectorContent key={selectionKey} {...props} />;
+}
+
+function EventInspectorContent({ event, disabled = false, onReveal }: EventInspectorProps) {
+  const [revealed, setRevealed] = useState<Record<string, unknown>>({});
+  const [pending, setPending] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const renderedData = useMemo(() => {
     if (!event) {
@@ -109,27 +104,16 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
     }
     const eventSeq = event.seq;
     const fieldPath = path.replace(/^data\./, "");
-    const requestSelection = selectionKey;
-    setInspection((previous) => ({
-      selectionKey: requestSelection,
-      revealed: previous?.selectionKey === requestSelection ? previous.revealed : {},
-      pending: path,
-      error: null,
-    }));
+    setPending(path);
+    setError(null);
     try {
       const value = await onReveal(eventSeq, fieldPath);
-      setInspection((previous) => previous?.selectionKey === requestSelection
-        ? { ...previous, revealed: { ...previous.revealed, [fieldPath]: value } }
-        : previous);
+      setRevealed((previous) => ({ ...previous, [fieldPath]: value }));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Reveal failed";
-      setInspection((previous) => previous?.selectionKey === requestSelection
-        ? { ...previous, error: message }
-        : previous);
+      setError(message);
     } finally {
-      setInspection((previous) => previous?.selectionKey === requestSelection
-        ? { ...previous, pending: null }
-        : previous);
+      setPending(null);
     }
   }
 

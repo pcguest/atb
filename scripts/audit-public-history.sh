@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cd "$(git rev-parse --show-toplevel)"
+
 scanner="${1:-gitleaks}"
 if ! command -v "$scanner" >/dev/null 2>&1 && [[ ! -x "$scanner" ]]; then
   echo "gitleaks executable not found: $scanner" >&2
@@ -35,7 +37,9 @@ echo "gitleaks_version=$("$scanner" version)"
 echo "history_scope=all locally fetched refs with full history"
 echo "history_refs=$ref_count reachable_commits=$commit_count"
 
-history_log="$(mktemp)"
+tmp_root="$(mktemp -d)"
+trap 'rm -rf -- "$tmp_root"' EXIT
+history_log="$tmp_root/history.log"
 if "$scanner" git --redact=100 --no-banner --log-opts="--all --full-history" . 2>&1 | tee "$history_log"; then
   :
 else
@@ -48,17 +52,17 @@ if ! grep -Eq '[1-9][0-9]* commits scanned[.]' "$history_log" ||
   echo "refusing zero-work full-history scan" >&2
   exit 2
 fi
-unlink "$history_log"
+rm -f -- "$history_log"
 
-scan_root="$(mktemp -d)"
-trap 'find "$scan_root" -type f -exec unlink {} \; 2>/dev/null || true; find "$scan_root" -depth -type d -exec rmdir {} \; 2>/dev/null || true' EXIT
+scan_root="$tmp_root/current-tree"
+symlink_root="$tmp_root/symlink-targets"
+mkdir "$scan_root" "$symlink_root"
 regular_files=0
 symlinks=0
 while IFS= read -r -d '' path; do
   if [[ -L "$path" ]]; then
     symlinks=$((symlinks + 1))
-    mkdir -p "$scan_root/.symlink-targets"
-    readlink "./$path" > "$scan_root/.symlink-targets/$symlinks"
+    readlink "./$path" > "$symlink_root/$symlinks"
     continue
   fi
   [[ -f "$path" ]] || continue
@@ -76,16 +80,31 @@ fi
 
 echo "current_tree_scope=tracked and non-ignored untracked regular files and symlink targets"
 echo "current_tree_files=$regular_files current_tree_symlinks=$symlinks"
-tree_log="$(mktemp)"
-if "$scanner" dir --redact=100 --no-banner "$scan_root" 2>&1 | tee "$tree_log"; then
-  :
-else
-  status=$?
-  echo "current-tree secret scan failed (exit=$status)" >&2
-  exit "$status"
+tree_log="$tmp_root/current-tree.log"
+if [[ "$regular_files" -gt 0 ]]; then
+  if "$scanner" dir --redact=100 --no-banner "$scan_root" 2>&1 | tee "$tree_log"; then
+    :
+  else
+    status=$?
+    echo "current-tree secret scan failed (exit=$status)" >&2
+    exit "$status"
+  fi
+  if ! grep -Eq 'scanned ~[1-9][0-9]* bytes' "$tree_log"; then
+    echo "refusing zero-work current-tree scan" >&2
+    exit 2
+  fi
 fi
-if ! grep -Eq 'scanned ~[1-9][0-9]* bytes' "$tree_log"; then
-  echo "refusing zero-work current-tree scan" >&2
-  exit 2
+if [[ "$symlinks" -gt 0 ]]; then
+  symlink_log="$tmp_root/symlink-targets.log"
+  if "$scanner" dir --redact=100 --no-banner "$symlink_root" 2>&1 | tee "$symlink_log"; then
+    :
+  else
+    status=$?
+    echo "symlink-target secret scan failed (exit=$status)" >&2
+    exit "$status"
+  fi
+  if ! grep -Eq 'scanned ~[1-9][0-9]* bytes' "$symlink_log"; then
+    echo "refusing zero-work symlink-target scan" >&2
+    exit 2
+  fi
 fi
-unlink "$tree_log"

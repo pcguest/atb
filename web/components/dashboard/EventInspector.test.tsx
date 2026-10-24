@@ -196,4 +196,20 @@ describe("EventInspector", () => {
     });
     expect(document.querySelector("pre")?.textContent).not.toContain("first@example.com");
   });
+
+  it("re-masks a previously revealed event when it is selected again", async () => {
+    const onReveal = vi.fn().mockResolvedValue("first@example.com");
+    const first = { ...makeEvent("dev.session", { email: "[REDACTED]" }), seq: 3, hash: "a".repeat(64) };
+    const second = { ...makeEvent("dev.session", { email: "second@example.com" }), seq: 4, hash: "b".repeat(64) };
+    const { rerender } = render(<EventInspector event={first} onReveal={onReveal} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reveal masked field data.email" }));
+    await waitFor(() => expect(document.querySelector("pre")?.textContent).toContain("first@example.com"));
+
+    rerender(<EventInspector event={second} onReveal={onReveal} />);
+    rerender(<EventInspector event={first} onReveal={onReveal} />);
+
+    expect(document.querySelector("pre")?.textContent).toContain("[REDACTED]");
+    expect(screen.getByRole("button", { name: "Reveal masked field data.email" })).toBeInTheDocument();
+  });
 });

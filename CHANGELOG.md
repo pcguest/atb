@@ -7,13 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- Updated the pinned Go toolchain and builder images to Go 1.26.10 to address CVE-2026-111943 in `crypto/x509`; aligned CI, local validation, and support-matrix pins.
-
 ### Breaking Changes
 - **NEXT MAJOR ONLY (2.0.0; not a v1 backport):** The authenticated `GET /api/v1/sessions` and `GET /api/v1/sessions/by-actor` endpoints reject non-empty `bundle_dir` query values, including whitespace and any non-empty value among repeated parameters, with HTTP 400 and the fixed API error `invalid query parameters`. Malformed query encoding is rejected with the same response. Rejection occurs before filesystem selection or session indexing, without returning or logging the supplied path. Missing and empty values retain server-configured indexing, including configured multi-bundle indexes; callers must select evidence through server configuration or the existing CLI `--sessions` option instead. This is a deliberate compatibility break, not a security exception or v1 patch. Published version metadata remains unchanged until major-release preparation; bundle formats, canonical hashes and SDK contracts are unchanged. This change is limited to these two endpoints, not a claim that every viewer route rejects filesystem selectors.
 
 ### Fixed
+- Updated the pinned Go toolchain and builder images to Go 1.26.10 to address CVE-2026-111943 in `crypto/x509`; aligned CI, local validation, and support-matrix pins.
+- Updated the web runtime Zod dependency to 4.6.7 to address the High severity [oversized-array validation memory exhaustion advisory](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5).
 - Signature verification recognises the exact original preimage when the signer inserted a single separator LF after an unterminated final input record. Newline-terminated inputs retain their full byte preimage; no arbitrary whitespace or extra blank lines are ignored. Existing signed output, signer calls, digest preimages, bundle hashes and formats are unchanged. This corrects reading of previously emitted signatures; older readers may still reject this input shape.
 - Continuous capture (`atb intercept`) now correlates each `atb.exchange.complete` with its own request record per request, rather than through a session-global "last request" hash. Two requests that overlapped in one session (same thread key: connection, thread id, or `X-Session-Id`) could both reference the later request's record, misattributing the exchange — and its tool activity — to the wrong request during investigation. The committed request-record hash and the exchange start time are now carried per request, and the response reuses the session the request resolved to, so a body-derived thread key (for example `openai-thread:*`) no longer places the response in a different session than its request. The bundle schema and existing bundles are unchanged; only the recorded values of `request_event_id`, `session_id` (for body-derived thread keys) and `latency_ms` in newly captured exchanges are now correct.
 
