@@ -155,8 +155,8 @@ func evaluateLoadedBundle(
 		return report
 	}
 
-	report.BundleSignature = inspectBundleSignature(b, bundlePath)
-	report.Signatures = inspectAllBundleSignatures(b, bundlePath)
+	report.BundleSignature = inspectBundleSignature(b)
+	report.Signatures = inspectAllBundleSignatures(b)
 
 	selectedProfiles := normaliseProfiles(profiles)
 	if allApplicable {

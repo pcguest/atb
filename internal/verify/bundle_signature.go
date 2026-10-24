@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/pcguest/atb/internal/bundle"
@@ -41,7 +40,7 @@ type SignatureProvenance struct {
 	Error      string `json:"error,omitempty"`
 }
 
-func inspectBundleSignature(b *bundle.Bundle, bundlePath string) *BundleSignatureResult {
+func inspectBundleSignature(b *bundle.Bundle) *BundleSignatureResult {
 	if b == nil {
 		return nil
 	}
@@ -59,7 +58,7 @@ func inspectBundleSignature(b *bundle.Bundle, bundlePath string) *BundleSignatur
 	}
 	result.BundleHash = signature.BundleHash
 
-	expectedHash, err := hashBundleSnapshotBeforeRecord(bundlePath, signatureIndex, signature.BundleHash)
+	expectedHash, err := hashBundleSnapshotBeforeRecord(b.Records[signatureIndex], signature.BundleHash)
 	if err != nil {
 		result.Error = fmt.Sprintf("hash bundle snapshot: %v", err)
 		return result
@@ -87,21 +86,21 @@ func latestBundleSignatureIndex(records []bundle.Record) int {
 // bundle (in order) and produces a per-signature provenance entry,
 // including the cryptographic verdict for that signature against the
 // bundle prefix immediately before it.
-func inspectAllBundleSignatures(b *bundle.Bundle, bundlePath string) []SignatureProvenance {
+func inspectAllBundleSignatures(b *bundle.Bundle) []SignatureProvenance {
 	if b == nil {
 		return nil
 	}
 	var out []SignatureProvenance
-	for i, record := range b.Records {
+	for _, record := range b.Records {
 		if record.Event.Type != event.TypeBundleSignature {
 			continue
 		}
-		out = append(out, buildSignatureProvenance(record, i, bundlePath))
+		out = append(out, buildSignatureProvenance(record))
 	}
 	return out
 }
 
-func buildSignatureProvenance(record bundle.Record, index int, bundlePath string) SignatureProvenance {
+func buildSignatureProvenance(record bundle.Record) SignatureProvenance {
 	prov := SignatureProvenance{
 		Sequence: record.Event.Sequence,
 		Backend:  "local", // default label when the record omits an explicit backend
@@ -130,7 +129,7 @@ func buildSignatureProvenance(record bundle.Record, index int, bundlePath string
 	}
 	prov.BundleHash = signature.BundleHash
 
-	expectedHash, err := hashBundleSnapshotBeforeRecord(bundlePath, index, signature.BundleHash)
+	expectedHash, err := hashBundleSnapshotBeforeRecord(record, signature.BundleHash)
 	if err != nil {
 		prov.Error = "hash bundle snapshot: " + err.Error()
 		return prov
@@ -158,52 +157,16 @@ func stringField(fields map[string]any, key string) string {
 	return text
 }
 
-func hashBundleSnapshotBeforeRecord(bundlePath string, targetRecordIndex int, signedHash string) ([]byte, error) {
-	if targetRecordIndex < 0 {
-		return nil, fmt.Errorf("record index must be non-negative")
+func hashBundleSnapshotBeforeRecord(record bundle.Record, signedHash string) ([]byte, error) {
+	withLF, withoutLF, hasWithoutLF := record.SourcePrefixHashes()
+	if len(withLF) != sha256.Size {
+		return nil, fmt.Errorf("source bytes for signature record %d are unavailable", record.Event.Sequence)
 	}
-
-	raw, err := os.ReadFile(bundlePath) // #nosec G304 -- bundle path is provided by the caller and already resolved by the CLI
-	if err != nil {
-		return nil, err
+	// Sign hashes the original input bytes, then inserts one LF only if that
+	// input was unterminated. Use the alternate digest only when it matches the
+	// signature's recorded digest exactly.
+	if hasWithoutLF && len(withoutLF) == sha256.Size && strings.EqualFold(strings.TrimSpace(signedHash), hex.EncodeToString(withoutLF)) {
+		return withoutLF, nil
 	}
-
-	recordIndex := 0
-	lineStart := 0
-	for lineStart < len(raw) {
-		lineEnd := lineStart
-		for lineEnd < len(raw) && raw[lineEnd] != '\n' {
-			lineEnd++
-		}
-
-		// The loader skips blank lines, including the CRLF form that scanner
-		// line splitting reduces to an empty record. Count physical records the
-		// same way so a blank CRLF line cannot consume a signature index.
-		blank := lineEnd == lineStart || (lineEnd == lineStart+1 && raw[lineStart] == '\r')
-		if !blank {
-			if recordIndex == targetRecordIndex {
-				sum := sha256.Sum256(raw[:lineStart])
-				// Sign hashes the original input bytes, then inserts one LF only
-				// if that input was unterminated. Recover that original prefix
-				// only when the recorded digest matches exactly; do not trim
-				// whitespace, CRs or an already terminated/blank line. Signature
-				// verification against this digest is still mandatory below.
-				if lineStart > 1 && raw[lineStart-1] == '\n' && raw[lineStart-2] != '\n' {
-					original := sha256.Sum256(raw[:lineStart-1])
-					if strings.EqualFold(strings.TrimSpace(signedHash), hex.EncodeToString(original[:])) {
-						return original[:], nil
-					}
-				}
-				return sum[:], nil
-			}
-			recordIndex++
-		}
-
-		if lineEnd == len(raw) {
-			break
-		}
-		lineStart = lineEnd + 1
-	}
-
-	return nil, fmt.Errorf("record index %d out of range", targetRecordIndex)
+	return withLF, nil
 }

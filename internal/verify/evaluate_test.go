@@ -382,6 +382,79 @@ func TestEvaluateBundleCorroborationAllThreeCappedAtMaxBonus(t *testing.T) {
 	}
 }
 
+func TestVerifySignatureUsesParsedSourceSnapshot(t *testing.T) {
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	signed := newPrivilegedToolActionBundle(t)
+	path := writeEvaluateBundleFixture(t, signed)
+	addBundleSignatureRecord(t, signed, path, privateKey)
+	path = writeEvaluateBundleFixture(t, signed)
+	original, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read signed fixture: %v", err)
+	}
+	loadedSigned, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load signed fixture before replacement: %v", err)
+	}
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+	validReport := VerifyWithProfile(loadedSigned, path, profile)
+	if len(validReport.Signatures) != 1 || !validReport.Signatures[0].Valid {
+		t.Fatalf("untampered signature provenance = %+v, want valid signature", validReport.Signatures)
+	}
+
+	// Build a different but internally valid hash chain while retaining the
+	// signature event from the original bundle.
+	tampered := &bundle.Bundle{}
+	for _, record := range signed.Records[:len(signed.Records)-1] {
+		payload := record.Event.Data
+		if data, ok := record.Event.Data.(map[string]any); ok {
+			copied := make(map[string]any, len(data))
+			for key, value := range data {
+				copied[key] = value
+			}
+			payload = copied
+			if record.Event.Type == event.TypeAIRequestReceived {
+				copied["purpose_tag"] = "tampered-after-signing"
+			}
+		}
+		if err := tampered.AppendWithOptions(record.Event.Type, payload, &bundle.AppendOptions{Timestamp: record.Event.Timestamp}); err != nil {
+			t.Fatalf("append tampered record: %v", err)
+		}
+	}
+	signatureRecord := signed.Records[len(signed.Records)-1]
+	if err := tampered.AppendWithOptions(signatureRecord.Event.Type, signatureRecord.Event.Data, &bundle.AppendOptions{Timestamp: signatureRecord.Event.Timestamp}); err != nil {
+		t.Fatalf("append retained signature: %v", err)
+	}
+	if err := tampered.Save(path); err != nil {
+		t.Fatalf("write tampered fixture: %v", err)
+	}
+	loadedTampered, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load tampered fixture: %v", err)
+	}
+	if err := os.WriteFile(path, original, 0o600); err != nil {
+		t.Fatalf("replace path after parsing: %v", err)
+	}
+
+	report := VerifyWithProfile(loadedTampered, path, profile)
+	if !report.Integrity.ChainValid {
+		t.Fatal("tampered fixture should have a valid recomputed hash chain")
+	}
+	if len(report.Signatures) != 1 || report.Signatures[0].Valid {
+		t.Fatalf("signature provenance = %+v, want the replaced path not to authenticate parsed records", report.Signatures)
+	}
+	if report.Signatures[0].Error == "" {
+		t.Fatal("expected signature validation error for the replaced-path fixture")
+	}
+}
+
 func addBundleSignatureRecord(t testing.TB, b *bundle.Bundle, bundlePath string, privateKey ed25519.PrivateKey) {
 	t.Helper()
 
