@@ -396,6 +396,18 @@ func TestVerifySignatureUsesParsedSourceSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read signed fixture: %v", err)
 	}
+	loadedSigned, err := bundle.Load(path)
+	if err != nil {
+		t.Fatalf("load signed fixture before replacement: %v", err)
+	}
+	profile := ProfileByID(profileIDPrivilegedToolAction)
+	if profile == nil {
+		t.Fatal("expected built-in profile")
+	}
+	validReport := VerifyWithProfile(loadedSigned, path, profile)
+	if len(validReport.Signatures) != 1 || !validReport.Signatures[0].Valid {
+		t.Fatalf("untampered signature provenance = %+v, want valid signature", validReport.Signatures)
+	}
 
 	// Build a different but internally valid hash chain while retaining the
 	// signature event from the original bundle.
@@ -431,16 +443,15 @@ func TestVerifySignatureUsesParsedSourceSnapshot(t *testing.T) {
 		t.Fatalf("replace path after parsing: %v", err)
 	}
 
-	profile := ProfileByID(profileIDPrivilegedToolAction)
-	if profile == nil {
-		t.Fatal("expected built-in profile")
-	}
 	report := VerifyWithProfile(loadedTampered, path, profile)
 	if !report.Integrity.ChainValid {
 		t.Fatal("tampered fixture should have a valid recomputed hash chain")
 	}
 	if len(report.Signatures) != 1 || report.Signatures[0].Valid {
 		t.Fatalf("signature provenance = %+v, want the replaced path not to authenticate parsed records", report.Signatures)
+	}
+	if report.Signatures[0].Error == "" {
+		t.Fatal("expected signature validation error for the replaced-path fixture")
 	}
 }
 

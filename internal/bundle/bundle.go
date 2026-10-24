@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	stdhash "hash"
 	"io"
 	"os"
 	"path/filepath"
@@ -470,29 +471,7 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 	scanner := bufio.NewScanner(counted)
 	scanner.Split(scanRawLines)
 	scanner.Buffer(make([]byte, 64*1024), MaxLineSizeBytes+2)
-	prefixHash := sha256.New()
-	prefixWithoutLastByteHash := sha256.New()
-	var previousByte, byteBeforePrevious byte
-	var processedBytes int64
-	updateSourcePrefix := func(rawLine []byte) {
-		// Keep one byte out of this hash so a following signature record can
-		// cheaply compare the prefix with and without its final line-feed.
-		if processedBytes > 0 {
-			_, _ = prefixWithoutLastByteHash.Write([]byte{previousByte})
-		}
-		if len(rawLine) > 1 {
-			_, _ = prefixWithoutLastByteHash.Write(rawLine[:len(rawLine)-1])
-		}
-		_, _ = prefixHash.Write(rawLine)
-		processedBytes += int64(len(rawLine))
-		if len(rawLine) >= 2 {
-			byteBeforePrevious = rawLine[len(rawLine)-2]
-			previousByte = rawLine[len(rawLine)-1]
-		} else if len(rawLine) == 1 {
-			byteBeforePrevious = previousByte
-			previousByte = rawLine[0]
-		}
-	}
+	var sourcePrefix sourcePrefixTracker
 	for scanner.Scan() {
 		if counted.bytesRead > limits.MaxBytes {
 			return nil, fmt.Errorf(
@@ -502,8 +481,6 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 			)
 		}
 		rawLine := scanner.Bytes()
-		prefixAtRecord := append([]byte(nil), prefixHash.Sum(nil)...)
-		canUsePrefixWithoutLF := processedBytes > 1 && previousByte == '\n' && byteBeforePrevious != '\n'
 		line := rawLine
 		if len(line) > 0 && line[len(line)-1] == '\n' {
 			line = line[:len(line)-1]
@@ -515,7 +492,7 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 			return nil, fmt.Errorf("bundle: load: line exceeds %d bytes: %w", MaxLineSizeBytes, ErrResourceLimit)
 		}
 		if len(line) == 0 {
-			updateSourcePrefix(rawLine)
+			sourcePrefix.add(rawLine)
 			continue
 		}
 		if len(b.Records) >= limits.MaxRecords {
@@ -530,14 +507,10 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 			return nil, fmt.Errorf("bundle: load: unmarshal: %w", errors.Join(err, ErrMalformed))
 		}
 		if rec.Event.Type == event.TypeBundleSignature {
-			rec.sourcePrefixHash = prefixAtRecord
-			if canUsePrefixWithoutLF {
-				rec.sourcePrefixWithoutLFHash = append([]byte(nil), prefixWithoutLastByteHash.Sum(nil)...)
-				rec.sourcePrefixWithoutLFPresent = true
-			}
+			rec.sourcePrefixHash, rec.sourcePrefixWithoutLFHash, rec.sourcePrefixWithoutLFPresent = sourcePrefix.snapshot()
 		}
 		b.Records = append(b.Records, rec)
-		updateSourcePrefix(rawLine)
+		sourcePrefix.add(rawLine)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("bundle: load: scan: %w", err)
@@ -555,6 +528,51 @@ func LoadReaderWithLimits(r io.Reader, limits LoadLimits) (*Bundle, error) {
 		}
 	}
 	return b, nil
+}
+
+// sourcePrefixTracker hashes the exact source bytes consumed before a record.
+// The alternate hash omits the final byte so signatures created from an
+// unterminated file remain verifiable after Save appends the record separator.
+type sourcePrefixTracker struct {
+	withLF                 stdhash.Hash
+	withoutLastByte        stdhash.Hash
+	processedBytes         int64
+	previousByte           byte
+	byteBeforePreviousByte byte
+}
+
+func (t *sourcePrefixTracker) add(rawLine []byte) {
+	if t.withLF == nil {
+		t.withLF = sha256.New()
+		t.withoutLastByte = sha256.New()
+	}
+	if t.processedBytes > 0 {
+		_, _ = t.withoutLastByte.Write([]byte{t.previousByte})
+	}
+	if len(rawLine) > 1 {
+		_, _ = t.withoutLastByte.Write(rawLine[:len(rawLine)-1])
+	}
+	_, _ = t.withLF.Write(rawLine)
+	t.processedBytes += int64(len(rawLine))
+	if len(rawLine) >= 2 {
+		t.byteBeforePreviousByte = rawLine[len(rawLine)-2]
+		t.previousByte = rawLine[len(rawLine)-1]
+	} else if len(rawLine) == 1 {
+		t.byteBeforePreviousByte = t.previousByte
+		t.previousByte = rawLine[0]
+	}
+}
+
+func (t *sourcePrefixTracker) snapshot() (withLF, withoutLF []byte, hasWithoutLF bool) {
+	if t.withLF == nil {
+		return nil, nil, false
+	}
+	withLF = append([]byte(nil), t.withLF.Sum(nil)...)
+	if t.processedBytes > 1 && t.previousByte == '\n' && t.byteBeforePreviousByte != '\n' {
+		withoutLF = append([]byte(nil), t.withoutLastByte.Sum(nil)...)
+		hasWithoutLF = true
+	}
+	return withLF, withoutLF, hasWithoutLF
 }
 
 func scanRawLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
@@ -575,13 +593,10 @@ func setSourcePrefixHashes(records []Record, raw []byte) {
 		records[i].sourcePrefixWithoutLFHash = nil
 		records[i].sourcePrefixWithoutLFPresent = false
 	}
-	prefixHash := sha256.New()
-	prefixWithoutLastByteHash := sha256.New()
+	var sourcePrefix sourcePrefixTracker
 	position := 0
-	var previousByte byte
 	recordIndex := 0
 	for position < len(raw) {
-		lineStart := position
 		lineEnd := bytes.IndexByte(raw[position:], '\n')
 		var rawLine []byte
 		if lineEnd < 0 {
@@ -602,26 +617,11 @@ func setSourcePrefixHashes(records []Record, raw []byte) {
 		if len(line) > 0 && recordIndex < len(records) {
 			record := &records[recordIndex]
 			if record.Event.Type == event.TypeBundleSignature {
-				record.sourcePrefixHash = append([]byte(nil), prefixHash.Sum(nil)...)
-				if lineStart > 1 && raw[lineStart-1] == '\n' && raw[lineStart-2] != '\n' {
-					record.sourcePrefixWithoutLFHash = append([]byte(nil), prefixWithoutLastByteHash.Sum(nil)...)
-					record.sourcePrefixWithoutLFPresent = true
-				}
+				record.sourcePrefixHash, record.sourcePrefixWithoutLFHash, record.sourcePrefixWithoutLFPresent = sourcePrefix.snapshot()
 			}
 			recordIndex++
 		}
-		if lineStart > 0 {
-			_, _ = prefixWithoutLastByteHash.Write([]byte{previousByte})
-		}
-		if len(rawLine) > 1 {
-			_, _ = prefixWithoutLastByteHash.Write(rawLine[:len(rawLine)-1])
-		}
-		_, _ = prefixHash.Write(rawLine)
-		if len(rawLine) >= 2 {
-			previousByte = rawLine[len(rawLine)-1]
-		} else if len(rawLine) == 1 {
-			previousByte = rawLine[0]
-		}
+		sourcePrefix.add(rawLine)
 	}
 }
 
