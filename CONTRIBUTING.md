@@ -6,8 +6,8 @@ This file covers contributor workflow. Release preparation and versioning detail
 [docs/maintainers/release.md](docs/maintainers/release.md) and
 [VERSIONING.md](VERSIONING.md).
 
-For AI-assisted development, see [AGENTS.md](AGENTS.md) for product identity, public/private
-boundaries, and architectural invariants.
+For architecture and trust boundaries, see the [architecture](docs/concepts/architecture.md)
+and [trust model](docs/concepts/trust-model.md).
 
 ## Local setup
 
@@ -38,9 +38,10 @@ go build -o atb ./cmd/atb
 
 ## Documentation expectations
 
-- When behaviour, schema, API, or release-facing text changes, update the relevant docs in the same change.
-- Do not leave stale references to removed flags, UI modes, or deleted files.
-- Tracked follow-on work belongs in [docs/roadmap.md](docs/roadmap.md); do not describe unshipped capability as current in user-facing docs.
+- Canonical locations: architecture and product boundaries in [architecture](docs/concepts/architecture.md); user workflow in the quickstart and task guides; wire and API contracts in specifications; contributor and release procedures here and in the maintainer guides.
+- Update the relevant canonical documentation with behaviour, schema, API, or release-facing changes; remove superseded explanations and repair their links.
+- Keep plans, agent transcripts, and progress reports local. Add public Markdown only when its audience and purpose are not served by an existing document. Clearly label planned capabilities; do not describe them as implemented.
+- Tracked follow-on work belongs in [docs/roadmap.md](docs/roadmap.md).
 
 ## Python SDK
 
@@ -88,8 +89,8 @@ If GitHub Actions is unavailable (for example, a billing or spending-limit
 block), run the release gates locally before merging to `main`:
 
 ```sh
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 go test ./... -count=1
 bash scripts/check-versions.sh
 ```
 
@@ -127,16 +128,13 @@ policy.
 
 ## Maintainer rules
 
-These invariants apply to every change that touches the bundle format, verifier,
-or public CLI contract. Full versioning policy is in [VERSIONING.md](VERSIONING.md).
+These invariants apply to changes that touch the bundle format, verifier, or public CLI contract. Full versioning policy is in [VERSIONING.md](VERSIONING.md).
 
 ### Product boundary
 
-ATB is a local-first tamper-evident audit trail. It proves integrity of what was
-recorded; it does not prove capture completeness, model correctness, actor
-identity, or regulatory compliance by itself. Hosted custody, auditor access,
-retention policy, and custodian-of-record work belong in Mortise or another
-external custody/organisational product.
+See the [canonical architecture](docs/concepts/architecture.md) for ATB’s
+purpose, limits, and optional integration boundaries. Keep verification usable
+without external or hosted services.
 
 ### Core invariants
 
@@ -154,8 +152,8 @@ external custody/organisational product.
 Before a public release:
 
 ```bash
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 make test-golden
-GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.9 go test ./... -count=1
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 make test-golden
+GOCACHE=$(pwd)/.gocache/release GOTOOLCHAIN=go1.26.10 go test ./... -count=1
 /bin/bash scripts/check-versions.sh
 ```
 
@@ -184,7 +182,7 @@ or replacing a custodian.
 
 ### Compatibility-sensitive public contracts
 
-External users and the optional Mortise integration depend on these surfaces:
+External users and optional custody integrations depend on these surfaces:
 
 - the bundle specification, event schema, and cross-language hash vectors;
 - `pkg/custody`, `pkg/jcs`, SDK APIs, and `verify.report.v1`;

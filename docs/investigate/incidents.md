@@ -34,7 +34,7 @@ atb intercept --bundle ~/.atb/sessions/$(date +%Y%m%d-%H%M).atb
 
 Session bundles can contain sensitive metadata (and raw prompts if
 `--capture-bodies` was used). Keep them out of version control; verify locally,
-then hand off a closed bundle to custody (for example Mortise via `--mortise`)
+then hand off a closed bundle to an external custody endpoint (via `--mortise`)
 rather than committing it to a repository.
 
 By default **bodies are digested, not stored** (`body_sha256` + `body_bytes`).

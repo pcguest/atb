@@ -4,7 +4,7 @@ Use this runbook to test an exact candidate as a new user would. Run it from a
 fresh clone, not a development checkout. Replace `<SHA>` with the candidate
 commit. Nothing in this procedure publishes ATB.
 
-Minimum supported tools are Go 1.26.9, Python 3.9, Node.js 22, and npm with the
+Minimum supported tools are Go 1.26.10, Python 3.9, Node.js 22, and npm with the
 committed lockfiles. Release tooling uses Python 3.11. The live viewer
 acceptance uses Firefox.
 
@@ -238,5 +238,5 @@ pretending to contain the full embedded viewer.
 - To package incident evidence: use `atb incident export`.
 - To package mapped review evidence: use `atb compliance pack`; it is technical
   evidence, not certification.
-- Optional Mortise hand-off begins only when durable organisational custody,
+- Optional external custody hand-off begins only when durable organisational custody,
   retention, receipts, shared access, or governance is required.

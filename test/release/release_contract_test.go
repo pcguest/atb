@@ -96,7 +96,7 @@ func TestGoldReleaseGateHasNoSoftFailurePaths(t *testing.T) {
 	}
 }
 
-func TestSecretScanCanReadPullRequestCommits(t *testing.T) {
+func TestSecretScanFetchesPullRequestCommitsWithoutWriteCredentials(t *testing.T) {
 	workflow := readRepositoryFile(t, ".github/workflows/security.yml")
 	secretScanStart := strings.Index(workflow, "\n  secret-scan:")
 	goSecurityStart := strings.Index(workflow, "\n  go-security:")
@@ -106,12 +106,18 @@ func TestSecretScanCanReadPullRequestCommits(t *testing.T) {
 	secretScan := workflow[secretScanStart:goSecurityStart]
 	for _, required := range []string{
 		"contents: read",
-		"pull-requests: read",
-		"GITLEAKS_ENABLE_COMMENTS: \"false\"",
-		"GITLEAKS_ENABLE_UPLOAD_ARTIFACT: \"false\"",
+		"+refs/pull/*/head:refs/remotes/origin/pr/*",
+		"persist-credentials: false",
+		"bash scripts/check-fetched-public-refs.sh origin",
+		"bash scripts/audit-public-history.sh",
 	} {
 		if !strings.Contains(secretScan, required) {
 			t.Errorf("secret scan does not require %q", required)
+		}
+	}
+	for _, forbidden := range []string{"pull-requests: write", "GITLEAKS_ENABLE_COMMENTS", "GITLEAKS_ENABLE_UPLOAD_ARTIFACT"} {
+		if strings.Contains(secretScan, forbidden) {
+			t.Errorf("secret scan unexpectedly enables %q", forbidden)
 		}
 	}
 }
@@ -421,7 +427,7 @@ func TestScannerBootstrapPinsGoAnalyzersAndIsolatesCaches(t *testing.T) {
 	for _, required := range []string{
 		`readonly STATICCHECK_VERSION="v0.7.0"`,
 		`readonly GOVULNCHECK_VERSION="v1.5.0"`,
-		`readonly GO_VERSION="go1.26.9"`,
+		`readonly GO_VERSION="go1.26.10"`,
 		`GOMODCACHE="$DEST_DIR/../go-mod-cache"`,
 		`GOSUMDB="sum.golang.org"`,
 		`honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}`,

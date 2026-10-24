@@ -35,6 +35,5 @@ portable review/export. This roadmap records direction, not release promises.
   regulatory certification.
 - Training-data governance.
 
-Those organisational and hosted concerns belong in Mortise or another external
-system. Each ATB integration remains bounded by the calls and records that
+Those organisational and hosted concerns belong in external systems. Each ATB integration remains bounded by the calls and records that
 actually cross it.

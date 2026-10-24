@@ -152,3 +152,6 @@ scratch/
 
 # Local development state (continuation records, ledgers, ephemeral reports).
 .local/
+
+# Ignore the exact root path whether it is a file, symlink, or directory.
+/.venv

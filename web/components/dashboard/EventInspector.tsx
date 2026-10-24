@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { eventFamilyClass, eventSummary } from "@/lib/event-family";
 import { HashValue } from "@/components/dashboard/HashValue";
@@ -53,19 +53,15 @@ function parseReportedAttribution(data: Record<string, unknown> | undefined): Re
   return out;
 }
 
-export function EventInspector({ event, disabled = false, onReveal }: EventInspectorProps) {
+export function EventInspector(props: EventInspectorProps) {
+  const selectionKey = props.event ? `${props.event.seq}:${props.event.hash}` : "none";
+  return <EventInspectorContent key={selectionKey} {...props} />;
+}
+
+function EventInspectorContent({ event, disabled = false, onReveal }: EventInspectorProps) {
   const [revealed, setRevealed] = useState<Record<string, unknown>>({});
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const selectionKey = event ? `${event.seq}:${event.hash}` : "none";
-  const activeSelection = useRef(selectionKey);
-  activeSelection.current = selectionKey;
-
-  useEffect(() => {
-    setRevealed({});
-    setPending(null);
-    setError(null);
-  }, [selectionKey]);
 
   const renderedData = useMemo(() => {
     if (!event) {
@@ -108,19 +104,16 @@ export function EventInspector({ event, disabled = false, onReveal }: EventInspe
     }
     const eventSeq = event.seq;
     const fieldPath = path.replace(/^data\./, "");
-    const requestSelection = selectionKey;
     setPending(path);
     setError(null);
     try {
       const value = await onReveal(eventSeq, fieldPath);
-      if (activeSelection.current !== requestSelection) return;
-      setRevealed((prev) => ({ ...prev, [fieldPath]: value }));
+      setRevealed((previous) => ({ ...previous, [fieldPath]: value }));
     } catch (err) {
-      if (activeSelection.current !== requestSelection) return;
       const message = err instanceof Error ? err.message : "Reveal failed";
       setError(message);
     } finally {
-      if (activeSelection.current === requestSelection) setPending(null);
+      setPending(null);
     }
   }
 

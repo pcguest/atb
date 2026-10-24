@@ -1,21 +1,14 @@
-# Mortise custody integration
+# Optional Mortise custody handoff
 
-Mortise is the optional commercial custody and assurance layer for organisations
-that need ATB evidence preserved, governed, and independently receipted beyond
-the originating host. ATB remains fully useful for local capture, verification,
-incident analysis, profiles, packs, and viewing when Mortise is absent.
-
-Tenon is the umbrella product identity. It is not an ATB runtime component.
-The boundary is:
-
-```text
-local evidence creation and verification = ATB
-organisational custody and assurance      = Mortise
-```
+This page documents ATB’s optional client and compatibility contracts for
+handing off evidence to an external custody endpoint. It does not describe or
+verify the receiving service’s current implementation or operation. ATB capture,
+verification, incident analysis, profiles, packs, and local viewing work without
+that endpoint.
 
 ## Stable ATB contracts
 
-Mortise integrations consume, rather than reinterpret, these contracts:
+A compatible receiver should consume, rather than reinterpret, these ATB contracts:
 
 | Contract | Authority |
 | --- | --- |
@@ -43,13 +36,15 @@ atb incident export \
 `atb intercept --mortise <endpoint>` can lodge a completed session bundle, and
 `atb compliance pack ... --mortise-endpoint <endpoint>` can include the returned
 receipt. The authoritative object handed to custody is the bundle, not a derived
-report archive.
+report archive. A compatible receiver should verify bundle integrity with the
+ATB custody verifier before persistence; this contract does not attest that an
+external receiver follows that requirement.
 
 The legacy `--custos`, `--custos-endpoint`, and `ATB_CUSTOS_TOKEN` names remain
 compatibility aliases for the documented migration window. The historical
 `custos.receipt.v1` string is a frozen wire identifier, not a current product
 name.
 
-Mortise must verify the bundle before persistence. Production storage, WORM
-retention, receipts, tenant policy, RBAC, SSO, witnesses, audit access, and
-operational controls belong to Mortise or another custody provider—not ATB.
+The receiving custody service is responsible for its own persistence,
+retention, receipts, access policy, and operational controls. ATB does not
+verify that service’s current implementation or storage enforcement.
