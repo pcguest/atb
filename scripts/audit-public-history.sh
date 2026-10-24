@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
-
+repo_root="$(git rev-parse --show-toplevel)"
 scanner="${1:-gitleaks}"
-if ! command -v "$scanner" >/dev/null 2>&1 && [[ ! -x "$scanner" ]]; then
+if [[ "$scanner" == */* ]]; then
+  if [[ ! -x "$scanner" ]]; then
+    echo "gitleaks executable not found: $scanner" >&2
+    exit 2
+  fi
+  scanner="$(cd "$(dirname "$scanner")" && pwd -P)/$(basename "$scanner")"
+elif ! command -v "$scanner" >/dev/null 2>&1; then
   echo "gitleaks executable not found: $scanner" >&2
   exit 2
 fi
+cd "$repo_root"
 
 if [[ "$(git rev-parse --is-shallow-repository)" == "true" ]]; then
   echo "refusing full-history audit from a shallow repository" >&2

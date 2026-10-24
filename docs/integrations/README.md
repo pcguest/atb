@@ -11,7 +11,7 @@ an explicit capture boundary described in the
 | MCP | [mcp.md](./mcp.md) |
 | Chatlog import | [chatlog-import.md](./chatlog-import.md) |
 | WORM / S3 push | [bundle push contract](../specification/bundle-push.md) |
-| Optional custody handoff (historical Mortise naming) | [mortise.md](./mortise.md) |
+| Optional Mortise custody handoff | [mortise.md](./mortise.md) |
 | SIEM / GRC export | [siem-grc.md](./siem-grc.md) |
 
 Custody, receipts, organisational controls, and transparency/witness

@@ -54,6 +54,9 @@ jobs:
       - name: Exercise public-boundary regressions
         run: bash scripts/test-public-boundary.sh
 
+      - name: Exercise history-audit scanner path regression
+        run: bash scripts/test-audit-public-history-scanner-path.sh
+
       - name: Scan complete history and current tree
         run: bash scripts/audit-public-history.sh "$(go env GOPATH)/bin/gitleaks"
 

@@ -25,7 +25,7 @@ The canonical explanation of ATB’s architecture and limits is in
 - [Integration index](integrations/README.md)
 - [WORM/S3 bundle push](specification/bundle-push.md)
 - [MCP](integrations/mcp.md)
-- [Optional custody handoff](integrations/mortise.md)
+- [Optional Mortise custody handoff](integrations/mortise.md)
 
 Integrations are optional. ATB can capture, verify, and inspect bundles
 without a hosted ATB service or an external custody product.
