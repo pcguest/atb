@@ -12,8 +12,8 @@ import (
 	"sort"
 	"strings"
 
-	profiledsl "github.com/pcguest/atb/internal/profiles"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	profiledsl "github.com/pcguest/atb/v2/internal/profiles"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 	"gopkg.in/yaml.v3"
 )
 

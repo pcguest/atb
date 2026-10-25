@@ -15,9 +15,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/hash"
-	"github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/hash"
+	"github.com/pcguest/atb/v2/internal/verify"
 )
 
 // VerifierReport is the stable verify.report.v1 automation contract.

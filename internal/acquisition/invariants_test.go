@@ -45,9 +45,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	capturepkg "github.com/pcguest/atb/internal/capture"
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	capturepkg "github.com/pcguest/atb/v2/internal/capture"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // writeTestFile writes content to dir/name and returns the full path.

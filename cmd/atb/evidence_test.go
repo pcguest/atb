@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	evidencepkg "github.com/pcguest/atb/internal/evidence"
+	evidencepkg "github.com/pcguest/atb/v2/internal/evidence"
 )
 
 func TestRunEvidenceMissingBundleFlag(t *testing.T) {

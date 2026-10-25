@@ -34,7 +34,7 @@ if ! printf '%s\n' "$EXPECT" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[
   printf 'EXPECT must be stable SemVer (MAJOR.MINOR.PATCH); got %s\n' "$EXPECT" >&2
   exit 2
 fi
-MODULE="github.com/pcguest/atb/cmd/atb"
+MODULE="github.com/pcguest/atb/v2/cmd/atb"
 PYPKG="atb-sdk"
 NPMPKG="@pcguest/atb-sdk"
 

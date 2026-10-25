@@ -7,7 +7,7 @@ everything an agent might do.
 ## Chatlog import
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install github.com/pcguest/atb/v2/cmd/atb@latest
 atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl --snapshot imported_chatlog
 atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
 atb view --bundle run.atb/bundle.atb

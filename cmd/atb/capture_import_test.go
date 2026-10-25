@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 var update = flag.Bool("update", false, "rewrite golden fixtures")

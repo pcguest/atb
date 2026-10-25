@@ -12,7 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 var errInspectHelp = errors.New("inspect help requested")

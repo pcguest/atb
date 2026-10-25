@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/retentionaudit"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/retentionaudit"
 )
 
 const (

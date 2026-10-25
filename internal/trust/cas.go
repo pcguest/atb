@@ -6,8 +6,8 @@ import (
 	"math"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 type AnchorQuality struct {

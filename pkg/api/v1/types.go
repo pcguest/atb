@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 package apiv1
 
-import verifypkg "github.com/pcguest/atb/internal/verify"
+import verifypkg "github.com/pcguest/atb/v2/internal/verify"
 
 // VerificationResponse reports top-level integrity status for a bundle view session.
 type VerificationResponse struct {

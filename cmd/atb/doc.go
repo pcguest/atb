@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	apiv1 "github.com/pcguest/atb/pkg/api/v1"
+	apiv1 "github.com/pcguest/atb/v2/pkg/api/v1"
 )
 
 const defaultOpenAPIOutputPath = "docs/api/openapi.yaml"

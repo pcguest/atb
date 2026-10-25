@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // envelopeSchema pins the parts of schemas/event.v1.json that describe the

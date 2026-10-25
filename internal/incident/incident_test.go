@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/incident"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/incident"
 )
 
 func writeBundle(t *testing.T) string {

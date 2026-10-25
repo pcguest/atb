@@ -15,10 +15,10 @@ import (
 	"testing"
 	"time"
 
-	archiveledger "github.com/pcguest/atb/internal/archive"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/canonicalize"
-	exportpkg "github.com/pcguest/atb/internal/export"
+	archiveledger "github.com/pcguest/atb/v2/internal/archive"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/canonicalize"
+	exportpkg "github.com/pcguest/atb/v2/internal/export"
 )
 
 func TestExportParseArgs(t *testing.T) {

@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/pcguest/atb/internal/canonicalize"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/canonicalize"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 type legacyEvent struct {

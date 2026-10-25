@@ -489,3 +489,28 @@ func TestGoldGateChecksPreparedVersionMarkers(t *testing.T) {
 		}
 	}
 }
+
+func TestGoModulePathMatchesMajorRelease(t *testing.T) {
+	goMod := readRepositoryFile(t, "go.mod")
+	if !strings.HasPrefix(goMod, "module github.com/pcguest/atb/v2\n") {
+		t.Fatal("go.mod module path must carry the /v2 major-version suffix")
+	}
+
+	toolsMod := readRepositoryFile(t, "tools/go.mod")
+	if !strings.HasPrefix(toolsMod, "module github.com/pcguest/atb/tools\n") {
+		t.Fatal("tools module path must remain independent of the root major-version suffix")
+	}
+
+	readme := readRepositoryFile(t, "README.md")
+	if !strings.Contains(readme, "go install github.com/pcguest/atb/v2/cmd/atb@latest") {
+		t.Error("README does not document the v2 CLI install path")
+	}
+	if strings.Contains(readme, "go install github.com/pcguest/atb/cmd/atb@latest") {
+		t.Error("README still documents the v1 CLI install path")
+	}
+
+	installer := readRepositoryFile(t, "scripts/verify-published-release.sh")
+	if !strings.Contains(installer, `MODULE="github.com/pcguest/atb/v2/cmd/atb"`) {
+		t.Error("published-release verification still targets the v1 module path")
+	}
+}

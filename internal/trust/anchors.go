@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	anchorpkg "github.com/pcguest/atb/internal/anchor"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
+	anchorpkg "github.com/pcguest/atb/v2/internal/anchor"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // AnchorVerificationResult describes the outcome of verifying one RFC 3161

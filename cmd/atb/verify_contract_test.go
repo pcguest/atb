@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 type verifyErrorWriter struct{ err error }

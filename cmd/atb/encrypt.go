@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/encrypt"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/encrypt"
 )
 
 type encryptConfig struct {

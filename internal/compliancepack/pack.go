@@ -16,13 +16,13 @@ import (
 	"strings"
 	"time"
 
-	atbembed "github.com/pcguest/atb"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/incident"
-	"github.com/pcguest/atb/internal/retentionaudit"
-	"github.com/pcguest/atb/internal/verify"
-	custodypkg "github.com/pcguest/atb/pkg/custody"
+	atbembed "github.com/pcguest/atb/v2"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/incident"
+	"github.com/pcguest/atb/v2/internal/retentionaudit"
+	"github.com/pcguest/atb/v2/internal/verify"
+	custodypkg "github.com/pcguest/atb/v2/pkg/custody"
 )
 
 const RegimeEUAIAct = "eu-ai-act"

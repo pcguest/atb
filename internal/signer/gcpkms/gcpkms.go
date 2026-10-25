@@ -16,7 +16,7 @@ import (
 	kms "cloud.google.com/go/kms/apiv1"
 	"cloud.google.com/go/kms/apiv1/kmspb"
 	"github.com/googleapis/gax-go/v2"
-	"github.com/pcguest/atb/internal/signer"
+	"github.com/pcguest/atb/v2/internal/signer"
 )
 
 type cloudKMSClient interface {

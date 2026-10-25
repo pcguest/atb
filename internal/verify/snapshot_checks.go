@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // SnapshotBundleHash reproduces the hash written by atb snapshot for the

@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/pkg/custody"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/pkg/custody"
 )
 
 // agentRawEventType wraps capture API events as opaque JSON without claiming a

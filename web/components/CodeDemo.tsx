@@ -248,7 +248,7 @@ export default function CodeDemo() {
         {/* Install commands */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
           {[
-            { label: "Go CLI", cmd: "go install github.com/pcguest/atb/cmd/atb@latest" },
+            { label: "Go CLI", cmd: "go install github.com/pcguest/atb/v2/cmd/atb@latest" },
             { label: "Python SDK", cmd: "pip install atb-sdk" },
             { label: "TypeScript SDK", cmd: "npm install @pcguest/atb-sdk" },
           ].map((item) => (

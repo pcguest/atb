@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 package export
 
-import "github.com/pcguest/atb/internal/verify"
+import "github.com/pcguest/atb/v2/internal/verify"
 
 type ComplianceManifest struct {
 	BundlePath         string                 `json:"bundle_path"`

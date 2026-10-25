@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/pcguest/atb/pkg/custody"
+	"github.com/pcguest/atb/v2/pkg/custody"
 )
 
 const wantVerifyReportSchemaSHA256 = "454d769167b27525e5bc79bd76e3621bf0ce4872f7d54af4cccaaa999d1cd9e5"

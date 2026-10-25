@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/capture"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/hash"
-	"github.com/pcguest/atb/pkg/otel"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/capture"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/hash"
+	"github.com/pcguest/atb/v2/pkg/otel"
 )
 
 const (

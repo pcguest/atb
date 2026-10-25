@@ -16,10 +16,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/signer"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/signer"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 // signedBundleForVerify produces a bundle on disk signed via the local

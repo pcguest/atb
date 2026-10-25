@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 	"io"
 	"net/http"
 	"os"

@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 var errEventsHelp = errors.New("events help requested")

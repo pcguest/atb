@@ -10,7 +10,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 func TestSignVerify_RoundTrip(t *testing.T) {

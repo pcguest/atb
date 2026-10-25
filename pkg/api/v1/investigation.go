@@ -9,12 +9,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pcguest/atb/internal/capabilities"
-	"github.com/pcguest/atb/internal/contextlineage"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/incident"
-	"github.com/pcguest/atb/internal/sessionindex"
-	atbauth "github.com/pcguest/atb/pkg/auth"
+	"github.com/pcguest/atb/v2/internal/capabilities"
+	"github.com/pcguest/atb/v2/internal/contextlineage"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/incident"
+	"github.com/pcguest/atb/v2/internal/sessionindex"
+	atbauth "github.com/pcguest/atb/v2/pkg/auth"
 )
 
 var trustLimitations = []string{

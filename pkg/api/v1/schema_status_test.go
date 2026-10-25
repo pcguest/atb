@@ -8,7 +8,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 func TestComputeSchemaStatus(t *testing.T) {

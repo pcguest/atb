@@ -4,7 +4,7 @@ package trust
 import (
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 func newTrustTestBundle(t testing.TB) *bundle.Bundle {

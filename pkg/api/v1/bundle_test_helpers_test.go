@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 func testBundleTimestamp() string {

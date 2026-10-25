@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pcguest/atb/internal/identity"
+	"github.com/pcguest/atb/v2/internal/identity"
 )
 
 func TestFileResolver(t *testing.T) {

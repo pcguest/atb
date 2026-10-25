@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 func TestClassifyBundleLoadError(t *testing.T) {

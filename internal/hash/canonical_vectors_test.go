@@ -26,7 +26,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/pcguest/atb/internal/canonicalize"
+	"github.com/pcguest/atb/v2/internal/canonicalize"
 )
 
 var updateVectors = flag.Bool(

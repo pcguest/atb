@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	archiveledger "github.com/pcguest/atb/internal/archive"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/hash"
-	"github.com/pcguest/atb/internal/retentionaudit"
+	archiveledger "github.com/pcguest/atb/v2/internal/archive"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/hash"
+	"github.com/pcguest/atb/v2/internal/retentionaudit"
 )
 
 func TestArchiveParseArgs(t *testing.T) {

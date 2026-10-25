@@ -18,11 +18,11 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/identityevidence"
-	"github.com/pcguest/atb/internal/sessionindex"
-	"github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/identityevidence"
+	"github.com/pcguest/atb/v2/internal/sessionindex"
+	"github.com/pcguest/atb/v2/internal/verify"
 )
 
 // EventRow is one event scoped to the incident session.

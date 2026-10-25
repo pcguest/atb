@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/locator"
-	"github.com/pcguest/atb/internal/proxy"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/locator"
+	"github.com/pcguest/atb/v2/internal/proxy"
 )
 
 func roundTrip(t *testing.T, rec *proxy.BundleRecorder, cfg proxy.ProxyConfig, host, path, reqBody, respBody string) {

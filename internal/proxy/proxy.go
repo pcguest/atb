@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pcguest/atb/internal/identity"
+	"github.com/pcguest/atb/v2/internal/identity"
 	"golang.org/x/sync/semaphore"
 )
 

@@ -7,7 +7,7 @@
 // golden-tested canonical form.
 package jcs
 
-import "github.com/pcguest/atb/internal/canonicalize"
+import "github.com/pcguest/atb/v2/internal/canonicalize"
 
 // Marshal returns the RFC 8785 canonical JSON encoding of v.
 func Marshal(v interface{}) ([]byte, error) {

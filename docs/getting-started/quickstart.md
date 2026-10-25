@@ -8,7 +8,7 @@ the record-and-verify cycle.
 ## 1. Your first bundle in 5 minutes
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install github.com/pcguest/atb/v2/cmd/atb@latest
 atb bundle new
 atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
 atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
@@ -119,7 +119,7 @@ ATB_LOCK_WAIT=10s atb snapshot ci_checkpoint
 ### Go CLI (Recommended for latest features)
 
 ```bash
-go install github.com/pcguest/atb/cmd/atb@latest
+go install github.com/pcguest/atb/v2/cmd/atb@latest
 ```
 
 The Go CLI is the recommended installation method for accessing the latest features. A `go install` build serves a minimal install-guidance page for `atb view`; for the full embedded review UI, build from a checkout with `make build`.

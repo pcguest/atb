@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/proxy"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/proxy"
 )
 
 func makeCaptureBundle(t *testing.T) string {

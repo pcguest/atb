@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 func TestVerifyJSONSnapshot(t *testing.T) {

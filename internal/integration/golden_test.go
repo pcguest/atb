@@ -8,11 +8,11 @@ import (
 	"encoding/base64"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	signpkg "github.com/pcguest/atb/internal/sign"
-	"github.com/pcguest/atb/internal/trust"
-	"github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	signpkg "github.com/pcguest/atb/v2/internal/sign"
+	"github.com/pcguest/atb/v2/internal/trust"
+	"github.com/pcguest/atb/v2/internal/verify"
 )
 
 const (

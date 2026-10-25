@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	capturepkg "github.com/pcguest/atb/internal/capture"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	capturepkg "github.com/pcguest/atb/v2/internal/capture"
 )
 
 // A checkpoint bound to a committed bundle head must fail closed when the

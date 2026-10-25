@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 // TestImportCreatesV3Bundle pins the acquisition canonical-profile declaration:

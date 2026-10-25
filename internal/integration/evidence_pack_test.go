@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	evidencepack "github.com/pcguest/atb/internal/evidencepack"
+	evidencepack "github.com/pcguest/atb/v2/internal/evidencepack"
 )
 
 func TestEvidencePackProfileFixtures(t *testing.T) {

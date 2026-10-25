@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pcguest/atb/internal/identity"
+	"github.com/pcguest/atb/v2/internal/identity"
 )
 
 func cmdIdentity() {

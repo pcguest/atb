@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/pkg/custody"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/pkg/custody"
 )
 
 func TestNewBundleExportSerialisesVerifiedBundle(t *testing.T) {

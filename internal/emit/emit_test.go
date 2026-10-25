@@ -4,8 +4,8 @@ package emit_test
 import (
 	"testing"
 
-	"github.com/pcguest/atb/internal/emit"
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/emit"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 func stubAppendFn() (func(event.Event) (string, error), *[]event.Event) {

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/pcguest/atb/internal/proxy"
+	"github.com/pcguest/atb/v2/internal/proxy"
 )
 
 func eventData(t *testing.T, data any) map[string]any {

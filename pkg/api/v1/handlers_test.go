@@ -17,9 +17,9 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v2/jwk"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/hash"
-	atbauth "github.com/pcguest/atb/pkg/auth"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/hash"
+	atbauth "github.com/pcguest/atb/v2/pkg/auth"
 )
 
 const testAPISessionToken = "test-api-session-token"

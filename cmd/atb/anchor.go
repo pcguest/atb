@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	anchorpkg "github.com/pcguest/atb/internal/anchor"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
+	anchorpkg "github.com/pcguest/atb/v2/internal/anchor"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 var verifyBundleAnchorRoots *x509.CertPool

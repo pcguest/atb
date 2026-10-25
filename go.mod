@@ -1,4 +1,4 @@
-module github.com/pcguest/atb
+module github.com/pcguest/atb/v2
 
 go 1.26.10
 

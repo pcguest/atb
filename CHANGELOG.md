@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+<!-- No unreleased changes. -->
+
+## [v2.0.0] - 2026-10-26
+
 ### Breaking Changes
-- **NEXT MAJOR ONLY (2.0.0; not a v1 backport):** The authenticated `GET /api/v1/sessions` and `GET /api/v1/sessions/by-actor` endpoints reject non-empty `bundle_dir` query values, including whitespace and any non-empty value among repeated parameters, with HTTP 400 and the fixed API error `invalid query parameters`. Malformed query encoding is rejected with the same response. Rejection occurs before filesystem selection or session indexing, without returning or logging the supplied path. Missing and empty values retain server-configured indexing, including configured multi-bundle indexes; callers must select evidence through server configuration or the existing CLI `--sessions` option instead. This is a deliberate compatibility break, not a security exception or v1 patch. Published version metadata remains unchanged until major-release preparation; bundle formats, canonical hashes and SDK contracts are unchanged. This change is limited to these two endpoints, not a claim that every viewer route rejects filesystem selectors.
+- **2.0.0:** The authenticated `GET /api/v1/sessions` and `GET /api/v1/sessions/by-actor` endpoints reject non-empty `bundle_dir` query values, including whitespace and any non-empty value among repeated parameters, with HTTP 400 and the fixed API error `invalid query parameters`. Malformed query encoding is rejected with the same response. Rejection occurs before filesystem selection or session indexing, without returning or logging the supplied path. Missing and empty values retain server-configured indexing, including configured multi-bundle indexes; callers must select evidence through server configuration or the existing CLI `--sessions` option instead. This is a deliberate compatibility break, not a security exception or v1 patch. Bundle formats, canonical hashes and SDK contracts are unchanged. This change is limited to these two endpoints, not a claim that every viewer route rejects filesystem selectors. See the session-list migration notes in `docs/specification/viewer.md`.
+- **2.0.0 Go module path:** the Go module is now `github.com/pcguest/atb/v2`, as required for a new major version. Install the CLI with `go install github.com/pcguest/atb/v2/cmd/atb@latest`. Go consumers of `pkg/custody`, `pkg/jcs`, `pkg/otel`, `pkg/auth`, `pkg/corroborate`, `pkg/proxy` and the other public Go packages must update import paths from `github.com/pcguest/atb/...` to `github.com/pcguest/atb/v2/...`; the v1 module path continues to identify v1 releases. The independent `github.com/pcguest/atb/tools` tooling module is unchanged.
+
+### Changed
+- Coordinated release version `2.0.0` for the Go CLI, Python SDK, TypeScript SDK and embedded viewer, so their package metadata, runtime version constants and release tooling agree at one tag. Bundle NDJSON, RFC 8785 canonicalisation, SHA-256 chain hashes, signature records, manifest version support/defaults (read v1/v2/v3; write v1 by default, v3 for import), `schemas/event.v1.json`, `verify.report.v1` and HTTP route names are unchanged. This is a product/package major, not a bundle-format or API-route major.
 
 ### Fixed
 - Updated the pinned Go toolchain and builder images to Go 1.26.10 to address CVE-2026-111943 in `crypto/x509`; aligned CI, local validation, and support-matrix pins.

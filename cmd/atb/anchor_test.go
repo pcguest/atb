@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	anchorpkg "github.com/pcguest/atb/internal/anchor"
-	"github.com/pcguest/atb/internal/bundle"
+	anchorpkg "github.com/pcguest/atb/v2/internal/anchor"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 func TestRunAnchorWritesTSRAndAppendsAnchorEvent(t *testing.T) {

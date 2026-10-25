@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/pkg/custody"
+	"github.com/pcguest/atb/v2/pkg/custody"
 )
 
 func TestEvaluatePassFixture(t *testing.T) {

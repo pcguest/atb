@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 var integrationBaseTime = time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC)

@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	capturepkg "github.com/pcguest/atb/internal/capture"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	capturepkg "github.com/pcguest/atb/v2/internal/capture"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 func fixturePath(t *testing.T, name string) string {

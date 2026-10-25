@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/trust"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/trust"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 func TestTrustReportParseArgs(t *testing.T) {

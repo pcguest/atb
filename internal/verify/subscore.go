@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 package verify
 
-import "github.com/pcguest/atb/internal/bundle"
+import "github.com/pcguest/atb/v2/internal/bundle"
 
 // SubScoresForBundle derives profile sub-scores using the same anchor-aware
 // path as bundle verification.

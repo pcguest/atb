@@ -22,13 +22,13 @@ import (
 	"syscall"
 	"time"
 
-	atbembed "github.com/pcguest/atb"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/locator"
-	"github.com/pcguest/atb/internal/sessionindex"
-	verifypkg "github.com/pcguest/atb/internal/verify"
-	apiv1 "github.com/pcguest/atb/pkg/api/v1"
-	atbauth "github.com/pcguest/atb/pkg/auth"
+	atbembed "github.com/pcguest/atb/v2"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/locator"
+	"github.com/pcguest/atb/v2/internal/sessionindex"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
+	apiv1 "github.com/pcguest/atb/v2/pkg/api/v1"
+	atbauth "github.com/pcguest/atb/v2/pkg/auth"
 )
 
 var errViewHelp = errors.New("view help requested")

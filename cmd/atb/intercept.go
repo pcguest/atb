@@ -13,7 +13,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/pcguest/atb/internal/proxy"
+	"github.com/pcguest/atb/v2/internal/proxy"
 )
 
 const interceptLongDescription = `Start the local HTTPS capture proxy.
