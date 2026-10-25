@@ -214,7 +214,7 @@ go install -tags noembed ./cmd/atb
   --no-open --port 18889 >/tmp/atb-go-install-view.log 2>&1 &
 VIEW_PID=$!
 sleep 2
-curl -fsS http://127.0.0.1:18889/view/ | grep -F 'make build'
+curl -fsS http://127.0.0.1:18889/view/ | grep -F 'The local review UI is not available in this build.'
 kill "$VIEW_PID"
 ```
 
