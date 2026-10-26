@@ -15,13 +15,13 @@
 # Requirements on the runner: go, python3 (with venv), npm. No credentials.
 #
 # Usage:
-#   EXPECT=1.16.0 scripts/verify-published-release.sh
+#   EXPECT=2.0.0 scripts/verify-published-release.sh
 
 set -u
 
 EXPECT="${EXPECT:-}"
 if [ -z "$EXPECT" ]; then
-  printf 'EXPECT is required (for example: EXPECT=1.16.0 %s)\n' "$0" >&2
+  printf 'EXPECT is required (for example: EXPECT=2.0.0 %s)\n' "$0" >&2
   exit 2
 fi
 case "$EXPECT" in
