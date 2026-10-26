@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/mortise"
+	"github.com/pcguest/atb/v2/internal/mortise"
 )
 
 func TestLocalCALifecycleAndInstructions(t *testing.T) {

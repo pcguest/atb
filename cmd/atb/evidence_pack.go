@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	evidencepack "github.com/pcguest/atb/internal/evidencepack"
+	evidencepack "github.com/pcguest/atb/v2/internal/evidencepack"
 )
 
 var errEvidencePackHelp = errors.New("evidence pack help requested")

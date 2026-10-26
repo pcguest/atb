@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 func TestRunProfilesValidateBuiltIns(t *testing.T) {

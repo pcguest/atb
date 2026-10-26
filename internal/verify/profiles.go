@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	profiledsl "github.com/pcguest/atb/internal/profiles"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	profiledsl "github.com/pcguest/atb/v2/internal/profiles"
 )
 
 const (

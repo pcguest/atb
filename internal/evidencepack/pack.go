@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/verify"
-	custodypkg "github.com/pcguest/atb/pkg/custody"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/verify"
+	custodypkg "github.com/pcguest/atb/v2/pkg/custody"
 )
 
 const defaultPackTimeout = 5 * time.Minute

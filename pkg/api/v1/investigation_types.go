@@ -2,9 +2,9 @@
 package apiv1
 
 import (
-	"github.com/pcguest/atb/internal/capabilities"
-	"github.com/pcguest/atb/internal/contextlineage"
-	"github.com/pcguest/atb/internal/incident"
+	"github.com/pcguest/atb/v2/internal/capabilities"
+	"github.com/pcguest/atb/v2/internal/contextlineage"
+	"github.com/pcguest/atb/v2/internal/incident"
 )
 
 // InvestigationOverviewResponse is the human-first summary for the loaded bundle.

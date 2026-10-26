@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 func TestRunSignLockedBundleReturnsExitLockContention(t *testing.T) {

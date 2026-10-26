@@ -16,7 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
-	"github.com/pcguest/atb/internal/signer"
+	"github.com/pcguest/atb/v2/internal/signer"
 )
 
 // AWSKMSSigner implements internal/signer.Signer using AWS KMS.

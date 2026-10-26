@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/sessionindex"
-	"github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/sessionindex"
+	"github.com/pcguest/atb/v2/internal/verify"
 )
 
 func TestSummariseEventVariants(t *testing.T) {

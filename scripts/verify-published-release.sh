@@ -15,13 +15,13 @@
 # Requirements on the runner: go, python3 (with venv), npm. No credentials.
 #
 # Usage:
-#   EXPECT=1.16.0 scripts/verify-published-release.sh
+#   EXPECT=2.0.0 scripts/verify-published-release.sh
 
 set -u
 
 EXPECT="${EXPECT:-}"
 if [ -z "$EXPECT" ]; then
-  printf 'EXPECT is required (for example: EXPECT=1.16.0 %s)\n' "$0" >&2
+  printf 'EXPECT is required (for example: EXPECT=2.0.0 %s)\n' "$0" >&2
   exit 2
 fi
 case "$EXPECT" in
@@ -34,7 +34,7 @@ if ! printf '%s\n' "$EXPECT" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[
   printf 'EXPECT must be stable SemVer (MAJOR.MINOR.PATCH); got %s\n' "$EXPECT" >&2
   exit 2
 fi
-MODULE="github.com/pcguest/atb/cmd/atb"
+MODULE="github.com/pcguest/atb/v2/cmd/atb"
 PYPKG="atb-sdk"
 NPMPKG="@pcguest/atb-sdk"
 

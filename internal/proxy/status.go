@@ -6,9 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pcguest/atb/internal/acquisition"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/capturejournal"
+	"github.com/pcguest/atb/v2/internal/acquisition"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/capturejournal"
 )
 
 // CaptureStatus is the offline operator state of an intercept capture run.

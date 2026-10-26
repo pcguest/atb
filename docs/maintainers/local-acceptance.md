@@ -78,7 +78,7 @@ inside the checkout.
 make build
 make gate-gold-release
 ATB_RELEASE_PYTHON=.venv-release/bin/python \
-  SKIP_DOCKER=1 EXPECT=1.16.0 bash scripts/release-check.sh
+  SKIP_DOCKER=1 EXPECT=2.0.0 bash scripts/release-check.sh
 ```
 
 `make build` produces `./atb` with the full embedded local viewer. The gold gate

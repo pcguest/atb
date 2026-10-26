@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/sessionindex"
+	"github.com/pcguest/atb/v2/internal/sessionindex"
 )
 
 func testSessionEntries() []sessionindex.SessionEntry {

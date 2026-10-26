@@ -21,10 +21,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/trust"
-	verifypkg "github.com/pcguest/atb/internal/verify"
-	apiv1 "github.com/pcguest/atb/pkg/api/v1"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/trust"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
+	apiv1 "github.com/pcguest/atb/v2/pkg/api/v1"
 )
 
 func TestInstalledBinarySmokeFlow(t *testing.T) {

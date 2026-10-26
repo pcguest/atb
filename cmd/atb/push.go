@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/push"
-	"github.com/pcguest/atb/internal/retentionaudit"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/push"
+	"github.com/pcguest/atb/v2/internal/retentionaudit"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 const pushUsageLine = "Usage: atb push [<s3://bucket/prefix>] [--queue <endpoint-url> --hmac-key <hex-key>] [--bundle <path>] [--lock-until YYYY-MM-DD] [--dry-run] [--format text|json]"

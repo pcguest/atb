@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/pcguest/atb/pkg/corroborate"
+	"github.com/pcguest/atb/v2/pkg/corroborate"
 )
 
 // Event is the shared adapter-facing ATB event type.

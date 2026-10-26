@@ -10,8 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // MetadataProvenance states how a metadata value entered the evidence record.

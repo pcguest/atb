@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/bundle"
 )
 
 // ValidateTimestamps reports timestamp format and causal-order violations for

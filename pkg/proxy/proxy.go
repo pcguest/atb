@@ -3,7 +3,7 @@
 package proxy
 
 import (
-	internalproxy "github.com/pcguest/atb/internal/proxy"
+	internalproxy "github.com/pcguest/atb/v2/internal/proxy"
 )
 
 const (

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // Emitter writes typed ATB events to a bundle via an append function.

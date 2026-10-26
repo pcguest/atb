@@ -10,10 +10,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	signpkg "github.com/pcguest/atb/internal/sign"
-	"github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	signpkg "github.com/pcguest/atb/v2/internal/sign"
+	"github.com/pcguest/atb/v2/internal/verify"
 )
 
 const privilegedToolActionProfileID = "atb.profile.privileged_tool_action"

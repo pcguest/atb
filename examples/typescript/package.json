@@ -7,7 +7,7 @@
     "start": "tsx quickstart.ts"
   },
   "dependencies": {
-    "@pcguest/atb-sdk": "^1.16.0"
+    "@pcguest/atb-sdk": "^2.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0"

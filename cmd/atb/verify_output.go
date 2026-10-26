@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pcguest/atb/internal/event"
-	profiledsl "github.com/pcguest/atb/internal/profiles"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/event"
+	profiledsl "github.com/pcguest/atb/v2/internal/profiles"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 const (

@@ -12,10 +12,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	profiledsl "github.com/pcguest/atb/internal/profiles"
-	signpkg "github.com/pcguest/atb/internal/sign"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	profiledsl "github.com/pcguest/atb/v2/internal/profiles"
+	signpkg "github.com/pcguest/atb/v2/internal/sign"
 )
 
 // IntegrityResult holds the outcome of chain integrity verification.

@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/verify"
-	"github.com/pcguest/atb/pkg/custody"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/verify"
+	"github.com/pcguest/atb/v2/pkg/custody"
 )
 
 func TestBundleFileManagerLifecycle(t *testing.T) {

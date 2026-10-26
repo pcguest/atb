@@ -12,9 +12,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/canonicalize"
-	"github.com/pcguest/atb/internal/encrypt"
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/canonicalize"
+	"github.com/pcguest/atb/v2/internal/encrypt"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 const (

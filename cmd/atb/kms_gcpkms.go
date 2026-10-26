@@ -4,4 +4,4 @@
 
 package main
 
-import _ "github.com/pcguest/atb/internal/signer/gcpkms"
+import _ "github.com/pcguest/atb/v2/internal/signer/gcpkms"

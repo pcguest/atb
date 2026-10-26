@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/corroboration"
+	"github.com/pcguest/atb/v2/internal/corroboration"
 )
 
 func TestHTTPGatewayAdapter_Success(t *testing.T) {

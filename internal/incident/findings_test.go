@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/incident"
-	"github.com/pcguest/atb/internal/sessionindex"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/incident"
+	"github.com/pcguest/atb/v2/internal/sessionindex"
 )
 
 func findingByFlag(findings []incident.Finding, flag string) *incident.Finding {

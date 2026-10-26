@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/signer"
+	"github.com/pcguest/atb/v2/internal/signer"
 )
 
 func requireAdvisoryLocking(t *testing.T) {

@@ -5,7 +5,7 @@ This example demonstrates a minimal `privileged_tool_action` workflow that produ
 ## Prerequisites
 
 - Go installed
-- `atb` installed with `go install github.com/pcguest/atb/cmd/atb@latest`
+- `atb` installed with `go install github.com/pcguest/atb/v2/cmd/atb@latest`
 - `bash`
 
 ## How to run

@@ -8,7 +8,7 @@ cd "$SCRIPT_DIR"
 ATB_BIN="${ATB_BIN:-atb}"
 
 if ! command -v "$ATB_BIN" >/dev/null 2>&1; then
-  echo "atb CLI not found. Install it with: go install github.com/pcguest/atb/cmd/atb@latest" >&2
+  echo "atb CLI not found. Install it with: go install github.com/pcguest/atb/v2/cmd/atb@latest" >&2
   exit 1
 fi
 

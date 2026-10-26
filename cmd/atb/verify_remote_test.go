@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/push"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/push"
 )
 
 // bundleNDJSON serialises a bundle to NDJSON bytes suitable for faking S3 GetObject.

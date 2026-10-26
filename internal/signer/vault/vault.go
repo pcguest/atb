@@ -19,7 +19,7 @@ import (
 	"sync"
 
 	vaultapi "github.com/hashicorp/vault/api"
-	"github.com/pcguest/atb/internal/signer"
+	"github.com/pcguest/atb/v2/internal/signer"
 )
 
 const (

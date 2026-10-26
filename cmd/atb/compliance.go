@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pcguest/atb/internal/compliancepack"
-	"github.com/pcguest/atb/internal/mortise"
+	"github.com/pcguest/atb/v2/internal/compliancepack"
+	"github.com/pcguest/atb/v2/internal/mortise"
 )
 
 var errComplianceHelp = errors.New("compliance help requested")

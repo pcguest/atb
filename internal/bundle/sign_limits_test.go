@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	signpkg "github.com/pcguest/atb/internal/sign"
-	"github.com/pcguest/atb/internal/signer"
+	signpkg "github.com/pcguest/atb/v2/internal/sign"
+	"github.com/pcguest/atb/v2/internal/signer"
 )
 
 func TestSigningReadBound(t *testing.T) {

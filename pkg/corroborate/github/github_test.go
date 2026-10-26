@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/pkg/corroborate"
-	"github.com/pcguest/atb/pkg/corroborate/github"
+	"github.com/pcguest/atb/v2/pkg/corroborate"
+	"github.com/pcguest/atb/v2/pkg/corroborate/github"
 )
 
 func TestVerifyConstructsAuditLogURL(t *testing.T) {

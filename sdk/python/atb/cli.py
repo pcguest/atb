@@ -7,7 +7,7 @@ import sys
 DEPRECATION_MESSAGE = """ATB CLI is not included in the Python SDK.
 Install the standalone Go CLI instead:
 
-  go install github.com/pcguest/atb/cmd/atb@latest
+  go install github.com/pcguest/atb/v2/cmd/atb@latest
 
 The SDK package remains available for Python integrations only. The `atb`
 console-script stub will be removed in a future major release.

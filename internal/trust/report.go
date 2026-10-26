@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	atbembed "github.com/pcguest/atb"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/identityevidence"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	atbembed "github.com/pcguest/atb/v2"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/identityevidence"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 const (

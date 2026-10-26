@@ -3,6 +3,7 @@ package release_test
 import (
 	"crypto/sha256"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -487,5 +488,90 @@ func TestGoldGateChecksPreparedVersionMarkers(t *testing.T) {
 		if !strings.Contains(script, marker) {
 			t.Errorf("version check does not cover %s", marker)
 		}
+	}
+}
+
+func TestGoModulePathMatchesMajorRelease(t *testing.T) {
+	goMod := readRepositoryFile(t, "go.mod")
+	if !strings.HasPrefix(goMod, "module github.com/pcguest/atb/v2\n") {
+		t.Fatal("go.mod module path must carry the /v2 major-version suffix")
+	}
+
+	toolsMod := readRepositoryFile(t, "tools/go.mod")
+	if !strings.HasPrefix(toolsMod, "module github.com/pcguest/atb/tools\n") {
+		t.Fatal("tools module path must remain independent of the root major-version suffix")
+	}
+
+	readme := readRepositoryFile(t, "README.md")
+	if !strings.Contains(readme, "go install github.com/pcguest/atb/v2/cmd/atb@latest") {
+		t.Error("README does not document the v2 CLI install path")
+	}
+	if strings.Contains(readme, "go install github.com/pcguest/atb/cmd/atb@latest") {
+		t.Error("README still documents the v1 CLI install path")
+	}
+
+	installer := readRepositoryFile(t, "scripts/verify-published-release.sh")
+	if !strings.Contains(installer, `MODULE="github.com/pcguest/atb/v2/cmd/atb"`) {
+		t.Error("published-release verification still targets the v1 module path")
+	}
+}
+
+func TestInstallGuidanceUsesVersionedModulePath(t *testing.T) {
+	root := repositoryRoot(t)
+	oldPath := "github.com/pcguest/atb/cmd/atb"
+	skipDirs := map[string]bool{
+		".git": true, ".gocache": true, ".venv": true, "build": true,
+		"dist": true, "node_modules": true, ".next": true, "out": true,
+		"testdata": true, "vendor": true,
+	}
+	textExtensions := map[string]bool{
+		".go": true, ".js": true, ".json": true, ".md": true, ".mjs": true,
+		".py": true, ".sh": true, ".toml": true, ".ts": true, ".tsx": true,
+		".txt": true, ".yaml": true, ".yml": true,
+	}
+	checked := 0
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		rel = filepath.ToSlash(rel)
+		if entry.IsDir() {
+			if skipDirs[entry.Name()] || rel == "docs/releases" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if rel == "CHANGELOG.md" || rel == "test/release/release_contract_test.go" {
+			return nil
+		}
+		if !textExtensions[filepath.Ext(path)] && rel != "sdk/typescript/bin/atb" {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if info.Size() > 1<<20 {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		checked++
+		if strings.Contains(string(data), oldPath) {
+			t.Errorf("%s still advertises the v1 CLI module path", rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repository: %v", err)
+	}
+	if checked == 0 {
+		t.Fatal("no install guidance files were checked")
 	}
 }

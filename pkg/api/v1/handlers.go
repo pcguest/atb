@@ -19,14 +19,14 @@ import (
 	"sync"
 	"time"
 
-	atbembed "github.com/pcguest/atb"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	"github.com/pcguest/atb/internal/hash"
-	"github.com/pcguest/atb/internal/locator"
-	"github.com/pcguest/atb/internal/sessionindex"
-	verifypkg "github.com/pcguest/atb/internal/verify"
-	atbauth "github.com/pcguest/atb/pkg/auth"
+	atbembed "github.com/pcguest/atb/v2"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/hash"
+	"github.com/pcguest/atb/v2/internal/locator"
+	"github.com/pcguest/atb/v2/internal/sessionindex"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
+	atbauth "github.com/pcguest/atb/v2/pkg/auth"
 )
 
 const (

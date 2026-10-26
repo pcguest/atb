@@ -4,7 +4,7 @@ package proxy_test
 import (
 	"testing"
 
-	"github.com/pcguest/atb/internal/proxy"
+	"github.com/pcguest/atb/v2/internal/proxy"
 )
 
 func TestExtractToolCallsOpenAIChat(t *testing.T) {

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/identity"
-	"github.com/pcguest/atb/internal/proxy"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/identity"
+	"github.com/pcguest/atb/v2/internal/proxy"
 )
 
 // testRecorder is a mock BundleRecorder for testing purposes.

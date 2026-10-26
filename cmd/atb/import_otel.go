@@ -12,10 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/acquisition"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/acquisition"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 // importOTelConfig holds the parsed flags for `atb import otel`.

@@ -19,13 +19,13 @@ import (
 	"strings"
 	"time"
 
-	atbembed "github.com/pcguest/atb"
-	archiveledger "github.com/pcguest/atb/internal/archive"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/canonicalize"
-	exportpkg "github.com/pcguest/atb/internal/export"
-	"github.com/pcguest/atb/internal/trust"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	atbembed "github.com/pcguest/atb/v2"
+	archiveledger "github.com/pcguest/atb/v2/internal/archive"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/canonicalize"
+	exportpkg "github.com/pcguest/atb/v2/internal/export"
+	"github.com/pcguest/atb/v2/internal/trust"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 const (

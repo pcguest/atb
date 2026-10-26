@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	profiledsl "github.com/pcguest/atb/internal/profiles"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	profiledsl "github.com/pcguest/atb/v2/internal/profiles"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 func TestObligationSpecs_DeriveFromSchema(t *testing.T) {

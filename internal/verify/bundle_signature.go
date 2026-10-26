@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/event"
-	signpkg "github.com/pcguest/atb/internal/sign"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/event"
+	signpkg "github.com/pcguest/atb/v2/internal/sign"
 )
 
 type BundleSignatureResult struct {

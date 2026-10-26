@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/pcguest/atb/internal/mortise"
+	"github.com/pcguest/atb/v2/internal/mortise"
 )
 
 // MortisePusherInterface pushes a completed bundle to Mortise. Mortise ingests

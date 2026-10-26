@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/locator"
+	"github.com/pcguest/atb/v2/internal/locator"
 )
 
 func locateRequest(t *testing.T, handler http.Handler, locatorValue string) (*httptest.ResponseRecorder, LocateResponse) {

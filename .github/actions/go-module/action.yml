@@ -13,5 +13,5 @@ runs:
       shell: bash
       run: |
         module_path="${GITHUB_ACTION_PATH%/.github/actions/go-module}"
-        test "$(sed -n 's/^module //p' "$module_path/go.mod")" = "github.com/pcguest/atb"
+        test "$(sed -n 's/^module //p' "$module_path/go.mod")" = "github.com/pcguest/atb/v2"
         echo "path=$module_path" >> "$GITHUB_OUTPUT"

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 func newTestEntry(id string) Entry {

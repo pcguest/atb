@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	evidencepkg "github.com/pcguest/atb/internal/evidence"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	evidencepkg "github.com/pcguest/atb/v2/internal/evidence"
 )
 
 var errEvidenceHelp = errors.New("evidence help requested")

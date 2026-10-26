@@ -1,6 +1,6 @@
 # ATB: portable evidence for AI-agent incidents
 
-Source version: [`v1.18.1`](CHANGELOG.md)
+Source version: [`v2.0.0`](CHANGELOG.md)
 
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Go version](https://img.shields.io/badge/go-1.26.10-blue)](https://go.dev/)
@@ -18,7 +18,7 @@ recorded claim is true.**
 Install the CLI:
 
 ```sh
-go install github.com/pcguest/atb/cmd/atb@latest
+go install github.com/pcguest/atb/v2/cmd/atb@latest
 ```
 
 Create a bundle, record an event, and verify it:

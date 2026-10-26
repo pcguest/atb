@@ -3,7 +3,7 @@
 console.error(`ATB CLI is not included in the TypeScript SDK.
 Install the standalone Go CLI instead:
 
-  go install github.com/pcguest/atb/cmd/atb@latest
+  go install github.com/pcguest/atb/v2/cmd/atb@latest
 
 The SDK package remains available for TypeScript integrations only. This compatibility stub will be removed in a future major release.`);
 process.exit(1);

@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/pcguest/atb/internal/incident"
-	"github.com/pcguest/atb/internal/mortise"
+	"github.com/pcguest/atb/v2/internal/incident"
+	"github.com/pcguest/atb/v2/internal/mortise"
 )
 
 func cmdIncident() {

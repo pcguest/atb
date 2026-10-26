@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/pcguest/atb/internal/bundle"
-	profiledsl "github.com/pcguest/atb/internal/profiles"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	profiledsl "github.com/pcguest/atb/v2/internal/profiles"
 	"gopkg.in/yaml.v3"
 )
 

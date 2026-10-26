@@ -4,4 +4,4 @@
 
 package main
 
-import _ "github.com/pcguest/atb/internal/signer/awskms"
+import _ "github.com/pcguest/atb/v2/internal/signer/awskms"

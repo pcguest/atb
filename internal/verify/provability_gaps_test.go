@@ -4,7 +4,7 @@ package verify_test
 import (
 	"testing"
 
-	"github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/verify"
 )
 
 func TestDeriveProvabilityGaps_IntegrityFailure(t *testing.T) {

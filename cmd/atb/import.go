@@ -13,11 +13,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/acquisition"
-	"github.com/pcguest/atb/internal/bundle"
-	capturepkg "github.com/pcguest/atb/internal/capture"
-	"github.com/pcguest/atb/internal/event"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/acquisition"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	capturepkg "github.com/pcguest/atb/v2/internal/capture"
+	"github.com/pcguest/atb/v2/internal/event"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 var errImportHelp = errors.New("import help requested")

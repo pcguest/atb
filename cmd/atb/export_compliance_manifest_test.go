@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/event"
-	exportpkg "github.com/pcguest/atb/internal/export"
+	"github.com/pcguest/atb/v2/internal/event"
+	exportpkg "github.com/pcguest/atb/v2/internal/export"
 )
 
 func TestExportComplianceManifestGolden(t *testing.T) {

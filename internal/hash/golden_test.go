@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pcguest/atb/internal/canonicalize"
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/canonicalize"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 var updateGolden = flag.Bool("update", false, "regenerate internal/hash/testdata/golden.json from the live canonicalisation pipeline")

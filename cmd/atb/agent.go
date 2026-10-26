@@ -10,7 +10,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/pcguest/atb/internal/agent"
+	"github.com/pcguest/atb/v2/internal/agent"
 )
 
 const agentLongDescription = `ATB Agent commands.

@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // InboundTransport receives decoded OpenTelemetry trace data from an external

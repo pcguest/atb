@@ -5,7 +5,7 @@ This walkthrough creates and verifies a local ATB bundle end to end using the Go
 ## Prerequisites
 
 - Go 1.26.10+
-- `atb` installed (`go install github.com/pcguest/atb/cmd/atb@latest`)
+- `atb` installed (`go install github.com/pcguest/atb/v2/cmd/atb@latest`)
 
 ## Demo Steps
 

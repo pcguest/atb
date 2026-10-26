@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pcguest/atb/internal/bundle"
-	verifypkg "github.com/pcguest/atb/internal/verify"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 func createRichTestBundle(t *testing.T) (string, *bundle.Bundle) {

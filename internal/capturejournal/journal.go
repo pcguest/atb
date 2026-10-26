@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 const (

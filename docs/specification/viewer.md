@@ -148,6 +148,23 @@ default `:8080` listen address). It indexes one or more `.atb` bundles supplied
 via `--sessions` (glob or directory) together with the primary `--bundle` path.
 All session routes require the same session token as other `/api/v1/*` endpoints.
 
+### Evidence selection and 2.0.0 migration
+
+The two session endpoints do not accept a filesystem selector. A non-empty
+`bundle_dir` query value — including whitespace or any non-empty member of
+repeated parameters — returns HTTP `400` with the fixed API error
+`invalid query parameters`. Malformed query encoding returns the same response.
+Rejection happens before session indexing, and the supplied path is neither
+returned nor logged. Missing and empty values retain server-configured indexing,
+including a multi-bundle index configured at startup.
+
+Clients that previously sent `bundle_dir` must remove that query key and select
+evidence through trusted server configuration instead: start the viewer with
+`--bundle` and one or more `--sessions` sources, then call the session routes
+with no selector. A `400` is a request-contract response, not an integrity
+verdict. This restriction applies to these two routes only; it is not a claim
+that every viewer route rejects filesystem selectors.
+
 ### Routes
 
 #### `GET /api/v1/sessions`

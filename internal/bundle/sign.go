@@ -16,9 +16,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/pcguest/atb/internal/event"
-	signpkg "github.com/pcguest/atb/internal/sign"
-	"github.com/pcguest/atb/internal/signer"
+	"github.com/pcguest/atb/v2/internal/event"
+	signpkg "github.com/pcguest/atb/v2/internal/sign"
+	"github.com/pcguest/atb/v2/internal/signer"
 )
 
 var atomicWrite = writeAtomic

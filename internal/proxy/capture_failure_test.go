@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pcguest/atb/internal/acquisition"
-	"github.com/pcguest/atb/internal/bundle"
-	"github.com/pcguest/atb/internal/capturejournal"
-	"github.com/pcguest/atb/internal/event"
+	"github.com/pcguest/atb/v2/internal/acquisition"
+	"github.com/pcguest/atb/v2/internal/bundle"
+	"github.com/pcguest/atb/v2/internal/capturejournal"
+	"github.com/pcguest/atb/v2/internal/event"
 )
 
 // enableAndAppend sets up capture, commits one observation, and closes the

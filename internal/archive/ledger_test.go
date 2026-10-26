@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/pcguest/atb/internal/hash"
+	"github.com/pcguest/atb/v2/internal/hash"
 )
 
 func TestLedgerHashChainUniqueness(t *testing.T) {
