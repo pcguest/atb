@@ -2,7 +2,7 @@
 #    uv pip compile pyproject.toml --extra dev --universal --python-version 3.9 -o requirements-dev.txt
 black==25.11.0 ; python_full_version < '3.10'
     # via atb-sdk (pyproject.toml)
-black==26.5.1 ; python_full_version >= '3.10'
+black==26.10.1 ; python_full_version >= '3.10'
     # via atb-sdk (pyproject.toml)
 cffi==2.0.0 ; python_full_version < '3.10' and platform_python_implementation != 'PyPy'
     # via cryptography
