@@ -150,6 +150,7 @@ type ProfileReportSummary struct {
 	Pass                 bool                                     `json:"pass"`
 	ChainValid           bool                                     `json:"chain_valid"`
 	AnchorStatus         string                                   `json:"anchor_status"`
+	AnchorPresent        bool                                     `json:"anchor_present"`
 	CASScore             float64                                  `json:"cas_score,omitempty"`
 	CASGrade             string                                   `json:"cas_grade,omitempty"`
 	SubScores            map[string]float64                       `json:"sub_scores,omitempty"`

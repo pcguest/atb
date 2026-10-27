@@ -216,7 +216,7 @@ func TestInstallFallbackHandler(t *testing.T) {
 func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	report := verifypkg.Report{
 		Integrity: verifypkg.IntegrityResult{ChainValid: true},
-		Anchoring: verifypkg.AnchoringResult{Status: "verified"},
+		Anchoring: verifypkg.AnchoringResult{Status: "verified", AnchorPresent: true},
 		CAS: &verifypkg.CASResult{
 			Overall:            0.88,
 			Grade:              "High",
@@ -248,7 +248,7 @@ func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	if summary.ProfileID != "atb.profile.policy_decision" || summary.Pass {
 		t.Fatalf("profile summary = %+v", summary)
 	}
-	if summary.CASGrade != "High" || summary.EffectiveScore != 0.93 || summary.AnchorStatus != "verified" {
+	if summary.CASGrade != "High" || summary.EffectiveScore != 0.93 || summary.AnchorStatus != "verified" || !summary.AnchorPresent {
 		t.Fatalf("CAS summary = %+v", summary)
 	}
 	if !summary.IntegrityValid || summary.CoverageScore != 0.76 || summary.CoverageGrade != "Moderate coverage" {

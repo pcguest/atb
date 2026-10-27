@@ -134,6 +134,7 @@ export const investigationTrustSchema = z.object({
   canonicalisation: z.string(),
   signature_status: z.string(),
   anchor_status: z.string(),
+  anchor_present: z.boolean().optional().default(false),
   profile_id: z.string().optional(),
   profile_pass: z.boolean(),
   coverage_score: z.number().optional().default(0),

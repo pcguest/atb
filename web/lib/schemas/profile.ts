@@ -25,6 +25,7 @@ export const profileReportSummarySchema = z.object({
   pass: z.boolean(),
   chain_valid: z.boolean().optional(),
   anchor_status: z.string().optional(),
+  anchor_present: z.boolean().optional().default(false),
   cas_score: z.number().default(0),
   cas_grade: z.string().optional().default(""),
   coverage_score: z.number().optional(),

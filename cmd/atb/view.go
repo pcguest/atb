@@ -380,6 +380,7 @@ func startupProfileSummary(report verifypkg.Report) apiv1.ProfileReportSummary {
 	summary := apiv1.ProfileReportSummary{
 		ChainValid:       report.Integrity.ChainValid,
 		AnchorStatus:     report.Anchoring.Status,
+		AnchorPresent:    report.Anchoring.AnchorPresent,
 		CriticalFailures: []apiv1.FailureDTO{},
 		Warnings:         []string{},
 	}

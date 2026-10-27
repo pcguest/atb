@@ -152,6 +152,30 @@ describe("assurance inspection", () => {
     expect(screen.queryByRole("button", { name: /Open evidence/ })).toBeNull();
   });
 
+  it("distinguishes absent, present-invalid and verified anchor states", () => {
+    const base = {
+      proof_statement: "Recorded integrity and order",
+      integrity_valid: true,
+      canonicalisation: "rfc8785",
+      signature_status: "verified",
+      profile_pass: true,
+      assurance_valid: true,
+      external_corroboration: false,
+      custody_state: "Local only",
+      limitations: [],
+    };
+    const renderAnchor = (anchor_status: string, anchor_present: boolean) => {
+      const data = investigationTrustSchema.parse({ ...base, anchor_status, anchor_present });
+      render(<TrustSurface data={data} timeline={[]} onOpenEvidence={vi.fn()} />);
+      return screen.getByText("Anchor").parentElement;
+    };
+    expect(renderAnchor("failed", false)).toHaveTextContent("Absent from recorded evidence");
+    cleanup();
+    expect(renderAnchor("failed", true)).toHaveTextContent("failed");
+    cleanup();
+    expect(renderAnchor("verified", true)).toHaveTextContent("verified");
+  });
+
   it("keeps corroboration links and secondary assurance states subordinate", () => {
     const open = vi.fn();
     const data = investigationTrustSchema.parse({

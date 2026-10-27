@@ -13,6 +13,7 @@ import (
 
 	"github.com/pcguest/atb/v2/internal/bundle"
 	"github.com/pcguest/atb/v2/internal/event"
+	verifypkg "github.com/pcguest/atb/v2/internal/verify"
 )
 
 func TestInvestigationEndpointsExposeHumanFirstReadModels(t *testing.T) {
@@ -86,6 +87,66 @@ func TestInvestigationOverviewExposesStableHeadIdentity(t *testing.T) {
 	want := b.Records[len(b.Records)-1].Hash
 	if got.HeadHash != want {
 		t.Fatalf("head_hash must be the stable bundle head: got %q want %q", got.HeadHash, want)
+	}
+}
+
+func TestVerifyReportToSummaryPreservesAnchorPresence(t *testing.T) {
+	cases := []struct {
+		name    string
+		status  string
+		present bool
+	}{
+		{name: "absent", status: "failed", present: false},
+		{name: "present invalid", status: "failed", present: true},
+		{name: "verified", status: "verified", present: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			summary := verifyReportToSummary(verifypkg.Report{
+				Anchoring: verifypkg.AnchoringResult{Status: tc.status, AnchorPresent: tc.present},
+			})
+			if summary.AnchorPresent != tc.present {
+				t.Fatalf("anchor_present = %v, want %v", summary.AnchorPresent, tc.present)
+			}
+			if summary.AnchorStatus != tc.status {
+				t.Fatalf("anchor_status = %q, want %q", summary.AnchorStatus, tc.status)
+			}
+		})
+	}
+}
+
+func TestInvestigationTrustDistinguishesAnchorPresence(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+	cases := []struct {
+		name    string
+		status  string
+		present bool
+	}{
+		{name: "absent", status: "failed", present: false},
+		{name: "present invalid", status: "failed", present: true},
+		{name: "verified", status: "verified", present: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, handler := buildTestAPIServer(t, APIConfig{
+				BundlePath: bundlePath,
+				Bundle:     b,
+				ProfileReport: &ProfileReportSummary{
+					ProfileID:     "atb.profile.policy_decision",
+					AnchorStatus:  tc.status,
+					AnchorPresent: tc.present,
+				},
+			})
+			rr := httptest.NewRecorder()
+			handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/investigation/trust", nil))
+			if rr.Code != http.StatusOK {
+				t.Fatalf("status: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+			}
+			got := decodeResponseJSON[InvestigationTrustResponse](t, rr)
+			if got.AnchorPresent != tc.present || got.AnchorStatus != tc.status {
+				t.Fatalf("anchor state = present:%v status:%q, want present:%v status:%q", got.AnchorPresent, got.AnchorStatus, tc.present, tc.status)
+			}
+		})
 	}
 }
 

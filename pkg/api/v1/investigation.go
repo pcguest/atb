@@ -223,6 +223,7 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 		Canonicalisation: "rfc8785",
 		SignatureStatus:  signatureStatus(s),
 		AnchorStatus:     "absent",
+		AnchorPresent:    false,
 		CustodyState:     custodyState(s),
 		Limitations:      append([]string{}, trustLimitations...),
 	}
@@ -231,6 +232,7 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 		response.ProfilePass = s.profileReport.Pass
 		response.AssuranceValid = s.profileReport.AssuranceValid
 		response.AnchorStatus = s.profileReport.AnchorStatus
+		response.AnchorPresent = s.profileReport.AnchorPresent
 		if response.IntegrityValid && s.profileReport.IntegrityValid {
 			response.CoverageScore = s.profileReport.CoverageScore
 			response.CoverageGrade = s.profileReport.CoverageGrade

@@ -98,6 +98,7 @@ type InvestigationTrustResponse struct {
 	Canonicalisation      string   `json:"canonicalisation"`
 	SignatureStatus       string   `json:"signature_status"`
 	AnchorStatus          string   `json:"anchor_status"`
+	AnchorPresent         bool     `json:"anchor_present"`
 	ProfileID             string   `json:"profile_id,omitempty"`
 	ProfilePass           bool     `json:"profile_pass"`
 	CoverageScore         float64  `json:"coverage_score,omitempty"`

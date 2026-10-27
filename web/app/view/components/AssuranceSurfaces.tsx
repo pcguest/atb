@@ -544,7 +544,7 @@ export function TrustSurface({
       <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Signature", data.signature_status, "Verifier signature assessment"],
-          ["Anchor", data.anchor_status, "Verifier anchoring assessment"],
+          ["Anchor", data.anchor_present ? evidenceState(data.anchor_status) : "Absent from recorded evidence", "Verifier anchoring assessment"],
           ["Custody", data.custody_state, "Recorded custody assessment"],
           ["Canonicalisation", data.canonicalisation, "Bundle canonicalisation contract"],
         ].map(([label, value, source]) => (
