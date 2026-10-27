@@ -216,7 +216,7 @@ func TestInstallFallbackHandler(t *testing.T) {
 func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	report := verifypkg.Report{
 		Integrity: verifypkg.IntegrityResult{ChainValid: true},
-		Anchoring: verifypkg.AnchoringResult{Status: "verified"},
+		Anchoring: verifypkg.AnchoringResult{Status: "verified", AnchorPresent: true},
 		CAS: &verifypkg.CASResult{
 			Overall:            0.88,
 			Grade:              "High",
@@ -248,7 +248,7 @@ func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	if summary.ProfileID != "atb.profile.policy_decision" || summary.Pass {
 		t.Fatalf("profile summary = %+v", summary)
 	}
-	if summary.CASGrade != "High" || summary.EffectiveScore != 0.93 || summary.AnchorStatus != "verified" {
+	if summary.CASGrade != "High" || summary.EffectiveScore != 0.93 || summary.AnchorStatus != "verified" || !summary.AnchorPresent {
 		t.Fatalf("CAS summary = %+v", summary)
 	}
 	if !summary.IntegrityValid || summary.CoverageScore != 0.76 || summary.CoverageGrade != "Moderate coverage" {
@@ -275,6 +275,28 @@ func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	})
 	if untrusted.IntegrityValid || untrusted.CoverageScore != 0 || untrusted.CoverageGrade != "" {
 		t.Fatalf("untrusted coverage must be omitted: %+v", untrusted)
+	}
+}
+
+func TestStartupProfileSummaryPreservesAnchorPresence(t *testing.T) {
+	cases := []struct {
+		name    string
+		status  string
+		present bool
+	}{
+		{name: "absent", status: "failed", present: false},
+		{name: "present invalid", status: "failed", present: true},
+		{name: "verified", status: "verified", present: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			summary := startupProfileSummary(verifypkg.Report{
+				Anchoring: verifypkg.AnchoringResult{Status: tc.status, AnchorPresent: tc.present},
+			})
+			if summary.AnchorPresent != tc.present || summary.AnchorStatus != tc.status {
+				t.Fatalf("anchor summary = present:%v status:%q, want present:%v status:%q", summary.AnchorPresent, summary.AnchorStatus, tc.present, tc.status)
+			}
+		})
 	}
 }
 

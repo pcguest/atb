@@ -217,12 +217,14 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 	if !integrityValid {
 		proofStatement = "ATB cannot establish the integrity or order of records in the presented bundle because verification failed."
 	}
+	anchorStatus, anchorPresent := anchorSummary(s)
 	response := InvestigationTrustResponse{
 		ProofStatement:   proofStatement,
 		IntegrityValid:   integrityValid,
 		Canonicalisation: "rfc8785",
 		SignatureStatus:  signatureStatus(s),
-		AnchorStatus:     "absent",
+		AnchorStatus:     anchorStatus,
+		AnchorPresent:    anchorPresent,
 		CustodyState:     custodyState(s),
 		Limitations:      append([]string{}, trustLimitations...),
 	}
@@ -230,7 +232,8 @@ func (s *APIServer) handleInvestigationTrust(w http.ResponseWriter, r *http.Requ
 		response.ProfileID = s.profileReport.ProfileID
 		response.ProfilePass = s.profileReport.Pass
 		response.AssuranceValid = s.profileReport.AssuranceValid
-		response.AnchorStatus = s.profileReport.AnchorStatus
+		response.AnchorStatus = anchorStatus
+		response.AnchorPresent = anchorPresent
 		if response.IntegrityValid && s.profileReport.IntegrityValid {
 			response.CoverageScore = s.profileReport.CoverageScore
 			response.CoverageGrade = s.profileReport.CoverageGrade
@@ -449,6 +452,20 @@ func headHash(s *APIServer) string {
 		return ""
 	}
 	return s.b.Records[len(s.b.Records)-1].Hash
+}
+
+func anchorSummary(s *APIServer) (string, bool) {
+	if s.profileReport != nil {
+		return s.profileReport.AnchorStatus, s.profileReport.AnchorPresent
+	}
+	if s.b != nil {
+		for _, record := range s.b.Records {
+			if record.Event.Type == event.TypeBundleAnchor {
+				return "not_evaluated", true
+			}
+		}
+	}
+	return "absent", false
 }
 
 func signatureStatus(s *APIServer) string {

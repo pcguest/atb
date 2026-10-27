@@ -507,6 +507,9 @@ components:
           type: boolean
         anchor_status:
           type: string
+        anchor_present:
+          type: boolean
+          description: Whether an anchor record is present; independent of whether it verified.
         cas_score:
           type: number
           format: double

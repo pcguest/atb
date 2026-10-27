@@ -134,8 +134,14 @@ Rationale:
   of evidence remains enforced by the data endpoints and the viewer shell.
 - `BundleGraphResponse`: nodes and edges for trace/span graph rendering
 - `PrivacyRevealRequest` / `PrivacyRevealResponse`: single field reveal flow
-- `ProfileReportSummary`: profile_id, pass, chain_valid, anchor_status, cas_score, cas_grade,
-  sub_scores, critical_failures (array of `{kind, detail}`), warnings
+- `ProfileReportSummary`: profile_id, pass, chain_valid, anchor_status, anchor_present,
+  cas_score, cas_grade, sub_scores, critical_failures (array of `{kind, detail}`), warnings
+  - `anchor_status` remains the verifier anchoring status. `anchor_present` distinguishes an
+    absent anchor record from a present anchor that failed verification; the verifier still
+    reports missing anchor evidence as `failed`. In the investigation trust response only,
+    when no profile evaluation exists but the bundle contains an anchor record, the viewer
+    reports `anchor_status=not_evaluated` with `anchor_present=true`; `not_evaluated` is a
+    viewer-only value, not a verifier status.
   - `GET /api/v1/bundle/profile` returns 204 No Content when no report has been computed yet.
   - `POST /api/v1/bundle/verify` runs (or re-runs) verify and returns a fresh summary.
   - `POST /api/v1/bundle/verify` returns 422 if the stored profile path cannot be loaded.

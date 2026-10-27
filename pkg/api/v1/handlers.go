@@ -1004,6 +1004,7 @@ func verifyReportToSummary(r verifypkg.Report) ProfileReportSummary {
 	summary := ProfileReportSummary{
 		ChainValid:       r.Integrity.ChainValid,
 		AnchorStatus:     r.Anchoring.Status,
+		AnchorPresent:    r.Anchoring.AnchorPresent,
 		CriticalFailures: []FailureDTO{},
 		Warnings:         []string{},
 	}
