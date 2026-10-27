@@ -82,6 +82,16 @@ describe("forensic core surfaces", () => {
     expect(screen.getByText("Captured tool call")).toBeInTheDocument();
   });
 
+  it("truncates the hash in Evidence rows while keeping the full hash in the data", () => {
+    const longHash = "a".repeat(64);
+    const longTimeline: TimelineEvent[] = [{ ...timeline[0], hash: longHash }];
+    render(<RecordSurface timeline={longTimeline} selectedSeq={41} select={vi.fn()} evidence inspector={() => <div>Exact inspector</div>} />);
+    const row = screen.getByRole("button", { name: /Context unit recorded/ });
+    expect(row).toHaveTextContent("aaaaaaaaaa…aaaaaaaaaa");
+    expect(row).not.toHaveTextContent(longHash);
+    expect(row.querySelector(`[title="${longHash}"]`)).not.toBeNull();
+  });
+
   it("binds the inspector to the visible rows so movement cannot select a hidden record", () => {
     const seen: number[][] = [];
     render(<RecordSurface timeline={timeline} selectedSeq={41} select={vi.fn()} evidence={false} inspector={(visible) => { seen.push(visible.map((event) => event.seq)); return <div>Exact inspector</div>; }} />);
