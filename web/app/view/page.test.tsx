@@ -209,7 +209,7 @@ describe("ATB View investigation model", () => {
       warnings: [],
     };
     render(<ViewPage />);
-    expect(screen.getByText("Coverage")).toBeInTheDocument();
+    expect(screen.getByText(/Coverage:/)).toBeInTheDocument();
     expect(screen.getAllByText("Not assessed").length).toBeGreaterThan(0);
     expect(screen.queryByText("0%")).not.toBeInTheDocument();
   });
@@ -420,6 +420,7 @@ describe("ATB View investigation model", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open exact evidence →" }));
     expect(window.location.search).toContain("surface=evidence");
     expect(window.location.search).toContain("from=timeline");
+    expect(screen.getByRole("status", { name: "From Timeline" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "← Return to Timeline" })).toBeInTheDocument();
   });
 

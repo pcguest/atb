@@ -124,7 +124,7 @@ export function CompactInvestigationNavigation({ active, onSelect, findingCount 
   return (
     <nav
       aria-label="Investigation"
-      className="flex shrink-0 gap-1 overflow-x-auto border-b border-border p-2 md:hidden"
+      className="flex shrink-0 flex-wrap gap-1 border-b border-border p-2 md:hidden"
     >
       {investigationSurfaces.map(([id, label, Icon]) => (
         <NavButton

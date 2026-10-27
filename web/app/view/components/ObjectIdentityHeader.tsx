@@ -34,10 +34,10 @@ export function ObjectIdentityHeader({
   status?: ReactNode;
 }) {
   return (
-    <header className="shrink-0 border-b border-border bg-surface-1 px-4 py-3 xl:px-6">
+    <header className="shrink-0 border-b border-border bg-surface-1 px-4 py-2.5 xl:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground lg:block">
             Evidence bundle
           </p>
           <div className="mt-1 flex items-center gap-2">
@@ -46,23 +46,23 @@ export function ObjectIdentityHeader({
             </h1>
             <CopyAction value={bundlePath} label="Copy bundle path" />
           </div>
-          <p className="mt-1 break-words text-xs text-muted-foreground">
+          <p className="mt-0.5 break-words text-xs text-muted-foreground">
             {eventCount} {eventCount === 1 ? "record" : "records"}
             <span aria-hidden="true"> · </span>
             {surfaceLabel}
           </p>
           {headHash ? (
-            <p className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-              <span>Bundle head</span>
-              <HashValue hash={headHash} className="text-foreground" />
-              <span aria-hidden="true">·</span>
-              <span>path is a locator, not identity</span>
+            <p className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
+              <span className="shrink-0">Bundle head</span>
+              <HashValue hash={headHash} className="min-w-0 text-foreground" />
+              <span aria-hidden="true" className="hidden xl:inline">·</span>
+              <span className="hidden xl:inline">path is a locator, not identity</span>
             </p>
           ) : null}
         </div>
         {controls ? <div className="flex items-center gap-2">{controls}</div> : null}
       </div>
-      {status ? <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">{status}</div> : null}
+      {status ? <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">{status}</div> : null}
     </header>
   );
 }
