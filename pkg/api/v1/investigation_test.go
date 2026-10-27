@@ -115,6 +115,27 @@ func TestVerifyReportToSummaryPreservesAnchorPresence(t *testing.T) {
 	}
 }
 
+func TestInvestigationTrustDoesNotClaimAbsenceWithoutEvaluation(t *testing.T) {
+	bundlePath, b := createRichTestBundle(t)
+	appendTestBundleEvent(t, b, event.TypeBundleAnchor, map[string]any{
+		"tsa_url":        "https://tsa.example.test",
+		"bundle_hash":    "sha256:bundle",
+		"tsr_hash":       "sha256:tsr",
+		"tsr_der":        "ZmFrZQ==",
+		"certified_time": "2026-03-12T00:00:00Z",
+	})
+	_, handler := buildTestAPIServer(t, APIConfig{BundlePath: bundlePath, Bundle: b})
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/v1/investigation/trust", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status: got %d want %d body=%s", rr.Code, http.StatusOK, rr.Body.String())
+	}
+	got := decodeResponseJSON[InvestigationTrustResponse](t, rr)
+	if !got.AnchorPresent || got.AnchorStatus != "not_evaluated" {
+		t.Fatalf("unevaluated anchor = present:%v status:%q, want present:true status:not_evaluated", got.AnchorPresent, got.AnchorStatus)
+	}
+}
+
 func TestInvestigationTrustDistinguishesAnchorPresence(t *testing.T) {
 	bundlePath, b := createRichTestBundle(t)
 	cases := []struct {

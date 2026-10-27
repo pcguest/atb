@@ -278,6 +278,28 @@ func TestStartupProfileSummaryMapsVerificationReport(t *testing.T) {
 	}
 }
 
+func TestStartupProfileSummaryPreservesAnchorPresence(t *testing.T) {
+	cases := []struct {
+		name    string
+		status  string
+		present bool
+	}{
+		{name: "absent", status: "failed", present: false},
+		{name: "present invalid", status: "failed", present: true},
+		{name: "verified", status: "verified", present: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			summary := startupProfileSummary(verifypkg.Report{
+				Anchoring: verifypkg.AnchoringResult{Status: tc.status, AnchorPresent: tc.present},
+			})
+			if summary.AnchorPresent != tc.present || summary.AnchorStatus != tc.status {
+				t.Fatalf("anchor summary = present:%v status:%q, want present:%v status:%q", summary.AnchorPresent, summary.AnchorStatus, tc.present, tc.status)
+			}
+		})
+	}
+}
+
 func TestBuildStartupProfileReports(t *testing.T) {
 	b, err := bundle.New()
 	if err != nil {

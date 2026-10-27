@@ -428,6 +428,10 @@ export function TrustSurface({
   ];
   const active = questions.find((question) => question.name === selected) ?? questions[0];
   const related = timeline.filter((event) => event.family === "corroboration");
+  const anchorDisplay =
+    data.anchor_present === false
+      ? "Absent from recorded evidence"
+      : evidenceState(data.anchor_status);
   return (
     <section className="space-y-4" aria-label="Evidence status">
       <div className="rounded-lg border border-border bg-card p-4">
@@ -544,7 +548,7 @@ export function TrustSurface({
       <dl className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Signature", data.signature_status, "Verifier signature assessment"],
-          ["Anchor", data.anchor_present === false ? "Absent from recorded evidence" : evidenceState(data.anchor_status), "Verifier anchoring assessment"],
+          ["Anchor", anchorDisplay, "Verifier anchoring assessment"],
           ["Custody", data.custody_state, "Recorded custody assessment"],
           ["Canonicalisation", data.canonicalisation, "Bundle canonicalisation contract"],
         ].map(([label, value, source]) => (

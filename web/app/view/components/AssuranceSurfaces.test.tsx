@@ -174,6 +174,14 @@ describe("assurance inspection", () => {
     expect(renderAnchor("failed", true)).toHaveTextContent("failed");
     cleanup();
     expect(renderAnchor("verified", true)).toHaveTextContent("verified");
+    cleanup();
+    const unknownPresence = investigationTrustSchema.parse({
+      ...base,
+      anchor_status: "failed",
+      anchor_present: undefined,
+    });
+    render(<TrustSurface data={unknownPresence} timeline={[]} onOpenEvidence={vi.fn()} />);
+    expect(screen.getByText("Anchor").parentElement).toHaveTextContent("failed");
   });
 
   it("keeps corroboration links and secondary assurance states subordinate", () => {
