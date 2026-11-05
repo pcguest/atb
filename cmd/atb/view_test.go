@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/pcguest/atb/v2/internal/bundle"
 	"github.com/pcguest/atb/v2/internal/locator"
@@ -549,6 +550,44 @@ func TestBuildViewServerTamperModeCatchesAllRoutes(t *testing.T) {
 	}
 }
 
+func TestRegisterDashboardRoutes(t *testing.T) {
+	dashboard := http.FS(fstest.MapFS{
+		"view/index.html":      {Data: []byte("view")},
+		"workspace/index.html": {Data: []byte("workspace")},
+		"sessions/index.html":  {Data: []byte("sessions")},
+	})
+	mux := http.NewServeMux()
+	registerDashboardRoutes(mux, dashboard)
+	for _, tc := range []struct {
+		path     string
+		status   int
+		location string
+		body     string
+	}{
+		{path: "/view/", status: http.StatusOK, body: "view"},
+		{path: "/workspace/", status: http.StatusOK, body: "workspace"},
+		{path: "/sessions/", status: http.StatusOK, body: "sessions"},
+		{path: "/view?surface=timeline", status: http.StatusTemporaryRedirect, location: "/view/?surface=timeline"},
+		{path: "/workspace?bundle_path=%2Ftmp%2Fa.atb", status: http.StatusTemporaryRedirect, location: "/workspace/?bundle_path=%2Ftmp%2Fa.atb"},
+		{path: "/sessions?session_id=s1", status: http.StatusTemporaryRedirect, location: "/sessions/?session_id=s1"},
+		{path: "/?surface=timeline&seq=2", status: http.StatusTemporaryRedirect, location: "/view/?surface=timeline&seq=2"},
+		{path: "/v1/workspace/bundles", status: http.StatusNotFound},
+	} {
+		req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+		if rr.Code != tc.status {
+			t.Fatalf("%s status=%d want=%d", tc.path, rr.Code, tc.status)
+		}
+		if tc.location != "" && rr.Header().Get("Location") != tc.location {
+			t.Fatalf("%s location=%q want=%q", tc.path, rr.Header().Get("Location"), tc.location)
+		}
+		if tc.body != "" && !strings.Contains(rr.Body.String(), tc.body) {
+			t.Fatalf("%s body=%q want contains %q", tc.path, rr.Body.String(), tc.body)
+		}
+	}
+}
+
 func TestCandidateViewPorts(t *testing.T) {
 	t.Run("explicit", func(t *testing.T) {
 		got := candidateViewPorts(8080, true)
@@ -889,6 +928,12 @@ func TestBuildViewServerServesViewRoute(t *testing.T) {
 		handler.ServeHTTP(rr, req)
 		if rr.Code != http.StatusOK {
 			t.Fatalf("unexpected /view/ status: got %d want %d", rr.Code, http.StatusOK)
+		}
+		req = httptest.NewRequest(http.MethodGet, "/?surface=timeline&seq=2", nil)
+		rr = httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusTemporaryRedirect || rr.Header().Get("Location") != "/view/?surface=timeline&seq=2" {
+			t.Fatalf("unexpected root redirect: status=%d location=%q", rr.Code, rr.Header().Get("Location"))
 		}
 		req = httptest.NewRequest(http.MethodGet, "/v1/workspace/bundles", nil)
 		rr = httptest.NewRecorder()

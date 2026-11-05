@@ -9,7 +9,7 @@ describe("UI theme store", () => {
   });
 
   it("defaults to the system preference", () => {
-    expect(useUIStore.getState().theme).toBe("system");
+    expect(useUIStore.getInitialState().theme).toBe("system");
   });
 
   it("persists an explicit theme choice", () => {

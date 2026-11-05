@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { type ThemePreference } from "@/lib/theme";
+import { isThemePreference, type ThemePreference } from "@/lib/theme";
 
 export type ThemeMode = ThemePreference;
 
@@ -57,9 +57,12 @@ export const useUIStore = create<UIStoreState>()(
       name: "atb-ui-store-v1",
       version: 3,
       skipHydration: true,
-      migrate: (persisted) => {
+      migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
-        if (state.theme !== "light" && state.theme !== "dark" && state.theme !== "system") {
+        if (version < 3 && state.theme === "dark") {
+          return { ...state, theme: "system" } as Partial<UIStoreState>;
+        }
+        if (!isThemePreference(state.theme)) {
           return { ...state, theme: "system" } as Partial<UIStoreState>;
         }
         return state as Partial<UIStoreState>;

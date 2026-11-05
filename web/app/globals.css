@@ -200,14 +200,6 @@
     --banner-fail-h: 5rem;
 
     /* Event family colour tokens — dark surface */
-    --ev-llm: 210 100% 65%;
-    --ev-tool: 142 60% 55%;
-    --ev-chain: 262 70% 70%;
-    --ev-policy: 38 90% 60%;
-    --ev-human: 354 75% 65%;
-    --ev-export: 186 75% 52%;
-    --ev-action: 14 85% 62%;
-    --ev-default: 215 14% 68%;
     }
   }
 

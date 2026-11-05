@@ -151,7 +151,21 @@ export function localViewerNavigation(
   const url = new URL(`${target}/`, routeBase);
   for (const field of FIELD_ORDER) {
     if (!allowed.includes(field)) continue;
-    const value = contextValue(merged, field);
+    let value = contextValue(merged, field);
+    if (value === null) continue;
+    if (field === "bundle_path" || field === "session_id" || field === "focus") {
+      const max = field === "bundle_path" ? 4096 : field === "session_id" ? 512 : 8192;
+      const safe = safeValue(value, max);
+      if (safe.invalid) {
+        addDiscarded(discarded, field);
+        continue;
+      }
+      value = safe.value;
+    }
+    if (field === "seq" && merged.surface === null) {
+      addDiscarded(discarded, "seq");
+      continue;
+    }
     if (value !== null) url.searchParams.set(field, value);
   }
   url.hash = merged.fragment;

@@ -127,6 +127,7 @@ describe("local viewer context", () => {
     );
     const href = localViewerHref("/view", parsed);
     expect(href).toContain("bundle_path=%2Ftmp%2Fa+b%23c%26d.atb");
+    expect(href).toContain("focus=atb%3A%2F%2Fevidence%2F1%2Fx%3Fseq%3D2%26x%3D%23frag");
     expect(href.split("#")[0]).not.toContain("session=t");
     expect(href.endsWith("#session=t")).toBe(true);
   });
@@ -138,6 +139,21 @@ describe("local viewer context", () => {
     expect(path).not.toContain("session=secret-token");
     expect(path).not.toContain("secret-token");
     expect(fragment).toBe("session=secret-token");
+  });
+
+  it("validates overrides before writing them into a local href", () => {
+    const parsed = parseLocalViewerContext("/view/#session=t");
+    const navigation = localViewerNavigation("/view", parsed, {
+      bundlePath: "bad\u0000path",
+      sessionId: "",
+      focus: "x".repeat(9000),
+      seq: 2,
+    });
+    expect(navigation.discarded).toEqual(expect.arrayContaining(["bundle_path", "session_id", "focus", "seq"]));
+    expect(navigation.href).not.toContain("bundle_path=");
+    expect(navigation.href).not.toContain("session_id=");
+    expect(navigation.href).not.toContain("focus=");
+    expect(navigation.href).not.toContain("seq=");
   });
 
   it("fails safe for malformed direct navigation and reloads", () => {

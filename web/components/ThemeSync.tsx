@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { resolveTheme } from "@/lib/theme";
 import { useUIStore } from "@/lib/state/ui-store";
 
 export function ThemeSync() {
   const theme = useUIStore((state) => state.theme);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    void useUIStore.persist.rehydrate();
+    void Promise.resolve(useUIStore.persist.rehydrate()).then(() => setHydrated(true));
   }, []);
 
   useEffect(() => {
+    if (!hydrated || typeof window.matchMedia !== "function") return;
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const apply = () => {
       const resolved = resolveTheme(theme, media.matches);
@@ -23,7 +25,7 @@ export function ThemeSync() {
     if (theme !== "system") return;
     media.addEventListener("change", apply);
     return () => media.removeEventListener("change", apply);
-  }, [theme]);
+  }, [theme, hydrated]);
 
   return null;
 }

@@ -18,7 +18,7 @@ type LocalViewerShellProps = {
   route: LocalViewerRoute;
   children: ReactNode;
   title?: string;
-  description?: string;
+  description?: ReactNode;
   bundlePath?: string;
   sessionId?: string;
   surface?: SurfaceId | null;
@@ -115,7 +115,7 @@ export function LocalViewerShell({
       >
         Skip to content
       </button>
-      <aside className="hidden w-44 shrink-0 flex-col border-r border-border bg-surface-1 md:flex xl:w-56" aria-label="Local viewer navigation">
+      <aside className="hidden w-44 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-1 md:flex xl:w-56" aria-label="Local viewer navigation">
         <div className="border-b border-border px-4 py-5">
           <a href={bundlesHref} className="font-semibold tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             ATB

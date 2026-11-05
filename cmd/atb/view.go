@@ -221,24 +221,7 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 	}
 
 	if dashboardFS, ok := embeddedDashboardFS(); ok {
-		// Serve the embedded Next.js dashboard at /view/ and redirect / to it.
-		// The session token is in the URL fragment so it reaches the browser JS
-		// without being forwarded in HTTP requests.
-		static := http.FileServer(dashboardFS)
-		mux.Handle("/_next/", static)
-		for _, route := range []string{"/view", "/workspace", "/sessions"} {
-			mux.Handle(route+"/", static)
-			mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
-				target := r.URL.Path + "/"
-				if r.URL.RawQuery != "" {
-					target += "?" + r.URL.RawQuery
-				}
-				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
-			})
-		}
-		mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
-		})
+		registerDashboardRoutes(mux, dashboardFS)
 		return withSecurityHeaders(mux, revealAuthToken), eventCount, false, "/view/", nil
 	}
 
@@ -462,6 +445,31 @@ func withSecurityHeaders(next http.Handler, revealAuthToken string) http.Handler
 			})
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+// registerDashboardRoutes serves the embedded static viewer routes. The
+// session token remains in the URL fragment and is never forwarded in HTTP
+// requests; redirects preserve only the query string.
+func registerDashboardRoutes(mux *http.ServeMux, dashboardFS http.FileSystem) {
+	static := http.FileServer(dashboardFS)
+	mux.Handle("/_next/", static)
+	for _, route := range []string{"/view", "/workspace", "/sessions"} {
+		mux.Handle(route+"/", static)
+		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+			target := r.URL.Path + "/"
+			if r.URL.RawQuery != "" {
+				target += "?" + r.URL.RawQuery
+			}
+			http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+		})
+	}
+	mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
+		target := "/view/"
+		if r.URL.RawQuery != "" {
+			target += "?" + r.URL.RawQuery
+		}
+		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 	})
 }
 
