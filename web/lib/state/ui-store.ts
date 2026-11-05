@@ -55,7 +55,7 @@ export const useUIStore = create<UIStoreState>()(
     }),
     {
       name: "atb-ui-store-v1",
-      version: 3,
+      version: 4,
       skipHydration: true,
       migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;

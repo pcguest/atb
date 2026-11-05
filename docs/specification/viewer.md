@@ -76,7 +76,7 @@ Chosen flow: **Go API server + Next.js viewer UI**.
 1. `atb view` resolves and loads bundle.
 2. Go verifies hash chain before serving event data.
 3. Go serves:
-   - `GET /` (valid bundles redirect to `/view/`; invalid bundles serve the tamper page directly)
+   - `GET /` (embedded builds redirect valid bundles to `/view/`; invalid bundles serve the tamper page directly; no-embed builds serve install guidance)
    - `GET /view/`, `GET /workspace/`, `GET /sessions/` (embedded static viewer routes)
    - `GET /api/v1/verification`
    - `GET /api/v1/bundle/meta`
