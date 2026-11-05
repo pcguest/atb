@@ -86,6 +86,7 @@
     --ev-default: 215 16% 47%;
   }
 
+  :root[data-theme="dark"],
   .dark {
     /* v1.16 forensic dark palette: #0D1117 through #1C2430. */
     --raw-canvas: 216 28% 7.6%;
@@ -147,12 +148,76 @@
     --ev-default: 215 14% 68%;
   }
 
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+    /* v1.16 forensic dark palette: #0D1117 through #1C2430. */
+    --raw-canvas: 216 28% 7.6%;
+    --raw-surface-1: 214 28% 9.2%;
+    --raw-surface-2: 215 25% 11.6%;
+    --raw-surface-3: 214 26% 15%;
+    --raw-text-primary: 210 29% 93%;
+    --raw-text-secondary: 213 17% 71%;
+    /* 64% L ≈ 6.6:1 on card / 5.4:1 on muted; 52% was 4.48:1 and failed WCAG AA. */
+    --raw-text-muted: 212 12% 64%;
+    --raw-accent: 212 100% 67%;
+    --raw-verified: 130 49% 49%;
+    --raw-warning: 40 73% 48%;
+    --raw-danger: 3 92% 63%;
+    --raw-unknown: 210 7% 58%;
+    --surface-selected: 214 35% 20%;
+    --border-subtle: 218 15% 17%;
+    --border-standard: 218 13% 25%;
+    --surface-1: var(--raw-surface-1);
+    --surface-2: var(--raw-surface-2);
+    --surface-3: var(--raw-surface-3);
+    --state-verified: var(--raw-verified);
+    --state-warning: var(--raw-warning);
+    --state-danger: var(--raw-danger);
+    --state-unknown: var(--raw-unknown);
+    --background: var(--raw-canvas);
+    --foreground: var(--raw-text-primary);
+    --card: var(--raw-surface-2);
+    --card-foreground: var(--raw-text-primary);
+    --popover: var(--raw-surface-2);
+    --popover-foreground: var(--raw-text-primary);
+    --primary: var(--raw-accent);
+    --primary-foreground: 222 47% 11%;
+    --secondary: 220 12% 17%;
+    --secondary-foreground: var(--raw-text-secondary);
+    --muted: 220 10% 18%;
+    --muted-foreground: var(--raw-text-muted);
+    --accent: var(--raw-accent);
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 79% 52%;
+    --destructive-foreground: 210 16% 88%;
+    --border: var(--border-standard);
+    --input: var(--border-standard);
+    --ring: var(--raw-accent);
+
+    /* Fixed status-bar height consumed by layout for top offset */
+    --banner-h: 2.25rem;
+    /* Taller offset when the tamper banner expands to show diagnosis */
+    --banner-fail-h: 5rem;
+
+    /* Event family colour tokens — dark surface */
+    --ev-llm: 210 100% 65%;
+    --ev-tool: 142 60% 55%;
+    --ev-chain: 262 70% 70%;
+    --ev-policy: 38 90% 60%;
+    --ev-human: 354 75% 65%;
+    --ev-export: 186 75% 52%;
+    --ev-action: 14 85% 62%;
+    --ev-default: 215 14% 68%;
+    }
+  }
+
   * {
     @apply border-border;
   }
 
   :root,
-  .dark {
+  .dark,
+  :root[data-theme="dark"] {
     /* Event categories are labels, not evidence statuses. Keep them neutral. */
     --ev-llm: var(--text-technical);
     --ev-tool: var(--text-technical);

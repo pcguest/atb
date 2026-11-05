@@ -5,6 +5,7 @@ import { FixedSizeList } from "react-window";
 import { useRouter } from "next/navigation";
 
 import { useSessionsQuery } from "@/lib/api-client";
+import { localViewerHref, parseLocalViewerContext } from "@/lib/local-viewer-context";
 import type { SessionEntry } from "@/lib/types";
 import AnomalyBadge from "./AnomalyBadge";
 
@@ -22,27 +23,35 @@ const SessionList: React.FC = () => {
   const router = useRouter();
   const { data: sessions, isLoading, error } = useSessionsQuery(true);
 
-  if (isLoading) return <div className="text-gray-300">Loading sessions…</div>;
-  if (error) return <div className="text-red-400">Error: {error.message}</div>;
+  if (isLoading) return <div className="text-muted-foreground">Loading sessions…</div>;
+  if (error) return <div className="text-danger">Error: {error.message}</div>;
   if (!sessions || sessions.length === 0) {
-    return <div className="text-gray-400">No sessions found.</div>;
+    return <div className="text-muted-foreground">No sessions found.</div>;
   }
 
   const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
     const session: SessionEntry = sessions[index];
     const startedAt = new Date(session.started_at).toLocaleString();
+    const actorLabel = session.actor.display_name.trim() || session.session_id;
 
     const handleRowClick = () => {
-      // Navigate to the single-bundle viewer for this session, preserving the
-      // session-token fragment so the destination view stays authenticated.
-      const currentFragment = window.location.hash;
-      router.push(`/view?bundlePath=${encodeURIComponent(session.bundle_path)}${currentFragment}`);
+      // Preserve the current local-viewer context and session-token fragment
+      // while selecting this session's bundle.
+      const context = parseLocalViewerContext(window.location.href);
+      router.push(localViewerHref("/view", context, {
+        bundlePath: session.bundle_path,
+        sessionId: session.session_id,
+        surface: "incident",
+        seq: null,
+        from: null,
+        focus: null,
+      }));
     };
 
     return (
       <div
         style={style}
-        className="group flex items-center border-b border-gray-700 hover:bg-gray-800"
+        className="group flex items-center border-b border-border hover:bg-surface-2"
         role="row"
         aria-rowindex={index + 2}
       >
@@ -50,10 +59,10 @@ const SessionList: React.FC = () => {
           <button
             type="button"
             className="w-full truncate rounded text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-            aria-label={`Open session ${session.session_id} for ${session.actor.display_name}, started ${startedAt}`}
+            aria-label={`Open session ${session.session_id} for ${actorLabel}, started ${startedAt}`}
             onClick={handleRowClick}
           >
-            {session.actor.display_name}
+            {actorLabel}
           </button>
         </div>
         <div className="w-1/5 truncate p-2" role="cell">
@@ -78,11 +87,11 @@ const SessionList: React.FC = () => {
   };
 
   return (
-    <div className="rounded-lg bg-gray-900 p-4 text-gray-100 shadow-lg">
+    <div className="rounded-lg bg-surface-1 p-4 text-foreground shadow-lg">
       <h2 className="mb-4 text-xl font-semibold">All sessions</h2>
       <div role="table" aria-label="Sessions" aria-colcount={6} aria-rowcount={sessions.length + 1}>
         <div role="rowgroup">
-          <div className="mb-2 flex border-b-2 border-gray-600 pb-2 font-bold" role="row">
+          <div className="mb-2 flex border-b-2 border-border pb-2 font-bold" role="row">
             <div className="w-1/5 p-2" role="columnheader">
               Actor
             </div>

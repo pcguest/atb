@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CommandPalette, type PaletteAction } from "./components/CommandPalette";
-import { RoleSelector } from "./components/role-selector/RoleSelector";
 import { EmptyState, ErrorState, LoadingState } from "./components/ui/investigation";
 import { FindingsSurface, IncidentSurface, RecordSurface, TimelineInspector, actionClass, coverageLabel } from "./components/CoreSurfaces";
 import { ContextSurface, RelationshipsSurface, TrustSurface } from "./components/AssuranceSurfaces";
-import { CompactInvestigationNavigation, InvestigationNavigation, investigationSurfaces, surfaceLabel, type Surface } from "./components/InvestigationNavigation";
+import { investigationSurfaces, surfaceLabel, type Surface } from "./components/InvestigationNavigation";
 import { ObjectIdentityHeader } from "./components/ObjectIdentityHeader";
 import { EventInspector } from "@/components/dashboard/EventInspector";
+import { LocalViewerShell } from "@/components/local-viewer/LocalViewerShell";
 import { flattenEventPages, locateEvidence, useBundleEventsQuery, useInvestigationContextQuery, useInvestigationFindingsQuery, useInvestigationOverviewQuery, useInvestigationRelationshipsQuery, useInvestigationTimelineQuery, useInvestigationTrustQuery, useRevealFieldMutation, useRunBundleVerifyMutation } from "@/lib/api-client";
 import { clearViewerLocation, parseViewerLocation, viewerLocationUrl, type ViewerLocation } from "@/lib/viewer-location";
 import type { TimelineEvent } from "@/lib/types";
@@ -184,26 +184,38 @@ export default function ViewPage() {
   // The inspector receives the visible (filtered) rows so Timeline movement
   // never selects a record hidden by the active filter.
   const timelineInspector = (visible: TimelineEvent[]) => <TimelineInspector event={selectedTimelineEvent} seq={effectiveSeq} timeline={visible} onSelect={selectRecord} onOpenEvidence={openEvidence}/>;
-  return <div className="flex h-full min-h-0 w-full bg-background">
-    <button type="button" onClick={() => document.getElementById("dashboard-content")?.focus()} className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:border-border focus:bg-card focus:px-3 focus:py-2 focus:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Skip to investigation content</button>
-    <aside className="hidden w-44 shrink-0 flex-col border-r border-border bg-surface-1 md:flex xl:w-56" aria-label="Investigation navigation"><div className="border-b border-border px-4 py-5"><p className="font-semibold tracking-tight">ATB View</p><p className="mt-1 text-xs text-muted-foreground">Evidence investigation</p></div><InvestigationNavigation active={surface} onSelect={selectSurface} findingCount={overview.finding_count}/><div className="border-t border-border p-4 text-xs leading-5 text-muted-foreground">Local evidence<br/>Independent verification</div></aside>
-    <main id="dashboard-content" tabIndex={-1} className="flex min-w-0 flex-1 flex-col focus:outline-none">
-      <ObjectIdentityHeader bundlePath={overview.bundle_path} headHash={overview.head_hash} eventCount={overview.event_count} surfaceLabel={surfaceLabel(surface)} controls={<><CommandPalette actions={actions}/><RoleSelector/></>} status={<><span className="text-muted-foreground">Coverage: <span className="text-foreground">{coverageLabel(overview.integrity_valid, overview.profile)}</span></span><span className="text-muted-foreground">Custody: <span className="text-foreground">{overview.custody_state}</span></span></>}/>
-    {locationNotice && <div role="status" data-testid="location-notice" className="shrink-0 border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground">{locationNotice}</div>}
-    {focusNotice && <div role="status" data-testid="focus-notice" className="shrink-0 border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">Evidence reference not focused. </span>{focusNotice.message}{focusNotice.code ? ` (${focusNotice.code})` : ""} This is a location result, not an integrity or tampering finding.</div>}
-    <CompactInvestigationNavigation active={surface} onSelect={selectSurface} findingCount={overview.finding_count}/>
-    <div className="min-h-0 flex-1 overflow-y-auto p-4 xl:p-6" key={`${scopeGeneration}-${overview.bundle_path}`}>
-      {blocked ? <ErrorState title="Event-derived investigation is blocked"><p>Bundle integrity failed. Open Evidence status to inspect the verification boundary.</p><button className={`${actionClass} mt-3`} onClick={() => navigate("trust", selectedSeq)}>Open Evidence status</button></ErrorState> : <>
-      {surface === "incident" && <IncidentSurface overview={overview} findings={findings} timeline={timeline} findingsState={valid && (findingsQuery.isLoading ? <LoadingState label="Deriving priority findings…"/> : findingsQuery.isError ? <ErrorState onRetry={() => void findingsQuery.refetch()}>Priority findings could not be loaded.</ErrorState> : undefined)} openFindings={openFindings} openEvidence={openEvidence} openTimeline={openTimeline} openTrust={() => navigate("trust", selectedSeq)}/>}
-      {surface === "findings" && <QueryContent query={findingsQuery}><FindingsSurface findings={findings} acquisitionFindings={acquisitionFindings} selected={selectedFinding} select={setSelectedFinding} openEvidence={openEvidence} openTimeline={openTimeline}/></QueryContent>}
-      {surface === "timeline" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={timelineInspector} evidence={false}/></QueryContent>}
-      {surface === "evidence" && <QueryContent query={timelineQuery}><div className="space-y-4">{source && <div role="status" aria-label={`From ${surfaceLabel(source)}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-1 px-3 py-2 text-xs text-muted-foreground"><span className="min-w-0">From <span className="font-medium text-foreground">{surfaceLabel(source)}</span></span><button className={actionClass} onClick={() => navigate(source, selectedSeq)}>← Return to {surfaceLabel(source)}</button></div>}<RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={evidenceInspector} evidence/></div></QueryContent>}
-      {surface === "context" && <QueryContent query={contextQuery}>{contextQuery.data && <ContextSurface data={contextQuery.data} onOpenEvidence={openEvidence} onOpenTimeline={() => openTimeline()}/>}</QueryContent>}
-      {surface === "relationships" && <QueryContent query={relationshipsQuery}>{relationshipsQuery.data && <RelationshipsSurface data={relationshipsQuery.data} timeline={timeline} onOpenEvidence={openEvidence}/>}</QueryContent>}
-      {surface === "trust" && <QueryContent query={trustQuery}>{trustQuery.data && <TrustSurface data={trustQuery.data} profile={overview.profile ?? undefined} timeline={timeline} onOpenEvidence={openEvidence}/>}</QueryContent>}
-      </>}
-    </div></main>
-    {verifyMutation.isPending && <div role="status" className="fixed bottom-4 right-4 rounded-md border border-border bg-popover px-4 py-3 text-sm">Verifying bundle…</div>}
-    {verifyMutation.isError && <div role="alert" className="fixed bottom-4 right-4 max-w-sm rounded-md border border-danger bg-popover px-4 py-3 text-sm">Verification could not be completed. Try Verify bundle again.</div>}
-  </div>;
+  return (
+    <LocalViewerShell
+      route="/view"
+      bundlePath={overview.bundle_path}
+      surface={surface}
+      findingCount={overview.finding_count}
+      onSelectSurface={selectSurface}
+      controls={<CommandPalette actions={actions} />}
+      mainId="dashboard-content"
+    >
+      <ObjectIdentityHeader
+        bundlePath={overview.bundle_path}
+        headHash={overview.head_hash}
+        eventCount={overview.event_count}
+        surfaceLabel={surfaceLabel(surface)}
+        status={<><span className="text-muted-foreground">Coverage: <span className="text-foreground">{coverageLabel(overview.integrity_valid, overview.profile)}</span></span><span className="text-muted-foreground">Custody: <span className="text-foreground">{overview.custody_state}</span></span></>}
+      />
+      {locationNotice && <div role="status" data-testid="location-notice" className="shrink-0 border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground">{locationNotice}</div>}
+      {focusNotice && <div role="status" data-testid="focus-notice" className="shrink-0 border-b border-border bg-surface-1 px-4 py-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">Evidence reference not focused. </span>{focusNotice.message}{focusNotice.code ? ` (${focusNotice.code})` : ""} This is a location result, not an integrity or tampering finding.</div>}
+      <div className="min-h-0 flex-1 p-4 xl:p-6" key={`${scopeGeneration}-${overview.bundle_path}`}>
+        {blocked ? <ErrorState title="Event-derived investigation is blocked"><p>Bundle integrity failed. Open Evidence status to inspect the verification boundary.</p><button className={`${actionClass} mt-3`} onClick={() => navigate("trust", selectedSeq)}>Open Evidence status</button></ErrorState> : <>
+        {surface === "incident" && <IncidentSurface overview={overview} findings={findings} timeline={timeline} findingsState={valid && (findingsQuery.isLoading ? <LoadingState label="Deriving priority findings…"/> : findingsQuery.isError ? <ErrorState onRetry={() => void findingsQuery.refetch()}>Priority findings could not be loaded.</ErrorState> : undefined)} openFindings={openFindings} openEvidence={openEvidence} openTimeline={openTimeline} openTrust={() => navigate("trust", selectedSeq)}/>}
+        {surface === "findings" && <QueryContent query={findingsQuery}><FindingsSurface findings={findings} acquisitionFindings={acquisitionFindings} selected={selectedFinding} select={setSelectedFinding} openEvidence={openEvidence} openTimeline={openTimeline}/></QueryContent>}
+        {surface === "timeline" && <QueryContent query={timelineQuery}><RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={timelineInspector} evidence={false}/></QueryContent>}
+        {surface === "evidence" && <QueryContent query={timelineQuery}><div className="space-y-4">{source && <div role="status" aria-label={`From ${surfaceLabel(source)}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-1 px-3 py-2 text-xs text-muted-foreground"><span className="min-w-0">From <span className="font-medium text-foreground">{surfaceLabel(source)}</span></span><button className={actionClass} onClick={() => navigate(source, selectedSeq)}>← Return to {surfaceLabel(source)}</button></div>}<RecordSurface timeline={timeline} selectedSeq={effectiveSeq} select={selectRecord} inspector={evidenceInspector} evidence/></div></QueryContent>}
+        {surface === "context" && <QueryContent query={contextQuery}>{contextQuery.data && <ContextSurface data={contextQuery.data} onOpenEvidence={openEvidence} onOpenTimeline={() => openTimeline()}/>}</QueryContent>}
+        {surface === "relationships" && <QueryContent query={relationshipsQuery}>{relationshipsQuery.data && <RelationshipsSurface data={relationshipsQuery.data} timeline={timeline} onOpenEvidence={openEvidence}/>}</QueryContent>}
+        {surface === "trust" && <QueryContent query={trustQuery}>{trustQuery.data && <TrustSurface data={trustQuery.data} profile={overview.profile ?? undefined} timeline={timeline} onOpenEvidence={openEvidence}/>}</QueryContent>}
+        </>}
+      </div>
+      {verifyMutation.isPending && <div role="status" className="fixed bottom-4 right-4 rounded-md border border-border bg-popover px-4 py-3 text-sm">Verifying bundle…</div>}
+      {verifyMutation.isError && <div role="alert" className="fixed bottom-4 right-4 max-w-sm rounded-md border border-danger bg-popover px-4 py-3 text-sm">Verification could not be completed. Try Verify bundle again.</div>}
+    </LocalViewerShell>
+  );
 }

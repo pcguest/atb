@@ -40,7 +40,7 @@ export default function Features() {
           >
             <Image
               src="/product/investigation.png"
-              alt="ATB View investigating the recorded incident, with a selected finding and its supporting evidence."
+              alt="ATB View showing the Run surface for a recorded bundle, with findings and the evidence boundary."
               width={1280}
               height={720}
               unoptimized

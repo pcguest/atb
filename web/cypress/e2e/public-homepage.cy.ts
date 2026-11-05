@@ -6,7 +6,7 @@ describe("ATB public homepage", () => {
 
   it("presents the product, integration path, and evidence boundary", () => {
     cy.contains("Inside ATB View").should("be.visible");
-    cy.get('img[alt*="ATB View investigating"]').should("be.visible");
+    cy.get('img[alt*="ATB View showing the Run surface"]').should("be.visible");
     cy.contains("Use the interface that fits the workflow.").scrollIntoView().should("be.visible");
     cy.contains("Know what the evidence establishes.").scrollIntoView().should("be.visible");
   });

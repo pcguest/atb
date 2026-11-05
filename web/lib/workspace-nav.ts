@@ -1,7 +1,7 @@
 import type { WorkspaceBundleSummary } from "@/lib/schemas/workspace";
 
 /** Build a viewer URL for a workspace bundle (static-export safe query-param routing). */
-export function bundleViewHref(bundle: WorkspaceBundleSummary, agentMode: boolean): string {
+export function bundleViewHref(bundle: WorkspaceBundleSummary, agentMode: boolean, fragment = ""): string {
   const params = new URLSearchParams();
   if (agentMode) {
     params.set("session_id", bundle.session_id);
@@ -10,7 +10,8 @@ export function bundleViewHref(bundle: WorkspaceBundleSummary, agentMode: boolea
     params.set("bundle_path", bundle.bundle_path);
   }
   const query = params.toString();
-  return query ? `/view/?${query}` : "/view/";
+  const path = query ? `/view/?${query}` : "/view/";
+  return `${path}${fragment}`;
 }
 
 /** Short display label for a bundle row (session id or truncated head hash). */

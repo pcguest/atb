@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-<!-- No unreleased changes. -->
+### Changed
+- The embedded local viewer now shares one navigation shell across `/workspace`, `/sessions`, and `/view`, with Library links, breadcrumbs, preserved bundle/session/surface/evidence context, trailing-slash static routes, and a system/light/dark theme preference. The existing seven investigation destinations and verification semantics are unchanged; the presentation-only role selector was removed. The public homepage screenshot was regenerated from the current build.
 
 ## [v2.0.0] - 2026-10-26
 

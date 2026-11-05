@@ -15,8 +15,8 @@ describe("ATB investigation against the embedded server", () => {
         if (!integrityValid) {
           return cy.contains("INTEGRITY CHECK FAILED — HASH CHAIN VERIFICATION FAILED").should("be.visible");
         }
-        cy.contains("ATB View", { timeout: 10000 }).should("be.visible");
-        cy.get('[aria-label="Investigation navigation"]', { timeout: 10000 })
+        cy.contains("Local evidence viewer", { timeout: 10000 }).should("be.visible");
+        cy.get('nav[aria-label="Investigation"]', { timeout: 10000 })
           .should("be.visible")
           .contains("button", "Evidence status");
         cy.contains("What happened?").should("be.visible");
@@ -39,7 +39,7 @@ describe("ATB investigation against the embedded server", () => {
         cy.contains("Event data is blocked").should("be.visible");
         return;
       }
-      cy.get('[aria-label="Investigation navigation"]').contains("button", "Evidence status").click();
+      cy.get('nav[aria-label="Investigation"]').contains("button", "Evidence status").click();
       cy.contains("Integrity").should("be.visible");
       cy.contains("Coverage").should("be.visible");
       cy.contains("Corroboration").should("be.visible");
@@ -71,13 +71,42 @@ describe("ATB investigation against the embedded server", () => {
     });
   });
 
+  it("serves library routes without losing the viewer session fragment", () => {
+    cy.env<{ SESSION_TOKEN: string }>(["SESSION_TOKEN"]).then(({ SESSION_TOKEN }) => {
+      const token = String(SESSION_TOKEN);
+      cy.get('nav[aria-label="Library"]').first().contains("Sessions").click();
+      cy.location("pathname").should("eq", "/sessions/");
+      cy.location("hash").should("eq", `#session=${token}`);
+      cy.contains("h1", "Session overview").should("be.visible");
+      cy.get('nav[aria-label="Library"]').first().contains("Bundles").click();
+      cy.location("pathname").should("eq", "/workspace/");
+      cy.location("hash").should("eq", `#session=${token}`);
+      cy.contains("h1", "Workspace bundles").should("be.visible");
+      cy.contains("ATB Agent").should("be.visible");
+    });
+  });
+
+  it("passes strict accessibility audits in light theme on library routes", () => {
+    cy.env<{ SESSION_TOKEN: string }>(["SESSION_TOKEN"]).then(({ SESSION_TOKEN }) => {
+      const token = String(SESSION_TOKEN);
+      cy.visit(`/sessions/#session=${token}`);
+      cy.contains("h1", "Session overview").should("be.visible");
+      cy.get('select[aria-label="Theme"]').select("light");
+      cy.checkA11yStrict();
+      cy.visit(`/workspace/#session=${token}`);
+      cy.contains("h1", "Workspace bundles").should("be.visible");
+      cy.get('select[aria-label="Theme"]').select("light");
+      cy.checkA11yStrict();
+    });
+  });
+
   it("passes the strict accessibility audit with live data", () => {
     if (!integrityValid) {
       cy.checkA11yStrict();
       return;
     }
     for (const surface of ["Run", "Findings", "Timeline", "Context", "Relationships", "Evidence", "Evidence status"]) {
-      cy.get('[aria-label="Investigation navigation"]').contains("button", surface).click();
+      cy.get('nav[aria-label="Investigation"]').contains("button", surface).click();
       cy.get("main").should("be.visible");
       cy.get("main").should("not.contain.text", "Loading");
       cy.checkA11yStrict();
@@ -96,7 +125,7 @@ describe("ATB investigation against the embedded server", () => {
     for (const width of [1440, 1280, 1024, 900]) {
       cy.viewport(width, 900);
       for (const surface of ["Run", "Evidence", "Relationships", "Evidence status"]) {
-        cy.get('[aria-label="Investigation navigation"]').contains("button", surface).click().should("be.visible");
+        cy.get('nav[aria-label="Investigation"]').contains("button", surface).click().should("be.visible");
         cy.document().should((document) => {
           expect(document.documentElement.scrollWidth).to.be.at.most(width);
         });

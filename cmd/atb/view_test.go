@@ -890,6 +890,32 @@ func TestBuildViewServerServesViewRoute(t *testing.T) {
 		if rr.Code != http.StatusOK {
 			t.Fatalf("unexpected /view/ status: got %d want %d", rr.Code, http.StatusOK)
 		}
+		req = httptest.NewRequest(http.MethodGet, "/v1/workspace/bundles", nil)
+		rr = httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		if rr.Code != http.StatusNotFound {
+			t.Fatalf("unexpected agent workspace API status in single-bundle mode: got %d want 404", rr.Code)
+		}
+		for _, route := range []string{"/workspace/", "/sessions/"} {
+			req = httptest.NewRequest(http.MethodGet, route, nil)
+			rr = httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			if rr.Code != http.StatusOK {
+				t.Fatalf("unexpected %s status: got %d want %d", route, rr.Code, http.StatusOK)
+			}
+			if !strings.Contains(rr.Header().Get("Content-Type"), "text/html") {
+				t.Fatalf("unexpected %s content type: %q", route, rr.Header().Get("Content-Type"))
+			}
+		}
+		for _, route := range []string{"/workspace", "/sessions"} {
+			req = httptest.NewRequest(http.MethodGet, route+"?bundle_path=%2Ftmp%2Fa.atb", nil)
+			rr = httptest.NewRecorder()
+			handler.ServeHTTP(rr, req)
+			want := route + "/?bundle_path=%2Ftmp%2Fa.atb"
+			if rr.Code != http.StatusTemporaryRedirect || rr.Header().Get("Location") != want {
+				t.Fatalf("unexpected %s redirect: status=%d location=%q want=%q", route, rr.Code, rr.Header().Get("Location"), want)
+			}
+		}
 	} else {
 		// Without the embedded dashboard the server opens at / with install guidance.
 		if openPath != "/" {

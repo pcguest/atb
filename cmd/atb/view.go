@@ -226,11 +226,17 @@ func buildViewServer(bundlePath string, logReveals bool, profilePath string, ses
 		// without being forwarded in HTTP requests.
 		static := http.FileServer(dashboardFS)
 		mux.Handle("/_next/", static)
-		mux.Handle("/view/", static)
-		mux.HandleFunc("/view", func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
-		})
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		for _, route := range []string{"/view", "/workspace", "/sessions"} {
+			mux.Handle(route+"/", static)
+			mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+				target := r.URL.Path + "/"
+				if r.URL.RawQuery != "" {
+					target += "?" + r.URL.RawQuery
+				}
+				http.Redirect(w, r, target, http.StatusTemporaryRedirect)
+			})
+		}
+		mux.HandleFunc("/{$}", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/view/", http.StatusTemporaryRedirect)
 		})
 		return withSecurityHeaders(mux, revealAuthToken), eventCount, false, "/view/", nil

@@ -28,9 +28,18 @@ describe("agent mode detection", () => {
   it("returns true when workspace probe succeeds", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => ({ ok: true, status: 200 }) as Response),
+      vi.fn(async () => ({ ok: true, status: 200, headers: new Headers({ "content-type": "application/json" }) }) as Response),
     );
 
     await expect(detectAgentMode()).resolves.toBe(true);
+  });
+
+  it("rejects a successful HTML response from a non-Agent viewer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: true, status: 200, headers: new Headers({ "content-type": "text/html" }) }) as Response),
+    );
+
+    await expect(detectAgentMode()).resolves.toBe(false);
   });
 });

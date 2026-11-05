@@ -49,6 +49,12 @@ describe("workspace navigation helpers", () => {
     );
   });
 
+  it("preserves the viewer session fragment", () => {
+    expect(bundleViewHref(bundle, true, "#session=secret")).toBe(
+      "/view/?session_id=sess_abc123&bundle_path=%2Ftmp%2Fsessions%2Fsess_abc123%2Fbundle.atb#session=secret",
+    );
+  });
+
   it("prefers session_id for display labels", () => {
     expect(bundleDisplayId(bundle)).toBe("sess_abc123");
   });

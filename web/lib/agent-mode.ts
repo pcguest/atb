@@ -31,7 +31,8 @@ export async function detectAgentMode(): Promise<boolean> {
       cache: "no-store",
       signal: controller.signal,
     });
-    cachedAgentMode = response.ok;
+    const contentType = response.headers.get("content-type") ?? "";
+    cachedAgentMode = response.ok && contentType.includes("application/json");
   } catch {
     cachedAgentMode = false;
   } finally {

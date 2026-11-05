@@ -45,6 +45,14 @@ function slugToSurface(value: string | null): SurfaceId | null {
   return Object.prototype.hasOwnProperty.call(SURFACE_BY_SLUG, value) ? SURFACE_BY_SLUG[value] : null;
 }
 
+export function surfaceSlug(id: SurfaceId): string {
+  return SLUG_BY_SURFACE[id];
+}
+
+export function surfaceFromSlug(value: string | null): SurfaceId | null {
+  return slugToSurface(value);
+}
+
 export function isSurfaceId(value: string | null | undefined): value is SurfaceId {
   return typeof value === "string" && (SURFACE_IDS as readonly string[]).includes(value);
 }

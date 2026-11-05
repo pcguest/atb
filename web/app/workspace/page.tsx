@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { detectAgentMode } from "@/lib/agent-mode";
@@ -12,9 +11,11 @@ import {
 } from "@/lib/workspace-nav";
 
 import { WorkspaceWelcome } from "@/app/workspace/WorkspaceWelcome";
+import { LocalViewerShell } from "@/components/local-viewer/LocalViewerShell";
 
 export default function WorkspacePage() {
   const [agentMode, setAgentMode] = useState<boolean | null>(null);
+  const [fragment, setFragment] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -28,19 +29,22 @@ export default function WorkspacePage() {
     };
   }, []);
 
+  useEffect(() => {
+    const syncFragment = () => setFragment(window.location.hash);
+    syncFragment();
+    window.addEventListener("hashchange", syncFragment);
+    return () => window.removeEventListener("hashchange", syncFragment);
+  }, []);
+
   const bundlesQuery = useWorkspaceBundlesQuery(agentMode === true);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-8">
-      <header className="mb-6 border-b border-border pb-4">
-        <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">ATB</p>
-        <h1 className="mt-1 text-2xl font-semibold text-foreground">Workspace bundles</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Read-only index of closed session bundles. This page lists metadata for navigation and
-          does not modify bundle records; local storage remains operator-controlled.
-        </p>
-      </header>
-
+    <LocalViewerShell
+      route="/workspace"
+      title="Workspace bundles"
+      description="Read-only index of closed session bundles. This page lists metadata for navigation and does not modify bundle records; local storage remains operator-controlled."
+      contentClassName="mx-auto w-full max-w-5xl px-4 py-6"
+    >
       {agentMode === null && (
         <p className="text-sm text-muted-foreground" role="status">
           Detecting workspace backend…
@@ -114,12 +118,12 @@ export default function WorkspacePage() {
                     {formatWorkspaceTimestamp(bundle.closed_at)}
                   </td>
                   <td className="px-3 py-2">
-                    <Link
-                      href={bundleViewHref(bundle, true)}
+                    <a
+                      href={bundleViewHref(bundle, true, fragment)}
                       className="font-mono text-xs text-primary underline-offset-2 hover:underline"
                     >
                       Open
-                    </Link>
+                    </a>
                   </td>
                 </tr>
               ))}
@@ -127,6 +131,6 @@ export default function WorkspacePage() {
           </table>
         </div>
       )}
-    </div>
+    </LocalViewerShell>
   );
 }
