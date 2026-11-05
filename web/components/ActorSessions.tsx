@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useActorSessionsQuery } from '@/lib/api-client';
+import { localViewerHref, parseLocalViewerContext } from '@/lib/local-viewer-context';
 import type { SessionEntry } from '@/lib/types';
 import AnomalyBadge from './AnomalyBadge';
 
@@ -33,23 +34,31 @@ const ActorSessions: React.FC = () => {
   };
 
   const handleSessionRowClick = (session: SessionEntry) => {
-    const currentFragment = window.location.hash;
-    router.push(`/view?bundlePath=${encodeURIComponent(session.bundle_path)}${currentFragment}`);
+    const context = parseLocalViewerContext(window.location.href);
+    router.push(localViewerHref("/view", context, {
+      bundlePath: session.bundle_path,
+      sessionId: session.session_id,
+      surface: "incident",
+      seq: null,
+      from: null,
+      focus: null,
+    }));
   };
 
   return (
-    <div className="bg-gray-900 text-gray-100 p-4 rounded-lg shadow-lg">
+    <div className="bg-surface-1 text-foreground p-4 rounded-lg shadow-lg">
       <h2 className="text-xl font-semibold mb-4">Sessions by Actor</h2>
       {Object.entries(actors).map(([actorDisplayName, sessions]) => {
+        const actorLabel = actorDisplayName.trim() || "Unattributed";
         const isExpanded = expandedActors.has(actorDisplayName);
         const hasUnresolvedIdentity = sessions.some((s) =>
           s.anomaly_flags.includes('unresolved_identity')
         );
 
         return (
-          <div key={actorDisplayName} className="mb-4 border border-gray-700 rounded-md">
+          <div key={actorDisplayName} className="mb-4 border border-border rounded-md">
             <div
-              className="flex items-center justify-between p-3 bg-gray-800 cursor-pointer hover:bg-gray-700"
+              className="flex items-center justify-between p-3 bg-surface-2 cursor-pointer hover:bg-muted"
               role="button"
               tabIndex={0}
               aria-expanded={isExpanded}
@@ -62,7 +71,7 @@ const ActorSessions: React.FC = () => {
               }}
             >
               <div className="flex items-center">
-                <span className="font-bold text-lg">{actorDisplayName}</span>
+                <span className="font-bold text-lg">{actorLabel}</span>
                 {hasUnresolvedIdentity && (
                   <AnomalyBadge flag="unresolved_identity" />
                 )}
@@ -71,7 +80,7 @@ const ActorSessions: React.FC = () => {
             </div>
             {isExpanded && (
               <div className="p-3">
-                <div className="flex font-bold border-b border-gray-600 pb-2 mb-2 text-sm">
+                <div className="flex font-bold border-b border-border pb-2 mb-2 text-sm">
                   <div className="w-1/5 p-1">Session ID</div>
                   <div className="w-1/5 p-1">Started At</div>
                   <div className="w-1/12 p-1 text-center">Exchanges</div>
@@ -84,7 +93,7 @@ const ActorSessions: React.FC = () => {
                   return (
                     <div
                       key={session.session_id}
-                      className="flex items-center border-b border-gray-700 hover:bg-gray-800 cursor-pointer text-sm"
+                      className="flex items-center border-b border-border hover:bg-surface-2 cursor-pointer text-sm"
                       role="button"
                       tabIndex={0}
                       onClick={() => handleSessionRowClick(session)}

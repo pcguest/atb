@@ -3,9 +3,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import type { DashboardRole } from "@/lib/roles";
+import { isThemePreference, type ThemePreference } from "@/lib/theme";
 
-export type ThemeMode = "dark" | "light";
+export type ThemeMode = ThemePreference;
 
 type StringStorage = {
   getItem: (name: string) => string | null;
@@ -14,16 +14,13 @@ type StringStorage = {
 };
 
 type UIStoreState = {
-  role: DashboardRole;
   theme: ThemeMode;
-  setRole: (role: DashboardRole) => void;
   setTheme: (theme: ThemeMode) => void;
   toggleTheme: () => void;
 };
 
-const defaultState: Pick<UIStoreState, "role" | "theme"> = {
-  role: "engineer",
-  theme: "dark",
+const defaultState: Pick<UIStoreState, "theme"> = {
+  theme: "system",
 };
 
 function createMemoryStorage(): StringStorage {
@@ -50,26 +47,28 @@ export const useUIStore = create<UIStoreState>()(
   persist(
     (set) => ({
       ...defaultState,
-      setRole: (role) => set({ role }),
       setTheme: (theme) => set({ theme }),
       toggleTheme: () =>
         set((state) => ({
-          theme: state.theme === "dark" ? "light" : "dark",
+          theme: state.theme === "system" ? "dark" : state.theme === "dark" ? "light" : "system",
         })),
     }),
     {
       name: "atb-ui-store-v1",
-      version: 2,
-      migrate: (persisted) => {
+      version: 4,
+      skipHydration: true,
+      migrate: (persisted, version) => {
         const state = persisted as Record<string, unknown>;
-        if (state.role === "executive") {
-          return { ...state, role: "security" as DashboardRole } as Partial<UIStoreState>;
+        if (version < 3 && state.theme === "dark") {
+          return { ...state, theme: "system" } as Partial<UIStoreState>;
+        }
+        if (!isThemePreference(state.theme)) {
+          return { ...state, theme: "system" } as Partial<UIStoreState>;
         }
         return state as Partial<UIStoreState>;
       },
       storage: createJSONStorage(resolveUIStorage),
       partialize: (state) => ({
-        role: state.role,
         theme: state.theme,
       }),
     },

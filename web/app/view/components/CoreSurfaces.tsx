@@ -10,7 +10,7 @@ export const actionClass = "inline-flex items-center gap-2 rounded-md border bor
 export const rowClass = "w-full border-b border-border px-4 py-3 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring";
 
 export function SplitWorkspace({ list, inspector }: { list: ReactNode; inspector: ReactNode }) {
-  return <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.9fr)]"><div className="min-w-0">{list}</div><div aria-label="Selection inspector" className="min-w-0 lg:sticky lg:top-4">{inspector}</div></div>;
+  return <div className="grid min-w-0 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.9fr)] xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.9fr)]"><div className="min-w-0">{list}</div><div aria-label="Selection inspector" className="min-w-0 lg:static">{inspector}</div></div>;
 }
 
 export function FilterBar({ search, setSearch, label, count, children }: { search: string; setSearch: (value: string) => void; label: string; count: string; children?: ReactNode }) {

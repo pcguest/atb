@@ -123,7 +123,7 @@ export function InvestigationNavigation({ active, onSelect, findingCount }: NavP
 export function CompactInvestigationNavigation({ active, onSelect, findingCount }: NavProps) {
   return (
     <nav
-      aria-label="Investigation"
+      aria-label="Investigation (compact)"
       className="flex shrink-0 flex-wrap gap-1 border-b border-border p-2 md:hidden"
     >
       {investigationSurfaces.map(([id, label, Icon]) => (

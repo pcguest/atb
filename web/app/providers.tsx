@@ -3,6 +3,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { ThemeSync } from "@/components/ThemeSync";
+
 function useAxeInDev(): void {
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") {
@@ -31,5 +33,10 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useAxeInDev();
 
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeSync />
+      {children}
+    </QueryClientProvider>
+  );
 }

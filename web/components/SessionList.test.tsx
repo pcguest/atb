@@ -51,7 +51,10 @@ describe("SessionList", () => {
     // Mock window.location.hash for navigation tests
     Object.defineProperty(window, "location", {
       value: {
+        href: "http://localhost:3000/sessions#session=test-token",
         hash: "#session=test-token",
+        pathname: "/sessions",
+        search: "",
       },
       writable: true,
     });
@@ -118,6 +121,16 @@ describe("SessionList", () => {
     ).toBeInTheDocument();
   });
 
+  it("uses the session id when the actor display name is empty", async () => {
+    (useSessionsQuery as Mock).mockReturnValue({
+      data: [{ ...mockSessions[0], actor: { display_name: "", email: "" } }],
+      isLoading: false,
+      error: null,
+    });
+    render(<SessionList />);
+    expect(await screen.findByRole("button", { name: /Open session s1 for s1/i })).toBeInTheDocument();
+  });
+
   it("navigates to bundle viewer on row click, preserving the session token", async () => {
     (useSessionsQuery as Mock).mockReturnValue({
       data: mockSessions,
@@ -131,7 +144,7 @@ describe("SessionList", () => {
     });
 
     expect(mockPush).toHaveBeenCalledWith(
-      "/view?bundlePath=%2Fpath%2Fto%2Fbundle1.atb#session=test-token",
+      "/view/?bundle_path=%2Fpath%2Fto%2Fbundle1.atb&session_id=s1&surface=run#session=test-token",
     );
   });
 
@@ -153,7 +166,7 @@ describe("SessionList", () => {
       await user.keyboard(key === " " ? "[Space]" : "[Enter]");
 
       expect(mockPush).toHaveBeenCalledWith(
-        "/view?bundlePath=%2Fpath%2Fto%2Fbundle1.atb#session=test-token",
+        "/view/?bundle_path=%2Fpath%2Fto%2Fbundle1.atb&session_id=s1&surface=run#session=test-token",
       );
     },
   );

@@ -219,7 +219,7 @@ function EventInspectorContent({ event, disabled = false, onReveal }: EventInspe
                         </p>
                       </TooltipContent>
                     </Tooltip>
-                    <p className="px-0.5 font-mono text-[10px] text-amber-400/90">
+                    <p className="px-0.5 font-mono text-[10px] text-warning">
                       writes privacy.reveal event to the .reveals sidecar
                     </p>
                   </div>
@@ -229,7 +229,7 @@ function EventInspectorContent({ event, disabled = false, onReveal }: EventInspe
           </div>
         )}
 
-        {error && <div role="alert" className="text-xs text-red-300">{error}</div>}
+        {error && <div role="alert" className="text-xs text-danger">{error}</div>}
 
         <details className="rounded border border-border" open>
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Rendered record (projection)</summary>

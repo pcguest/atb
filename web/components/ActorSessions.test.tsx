@@ -71,7 +71,10 @@ describe('ActorSessions', () => {
     });
     Object.defineProperty(window, 'location', {
       value: {
+        href: 'http://localhost:3000/sessions#session=test-token',
         hash: '#session=test-token',
+        pathname: '/sessions',
+        search: '',
       },
       writable: true,
     });
@@ -168,7 +171,7 @@ describe('ActorSessions', () => {
     });
 
     expect(mockPush).toHaveBeenCalledWith(
-      '/view?bundlePath=%2Fpath%2Fto%2Fbundle1.atb#session=test-token'
+      '/view/?bundle_path=%2Fpath%2Fto%2Fbundle1.atb&session_id=s1&surface=run#session=test-token'
     );
   });
 });

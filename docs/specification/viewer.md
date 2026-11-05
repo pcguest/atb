@@ -7,8 +7,16 @@
 **Cross-bundle session UI — shipped:** `GET /api/v1/sessions`,
 `GET /api/v1/sessions/by-actor`, and `GET /api/v1/schema/status` are
 implemented server-side. `SessionList`, `SchemaStatus`, and `ActorSessions`
-are mounted on `/sessions` through the authenticated API client. `RoleSelector`
-is mounted in the `/view` header and controls the role-aware panels.
+are mounted on `/sessions` through the authenticated API client.
+
+**Shared local-viewer shell — shipped:** `/workspace`, `/sessions`, and `/view`
+share a local-viewer shell with Library navigation (Bundles, Sessions),
+breadcrumbs, bundle/session context links, and a theme preference. On `/view`
+the shell also exposes the existing seven investigation destinations. Navigation
+preserves `bundle_path`, `session_id`, `surface`, `seq`, `from`, and `focus`
+where compatible and keeps the session token in the URL fragment. The old
+presentation-only role selector was removed because it had no presentation or authorisation
+effect.
 
 There is no hosted mode, collaborative workspace, or remote multi-tenant review surface.
 
@@ -68,7 +76,8 @@ Chosen flow: **Go API server + Next.js viewer UI**.
 1. `atb view` resolves and loads bundle.
 2. Go verifies hash chain before serving event data.
 3. Go serves:
-   - `GET /` (viewer shell; tamper page if invalid)
+   - `GET /` (embedded builds redirect valid bundles to `/view/`; invalid bundles serve the tamper page directly; no-embed builds serve install guidance)
+   - `GET /view/`, `GET /workspace/`, `GET /sessions/` (embedded static viewer routes)
    - `GET /api/v1/verification`
    - `GET /api/v1/bundle/meta`
    - `GET /api/v1/bundle/events?offset=&limit=`

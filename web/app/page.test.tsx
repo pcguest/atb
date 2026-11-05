@@ -13,7 +13,7 @@ describe("public homepage", () => {
       screen.getByText(/local-first evidence system for AI agents/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("img", { name: /ATB View investigating the recorded incident/i }),
+      screen.getByRole("img", { name: /ATB View showing the Run surface/i }),
     ).toHaveAttribute("src", expect.stringContaining("/product/investigation.png"));
     expect(
       screen.getByRole("link", { name: "Open the full-size ATB View investigation screenshot" }),

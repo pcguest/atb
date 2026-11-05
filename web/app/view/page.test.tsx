@@ -1,7 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useUIStore } from "@/lib/state/ui-store";
 
 vi.mock("@/app/view/components/ui/skeleton", () => ({
   Skeleton: () => <div data-testid="skeleton" />,
@@ -132,7 +131,6 @@ import { locateEvidence } from "@/lib/api-client";
 
 beforeEach(() => {
   window.history.replaceState(null, "", "/");
-  useUIStore.setState({ role: "engineer" });
 });
 afterEach(() => {
   cleanup();
@@ -180,12 +178,11 @@ describe("ATB View investigation model", () => {
     }
   });
 
-  it("keeps evidence visible in Auditor presentation mode", () => {
-    useUIStore.setState({ role: "auditor" });
+  it("does not expose a non-functional presentation role selector", () => {
     render(<ViewPage />);
+    expect(screen.queryByLabelText("Select presentation mode")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Evidence" })[0]);
     expect(screen.getByText("Exact records")).toBeInTheDocument();
-    expect(screen.queryByText(/available in the Engineer role/i)).not.toBeInTheDocument();
   });
 
   it("opens Evidence status from navigation", () => {
@@ -375,6 +372,19 @@ describe("ATB View investigation model", () => {
     expect(screen.getByRole("button", { name: /Copy full hash e{64}/ })).toBeInTheDocument();
   });
 
+  it("renders shared library breadcrumbs and preserves context in library links", () => {
+    window.history.replaceState(null, "", "/view/?bundle_path=demo.atb&session_id=session-1#session=secret-token");
+    render(<ViewPage />);
+    expect(screen.getByRole("navigation", { name: "Breadcrumb" })).toHaveTextContent(
+      "Library/Bundles/demo.atb/Run",
+    );
+    expect(screen.getAllByRole("link", { name: "Sessions" })[0]).toHaveAttribute(
+      "href",
+      "/sessions/?bundle_path=demo.atb&session_id=session-1#session=secret-token",
+    );
+    expect(screen.getByRole("combobox", { name: "Theme" })).toBeInTheDocument();
+  });
+
   it("restores the active investigation surface from the URL on load", () => {
     window.history.replaceState(null, "", "/?surface=timeline&seq=2");
     render(<ViewPage />);
@@ -434,7 +444,7 @@ describe("ATB View investigation model", () => {
   it("skip link focuses content without destroying the session fragment", () => {
     window.history.replaceState(null, "", "/view/#session=secret-token");
     render(<ViewPage />);
-    fireEvent.click(screen.getByRole("button", { name: "Skip to investigation content" }));
+    fireEvent.click(screen.getByRole("button", { name: "Skip to content" }));
     expect(window.location.hash).toBe("#session=secret-token");
     expect(document.getElementById("dashboard-content")).toHaveFocus();
   });
