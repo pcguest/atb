@@ -1,0 +1,16 @@
+# Gitleaks configuration.
+#
+# The default rules remain active. This file only narrows the allowlist for a
+# known false positive: the viewer URL-builder unit test (cmd/atb/view_test.go)
+# asserts that a synthetic session token never appears in routine output, and
+# the placeholder tokens match gitleaks' generic API-key heuristic. These are
+# non-secret test fixtures, not credentials.
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Synthetic session-token fixtures in the viewer URL builder unit test"
+  paths = [
+    '''cmd/atb/view_test.go''',
+  ]
