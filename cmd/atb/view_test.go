@@ -81,6 +81,15 @@ func TestParseViewArgs(t *testing.T) {
 			},
 		},
 		{
+			name: "print session url",
+			args: []string{"--print-session-url"},
+			want: viewConfig{
+				Host:            defaultViewHost,
+				Port:            8080,
+				PrintSessionURL: true,
+			},
+		},
+		{
 			name: "IPv6 loopback host override",
 			args: []string{"--host", "::1"},
 			want: viewConfig{
@@ -808,6 +817,95 @@ func TestValidateBrowserURLRestrictsLaunchesToLocalHTTP(t *testing.T) {
 		if err := validateBrowserURL(rawURL); err == nil {
 			t.Errorf("validateBrowserURL(%q) unexpectedly succeeded", rawURL)
 		}
+	}
+}
+
+func TestBuildViewURLsKeepsTokenOutOfDisplayURL(t *testing.T) {
+	const token = "synthetic-session-token-for-test"
+
+	cases := []struct {
+		name        string
+		addr        string
+		openPath    string
+		focusQuery  string
+		session     string
+		wantDisplay string
+		wantLaunch  string
+	}{
+		{
+			name:        "no token no focus",
+			addr:        "127.0.0.1:8080",
+			openPath:    "/view/",
+			wantDisplay: "http://127.0.0.1:8080/view/",
+			wantLaunch:  "http://127.0.0.1:8080/view/",
+		},
+		{
+			name:        "token no focus",
+			addr:        "127.0.0.1:8080",
+			openPath:    "/view/",
+			session:     token,
+			wantDisplay: "http://127.0.0.1:8080/view/",
+			wantLaunch:  "http://127.0.0.1:8080/view/#session=" + token,
+		},
+		{
+			name:        "token and focus",
+			addr:        "127.0.0.1:8080",
+			openPath:    "/view/",
+			focusQuery:  "focus=atb%3A%2F%2Fevidence",
+			session:     token,
+			wantDisplay: "http://127.0.0.1:8080/view/?focus=atb%3A%2F%2Fevidence",
+			wantLaunch:  "http://127.0.0.1:8080/view/?focus=atb%3A%2F%2Fevidence#session=" + token,
+		},
+		{
+			name:        "token with reserved characters is escaped",
+			addr:        "127.0.0.1:8080",
+			openPath:    "/view/",
+			session:     "abc&def=ghi%zz",
+			wantDisplay: "http://127.0.0.1:8080/view/",
+			wantLaunch:  "http://127.0.0.1:8080/view/#session=abc%26def%3Dghi%25zz",
+		},
+		{
+			name:        "no token with focus",
+			addr:        "127.0.0.1:8080",
+			openPath:    "/",
+			focusQuery:  "focus=x",
+			wantDisplay: "http://127.0.0.1:8080/?focus=x",
+			wantLaunch:  "http://127.0.0.1:8080/?focus=x",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			display, launch := buildViewURLs(tc.addr, tc.openPath, tc.focusQuery, tc.session)
+			if display != tc.wantDisplay {
+				t.Fatalf("display URL = %q, want %q", display, tc.wantDisplay)
+			}
+			if launch != tc.wantLaunch {
+				t.Fatalf("launch URL = %q, want %q", launch, tc.wantLaunch)
+			}
+			// The display URL must never carry the credential.
+			if strings.Contains(display, "#session=") {
+				t.Fatalf("display URL leaked session fragment: %q", display)
+			}
+			if tc.session != "" && strings.Contains(display, tc.session) {
+				t.Fatalf("display URL leaked session token: %q", display)
+			}
+			// The token must live only in the fragment, never in the query.
+			if strings.Contains(launch, "?session=") || strings.Contains(launch, "&session=") {
+				t.Fatalf("launch URL moved token into query: %q", launch)
+			}
+		})
+	}
+}
+
+func TestDisplayedViewURLRequiresOptIn(t *testing.T) {
+	const display = "http://127.0.0.1:8080/view/"
+	const launch = "http://127.0.0.1:8080/view/#session=secret"
+	if got := displayedViewURL(display, launch, false); got != display {
+		t.Fatalf("default output = %q, want display URL %q", got, display)
+	}
+	if got := displayedViewURL(display, launch, true); got != launch {
+		t.Fatalf("opt-in output = %q, want launch URL %q", got, launch)
 	}
 }
 

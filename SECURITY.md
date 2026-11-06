@@ -74,8 +74,9 @@ bundle inspection. The threat model is narrow by design.
 - All read API endpoints (`/api/v1/*`) require a session token (`X-ATB-Session-Token` header or
   `?session_token=` query parameter). The session token is a 32-byte CSPRNG value generated at
   startup. It is delivered to the browser in the URL fragment (`#session=<token>`) so it is never
-  automatically forwarded to the server by the browser. For `--no-open` usage, the full URL
-  (including fragment) is printed to stdout.
+  automatically forwarded to the server by the browser. Routine startup output prints a
+  credential-free display address; the credential-bearing URL is printed only when the operator
+  explicitly requests manual access with `--print-session-url`.
 - Privacy reveal operations require a separate, independently generated reveal token delivered
   via cookie, bearer header, or legacy header. Reveals are rate-limited (10 per minute per
   source address by default) and every successful reveal is appended as an auditable
@@ -95,9 +96,10 @@ bundle inspection. The threat model is narrow by design.
   `atb view` loads it. ATB detects tampering within a loaded chain but cannot detect pre-load
   replacement. Export to WORM-capable storage before relying on bundles as primary evidence in
   adversarial environments.
-- The session token is printed to the terminal and included in the browser URL bar. Anyone
-  with read access to the terminal session or browser history can see it. This is acceptable for
-  the intended single-operator local inspection use case.
+- The session token is included in the browser URL bar and, when the operator requests manual
+  access, in terminal output via `--print-session-url`. Anyone with read access to the browser
+  history or that terminal session can see it. This is acceptable for the intended
+  single-operator local inspection use case.
 - Bundle data is only served via the session-gated JSON API (`/api/v1/*`). The embedded
   Next.js viewer UI at `/view/` reads data exclusively through those API calls. There is no
   server-rendered HTML path that exposes event data outside the session-token model.
@@ -110,10 +112,12 @@ bundle inspection. The threat model is narrow by design.
 - Generated: one 32-byte CSPRNG value (hex-encoded, 64 characters) at server startup.
 - Override: `--session-token <hex>` supplies a fixed token (useful for scripting or
   automated testing).
-- Delivery: appended as a URL fragment (`#session=<token>`) to the startup URL printed to stdout
-  and used to open the browser. The fragment is never sent in HTTP requests by the browser. When
-  the embedded review UI is available the URL is `http://127.0.0.1:<port>/view/#session=<token>`;
-  for builds without the embedded review UI it is `http://127.0.0.1:<port>/#session=<token>`.
+- Delivery: appended as a URL fragment (`#session=<token>`) used to open the browser. The
+  fragment is never sent in HTTP requests by the browser. The routine startup line prints only
+  the credential-free display address; `--print-session-url` opts in to printing the
+  credential-bearing URL. When the embedded review UI is available the URL is
+  `http://127.0.0.1:<port>/view/#session=<token>`; for builds without the embedded review UI it
+  is `http://127.0.0.1:<port>/#session=<token>`.
 - Enforcement: all `/api/v1/` endpoints return HTTP 401 if the token is missing or incorrect.
   Comparison uses `crypto/subtle.ConstantTimeCompare` to prevent timing attacks.
 - Scope: protects the current viewer session on the local machine. Does not persist across

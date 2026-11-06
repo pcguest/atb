@@ -31,7 +31,7 @@ Auditor success bar:
 ## CLI interface
 
 ```bash
-atb view [--port 8080] [--bundle path/to/file.atb] [--profile <id-or-path>] [--sessions <glob-or-dir>] [--focus <atb-locator>]
+atb view [--port 8080] [--bundle path/to/file.atb] [--profile <id-or-path>] [--sessions <glob-or-dir>] [--focus <atb-locator>] [--print-session-url]
 ```
 
 Supported forms:
@@ -57,6 +57,11 @@ approval.
 Additional flags:
 - `--no-open`: do not auto-open browser
 - `--log-reveals`: retained for CLI compatibility; reveal auditing is always on
+- `--session-token <token>`: supply an explicit session token instead of the
+  generated one; never printed to routine output
+- `--print-session-url`: explicitly print the credential-bearing launch URL
+  (session token in the fragment) for manual access in headless or remote
+  environments. Routine output shows the credential-free display address only.
 - `--sessions`: glob or directory of additional `.atb` bundle paths used to build
   the session index alongside the primary `--bundle`. Example:
   `atb view --bundle ./session.atb --sessions ./sessions/`
@@ -68,6 +73,14 @@ use the visual interface.
 Security note: `atb view` accepts loopback hosts only. All API endpoints require a
 session token generated at startup and delivered to the browser in the URL fragment. The
 viewer is not network-hosted.
+
+By default, the startup message prints a credential-free display address. The session token
+is never written to routine stdout/stderr, tamper warnings, or error output; it
+reaches the browser only through the auto-opened launch URL (fragment) or, when
+the operator explicitly requests manual access with `--print-session-url`, in the
+printed credential-bearing URL. A token still passed to the OS browser launcher
+(`open`/`xdg-open`/`rundll32`) is briefly visible to same-user process inspection
+on the local machine; it is never sent to the HTTP server.
 
 ## Architecture
 

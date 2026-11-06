@@ -45,6 +45,10 @@ type viewConfig struct {
 	SessionPaths []string
 	OIDCIssuer   string
 	OIDCAudience string
+	// PrintSessionURL opts in to printing the credential-bearing launch URL
+	// (session token in the fragment) for manual access. Routine output never
+	// prints the token unless this is set.
+	PrintSessionURL bool
 	// FocusLocator is an optional ATB semantic evidence locator. It selects a
 	// single evidence record to focus in the viewer. The referenced bundle must
 	// be supplied explicitly; a locator head hash is not a filesystem path and
@@ -95,18 +99,19 @@ func cmdView() {
 	defer ln.Close()
 
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(port))
-	viewURL := "http://" + addr + openPath
+	focusQuery := ""
 	if cfg.FocusLocator != "" {
 		loc, err := locator.Parse(cfg.FocusLocator)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "atb view: invalid --focus locator: %v\n", err)
 			os.Exit(exitUserError)
 		}
-		viewURL += "?focus=" + url.QueryEscape(loc.String())
+		focusQuery = "focus=" + url.QueryEscape(loc.String())
 	}
-	if sessionToken != "" {
-		viewURL += "#session=" + sessionToken
-	}
+	// displayURL is safe for routine terminal output: it carries no credential.
+	// launchURL additionally carries the session token in the fragment and is
+	// used only for browser auto-open and explicit --print-session-url output.
+	displayURL, launchURL := buildViewURLs(addr, openPath, focusQuery, sessionToken)
 	if port != cfg.Port {
 		fmt.Fprintf(os.Stderr, "atb view: port %d unavailable; using %d\n", cfg.Port, port)
 	}
@@ -125,12 +130,12 @@ func cmdView() {
 	}()
 
 	if tamperDetected {
-		fmt.Printf("atb view: verification failed for %s; serving tamper warning at %s\n", bundlePath, viewURL)
+		fmt.Printf("atb view: verification failed for %s; serving tamper warning at %s\n", bundlePath, displayedViewURL(displayURL, launchURL, cfg.PrintSessionURL))
 	} else {
-		fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, eventCount, viewURL)
+		fmt.Printf("✓ Serving %s (%d events) at %s\n", bundlePath, eventCount, displayedViewURL(displayURL, launchURL, cfg.PrintSessionURL))
 	}
 	if !cfg.NoOpen {
-		if err := openBrowser(viewURL); err != nil {
+		if err := openBrowser(launchURL); err != nil {
 			fmt.Fprintf(os.Stderr, "atb view: could not auto-open browser: %v\n", err)
 		}
 	}
@@ -258,6 +263,35 @@ func generateRevealAuthToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(token[:]), nil
+}
+
+// buildViewURLs returns the display-safe URL and the credential-bearing launch
+// URL for atb view. The display URL never carries the session token; the launch
+// URL carries it only in the URL fragment, where the browser keeps it local and
+// the viewer reads it to authenticate API requests. focusQuery is the already
+// URL-escaped `focus=<locator>` fragment, or empty.
+func buildViewURLs(addr, openPath, focusQuery, sessionToken string) (displayURL, launchURL string) {
+	base := "http://" + addr + openPath
+	if focusQuery != "" {
+		base += "?" + focusQuery
+	}
+	if sessionToken == "" {
+		return base, base
+	}
+	// URL-escape the token so a custom --session-token containing reserved
+	// characters (&, #, %, =, …) cannot corrupt fragment parsing; the viewer
+	// decodes it via URLSearchParams.
+	return base, base + "#session=" + url.QueryEscape(sessionToken)
+}
+
+// displayedViewURL selects the URL shown in startup output: the credential-
+// bearing launch URL only when the operator explicitly requested it via
+// --print-session-url, otherwise the credential-free display URL.
+func displayedViewURL(displayURL, launchURL string, printSessionURL bool) string {
+	if printSessionURL {
+		return launchURL
+	}
+	return displayURL
 }
 
 func candidateViewPorts(port int, explicit bool) []int {
@@ -519,7 +553,7 @@ func newInstallFallbackHandler() http.Handler {
 }
 
 func printViewUsage() {
-	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>] [--focus <atb-locator>]")
+	fmt.Println("Usage: atb view [bundle_path] [--bundle path/to/file.atb] [--host 127.0.0.1] [--port 8080] [--no-open] [--log-reveals] [--profile <id-or-path>] [--session-token <hex-token>] [--print-session-url] [--sessions <glob-or-dir>] [--oidc-issuer <url>] [--oidc-audience <aud>] [--focus <atb-locator>]")
 }
 
 func parseViewArgs(args []string) (viewConfig, error) {
@@ -581,6 +615,8 @@ func parseViewArgs(args []string) (viewConfig, error) {
 			cfg.BundlePath = strings.TrimPrefix(arg, "--bundle=")
 		case arg == "--no-open":
 			cfg.NoOpen = true
+		case arg == "--print-session-url":
+			cfg.PrintSessionURL = true
 		case arg == "--log-reveals":
 			cfg.LogReveals = true
 		case arg == "--profile":

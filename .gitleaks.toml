@@ -1,0 +1,16 @@
+# Gitleaks configuration.
+#
+# The default rules remain active. This file narrows the allowlist for known
+# false positives only: synthetic placeholder tokens used by the viewer
+# URL-builder unit test. Exact-match regexes keep every other secret pattern in
+# the same files detectable.
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Known synthetic session-token placeholders (not credentials)"
+  regexes = [
+    '''0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef''',
+    '''synthetic-session-token-for-test''',
+  ]
