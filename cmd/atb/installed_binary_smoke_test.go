@@ -27,6 +27,10 @@ import (
 	apiv1 "github.com/pcguest/atb/v2/pkg/api/v1"
 )
 
+// smokeSessionToken is a deterministic synthetic token for the installed-binary
+// view smoke test. It is not a secret and must never appear in routine output.
+const smokeSessionToken = "smoke-session-token-0123456789abcdef"
+
 func TestInstalledBinarySmokeFlow(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping installed-binary smoke flow in short mode")
@@ -146,6 +150,15 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 			t.Fatalf("unexpected viewer chain length: got %d want 2", viewVerification.ChainLength)
 		}
 
+		// The startup output must not reveal the session token, even though the
+		// token was supplied explicitly.
+		if strings.Contains(viewServer.stdout.String(), smokeSessionToken) {
+			t.Fatalf("startup stdout leaked the session token:\n%s", viewServer.stdout.String())
+		}
+		if strings.Contains(viewServer.stderr.String(), smokeSessionToken) {
+			t.Fatalf("startup stderr leaked the session token:\n%s", viewServer.stderr.String())
+		}
+
 		viewResp, viewBody := httpGet(t, fmt.Sprintf("http://127.0.0.1:%d/view/", port))
 		if viewResp.StatusCode != http.StatusOK {
 			t.Fatalf("unexpected /view/ status: got %d want %d body=%s", viewResp.StatusCode, http.StatusOK, viewBody)
@@ -161,6 +174,42 @@ func TestInstalledBinarySmokeFlow(t *testing.T) {
 			}
 		}
 	})
+}
+
+func TestInstalledBinaryViewSessionURLPrivacy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping installed-binary privacy smoke flow in short mode")
+	}
+
+	repoRoot := repoRootForInstalledBinarySmoke(t)
+	binaryPath := buildInstalledBinary(t, repoRoot)
+	bundleDir := t.TempDir()
+	bundlePath := filepath.Join(bundleDir, bundle.DefaultPath())
+	if result := runCLIJSON[mutationResult](t, binaryPath, bundleDir, "init", "--format", "json"); result.Status != "ok" {
+		t.Fatalf("unexpected init result: %+v", result)
+	}
+
+	// Default (generated token, no --print-session-url): routine output must not
+	// reveal the session token.
+	port := reserveLocalPort(t)
+	server := startViewServerWithArgs(t, binaryPath, bundleDir,
+		"view", "--bundle", bundlePath, "--no-open", "--port", fmt.Sprintf("%d", port))
+	waitForViewStartupLine(t, server)
+	server.stop()
+	if strings.Contains(server.stdout.String(), "#session=") {
+		t.Fatalf("default startup output leaked a session token:\n%s", server.stdout.String())
+	}
+
+	// Explicit --print-session-url: the operator requested manual access, so the
+	// credential-bearing URL is printed.
+	port2 := reserveLocalPort(t)
+	printServer := startViewServerWithArgs(t, binaryPath, bundleDir,
+		"view", "--bundle", bundlePath, "--no-open", "--print-session-url", "--port", fmt.Sprintf("%d", port2))
+	waitForViewStartupLine(t, printServer)
+	printServer.stop()
+	if !strings.Contains(printServer.stdout.String(), "#session=") {
+		t.Fatalf("--print-session-url did not reveal the credential-bearing URL:\n%s", printServer.stdout.String())
+	}
 }
 
 func repoRootForInstalledBinarySmoke(t *testing.T) string {
@@ -309,15 +358,24 @@ type runningViewServer struct {
 
 func startInstalledViewServer(t *testing.T, binaryPath string, workDir string, bundlePath string, port int) runningViewServer {
 	t.Helper()
+	return startViewServerWithArgs(t, binaryPath, workDir,
+		"view", "--bundle", bundlePath, "--no-open", "--session-token", smokeSessionToken, "--port", fmt.Sprintf("%d", port))
+}
 
-	cmd := exec.Command(binaryPath, "view", "--bundle", bundlePath, "--no-open", "--port", fmt.Sprintf("%d", port))
+// startViewServerWithArgs starts the view command with an arbitrary argument
+// list so tests can exercise alternative startup configurations (generated token,
+// --print-session-url) without the standard smoke-test flags.
+func startViewServerWithArgs(t *testing.T, binaryPath string, workDir string, args ...string) runningViewServer {
+	t.Helper()
+
+	cmd := exec.Command(binaryPath, args...)
 	cmd.Dir = workDir
 	stdout := &syncBuffer{}
 	stderr := &syncBuffer{}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start installed view server: %v", err)
+		t.Fatalf("start view server: %v", err)
 	}
 
 	server := runningViewServer{
@@ -332,6 +390,25 @@ func startInstalledViewServer(t *testing.T, binaryPath string, workDir string, b
 	return server
 }
 
+// waitForViewStartupLine blocks until the view server prints its startup URL
+// line ("... at http://...") or exits early.
+func waitForViewStartupLine(t *testing.T, server runningViewServer) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		select {
+		case err := <-server.done:
+			t.Fatalf("view server exited before startup line: %v\nstdout:\n%s\nstderr:\n%s", err, server.stdout.String(), server.stderr.String())
+		default:
+		}
+		if strings.Contains(server.stdout.String(), " at http://") {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("view server did not print startup line\nstdout:\n%s\nstderr:\n%s", server.stdout.String(), server.stderr.String())
+}
+
 func (s runningViewServer) stop() {
 	if s.cmd.Process != nil {
 		_ = s.cmd.Process.Kill()
@@ -340,22 +417,6 @@ func (s runningViewServer) stop() {
 	case <-s.done:
 	case <-time.After(5 * time.Second):
 	}
-}
-
-// extractSessionTokenFromStdout parses the session token printed by the view server
-// in the startup URL line: "✓ Serving ... at http://.../#session=<token>"
-func extractSessionTokenFromStdout(stdout string) string {
-	const marker = "#session="
-	idx := strings.Index(stdout, marker)
-	if idx < 0 {
-		return ""
-	}
-	rest := stdout[idx+len(marker):]
-	end := strings.IndexAny(rest, " \t\r\n")
-	if end >= 0 {
-		rest = rest[:end]
-	}
-	return strings.TrimSpace(rest)
 }
 
 func waitForViewVerification(t *testing.T, server runningViewServer, port int) apiv1.VerificationResponse {
@@ -376,15 +437,12 @@ func waitForViewVerification(t *testing.T, server runningViewServer, port int) a
 		default:
 		}
 
-		sessionToken := extractSessionTokenFromStdout(server.stdout.String())
 		req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 		if err != nil {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		if sessionToken != "" {
-			req.Header.Set("X-ATB-Session-Token", sessionToken)
-		}
+		req.Header.Set("X-ATB-Session-Token", smokeSessionToken)
 		resp, err := client.Do(req)
 		if err == nil {
 			body, readErr := io.ReadAll(resp.Body)

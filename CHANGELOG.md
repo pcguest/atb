@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- `atb view` no longer prints the session token to routine startup output. The startup message, tamper warning, and error paths now show a credential-free display address; the token is delivered only through the auto-opened browser launch URL (fragment) or, when the operator explicitly requests manual access with the new `--print-session-url` flag, in the printed credential-bearing URL. A token still passed to the OS browser launcher (`open`/`xdg-open`/`rundll32`) is briefly visible to same-user process inspection on the local machine. API authentication, the URL-fragment delivery model, and `--session-token` behaviour are otherwise unchanged.
+
 ### Changed
 - The embedded local viewer now shares one navigation shell across `/workspace`, `/sessions`, and `/view`, with Library links, breadcrumbs, preserved bundle/session/surface/evidence context, trailing-slash static routes, and a system/light/dark theme preference. The existing seven investigation destinations and verification semantics are unchanged. The public homepage screenshot was regenerated from the current build.
 
