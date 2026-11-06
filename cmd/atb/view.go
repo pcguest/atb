@@ -278,7 +278,10 @@ func buildViewURLs(addr, openPath, focusQuery, sessionToken string) (displayURL,
 	if sessionToken == "" {
 		return base, base
 	}
-	return base, base + "#session=" + sessionToken
+	// URL-escape the token so a custom --session-token containing reserved
+	// characters (&, #, %, =, …) cannot corrupt fragment parsing; the viewer
+	// decodes it via URLSearchParams.
+	return base, base + "#session=" + url.QueryEscape(sessionToken)
 }
 
 // displayedViewURL selects the URL shown in startup output: the credential-

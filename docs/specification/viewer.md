@@ -74,7 +74,7 @@ Security note: `atb view` accepts loopback hosts only. All API endpoints require
 session token generated at startup and delivered to the browser in the URL fragment. The
 viewer is not network-hosted.
 
-The startup message prints a credential-free display address. The session token
+By default, the startup message prints a credential-free display address. The session token
 is never written to routine stdout/stderr, tamper warnings, or error output; it
 reaches the browser only through the auto-opened launch URL (fragment) or, when
 the operator explicitly requests manual access with `--print-session-url`, in the

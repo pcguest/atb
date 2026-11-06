@@ -194,6 +194,7 @@ func TestInstalledBinaryViewSessionURLPrivacy(t *testing.T) {
 	port := reserveLocalPort(t)
 	server := startViewServerWithArgs(t, binaryPath, bundleDir,
 		"view", "--bundle", bundlePath, "--no-open", "--port", fmt.Sprintf("%d", port))
+	t.Cleanup(server.stop)
 	waitForViewStartupLine(t, server)
 	server.stop()
 	if strings.Contains(server.stdout.String(), "#session=") {
@@ -205,6 +206,7 @@ func TestInstalledBinaryViewSessionURLPrivacy(t *testing.T) {
 	port2 := reserveLocalPort(t)
 	printServer := startViewServerWithArgs(t, binaryPath, bundleDir,
 		"view", "--bundle", bundlePath, "--no-open", "--print-session-url", "--port", fmt.Sprintf("%d", port2))
+	t.Cleanup(printServer.stop)
 	waitForViewStartupLine(t, printServer)
 	printServer.stop()
 	if !strings.Contains(printServer.stdout.String(), "#session=") {

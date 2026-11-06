@@ -857,6 +857,14 @@ func TestBuildViewURLsKeepsTokenOutOfDisplayURL(t *testing.T) {
 			wantLaunch:  "http://127.0.0.1:8080/view/?focus=atb%3A%2F%2Fevidence#session=" + token,
 		},
 		{
+			name:        "token with reserved characters is escaped",
+			addr:        "127.0.0.1:8080",
+			openPath:    "/view/",
+			session:     "abc&def=ghi%zz",
+			wantDisplay: "http://127.0.0.1:8080/view/",
+			wantLaunch:  "http://127.0.0.1:8080/view/#session=abc%26def%3Dghi%25zz",
+		},
+		{
 			name:        "no token with focus",
 			addr:        "127.0.0.1:8080",
 			openPath:    "/",
