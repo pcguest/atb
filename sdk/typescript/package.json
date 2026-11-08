@@ -61,7 +61,9 @@
   },
   "overrides": {
     "esbuild": "0.28.1",
-    "minimatch": "11.0.5",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.5"
+    },
     "vite": "8.3.4"
   },
   "engines": {
