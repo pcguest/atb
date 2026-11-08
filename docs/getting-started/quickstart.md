@@ -9,7 +9,7 @@ and a working understanding of the record-and-verify cycle.
 ## 1. Your first bundle in 5 minutes
 
 ```bash
-atb_install_dir="$(pwd)/.atb-cli"
+atb_install_dir="$HOME/.local/bin"
 GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
 export PATH="$atb_install_dir:$PATH"
 atb bundle new
@@ -144,15 +144,15 @@ again when choosing a version; use documentation matching the installed build.
 
 ```bash
 go list -m -json github.com/pcguest/atb/v2@latest
-atb_install_dir="$(pwd)/.atb-cli"
+atb_install_dir="$HOME/.local/bin"
 GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
 export PATH="$atb_install_dir:$PATH"
 "$atb_install_dir/atb" version
 go version -m "$atb_install_dir/atb"
 ```
 
-The explicit `.atb-cli` directory keeps this install separate from an older
-`atb` on PATH. The commands inspect that exact binary, then prepend its directory
+The explicit user-local install directory keeps generated binaries outside the
+checkout. The commands inspect that exact binary and prepend its directory
 for the remaining CLI examples.
 
 [`@latest`](https://go.dev/ref/mod#version-queries) follows Go's module-version

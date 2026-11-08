@@ -32,7 +32,7 @@ that checkpoint. SDK packages are libraries, not the full Go CLI or viewer.
 For the CLI without the embedded UI:
 
 ```sh
-atb_install_dir="$(pwd)/.atb-cli"
+atb_install_dir="$HOME/.local/bin"
 GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
 export PATH="$atb_install_dir:$PATH"
 "$atb_install_dir/atb" version
