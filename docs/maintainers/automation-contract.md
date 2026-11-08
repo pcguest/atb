@@ -76,7 +76,7 @@ Example valid event:
 
 - `bundle_path`: bundle file path used for evaluation
 - `profile_id`: canonical profile id in the form `atb.profile.<name>` when a profile matched or was selected; empty when no profile result is present
-- `pass`: combined gate. True only when the chain is valid and an evaluated profile passed, including any required anchor. An empty `profile_id` means no profile was evaluated. On an intact unsigned bundle that also leaves `gate_result.chain_valid` true, `critical_failures` empty, and the process at exit 0. A broken chain with no profile still sets `chain_valid` false, adds an integrity failure to `critical_failures`, and exits 2. A present signature that does not verify also exits 2 even when `chain_valid` is true. Gate automation on the exit code and `chain_valid`, not on `pass` alone. See [No profile selected](../verification-meaning.md#no-profile-selected).
+- `pass`: combined gate. True only when the chain is valid and an evaluated profile passed, including any required anchor. An empty `profile_id` means no profile was evaluated. On an intact unsigned bundle that also leaves `gate_result.chain_valid` true, `critical_failures` empty, and the process at exit 0. A broken chain with no profile still sets `chain_valid` false, adds an integrity failure to `critical_failures`, and exits 2. A present signature that does not verify also exits 2 even when `chain_valid` is true. Gate automation on the exit code and `chain_valid`, not on `pass` alone. When the caller requires a profile result, also require a non-empty `profile_id` and `profile_pass: true`. See [No profile selected](../verification-meaning.md#no-profile-selected).
 - `cas_score` (optional): completeness assurance score when the profile supports CAS
 - `cas_grade` (optional): `High|Medium|Low|Insufficient`
 - `sub_scores` (optional): CAS sub-score map keyed by `EC`, `FC`, `RC`, `TC`, `SC`, `XC`, `AC`, `GC`
@@ -96,8 +96,6 @@ Example valid event:
 - `profile_id`: matched or explicitly selected canonical profile id in the form `atb.profile.<name>` when present
 - `workflow_class`: workflow class from the evaluated profile when present
 - `pass`: whether the evaluated profile passed
-
-Markdown and text trust reports are a different document from this JSON object. Headings `Operational Safety (PASS)` and `Test Coverage (PASS)` mean named ATB source files were found in the working directory or embedded in the CLI. They are not a safety conclusion about the recorded workflow and not a test run. See [Trust-report file headings](../verification-meaning.md#trust-report-file-headings).
 - `cas_score` (optional): completeness assurance score when the profile supports CAS
 - `cas_grade` (optional): `High|Medium|Low|Insufficient`
 - `residual_risk`: string `Low|Medium|High|Critical` on the trust-report JSON (this is not the verify-report object)
@@ -106,6 +104,8 @@ Markdown and text trust reports are a different document from this JSON object. 
 - `sections[]`: profile-specific evidence sections
 - `warnings[]` (optional): required warnings from the evaluated profile
 - `blind_spots[]` (optional): declared profile blind spots
+
+Markdown and text trust reports are a different document from this JSON object. Markdown headings `Operational Safety (PASS)` and `Test Coverage (PASS)`, and the text keys `operational_safety` and `test_coverage`, mean named ATB source files were found in the working directory or embedded in the CLI. They are not a safety conclusion about the recorded workflow and not a test run. See [Trust-report file headings](../verification-meaning.md#trust-report-file-headings).
 
 Chain object:
 

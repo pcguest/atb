@@ -252,7 +252,8 @@ was measured. The bundle's chain result in the same report is
 `Cryptographic Integrity`. The markdown `Verdict`, and the text `Status`,
 aggregate every category in the report, including these file checks, the
 canonicalization-spec check, the documentation checks, and the chain. A
-missing advisory file makes that aggregate `WARN`. On an intact bundle with
+missing advisory file makes that aggregate `WARN` when no category has already
+failed. A failed category takes precedence. On an intact bundle with
 no profile the aggregate can still read `PASS` even though stable
 `atb verify --format json` keeps `pass: false`. That aggregate is not a
 profile assessment. `atb trust-report --format json` is a different document

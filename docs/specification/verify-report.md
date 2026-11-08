@@ -129,7 +129,7 @@ When using `atb verify --remote s3://...`, the response wraps `VerifierReport` w
 
 ## What to do next
 
-- If `profile_id` is empty, no profile was evaluated. `pass: false` in that case does not mean the hash chain failed. Rerun with `--profile <id>` when a profile assessment is required.
+- If `profile_id` is empty, no profile was evaluated. `pass: false` alone does not prove the hash chain failed: read `chain_valid` and `critical_failures`. Rerun with `--profile <id>` when a profile assessment is required.
 - If `pass` is false and `critical_failures` is non-empty, inspect those failures. An empty `critical_failures` array does not by itself mean the profile passed.
 - If `pass` is true but `residual_risk.level` is `Medium` or higher, review `required_warnings`, `sub_scores`, and the [CAS guide](../evidence/cas.md).
 - Machine-readable contract: `atb verify --schema` prints frozen JSON Schema (`verify.report.v1.schema.3`); `atb verify --schema --schema-out path.json` writes it to disk.
