@@ -14,7 +14,7 @@ It does **not** prove:
 
 ## What Verification Proves
 
-When `atb verify` (or `bundle.verify()`) returns **PASS**:
+When a verification result is described as **PASS**, read the label that carries that word. `Integrity: PASS` is the hash chain. `Profile: PASS` is a selected profile. The stable JSON field `pass` is a combined gate and stays false when no profile was evaluated. See [Machine-readable results](#machine-readable-results).
 
 | Property | What It Means |
 |----------|---------------|
@@ -36,6 +36,8 @@ When `atb verify` (or `bundle.verify()`) returns **PASS**:
 | **Causality** | Event A before Event B doesn't prove A caused B. |
 | **External authority** | ATB doesn't verify who had permission to act; that requires an independent identity and policy authority. |
 | **Objective continuity** | ATB doesn't determine whether an agent's objective drifted; that requires application-specific policy and review outside ATB. |
+| **External custody** | A local integrity result does not show that a bundle was retained by anyone else. Custody is a separate check of a receipt, store, and signer. |
+| **Legal or regulatory compliance** | Verification is not a certification, conformity assessment, or compliance determination. |
 
 ---
 
@@ -157,6 +159,105 @@ bundle's head hash.
 
 ---
 
+## Machine-readable results
+
+`atb verify` keeps four results separate. A false combined gate does not
+rewrite a chain result that was reported separately.
+
+| Result | Where it appears | Intact unsigned bundle, no profile, no anchor |
+| --- | --- | --- |
+| Hash-chain integrity | Text `Integrity: PASS`. Stable JSON `gate_result.chain_valid` and `integrity_valid`. Diagnostic `--json` field `integrity.chain_valid`. | Passes. The presented records match their recorded hashes. |
+| Profile evaluation | Header `Profile: none matched` whenever no profile matched. Summary `Profile: NOT EVALUATED` in that same case, including when the chain or a signature failed. `Verification: NOT EVALUATED` only when the chain is valid and any present signature verifies. Stable JSON `profile_id` and `gate_result.profile_pass`. | Not evaluated. `profile_id` is `""` and `profile_pass` is false. That false value is neither a successful profile assessment nor a hash-chain failure. |
+| Bundle signature | Text `Signature present` and, when a signature record exists, `Signature verified`. | `Signature present: no`. No bundle signature was checked. |
+| Process exit | The process status code. | `0` for this intact unsigned bundle. Exit `2` is a broken chain, a present signature that does not verify, or a requested `--with-anchor` or `--with-snapshot-check` failure. Exit `3` is a selected profile whose obligations failed; the same code is also used for some system errors, so read the report with the code. No profile result by itself is not exit `3`. |
+
+### No profile selected
+
+Stable `atb verify --format json` (`verify.report.v1`) for that bundle keeps:
+
+- `pass: false`
+- `gate_result.pass: false`
+- `gate_result.chain_valid: true`
+- `gate_result.profile_pass: false`
+- `profile_id: ""`
+- `critical_failures: []`
+
+`pass` is true only when the chain is valid, a profile result exists and
+passed, and any required anchor passed. With no profile result, profile
+assurance was not established, so the combined gate stays false. Read the
+chain from `chain_valid` or the text `Integrity` line. An empty
+`critical_failures` array means no profile obligation failed. It does not mean
+a profile passed.
+
+`residual_risk.level` may be `High` with a driver such as `No matching
+obligation profile evaluated.` That is a statement that no profile ran. It is
+not a finding that the hash chain failed.
+
+These booleans, the schema, and the exit codes are unchanged by this
+explanation. Callers that already treat an empty `profile_id` as unpassed
+should keep doing so, and should not treat `pass: false` alone as a broken
+chain.
+
+### Absent optional anchor
+
+Text prints `anchor: not present` when the bundle has no anchor record.
+
+Diagnostic `atb verify --json` can still contain:
+
+- `anchoring.anchor_present: false`
+- `anchoring.anchor_required: false`
+- `anchoring.status: "failed"`
+- summary `anchor: failed (anchor record not present)`
+
+Read `status` with the two booleans. When `anchor_present` and
+`anchor_required` are both false, no anchor record exists and no timestamp
+token was checked. The `failed` status is a legacy label for that absence. It
+is not evidence that an RFC 3161 verification was attempted, and it is not a
+clear way to say the anchor is absent. The stable `--format json` gate does
+not use `anchoring.status`. A present anchor keeps its own `verified`,
+`partial`, or `failed` result.
+
+### Signing and other commitments
+
+An intact chain shows that the records presented match the hashes recorded in
+that bundle. It does not show that those hashes are the original head. A
+bundle signature, an RFC 3161 anchor, or a custody receipt can commit to a
+head that a recomputed chain or an unsigned tail truncation would otherwise
+hide. Each commitment has its own verifier and its own trusted key or
+authority. None of them proves that every relevant event was captured, that
+recorded events are true, that the agent behaved safely or with authority,
+that a third party retained the bundle, or that a legal or regulatory duty was
+met.
+
+### Trust-report file headings
+
+`atb trust-report --format markdown` prints headings
+`## Operational Safety (PASS)` and `## Test Coverage (PASS)`. The text format
+prints the same categories as `operational_safety: PASS` and
+`test_coverage: PASS`. Those two categories do not read the workflow inside
+the bundle.
+
+`Operational Safety` passes when `SECURITY.md` and
+`docs/concepts/trust-model.md` are found in the current working directory or
+embedded in the CLI binary. `SECURITY.md` is checked twice, once as a security
+policy and once as an incident-response document.
+
+`Test Coverage` passes when `cmd/atb/main_test.go`,
+`test/golden/golden_test.go`, and `sdk/python/tests/test_properties.py` are
+found in the same way.
+
+PASS on either category means the named file was present. It does not mean
+the recorded agent was safe, that any test ran, or that a coverage percentage
+was measured. The bundle's chain result in the same report is
+`Cryptographic Integrity`. The markdown `Verdict`, and the text `Status`,
+aggregate every category in the report, including these file checks, the
+canonicalization-spec check, the documentation checks, and the chain. A
+missing advisory file makes that aggregate `WARN`. On an intact bundle with
+no profile the aggregate can still read `PASS` even though stable
+`atb verify --format json` keeps `pass: false`. That aggregate is not a
+profile assessment. `atb trust-report --format json` is a different document
+and does not use these headings.
+
 ## Quick Reference
 
 The terminal report keeps these results separate:
@@ -178,9 +279,11 @@ The terminal report keeps these results separate:
 
 Missing mandatory profile evidence still fails the applicable profile. With no
 matching profile, `Verification: NOT EVALUATED` describes profile evaluation;
-inspect integrity and signature results separately. These wording distinctions
-do not change JSON reports or CLI exit codes, and establish neither capture
-completeness, agent truthfulness nor safety.
+inspect integrity and signature results separately. The text wording above
+does not change the JSON values or exit codes described in
+[Machine-readable results](#machine-readable-results). Neither form establishes
+capture completeness, agent truthfulness, safe or authorised behaviour,
+external custody, or legal or regulatory compliance.
 
 | If you see... | It means... |
 |---------------|-------------|

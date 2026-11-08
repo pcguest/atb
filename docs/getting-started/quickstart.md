@@ -90,9 +90,11 @@ and check `integrity.chain_valid: true`.
 ### Common first-run outcomes
 
 - `pass: true` with a populated `profile_id` means the selected profile passed and the bundle chain is intact.
-- `profile_id: ""` means the bundle verified for integrity, but no workflow profile was selected or matched. This is common for manifest-only or zero-event bundles.
+- `profile_id: ""` means no workflow profile was selected or matched. This is common for manifest-only or zero-event bundles. In that case `pass` and `profile_pass` stay `false` even when the hash chain is intact. An empty `critical_failures` array does not mean the profile passed. Read `gate_result.chain_valid` or the text line `Integrity: PASS`, and expect exit 0. The full distinction is in [What verification means](../verification-meaning.md#no-profile-selected).
 - `pass: false` with non-empty `critical_failures` means the selected profile is missing required evidence.
-- `residual_risk.level: "Critical"` means do not treat the bundle as trustworthy evidence until you inspect the failure. Use `atb verify --json` when you need the diagnostic integrity report; `--format json` remains the stable automation contract.
+- `residual_risk.level: "Critical"` means do not treat the bundle as trustworthy evidence until you inspect the failure. `residual_risk.level: "High"` with a driver that no profile was evaluated is the no-profile case above, not a broken chain. Use `atb verify --json` when you need the diagnostic integrity report; `--format json` remains the stable automation contract. Diagnostic JSON can show `anchoring.status: "failed"` for an absent optional anchor. Read it with `anchor_present: false` and `anchor_required: false`: no timestamp check was attempted. See [Absent optional anchor](../verification-meaning.md#absent-optional-anchor).
+
+The markdown trust report from the first command can include `Operational Safety (PASS)` and `Test Coverage (PASS)`, and its opening `Verdict` can be `PASS` for an intact bundle. Those two headings mean the CLI found named ATB repository files in the working directory or embedded in the binary. They do not assess the workflow you recorded, and they do not mean tests ran. The bundle chain in that report is `Cryptographic Integrity`. This verdict is not the stable verify `pass` field. Details are in [Trust-report file headings](../verification-meaning.md#trust-report-file-headings).
 
 ### Verify against a specific profile
 

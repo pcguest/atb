@@ -67,7 +67,7 @@ This is the **stable automation contract**. For chain internals, nested `integri
 | `retrospective` | boolean | Optional. Set when evaluating a historical bundle outside live capture. |
 | `profile_id` | string | Canonical profile ID when matched or selected. Empty when no profile result. |
 | `profile_version` | integer | Profile schema version when a profile result is present. Omitted when no profile matched. |
-| `pass` | boolean | Overall gate pass: chain valid, profile pass, and anchor pass when required. |
+| `pass` | boolean | Combined gate. True only when the chain is valid, a profile result exists and passed, and any required anchor passed. False when no profile was evaluated, including when `chain_valid` is true and `critical_failures` is empty. That false value is not a hash-chain failure. |
 | `gate_result` | object | Decomposed gate outcome (see below). |
 | `cas_score` | number | Weighted CAS overall (`CAS.Overall`). Omitted when profile does not support CAS. |
 | `cas_grade` | string | `High`, `Medium`, `Low`, or `Insufficient`. |
@@ -89,7 +89,7 @@ This is the **stable automation contract**. For chain internals, nested `integri
 |-------|------|-------------|
 | `pass` | boolean | Combined gate: chain + profile + anchor (when required). |
 | `chain_valid` | boolean | Hash chain integrity. |
-| `profile_pass` | boolean | Selected profile obligation pass/fail. |
+| `profile_pass` | boolean | True only when a selected or matched profile's obligations passed. False when no profile was evaluated or when a profile failed. An empty `profile_id` means not evaluated, not a successful assessment. |
 | `anchor_required` | boolean | Whether anchor verification was requested/required. |
 | `anchor_pass` | boolean \| null | Anchor verification outcome when required; null otherwise. |
 
@@ -122,14 +122,15 @@ When using `atb verify --remote s3://...`, the response wraps `VerifierReport` w
 ## Semantics
 
 - `--format json` is profile-oriented and stable for CI/automation.
-- A bundle can be internally intact (`chain_valid: true`) and still return `pass: false` when required evidence is missing.
+- A bundle can be internally intact (`chain_valid: true`) and still return `pass: false` when required evidence is missing, and also when no profile was evaluated. For an intact unsigned bundle with no profile, `profile_id` is empty, `profile_pass` is false, `critical_failures` is empty, and the process exits 0. A broken chain with no profile sets `chain_valid` false, records an integrity failure in `critical_failures`, and exits 2. A present signature that does not verify also exits 2 while `chain_valid` can stay true. A failed selected profile exits 3 and fills `critical_failures`.
 - `cas_score` reflects base weighted completeness, not `effective_score` after corroboration bonus. Use `--json` for bonus details.
-- CAS is diagnostic when `profile_pass` is false; it does not overturn FAIL.
+- CAS is diagnostic when `profile_pass` is false; it does not overturn a failed chain or a failed profile.
+- Diagnostic `--json` can set `anchoring.status` to `failed` when `anchor_present` and `anchor_required` are both false. That legacy label means no anchor record was present. It does not mean a timestamp token was checked. See [What verification means](../verification-meaning.md#absent-optional-anchor).
 
 ## What to do next
 
-- If `profile_id` is empty, rerun with `--profile <id>`.
-- If `pass` is false, inspect `critical_failures` first.
+- If `profile_id` is empty, no profile was evaluated. `pass: false` in that case does not mean the hash chain failed. Rerun with `--profile <id>` when a profile assessment is required.
+- If `pass` is false and `critical_failures` is non-empty, inspect those failures. An empty `critical_failures` array does not by itself mean the profile passed.
 - If `pass` is true but `residual_risk.level` is `Medium` or higher, review `required_warnings`, `sub_scores`, and the [CAS guide](../evidence/cas.md).
 - Machine-readable contract: `atb verify --schema` prints frozen JSON Schema (`verify.report.v1.schema.3`); `atb verify --schema --schema-out path.json` writes it to disk.
 
