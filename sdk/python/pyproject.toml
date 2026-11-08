@@ -31,7 +31,7 @@ langchain = ["langchain>=0.3.28", "langchain-core>=0.2.0"]
 langgraph = ["langgraph>=0.2.0"]
 llamaindex = ["llama-index>=0.14.16"]
 pageindex = ["pageindex>=0.2.8"]
-dev = ["pytest>=8.4.2", "black", "mypy>=1.19.1,<2", "ruff"]
+dev = ["pytest>=8.4.2", "mypy>=1.19.1,<2", "ruff"]
 
 [project.urls]
 Homepage = "https://github.com/pcguest/atb"
@@ -41,10 +41,6 @@ Documentation = "https://github.com/pcguest/atb/blob/main/docs"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["atb*"]
-
-[tool.black]
-line-length = 88
-target-version = ["py39"]
 
 [tool.ruff]
 line-length = 88
