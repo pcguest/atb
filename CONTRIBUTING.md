@@ -17,15 +17,18 @@ cd atb
 make hygiene-quick
 ```
 
-For `atb view` or the embedded review UI, build the web layer first:
+For `atb view` with the embedded investigation UI, use Go 1.26.10 and Node.js
+22 with npm. From the checkout root:
 
 ```bash
-cd web
-npm ci
-npm run build
-cd ..
-go build -o atb ./cmd/atb
+make build
+./atb version
 ```
+
+`make build` builds the web assets before the Go binary. A `go install` build
+serves installation guidance instead of the investigation UI. See
+[installation options](docs/getting-started/quickstart.md#2-installation-options)
+for source/release version distinctions and viewer acceptance limitations.
 
 ## Development workflow
 

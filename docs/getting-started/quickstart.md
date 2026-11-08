@@ -1,9 +1,10 @@
 # ATB quickstart
 
 This guide is for a developer who wants to record and verify an AI workflow decision for the
-first time. It gets you to your first bundle in 5 minutes and requires no backend or network
-access. At the end you will have a verified `.atb` bundle on disk and a working understanding of
-the record-and-verify cycle.
+first time. After installation, the record-and-verify cycle runs locally without a
+backend or network access. Installation and dependency downloads require a
+network connection. At the end you will have a verified `.atb` bundle on disk
+and a working understanding of the record-and-verify cycle.
 
 ## 1. Your first bundle in 5 minutes
 
@@ -17,6 +18,10 @@ atb snapshot incident_review_failed
 atb verify --profile atb.profile.policy_decision --format json
 atb trust-report --profile atb.profile.policy_decision --format markdown
 ```
+
+`@latest` selects a Go module version, not necessarily the newest main commit.
+See [installation options](#2-installation-options) for published/source version
+differences and the source build needed for visual investigation.
 
 The Go CLI is the primary install path. The Python and TypeScript
 packages are SDKs that write the same `.atb` format.
@@ -116,38 +121,80 @@ ATB_LOCK_WAIT=10s atb snapshot ci_checkpoint
 
 ## 2. Installation options
 
-### Go CLI (Recommended for latest features)
+### Published packages and unreleased source
+
+As of **2026-11-08**, the latest [GitHub release](https://github.com/pcguest/atb/releases/latest),
+[PyPI SDK](https://pypi.org/project/atb-sdk/) and
+[npm SDK](https://www.npmjs.com/package/@pcguest/atb-sdk) are **1.18.1**. The
+repository's **2.0.0** version strings describe unreleased source; no 2.0.0 tag
+or registry package exists at this checkpoint. An in-tree version or changelog
+heading does not establish publication. Check those release/registry pages
+again when choosing a version; use documentation matching the installed build.
+
+| Route | Local verification | Investigation UI |
+| --- | --- | --- |
+| Published CLI release | Go CLI features for that release | Consult that release's assets/docs |
+| `go install` | Go CLI features for the resolved module version | Minimal installation guidance; no bundle data |
+| Source + `make build` | Current source CLI | Full embedded local UI |
+| Python or npm SDK package | SDK verification capabilities; Go CLI for profiles and incident analysis | No embedded Go viewer |
+
+### Go-installed CLI
 
 ```bash
+go list -m -json github.com/pcguest/atb/v2@latest
 go install github.com/pcguest/atb/v2/cmd/atb@latest
+atb version
+go version -m "$(command -v atb)"
 ```
 
-The Go CLI is the recommended installation method for accessing the latest features. A `go install` build serves a minimal install-guidance page for `atb view`; for the full embedded review UI, build from a checkout with `make build`.
+[`@latest`](https://go.dev/ref/mod#version-queries) follows Go's module-version
+selection rules: release versions take precedence; in the absence of an
+applicable tagged version Go can resolve a pseudo-version. It does not always
+mean main. At the checkpoint above, the v2 query resolved to
+`v2.0.0-20261108115548-779af5a73d8a`; this is a source pseudo-version, not a
+published v2.0.0 release. The `atb version` string alone does not identify the
+source revision; retain the `go version -m` module/build information too.
 
-### Python SDK
+### Source build with the investigation UI
+
+Prerequisites: Git, Go 1.26.10, Node.js 22 and npm. From a checkout, run the
+actual Makefile target, which installs/builds the web dependencies and then
+embeds the generated assets in the Go binary:
 
 ```bash
-pip install atb-sdk
+git clone https://github.com/pcguest/atb.git
+cd atb
+# Reproduce the 2026-11-08 integrated source checkpoint:
+git checkout 779af5a73d8a6fcb8536733798aab2238c235137
+make build
+./atb version
+./atb bundle new
+./atb append ai.request.received --data='{"request_id":"req-1042"}'
+./atb verify run.atb/bundle.atb
+./atb view run.atb/bundle.atb
 ```
 
-### TypeScript SDK
+Use `./atb` to select this build rather than another `atb` on PATH. To evaluate
+newer source, choose and record that revision explicitly. The source version
+string still does not imply a tagged or published release.
+
+The current viewer's human keyboard, screen-reader and 200%/400% zoom
+acceptance remains outstanding. Automated checks or historical owner reports
+do not establish that current acceptance. The viewer is not
+accessibility-certified; this developer preview prioritises the CLI.
+
+### Python and TypeScript SDKs
 
 ```bash
+python -m pip install atb-sdk
 npm install @pcguest/atb-sdk
 ```
 
-The Python and TypeScript packages are SDKs only. Their installed `atb`
-command is a compatibility stub that prints Go CLI install guidance and
-will be removed in a future major release.
-
-### Version Status and Recommendations
-
-> **Note**: Registry publication may occasionally lag behind the source tree.
->
-> **Recommendations**:
-> - For the latest features and behavior matching current documentation, use `go install` for the CLI or build from source
-> - If using SDKs from registries, check the installed version (`pip show atb-sdk` or `npm list @pcguest/atb-sdk`) against the documentation
-> - Behavior differences between versions may cause confusion if your installed version doesn't match the documentation you're reading
+These install the registry versions, which may differ from this source guide.
+They are SDKs only. Their installed `atb` command is a compatibility stub that
+prints Go CLI install guidance and is scheduled for removal in a future major
+release. Use the Go CLI for the full profile/incident workflow and a source
+build for the embedded UI.
 
 ## 3. Record your first bundle (Python SDK)
 
@@ -227,7 +274,7 @@ profile-coverage, and custody answers available immediately. Without
 to their supporting records.
 
 `atb view` requires building from source to include the embedded review UI:
-`cd web && npm ci && npm run build && cd .. && go build -o atb ./cmd/atb`
+`make build` from the checkout root (see [installation options](#2-installation-options)).
 
 If you install with `go install`, `atb view` serves a minimal install-guidance page with no
 bundle data. Build from source when you need the embedded review UI.

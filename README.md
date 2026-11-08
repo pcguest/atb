@@ -1,6 +1,6 @@
 # ATB: portable evidence for AI-agent incidents
 
-Source version: [`v2.0.0`](CHANGELOG.md)
+Source version: [`v2.0.0`](CHANGELOG.md) (unreleased; not a publication claim).
 
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
 [![Go version](https://img.shields.io/badge/go-1.26.10-blue)](https://go.dev/)
@@ -15,11 +15,30 @@ recorded claim is true.**
 
 ## Quickstart
 
-Install the CLI:
+Choose an installation route:
+
+| Route | CLI verification | Visual investigation |
+| --- | --- | --- |
+| Published CLI release | Features of that release; use its matching docs | Check that release’s assets and documentation |
+| `go install` | Yes, for the module version Go resolves | Install-guidance page only; no embedded investigation UI |
+| Source checkout + `make build` | Yes | Full embedded investigation UI |
+
+As of **2026-11-08**, the latest [GitHub release](https://github.com/pcguest/atb/releases/latest),
+[Python SDK](https://pypi.org/project/atb-sdk/) and
+[TypeScript SDK](https://www.npmjs.com/package/@pcguest/atb-sdk) are **1.18.1**.
+The current source reports **2.0.0**; no 2.0.0 tag or SDK publication exists at
+that checkpoint. SDK packages are libraries, not the full Go CLI or viewer.
+
+For the CLI without the embedded UI:
 
 ```sh
 go install github.com/pcguest/atb/v2/cmd/atb@latest
 ```
+
+`@latest` follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries);
+it does not promise the newest main commit. Check `atb version` and
+`go version -m "$(command -v atb)"` for the installed build. For a pinned source
+build and prerequisites, see [installation options](docs/getting-started/quickstart.md#2-installation-options).
 
 Create a bundle, record an event, and verify it:
 
@@ -37,8 +56,17 @@ embedded local viewer from source:
 git clone https://github.com/pcguest/atb.git
 cd atb
 make build
+./atb version
+./atb bundle new
+./atb append ai.request.received --data='{"request_id":"req-1042"}'
 ./atb view run.atb/bundle.atb
 ```
+
+Use Go 1.26.10 and Node.js 22 with npm; dependency downloads require network
+access. `make build` builds the web assets before embedding them in `./atb`.
+The current viewer’s human keyboard, screen-reader and 200%/400% zoom
+acceptance remains outstanding. It is not accessibility-certified. The
+developer preview prioritises CLI verification.
 
 ## Use ATB
 
