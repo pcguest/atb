@@ -146,6 +146,14 @@ required:
 			if tc.signature == "valid" && (report.BundleSignature == nil || !report.BundleSignature.Verified) {
 				t.Fatal("valid signature not established by verifier")
 			}
+			if tc.signature == "invalid" {
+				if report.BundleSignature == nil || !report.BundleSignature.Present || report.BundleSignature.Verified {
+					t.Fatalf("invalid signature verdict = %+v", report.BundleSignature)
+				}
+				if !strings.Contains(report.BundleSignature.Error, "signature mismatch") {
+					t.Fatalf("missing signature mismatch reason: %+v", report.BundleSignature)
+				}
+			}
 			if tc.signature == "" && report.BundleSignature != nil {
 				t.Fatal("unsigned fixture has signature result")
 			}
