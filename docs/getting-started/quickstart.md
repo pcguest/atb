@@ -9,7 +9,9 @@ and a working understanding of the record-and-verify cycle.
 ## 1. Your first bundle in 5 minutes
 
 ```bash
-go install github.com/pcguest/atb/v2/cmd/atb@latest
+atb_install_dir="$(pwd)/.atb-cli"
+GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
+export PATH="$atb_install_dir:$PATH"
 atb bundle new
 atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
 atb append ai.action.precommit --data='{"action_id":"act-1042","action_type":"route_case","action_parameters_digest":"sha256-route-tier-2","target_resource_id":"support-queue","intended_effect":"escalate_to_manual_review"}'
@@ -142,10 +144,16 @@ again when choosing a version; use documentation matching the installed build.
 
 ```bash
 go list -m -json github.com/pcguest/atb/v2@latest
-go install github.com/pcguest/atb/v2/cmd/atb@latest
-atb version
-go version -m "$(command -v atb)"
+atb_install_dir="$(pwd)/.atb-cli"
+GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
+export PATH="$atb_install_dir:$PATH"
+"$atb_install_dir/atb" version
+go version -m "$atb_install_dir/atb"
 ```
+
+The explicit `.atb-cli` directory keeps this install separate from an older
+`atb` on PATH. The commands inspect that exact binary, then prepend its directory
+for the remaining CLI examples.
 
 [`@latest`](https://go.dev/ref/mod#version-queries) follows Go's module-version
 selection rules: release versions take precedence; in the absence of an

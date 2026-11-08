@@ -32,12 +32,16 @@ that checkpoint. SDK packages are libraries, not the full Go CLI or viewer.
 For the CLI without the embedded UI:
 
 ```sh
-go install github.com/pcguest/atb/v2/cmd/atb@latest
+atb_install_dir="$(pwd)/.atb-cli"
+GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
+export PATH="$atb_install_dir:$PATH"
+"$atb_install_dir/atb" version
+go version -m "$atb_install_dir/atb"
 ```
 
 `@latest` follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries);
-it does not promise the newest main commit. Check `atb version` and
-`go version -m "$(command -v atb)"` for the installed build. For a pinned source
+it does not promise the newest main commit. The explicit install path above
+ensures the version/provenance checks inspect the binary just installed. For a pinned source
 build and prerequisites, see [installation options](docs/getting-started/quickstart.md#2-installation-options).
 
 Create a bundle, record an event, and verify it:

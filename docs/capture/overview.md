@@ -7,13 +7,13 @@ everything an agent might do.
 ## Chatlog import
 
 For the visual step below, first [build the CLI with the embedded UI](../getting-started/quickstart.md#source-build-with-the-investigation-ui)
-and use that binary on PATH. `go install` provides CLI verification but only
+and run this example from that checkout root using `./atb`. `go install` provides CLI verification but only
 installation guidance for `atb view`.
 
 ```bash
-atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl --snapshot imported_chatlog
-atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
-atb view --bundle run.atb/bundle.atb
+./atb import chatlog --from generic-jsonl --input testdata/chatlog.jsonl --snapshot imported_chatlog
+./atb verify --bundle run.atb/bundle.atb --profile atb.profile.rag_answer --format json
+./atb view --bundle run.atb/bundle.atb
 ```
 
 Example input: [`testdata/chatlog.jsonl`](../../testdata/chatlog.jsonl). Schema:
