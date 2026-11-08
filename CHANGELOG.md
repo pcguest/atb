@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Security
+- Updated development-only web and TypeScript tooling dependencies for current Dependabot advisories: `minimatch` 11.0.5, `follow-redirects` 1.16.2, `qs` 6.17.1, and `systeminformation` 5.33.19. The same web lockfile update moves `joi` from 18.2.9 to 18.3.2 for GHSA-4528-x5fx-h6hg, which `npm audit` reported and Dependabot had not yet opened. These packages are installed by lint, test, or browser-test tooling. The Go CLI, bundle format, and embedded viewer runtime do not import them.
+- Removed Black from the Python SDK development extra. CI formatting and linting remain Ruff. GHSA-cg8m-r9f2-5wm2 concerns Black's bundled GitHub Action when `use_pyproject` is enabled, not standalone `black` CLI use, and this repository does not use that Action. The advisory-fixed package, Black 26.10.1, requires Python >=3.10 and reformats `sdk/python/atb/pageindex.py` in a way Ruff 0.16.1 rejects, so upgrading the pin would change the enforced formatting contract.
+
 - `atb view` no longer prints the session token to routine startup output. The startup message and tamper warning now show a credential-free display address, while error paths no longer expose the token; the token is delivered only through the auto-opened browser launch URL (fragment) or, when the operator explicitly requests manual access with the new `--print-session-url` flag, in the printed credential-bearing URL. A token still passed to the OS browser launcher (`open`/`xdg-open`/`rundll32`) is briefly visible to same-user process inspection on the local machine. API authentication, the URL-fragment delivery model, and `--session-token` behaviour are otherwise unchanged.
 
 ### Changed
