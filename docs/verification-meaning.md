@@ -159,6 +159,29 @@ bundle's head hash.
 
 ## Quick Reference
 
+The terminal report keeps these results separate:
+
+- `Integrity: PASS` means the presented hash chain is internally consistent.
+- `Signature present: no` means no bundle-signature event was found.
+  `Signature present: yes` reports a signature record; only
+  `Signature verified: yes` affirms successful cryptographic verification.
+  An invalid signature still fails verification and returns exit code 2.
+- Profile obligation lines describe recorded events and required fields. A
+  recorded `atb.bundle.signature` event alone does not establish a valid
+  cryptographic signature; consult the Bundle Signature section.
+- Source Commitment (SC) is diagnostic evidence coverage. A manifest or request
+  can contribute to SC without any cryptographic bundle signature.
+- `anchor: not present` means no anchor was recorded, rather than a
+  failed verification attempt. `anchor: not present (required)` identifies an
+  unmet anchor requirement. A present anchor retains its `verified`, `partial`,
+  or `failed` verification result and explanation.
+
+Missing mandatory profile evidence still fails the applicable profile. With no
+matching profile, `Verification: NOT EVALUATED` describes profile evaluation;
+inspect integrity and signature results separately. These wording distinctions
+do not change JSON reports or CLI exit codes, and establish neither capture
+completeness, agent truthfulness nor safety.
+
 | If you see... | It means... |
 |---------------|-------------|
 | `Integrity: PASS` | Bundle hash chain is intact |
