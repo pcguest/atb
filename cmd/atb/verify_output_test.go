@@ -159,9 +159,10 @@ func TestRenderVerifyTerminalReport_PrintsAnchorStates(t *testing.T) {
 		{
 			name: "failed",
 			result: verifypkg.AnchoringResult{
-				Status:  "failed",
-				Summary: "anchor: failed (digest mismatch)",
-				Reason:  "digest mismatch",
+				AnchorPresent: true,
+				Status:        "failed",
+				Summary:       "anchor: failed (digest mismatch)",
+				Reason:        "digest mismatch",
 			},
 			want: "anchor: failed (digest mismatch)\nReason: digest mismatch\n",
 		},

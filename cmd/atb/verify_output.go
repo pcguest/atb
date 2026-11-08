@@ -78,7 +78,15 @@ func renderVerifyTerminalReport(w io.Writer, report verifypkg.Report) {
 
 	fmt.Fprintln(w, "Anchoring")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, report.Anchoring.Summary)
+	if !report.Anchoring.AnchorPresent {
+		if report.Anchoring.AnchorRequired {
+			fmt.Fprintln(w, "anchor: not present (required)")
+		} else {
+			fmt.Fprintln(w, "anchor: not present")
+		}
+	} else {
+		fmt.Fprintln(w, report.Anchoring.Summary)
+	}
 	if report.Anchoring.AnchorHash != "" {
 		fmt.Fprintf(w, "Anchor hash: %s\n", report.Anchoring.AnchorHash)
 	}
@@ -297,13 +305,14 @@ func humaniseWorkflowClass(workflowClass string) string {
 
 func obligationLines(report verifypkg.Report) []verifyOutputLine {
 	if len(report.Profiles) == 0 {
+		lines := []verifyOutputLine{{status: verifyLineNote, text: "No profile-specific obligations evaluated."}}
 		if report.CAS != nil && report.CAS.SubScores["SC"] > 0 {
-			return []verifyOutputLine{{
-				status: verifyLinePass,
-				text:   fmt.Sprintf("%s Source commitment evidence present", event.TypeBundleSignature),
-			}}
+			lines = append(lines, verifyOutputLine{
+				status: verifyLineNote,
+				text:   "Source commitment evidence contributes to CAS; see Bundle Signature for cryptographic verification.",
+			})
 		}
-		return []verifyOutputLine{{status: verifyLineNote, text: "No profile-specific obligations evaluated."}}
+		return lines
 	}
 
 	profile := report.Profiles[0]
@@ -468,6 +477,9 @@ func loadOutputSchema(profileID string) (profiledsl.ProfileSchema, bool) {
 // they must not be reused verbatim on a passing line where they read as a
 // contradiction next to the ✓ marker.
 func obligationPassText(spec verifyObligationSpec) string {
+	if spec.eventType == event.TypeBundleSignature {
+		return spec.eventType + " — event recorded; see Bundle Signature for cryptographic verification"
+	}
 	if spec.warning {
 		return spec.eventType + " — recorded (recommended)"
 	}
