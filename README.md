@@ -50,7 +50,8 @@ go version -m "$atb_install_dir/atb"
 That query resolves to module version `v2.0.0-20261109054510-07ec8ba793a5`,
 commit `07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. `atb version` still prints
 `2.0.0` from the source string. That string is not a published release.
-`@latest` follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries)
+`go install github.com/pcguest/atb/v2/cmd/atb@latest` remains the unpinned
+module query. It follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries)
 and does not mean this commit. For prerequisites, see
 [installation options](docs/getting-started/quickstart.md#2-installation-options).
 
