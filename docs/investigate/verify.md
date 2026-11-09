@@ -12,7 +12,11 @@ atb trust-report --bundle evidence.atb --format markdown
 
 Treat a chain failure as a hard integrity failure. A passing chain means the
 presented records retain their recorded bytes and order; it does not establish
-capture completeness or factual truth.
+capture completeness, factual truth, safe or authorised behaviour, external
+custody, or legal compliance. Stable `--format json` can still show
+`pass: false` and `profile_pass: false` when no profile was evaluated. That
+pair, with an empty `profile_id` and empty `critical_failures`, is not a
+broken chain. See [Machine-readable results](../verification-meaning.md#machine-readable-results).
 
 For incident evidence, discover sessions and follow each deterministic finding
 to its record sequence and hash:
