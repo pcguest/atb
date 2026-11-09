@@ -61,6 +61,7 @@ experimental and is outside the CLI preview acceptance sequence. Independent
 manual accessibility acceptance has not been run.
 
 ```bash
+# After `make build` in the source checkout. `go install` does not create ./atb.
 ./atb view \
   --bundle run.atb/incident-demo/incident.atb \
   --profile atb.profile.policy_decision

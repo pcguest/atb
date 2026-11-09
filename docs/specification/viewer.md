@@ -317,7 +317,7 @@ Clicking a session row opens the existing single-bundle viewer for
 
 ### Investigation View (`/view`)
 
-Shipped `/view` is Run-first investigation. It is not a Health or Trust Dashboard.
+Implemented `/view` is Run-first investigation. It is not a Health or Trust Dashboard.
 
 ### Run projection
 
@@ -372,7 +372,7 @@ Invalid hash-chain state shows tamper-first UX and blocks data endpoints. Profil
 
 ## Performance
 
-Shipped `/view` does not claim 10k-event UI smoothness. Evidence uses paginated `GET /api/v1/bundle/events` (page size 200) plus load-more, and the inspector renders one selected event. Investigation Timeline, Context, and Relationships lists are unvirtualised and unpaginated. The optional Relationships graph is unbounded. Large-bundle smoothness is documented debt, not a shipped guarantee.
+Implemented `/view` does not claim 10k-event UI smoothness. Evidence uses paginated `GET /api/v1/bundle/events` (page size 200) plus load-more, and the inspector renders one selected event. Investigation Timeline, Context, and Relationships lists are unvirtualised and unpaginated. The optional Relationships graph is unbounded. Large-bundle smoothness is documented debt, not a guarantee of the implemented surface.
 
 ## Error handling
 
