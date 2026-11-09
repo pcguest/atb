@@ -13,6 +13,14 @@ can be verified offline.
 that every relevant event was captured, that the actor was honest, or that a
 recorded claim is true.**
 
+The selected developer-preview candidate is the Go CLI at commit
+`07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. It covers local capture, portable
+bundles, integrity verification, optional signing, profile evaluation, and
+machine-readable output. It is not a published release, a custody service, or
+a compliance certification. The source-built investigation UI remains
+available as an experimental local surface. It is implemented, and its
+independent manual accessibility acceptance has not been run.
+
 ## Quickstart
 
 Choose an installation route:
@@ -21,7 +29,7 @@ Choose an installation route:
 | --- | --- | --- |
 | Published CLI release | Features of that release; use its matching docs | Check that release’s assets and documentation |
 | `go install` | Yes, for the module version Go resolves | Install-guidance page only; no embedded investigation UI |
-| Source checkout + `make build` | Yes | Full embedded investigation UI |
+| Source checkout + `make build` | Yes | Experimental embedded UI; implemented, manual accessibility acceptance not run |
 
 As of **2026-11-08**, the latest [GitHub release](https://github.com/pcguest/atb/releases/latest),
 [Python SDK](https://pypi.org/project/atb-sdk/) and
@@ -29,20 +37,22 @@ As of **2026-11-08**, the latest [GitHub release](https://github.com/pcguest/atb
 The current source reports **2.0.0**; no 2.0.0 tag or SDK publication exists at
 that checkpoint. SDK packages are libraries, not the full Go CLI or viewer.
 
-For the CLI without the embedded UI:
+Install the preview candidate without the embedded UI:
 
 ```sh
 atb_install_dir="$HOME/.local/bin"
-GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
+GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 export PATH="$atb_install_dir:$PATH"
 "$atb_install_dir/atb" version
 go version -m "$atb_install_dir/atb"
 ```
 
-`@latest` follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries);
-it does not promise the newest main commit. The explicit install path above
-ensures the version/provenance checks inspect the binary just installed. For a pinned source
-build and prerequisites, see [installation options](docs/getting-started/quickstart.md#2-installation-options).
+That query resolves to module version `v2.0.0-20261109054510-07ec8ba793a5`,
+commit `07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. `atb version` still prints
+`2.0.0` from the source string. That string is not a published release.
+`@latest` follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries)
+and does not mean this commit. For prerequisites, see
+[installation options](docs/getting-started/quickstart.md#2-installation-options).
 
 Create a bundle, record an event, and verify it:
 
@@ -53,12 +63,17 @@ atb verify run.atb/bundle.atb
 ```
 
 For a complete walkthrough, including Python and TypeScript SDKs, see the
-[five-minute quickstart](docs/getting-started/quickstart.md). To build the
-embedded local viewer from source:
+[five-minute quickstart](docs/getting-started/quickstart.md).
+
+The source build below is optional. It is outside the CLI preview acceptance
+sequence. The embedded viewer is implemented and remains experimental.
+Independent manual keyboard, screen-reader, and 200%/400% zoom acceptance has
+not been run.
 
 ```sh
 git clone https://github.com/pcguest/atb.git
 cd atb
+git checkout 07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 make build
 ./atb version
 ./atb bundle new
@@ -68,9 +83,7 @@ make build
 
 Use Go 1.26.10 and Node.js 22 with npm; dependency downloads require network
 access. `make build` builds the web assets before embedding them in `./atb`.
-The current viewer’s human keyboard, screen-reader and 200%/400% zoom
-acceptance remains outstanding. It is not accessibility-certified. The
-developer preview prioritises CLI verification.
+`go install` does not embed that UI.
 
 ## Use ATB
 

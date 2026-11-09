@@ -81,9 +81,14 @@ ATB_RELEASE_PYTHON=.venv-release/bin/python \
   SKIP_DOCKER=1 EXPECT=2.0.0 bash scripts/release-check.sh
 ```
 
-`make build` produces `./atb` with the full embedded local viewer. The gold gate
-runs the production viewer build, Go tests, security scans, coverage,
-Firefox E2E, and accessibility. Run the full Python SDK (`.venv/bin/python -m
+`make build` produces `./atb` with the embedded local viewer. The gold gate
+runs the viewer build, Go tests, security scans, coverage, Firefox end-to-end
+tests, and automated accessibility checks, including axe and Cypress. Those
+automated results, and an HTTP response from `atb view`, do not replace manual
+keyboard, screen-reader, focus-order, or 200%/400% zoom acceptance. The
+six-task human evaluation of the viewer remains outstanding.
+
+Run the full Python SDK (`.venv/bin/python -m
 pytest sdk/python/tests`), TypeScript SDK (`npm --prefix sdk/typescript test`),
 and View Vitest (`npm --prefix web test`) suites separately; gold does not own
 those full suites. `release-check.sh` rebuilds and validates the
@@ -138,8 +143,10 @@ longer matches. Exit `0` would be a release blocker.
 
 Open the generated loopback URL in Firefox and confirm the incident, ordered
 events, record hashes, profile/CAS information, and verification result agree
-with the CLI. A source build contains the full viewer. A `go install` build has
-the CLI but intentionally serves only viewer-installation guidance.
+with the CLI. A source build contains the experimental embedded viewer. A
+`go install` build has the CLI but intentionally serves only
+viewer-installation guidance. This visual comparison is not the outstanding
+six-task manual accessibility evaluation.
 
 ## 6. Test the Python package as a consumer
 

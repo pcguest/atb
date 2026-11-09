@@ -10,7 +10,7 @@ and a working understanding of the record-and-verify cycle.
 
 ```bash
 atb_install_dir="$HOME/.local/bin"
-GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
+GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 export PATH="$atb_install_dir:$PATH"
 atb bundle new
 atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
@@ -21,9 +21,12 @@ atb verify --profile atb.profile.policy_decision --format json
 atb trust-report --profile atb.profile.policy_decision --format markdown
 ```
 
-`@latest` selects a Go module version, not necessarily the newest main commit.
+This install is the selected Go CLI preview candidate, commit
+`07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. It resolves to
+`v2.0.0-20261109054510-07ec8ba793a5`. `@latest` does not mean this commit.
 See [installation options](#2-installation-options) for published/source version
-differences and the source build needed for visual investigation.
+differences. The source build for the experimental viewer is separate from
+this CLI sequence.
 
 The Go CLI is the primary install path. The Python and TypeScript
 packages are SDKs that write the same `.atb` format.
@@ -39,15 +42,7 @@ make demo-incident
 The script creates an offline bundle containing a denied policy decision, an
 unapproved tool call, a failed action, a human override with reviewer identity
 evidence, and a closed session. It then runs `verify`, `trust-report`,
-`incident list`, and `incident report`. Open the same bundle in the local
-viewer:
-
-```bash
-./atb view \
-  --bundle run.atb/incident-demo/incident.atb \
-  --profile atb.profile.policy_decision
-```
-
+`incident list`, and `incident report`. The CLI sequence ends there.
 This is the canonical ATB workflow: the AI workflow itself can fail
 while the audit evidence still verifies cleanly. Use the snapshot name
 to label workflow state. `atb verify` checks the hash chain and any
@@ -60,6 +55,16 @@ even when a bundle contains events that could match more than one built-in
 profile. For
 the full local review and export path, continue with [Run
 forensics](../investigate/incidents.md).
+
+Opening the same bundle in the local viewer is optional. That surface is
+experimental and is outside the CLI preview acceptance sequence. Independent
+manual accessibility acceptance has not been run.
+
+```bash
+./atb view \
+  --bundle run.atb/incident-demo/incident.atb \
+  --profile atb.profile.policy_decision
+```
 
 ### What the output means
 
@@ -139,10 +144,20 @@ again when choosing a version; use documentation matching the installed build.
 | --- | --- | --- |
 | Published CLI release | Go CLI features for that release | Consult that release's assets/docs |
 | `go install` | Go CLI features for the resolved module version | Minimal installation guidance; no bundle data |
-| Source + `make build` | Current source CLI | Full embedded local UI |
+| Source + `make build` | Current source CLI | Experimental embedded UI; manual accessibility acceptance not run |
 | Python or npm SDK package | SDK verification capabilities; Go CLI for profiles and incident analysis | No embedded Go viewer |
 
 ### Go-installed CLI
+
+The preview candidate does not embed the investigation UI:
+
+```bash
+GOBIN="$HOME/.local/bin" go install github.com/pcguest/atb/v2/cmd/atb@07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
+```
+
+That query resolves to `v2.0.0-20261109054510-07ec8ba793a5`, commit
+`07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. The `@latest` commands below are a
+different query and do not mean this commit.
 
 ```bash
 go list -m -json github.com/pcguest/atb/v2@latest
@@ -174,8 +189,8 @@ embeds the generated assets in the Go binary:
 ```bash
 git clone https://github.com/pcguest/atb.git
 cd atb
-# Reproduce the 2026-11-08 integrated source checkpoint:
-git checkout 779af5a73d8a6fcb8536733798aab2238c235137
+# Preview candidate. This source build embeds the experimental viewer.
+git checkout 07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 make build
 ./atb version
 ./atb bundle new
@@ -188,10 +203,10 @@ Use `./atb` to select this build rather than another `atb` on PATH. To evaluate
 newer source, choose and record that revision explicitly. The source version
 string still does not imply a tagged or published release.
 
-The current viewer's human keyboard, screen-reader and 200%/400% zoom
-acceptance remains outstanding. Automated checks or historical owner reports
-do not establish that current acceptance. The viewer is not
-accessibility-certified; this developer preview prioritises the CLI.
+This source build is optional and sits outside the CLI preview acceptance
+sequence. The embedded viewer is implemented and remains experimental.
+Independent manual keyboard, screen-reader, and 200%/400% zoom acceptance
+has not been run. Automated checks do not establish that acceptance.
 
 ### Python and TypeScript SDKs
 
@@ -261,7 +276,12 @@ bundle.verify();
 
 For a runnable TypeScript quickstart example, see [examples/typescript/](../../examples/typescript/).
 
-## 5. Open the local review UI
+## 5. Optional experimental local viewer
+
+This walkthrough is not part of the CLI preview acceptance sequence. The
+viewer is implemented in a source build and remains experimental.
+Independent manual accessibility acceptance has not been run. `go install`
+does not embed this UI.
 
 ```bash
 # Default bundle path

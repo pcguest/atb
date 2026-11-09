@@ -2,14 +2,21 @@
 
 ## Status
 
-**Single-bundle viewer (`/view/`) — shipped:** local `atb view` API server with verification gate and privacy reveal flow. Investigation View is Run-first: Run, Findings, Timeline, Context, Relationships, Evidence, and Evidence status. Evidence status answers Integrity, Coverage, and Corroboration. There is no Health score, Trust Dashboard, stats strip, Profile/CAS panel, or `SessionAnomalies` banner on `/view`. Reveal audit logging is written to a separate `<bundle>.reveals` sidecar, never into the authoritative bundle.
+For this developer preview, keep four facts separate:
 
-**Cross-bundle session UI — shipped:** `GET /api/v1/sessions`,
+- **Implemented in source.** The local routes and behaviours below exist in this repository.
+- **Technically available.** `make build` embeds the UI. `go install` serves installation guidance and does not embed it.
+- **Experimental for this preview.** The selected preview candidate is the Go CLI. The viewer is not part of that acceptance claim.
+- **Independently accessibility-accepted.** Not run. Keyboard, screen-reader, focus-order, and 200%/400% zoom acceptance have not been recorded. Automated checks and an HTTP response do not supply that acceptance.
+
+**Single-bundle viewer (`/view/`) — implemented in source:** local `atb view` API server with verification gate and privacy reveal flow. Investigation View is Run-first: Run, Findings, Timeline, Context, Relationships, Evidence, and Evidence status. Evidence status answers Integrity, Coverage, and Corroboration. There is no Health score, Trust Dashboard, stats strip, Profile/CAS panel, or `SessionAnomalies` banner on `/view`. Reveal audit logging is written to a separate `<bundle>.reveals` sidecar, never into the authoritative bundle.
+
+**Cross-bundle session UI — implemented in source:** `GET /api/v1/sessions`,
 `GET /api/v1/sessions/by-actor`, and `GET /api/v1/schema/status` are
 implemented server-side. `SessionList`, `SchemaStatus`, and `ActorSessions`
 are mounted on `/sessions` through the authenticated API client.
 
-**Shared local-viewer shell — shipped:** `/workspace`, `/sessions`, and `/view`
+**Shared local-viewer shell — implemented in source:** `/workspace`, `/sessions`, and `/view`
 share a local-viewer shell with Library navigation (Bundles, Sessions),
 breadcrumbs, bundle/session context links, and a theme preference. On `/view`
 the shell also exposes the existing seven investigation destinations. Navigation
