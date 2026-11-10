@@ -22,10 +22,11 @@ release, a custody service, or a compliance certification.
 
 The preview scope is the Go CLI only. The Python and TypeScript SDK examples
 are supporting documentation; their execution is not part of the preview
-scope. Python 3.9 remains a supported SDK runtime. Its install path is verified
-by the Python 3.9 compatibility CI job; the security audit runs on Python 3.11.
-Python 3.9 is upstream end-of-life; retention is a dated compatibility decision.
-See the [support matrix](docs/maintainers/support-matrix.md) and
+scope. ATB retains its tested Python 3.9 SDK contract for the v1 patch line.
+Its install path is verified by the Python 3.9 compatibility CI job; the
+security audit runs on Python 3.11. Python 3.9 reached upstream end of life in
+October 2025; retention is a dated compatibility decision. See the
+[support matrix](docs/maintainers/support-matrix.md) and
 [security gate policy](docs/maintainers/security-gate-policy.md).
 
 The source-built investigation UI remains an experimental local surface. It

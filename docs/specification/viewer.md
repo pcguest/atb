@@ -6,7 +6,7 @@ For this developer preview, keep four facts separate:
 
 - **Implemented in source.** The local routes and behaviours below exist in this repository.
 - **Technically available.** `make build` embeds the UI. `go install` serves installation guidance and does not embed it.
-- **Experimental for this preview.** The pinned code revision contains the Go CLI. The viewer is not part of that acceptance claim.
+- **Experimental for this preview.** The selected preview candidate is the Go CLI at the pinned code revision. The viewer is not part of that acceptance claim.
 - **Independently accessibility-accepted.** Not run or recorded for the pinned code revision. Keyboard, screen-reader, focus-order, and 200%/400% zoom acceptance have not been recorded. Automated checks and an HTTP response do not supply that acceptance.
 
 This status block records the boundary, not acceptance.
