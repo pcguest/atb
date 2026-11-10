@@ -13,13 +13,25 @@ can be verified offline.
 that every relevant event was captured, that the actor was honest, or that a
 recorded claim is true.**
 
-The selected developer-preview candidate is the Go CLI at commit
+The pinned CLI code revision for this developer preview is
 `07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. It covers local capture, portable
 bundles, integrity verification, optional signing, profile evaluation, and
-machine-readable output. It is not a published release, a custody service, or
-a compliance certification. The source-built investigation UI remains
-available as an experimental local surface. It is implemented, and its
-independent manual accessibility acceptance has not been run.
+machine-readable output. This documentation correction sits above that code
+revision and does not alter CLI behaviour. This preview is not a published
+release, a custody service, or a compliance certification.
+
+The preview scope is the Go CLI only. The Python and TypeScript SDK examples
+are supporting documentation; their execution is not part of the preview
+scope. Python 3.9 remains a supported SDK runtime. Its install path is verified
+by the Python 3.9 compatibility CI job; the security audit runs on Python 3.11.
+Python 3.9 is upstream end-of-life; retention is a dated compatibility decision.
+See the [support matrix](docs/maintainers/support-matrix.md) and
+[security gate policy](docs/maintainers/security-gate-policy.md).
+
+The source-built investigation UI remains an experimental local surface. It
+is implemented, and independent manual keyboard, screen-reader, focus-order,
+and 200%/400% zoom acceptance has not been run or recorded for the pinned code
+revision. This page records the candidate and its boundary, not acceptance.
 
 ## Quickstart
 
@@ -34,10 +46,13 @@ Choose an installation route:
 As of **2026-11-08**, the latest [GitHub release](https://github.com/pcguest/atb/releases/latest),
 [Python SDK](https://pypi.org/project/atb-sdk/) and
 [TypeScript SDK](https://www.npmjs.com/package/@pcguest/atb-sdk) are **1.18.1**.
-The current source reports **2.0.0**; no 2.0.0 tag or SDK publication exists at
-that checkpoint. SDK packages are libraries, not the full Go CLI or viewer.
+The current source reports **2.0.0**; no 2.0.0 tag or SDK publication is
+recorded at that checkpoint. SDK packages are libraries, not the full Go CLI
+or viewer. Hosted CI, remote tag state and registry publication are not
+independently verified by this page; check them separately before treating
+this page as release evidence.
 
-Install the preview candidate without the embedded UI:
+Install the pinned CLI code revision without the embedded UI:
 
 ```sh
 atb_install_dir="$HOME/.local/bin"
@@ -47,12 +62,14 @@ export PATH="$atb_install_dir:$PATH"
 go version -m "$atb_install_dir/atb"
 ```
 
-That query resolves to module version `v2.0.0-20261109054510-07ec8ba793a5`,
+The module version at this checkpoint for that commit is
+`v2.0.0-20261109054510-07ec8ba793a5`,
 commit `07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. `atb version` still prints
 `2.0.0` from the source string. That string is not a published release.
 `go install github.com/pcguest/atb/v2/cmd/atb@latest` remains the unpinned
 module query. It follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries)
-and does not mean this commit. For prerequisites, see
+and is not a reproducible pin; it may resolve to a different pseudo-version as
+`main` advances. For prerequisites, see
 [installation options](docs/getting-started/quickstart.md#2-installation-options).
 
 Create a bundle, record an event, and verify it:
@@ -63,13 +80,14 @@ atb append ai.request.received --data='{"request_id":"req-1042"}'
 atb verify run.atb/bundle.atb
 ```
 
-For a complete walkthrough, including Python and TypeScript SDKs, see the
+For a complete walkthrough, including supporting Python and TypeScript SDK
+examples, see the
 [five-minute quickstart](docs/getting-started/quickstart.md).
 
 The source build below is optional. It is outside the CLI preview acceptance
 sequence. The embedded viewer is implemented and remains experimental.
-Independent manual keyboard, screen-reader, and 200%/400% zoom acceptance has
-not been run.
+Independent manual keyboard, screen-reader, focus-order, and 200%/400% zoom
+acceptance has not been run or recorded for the pinned code revision.
 
 ```sh
 git clone https://github.com/pcguest/atb.git

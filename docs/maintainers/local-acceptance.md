@@ -8,6 +8,14 @@ Minimum supported tools are Go 1.26.10, Python 3.9, Node.js 22, and npm with the
 committed lockfiles. Release tooling uses Python 3.11. The live viewer
 acceptance uses Firefox.
 
+The CLI-only preview scope covers the Go CLI. The Python and TypeScript SDK
+checks in this runbook are supporting checks; they remain required by this
+runbook's release-candidate procedure but are not part of the CLI-only preview
+scope. Python 3.9 remains a supported SDK runtime. Its install path is verified
+by the compatibility CI job, while the security audit runs on Python 3.11.
+Python 3.9 is upstream end-of-life; retention is a dated compatibility decision.
+See [support matrix](support-matrix.md) and [security gate policy](security-gate-policy.md).
+
 ## 1. Clone and prepare isolated tools
 
 ```bash
@@ -83,15 +91,17 @@ ATB_RELEASE_PYTHON=.venv-release/bin/python \
 
 `make build` produces `./atb` with the embedded local viewer. The gold gate
 runs the viewer build, Go tests, security scans, coverage, Firefox end-to-end
-tests, and automated accessibility checks, including axe and Cypress. Those
-automated results, and an HTTP response from `atb view`, do not replace manual
-keyboard, screen-reader, focus-order, or 200%/400% zoom acceptance. The
-independent manual evaluation of keyboard use, screen-reader output, focus order, and 200%/400% zoom remains outstanding.
+tests with Cypress, and axe-based accessibility audits. Those automated
+results, and an HTTP response from `atb view`, do not replace manual keyboard,
+screen-reader, focus-order, or 200%/400% zoom acceptance. The independent
+manual evaluation of those four checks has not been run or recorded for the
+pinned code revision.
 
 Run the full Python SDK (`.venv/bin/python -m
 pytest sdk/python/tests`), TypeScript SDK (`npm --prefix sdk/typescript test`),
 and View Vitest (`npm --prefix web test`) suites separately; gold does not own
-those full suites. `release-check.sh` rebuilds and validates the
+those full suites. These SDK checks are supporting checks, not the CLI-only
+preview scope, but they remain required by this runbook. `release-check.sh` rebuilds and validates the
 candidate packages in a disposable Python environment. Always set `EXPECT` to
 the candidate's source version on the release branch.
 
@@ -142,11 +152,14 @@ longer matches. Exit `0` would be a release blocker.
 ```
 
 Open the generated loopback URL in Firefox and confirm the incident, ordered
-events, record hashes, profile/CAS information, and verification result agree
-with the CLI. A source build contains the experimental embedded viewer. A
-`go install` build has the CLI but intentionally serves only
-viewer-installation guidance. This visual comparison is not the outstanding
-independent manual accessibility evaluation.
+events, record hashes, the profile coverage status shown by the viewer, and
+the verification result agree with the CLI. The `/view` surface does not show
+a numeric CAS score/grade or a Profile/CAS dashboard panel; the session list
+can show a CAS grade chip. Detailed profile/CAS summaries remain available
+from `atb verify --format json`/`--json` and the profile API. A source build
+contains the experimental embedded viewer. A `go install` build has the CLI
+but intentionally serves only viewer-installation guidance. This visual
+comparison is not the outstanding independent manual accessibility evaluation.
 
 ## 6. Test the Python package as a consumer
 
@@ -227,7 +240,7 @@ kill "$VIEW_PID"
 
 The installed CLI must create, inspect, and verify bundles. Its viewer command
 must display the documented installation guidance rather than silently
-pretending to contain the full embedded viewer.
+pretending to contain the embedded viewer.
 
 ## 9. Operational ATB workflow
 
