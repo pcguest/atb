@@ -13,6 +13,27 @@ can be verified offline.
 that every relevant event was captured, that the actor was honest, or that a
 recorded claim is true.**
 
+The pinned CLI code revision for this developer preview is
+`07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. It covers local capture, portable
+bundles, integrity verification, optional signing, profile evaluation, and
+machine-readable output. This documentation correction sits above that code
+revision and does not alter CLI behaviour. This preview is not a published
+release, a custody service, or a compliance certification.
+
+The preview scope is the Go CLI only. The Python and TypeScript SDK examples
+are supporting documentation; their execution is not part of the preview
+scope. ATB retains its tested Python 3.9 SDK contract for the v1 patch line.
+Its install path is verified by the Python 3.9 compatibility CI job; the
+security audit runs on Python 3.11. Python 3.9 reached upstream end of life in
+October 2025; retention is a dated compatibility decision. See the
+[support matrix](docs/maintainers/support-matrix.md) and
+[security gate policy](docs/maintainers/security-gate-policy.md).
+
+The source-built investigation UI remains an experimental local surface. It
+is implemented, and independent manual keyboard, screen-reader, focus-order,
+and 200%/400% zoom acceptance has not been run or recorded for the pinned code
+revision. This page records the candidate and its boundary, not acceptance.
+
 ## Quickstart
 
 Choose an installation route:
@@ -21,28 +42,36 @@ Choose an installation route:
 | --- | --- | --- |
 | Published CLI release | Features of that release; use its matching docs | Check that release’s assets and documentation |
 | `go install` | Yes, for the module version Go resolves | Install-guidance page only; no embedded investigation UI |
-| Source checkout + `make build` | Yes | Full embedded investigation UI |
+| Source checkout + `make build` | Yes | Experimental embedded UI; implemented, manual accessibility acceptance not run |
 
 As of **2026-11-08**, the latest [GitHub release](https://github.com/pcguest/atb/releases/latest),
 [Python SDK](https://pypi.org/project/atb-sdk/) and
 [TypeScript SDK](https://www.npmjs.com/package/@pcguest/atb-sdk) are **1.18.1**.
-The current source reports **2.0.0**; no 2.0.0 tag or SDK publication exists at
-that checkpoint. SDK packages are libraries, not the full Go CLI or viewer.
+The current source reports **2.0.0**; no 2.0.0 tag or SDK publication is
+recorded at that checkpoint. SDK packages are libraries, not the full Go CLI
+or viewer. Hosted CI, remote tag state and registry publication are not
+independently verified by this page; check them separately before treating
+this page as release evidence.
 
-For the CLI without the embedded UI:
+Install the pinned CLI code revision without the embedded UI:
 
 ```sh
 atb_install_dir="$HOME/.local/bin"
-GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
+GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 export PATH="$atb_install_dir:$PATH"
 "$atb_install_dir/atb" version
 go version -m "$atb_install_dir/atb"
 ```
 
-`@latest` follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries);
-it does not promise the newest main commit. The explicit install path above
-ensures the version/provenance checks inspect the binary just installed. For a pinned source
-build and prerequisites, see [installation options](docs/getting-started/quickstart.md#2-installation-options).
+The module version at this checkpoint for that commit is
+`v2.0.0-20261109054510-07ec8ba793a5`,
+commit `07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. `atb version` still prints
+`2.0.0` from the source string. That string is not a published release.
+`go install github.com/pcguest/atb/v2/cmd/atb@latest` remains the unpinned
+module query. It follows [Go’s version-selection rules](https://go.dev/ref/mod#version-queries)
+and is not a reproducible pin; it may resolve to a different pseudo-version as
+`main` advances. For prerequisites, see
+[installation options](docs/getting-started/quickstart.md#2-installation-options).
 
 Create a bundle, record an event, and verify it:
 
@@ -52,13 +81,19 @@ atb append ai.request.received --data='{"request_id":"req-1042"}'
 atb verify run.atb/bundle.atb
 ```
 
-For a complete walkthrough, including Python and TypeScript SDKs, see the
-[five-minute quickstart](docs/getting-started/quickstart.md). To build the
-embedded local viewer from source:
+For a complete walkthrough, including supporting Python and TypeScript SDK
+examples, see the
+[five-minute quickstart](docs/getting-started/quickstart.md).
+
+The source build below is optional. It is outside the CLI preview acceptance
+sequence. The embedded viewer is implemented and remains experimental.
+Independent manual keyboard, screen-reader, focus-order, and 200%/400% zoom
+acceptance has not been run or recorded for the pinned code revision.
 
 ```sh
 git clone https://github.com/pcguest/atb.git
 cd atb
+git checkout 07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 make build
 ./atb version
 ./atb bundle new
@@ -68,9 +103,7 @@ make build
 
 Use Go 1.26.10 and Node.js 22 with npm; dependency downloads require network
 access. `make build` builds the web assets before embedding them in `./atb`.
-The current viewer’s human keyboard, screen-reader and 200%/400% zoom
-acceptance remains outstanding. It is not accessibility-certified. The
-developer preview prioritises CLI verification.
+`go install` does not embed that UI.
 
 ## Use ATB
 

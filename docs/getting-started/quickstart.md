@@ -10,7 +10,7 @@ and a working understanding of the record-and-verify cycle.
 
 ```bash
 atb_install_dir="$HOME/.local/bin"
-GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@latest
+GOBIN="$atb_install_dir" go install github.com/pcguest/atb/v2/cmd/atb@07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 export PATH="$atb_install_dir:$PATH"
 atb bundle new
 atb append ai.request.received --data='{"request_id":"req-1042","actor_id_hash":"sha256-user-1042","purpose_tag":"support-triage"}'
@@ -21,9 +21,21 @@ atb verify --profile atb.profile.policy_decision --format json
 atb trust-report --profile atb.profile.policy_decision --format markdown
 ```
 
-`@latest` selects a Go module version, not necessarily the newest main commit.
-See [installation options](#2-installation-options) for published/source version
-differences and the source build needed for visual investigation.
+This install pins the CLI code revision
+`07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`; this documentation correction sits
+above that revision and does not alter CLI behaviour. The module version at
+this checkpoint is `v2.0.0-20261109054510-07ec8ba793a5`. `@latest` is an
+unpinned query and is not a reproducible pin. See [installation options](#2-installation-options)
+for published/source version differences. The source build for the
+experimental viewer is separate from this CLI sequence.
+
+The preview scope is the Go CLI only. The Python and TypeScript SDK examples
+below are supporting documentation; their execution is not part of the preview
+scope. Python 3.9 remains a supported SDK runtime. Its install path is verified
+by the compatibility CI job; the security audit runs on Python 3.11. Python 3.9
+is upstream end-of-life; retention is a dated compatibility decision. See the
+[support matrix](../maintainers/support-matrix.md) and
+[security gate policy](../maintainers/security-gate-policy.md).
 
 The Go CLI is the primary install path. The Python and TypeScript
 packages are SDKs that write the same `.atb` format.
@@ -38,16 +50,9 @@ make demo-incident
 
 The script creates an offline bundle containing a denied policy decision, an
 unapproved tool call, a failed action, a human override with reviewer identity
-evidence, and a closed session. It then runs `verify`, `trust-report`,
-`incident list`, and `incident report`. Open the same bundle in the local
-viewer:
-
-```bash
-./atb view \
-  --bundle run.atb/incident-demo/incident.atb \
-  --profile atb.profile.policy_decision
-```
-
+evidence, and a closed session. It then runs `verify`, `incident list`, and
+`incident report` (Markdown and JSON), then verifies three deliberately
+damaged copies. The scripted demo ends there.
 This is the canonical ATB workflow: the AI workflow itself can fail
 while the audit evidence still verifies cleanly. Use the snapshot name
 to label workflow state. `atb verify` checks the hash chain and any
@@ -60,6 +65,18 @@ even when a bundle contains events that could match more than one built-in
 profile. For
 the full local review and export path, continue with [Run
 forensics](../investigate/incidents.md).
+
+Opening the same bundle in the local viewer is optional. That surface is
+experimental and is outside the CLI preview acceptance sequence. Independent
+manual keyboard, screen-reader, focus-order, and 200%/400% zoom acceptance has
+not been run or recorded for the pinned code revision.
+
+```bash
+# After `make build` in the source checkout. `go install` does not create ./atb.
+./atb view \
+  --bundle run.atb/incident-demo/incident.atb \
+  --profile atb.profile.policy_decision
+```
 
 ### What the output means
 
@@ -90,9 +107,15 @@ and check `integrity.chain_valid: true`.
 ### Common first-run outcomes
 
 - `pass: true` with a populated `profile_id` means the selected profile passed and the bundle chain is intact.
-- `profile_id: ""` means no workflow profile was selected or matched. This is common for manifest-only or zero-event bundles. In that case `pass` and `profile_pass` stay `false` even when the hash chain is intact. An empty `critical_failures` array does not mean the profile passed. Read `gate_result.chain_valid` or the text line `Integrity: PASS`, and expect exit 0. The full distinction is in [What verification means](../verification-meaning.md#no-profile-selected).
+- `profile_id: ""` means no workflow profile was selected or matched. This is common for manifest-only or zero-event bundles. In that case top-level `pass` and `gate_result.profile_pass` stay `false` even when the hash chain is intact. An empty `critical_failures` array does not mean the profile passed. Read `gate_result.chain_valid` or the text line `Integrity: PASS`, and expect exit 0. The full distinction is in [What verification means](../verification-meaning.md#no-profile-selected).
 - `pass: false` with non-empty `critical_failures` means the selected profile is missing required evidence.
 - `residual_risk.level: "Critical"` means do not treat the bundle as trustworthy evidence until you inspect the failure. `residual_risk.level: "High"` with a driver that no profile was evaluated is the no-profile case above, not a broken chain. Use `atb verify --json` when you need the diagnostic integrity report; `--format json` remains the stable automation contract. Diagnostic JSON can show `anchoring.status: "failed"` for an absent optional anchor. Read it with `anchor_present: false` and `anchor_required: false`: no timestamp check was attempted. See [Absent optional anchor](../verification-meaning.md#absent-optional-anchor).
+- A present bundle signature that does not verify exits `2` even when
+  `gate_result.chain_valid` remains `true`. Top-level `pass` is the combined
+  chain, profile, and any required anchor gate, not the signature verdict; it
+  can remain `true` when a profile passed and no anchor was required. Do not
+  read a signature failure as a broken hash chain. See [Signing and other
+  commitments](../verification-meaning.md#signing-and-other-commitments).
 
 The markdown trust report from the first command can include `Operational Safety (PASS)` and `Test Coverage (PASS)`, and its opening `Verdict` can be `PASS` for an intact bundle. Those two headings mean the CLI found named ATB repository files in the working directory or embedded in the binary. They do not assess the workflow you recorded, and they do not mean tests ran. The bundle chain in that report is `Cryptographic Integrity`. This verdict is not the stable verify `pass` field. Details are in [Trust-report file headings](../verification-meaning.md#trust-report-file-headings).
 
@@ -131,18 +154,31 @@ As of **2026-11-08**, the latest [GitHub release](https://github.com/pcguest/atb
 [PyPI SDK](https://pypi.org/project/atb-sdk/) and
 [npm SDK](https://www.npmjs.com/package/@pcguest/atb-sdk) are **1.18.1**. The
 repository's **2.0.0** version strings describe unreleased source; no 2.0.0 tag
-or registry package exists at this checkpoint. An in-tree version or changelog
-heading does not establish publication. Check those release/registry pages
-again when choosing a version; use documentation matching the installed build.
+or registry package is recorded at this checkpoint. An in-tree version or
+changelog heading does not establish publication. Check those release/registry
+pages again when choosing a version; use documentation matching the installed
+build. Hosted CI and remote tag/registry state are not independently verified
+here; check them separately.
 
 | Route | Local verification | Investigation UI |
 | --- | --- | --- |
 | Published CLI release | Go CLI features for that release | Consult that release's assets/docs |
 | `go install` | Go CLI features for the resolved module version | Minimal installation guidance; no bundle data |
-| Source + `make build` | Current source CLI | Full embedded local UI |
+| Source + `make build` | Current source CLI | Experimental embedded UI; manual accessibility acceptance not run |
 | Python or npm SDK package | SDK verification capabilities; Go CLI for profiles and incident analysis | No embedded Go viewer |
 
 ### Go-installed CLI
+
+The pinned `go install` CLI binary does not embed the investigation UI:
+
+```bash
+GOBIN="$HOME/.local/bin" go install github.com/pcguest/atb/v2/cmd/atb@07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
+```
+
+The module version at this checkpoint is
+`v2.0.0-20261109054510-07ec8ba793a5`, commit
+`07ec8ba793a5f0cf5ca99a95e7e280131b6863b4`. The `@latest` commands below are a
+different, unpinned query and are not a reproducible pin.
 
 ```bash
 go list -m -json github.com/pcguest/atb/v2@latest
@@ -160,10 +196,11 @@ for the remaining CLI examples.
 [`@latest`](https://go.dev/ref/mod#version-queries) follows Go's module-version
 selection rules: release versions take precedence; in the absence of an
 applicable tagged version Go can resolve a pseudo-version. It does not always
-mean main. At the checkpoint above, the v2 query resolved to
-`v2.0.0-20261108115548-779af5a73d8a`; this is a source pseudo-version, not a
-published v2.0.0 release. The `atb version` string alone does not identify the
-source revision; retain the `go version -m` module/build information too.
+mean main, and it may change as `main` advances. This page does not record a
+remote `@latest` result; verify the resolved pseudo-version with
+`go list -m -json github.com/pcguest/atb/v2@latest` before relying on it. The
+`atb version` string alone does not identify the source revision; retain the
+`go version -m` module/build information too.
 
 ### Source build with the investigation UI
 
@@ -174,8 +211,8 @@ embeds the generated assets in the Go binary:
 ```bash
 git clone https://github.com/pcguest/atb.git
 cd atb
-# Reproduce the 2026-11-08 integrated source checkpoint:
-git checkout 779af5a73d8a6fcb8536733798aab2238c235137
+# Pinned CLI code revision. This source build embeds the experimental viewer.
+git checkout 07ec8ba793a5f0cf5ca99a95e7e280131b6863b4
 make build
 ./atb version
 ./atb bundle new
@@ -188,10 +225,11 @@ Use `./atb` to select this build rather than another `atb` on PATH. To evaluate
 newer source, choose and record that revision explicitly. The source version
 string still does not imply a tagged or published release.
 
-The current viewer's human keyboard, screen-reader and 200%/400% zoom
-acceptance remains outstanding. Automated checks or historical owner reports
-do not establish that current acceptance. The viewer is not
-accessibility-certified; this developer preview prioritises the CLI.
+This source build is optional and sits outside the CLI preview acceptance
+sequence. The embedded viewer is implemented and remains experimental.
+Independent manual keyboard, screen-reader, focus-order, and 200%/400% zoom
+acceptance has not been run or recorded for the pinned code revision. Automated
+checks do not establish that acceptance.
 
 ### Python and TypeScript SDKs
 
@@ -261,21 +299,31 @@ bundle.verify();
 
 For a runnable TypeScript quickstart example, see [examples/typescript/](../../examples/typescript/).
 
-## 5. Open the local review UI
+## 5. Optional experimental local viewer
+
+This walkthrough is not part of the CLI preview acceptance sequence. The
+viewer is implemented in a source build and remains experimental.
+Independent manual keyboard, screen-reader, focus-order, and 200%/400% zoom
+acceptance has not been run or recorded for the pinned code revision. `go install`
+does not embed this UI.
+
+The viewer examples require a source build. Run `./atb` from the checkout root;
+a `go install` binary serves installation guidance only.
 
 ```bash
 # Default bundle path
-atb view
+./atb view
 
 # Custom bundle path
-atb view my-trace.atb --port 8080
+./atb view my-trace.atb --port 8080
 
-# Evaluate against a profile at startup (shows profile/CAS summary in the viewer)
-atb view --profile atb.profile.rag_answer
-atb view --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
+# Evaluate against a profile at startup
+# Shows profile coverage; /view does not show a numeric CAS score/grade
+./atb view --profile atb.profile.rag_answer
+./atb view --bundle run.atb/bundle.atb --profile ./profiles/custom.yaml
 ```
 
-`atb view` opens one local investigation surface for one bundle at a time.
+`./atb view` opens one local investigation surface for one bundle at a time.
 `--profile` runs verification at startup and makes its separate integrity,
 profile-coverage, and custody answers available immediately. Without
 `--profile`, use "Verify bundle" in the command palette to trigger
@@ -283,11 +331,11 @@ profile-coverage, and custody answers available immediately. Without
 → Context → Relationships → Evidence → Evidence status; findings link directly
 to their supporting records.
 
-`atb view` requires building from source to include the embedded review UI:
+The viewer requires building from source to include the embedded review UI:
 `make build` from the checkout root (see [installation options](#2-installation-options)).
 
-If you install with `go install`, `atb view` serves a minimal install-guidance page with no
-bundle data. Build from source when you need the embedded review UI.
+If you install with `go install`, that binary's `view` command serves a minimal
+install-guidance page with no bundle data. Build from source for the embedded UI.
 
 Security note: `atb view` accepts loopback hosts only. All API endpoints require a
 session token generated at startup and delivered in the browser URL fragment. It is not a
