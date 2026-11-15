@@ -83,12 +83,18 @@ jobs:
           fi
           echo "Release gate open for ${TAG} at ${ACTUAL_SHA}."
 
-  # Layer E: Docker image build and publication are an optional distribution channel.
+  # Layer E: unprivileged build validation. This job has no registry
+  # credentials and never pushes. It builds a local image per platform so the
+  # architecture, OCI label, and binary version checks run against exactly what
+  # the tag produced. Publication rebuilds separately behind the protected
+  # docker-release environment.
   build:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     needs: release_gate
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -128,41 +134,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          logout: false
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push digest
-        id: build
+      - name: Build and verify local image
         env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           PLATFORM: ${{ matrix.platform }}
           TAG: ${{ steps.release-tag.outputs.tag }}
         run: |
           set -euo pipefail
-          IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
           PLATFORM_SAFE="${PLATFORM//\//-}"
+          LOCAL_TAG="atb-build:${PLATFORM_SAFE}"
 
           docker buildx build \
             --build-arg "ATB_VERSION=${TAG}" \
             --platform "${PLATFORM}" \
-            --output "type=image,name=${IMAGE},push-by-digest=true,name-canonical=true,push=true" \
-            --metadata-file "/tmp/meta-${PLATFORM_SAFE}.json" \
+            --load \
+            --tag "${LOCAL_TAG}" \
             .
 
-          DIGEST=$(jq -r '."containerimage.digest"' "/tmp/meta-${PLATFORM_SAFE}.json")
-          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
-
-          docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"
-          bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"
+          bash scripts/verify-container-architecture.sh "${LOCAL_TAG}" "${PLATFORM}"
           LABEL_VERSION=$(docker image inspect \
             --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
-            "${IMAGE}@${DIGEST}")
+            "${LOCAL_TAG}")
           BINARY_VERSION=$(docker run --rm --platform "${PLATFORM}" \
-            "${IMAGE}@${DIGEST}" version | awk '{print $NF}')
+            "${LOCAL_TAG}" version | awk '{print $NF}')
           if [ "${LABEL_VERSION}" != "${TAG}" ]; then
             echo "OCI version label ${LABEL_VERSION} does not match ${TAG}" >&2
             exit 1
@@ -172,19 +165,14 @@ jobs:
             exit 1
           fi
 
-      - name: Upload digest
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: digest-${{ matrix.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
-          path: /tmp/meta-*.json
-          if-no-files-found: error
-
-  merge:
-    name: Merge manifests and push tags
+  publish:
+    name: Publish multi-architecture image
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     needs: [build, release_gate]
     environment: docker-release
+    permissions:
+      contents: read
     steps:
       - name: Resolve release tag
         id: release-tag
@@ -205,6 +193,36 @@ jobs:
 
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
 
+      - name: Checkout release tag
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: refs/tags/${{ steps.release-tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Revalidate tag and SHA before publication
+        env:
+          TAG: ${{ steps.release-tag.outputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::expected_sha must be a full 40-character lowercase hex commit SHA."
+            exit 1
+          fi
+
+          HEAD_SHA="$(git rev-parse HEAD)"
+          TAG_SHA="$(git rev-parse "refs/tags/${TAG}^{commit}")"
+
+          if [ "${HEAD_SHA}" != "${EXPECTED_SHA}" ]; then
+            echo "::error::Checked-out HEAD ${HEAD_SHA} does not match expected ${EXPECTED_SHA}."
+            exit 1
+          fi
+          if [ "${TAG_SHA}" != "${EXPECTED_SHA}" ]; then
+            echo "::error::Tag ${TAG} resolves to ${TAG_SHA}, not the expected commit ${EXPECTED_SHA}."
+            exit 1
+          fi
+          echo "Publication source verified: ${TAG} at ${EXPECTED_SHA}."
+
       - name: Log in to Docker Hub
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
@@ -212,14 +230,10 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Download digests
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: digest-*
-          path: /tmp/digests
-          merge-multiple: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
 
-      - name: Create and push manifest
+      - name: Build and push multi-architecture image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           TAG: ${{ steps.release-tag.outputs.tag }}
@@ -228,16 +242,34 @@ jobs:
           VERSION="${TAG#v}"
           MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
           IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
-          mapfile -t digests < <(jq -r '."containerimage.digest"' /tmp/digests/*.json | \
-            awk -v img="${IMAGE}" '{print img"@"$1}')
-          if [ "${#digests[@]}" -eq 0 ]; then
-            echo "no platform image digests were downloaded" >&2
-            exit 1
-          fi
 
           # Only immutable version tags are pushed here. Promoting :latest is a
           # separate, explicitly approved operation; it is never automatic.
-          docker buildx imagetools create \
-            -t "${IMAGE}:v${VERSION}" \
-            -t "${IMAGE}:v${MAJOR_MINOR}" \
-            "${digests[@]}"
+          docker buildx build \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg "ATB_VERSION=${TAG}" \
+            --tag "${IMAGE}:v${VERSION}" \
+            --tag "${IMAGE}:v${MAJOR_MINOR}" \
+            .
+
+      - name: Verify published manifest
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TAG: ${{ steps.release-tag.outputs.tag }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
+          IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
+
+          for REF in "${IMAGE}:v${VERSION}" "${IMAGE}:v${MAJOR_MINOR}"; do
+            MANIFEST="$(docker buildx imagetools inspect "${REF}")"
+            for PLATFORM in linux/amd64 linux/arm64; do
+              if ! grep -Eq "Platform:[[:space:]]*${PLATFORM}" <<< "${MANIFEST}"; then
+                echo "::error::Published manifest ${REF} is missing ${PLATFORM}." >&2
+                exit 1
+              fi
+            done
+            echo "Verified ${REF} contains linux/amd64 and linux/arm64."
+          done

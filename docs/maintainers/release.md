@@ -24,7 +24,8 @@ logs:
   required write access and non-interactive 2FA policy.
 - `ATB_SIGNING_KEY_PEM`: protected PKCS#8 Ed25519 key for the final release
   evidence bundle. See [key management](../evidence/key-management.md).
-- `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: Docker publication credentials.
+- `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: Docker publication credentials,
+  used only by the protected `docker-release` publish job.
 
 PyPI uses GitHub OIDC trusted publishing, not a repository token. Optional S3
 WORM automation uses `ATB_WORM_S3_ACCESS_KEY_ID` and
@@ -40,7 +41,7 @@ until all of the following repository settings exist:
 - A protected `release` environment, used by the `Release` workflow's publish
   job, with required reviewers.
 - A protected `docker-release` environment, used by the `Docker Publish`
-  workflow's merge job, with required reviewers.
+  workflow's publish job, with required reviewers.
 
 Approving the environment run is the approval to publish. This document does
 not assert that these settings are configured: they are repository
@@ -64,6 +65,12 @@ string, a malformed tag or SHA, a `RELEASE_GATE_ENABLED` value other than
 manifest carries `vMAJOR.MINOR.PATCH` and `vMAJOR.MINOR` only. Promoting
 `:latest` is a separate, explicitly approved operation and never happens
 automatically.
+
+The unprivileged `build` jobs have no registry credentials and never push;
+they validate the tag locally. Publication rebuilds the multi-architecture
+image and pushes it only inside the protected `docker-release` environment,
+after revalidating both the checked-out `HEAD` and the tag against
+`expected_sha` immediately before the registry login.
 
 ## 1. Consolidate CHANGELOG
 
@@ -141,8 +148,8 @@ cd sdk/python && python -m pytest && cd ../..
 
 Run the release preflight before opening the release PR. Contributors without
 a running Docker daemon may skip the local Docker smoke build; the
-`docker-publish.yml` workflow builds and publishes the image only when a
-maintainer dispatches it through the release gate.
+`docker-publish.yml` workflow validates the image in unprivileged build jobs
+and pushes only from the protected publish job after release-gate approval.
 The local Docker smoke requires Docker Buildx and either native execution or
 binfmt/emulation for both `linux/amd64` and `linux/arm64`. It independently
 checks the embedded ELF architecture because an emulated runtime pass does not

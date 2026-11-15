@@ -44,6 +44,26 @@ func makeTarget(t *testing.T, makefile, target, nextTarget string) string {
 	return makefile[start : start+len(startMarker)+end]
 }
 
+// workflowJobSection returns the YAML block for one job in a workflow. The job
+// ends at the first of nextJobs that follows it, or at end of file.
+func workflowJobSection(t *testing.T, workflow, jobName string, nextJobs ...string) string {
+	t.Helper()
+	startMarker := "\n  " + jobName + ":"
+	start := strings.Index(workflow, startMarker)
+	if start < 0 {
+		t.Fatalf("workflow job %s not found", jobName)
+	}
+	end := len(workflow)
+	for _, next := range nextJobs {
+		if offset := strings.Index(workflow[start+len(startMarker):], "\n  "+next+":"); offset >= 0 {
+			if candidate := start + len(startMarker) + offset; candidate < end {
+				end = candidate
+			}
+		}
+	}
+	return workflow[start:end]
+}
+
 func TestEventV1SchemaMatchesFrozenDigest(t *testing.T) {
 	root := repositoryRoot(t)
 	schema, err := os.ReadFile(filepath.Join(root, "schemas", "event.v1.json"))
@@ -190,8 +210,24 @@ func TestDockerBuildPropagatesAndVerifiesTargetArchitecture(t *testing.T) {
 	}
 
 	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
-	if !strings.Contains(dockerPublish, `bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"`) {
-		t.Error("Docker publication does not verify the embedded executable architecture")
+	buildJob := workflowJobSection(t, dockerPublish, "build", "publish")
+	for _, required := range []string{"docker buildx build", "--load"} {
+		if !strings.Contains(buildJob, required) {
+			t.Errorf("unprivileged Docker build job does not enforce %q", required)
+		}
+	}
+	if !strings.Contains(buildJob, `LOCAL_TAG="atb-build:`) {
+		t.Error("Docker build job does not tag its local image with atb-build:")
+	}
+	if !strings.Contains(buildJob, `bash scripts/verify-container-architecture.sh "${LOCAL_TAG}" "${PLATFORM}"`) {
+		t.Error("Docker build job does not verify the embedded executable architecture of the local atb-build image")
+	}
+
+	publishJob := workflowJobSection(t, dockerPublish, "publish")
+	for _, required := range []string{"docker buildx build", "--push", "imagetools inspect"} {
+		if !strings.Contains(publishJob, required) {
+			t.Errorf("protected Docker publication job does not enforce %q", required)
+		}
 	}
 
 	releaseCheck := readRepositoryFile(t, "scripts/release-check.sh")
@@ -354,7 +390,7 @@ func TestReleaseSecurityToolsAreVersionPinned(t *testing.T) {
 	}
 }
 
-func TestCIWorkflowLintAndDockerManifestInputsArePinnedAndArraySafe(t *testing.T) {
+func TestCIWorkflowLintAndDockerPublicationInputsArePinnedAndProtected(t *testing.T) {
 	ci := readRepositoryFile(t, ".github/workflows/ci.yml")
 	if !strings.Contains(ci, "go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12") {
 		t.Fatal("CI does not run the pinned workflow linter")
@@ -362,13 +398,21 @@ func TestCIWorkflowLintAndDockerManifestInputsArePinnedAndArraySafe(t *testing.T
 
 	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
 	for _, required := range []string{
-		"mapfile -t digests",
-		`[ "${#digests[@]}" -eq 0 ]`,
-		`"${digests[@]}"`,
+		"environment: docker-release",
+		"--push",
+		"imagetools inspect",
 	} {
 		if !strings.Contains(dockerPublish, required) {
-			t.Errorf("Docker manifest publication does not contain array-safe input %q", required)
+			t.Errorf("Docker publication does not enforce %q", required)
 		}
+	}
+	if strings.Contains(dockerPublish, "push-by-digest=true") {
+		t.Error("Docker publication still depends on the removed digest-artifact flow")
+	}
+
+	publishJob := workflowJobSection(t, dockerPublish, "publish")
+	if !strings.Contains(publishJob, "EXPECTED_SHA") && !strings.Contains(publishJob, "inputs.expected_sha") {
+		t.Error("Docker publication job does not revalidate expected_sha before pushing")
 	}
 }
 

@@ -6,7 +6,7 @@
 | `security.yml` | History, source, dependency, filesystem, and image security scans |
 | `codeql.yml` | GitHub CodeQL analysis |
 | `release.yml` | Validate, build, verify, gate, and publish non-Docker release artefacts |
-| `docker-publish.yml` | Build and publish signed-by-digest multi-architecture images |
+| `docker-publish.yml` | Build multi-architecture images without credentials; publish only in the protected `docker-release` environment |
 | `ops.yml` | Weekly registry health and lightweight repository triage |
 
 The repository-local composite action under `.github/actions/go-module`
