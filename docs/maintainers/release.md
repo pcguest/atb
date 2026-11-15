@@ -49,6 +49,20 @@ configuration, not tracked files. Until they are in place, tag pushes and
 manual dispatches stop at the gate and publish nothing. The gate also rejects
 tags that are not stable SemVer.
 
+Environment protection is a deliberate-action control, not an authorization
+boundary. A required reviewer ensures that a person approves that specific run;
+it does not prevent a repository writer from editing these workflow files or
+the environment settings. Treat the gate as evidence of intent to publish, not
+as proof that only trusted code can reach the registry.
+
+Recommended hardening, not yet verified: move `DOCKERHUB_USERNAME`,
+`DOCKERHUB_TOKEN`, `NPM_TOKEN`, and `ATB_SIGNING_KEY_PEM` from repository
+secrets to environment-scoped secrets on the `release` and `docker-release`
+environments, so a workflow change cannot read them without an approved run,
+and configure those environments to prevent self-review of an approval.
+Neither the move nor the self-review setting is verified by this document or
+by repository tests.
+
 ### Docker publication is manual
 
 `docker-publish.yml` has no tag trigger. Publish an image by dispatching the
@@ -70,7 +84,12 @@ The unprivileged `build` jobs have no registry credentials and never push;
 they validate the tag locally. Publication rebuilds the multi-architecture
 image and pushes it only inside the protected `docker-release` environment,
 after revalidating both the checked-out `HEAD` and the tag against
-`expected_sha` immediately before the registry login.
+`expected_sha` immediately before the registry login. After the push, the
+workflow records each published manifest digest and re-pulls each platform by
+that digest to re-check the OCI version label and the embedded ELF architecture.
+It executes the `atb version` output only on the publish runner's native
+platform (`linux/amd64`), because that job does not install QEMU/binfmt
+emulation for `linux/arm64`.
 
 ## 1. Consolidate CHANGELOG
 
@@ -200,14 +219,18 @@ publication, retained evidence bundle, and final transition out of draft.
 
 The `Release` workflow contains its own gold gate (`make gate-gold-release`,
 including the repository's ≥80% aggregate Go coverage threshold). A tag push
-runs both workflows, but only `Release` can publish; `Docker Publish` must be
-dispatched separately with `confirm=PUBLISH`, the tag, and its commit SHA. Both
-must be green before announcing the release. A manual dispatch of `release.yml`
-builds and verifies artefacts but cannot publish without a tag.
+triggers only `Release`; `Docker Publish` has no tag trigger and does not run
+on a tag push. Dispatch it separately with `confirm=PUBLISH`, the tag, and its
+commit SHA. Both must be green before announcing the release. A manual dispatch
+of `release.yml` builds and verifies artefacts but cannot publish without a
+tag.
 
-Publication is retry-safe: publish already verified immutable artefacts, append
-all capture evidence before signing the retained evidence bundle, and make the
-GitHub Release public only after registry publication and final verification.
+Publication stages immutable artefacts in a fixed order: publish already
+verified artefacts, append all capture evidence before signing the retained
+evidence bundle, and make the GitHub Release public only after registry
+publication and final verification. Publication is not retried automatically:
+if it stops partway, resuming the remaining steps is a manual operator action
+(see step 7).
 
 ## 7. Verify automated publication
 
@@ -222,7 +245,10 @@ Python and npm artifacts, signs and attaches the final ATB release-evidence
 bundle, and only then makes the GitHub Release public. If any step fails, leave
 the draft and registry state intact, record which immutable registries accepted
 the version, fix the workflow without changing published bytes, and resume only
-the incomplete steps. If the artefacts must change, cut a new version.
+the incomplete steps. Resuming is manual: re-run the failed jobs, or dispatch
+`docker-publish.yml` again for the image, after the workflow fix; GitHub does
+not automatically retry a partial registry publication. If the artefacts must
+change, cut a new version.
 
 ## 8. Close tracking issues
 

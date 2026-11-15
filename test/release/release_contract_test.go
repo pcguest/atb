@@ -222,12 +222,36 @@ func TestDockerBuildPropagatesAndVerifiesTargetArchitecture(t *testing.T) {
 	if !strings.Contains(buildJob, `bash scripts/verify-container-architecture.sh "${LOCAL_TAG}" "${PLATFORM}"`) {
 		t.Error("Docker build job does not verify the embedded executable architecture of the local atb-build image")
 	}
+	// The build job validates an image locally. It must not hold registry
+	// credentials or take any publishing path.
+	for _, forbidden := range []string{
+		"docker/login-action",
+		"secrets.DOCKERHUB",
+		"--push",
+		"push-by-digest=true",
+	} {
+		if strings.Contains(buildJob, forbidden) {
+			t.Errorf("unprivileged Docker build job contains publishing path %q", forbidden)
+		}
+	}
 
 	publishJob := workflowJobSection(t, dockerPublish, "publish")
 	for _, required := range []string{"docker buildx build", "--push", "imagetools inspect"} {
 		if !strings.Contains(publishJob, required) {
 			t.Errorf("protected Docker publication job does not enforce %q", required)
 		}
+	}
+	revalidated := strings.Index(publishJob, "Revalidate tag and SHA before publication")
+	loggedIn := strings.Index(publishJob, "Log in to Docker Hub")
+	pushed := strings.Index(publishJob, "--push")
+	if revalidated < 0 || loggedIn < 0 || pushed < 0 {
+		t.Fatal("Docker publication job must revalidate, log in, and push")
+	}
+	if revalidated > loggedIn {
+		t.Error("Docker publication job logs in before revalidating the tag and SHA")
+	}
+	if revalidated > pushed {
+		t.Error("Docker publication job pushes before revalidating the tag and SHA")
 	}
 
 	releaseCheck := readRepositoryFile(t, "scripts/release-check.sh")
@@ -413,6 +437,91 @@ func TestCIWorkflowLintAndDockerPublicationInputsArePinnedAndProtected(t *testin
 	publishJob := workflowJobSection(t, dockerPublish, "publish")
 	if !strings.Contains(publishJob, "EXPECTED_SHA") && !strings.Contains(publishJob, "inputs.expected_sha") {
 		t.Error("Docker publication job does not revalidate expected_sha before pushing")
+	}
+}
+
+func TestDockerPublicationIsManualAndVerifiesThePushedDigest(t *testing.T) {
+	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
+
+	// The trigger block must not create an automatic path from a tag to a
+	// registry write.
+	onStart := strings.Index(dockerPublish, "\non:\n")
+	permissionsStart := strings.Index(dockerPublish, "\npermissions:\n")
+	if onStart < 0 || permissionsStart <= onStart {
+		t.Fatal("docker workflow trigger block boundaries not found")
+	}
+	triggerBlock := dockerPublish[onStart:permissionsStart]
+	if !strings.Contains(triggerBlock, "workflow_dispatch:") {
+		t.Error("docker workflow does not declare manual dispatch")
+	}
+	for _, forbidden := range []string{"\n  push:", "tags:"} {
+		if strings.Contains(triggerBlock, forbidden) {
+			t.Errorf("docker workflow is still reachable from a tag push (%q)", forbidden)
+		}
+	}
+
+	publishJob := workflowJobSection(t, dockerPublish, "publish")
+	pushed := strings.Index(publishJob, "--push")
+	digestStart := strings.Index(publishJob, "Verify pushed digest per platform")
+	if digestStart < 0 {
+		t.Fatal("docker publication job does not re-verify the pushed digest")
+	}
+	if pushed < 0 || digestStart < pushed {
+		t.Error("docker publication job verifies the digest before pushing")
+	}
+	for _, required := range []string{
+		"docker buildx imagetools inspect",
+		`--format '{{json .Manifest}}'`,
+		`jq -r '.digest'`,
+		`docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"`,
+		`bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"`,
+		"org.opencontainers.image.version",
+		`PUBLISH_RUNNER_ARCH: ${{ runner.arch }}`,
+		`X64) RUNNER_PLATFORM=linux/amd64`,
+		`ARM64) RUNNER_PLATFORM=linux/arm64`,
+		`if [ "${PLATFORM}" != "${RUNNER_PLATFORM}" ]; then`,
+		"Skipped atb version execution",
+	} {
+		if !strings.Contains(publishJob, required) {
+			t.Errorf("pushed-digest verification does not enforce %q", required)
+		}
+	}
+
+	// The publish job runs on ubuntu-latest without QEMU/binfmt, so the pushed
+	// binary may only be executed for the runner's native platform. The arm64
+	// image is still verified by pull, OCI label, and embedded ELF architecture,
+	// none of which execute the binary.
+	guard := strings.Index(publishJob, `if [ "${PLATFORM}" != "${RUNNER_PLATFORM}" ]; then`)
+	binaryRun := strings.Index(publishJob, `"${IMAGE}@${DIGEST}" version`)
+	if guard < 0 || binaryRun < 0 {
+		t.Fatal("pushed-digest verification does not guard the binary version check by runner platform")
+	}
+	if guard > binaryRun {
+		t.Fatalf("pushed-digest verification executes the pushed binary before the native-platform guard")
+	}
+	if !strings.Contains(publishJob[guard:binaryRun], "continue") {
+		t.Error("pushed-digest verification does not skip binary execution for non-native platforms")
+	}
+
+	release := readRepositoryFile(t, ".github/workflows/release.yml")
+	releasePublish := workflowJobSection(t, release, "publish")
+	if !strings.Contains(releasePublish, "\n    environment: release\n") {
+		t.Error("release publish job does not use the release environment")
+	}
+	revalidated := strings.Index(releasePublish, "Revalidate checked-out commit and tag before publication")
+	if revalidated < 0 {
+		t.Fatal("release publish job has no HEAD/tag SHA revalidation step")
+	}
+	for _, required := range []string{
+		"git rev-parse HEAD",
+		`refs/tags/${TAG_NAME}^{commit}`,
+	} {
+		if !strings.Contains(releasePublish, required) {
+			t.Errorf("release publish revalidation does not check %q", required)
+		}
+	}
+	if firstCredential := strings.Index(releasePublish, "secrets."); firstCredential >= 0 && revalidated > firstCredential {
+		t.Error("release publish job uses a credential before revalidating HEAD and tag")
 	}
 }
 

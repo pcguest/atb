@@ -273,3 +273,75 @@ jobs:
             done
             echo "Verified ${REF} contains linux/amd64 and linux/arm64."
           done
+
+      # Re-check the bytes that were actually pushed, per platform, by digest.
+      # The manifest digest is recorded in the log so a partial publication can
+      # be identified without guessing which image the run produced.
+      - name: Verify pushed digest per platform
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TAG: ${{ steps.release-tag.outputs.tag }}
+          PUBLISH_RUNNER_ARCH: ${{ runner.arch }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
+          IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
+
+          # Only the platform that matches the runner architecture can execute
+          # the image binary natively. This job runs on ubuntu-latest (X64) and
+          # does not install QEMU/binfmt, so an emulated `docker run` for the
+          # other platform would fail closed for the wrong reason. Non-native
+          # platforms are still verified by pulling the digest, checking the OCI
+          # version label, and reading the embedded ELF architecture, which does
+          # not execute the binary.
+          case "${PUBLISH_RUNNER_ARCH}" in
+            X64) RUNNER_PLATFORM=linux/amd64 ;;
+            ARM64) RUNNER_PLATFORM=linux/arm64 ;;
+            *)
+              echo "::error::Unsupported publish runner architecture '${PUBLISH_RUNNER_ARCH}'." >&2
+              exit 1
+              ;;
+          esac
+
+          for REF in "${IMAGE}:v${VERSION}" "${IMAGE}:v${MAJOR_MINOR}"; do
+            DIGEST="$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${REF}" | jq -r '.digest')"
+            if [[ ! "${DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::Could not resolve a manifest digest for ${REF}; got '${DIGEST}'." >&2
+              exit 1
+            fi
+            echo "Published ${REF} manifest digest: ${DIGEST}"
+
+            for PLATFORM in linux/amd64 linux/arm64; do
+              docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"
+
+              bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"
+
+              LABEL_VERSION="$(docker image inspect \
+                --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
+                "${IMAGE}@${DIGEST}")"
+
+              if [ "${LABEL_VERSION}" != "${TAG}" ]; then
+                echo "::error::Published OCI version label ${LABEL_VERSION} for ${REF} (${PLATFORM}) at ${DIGEST} does not match ${TAG}." >&2
+                exit 1
+              fi
+
+              # Execute the binary only on the runner's native platform. The
+              # arm64 image is still covered by the ELF architecture check above
+              # and the OCI label check, not by runtime execution.
+              if [ "${PLATFORM}" != "${RUNNER_PLATFORM}" ]; then
+                echo "Verified ${REF} ${PLATFORM} at ${DIGEST}: label ${LABEL_VERSION}, embedded ELF architecture and label checks passed."
+                echo "Skipped atb version execution for ${PLATFORM}: this publish job runs on ${RUNNER_PLATFORM} and QEMU/binfmt emulation is not installed."
+                continue
+              fi
+
+              BINARY_VERSION="$(docker run --rm --platform "${PLATFORM}" \
+                "${IMAGE}@${DIGEST}" version | awk '{print $NF}')"
+              if [ "${BINARY_VERSION}" != "${TAG#v}" ]; then
+                echo "::error::Published atb binary version ${BINARY_VERSION} for ${REF} (${PLATFORM}) at ${DIGEST} does not match ${TAG#v}." >&2
+                exit 1
+              fi
+
+              echo "Verified ${REF} ${PLATFORM} at ${DIGEST}: label ${LABEL_VERSION}, binary ${BINARY_VERSION}."
+            done
+          done
