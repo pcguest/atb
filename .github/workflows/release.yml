@@ -147,6 +147,32 @@ jobs:
           name: atb-release-bundle-validate-${{ github.run_id }}
           path: ${{ env.ATB_CI_BUNDLE_PATH }}
 
+  # Founder-controlled publication gate. Fails closed until the repository
+  # variable RELEASE_GATE_ENABLED is "true" and the "release" environment has
+  # required reviewers. No publication step may bypass this job.
+  release_gate:
+    name: Release Gate
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+    steps:
+      - name: Require explicit release approval
+        env:
+          RELEASE_GATE_ENABLED: ${{ vars.RELEASE_GATE_ENABLED }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "${RELEASE_GATE_ENABLED}" != "true" ]; then
+            echo "::error::Release gate closed: set repository variable RELEASE_GATE_ENABLED=true and configure the 'release' environment with required reviewers before publishing."
+            exit 1
+          fi
+          if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '${TAG_NAME}' is not a stable SemVer tag (vMAJOR.MINOR.PATCH); refusing to publish."
+            exit 1
+          fi
+          echo "Release gate open for ${TAG_NAME}."
+
   # Layers A/B/D: build verified release artifacts for the non-Docker release path.
   build:
     name: Build Release Artifacts (Layers A/B/D)
@@ -527,8 +553,9 @@ jobs:
   publish:
     name: Publish Verified Artifacts (Layer E)
     runs-on: ubuntu-latest
-    needs: [verify, gate-gold]
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [verify, gate-gold, release_gate]
+    if: startsWith(github.ref, 'refs/tags/') && needs.release_gate.result == 'success'
+    environment: release
     permissions:
       contents: write
       id-token: write

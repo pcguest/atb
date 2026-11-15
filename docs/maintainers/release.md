@@ -31,6 +31,40 @@ WORM automation uses `ATB_WORM_S3_ACCESS_KEY_ID` and
 `ATB_WORM_S3_SECRET_ACCESS_KEY`, scoped to the minimum required object-write
 and retention operations.
 
+## Release gate
+
+Publication is founder-controlled and fails closed. A release cannot publish
+until all of the following repository settings exist:
+
+- Repository variable `RELEASE_GATE_ENABLED` set to `true`.
+- A protected `release` environment, used by the `Release` workflow's publish
+  job, with required reviewers.
+- A protected `docker-release` environment, used by the `Docker Publish`
+  workflow's merge job, with required reviewers.
+
+Approving the environment run is the approval to publish. This document does
+not assert that these settings are configured: they are repository
+configuration, not tracked files. Until they are in place, tag pushes and
+manual dispatches stop at the gate and publish nothing. The gate also rejects
+tags that are not stable SemVer.
+
+### Docker publication is manual
+
+`docker-publish.yml` has no tag trigger. Publish an image by dispatching the
+workflow with three required inputs:
+
+- `confirm`: must be exactly `PUBLISH`.
+- `tag`: a stable SemVer tag, `vMAJOR.MINOR.PATCH`.
+- `expected_sha`: the full 40-character lowercase hex commit SHA that the tag
+  must resolve to.
+
+The gate rejects any repository other than `pcguest/atb`, a wrong confirmation
+string, a malformed tag or SHA, a `RELEASE_GATE_ENABLED` value other than
+`true`, and any tag whose commit does not match `expected_sha`. The published
+manifest carries `vMAJOR.MINOR.PATCH` and `vMAJOR.MINOR` only. Promoting
+`:latest` is a separate, explicitly approved operation and never happens
+automatically.
+
 ## 1. Consolidate CHANGELOG
 
 Move the `[Unreleased]` content into a new `## [v<NEW>] - <date>` block.
@@ -107,7 +141,8 @@ cd sdk/python && python -m pytest && cd ../..
 
 Run the release preflight before opening the release PR. Contributors without
 a running Docker daemon may skip the local Docker smoke build; the
-`docker-publish.yml` workflow builds and publishes the image on tag push.
+`docker-publish.yml` workflow builds and publishes the image only when a
+maintainer dispatches it through the release gate.
 The local Docker smoke requires Docker Buildx and either native execution or
 binfmt/emulation for both `linux/amd64` and `linux/arm64`. It independently
 checks the embedded ELF architecture because an emulated runtime pass does not
@@ -152,15 +187,16 @@ git tag -a v<NEW> -m "v<NEW>"
 git push origin v<NEW>
 ```
 
-Wait for the tag-triggered workflows to succeed. Do not create a GitHub Release
-manually: the `Release` workflow owns the draft, registry publication, retained
-evidence bundle, and final transition out of draft.
+Wait for the tag-triggered `Release` workflow to succeed. Do not create a
+GitHub Release manually: the `Release` workflow owns the draft, registry
+publication, retained evidence bundle, and final transition out of draft.
 
 The `Release` workflow contains its own gold gate (`make gate-gold-release`,
-including the repository's ≥80% aggregate Go coverage threshold). Tag pushes
-also trigger `Docker Publish`. Both workflows must be green before announcing
-the release. A manual dispatch of `release.yml` builds and verifies artefacts
-but cannot publish without a tag.
+including the repository's ≥80% aggregate Go coverage threshold). A tag push
+runs both workflows, but only `Release` can publish; `Docker Publish` must be
+dispatched separately with `confirm=PUBLISH`, the tag, and its commit SHA. Both
+must be green before announcing the release. A manual dispatch of `release.yml`
+builds and verifies artefacts but cannot publish without a tag.
 
 Publication is retry-safe: publish already verified immutable artefacts, append
 all capture evidence before signing the retained evidence bundle, and make the

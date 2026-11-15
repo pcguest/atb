@@ -1,25 +1,94 @@
 name: Docker Publish (Layer E)
 
 on:
+  # Publication is manual only. Tag pushes must not publish images; there is no
+  # automatic path from a tag to a registry write.
   workflow_dispatch:
     inputs:
+      confirm:
+        description: 'Type PUBLISH to confirm this publication'
+        required: true
+        type: string
       tag:
         description: "Stable release tag (e.g. v1.16.0)"
         required: true
         type: string
-  push:
-    tags:
-      - "v*.*.*"
+      expected_sha:
+        description: "Full 40-hex commit SHA that the tag must resolve to"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  # Founder-controlled publication gate. Fails closed until the repository
+  # variable RELEASE_GATE_ENABLED is "true" and the "docker-release" environment
+  # has required reviewers.
+  release_gate:
+    name: Release Gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0
+
+      - name: Validate dispatch approval
+        env:
+          REPOSITORY: ${{ github.repository }}
+          CONFIRM: ${{ inputs.confirm }}
+          TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          RELEASE_GATE_ENABLED: ${{ vars.RELEASE_GATE_ENABLED }}
+        run: |
+          set -euo pipefail
+
+          if [ "${REPOSITORY}" != "pcguest/atb" ]; then
+            echo "::error::Docker publication is only enabled for pcguest/atb; got ${REPOSITORY}."
+            exit 1
+          fi
+
+          if [ "${CONFIRM}" != "PUBLISH" ]; then
+            echo "::error::Confirmation input must be exactly PUBLISH; refusing to publish."
+            exit 1
+          fi
+
+          if [[ ! "${TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "::error::Release tag must be stable SemVer (vMAJOR.MINOR.PATCH); got ${TAG}."
+            exit 1
+          fi
+
+          if [[ ! "${EXPECTED_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::expected_sha must be a full 40-character lowercase hex commit SHA."
+            exit 1
+          fi
+
+          if [ "${RELEASE_GATE_ENABLED}" != "true" ]; then
+            echo "::error::Release gate closed: set repository variable RELEASE_GATE_ENABLED=true and configure the 'docker-release' environment with required reviewers."
+            exit 1
+          fi
+
+      - name: Verify tag resolves to expected commit
+        env:
+          TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          ACTUAL_SHA="$(git rev-parse "refs/tags/${TAG}^{commit}")"
+          if [ "${ACTUAL_SHA}" != "${EXPECTED_SHA}" ]; then
+            echo "::error::Tag ${TAG} resolves to ${ACTUAL_SHA}, not the expected commit ${EXPECTED_SHA}."
+            exit 1
+          fi
+          echo "Release gate open for ${TAG} at ${ACTUAL_SHA}."
+
   # Layer E: Docker image build and publication are an optional distribution channel.
   build:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    needs: release_gate
     strategy:
       fail-fast: false
       matrix:
@@ -114,7 +183,8 @@ jobs:
     name: Merge manifests and push tags
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: build
+    needs: [build, release_gate]
+    environment: docker-release
     steps:
       - name: Resolve release tag
         id: release-tag
@@ -165,8 +235,9 @@ jobs:
             exit 1
           fi
 
+          # Only immutable version tags are pushed here. Promoting :latest is a
+          # separate, explicitly approved operation; it is never automatic.
           docker buildx imagetools create \
             -t "${IMAGE}:v${VERSION}" \
             -t "${IMAGE}:v${MAJOR_MINOR}" \
-            -t "${IMAGE}:latest" \
             "${digests[@]}"
