@@ -91,6 +91,17 @@ It executes the `atb version` output only on the publish runner's native
 platform (`linux/amd64`), because that job does not install QEMU/binfmt
 emulation for `linux/arm64`.
 
+Publication is serialized per release tag (`concurrency.group` is
+`docker-publish-<tag>`) with `cancel-in-progress: false`, so a second dispatch
+for the same tag waits instead of racing the first. Before the build and push,
+the publish job inspects the immutable `vMAJOR.MINOR.PATCH` manifest with
+`docker buildx imagetools inspect` and fails if it already exists: the
+immutable version tag is never overwritten, and replacing it requires a
+separate, explicitly approved operation. Only an absent manifest proceeds; any
+other inspection failure fails closed. The documented mutable `vMAJOR.MINOR`
+tag is not checked. The exact tag is logged before the push, and the manifest
+digest is logged immediately after the push.
+
 ## 1. Consolidate CHANGELOG
 
 Move the `[Unreleased]` content into a new `## [v<NEW>] - <date>` block.
@@ -249,6 +260,21 @@ the incomplete steps. Resuming is manual: re-run the failed jobs, or dispatch
 `docker-publish.yml` again for the image, after the workflow fix; GitHub does
 not automatically retry a partial registry publication. If the artefacts must
 change, cut a new version.
+
+Registry publication is serialized per ref: the `Release` workflow keeps its
+workflow-level `release-<ref>` lock for build and validation, and the `publish`
+job adds a separate `atb-release-<ref>` lock with `cancel-in-progress: false`.
+A second run for the same ref waits rather than cancelling an in-progress
+publication.
+
+`Release` also accepts two `workflow_dispatch` boolean inputs, `skip_pypi` and
+`skip_npm`, both defaulting to `false`. Tag pushes cannot set them. Use a skip
+only to resume a partial publication after manually verifying that the exact
+version and the same artefact hashes already exist in that registry: the input
+removes that registry's publish step and its pre-publication existence check
+for that dispatch. With both `false` (the default, and always on a tag push),
+both registries are checked and published as before. Do not set a skip to work
+around a version collision.
 
 ## 8. Close tracking issues
 
