@@ -5,6 +5,7 @@ blind_spots:
   - "Limitation: operator bypass of the ACP gate is not detectable from bundle events alone. | Mitigation: enforce ACP gate at runtime (L5) and/or append atb.corroboration.external (L4). | Residual: actions executed entirely outside the gate remain invisible."
   - "Limitation: tool provider internal processing is not attested unless tool receipts are cryptographically verifiable. | Mitigation: record tool_receipt_digest from verifiable provider receipts (L3). | Residual: provider execution fidelity without receipt verification."
   - "Limitation: XC credit requires at least one valid atb.corroboration.external event. | Mitigation: run atb corroborate with a configured adapter (L4). | Residual: absence of corroboration indicates the adapter was not used, not necessarily a recording failure."
+  - "Limitation: approval ordering is established only from recorded RFC 3339 timestamps; bundle position and backdating are writer-controlled, and profile success does not prove independent human authorisation or agent non-bypass. | Mitigation: verify event timestamps against an independent clock or external corroboration (L4). | Residual: a correctly ordered, correlated approval record can still be fabricated or replayed by the writer."
 weights:
   EC: 0.20
   FC: 0.15

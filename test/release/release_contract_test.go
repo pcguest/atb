@@ -581,7 +581,7 @@ func TestScannerBootstrapPinsGoAnalyzersAndIsolatesCaches(t *testing.T) {
 	for _, required := range []string{
 		`readonly STATICCHECK_VERSION="v0.7.0"`,
 		`readonly GOVULNCHECK_VERSION="v1.5.0"`,
-		`readonly GO_VERSION="go1.26.10"`,
+		`readonly GO_VERSION="go1.26.11"`,
 		`GOMODCACHE="$DEST_DIR/../go-mod-cache"`,
 		`GOSUMDB="sum.golang.org"`,
 		`honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}`,

@@ -466,6 +466,47 @@ func TestEvaluate_RequiredWhenBeforeCorrelated(t *testing.T) {
 		}
 	})
 
+	t.Run("one approval cannot satisfy two executions with the same action_id", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			execution("act-1", "2026-03-27T12:04:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+		})
+		if result.Pass {
+			t.Fatalf("expected failure, got pass")
+		}
+		if !hasFailure(result.CriticalFailures, "reused_correlated_event", "action_id=act-1") {
+			t.Fatalf("expected reused_correlated_event for action_id=act-1, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("each execution with the same action_id needs a distinct approval", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			execution("act-1", "2026-03-27T12:04:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+			approval("act-1", "2026-03-27T12:03:30Z"),
+		})
+		if !result.Pass {
+			t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("unused approval with missing timestamp is temporal_unknown not reuse", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			execution("act-1", "2026-03-27T12:04:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+			approval("act-1", ""),
+		})
+		if !hasFailure(result.CriticalFailures, "temporal_unknown", "timestamps are missing or invalid") {
+			t.Fatalf("expected temporal_unknown, got %+v", result.CriticalFailures)
+		}
+		if hasFailure(result.CriticalFailures, "reused_correlated_event", "") {
+			t.Fatalf("did not expect reused_correlated_event, got %+v", result.CriticalFailures)
+		}
+	})
+
 	t.Run("missing correlation field fails", func(t *testing.T) {
 		result := Evaluate(schema, []bundle.Record{
 			execution("", "2026-03-27T12:03:00Z"),

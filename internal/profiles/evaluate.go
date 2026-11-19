@@ -226,8 +226,9 @@ func evaluateRequiredWhenRules(
 			}
 
 			if cond.Before {
+				usedTargets := make(map[int]struct{})
 				for _, conditionRecord := range conditionRecords {
-					evaluateRequiredWhenBefore(result, targetType, targetRecords, conditionType, conditionRecord, cond)
+					evaluateRequiredWhenBefore(result, targetType, targetRecords, conditionType, conditionRecord, cond, usedTargets)
 				}
 				continue
 			}
@@ -279,6 +280,7 @@ func evaluateRequiredWhenBefore(
 	conditionType string,
 	conditionRecord bundle.Record,
 	cond requiredWhenRule,
+	usedTargets map[int]struct{},
 ) {
 	matchField := strings.TrimSpace(cond.MatchField)
 	key := fieldString(conditionRecord, matchField)
@@ -291,10 +293,10 @@ func evaluateRequiredWhenBefore(
 		return
 	}
 
-	correlated := make([]bundle.Record, 0, len(targetRecords))
-	for _, rec := range targetRecords {
+	correlated := make([]int, 0, len(targetRecords))
+	for index, rec := range targetRecords {
 		if fieldString(rec, matchField) == key {
-			correlated = append(correlated, rec)
+			correlated = append(correlated, index)
 		}
 	}
 	if len(correlated) == 0 {
@@ -321,17 +323,35 @@ func evaluateRequiredWhenBefore(
 	}
 
 	anyValidTargetTS := false
-	anyBefore := false
-	for _, rec := range correlated {
-		targetTime, present, err := parseEventTimestamp(rec)
+	anyUnusedTarget := false
+	anyUnusedValidTargetTS := false
+	anyUnusedBefore := false
+	chosen := -1
+	for _, index := range correlated {
+		_, used := usedTargets[index]
+		if !used {
+			anyUnusedTarget = true
+		}
+		targetTime, present, err := parseEventTimestamp(targetRecords[index])
 		if !present || err != nil {
 			continue
 		}
 		anyValidTargetTS = true
-		if targetTime.Before(conditionTime) {
-			anyBefore = true
-			break
+		if used {
+			continue
 		}
+		anyUnusedValidTargetTS = true
+		if targetTime.Before(conditionTime) {
+			anyUnusedBefore = true
+			if chosen == -1 {
+				chosen = index
+			}
+		}
+	}
+
+	if chosen != -1 {
+		usedTargets[chosen] = struct{}{}
+		return
 	}
 	if !anyValidTargetTS {
 		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
@@ -341,13 +361,27 @@ func evaluateRequiredWhenBefore(
 		})
 		return
 	}
-	if !anyBefore {
+	if anyUnusedTarget && !anyUnusedValidTargetTS {
+		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     requiredWhenID(targetType, conditionType),
+			Kind:   "temporal_unknown",
+			Detail: fmt.Sprintf("required_when: cannot establish %s before %s because %s timestamps are missing or invalid", targetType, conditionType, targetType),
+		})
+		return
+	}
+	if anyUnusedValidTargetTS && !anyUnusedBefore {
 		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
 			ID:     requiredWhenID(targetType, conditionType),
 			Kind:   "temporal_violation",
 			Detail: fmt.Sprintf("required_when: %s must occur before %s for %s=%s", targetType, conditionType, matchField, key),
 		})
+		return
 	}
+	result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+		ID:     requiredWhenID(targetType, conditionType),
+		Kind:   "reused_correlated_event",
+		Detail: fmt.Sprintf("required_when: %s for %s=%s has already been used for another %s", targetType, matchField, key, conditionType),
+	})
 }
 
 func requiredWhenConditionTimestampWarning(targetType string, conditionType string, present bool, err error) string {
