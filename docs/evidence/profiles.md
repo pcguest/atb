@@ -32,13 +32,14 @@ Required events:
 
 Optional evidence:
 
-- `ai.human.approval` — warning; becomes required when `ai.action.executed` is present. Fields: `approval_id`, `approver_id_hash`, `approval_outcome`, `justification_digest`, `action_id`
+- `ai.human.approval` — warning; when `ai.action.executed` is present it becomes required before that execution (critical via `required_when` `before` with `match_field: action_id`) and must record an `approved` outcome. Fields: `approval_id`, `approver_id_hash`, `approval_outcome`, `justification_digest`, `action_id`
 
 Relation checks:
 
 - `ai.action.committed` must bind to `ai.action.precommit` by `action_id`.
 - `ai.policy.decision` must bind to `ai.action.precommit` by `action_id`.
 - `ai.action.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
+- `ai.human.approval` must bind to `ai.action.precommit` by `action_id` and requires `approval_outcome=approved` (`approval_binds_action`).
 
 Blind spots / out of scope:
 

@@ -281,7 +281,7 @@ func TestProfileIdentity(t *testing.T) {
 		wantVersion  int
 		wantWorkflow string
 	}{
-		{"atb.profile.privileged_tool_action", 1, "privileged_tool_action"},
+		{"atb.profile.privileged_tool_action", 2, "privileged_tool_action"},
 		{"atb.profile.rag_answer", 1, "rag_answer"},
 		{"atb.profile.policy_decision", 1, "policy_decision"},
 		{"atb.profile.human_override", 1, "human_override"},

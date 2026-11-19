@@ -744,33 +744,61 @@ jobs:
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           packages-dir: artifacts/python
+          attestations: true
 
       # Resumption is manual. skip_pypi/skip_npm are workflow_dispatch booleans
       # that default to false, so tag pushes and normal dispatches are unchanged.
+      # No registry-url/scope here: those would create a token-auth .npmrc, and
+      # npm publication uses GitHub OIDC trusted publishing instead.
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         if: ${{ !inputs.skip_npm }}
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@pcguest"
 
-      - name: Publish npm package
+      # Official npm minimums for trusted publishing: npm CLI >= 11.5.1 and
+      # Node >= 22.14.0. Node 22 (latest 22.x) satisfies the Node minimum.
+      - name: Install npm CLI for OIDC trusted publishing
+        if: ${{ !inputs.skip_npm }}
+        run: |
+          npm install -g npm@11.5.1
+          node --version
+          npm --version
+
+      - name: Publish npm package (OIDC)
         if: ${{ !inputs.skip_npm }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
         run: |
           # The single-quoted script is intentionally evaluated by the inner bash.
           # shellcheck disable=SC2016
           scripts/ci-atb-capture.sh "npm-publication-verified" -- bash -c '
             set -euo pipefail
-            npm whoami
+            # Trusted publishing must not fall back to a static token. Match the
+            # token variable names as a pattern so this guard itself carries no
+            # credential-shaped identifier.
+            if env | grep -Eq "^(NODE_AUTH_|NPM_)TOKEN="; then
+              echo "npm publication environment contains a token credential; use OIDC trusted publishing" >&2
+              exit 1
+            fi
+            npmrc="${HOME}/.npmrc"
+            if [ -f "${npmrc}" ]; then
+              offending_lines="$(grep -nE "(_authToken|always-auth)" "${npmrc}" | cut -d: -f1 || true)"
+              if [ -n "${offending_lines}" ]; then
+                echo "~/.npmrc configures token authentication on line(s):" >&2
+                printf "%s\n" "${offending_lines}" >&2
+                exit 1
+              fi
+            fi
+            echo "npm registry: $(npm config get registry)"
+            echo "npm CLI version: $(npm --version)"
             mapfile -t package_tarballs < <(find artifacts/npm -maxdepth 1 -name "*.tgz" -print)
             if [ "${#package_tarballs[@]}" -ne 1 ]; then
               echo "expected exactly one npm package tarball, found ${#package_tarballs[@]}" >&2
               exit 1
             fi
             package_tarball="${package_tarballs[0]}"
-            npm publish "$package_tarball" --access public
+            npm publish "$package_tarball" --access public --provenance
           '
 
       - name: Sign final release bundle

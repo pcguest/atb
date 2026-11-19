@@ -728,3 +728,53 @@ func TestInstallGuidanceUsesVersionedModulePath(t *testing.T) {
 		t.Fatal("no install guidance files were checked")
 	}
 }
+
+func TestReleaseNpmPublishingUsesOIDCWithoutToken(t *testing.T) {
+	release := readRepositoryFile(t, ".github/workflows/release.yml")
+	publishJob := workflowJobSection(t, release, "publish")
+
+	for _, required := range []string{
+		"id-token: write",
+		"npm install -g npm@11.5.1",
+		"NPM_CONFIG_PROVENANCE",
+		"--provenance",
+		"Publish npm package (OIDC)",
+	} {
+		if !strings.Contains(publishJob, required) {
+			t.Errorf("npm publication does not enable OIDC trusted publishing requirement %q", required)
+		}
+	}
+
+	// The runbook must state the official trusted-publishing minimums and the
+	// pinned npm CLI version, so documentation cannot drift from the workflow.
+	releaseRunbook := readRepositoryFile(t, "docs/maintainers/release.md")
+	for _, required := range []string{"11.5.1", "22.14.0"} {
+		if !strings.Contains(releaseRunbook, required) {
+			t.Errorf("release runbook does not document npm trusted-publishing minimum %q", required)
+		}
+	}
+
+	// The publish job must not resurrect the long-lived token path: no token
+	// environment mapping, no npm token secret, and no registry-url/scope setup
+	// that writes a token-auth .npmrc.
+	for _, forbidden := range []string{
+		"NODE_AUTH_TOKEN",
+		"secrets.NPM_TOKEN",
+		"NPM_TOKEN",
+		`registry-url: "https://registry.npmjs.org"`,
+	} {
+		if strings.Contains(publishJob, forbidden) {
+			t.Errorf("npm publication still depends on token-based setup %q", forbidden)
+		}
+	}
+
+	for _, name := range []string{
+		".github/WORKFLOWS.md",
+		"docs/maintainers/release.md",
+		"docs/getting-started/configuration.md",
+	} {
+		if strings.Contains(readRepositoryFile(t, name), "NPM_TOKEN") {
+			t.Errorf("%s still documents an NPM token secret", name)
+		}
+	}
+}

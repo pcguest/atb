@@ -20,15 +20,28 @@ The release workflow uses secret names only; values never belong in source or
 logs:
 
 - `GITHUB_TOKEN`: job-scoped GitHub release automation token.
-- `NPM_TOKEN`: package-scoped `@pcguest/atb-sdk` publish token with the minimum
-  required write access and non-interactive 2FA policy.
 - `ATB_SIGNING_KEY_PEM`: protected PKCS#8 Ed25519 key for the final release
   evidence bundle. See [key management](../evidence/key-management.md).
 - `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: Docker publication credentials,
   used only by the protected `docker-release` publish job.
 
-PyPI uses GitHub OIDC trusted publishing, not a repository token. Optional S3
-WORM automation uses `ATB_WORM_S3_ACCESS_KEY_ID` and
+PyPI uses GitHub OIDC trusted publishing, not a repository token. npm also uses
+GitHub OIDC trusted publishing for `@pcguest/atb-sdk`: the publish job keeps
+`id-token: write` and publishes without `NODE_AUTH_TOKEN`, an npm token, or a
+token-auth `.npmrc`. There is no repository or environment npm token. The
+trusted publisher must be configured on npm for repository `pcguest/atb`,
+workflow `release.yml`, environment `release` (the publish job's environment),
+and package `@pcguest/atb-sdk`. Publication requires npm CLI >= 11.5.1 and
+Node >= 22.14.0 (the workflow installs `npm@11.5.1` on Node 22) and attaches
+provenance (`--provenance`). First-time package registration or staged
+publishing is a separate, founder-authorised operation; this workflow does not
+publish a placeholder.
+
+Residual risk: a repository writer can edit this workflow. Environment required
+reviewers and tag protection are the controls for a publication run; the OIDC
+exchange only grants a short-lived credential to the approved run.
+
+Optional S3 WORM automation uses `ATB_WORM_S3_ACCESS_KEY_ID` and
 `ATB_WORM_S3_SECRET_ACCESS_KEY`, scoped to the minimum required object-write
 and retention operations.
 
@@ -56,7 +69,7 @@ the environment settings. Treat the gate as evidence of intent to publish, not
 as proof that only trusted code can reach the registry.
 
 Recommended hardening, not yet verified: move `DOCKERHUB_USERNAME`,
-`DOCKERHUB_TOKEN`, `NPM_TOKEN`, and `ATB_SIGNING_KEY_PEM` from repository
+`DOCKERHUB_TOKEN`, and `ATB_SIGNING_KEY_PEM` from repository
 secrets to environment-scoped secrets on the `release` and `docker-release`
 environments, so a workflow change cannot read them without an approved run,
 and configure those environments to prevent self-review of an approval.

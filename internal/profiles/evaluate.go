@@ -225,6 +225,13 @@ func evaluateRequiredWhenRules(
 				continue
 			}
 
+			if cond.Before {
+				for _, conditionRecord := range conditionRecords {
+					evaluateRequiredWhenBefore(result, targetType, targetRecords, conditionType, conditionRecord, cond)
+				}
+				continue
+			}
+
 			if !cond.AtOrAfter {
 				continue
 			}
@@ -262,6 +269,84 @@ func evaluateRequiredWhenRules(
 				})
 			}
 		}
+	}
+}
+
+func evaluateRequiredWhenBefore(
+	result *EvaluationResult,
+	targetType string,
+	targetRecords []bundle.Record,
+	conditionType string,
+	conditionRecord bundle.Record,
+	cond requiredWhenRule,
+) {
+	matchField := strings.TrimSpace(cond.MatchField)
+	key := fieldString(conditionRecord, matchField)
+	if key == "" {
+		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     requiredWhenCorrelationID(targetType, conditionType),
+			Kind:   "missing_correlation_field",
+			Detail: fmt.Sprintf("required_when: %s cannot be correlated to %s because %s is missing field %s", targetType, conditionType, conditionType, matchField),
+		})
+		return
+	}
+
+	correlated := make([]bundle.Record, 0, len(targetRecords))
+	for _, rec := range targetRecords {
+		if fieldString(rec, matchField) == key {
+			correlated = append(correlated, rec)
+		}
+	}
+	if len(correlated) == 0 {
+		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     requiredWhenID(targetType, conditionType),
+			Kind:   "missing_correlated_event",
+			Detail: fmt.Sprintf("required_when: no %s with %s=%s for %s", targetType, matchField, key, conditionType),
+		})
+		return
+	}
+
+	conditionTime, conditionPresent, conditionErr := parseEventTimestamp(conditionRecord)
+	if !conditionPresent || conditionErr != nil {
+		reason := "missing"
+		if conditionErr != nil {
+			reason = "invalid"
+		}
+		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     requiredWhenID(targetType, conditionType),
+			Kind:   "temporal_unknown",
+			Detail: fmt.Sprintf("required_when: cannot establish %s before %s because %s timestamp is %s", targetType, conditionType, conditionType, reason),
+		})
+		return
+	}
+
+	anyValidTargetTS := false
+	anyBefore := false
+	for _, rec := range correlated {
+		targetTime, present, err := parseEventTimestamp(rec)
+		if !present || err != nil {
+			continue
+		}
+		anyValidTargetTS = true
+		if targetTime.Before(conditionTime) {
+			anyBefore = true
+			break
+		}
+	}
+	if !anyValidTargetTS {
+		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     requiredWhenID(targetType, conditionType),
+			Kind:   "temporal_unknown",
+			Detail: fmt.Sprintf("required_when: cannot establish %s before %s because %s timestamps are missing or invalid", targetType, conditionType, targetType),
+		})
+		return
+	}
+	if !anyBefore {
+		result.CriticalFailures = append(result.CriticalFailures, CriticalFailure{
+			ID:     requiredWhenID(targetType, conditionType),
+			Kind:   "temporal_violation",
+			Detail: fmt.Sprintf("required_when: %s must occur before %s for %s=%s", targetType, conditionType, matchField, key),
+		})
 	}
 }
 
@@ -330,6 +415,10 @@ func relationPredicateMessage(rule RelationRule, predicate RelationPredicate, ac
 
 func requiredWhenID(targetType string, conditionType string) string {
 	return "required_when:" + targetType + ":when:" + conditionType
+}
+
+func requiredWhenCorrelationID(targetType string, conditionType string) string {
+	return requiredWhenID(targetType, conditionType) + ":correlation"
 }
 
 func dataMap(data any) map[string]any {

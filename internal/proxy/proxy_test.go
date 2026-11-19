@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
+	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -27,6 +29,43 @@ func (tr *testRecorder) AppendSessionClose(sess *proxy.Session) error {
 		return tr.AppendSessionCloseFunc(sess)
 	}
 	return tr.BundleRecorder.AppendSessionClose(sess)
+}
+
+func TestStartReportsListenFailureSynchronously(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	reserved, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Skipf("loopback listener unavailable: %v", err)
+	}
+	defer func() { _ = reserved.Close() }()
+
+	cfg := proxy.ProxyConfig{
+		ListenAddr:  reserved.Addr().String(),
+		BundlePath:  filepath.Join(t.TempDir(), "bundle.atb"),
+		TargetHosts: []string{"api.openai.com"},
+	}
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logs, nil))
+	p, err := proxy.NewProxy(cfg, nil, logger)
+	if err != nil {
+		t.Fatalf("NewProxy: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Call Start directly: a regression that binds asynchronously would leave
+	// this test blocked here instead of returning the listen failure.
+	if err := p.Start(ctx); err == nil {
+		t.Fatal("Start succeeded with an address already in use")
+	}
+	if strings.Contains(logs.String(), "proxy listening") {
+		t.Fatalf("Start logged listener success after a bind failure:\n%s", logs.String())
+	}
+	if err := p.Stop(); err != nil {
+		t.Fatalf("Stop after failed Start: %v", err)
+	}
 }
 
 func TestProxyConfigValidate(t *testing.T) {

@@ -19,10 +19,11 @@ SemVer tag, and that tag's commit SHA.
 Environment protection is a deliberate-action control, not an authorization
 boundary. Requiring reviewers on the `release` and `docker-release`
 environments makes an approval a deliberate act; it does not stop a repository
-writer from changing these workflows or the environment settings. Recommended
-hardening, not yet verified: move `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`,
-`NPM_TOKEN`, and `ATB_SIGNING_KEY_PEM` to environment-scoped secrets on those
-environments, and prevent self-review of environment approvals.
+writer from changing these workflows or the environment settings. npm and PyPI
+publication use OIDC trusted publishing, so neither needs an npm or PyPI token
+secret. Recommended hardening, not yet verified: move `DOCKERHUB_USERNAME`,
+`DOCKERHUB_TOKEN`, and `ATB_SIGNING_KEY_PEM` to environment-scoped secrets on
+those environments, and prevent self-review of environment approvals.
 
 Actions are pinned to full commit SHAs. Update a pin by reviewing the upstream
 release and changing the `uses:` line in a focused pull request.

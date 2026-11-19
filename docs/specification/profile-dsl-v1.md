@@ -153,7 +153,11 @@ Internal `ProfileSchema` fields used by built-in templates:
 |-------|------|----------|---------|-------------|
 | `when_type` | string | Yes | none | Event type that triggers the conditional obligation. Must reference a known required or optional rule in the same profile. |
 | `at_or_after` | boolean | No | `false` | When true, the target event must have an RFC 3339 timestamp at or after the condition event. |
+| `before` | boolean | No | `false` | When true, each condition event requires a correlated target event with an RFC 3339 timestamp strictly before it. Mutually exclusive with `at_or_after`, and requires `match_field`. |
+| `match_field` | string | Yes when `before` is true | empty string | Payload field used to correlate target and condition events. May only be set when `before` is true. |
 | `message` | string | No | generated fallback | Finding message when the conditional event is absent. |
+
+`at_or_after` and `before` are mutually exclusive; a rule that sets both is rejected by schema validation. `before` requires a non-empty `match_field`, and `match_field` is rejected unless `before` is true. With `before`, ordering is strict: the evaluator reads `match_field` from each condition event, selects target events that carry the same value, and requires at least one of those correlated target events to have a strictly earlier RFC 3339 timestamp. The check is fail-closed: a condition event missing its `match_field` value, no target event correlated by that value, or a missing or invalid timestamp on the condition event or the correlated target events is a critical failure rather than a warning. An event recorded at or after the condition event does not satisfy `before`, and a timestamp that is not valid RFC 3339 cannot establish the required ordering.
 
 `RelationRule` fields:
 
