@@ -226,8 +226,14 @@ func evaluateRequiredWhenRules(
 			}
 
 			if cond.Before {
+				orderedConditions := append([]bundle.Record(nil), conditionRecords...)
+				sort.SliceStable(orderedConditions, func(i, j int) bool {
+					iTime, _, _ := parseEventTimestamp(orderedConditions[i])
+					jTime, _, _ := parseEventTimestamp(orderedConditions[j])
+					return iTime.Before(jTime)
+				})
 				usedTargets := make(map[int]struct{})
-				for _, conditionRecord := range conditionRecords {
+				for _, conditionRecord := range orderedConditions {
 					evaluateRequiredWhenBefore(result, targetType, targetRecords, conditionType, conditionRecord, cond, usedTargets)
 				}
 				continue

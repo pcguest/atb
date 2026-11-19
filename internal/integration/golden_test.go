@@ -221,7 +221,7 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 		}
 	})
 
-	t.Run("missing_approval_after_execution", func(t *testing.T) {
+	t.Run("missing_approval", func(t *testing.T) {
 		bundlePath := newTempBundle(t)
 
 		const actionID = "act-golden-missing-approval-001"
@@ -397,7 +397,7 @@ func TestGoldenPath_DataExport(t *testing.T) {
 		t.Fatalf("expected non-empty head hash")
 	}
 
-	t.Run("missing_approval_after_execution", func(t *testing.T) {
+	t.Run("missing_approval", func(t *testing.T) {
 		bundlePath := newTempBundle(t)
 
 		const actionID = "act-export-missing-approval-001"

@@ -412,6 +412,18 @@ func TestEvaluate_RequiredWhenBeforeCorrelated(t *testing.T) {
 		}
 	})
 
+	t.Run("out-of-order executions still match distinct earlier approvals", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:20:00Z"),
+			execution("act-1", "2026-03-27T12:05:00Z"),
+			approval("act-1", "2026-03-27T12:00:00Z"),
+			approval("act-1", "2026-03-27T12:10:00Z"),
+		})
+		if !result.Pass {
+			t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+		}
+	})
+
 	t.Run("approval after execution fails", func(t *testing.T) {
 		result := Evaluate(schema, []bundle.Record{
 			execution("act-1", "2026-03-27T12:03:00Z"),
