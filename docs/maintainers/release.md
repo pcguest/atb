@@ -25,17 +25,22 @@ logs:
 - `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: Docker publication credentials,
   used only by the protected `docker-release` publish job.
 
-PyPI uses GitHub OIDC trusted publishing, not a repository token. npm also uses
-GitHub OIDC trusted publishing for `@pcguest/atb-sdk`: the publish job keeps
-`id-token: write` and publishes without `NODE_AUTH_TOKEN`, an npm token, or a
-token-auth `.npmrc`. There is no repository or environment npm token. The
-trusted publisher must be configured on npm for repository `pcguest/atb`,
-workflow `release.yml`, environment `release` (the publish job's environment),
-and package `@pcguest/atb-sdk`. Publication requires npm CLI >= 11.5.1 and
-Node >= 22.14.0 (the workflow installs `npm@11.5.1` on Node 22) and attaches
-provenance (`--provenance`). First-time package registration or staged
-publishing is a separate, founder-authorised operation; this workflow does not
-publish a placeholder.
+PyPI uses GitHub OIDC trusted publishing, not a repository token. npm
+publication is staged with GitHub OIDC trusted publishing for
+`@pcguest/atb-sdk`: the publish job keeps `id-token: write` and stages a version
+without `NODE_AUTH_TOKEN`, an npm token, or a token-auth `.npmrc`. There is no
+repository or environment npm token. The trusted publisher must be configured
+on npm for repository `pcguest/atb`, workflow `release.yml`, environment
+`release` (the publish job's environment), and package `@pcguest/atb-sdk`.
+Staged publishing requires npm CLI >= 11.15.0 and Node >= 22.14.0 (the workflow
+installs `npm@11.15.0` on Node 22), and the workflow runs
+`npm stage publish "$package_tarball" --access public --provenance`. Configure
+the trusted publisher as stage-only (`--allow-stage-publish`) and do not grant
+`--allow-publish` initially. Staging does not make the package public: a
+maintainer must review the staged version and approve it with 2FA through the
+npm CLI or UI. This workflow never publishes the package publicly on its own.
+First-time package registration remains a separate, founder-authorised
+operation; this workflow does not publish a placeholder.
 
 Residual risk: a repository writer can edit this workflow. Environment required
 reviewers and tag protection are the controls for a publication run; the OIDC
@@ -265,8 +270,11 @@ gh release view v<NEW> --repo pcguest/atb
 ```
 
 The `Release` workflow first creates a draft, publishes the already verified
-Python and npm artifacts, signs and attaches the final ATB release-evidence
-bundle, and only then makes the GitHub Release public. If any step fails, leave
+Python artifact, stages the verified npm package for maintainer approval, signs
+and attaches the final ATB release-evidence bundle, and only then makes the
+GitHub Release public. After the run, review the staged npm version and approve
+it with 2FA through the npm CLI or UI; the workflow itself never publishes the
+package publicly. If any step fails, leave
 the draft and registry state intact, record which immutable registries accepted
 the version, fix the workflow without changing published bytes, and resume only
 the incomplete steps. Resuming is manual: re-run the failed jobs, or dispatch

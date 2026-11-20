@@ -755,16 +755,16 @@ jobs:
         with:
           node-version: "22"
 
-      # Official npm minimums for trusted publishing: npm CLI >= 11.5.1 and
-      # Node >= 22.14.0. Node 22 (latest 22.x) satisfies the Node minimum.
+      # Official npm minimums for staged trusted publishing: npm CLI >= 11.15.0
+      # and Node >= 22.14.0. Node 22 (latest 22.x) satisfies the Node minimum.
       - name: Install npm CLI for OIDC trusted publishing
         if: ${{ !inputs.skip_npm }}
         run: |
-          npm install -g npm@11.5.1
+          npm install -g npm@11.15.0
           node --version
           npm --version
 
-      - name: Publish npm package (OIDC)
+      - name: Stage npm package (OIDC)
         if: ${{ !inputs.skip_npm }}
         env:
           NPM_CONFIG_PROVENANCE: "true"
@@ -798,7 +798,10 @@ jobs:
               exit 1
             fi
             package_tarball="${package_tarballs[0]}"
-            npm publish "$package_tarball" --access public --provenance
+            # Stage only. A maintainer reviews and approves the staged version
+            # with 2FA through the npm CLI or UI; this workflow never publishes
+            # the package publicly.
+            npm stage publish "$package_tarball" --access public --provenance
           '
 
       - name: Sign final release bundle

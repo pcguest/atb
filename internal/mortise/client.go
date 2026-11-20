@@ -12,11 +12,23 @@ import (
 	"time"
 )
 
-const receiptVersion = "custos.receipt.v1"
+// supportedReceiptVersions lists the custody receipt wire identifiers this
+// client accepts. custos.receipt.v2 is org-bound; the frozen custos.receipt.v1
+// identifier is retained for compatibility with historical deployments.
+var supportedReceiptVersions = map[string]struct{}{
+	"custos.receipt.v1": {},
+	"custos.receipt.v2": {},
+}
+
+func isSupportedReceiptVersion(version string) bool {
+	_, ok := supportedReceiptVersions[version]
+	return ok
+}
 
 // Receipt is the custody receipt returned by the Mortise ingest endpoint.
-// Fields mirror custos.receipt.v1. The transparency-log fields are present
-// only when the Mortise deployment runs an inclusion log.
+// Fields mirror the custos.receipt.v1 and v2 wire identifiers. The
+// transparency-log fields are present only when the Mortise deployment runs an
+// inclusion log.
 type Receipt struct {
 	ReceiptVersion string `json:"receipt_version"`
 	ReceiptID      string `json:"receipt_id"`
@@ -102,7 +114,7 @@ func (c *HTTPClient) SendBundle(ctx context.Context, bundleBytes []byte) (*Recei
 	if err := json.Unmarshal(body, &receipt); err != nil {
 		return nil, fmt.Errorf("decode Mortise receipt: %w", err)
 	}
-	if receipt.ReceiptVersion != receiptVersion {
+	if !isSupportedReceiptVersion(receipt.ReceiptVersion) {
 		return nil, fmt.Errorf("unsupported Mortise receipt version %q", receipt.ReceiptVersion)
 	}
 	if strings.TrimSpace(receipt.ReceiptID) == "" || strings.TrimSpace(receipt.BundleHash) == "" {

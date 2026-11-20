@@ -735,22 +735,36 @@ func TestReleaseNpmPublishingUsesOIDCWithoutToken(t *testing.T) {
 
 	for _, required := range []string{
 		"id-token: write",
-		"npm install -g npm@11.5.1",
+		"npm install -g npm@11.15.0",
 		"NPM_CONFIG_PROVENANCE",
+		"npm stage publish",
+		"--access public",
 		"--provenance",
-		"Publish npm package (OIDC)",
+		"Stage npm package (OIDC)",
 	} {
 		if !strings.Contains(publishJob, required) {
-			t.Errorf("npm publication does not enable OIDC trusted publishing requirement %q", required)
+			t.Errorf("npm publication does not enable OIDC staged trusted-publishing requirement %q", required)
 		}
 	}
 
-	// The runbook must state the official trusted-publishing minimums and the
-	// pinned npm CLI version, so documentation cannot drift from the workflow.
+	// The workflow must stage a version for maintainer approval, not publish it
+	// directly. A direct `npm publish` would bypass the stage-only trusted
+	// publisher contract.
+	if strings.Contains(publishJob, `npm publish "$package_tarball"`) {
+		t.Error("npm publication still contains a direct npm publish invocation instead of staged publishing")
+	}
+
+	// The runbook must state the official staged trusted-publishing minimums and
+	// the pinned npm CLI version, so documentation cannot drift from the workflow.
 	releaseRunbook := readRepositoryFile(t, "docs/maintainers/release.md")
-	for _, required := range []string{"11.5.1", "22.14.0"} {
+	for _, required := range []string{
+		"11.15.0",
+		"22.14.0",
+		"npm stage publish",
+		"--allow-stage-publish",
+	} {
 		if !strings.Contains(releaseRunbook, required) {
-			t.Errorf("release runbook does not document npm trusted-publishing minimum %q", required)
+			t.Errorf("release runbook does not document npm staged trusted-publishing requirement %q", required)
 		}
 	}
 

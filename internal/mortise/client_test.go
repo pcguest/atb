@@ -59,6 +59,43 @@ func TestSendBundlePostsToIngestAndParsesReceipt(t *testing.T) {
 	}
 }
 
+func TestSendBundleAcceptsOrgBoundReceiptV2(t *testing.T) {
+	const bundle = "{\"event\":{\"type\":\"atb.bundle.manifest\"}}\n"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"receipt_version": "custos.receipt.v2",
+			"receipt_id":      "rcpt-v2",
+			"bundle_hash":     "abc",
+			"content_hash":    "def",
+			"org_id":          "org-1",
+			"leaf_index":      0,
+			"checkpoint":      "cp",
+		})
+	}))
+	defer srv.Close()
+
+	client, err := NewHTTPClient(srv.URL, "")
+	if err != nil {
+		t.Fatalf("NewHTTPClient: %v", err)
+	}
+	receipt, err := client.SendBundle(context.Background(), []byte(bundle))
+	if err != nil {
+		t.Fatalf("SendBundle: %v", err)
+	}
+	if receipt.ReceiptVersion != "custos.receipt.v2" {
+		t.Fatalf("expected custos.receipt.v2, got %q", receipt.ReceiptVersion)
+	}
+	if receipt.ReceiptID != "rcpt-v2" || receipt.BundleHash != "abc" {
+		t.Fatalf("receipt not parsed: %+v", receipt)
+	}
+	if !strings.Contains(string(receipt.Raw), `"org_id":"org-1"`) {
+		t.Fatalf("raw receipt was not preserved: %s", receipt.Raw)
+	}
+}
+
 func TestSendBundleReturnsErrorOnRejection(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bundle hash chain is not intact or could not be verified", http.StatusUnprocessableEntity)

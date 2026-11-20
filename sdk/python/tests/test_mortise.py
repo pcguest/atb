@@ -91,6 +91,62 @@ def test_mortise_client_flows(mortise_server: Tuple[str, type[_Handler]]) -> Non
     assert lookup["count"] == 1
 
 
+def test_mortise_client_accepts_org_bound_receipt_v2() -> None:
+    class V2Handler(_Handler):
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(length)
+            self._json(
+                201,
+                {
+                    "receipt_version": "custos.receipt.v2",
+                    "receipt_id": "receipt-v2",
+                    "bundle_hash": "bundle-hash",
+                    "org_id": "org-1",
+                },
+            )
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), V2Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        receipt = MortiseClient(f"http://{host}:{port}").ingest_bundle(b"bundle")
+        assert receipt["receipt_version"] == "custos.receipt.v2"
+        assert receipt["org_id"] == "org-1"
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
+def test_mortise_client_rejects_unknown_receipt_version() -> None:
+    class UnknownHandler(_Handler):
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", "0"))
+            self.rfile.read(length)
+            self._json(
+                201,
+                {
+                    "receipt_version": "custos.receipt.v3",
+                    "receipt_id": "receipt-unknown",
+                    "bundle_hash": "bundle-hash",
+                },
+            )
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), UnknownHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        host, port = server.server_address
+        with pytest.raises(MortiseError, match="invalid custody receipt"):
+            MortiseClient(f"http://{host}:{port}").ingest_bundle(b"bundle")
+    finally:
+        server.shutdown()
+        thread.join()
+        server.server_close()
+
+
 @pytest.mark.parametrize(
     "endpoint",
     [
