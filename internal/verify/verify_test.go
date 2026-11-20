@@ -1215,10 +1215,10 @@ func newPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	appendVerifyRecord(t, b, "ai.human.approval", map[string]any{
 		"approval_id":          "appr-1",
 		"approver_id_hash":     "approver-hash",
-		"approval_outcome":     "approve",
+		"approval_outcome":     "approved",
 		"justification_digest": "just-digest",
 		"action_id":            "act-1",
-	}, "2026-03-27T12:05:30Z")
+	}, "2026-03-27T12:04:30Z")
 	appendVerifyRecord(t, b, "ai.action.committed", map[string]any{
 		"action_id":           "act-1",
 		"commit_outcome":      "success",
@@ -1271,10 +1271,10 @@ func newSignedPrivilegedToolActionBundle(t testing.TB) *bundle.Bundle {
 	appendVerifyRecord(t, b, "ai.human.approval", map[string]any{
 		"approval_id":          "appr-1",
 		"approver_id_hash":     "approver-hash",
-		"approval_outcome":     "approve",
+		"approval_outcome":     "approved",
 		"justification_digest": "just-digest",
 		"action_id":            "act-1",
-	}, "2026-03-27T12:05:30Z")
+	}, "2026-03-27T12:04:30Z")
 	appendVerifyRecord(t, b, "ai.action.committed", map[string]any{
 		"action_id":           "act-1",
 		"commit_outcome":      "success",

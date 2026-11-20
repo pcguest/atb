@@ -45,17 +45,17 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 		"target_resource_id":       "svc-prod-001",
 		"intended_effect":          "deploy build 42",
 	})
-	appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
-		"action_id":           actionID,
-		"execution_outcome":   "success",
-		"tool_receipt_digest": "sha256:tool-receipt-golden-001",
-	})
 	appendEvent(t, bundlePath, event.TypeAIHumanApproval, map[string]any{
 		"approval_id":          "approval-golden-001",
 		"approver_id_hash":     "approver-golden-001",
 		"approval_outcome":     "approved",
 		"justification_digest": "sha256:justification-golden-001",
 		"action_id":            actionID,
+	})
+	appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
+		"action_id":           actionID,
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "sha256:tool-receipt-golden-001",
 	})
 	appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
 		"action_id":           actionID,
@@ -105,8 +105,8 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 	if profileResult.ProfileID != profileIDPrivilegedToolAction {
 		t.Fatalf("unexpected profile id: got %q want %q", profileResult.ProfileID, profileIDPrivilegedToolAction)
 	}
-	if profileResult.Version != 1 {
-		t.Fatalf("unexpected profile version: got %d want %d", profileResult.Version, 1)
+	if profileResult.Version != 2 {
+		t.Fatalf("unexpected profile version: got %d want %d", profileResult.Version, 2)
 	}
 	if profileResult.WorkflowClass != "privileged_tool_action" {
 		t.Fatalf("unexpected workflow class: got %q want %q", profileResult.WorkflowClass, "privileged_tool_action")
@@ -185,17 +185,17 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 			"target_resource_id":       "svc-prod-001",
 			"intended_effect":          "deploy build 43",
 		})
-		appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
-			"action_id":           actionID,
-			"execution_outcome":   "success",
-			"tool_receipt_digest": "sha256:tool-receipt-golden-signed-001",
-		})
 		appendEvent(t, bundlePath, event.TypeAIHumanApproval, map[string]any{
 			"approval_id":          "approval-golden-signed-001",
 			"approver_id_hash":     "approver-golden-signed-001",
 			"approval_outcome":     "approved",
 			"justification_digest": "sha256:justification-golden-signed-001",
 			"action_id":            actionID,
+		})
+		appendEvent(t, bundlePath, event.TypeAIActionExecuted, map[string]any{
+			"action_id":           actionID,
+			"execution_outcome":   "success",
+			"tool_receipt_digest": "sha256:tool-receipt-golden-signed-001",
 		})
 		appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
 			"action_id":           actionID,
@@ -221,7 +221,7 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 		}
 	})
 
-	t.Run("missing_approval_after_execution", func(t *testing.T) {
+	t.Run("missing_approval", func(t *testing.T) {
 		bundlePath := newTempBundle(t)
 
 		const actionID = "act-golden-missing-approval-001"
@@ -267,7 +267,7 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 		if result.Profiles[0].Pass {
 			t.Fatalf("expected profile failure, got warnings %v", result.Profiles[0].RequiredWarnings)
 		}
-		if !hasCriticalFailure(result.Profiles[0].CriticalFailures, "missing_event", "ai.human.approval required when actions execute") {
+		if !hasCriticalFailure(result.Profiles[0].CriticalFailures, "missing_event", "ai.human.approval must precede ai.action.executed for the same action_id") {
 			t.Fatalf("expected missing approval critical failure, got %+v", result.Profiles[0].CriticalFailures)
 		}
 		if result.CAS == nil {
@@ -281,7 +281,7 @@ func TestGoldenPath_PrivilegedToolAction(t *testing.T) {
 		if report.Gate.Status != trust.StatusFail {
 			t.Fatalf("expected failing trust gate status, got %q", report.Gate.Status)
 		}
-		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval required when actions execute") {
+		if !hasTrustCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval must precede ai.action.executed for the same action_id") {
 			t.Fatalf("expected trust report missing approval failure, got %+v", report.Categories)
 		}
 		if report.CAS == nil {
@@ -397,7 +397,7 @@ func TestGoldenPath_DataExport(t *testing.T) {
 		t.Fatalf("expected non-empty head hash")
 	}
 
-	t.Run("missing_approval_after_execution", func(t *testing.T) {
+	t.Run("missing_approval", func(t *testing.T) {
 		bundlePath := newTempBundle(t)
 
 		const actionID = "act-export-missing-approval-001"

@@ -137,8 +137,8 @@ await client.receiptsByHash(receipt.bundle_hash);
 ```
 
 The client rejects credential-bearing or non-HTTP(S) URLs, disables redirects,
-caps responses at 1 MiB, and validates the frozen `custos.receipt.v1` wire
-identifier.
+caps responses at 1 MiB, and accepts the frozen `custos.receipt.v1` or
+org-bound `custos.receipt.v2` receipt wire identifier.
 
 ## Vercel AI SDK integration
 

@@ -78,7 +78,7 @@ go test -v -run TestInstalledBinarySmokeFlow ./cmd/atb
 
 echo "[6/7] Docker smoke build"
 if [[ "${SKIP_DOCKER:-}" == "1" ]]; then
-  echo "Skipping Docker smoke build (SKIP_DOCKER=1). The CI workflow docker-publish.yml will build and publish the image on tag push."
+  echo "Skipping Docker smoke build (SKIP_DOCKER=1). Docker image publication is manual through the protected docker-release environment in docker-publish.yml; tag pushes do not publish."
 elif command -v docker >/dev/null 2>&1; then
   if ! docker buildx version >/dev/null 2>&1; then
     echo "Docker Buildx is required for the dual-platform release smoke build" >&2

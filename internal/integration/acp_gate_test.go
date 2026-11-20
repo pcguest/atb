@@ -221,18 +221,24 @@ func appendACPControlPlaneEvents(
 		"subject_id_hash":       "subject-acp-" + profile.name + "-" + suffix,
 		"action_id":             actionID,
 	})
-	appendEvent(t, bundlePath, executedType, map[string]any{
-		"action_id":           actionID,
-		"execution_outcome":   "success",
-		"tool_receipt_digest": "sha256:tool-receipt-acp-" + profile.name + "-" + suffix,
-	})
-	appendEvent(t, bundlePath, event.TypeAIHumanApproval, map[string]any{
+	approvalFields := map[string]any{
 		"approval_id":          "approval-acp-" + profile.name + "-" + suffix,
 		"approver_id_hash":     "approver-acp-" + profile.name + "-" + suffix,
 		"approval_outcome":     "approved",
 		"justification_digest": "sha256:justification-acp-" + profile.name + "-" + suffix,
 		"action_id":            actionID,
+	}
+	if profile.profileID == profileIDPrivilegedToolAction {
+		appendEvent(t, bundlePath, event.TypeAIHumanApproval, approvalFields)
+	}
+	appendEvent(t, bundlePath, executedType, map[string]any{
+		"action_id":           actionID,
+		"execution_outcome":   "success",
+		"tool_receipt_digest": "sha256:tool-receipt-acp-" + profile.name + "-" + suffix,
 	})
+	if profile.profileID != profileIDPrivilegedToolAction {
+		appendEvent(t, bundlePath, event.TypeAIHumanApproval, approvalFields)
+	}
 	if profile.profileID == profileIDPrivilegedToolAction {
 		appendEvent(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
 			"action_id":           actionID,

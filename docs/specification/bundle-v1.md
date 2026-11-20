@@ -322,7 +322,7 @@ The following canonical event families are used by obligation profiles and verif
 
 The built-in profile templates currently evaluate the following required event sets:
 
-- `atb.profile.privileged_tool_action` requires `atb.bundle.manifest`, `ai.request.received`, `ai.action.precommit`, `ai.policy.decision`, `ai.action.executed`, and `ai.action.committed`. `ai.human.approval` is warning-level evidence and is evaluated when actions execute.
+- `atb.profile.privileged_tool_action` requires `atb.bundle.manifest`, `ai.request.received`, `ai.action.precommit`, `ai.policy.decision`, `ai.action.executed`, and `ai.action.committed`. `ai.human.approval` is warning-level evidence, but profile v2 requires a distinct approved approval record for each execution, correlated to the same `action_id`, with a strictly earlier RFC 3339 timestamp. Bundle position and backdating are not proof of independent authorization.
 - `atb.profile.rag_answer` requires `atb.bundle.manifest`, `ai.request.received`, `ai.model.invoked`, and `ai.model.output`. `ai.retrieval.executed`, `ai.policy.decision`, and `ai.response.sent` are warning-level evidence only.
 - `atb.profile.data_export` requires `atb.bundle.manifest`, `ai.request.received`, `ai.policy.decision`, `data.export.precommit`, and `data.export.executed` (`internal/profiles/templates/data_export.yaml`). `ai.human.approval` is warning-level evidence and is evaluated when exports execute (`required_when` `data.export.executed`). `ai.action.*` is a distinct privileged-action family and is not this profile's critical path.
 - `atb.profile.policy_decision` requires `atb.bundle.manifest`, `ai.request.received`, and `ai.policy.decision`. `ai.action.precommit` is warning-level evidence only.

@@ -44,6 +44,26 @@ func makeTarget(t *testing.T, makefile, target, nextTarget string) string {
 	return makefile[start : start+len(startMarker)+end]
 }
 
+// workflowJobSection returns the YAML block for one job in a workflow. The job
+// ends at the first of nextJobs that follows it, or at end of file.
+func workflowJobSection(t *testing.T, workflow, jobName string, nextJobs ...string) string {
+	t.Helper()
+	startMarker := "\n  " + jobName + ":"
+	start := strings.Index(workflow, startMarker)
+	if start < 0 {
+		t.Fatalf("workflow job %s not found", jobName)
+	}
+	end := len(workflow)
+	for _, next := range nextJobs {
+		if offset := strings.Index(workflow[start+len(startMarker):], "\n  "+next+":"); offset >= 0 {
+			if candidate := start + len(startMarker) + offset; candidate < end {
+				end = candidate
+			}
+		}
+	}
+	return workflow[start:end]
+}
+
 func TestEventV1SchemaMatchesFrozenDigest(t *testing.T) {
 	root := repositoryRoot(t)
 	schema, err := os.ReadFile(filepath.Join(root, "schemas", "event.v1.json"))
@@ -190,8 +210,48 @@ func TestDockerBuildPropagatesAndVerifiesTargetArchitecture(t *testing.T) {
 	}
 
 	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
-	if !strings.Contains(dockerPublish, `bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"`) {
-		t.Error("Docker publication does not verify the embedded executable architecture")
+	buildJob := workflowJobSection(t, dockerPublish, "build", "publish")
+	for _, required := range []string{"docker buildx build", "--load"} {
+		if !strings.Contains(buildJob, required) {
+			t.Errorf("unprivileged Docker build job does not enforce %q", required)
+		}
+	}
+	if !strings.Contains(buildJob, `LOCAL_TAG="atb-build:`) {
+		t.Error("Docker build job does not tag its local image with atb-build:")
+	}
+	if !strings.Contains(buildJob, `bash scripts/verify-container-architecture.sh "${LOCAL_TAG}" "${PLATFORM}"`) {
+		t.Error("Docker build job does not verify the embedded executable architecture of the local atb-build image")
+	}
+	// The build job validates an image locally. It must not hold registry
+	// credentials or take any publishing path.
+	for _, forbidden := range []string{
+		"docker/login-action",
+		"secrets.DOCKERHUB",
+		"--push",
+		"push-by-digest=true",
+	} {
+		if strings.Contains(buildJob, forbidden) {
+			t.Errorf("unprivileged Docker build job contains publishing path %q", forbidden)
+		}
+	}
+
+	publishJob := workflowJobSection(t, dockerPublish, "publish")
+	for _, required := range []string{"docker buildx build", "--push", "imagetools inspect"} {
+		if !strings.Contains(publishJob, required) {
+			t.Errorf("protected Docker publication job does not enforce %q", required)
+		}
+	}
+	revalidated := strings.Index(publishJob, "Revalidate tag and SHA before publication")
+	loggedIn := strings.Index(publishJob, "Log in to Docker Hub")
+	pushed := strings.Index(publishJob, "--push")
+	if revalidated < 0 || loggedIn < 0 || pushed < 0 {
+		t.Fatal("Docker publication job must revalidate, log in, and push")
+	}
+	if revalidated > loggedIn {
+		t.Error("Docker publication job logs in before revalidating the tag and SHA")
+	}
+	if revalidated > pushed {
+		t.Error("Docker publication job pushes before revalidating the tag and SHA")
 	}
 
 	releaseCheck := readRepositoryFile(t, "scripts/release-check.sh")
@@ -354,7 +414,7 @@ func TestReleaseSecurityToolsAreVersionPinned(t *testing.T) {
 	}
 }
 
-func TestCIWorkflowLintAndDockerManifestInputsArePinnedAndArraySafe(t *testing.T) {
+func TestCIWorkflowLintAndDockerPublicationInputsArePinnedAndProtected(t *testing.T) {
 	ci := readRepositoryFile(t, ".github/workflows/ci.yml")
 	if !strings.Contains(ci, "go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12") {
 		t.Fatal("CI does not run the pinned workflow linter")
@@ -362,13 +422,106 @@ func TestCIWorkflowLintAndDockerManifestInputsArePinnedAndArraySafe(t *testing.T
 
 	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
 	for _, required := range []string{
-		"mapfile -t digests",
-		`[ "${#digests[@]}" -eq 0 ]`,
-		`"${digests[@]}"`,
+		"environment: docker-release",
+		"--push",
+		"imagetools inspect",
 	} {
 		if !strings.Contains(dockerPublish, required) {
-			t.Errorf("Docker manifest publication does not contain array-safe input %q", required)
+			t.Errorf("Docker publication does not enforce %q", required)
 		}
+	}
+	if strings.Contains(dockerPublish, "push-by-digest=true") {
+		t.Error("Docker publication still depends on the removed digest-artifact flow")
+	}
+
+	publishJob := workflowJobSection(t, dockerPublish, "publish")
+	if !strings.Contains(publishJob, "EXPECTED_SHA") && !strings.Contains(publishJob, "inputs.expected_sha") {
+		t.Error("Docker publication job does not revalidate expected_sha before pushing")
+	}
+}
+
+func TestDockerPublicationIsManualAndVerifiesThePushedDigest(t *testing.T) {
+	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
+
+	// The trigger block must not create an automatic path from a tag to a
+	// registry write.
+	onStart := strings.Index(dockerPublish, "\non:\n")
+	permissionsStart := strings.Index(dockerPublish, "\npermissions:\n")
+	if onStart < 0 || permissionsStart <= onStart {
+		t.Fatal("docker workflow trigger block boundaries not found")
+	}
+	triggerBlock := dockerPublish[onStart:permissionsStart]
+	if !strings.Contains(triggerBlock, "workflow_dispatch:") {
+		t.Error("docker workflow does not declare manual dispatch")
+	}
+	for _, forbidden := range []string{"\n  push:", "tags:"} {
+		if strings.Contains(triggerBlock, forbidden) {
+			t.Errorf("docker workflow is still reachable from a tag push (%q)", forbidden)
+		}
+	}
+
+	publishJob := workflowJobSection(t, dockerPublish, "publish")
+	pushed := strings.Index(publishJob, "--push")
+	digestStart := strings.Index(publishJob, "Verify pushed digest per platform")
+	if digestStart < 0 {
+		t.Fatal("docker publication job does not re-verify the pushed digest")
+	}
+	if pushed < 0 || digestStart < pushed {
+		t.Error("docker publication job verifies the digest before pushing")
+	}
+	for _, required := range []string{
+		"docker buildx imagetools inspect",
+		`--format '{{json .Manifest}}'`,
+		`jq -r '.digest'`,
+		`docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"`,
+		`bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"`,
+		"org.opencontainers.image.version",
+		`PUBLISH_RUNNER_ARCH: ${{ runner.arch }}`,
+		`X64) RUNNER_PLATFORM=linux/amd64`,
+		`ARM64) RUNNER_PLATFORM=linux/arm64`,
+		`if [ "${PLATFORM}" != "${RUNNER_PLATFORM}" ]; then`,
+		"Skipped atb version execution",
+	} {
+		if !strings.Contains(publishJob, required) {
+			t.Errorf("pushed-digest verification does not enforce %q", required)
+		}
+	}
+
+	// The publish job runs on ubuntu-latest without QEMU/binfmt, so the pushed
+	// binary may only be executed for the runner's native platform. The arm64
+	// image is still verified by pull, OCI label, and embedded ELF architecture,
+	// none of which execute the binary.
+	guard := strings.Index(publishJob, `if [ "${PLATFORM}" != "${RUNNER_PLATFORM}" ]; then`)
+	binaryRun := strings.Index(publishJob, `"${IMAGE}@${DIGEST}" version`)
+	if guard < 0 || binaryRun < 0 {
+		t.Fatal("pushed-digest verification does not guard the binary version check by runner platform")
+	}
+	if guard > binaryRun {
+		t.Fatalf("pushed-digest verification executes the pushed binary before the native-platform guard")
+	}
+	if !strings.Contains(publishJob[guard:binaryRun], "continue") {
+		t.Error("pushed-digest verification does not skip binary execution for non-native platforms")
+	}
+
+	release := readRepositoryFile(t, ".github/workflows/release.yml")
+	releasePublish := workflowJobSection(t, release, "publish")
+	if !strings.Contains(releasePublish, "\n    environment: release\n") {
+		t.Error("release publish job does not use the release environment")
+	}
+	revalidated := strings.Index(releasePublish, "Revalidate checked-out commit and tag before publication")
+	if revalidated < 0 {
+		t.Fatal("release publish job has no HEAD/tag SHA revalidation step")
+	}
+	for _, required := range []string{
+		"git rev-parse HEAD",
+		`refs/tags/${TAG_NAME}^{commit}`,
+	} {
+		if !strings.Contains(releasePublish, required) {
+			t.Errorf("release publish revalidation does not check %q", required)
+		}
+	}
+	if firstCredential := strings.Index(releasePublish, "secrets."); firstCredential >= 0 && revalidated > firstCredential {
+		t.Error("release publish job uses a credential before revalidating HEAD and tag")
 	}
 }
 
@@ -428,7 +581,7 @@ func TestScannerBootstrapPinsGoAnalyzersAndIsolatesCaches(t *testing.T) {
 	for _, required := range []string{
 		`readonly STATICCHECK_VERSION="v0.7.0"`,
 		`readonly GOVULNCHECK_VERSION="v1.5.0"`,
-		`readonly GO_VERSION="go1.26.10"`,
+		`readonly GO_VERSION="go1.26.11"`,
 		`GOMODCACHE="$DEST_DIR/../go-mod-cache"`,
 		`GOSUMDB="sum.golang.org"`,
 		`honnef.co/go/tools/cmd/staticcheck@${STATICCHECK_VERSION}`,
@@ -573,5 +726,69 @@ func TestInstallGuidanceUsesVersionedModulePath(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatal("no install guidance files were checked")
+	}
+}
+
+func TestReleaseNpmPublishingUsesOIDCWithoutToken(t *testing.T) {
+	release := readRepositoryFile(t, ".github/workflows/release.yml")
+	publishJob := workflowJobSection(t, release, "publish")
+
+	for _, required := range []string{
+		"id-token: write",
+		"npm install -g npm@11.15.0",
+		"NPM_CONFIG_PROVENANCE",
+		"npm stage publish",
+		"--access public",
+		"--provenance",
+		"Stage npm package (OIDC)",
+	} {
+		if !strings.Contains(publishJob, required) {
+			t.Errorf("npm publication does not enable OIDC staged trusted-publishing requirement %q", required)
+		}
+	}
+
+	// The workflow must stage a version for maintainer approval, not publish it
+	// directly. A direct `npm publish` would bypass the stage-only trusted
+	// publisher contract.
+	if strings.Contains(publishJob, `npm publish "$package_tarball"`) {
+		t.Error("npm publication still contains a direct npm publish invocation instead of staged publishing")
+	}
+
+	// The runbook must state the official staged trusted-publishing minimums and
+	// the pinned npm CLI version, so documentation cannot drift from the workflow.
+	releaseRunbook := readRepositoryFile(t, "docs/maintainers/release.md")
+	for _, required := range []string{
+		"11.15.0",
+		"22.14.0",
+		"npm stage publish",
+		"--allow-stage-publish",
+	} {
+		if !strings.Contains(releaseRunbook, required) {
+			t.Errorf("release runbook does not document npm staged trusted-publishing requirement %q", required)
+		}
+	}
+
+	// The publish job must not resurrect the long-lived token path: no token
+	// environment mapping, no npm token secret, and no registry-url/scope setup
+	// that writes a token-auth .npmrc.
+	for _, forbidden := range []string{
+		"NODE_AUTH_TOKEN",
+		"secrets.NPM_TOKEN",
+		"NPM_TOKEN",
+		`registry-url: "https://registry.npmjs.org"`,
+	} {
+		if strings.Contains(publishJob, forbidden) {
+			t.Errorf("npm publication still depends on token-based setup %q", forbidden)
+		}
+	}
+
+	for _, name := range []string{
+		".github/WORKFLOWS.md",
+		"docs/maintainers/release.md",
+		"docs/getting-started/configuration.md",
+	} {
+		if strings.Contains(readRepositoryFile(t, name), "NPM_TOKEN") {
+			t.Errorf("%s still documents an NPM token secret", name)
+		}
 	}
 }

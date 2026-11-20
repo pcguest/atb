@@ -371,6 +371,169 @@ func TestEvaluate_RequiredWhenAtOrAfterBadTS(t *testing.T) {
 	}
 }
 
+func TestEvaluate_RequiredWhenBeforeCorrelated(t *testing.T) {
+	schema := ProfileSchema{
+		ID:            "atb.profile.test",
+		Version:       1,
+		WorkflowClass: "test",
+		Weights:       validWeights(),
+		Optional: []EventRule{
+			{
+				Type:     "ai.human.approval",
+				Severity: "critical",
+				RequiredWhen: []requiredWhenRule{
+					{WhenType: "ai.action.executed", Before: true, MatchField: "action_id"},
+				},
+			},
+		},
+	}
+
+	execution := func(actionID, timestamp string) bundle.Record {
+		data := map[string]any{"execution_outcome": "success"}
+		if actionID != "" {
+			data["action_id"] = actionID
+		}
+		return recordWithTimestamp("ai.action.executed", data, timestamp)
+	}
+	approval := func(actionID, timestamp string) bundle.Record {
+		return recordWithTimestamp("ai.human.approval", map[string]any{
+			"approval_outcome": "approved",
+			"action_id":        actionID,
+		}, timestamp)
+	}
+
+	t.Run("approval before execution passes", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+		})
+		if !result.Pass {
+			t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("out-of-order executions still match distinct earlier approvals", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:20:00Z"),
+			execution("act-1", "2026-03-27T12:05:00Z"),
+			approval("act-1", "2026-03-27T12:00:00Z"),
+			approval("act-1", "2026-03-27T12:10:00Z"),
+		})
+		if !result.Pass {
+			t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("approval after execution fails", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			approval("act-1", "2026-03-27T12:03:30Z"),
+		})
+		if !hasFailure(result.CriticalFailures, "temporal_violation", "must occur before") {
+			t.Fatalf("expected temporal_violation, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("missing condition timestamp fails", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", ""),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+		})
+		if !hasFailure(result.CriticalFailures, "temporal_unknown", "ai.action.executed timestamp is missing") {
+			t.Fatalf("expected temporal_unknown for condition, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("missing target timestamp fails", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			approval("act-1", ""),
+		})
+		if !hasFailure(result.CriticalFailures, "temporal_unknown", "ai.human.approval timestamps are missing or invalid") {
+			t.Fatalf("expected temporal_unknown for target, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("unrelated action fails", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			approval("act-2", "2026-03-27T12:02:30Z"),
+		})
+		if !hasFailure(result.CriticalFailures, "missing_correlated_event", "action_id=act-1") {
+			t.Fatalf("expected missing_correlated_event, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("multiple actions require approval for each", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			execution("act-2", "2026-03-27T12:04:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+		})
+		if !hasFailure(result.CriticalFailures, "missing_correlated_event", "action_id=act-2") {
+			t.Fatalf("expected missing_correlated_event for act-2, got %+v", result.CriticalFailures)
+		}
+		if hasFailure(result.CriticalFailures, "temporal_violation", "") {
+			t.Fatalf("did not expect a temporal violation for act-1, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("one approval cannot satisfy two executions with the same action_id", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			execution("act-1", "2026-03-27T12:04:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+		})
+		if result.Pass {
+			t.Fatalf("expected failure, got pass")
+		}
+		if !hasFailure(result.CriticalFailures, "reused_correlated_event", "action_id=act-1") {
+			t.Fatalf("expected reused_correlated_event for action_id=act-1, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("each execution with the same action_id needs a distinct approval", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			execution("act-1", "2026-03-27T12:04:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+			approval("act-1", "2026-03-27T12:03:30Z"),
+		})
+		if !result.Pass {
+			t.Fatalf("expected pass, got failures %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("unused approval with missing timestamp is temporal_unknown not reuse", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("act-1", "2026-03-27T12:03:00Z"),
+			execution("act-1", "2026-03-27T12:04:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+			approval("act-1", ""),
+		})
+		if !hasFailure(result.CriticalFailures, "temporal_unknown", "timestamps are missing or invalid") {
+			t.Fatalf("expected temporal_unknown, got %+v", result.CriticalFailures)
+		}
+		if hasFailure(result.CriticalFailures, "reused_correlated_event", "") {
+			t.Fatalf("did not expect reused_correlated_event, got %+v", result.CriticalFailures)
+		}
+	})
+
+	t.Run("missing correlation field fails", func(t *testing.T) {
+		result := Evaluate(schema, []bundle.Record{
+			execution("", "2026-03-27T12:03:00Z"),
+			approval("act-1", "2026-03-27T12:02:30Z"),
+		})
+		if !hasFailure(result.CriticalFailures, "missing_correlation_field", "action_id") {
+			t.Fatalf("expected missing_correlation_field, got %+v", result.CriticalFailures)
+		}
+		const wantID = "required_when:ai.human.approval:when:ai.action.executed:correlation"
+		if !hasFailureID(result.CriticalFailures, wantID) {
+			t.Fatalf("expected failure ID %q, got %+v", wantID, result.CriticalFailures)
+		}
+	})
+}
+
 func TestEvaluate_NoRequiredWhenRules(t *testing.T) {
 	schema := testSchema()
 	records := []bundle.Record{
@@ -442,11 +605,11 @@ func privilegedToolActionRecords(decision string) []bundle.Record {
 			"intended_effect":          "mutate resource",
 		}),
 		policyDecisionRecord(decision),
-		record("ai.action.executed", map[string]any{
+		recordWithTimestamp("ai.action.executed", map[string]any{
 			"action_id":           "act-1",
 			"execution_outcome":   "success",
 			"tool_receipt_digest": "sha256:tool",
-		}),
+		}, "2026-03-27T12:03:00Z"),
 		record("ai.action.committed", map[string]any{
 			"action_id":           "act-1",
 			"commit_outcome":      "success",
@@ -493,13 +656,13 @@ func policyDecisionRecord(decision string) bundle.Record {
 }
 
 func humanApprovalRecord() bundle.Record {
-	return record("ai.human.approval", map[string]any{
+	return recordWithTimestamp("ai.human.approval", map[string]any{
 		"approval_id":          "approval-1",
 		"approver_id_hash":     "approver-1",
 		"approval_outcome":     "approved",
 		"justification_digest": "sha256:justification",
 		"action_id":            "act-1",
-	})
+	}, "2026-03-27T12:02:30Z")
 }
 
 func record(eventType string, data map[string]any) bundle.Record {

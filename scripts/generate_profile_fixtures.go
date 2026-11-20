@@ -8,11 +8,16 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/pcguest/atb/v2/internal/bundle"
 	"github.com/pcguest/atb/v2/internal/event"
 	"github.com/pcguest/atb/v2/internal/verify"
 )
+
+// fixtureBaseTime anchors deterministic event timestamps. Offsets are derived
+// from the current record count so appended events are strictly increasing.
+var fixtureBaseTime = time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 
 func main() {
 	root, err := os.Getwd()
@@ -44,12 +49,12 @@ func main() {
 					"policy_id": "pol-pta", "policy_version": "2026-04", "decision": "allow",
 					"decision_reason_codes": []any{"approved"}, "subject_id_hash": "sha256:subject-pta", "action_id": "act-pta-pass",
 				})
-				appendEv(b, event.TypeAIActionExecuted, map[string]any{
-					"action_id": "act-pta-pass", "execution_outcome": "success", "tool_receipt_digest": "sha256:receipt-pta",
-				})
 				appendEv(b, event.TypeAIHumanApproval, map[string]any{
 					"approval_id": "appr-pta-pass", "approver_id_hash": "sha256:approver-pta", "approval_outcome": "approved",
 					"justification_digest": "sha256:just-pta", "action_id": "act-pta-pass",
+				})
+				appendEv(b, event.TypeAIActionExecuted, map[string]any{
+					"action_id": "act-pta-pass", "execution_outcome": "success", "tool_receipt_digest": "sha256:receipt-pta",
 				})
 				appendEv(b, event.TypeAIActionCommitted, map[string]any{
 					"action_id": "act-pta-pass", "commit_outcome": "success", "sink_receipt_digest": "sha256:sink-pta",
@@ -261,7 +266,8 @@ func main() {
 }
 
 func appendEv(b *bundle.Bundle, eventType string, data map[string]any) {
-	if err := b.Append(eventType, data); err != nil {
+	timestamp := fixtureBaseTime.Add(time.Duration(len(b.Records)) * time.Second).Format(time.RFC3339)
+	if err := b.AppendWithOptions(eventType, data, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
 		fatal(err)
 	}
 }

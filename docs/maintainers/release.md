@@ -20,16 +20,105 @@ The release workflow uses secret names only; values never belong in source or
 logs:
 
 - `GITHUB_TOKEN`: job-scoped GitHub release automation token.
-- `NPM_TOKEN`: package-scoped `@pcguest/atb-sdk` publish token with the minimum
-  required write access and non-interactive 2FA policy.
 - `ATB_SIGNING_KEY_PEM`: protected PKCS#8 Ed25519 key for the final release
   evidence bundle. See [key management](../evidence/key-management.md).
-- `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: Docker publication credentials.
+- `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`: Docker publication credentials,
+  used only by the protected `docker-release` publish job.
 
-PyPI uses GitHub OIDC trusted publishing, not a repository token. Optional S3
-WORM automation uses `ATB_WORM_S3_ACCESS_KEY_ID` and
+PyPI uses GitHub OIDC trusted publishing, not a repository token. npm
+publication is staged with GitHub OIDC trusted publishing for
+`@pcguest/atb-sdk`: the publish job keeps `id-token: write` and stages a version
+without `NODE_AUTH_TOKEN`, an npm token, or a token-auth `.npmrc`. There is no
+repository or environment npm token. The trusted publisher must be configured
+on npm for repository `pcguest/atb`, workflow `release.yml`, environment
+`release` (the publish job's environment), and package `@pcguest/atb-sdk`.
+Staged publishing requires npm CLI >= 11.15.0 and Node >= 22.14.0 (the workflow
+installs `npm@11.15.0` on Node 22), and the workflow runs
+`npm stage publish "$package_tarball" --access public --provenance`. Configure
+the trusted publisher as stage-only (`--allow-stage-publish`) and do not grant
+`--allow-publish` initially. Staging does not make the package public: a
+maintainer must review the staged version and approve it with 2FA through the
+npm CLI or UI. This workflow never publishes the package publicly on its own.
+First-time package registration remains a separate, founder-authorised
+operation; this workflow does not publish a placeholder.
+
+Residual risk: a repository writer can edit this workflow. Environment required
+reviewers and tag protection are the controls for a publication run; the OIDC
+exchange only grants a short-lived credential to the approved run.
+
+Optional S3 WORM automation uses `ATB_WORM_S3_ACCESS_KEY_ID` and
 `ATB_WORM_S3_SECRET_ACCESS_KEY`, scoped to the minimum required object-write
 and retention operations.
+
+## Release gate
+
+Publication is founder-controlled and fails closed. A release cannot publish
+until all of the following repository settings exist:
+
+- Repository variable `RELEASE_GATE_ENABLED` set to `true`.
+- A protected `release` environment, used by the `Release` workflow's publish
+  job, with required reviewers.
+- A protected `docker-release` environment, used by the `Docker Publish`
+  workflow's publish job, with required reviewers.
+
+Approving the environment run is the approval to publish. This document does
+not assert that these settings are configured: they are repository
+configuration, not tracked files. Until they are in place, tag pushes and
+manual dispatches stop at the gate and publish nothing. The gate also rejects
+tags that are not stable SemVer.
+
+Environment protection is a deliberate-action control, not an authorization
+boundary. A required reviewer ensures that a person approves that specific run;
+it does not prevent a repository writer from editing these workflow files or
+the environment settings. Treat the gate as evidence of intent to publish, not
+as proof that only trusted code can reach the registry.
+
+Recommended hardening, not yet verified: move `DOCKERHUB_USERNAME`,
+`DOCKERHUB_TOKEN`, and `ATB_SIGNING_KEY_PEM` from repository
+secrets to environment-scoped secrets on the `release` and `docker-release`
+environments, so a workflow change cannot read them without an approved run,
+and configure those environments to prevent self-review of an approval.
+Neither the move nor the self-review setting is verified by this document or
+by repository tests.
+
+### Docker publication is manual
+
+`docker-publish.yml` has no tag trigger. Publish an image by dispatching the
+workflow with three required inputs:
+
+- `confirm`: must be exactly `PUBLISH`.
+- `tag`: a stable SemVer tag, `vMAJOR.MINOR.PATCH`.
+- `expected_sha`: the full 40-character lowercase hex commit SHA that the tag
+  must resolve to.
+
+The gate rejects any repository other than `pcguest/atb`, a wrong confirmation
+string, a malformed tag or SHA, a `RELEASE_GATE_ENABLED` value other than
+`true`, and any tag whose commit does not match `expected_sha`. The published
+manifest carries `vMAJOR.MINOR.PATCH` and `vMAJOR.MINOR` only. Promoting
+`:latest` is a separate, explicitly approved operation and never happens
+automatically.
+
+The unprivileged `build` jobs have no registry credentials and never push;
+they validate the tag locally. Publication rebuilds the multi-architecture
+image and pushes it only inside the protected `docker-release` environment,
+after revalidating both the checked-out `HEAD` and the tag against
+`expected_sha` immediately before the registry login. After the push, the
+workflow records each published manifest digest and re-pulls each platform by
+that digest to re-check the OCI version label and the embedded ELF architecture.
+It executes the `atb version` output only on the publish runner's native
+platform (`linux/amd64`), because that job does not install QEMU/binfmt
+emulation for `linux/arm64`.
+
+Publication is serialized per release tag (`concurrency.group` is
+`docker-publish-<tag>`) with `cancel-in-progress: false`, so a second dispatch
+for the same tag waits instead of racing the first. Before the build and push,
+the publish job inspects the immutable `vMAJOR.MINOR.PATCH` manifest with
+`docker buildx imagetools inspect` and fails if it already exists: the
+immutable version tag is never overwritten, and replacing it requires a
+separate, explicitly approved operation. Only an absent manifest proceeds; any
+other inspection failure fails closed. The documented mutable `vMAJOR.MINOR`
+tag is not checked. The exact tag is logged before the push, and the manifest
+digest is logged immediately after the push.
 
 ## 1. Consolidate CHANGELOG
 
@@ -107,7 +196,8 @@ cd sdk/python && python -m pytest && cd ../..
 
 Run the release preflight before opening the release PR. Contributors without
 a running Docker daemon may skip the local Docker smoke build; the
-`docker-publish.yml` workflow builds and publishes the image on tag push.
+`docker-publish.yml` workflow validates the image in unprivileged build jobs
+and pushes only from the protected publish job after release-gate approval.
 The local Docker smoke requires Docker Buildx and either native execution or
 binfmt/emulation for both `linux/amd64` and `linux/arm64`. It independently
 checks the embedded ELF architecture because an emulated runtime pass does not
@@ -152,19 +242,24 @@ git tag -a v<NEW> -m "v<NEW>"
 git push origin v<NEW>
 ```
 
-Wait for the tag-triggered workflows to succeed. Do not create a GitHub Release
-manually: the `Release` workflow owns the draft, registry publication, retained
-evidence bundle, and final transition out of draft.
+Wait for the tag-triggered `Release` workflow to succeed. Do not create a
+GitHub Release manually: the `Release` workflow owns the draft, registry
+publication, retained evidence bundle, and final transition out of draft.
 
 The `Release` workflow contains its own gold gate (`make gate-gold-release`,
-including the repository's ≥80% aggregate Go coverage threshold). Tag pushes
-also trigger `Docker Publish`. Both workflows must be green before announcing
-the release. A manual dispatch of `release.yml` builds and verifies artefacts
-but cannot publish without a tag.
+including the repository's ≥80% aggregate Go coverage threshold). A tag push
+triggers only `Release`; `Docker Publish` has no tag trigger and does not run
+on a tag push. Dispatch it separately with `confirm=PUBLISH`, the tag, and its
+commit SHA. Both must be green before announcing the release. A manual dispatch
+of `release.yml` builds and verifies artefacts but cannot publish without a
+tag.
 
-Publication is retry-safe: publish already verified immutable artefacts, append
-all capture evidence before signing the retained evidence bundle, and make the
-GitHub Release public only after registry publication and final verification.
+Publication stages immutable artefacts in a fixed order: publish already
+verified artefacts, append all capture evidence before signing the retained
+evidence bundle, and make the GitHub Release public only after registry
+publication and final verification. Publication is not retried automatically:
+if it stops partway, resuming the remaining steps is a manual operator action
+(see step 7).
 
 ## 7. Verify automated publication
 
@@ -175,11 +270,32 @@ gh release view v<NEW> --repo pcguest/atb
 ```
 
 The `Release` workflow first creates a draft, publishes the already verified
-Python and npm artifacts, signs and attaches the final ATB release-evidence
-bundle, and only then makes the GitHub Release public. If any step fails, leave
+Python artifact, stages the verified npm package for maintainer approval, signs
+and attaches the final ATB release-evidence bundle, and only then makes the
+GitHub Release public. After the run, review the staged npm version and approve
+it with 2FA through the npm CLI or UI; the workflow itself never publishes the
+package publicly. If any step fails, leave
 the draft and registry state intact, record which immutable registries accepted
 the version, fix the workflow without changing published bytes, and resume only
-the incomplete steps. If the artefacts must change, cut a new version.
+the incomplete steps. Resuming is manual: re-run the failed jobs, or dispatch
+`docker-publish.yml` again for the image, after the workflow fix; GitHub does
+not automatically retry a partial registry publication. If the artefacts must
+change, cut a new version.
+
+Registry publication is serialized per ref: the `Release` workflow keeps its
+workflow-level `release-<ref>` lock for build and validation, and the `publish`
+job adds a separate `atb-release-<ref>` lock with `cancel-in-progress: false`.
+A second run for the same ref waits rather than cancelling an in-progress
+publication.
+
+`Release` also accepts two `workflow_dispatch` boolean inputs, `skip_pypi` and
+`skip_npm`, both defaulting to `false`. Tag pushes cannot set them. Use a skip
+only to resume a partial publication after manually verifying that the exact
+version and the same artefact hashes already exist in that registry: the input
+removes that registry's publish step and its pre-publication existence check
+for that dispatch. With both `false` (the default, and always on a tag push),
+both registries are checked and published as before. Do not set a skip to work
+around a version collision.
 
 ## 8. Close tracking issues
 

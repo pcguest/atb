@@ -4,7 +4,23 @@ on:
   push:
     tags:
       - "v*.*.*"
+  # Resumption after a partial publication is manual. These dispatch-only
+  # switches let an operator skip a registry only after separately verifying
+  # that the exact version and artifact hashes already exist there. They default
+  # to false, so tag pushes and normal dispatches publish and check both
+  # registries unchanged. Do not use them to work around a version collision.
   workflow_dispatch:
+    inputs:
+      skip_pypi:
+        description: "Resume only: skip PyPI publish after manually verifying the exact version already exists"
+        required: false
+        type: boolean
+        default: false
+      skip_npm:
+        description: "Resume only: skip npm publish after manually verifying the exact version already exists"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -26,7 +42,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -147,6 +163,32 @@ jobs:
           name: atb-release-bundle-validate-${{ github.run_id }}
           path: ${{ env.ATB_CI_BUNDLE_PATH }}
 
+  # Founder-controlled publication gate. Fails closed until the repository
+  # variable RELEASE_GATE_ENABLED is "true" and the "release" environment has
+  # required reviewers. No publication step may bypass this job.
+  release_gate:
+    name: Release Gate
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+    steps:
+      - name: Require explicit release approval
+        env:
+          RELEASE_GATE_ENABLED: ${{ vars.RELEASE_GATE_ENABLED }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "${RELEASE_GATE_ENABLED}" != "true" ]; then
+            echo "::error::Release gate closed: set repository variable RELEASE_GATE_ENABLED=true and configure the 'release' environment with required reviewers before publishing."
+            exit 1
+          fi
+          if [[ ! "${TAG_NAME}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tag '${TAG_NAME}' is not a stable SemVer tag (vMAJOR.MINOR.PATCH); refusing to publish."
+            exit 1
+          fi
+          echo "Release gate open for ${TAG_NAME}."
+
   # Layers A/B/D: build verified release artifacts for the non-Docker release path.
   build:
     name: Build Release Artifacts (Layers A/B/D)
@@ -159,7 +201,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -466,7 +508,7 @@ jobs:
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
 
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
@@ -527,17 +569,48 @@ jobs:
   publish:
     name: Publish Verified Artifacts (Layer E)
     runs-on: ubuntu-latest
-    needs: [verify, gate-gold]
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [verify, gate-gold, release_gate]
+    if: startsWith(github.ref, 'refs/tags/') && needs.release_gate.result == 'success'
+    environment: release
+    # Publication lock for this ref. The workflow-level `release-<ref>` lock
+    # still covers build/validation; this job-level `atb-release-<ref>` lock
+    # serializes publication across runs and never cancels an in-progress run.
+    concurrency:
+      group: atb-release-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write
       id-token: write
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          # Full history keeps the annotated tag ref available for the SHA
+          # revalidation below.
+          fetch-depth: 0
+
+      # Fail before any credential is loaded if the checked-out commit or the
+      # tag ref does not resolve to the SHA this workflow run was started for.
+      - name: Revalidate checked-out commit and tag before publication
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="$(git rev-parse HEAD)"
+          if [ "${HEAD_SHA}" != "${EXPECTED_SHA}" ]; then
+            echo "::error::Checked-out HEAD ${HEAD_SHA} does not match workflow SHA ${EXPECTED_SHA}."
+            exit 1
+          fi
+          TAG_SHA="$(git rev-parse "refs/tags/${TAG_NAME}^{commit}")"
+          if [ "${TAG_SHA}" != "${EXPECTED_SHA}" ]; then
+            echo "::error::Tag ${TAG_NAME} resolves to ${TAG_SHA}, not the workflow SHA ${EXPECTED_SHA}."
+            exit 1
+          fi
+          echo "Publication source verified: ${TAG_NAME} at ${EXPECTED_SHA}."
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
 
       - name: Build atb binary for CI capture
         run: go build -tags noembed -o /tmp/atb ./cmd/atb
@@ -606,9 +679,15 @@ jobs:
           atb sign --bundle "$bundle_copy" --key "$key_path"
           atb verify --bundle "$bundle_copy"
 
+      # Resuming a partial publication is manual: the operator must first verify
+      # that the skipped registry already holds this exact version and the same
+      # artifact hashes. A skip also suppresses that registry's existence check,
+      # because that check would otherwise fail on the already-published copy.
       - name: Refuse to overwrite published package versions
         env:
           VERSION: ${{ github.ref_name }}
+          SKIP_PYPI: ${{ inputs.skip_pypi }}
+          SKIP_NPM: ${{ inputs.skip_npm }}
         run: |
           set -euo pipefail
           VERSION="${VERSION#v}"
@@ -627,8 +706,16 @@ jobs:
                 ;;
             esac
           }
-          check_absent "atb-sdk" "https://pypi.org/pypi/atb-sdk/${VERSION}/json"
-          check_absent "@pcguest/atb-sdk" "https://registry.npmjs.org/@pcguest%2Fatb-sdk/${VERSION}"
+          if [ "${SKIP_PYPI}" = "true" ]; then
+            echo "Skipping PyPI existence check (skip_pypi=true); operator confirmed PyPI already has ${VERSION}."
+          else
+            check_absent "atb-sdk" "https://pypi.org/pypi/atb-sdk/${VERSION}/json"
+          fi
+          if [ "${SKIP_NPM}" = "true" ]; then
+            echo "Skipping npm existence check (skip_npm=true); operator confirmed npm already has ${VERSION}."
+          else
+            check_absent "@pcguest/atb-sdk" "https://registry.npmjs.org/@pcguest%2Fatb-sdk/${VERSION}"
+          fi
 
       # Layer E: distribution of verified release artifacts to GitHub, PyPI, and npm.
       - name: Create draft GitHub Release
@@ -653,32 +740,68 @@ jobs:
             artifacts/provenance/*
 
       - name: Publish Python package (OIDC)
+        if: ${{ !inputs.skip_pypi }}
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
           packages-dir: artifacts/python
+          attestations: true
 
+      # Resumption is manual. skip_pypi/skip_npm are workflow_dispatch booleans
+      # that default to false, so tag pushes and normal dispatches are unchanged.
+      # No registry-url/scope here: those would create a token-auth .npmrc, and
+      # npm publication uses GitHub OIDC trusted publishing instead.
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: ${{ !inputs.skip_npm }}
         with:
           node-version: "22"
-          registry-url: "https://registry.npmjs.org"
-          scope: "@pcguest"
 
-      - name: Publish npm package
+      # Official npm minimums for staged trusted publishing: npm CLI >= 11.15.0
+      # and Node >= 22.14.0. Node 22 (latest 22.x) satisfies the Node minimum.
+      - name: Install npm CLI for OIDC trusted publishing
+        if: ${{ !inputs.skip_npm }}
+        run: |
+          npm install -g npm@11.15.0
+          node --version
+          npm --version
+
+      - name: Stage npm package (OIDC)
+        if: ${{ !inputs.skip_npm }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+          NPM_CONFIG_REGISTRY: "https://registry.npmjs.org"
         run: |
           # The single-quoted script is intentionally evaluated by the inner bash.
           # shellcheck disable=SC2016
           scripts/ci-atb-capture.sh "npm-publication-verified" -- bash -c '
             set -euo pipefail
-            npm whoami
+            # Trusted publishing must not fall back to a static token. Match the
+            # token variable names as a pattern so this guard itself carries no
+            # credential-shaped identifier.
+            if env | grep -Eq "^(NODE_AUTH_|NPM_)TOKEN="; then
+              echo "npm publication environment contains a token credential; use OIDC trusted publishing" >&2
+              exit 1
+            fi
+            npmrc="${HOME}/.npmrc"
+            if [ -f "${npmrc}" ]; then
+              offending_lines="$(grep -nE "(_authToken|always-auth)" "${npmrc}" | cut -d: -f1 || true)"
+              if [ -n "${offending_lines}" ]; then
+                echo "~/.npmrc configures token authentication on line(s):" >&2
+                printf "%s\n" "${offending_lines}" >&2
+                exit 1
+              fi
+            fi
+            echo "npm registry: $(npm config get registry)"
+            echo "npm CLI version: $(npm --version)"
             mapfile -t package_tarballs < <(find artifacts/npm -maxdepth 1 -name "*.tgz" -print)
             if [ "${#package_tarballs[@]}" -ne 1 ]; then
               echo "expected exactly one npm package tarball, found ${#package_tarballs[@]}" >&2
               exit 1
             fi
             package_tarball="${package_tarballs[0]}"
-            npm publish "$package_tarball" --access public
+            # Stage only. A maintainer reviews and approves the staged version
+            # with 2FA through the npm CLI or UI; this workflow never publishes
+            # the package publicly.
+            npm stage publish "$package_tarball" --access public --provenance
           '
 
       - name: Sign final release bundle

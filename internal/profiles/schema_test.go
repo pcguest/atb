@@ -177,6 +177,63 @@ func TestValidateSchema_ValidRequiredWhen(t *testing.T) {
 	}
 }
 
+func TestValidateSchema_RequiredWhenBeforeValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		rule    requiredWhenRule
+		wantErr bool
+	}{
+		{
+			name: "valid before rule",
+			rule: requiredWhenRule{WhenType: "ai.request.received", Before: true, MatchField: "action_id"},
+		},
+		{
+			name:    "before without match field",
+			rule:    requiredWhenRule{WhenType: "ai.request.received", Before: true},
+			wantErr: true,
+		},
+		{
+			name:    "at_or_after and before together",
+			rule:    requiredWhenRule{WhenType: "ai.request.received", AtOrAfter: true, Before: true, MatchField: "action_id"},
+			wantErr: true,
+		},
+		{
+			name:    "match field without before",
+			rule:    requiredWhenRule{WhenType: "ai.request.received", MatchField: "action_id"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema := ProfileSchema{
+				ID:            "atb.profile.test",
+				Version:       1,
+				WorkflowClass: "test",
+				Weights:       validWeights(),
+				Required: []EventRule{
+					{Type: "ai.request.received", Severity: "critical"},
+				},
+				Optional: []EventRule{
+					{
+						Type:         "ai.response.sent",
+						Severity:     "warning",
+						RequiredWhen: []requiredWhenRule{tt.rule},
+					},
+				},
+			}
+
+			err := validateSchema(schema)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected required_when validation error")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("expected valid required_when rule, got %v", err)
+			}
+		})
+	}
+}
+
 func TestValidateSchema_ValidRelationPredicate(t *testing.T) {
 	schema := schemaWithRelationPredicate(RelationPredicate{
 		Side:   "to",

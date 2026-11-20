@@ -13,7 +13,7 @@ test-golden:
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
-GOTOOLCHAIN ?= go1.26.10
+GOTOOLCHAIN ?= go1.26.11
 GOMODCACHE ?= $(CURDIR)/.gomodcache
 GOVERSION := $(shell GOMODCACHE=$(GOMODCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
@@ -282,7 +282,7 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
 		echo "⚠️ local gosec version '$${GOSEC_FOUND_VERSION:-missing}' does not match $(GOSEC_VERSION); using pinned Docker install"; \
-		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.10@sha256:672c944cfd07599b5f1bb179869270cdc94c6254e41db4d431259693cb286b82 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
+		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.11@sha256:4165ee6bf3b7811fd7b40373290405c83d0167dcb87ee5f29c427cdcef45ff8f sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
 	@$(MAKE) govuln-scan
 	cd web && node ../scripts/npm-audit-gate.mjs runtime
