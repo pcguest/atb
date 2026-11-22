@@ -206,11 +206,8 @@ jobs:
           ref: refs/tags/${{ steps.release-tag.outputs.tag }}
           fetch-depth: 0
 
-      - name: Verify release environment protection
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash scripts/verify-release-environment.sh docker-release
-
+      # Validate the checked-out commit and tag before executing any other
+      # repository code from that checkout.
       - name: Revalidate tag and SHA before publication
         env:
           TAG: ${{ steps.release-tag.outputs.tag }}
@@ -234,6 +231,11 @@ jobs:
             exit 1
           fi
           echo "Publication source verified: ${TAG} at ${EXPECTED_SHA}."
+
+      - name: Verify release environment protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/verify-release-environment.sh docker-release
 
       - name: Log in to Docker Hub
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -356,7 +358,6 @@ jobs:
           PUBLISH_RUNNER_ARCH: ${{ runner.arch }}
         run: |
           set -euo pipefail
-          VERSION="${TAG#v}"
           IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
 
           # Only the platform that matches the runner architecture can execute

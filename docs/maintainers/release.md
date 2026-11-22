@@ -66,13 +66,17 @@ cannot publish until all of the following repository settings exist:
 
 The workflows fail closed on checks that are visible in the repository:
 
-- Both publish jobs run `scripts/verify-release-environment.sh <environment>`
-  immediately after checkout, before any publication step. It reads the
-  environment from the GitHub API using the job's `GH_TOKEN` and exits non-zero
-  unless the response contains a `required_reviewers` protection rule with at
-  least one reviewer and `prevent_self_review == true`. API errors, malformed
-  JSON, a missing rule, zero reviewers, and a missing or false
-  `prevent_self_review` all fail the job.
+- Both publish jobs order their first steps as checkout → exact tag/SHA
+  validation → environment API protection check → publication. Each job runs
+  its `Revalidate ...` step before the environment-protection script
+  (`scripts/verify-release-environment.sh <environment>`), so code from the
+  checkout is not executed until the checked-out commit and tag are confirmed
+  to resolve to the expected SHA. The environment check reads the environment
+  from the GitHub API using the job's `GH_TOKEN` and exits non-zero unless the
+  response contains a `required_reviewers` protection rule with at least one
+  reviewer and `prevent_self_review == true`. API errors, malformed JSON, a
+  missing rule, zero reviewers, and a missing or false `prevent_self_review`
+  all fail the job.
 - `docker-publish.yml` pushes only a unique staging tag
   (`staging-<version>-<run-id>-<run-attempt>`) first. It resolves the staging
   index digest and each `linux/amd64` and `linux/arm64` child manifest digest,

@@ -588,13 +588,10 @@ jobs:
           # revalidation below.
           fetch-depth: 0
 
-      - name: Verify release environment protection
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash scripts/verify-release-environment.sh release
-
       # Fail before any credential is loaded if the checked-out commit or the
       # tag ref does not resolve to the SHA this workflow run was started for.
+      # Validate the source before executing any other repository code from the
+      # checkout.
       - name: Revalidate checked-out commit and tag before publication
         env:
           EXPECTED_SHA: ${{ github.sha }}
@@ -612,6 +609,11 @@ jobs:
             exit 1
           fi
           echo "Publication source verified: ${TAG_NAME} at ${EXPECTED_SHA}."
+
+      - name: Verify release environment protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/verify-release-environment.sh release
 
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:

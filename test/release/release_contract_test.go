@@ -532,6 +532,50 @@ func TestDockerPublicationIsManualAndVerifiesThePushedDigest(t *testing.T) {
 	}
 }
 
+// assertOrderedSteps fails unless every named step marker appears in the job
+// section in the given order. It is used to keep source validation ahead of any
+// execution of checkout-derived code and ahead of publication.
+func assertOrderedSteps(t *testing.T, workflow, jobSection string, steps ...string) {
+	t.Helper()
+	previousOffset := -1
+	previousStep := ""
+	for _, step := range steps {
+		offset := strings.Index(jobSection, step)
+		if offset < 0 {
+			t.Fatalf("%s publish job does not contain step %q", workflow, step)
+		}
+		if offset < previousOffset {
+			t.Errorf("%s publish job runs %q before %q", workflow, step, previousStep)
+		}
+		previousOffset = offset
+		previousStep = step
+	}
+}
+
+func TestReleaseWorkflowsValidateSourceBeforeEnvironmentProtection(t *testing.T) {
+	// Unverified checkout code must not execute before the checked-out commit
+	// and tag are proven to match the expected SHA. The environment API check is
+	// repository code from that checkout, so the SHA revalidation step must come
+	// first; publication follows the protection check.
+	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
+	dockerPublishJob := workflowJobSection(t, dockerPublish, "publish")
+	assertOrderedSteps(t, "docker-publish.yml", dockerPublishJob,
+		"Checkout release tag",
+		"Revalidate tag and SHA before publication",
+		"Verify release environment protection",
+		"Log in to Docker Hub",
+	)
+
+	release := readRepositoryFile(t, ".github/workflows/release.yml")
+	releasePublishJob := workflowJobSection(t, release, "publish")
+	assertOrderedSteps(t, "release.yml", releasePublishJob,
+		"actions/checkout@",
+		"Revalidate checked-out commit and tag before publication",
+		"Verify release environment protection",
+		"Create draft GitHub Release",
+	)
+}
+
 func TestSecurityScanExcludesRepositoryBuildCaches(t *testing.T) {
 	makefile := readRepositoryFile(t, "Makefile")
 	start := strings.Index(makefile, "\nsecurity-scan:")
