@@ -360,12 +360,19 @@ func TestReleaseWorkflowPublishesCompleteCanonicalAssets(t *testing.T) {
 		"artifacts/sbom/*",
 		"artifacts/provenance/*",
 		"draft: true",
-		"gh release edit \"${GITHUB_REF_NAME}\" --draft=false",
+		"gh release edit \"${GITHUB_REF_NAME}\" --draft=true",
+		"GitHub Release ${GITHUB_REF_NAME} remains a draft",
 	}
 	for _, value := range required {
 		if !strings.Contains(workflow, value) {
 			t.Errorf("release workflow does not publish required canonical asset or transition %q", value)
 		}
+	}
+	// The npm package is staged, not public, when this workflow runs. Publishing
+	// the GitHub Release before npm is public would advertise an unavailable
+	// install path.
+	if strings.Contains(workflow, "--draft=false") {
+		t.Error("release workflow makes the GitHub Release public before npm is public")
 	}
 }
 

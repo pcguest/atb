@@ -65,8 +65,10 @@ class MortiseClient:
         if not bundle:
             raise ValueError("bundle must not be empty")
         receipt = self._request("POST", "/ingest", bundle, "application/octet-stream")
+        receipt_version = receipt.get("receipt_version")
         if (
-            receipt.get("receipt_version") not in _SUPPORTED_RECEIPT_VERSIONS
+            not isinstance(receipt_version, str)
+            or receipt_version not in _SUPPORTED_RECEIPT_VERSIONS
             or not receipt.get("receipt_id")
             or not receipt.get("bundle_hash")
         ):

@@ -206,6 +206,11 @@ jobs:
           ref: refs/tags/${{ steps.release-tag.outputs.tag }}
           fetch-depth: 0
 
+      - name: Verify release environment protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/verify-release-environment.sh docker-release
+
       - name: Revalidate tag and SHA before publication
         env:
           TAG: ${{ steps.release-tag.outputs.tag }}
@@ -274,77 +279,84 @@ jobs:
             exit 1
           fi
 
-      - name: Build and push multi-architecture image
+      # Build to a unique staging tag only. Public release tags are not assigned
+      # until every staging manifest has passed the checks below.
+      - name: Build and push unique staging image
+        id: staging-image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           TAG: ${{ steps.release-tag.outputs.tag }}
         run: |
           set -euo pipefail
           VERSION="${TAG#v}"
-          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
           IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
+          STAGING_REF="${IMAGE}:staging-${VERSION}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
-          # Only immutable version tags are pushed here. Promoting :latest is a
-          # separate, explicitly approved operation; it is never automatic.
-          echo "Publishing immutable tag ${IMAGE}:v${VERSION} for ${TAG}"
-          echo "Updating documented mutable tag ${IMAGE}:v${MAJOR_MINOR}"
+          echo "Pushing staging-only tag ${STAGING_REF}"
           docker buildx build \
             --push \
             --platform linux/amd64,linux/arm64 \
             --build-arg "ATB_VERSION=${TAG}" \
-            --tag "${IMAGE}:v${VERSION}" \
-            --tag "${IMAGE}:v${MAJOR_MINOR}" \
+            --tag "${STAGING_REF}" \
             .
 
-      - name: Record published immutable tag and digest
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          TAG: ${{ steps.release-tag.outputs.tag }}
-        run: |
-          set -euo pipefail
-          VERSION="${TAG#v}"
-          IMMUTABLE_REF="docker.io/${DOCKERHUB_USERNAME}/atb:v${VERSION}"
-          DIGEST="$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${IMMUTABLE_REF}" | jq -r '.digest')"
-          if [[ ! "${DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-            echo "::error::Could not resolve a manifest digest for ${IMMUTABLE_REF}; got '${DIGEST}'." >&2
-            exit 1
-          fi
-          echo "Published immutable tag: ${IMMUTABLE_REF}"
-          echo "Published manifest digest for ${IMMUTABLE_REF}: ${DIGEST}"
+          echo "staging_ref=${STAGING_REF}" >> "${GITHUB_OUTPUT}"
 
-      - name: Verify published manifest
+      - name: Resolve staging index and child manifest digests
+        id: staging-digests
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          TAG: ${{ steps.release-tag.outputs.tag }}
+          STAGING_REF: ${{ steps.staging-image.outputs.staging_ref }}
         run: |
           set -euo pipefail
-          VERSION="${TAG#v}"
-          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
           IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
 
-          for REF in "${IMAGE}:v${VERSION}" "${IMAGE}:v${MAJOR_MINOR}"; do
-            MANIFEST="$(docker buildx imagetools inspect "${REF}")"
-            for PLATFORM in linux/amd64 linux/arm64; do
-              if ! grep -Eq "Platform:[[:space:]]*${PLATFORM}" <<< "${MANIFEST}"; then
-                echo "::error::Published manifest ${REF} is missing ${PLATFORM}." >&2
-                exit 1
-              fi
-            done
-            echo "Verified ${REF} contains linux/amd64 and linux/arm64."
+          STAGING_DIGEST="$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${STAGING_REF}" | jq -r '.digest')"
+          if [[ ! "${STAGING_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Could not resolve a staging index digest for ${STAGING_REF}; got '${STAGING_DIGEST}'." >&2
+            exit 1
+          fi
+          echo "staging_digest=${STAGING_DIGEST}" >> "${GITHUB_OUTPUT}"
+
+          STAGING_RAW="$(docker buildx imagetools inspect --raw "${IMAGE}@${STAGING_DIGEST}")"
+          if ! jq -e '.manifests | type == "array" and length > 0' <<< "${STAGING_RAW}" >/dev/null; then
+            echo "::error::Staging digest ${STAGING_DIGEST} is not a multi-platform index." >&2
+            exit 1
+          fi
+
+          for PLATFORM in linux/amd64 linux/arm64; do
+            ARCH="${PLATFORM#linux/}"
+            mapfile -t CHILD_DIGESTS < <(
+              jq -r --arg arch "${ARCH}" \
+                '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest' \
+                <<< "${STAGING_RAW}"
+            )
+            if [ "${#CHILD_DIGESTS[@]}" -ne 1 ]; then
+              echo "::error::Staging index ${STAGING_DIGEST} has ${#CHILD_DIGESTS[@]} manifests for ${PLATFORM}; expected exactly one." >&2
+              exit 1
+            fi
+            CHILD_DIGEST="${CHILD_DIGESTS[0]}"
+            if [[ ! "${CHILD_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::Invalid child digest '${CHILD_DIGEST}' for ${PLATFORM}." >&2
+              exit 1
+            fi
+            echo "${ARCH}_digest=${CHILD_DIGEST}" >> "${GITHUB_OUTPUT}"
+            echo "Resolved ${PLATFORM} child manifest ${CHILD_DIGEST} from staging index ${STAGING_DIGEST}."
           done
 
-      # Re-check the bytes that were actually pushed, per platform, by digest.
-      # The manifest digest is recorded in the log so a partial publication can
+      # Re-check the bytes in the staging index per child manifest digest. The
+      # staging index digest is recorded in the log so a partial publication can
       # be identified without guessing which image the run produced.
       - name: Verify pushed digest per platform
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           TAG: ${{ steps.release-tag.outputs.tag }}
+          AMD64_DIGEST: ${{ steps.staging-digests.outputs.amd64_digest }}
+          ARM64_DIGEST: ${{ steps.staging-digests.outputs.arm64_digest }}
           PUBLISH_RUNNER_ARCH: ${{ runner.arch }}
         run: |
           set -euo pipefail
           VERSION="${TAG#v}"
-          MAJOR_MINOR="$(echo "$VERSION" | cut -d. -f1,2)"
           IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
 
           # Only the platform that matches the runner architecture can execute
@@ -363,44 +375,108 @@ jobs:
               ;;
           esac
 
+          for PLATFORM in linux/amd64 linux/arm64; do
+            case "${PLATFORM}" in
+              linux/amd64) DIGEST="${AMD64_DIGEST}" ;;
+              linux/arm64) DIGEST="${ARM64_DIGEST}" ;;
+              *)
+                echo "::error::Unsupported target platform '${PLATFORM}'." >&2
+                exit 1
+                ;;
+            esac
+
+            if [[ ! "${DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::Missing or invalid staging child digest '${DIGEST}' for ${PLATFORM}." >&2
+              exit 1
+            fi
+
+            docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"
+
+            bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"
+
+            LABEL_VERSION="$(docker image inspect \
+              --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
+              "${IMAGE}@${DIGEST}")"
+
+            if [ "${LABEL_VERSION}" != "${TAG}" ]; then
+              echo "::error::Staging OCI version label ${LABEL_VERSION} for ${PLATFORM} at ${DIGEST} does not match ${TAG}." >&2
+              exit 1
+            fi
+
+            # Execute the binary only on the runner's native platform. The
+            # arm64 image is still covered by the ELF architecture check above
+            # and the OCI label check, not by runtime execution.
+            if [ "${PLATFORM}" != "${RUNNER_PLATFORM}" ]; then
+              echo "Verified staging ${PLATFORM} at ${DIGEST}: label ${LABEL_VERSION}, embedded ELF architecture and label checks passed."
+              echo "Skipped atb version execution for ${PLATFORM}: this publish job runs on ${RUNNER_PLATFORM} and QEMU/binfmt emulation is not installed."
+              continue
+            fi
+
+            BINARY_VERSION="$(docker run --rm --platform "${PLATFORM}" \
+              "${IMAGE}@${DIGEST}" version | awk '{print $NF}')"
+            if [ "${BINARY_VERSION}" != "${TAG#v}" ]; then
+              echo "::error::Staging atb binary version ${BINARY_VERSION} for ${PLATFORM} at ${DIGEST} does not match ${TAG#v}." >&2
+              exit 1
+            fi
+
+            echo "Verified staging ${PLATFORM} at ${DIGEST}: label ${LABEL_VERSION}, binary ${BINARY_VERSION}."
+          done
+
+      # Only the verified staging index digest is promoted. Promoting :latest is
+      # a separate, explicitly approved operation; it is never automatic.
+      - name: Promote verified index digest to release tags
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TAG: ${{ steps.release-tag.outputs.tag }}
+          STAGING_DIGEST: ${{ steps.staging-digests.outputs.staging_digest }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="$(echo "${VERSION}" | cut -d. -f1,2)"
+          IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
+
+          if [[ ! "${STAGING_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Missing or invalid verified staging digest '${STAGING_DIGEST}'." >&2
+            exit 1
+          fi
+
+          echo "Promoting verified staging index ${STAGING_DIGEST} for ${TAG}"
+          docker buildx imagetools create \
+            --tag "${IMAGE}:v${VERSION}" \
+            --tag "${IMAGE}:v${MAJOR_MINOR}" \
+            "${IMAGE}@${STAGING_DIGEST}"
+
+          echo "Promoted ${IMAGE}@${STAGING_DIGEST} to ${IMAGE}:v${VERSION} and ${IMAGE}:v${MAJOR_MINOR}."
+
+      - name: Verify promoted tags share the verified digest
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          TAG: ${{ steps.release-tag.outputs.tag }}
+          STAGING_DIGEST: ${{ steps.staging-digests.outputs.staging_digest }}
+        run: |
+          set -euo pipefail
+          VERSION="${TAG#v}"
+          MAJOR_MINOR="$(echo "${VERSION}" | cut -d. -f1,2)"
+          IMAGE="docker.io/${DOCKERHUB_USERNAME}/atb"
+
           for REF in "${IMAGE}:v${VERSION}" "${IMAGE}:v${MAJOR_MINOR}"; do
             DIGEST="$(docker buildx imagetools inspect --format '{{json .Manifest}}' "${REF}" | jq -r '.digest')"
             if [[ ! "${DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-              echo "::error::Could not resolve a manifest digest for ${REF}; got '${DIGEST}'." >&2
+              echo "::error::Could not resolve a manifest digest for promoted tag ${REF}; got '${DIGEST}'." >&2
               exit 1
             fi
-            echo "Published ${REF} manifest digest: ${DIGEST}"
-
+            if [ "${DIGEST}" != "${STAGING_DIGEST}" ]; then
+              echo "::error::Promoted tag ${REF} resolves to ${DIGEST}, not the verified staging digest ${STAGING_DIGEST}." >&2
+              exit 1
+            fi
+            MANIFEST="$(docker buildx imagetools inspect "${REF}")"
             for PLATFORM in linux/amd64 linux/arm64; do
-              docker pull --platform "${PLATFORM}" "${IMAGE}@${DIGEST}"
-
-              bash scripts/verify-container-architecture.sh "${IMAGE}@${DIGEST}" "${PLATFORM}"
-
-              LABEL_VERSION="$(docker image inspect \
-                --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' \
-                "${IMAGE}@${DIGEST}")"
-
-              if [ "${LABEL_VERSION}" != "${TAG}" ]; then
-                echo "::error::Published OCI version label ${LABEL_VERSION} for ${REF} (${PLATFORM}) at ${DIGEST} does not match ${TAG}." >&2
+              if ! grep -Eq "Platform:[[:space:]]*${PLATFORM}" <<< "${MANIFEST}"; then
+                echo "::error::Promoted manifest ${REF} is missing ${PLATFORM}." >&2
                 exit 1
               fi
-
-              # Execute the binary only on the runner's native platform. The
-              # arm64 image is still covered by the ELF architecture check above
-              # and the OCI label check, not by runtime execution.
-              if [ "${PLATFORM}" != "${RUNNER_PLATFORM}" ]; then
-                echo "Verified ${REF} ${PLATFORM} at ${DIGEST}: label ${LABEL_VERSION}, embedded ELF architecture and label checks passed."
-                echo "Skipped atb version execution for ${PLATFORM}: this publish job runs on ${RUNNER_PLATFORM} and QEMU/binfmt emulation is not installed."
-                continue
-              fi
-
-              BINARY_VERSION="$(docker run --rm --platform "${PLATFORM}" \
-                "${IMAGE}@${DIGEST}" version | awk '{print $NF}')"
-              if [ "${BINARY_VERSION}" != "${TAG#v}" ]; then
-                echo "::error::Published atb binary version ${BINARY_VERSION} for ${REF} (${PLATFORM}) at ${DIGEST} does not match ${TAG#v}." >&2
-                exit 1
-              fi
-
-              echo "Verified ${REF} ${PLATFORM} at ${DIGEST}: label ${LABEL_VERSION}, binary ${BINARY_VERSION}."
             done
+            echo "Verified promoted tag ${REF} resolves to index digest ${DIGEST} with linux/amd64 and linux/arm64."
           done
+
+          echo "Recorded promoted index digest: ${STAGING_DIGEST}"

@@ -588,6 +588,11 @@ jobs:
           # revalidation below.
           fetch-depth: 0
 
+      - name: Verify release environment protection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/verify-release-environment.sh release
+
       # Fail before any credential is loaded if the checked-out commit or the
       # tag ref does not resolve to the SHA this workflow run was started for.
       - name: Revalidate checked-out commit and tag before publication
@@ -817,14 +822,25 @@ jobs:
       - name: Verify final signed release bundle
         run: atb verify --bundle "$ATB_CI_BUNDLE_PATH"
 
-      - name: Attach signed release bundle and finalize release
+      - name: Attach signed release bundle and keep GitHub Release in draft
         env:
           GH_TOKEN: ${{ github.token }}
+          SKIP_NPM: ${{ inputs.skip_npm }}
         run: |
+          set -euo pipefail
           release_bundle="atb-release-${GITHUB_REF_NAME}.atb"
           cp "$ATB_CI_BUNDLE_PATH" "$release_bundle"
           gh release upload "${GITHUB_REF_NAME}" "$release_bundle" --clobber
-          gh release edit "${GITHUB_REF_NAME}" --draft=false
+          # Never make the GitHub Release public here. npm is only staged for a
+          # maintainer to approve and publish; the release stays in draft until
+          # a maintainer has made the npm version public.
+          gh release edit "${GITHUB_REF_NAME}" --draft=true
+
+          if [ "${SKIP_NPM}" = "true" ]; then
+            echo "npm publication was skipped by the operator; GitHub Release ${GITHUB_REF_NAME} remains a draft."
+          else
+            echo "npm package ${GITHUB_REF_NAME#v} was staged, not published; GitHub Release ${GITHUB_REF_NAME} remains a draft until the npm version is public."
+          fi
 
       - name: Upload ATB release bundle as artefact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,4 +1,4 @@
-.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-audit-python deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-audit-python deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden test-release-protection build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -12,6 +12,11 @@ test-golden:
 	.venv/bin/python -m pytest sdk/python/tests/test_canonical_hash.py -x -q
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
+
+test-release-protection:
+	@echo "🛡️ Running release-environment protection fixtures..."
+	@bash scripts/test-verify-release-environment.sh
+	@echo "✅ Release-environment protection fixtures passed"
 
 GOTOOLCHAIN ?= go1.26.11
 GOMODCACHE ?= $(CURDIR)/.gomodcache

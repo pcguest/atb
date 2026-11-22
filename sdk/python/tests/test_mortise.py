@@ -148,6 +148,32 @@ def test_mortise_client_rejects_unknown_receipt_version() -> None:
 
 
 @pytest.mark.parametrize(
+    "receipt_version",
+    [
+        ["custos.receipt.v1"],
+        {"version": "custos.receipt.v1"},
+        2,
+        None,
+    ],
+)
+def test_mortise_client_rejects_non_string_receipt_version(
+    receipt_version: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = MortiseClient("https://mortise.example")
+
+    def fake_request(*_args: Any, **_kwargs: Any) -> Dict[str, Any]:
+        return {
+            "receipt_version": receipt_version,
+            "receipt_id": "receipt-1",
+            "bundle_hash": "bundle-hash",
+        }
+
+    monkeypatch.setattr(client, "_request", fake_request)
+    with pytest.raises(MortiseError, match="invalid custody receipt"):
+        client.ingest_bundle(b"bundle")
+
+
+@pytest.mark.parametrize(
     "endpoint",
     [
         "",

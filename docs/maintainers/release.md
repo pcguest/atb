@@ -52,8 +52,9 @@ and retention operations.
 
 ## Release gate
 
-Publication is founder-controlled and fails closed. A release cannot publish
-until all of the following repository settings exist:
+Publication is founder-controlled and fails closed. Part of the gate is
+enforced by tracked source; the rest is administered by GitHub. A release
+cannot publish until all of the following repository settings exist:
 
 - Repository variable `RELEASE_GATE_ENABLED` set to `true`.
 - A protected `release` environment, used by the `Release` workflow's publish
@@ -61,10 +62,43 @@ until all of the following repository settings exist:
 - A protected `docker-release` environment, used by the `Docker Publish`
   workflow's publish job, with required reviewers.
 
-Approving the environment run is the approval to publish. This document does
-not assert that these settings are configured: they are repository
-configuration, not tracked files. Until they are in place, tag pushes and
-manual dispatches stop at the gate and publish nothing. The gate also rejects
+### Source-enforced checks
+
+The workflows fail closed on checks that are visible in the repository:
+
+- Both publish jobs run `scripts/verify-release-environment.sh <environment>`
+  immediately after checkout, before any publication step. It reads the
+  environment from the GitHub API using the job's `GH_TOKEN` and exits non-zero
+  unless the response contains a `required_reviewers` protection rule with at
+  least one reviewer and `prevent_self_review == true`. API errors, malformed
+  JSON, a missing rule, zero reviewers, and a missing or false
+  `prevent_self_review` all fail the job.
+- `docker-publish.yml` pushes only a unique staging tag
+  (`staging-<version>-<run-id>-<run-attempt>`) first. It resolves the staging
+  index digest and each `linux/amd64` and `linux/arm64` child manifest digest,
+  pulls and verifies each child's OCI version label and embedded ELF
+  architecture, executes the binary only on the runner's native platform, and
+  only then promotes the verified index digest to `vMAJOR.MINOR.PATCH` and
+  `vMAJOR.MINOR`. No public release tag is assigned before verification.
+- `release.yml` keeps the GitHub Release in draft after staging the npm
+  package; it does not make the release public from CI.
+
+### Provider-administered controls
+
+GitHub, not this repository, administers the actual protection settings:
+
+- The reviewer identities and count, and the `prevent_self_review` setting, are
+  configured by repository administrators on each environment. The API check
+  can confirm the configuration that GitHub reports for this run; it cannot
+  prove who reviews the run or that the reviewer is independent.
+- Branch protection, tag protection, deployment branch policies, environment
+  secrets, and organisation policies are also provider-side. They are not
+  encoded in these workflows.
+
+Approving the environment run is a deliberate action to publish. This document
+does not assert that the provider settings are configured: they are repository
+configuration, not tracked files. Until they are in place, the source check and
+the existing gate stop the workflow and publish nothing. The gate also rejects
 tags that are not stable SemVer.
 
 Environment protection is a deliberate-action control, not an authorization
@@ -73,13 +107,18 @@ it does not prevent a repository writer from editing these workflow files or
 the environment settings. Treat the gate as evidence of intent to publish, not
 as proof that only trusted code can reach the registry.
 
+The workflows do not claim independent human approval in YAML. They require the
+provider to report that the environment has a reviewer and self-review
+protection; they do not verify a reviewer's identity, independence, or that a
+human inspected the release artifacts.
+
 Recommended hardening, not yet verified: move `DOCKERHUB_USERNAME`,
-`DOCKERHUB_TOKEN`, and `ATB_SIGNING_KEY_PEM` from repository
-secrets to environment-scoped secrets on the `release` and `docker-release`
-environments, so a workflow change cannot read them without an approved run,
-and configure those environments to prevent self-review of an approval.
-Neither the move nor the self-review setting is verified by this document or
-by repository tests.
+`DOCKERHUB_TOKEN`, and `ATB_SIGNING_KEY_PEM` from repository secrets to
+environment-scoped secrets on the `release` and `docker-release` environments,
+so a workflow change cannot read them without an approved run. The source now
+fails closed when the environment API does not report
+`prevent_self_review: true`, but the actual provider setting and the secret
+scope change remain administrator actions not verified by repository tests.
 
 ### Docker publication is manual
 
@@ -100,14 +139,20 @@ automatically.
 
 The unprivileged `build` jobs have no registry credentials and never push;
 they validate the tag locally. Publication rebuilds the multi-architecture
-image and pushes it only inside the protected `docker-release` environment,
-after revalidating both the checked-out `HEAD` and the tag against
-`expected_sha` immediately before the registry login. After the push, the
-workflow records each published manifest digest and re-pulls each platform by
-that digest to re-check the OCI version label and the embedded ELF architecture.
-It executes the `atb version` output only on the publish runner's native
-platform (`linux/amd64`), because that job does not install QEMU/binfmt
-emulation for `linux/arm64`.
+image, but pushes only a unique staging tag
+(`staging-<version>-<run-id>-<run-attempt>`) inside the protected
+`docker-release` environment, after revalidating both the checked-out `HEAD`
+and the tag against `expected_sha` immediately before the registry login. It
+then resolves the staging index digest and the `linux/amd64` and `linux/arm64`
+child manifest digests from `docker buildx imagetools inspect --raw`, pulls each
+child by digest, re-checks the OCI version label and the embedded ELF
+architecture, and executes the `atb version` output only on the publish
+runner's native platform (`linux/amd64`), because that job does not install
+QEMU/binfmt emulation for `linux/arm64`. Only after all child checks pass does
+it promote the verified index digest to `vMAJOR.MINOR.PATCH` and `vMAJOR.MINOR`
+with `docker buildx imagetools create`, then verify both promoted tags resolve
+to that same index digest and record it. No public release tag is assigned
+before verification.
 
 Publication is serialized per release tag (`concurrency.group` is
 `docker-publish-<tag>`) with `cancel-in-progress: false`, so a second dispatch
@@ -117,8 +162,8 @@ the publish job inspects the immutable `vMAJOR.MINOR.PATCH` manifest with
 immutable version tag is never overwritten, and replacing it requires a
 separate, explicitly approved operation. Only an absent manifest proceeds; any
 other inspection failure fails closed. The documented mutable `vMAJOR.MINOR`
-tag is not checked. The exact tag is logged before the push, and the manifest
-digest is logged immediately after the push.
+tag is not checked. The staging tag is logged before the push, and the staging
+index digest is resolved, verified, and recorded before promotion.
 
 ## 1. Consolidate CHANGELOG
 
@@ -244,7 +289,8 @@ git push origin v<NEW>
 
 Wait for the tag-triggered `Release` workflow to succeed. Do not create a
 GitHub Release manually: the `Release` workflow owns the draft, registry
-publication, retained evidence bundle, and final transition out of draft.
+publication, and retained evidence bundle. It leaves the GitHub Release in
+draft; a maintainer makes it public only after the npm package is public.
 
 The `Release` workflow contains its own gold gate (`make gate-gold-release`,
 including the repository's ≥80% aggregate Go coverage threshold). A tag push
@@ -256,10 +302,10 @@ tag.
 
 Publication stages immutable artefacts in a fixed order: publish already
 verified artefacts, append all capture evidence before signing the retained
-evidence bundle, and make the GitHub Release public only after registry
-publication and final verification. Publication is not retried automatically:
-if it stops partway, resuming the remaining steps is a manual operator action
-(see step 7).
+evidence bundle, and leave the GitHub Release in draft. The workflow does not
+make the GitHub Release public, because the npm package is only staged for
+maintainer approval. Publication is not retried automatically: if it stops
+partway, resuming the remaining steps is a manual operator action (see step 7).
 
 ## 7. Verify automated publication
 
@@ -271,16 +317,16 @@ gh release view v<NEW> --repo pcguest/atb
 
 The `Release` workflow first creates a draft, publishes the already verified
 Python artifact, stages the verified npm package for maintainer approval, signs
-and attaches the final ATB release-evidence bundle, and only then makes the
-GitHub Release public. After the run, review the staged npm version and approve
-it with 2FA through the npm CLI or UI; the workflow itself never publishes the
-package publicly. If any step fails, leave
-the draft and registry state intact, record which immutable registries accepted
-the version, fix the workflow without changing published bytes, and resume only
-the incomplete steps. Resuming is manual: re-run the failed jobs, or dispatch
-`docker-publish.yml` again for the image, after the workflow fix; GitHub does
-not automatically retry a partial registry publication. If the artefacts must
-change, cut a new version.
+and attaches the final ATB release-evidence bundle, and leaves the GitHub
+Release in draft. After the run, review the staged npm version and approve it
+with 2FA through the npm CLI or UI; the workflow itself never publishes the
+package publicly. Make the GitHub Release public only after the npm version is
+public. If any step fails, leave the draft and registry state intact, record
+which immutable registries accepted the version, fix the workflow without
+changing published bytes, and resume only the incomplete steps. Resuming is
+manual: re-run the failed jobs, or dispatch `docker-publish.yml` again for the
+image, after the workflow fix; GitHub does not automatically retry a partial
+registry publication. If the artefacts must change, cut a new version.
 
 Registry publication is serialized per ref: the `Release` workflow keeps its
 workflow-level `release-<ref>` lock for build and validation, and the `publish`
