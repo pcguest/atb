@@ -170,8 +170,8 @@ matches = client.receipts_by_hash(receipt["bundle_hash"])
 ```
 
 The client rejects credential-bearing or non-HTTP(S) URLs, does not follow
-redirects, caps responses at 1 MiB, and validates the frozen
-`custos.receipt.v1` wire identifier.
+redirects, caps responses at 1 MiB, and accepts the frozen `custos.receipt.v1`
+or org-bound `custos.receipt.v2` receipt wire identifier.
 
 ## LangChain integration
 

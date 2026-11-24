@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -94,6 +95,19 @@ func (p *Proxy) Start(ctx context.Context) error {
 		return errors.New("proxy: already started")
 	}
 
+	// Bind before setup so a busy or invalid listen address fails synchronously,
+	// rather than surfacing asynchronously after Start has already returned.
+	ln, err := net.Listen("tcp", p.cfg.ListenAddr)
+	if err != nil {
+		return fmt.Errorf("proxy listen %s: %w", p.cfg.ListenAddr, err)
+	}
+	listenerOwned := false
+	defer func() {
+		if !listenerOwned {
+			_ = ln.Close()
+		}
+	}()
+
 	ca, err := LoadOrCreateLocalCA()
 	if err != nil {
 		return err
@@ -125,9 +139,10 @@ func (p *Proxy) Start(ctx context.Context) error {
 	}
 
 	p.listenWG.Add(1)
+	listenerOwned = true
 	go func() {
 		defer p.listenWG.Done()
-		if err := p.ListenAndServe(runCtx); err != nil && p.logger != nil {
+		if err := p.serve(runCtx, ln); err != nil && p.logger != nil {
 			p.logger.Error("proxy listener stopped", "error", err)
 		}
 	}()
@@ -137,7 +152,7 @@ func (p *Proxy) Start(ctx context.Context) error {
 		logger = slog.Default()
 	}
 	logger.Info("proxy listening",
-		"listen_addr", p.cfg.ListenAddr,
+		"listen_addr", ln.Addr().String(),
 		"bundle_path", p.cfg.BundlePath,
 		"targets", p.cfg.TargetHosts,
 		"mortise_endpoint", p.cfg.MortiseEndpoint,

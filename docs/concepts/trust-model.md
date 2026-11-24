@@ -46,7 +46,10 @@ storage, identity verification, or hosted control-plane governance.
 - Layer D, security scanning: full-history Gitleaks, `gosec`, pinned Bandit, both npm audits, and Trivy filesystem and Docker image scans.
 - Layer E, distribution and operations: Git tags, GitHub releases, checksums, PyPI, npm, and Docker image publication.
 
-Docker images are published by a separate `Docker Publish` workflow on tag pushes or manual dispatch. They are part of Layer E distribution rather than the Layer A-C assurance boundary.
+Docker images are built without registry credentials by a separate `Docker
+Publish` workflow and published only by manual dispatch through the protected
+`docker-release` environment. They are part of Layer E distribution rather than
+the Layer A-C assurance boundary.
 
 ## Limitations
 

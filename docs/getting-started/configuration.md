@@ -82,7 +82,6 @@ These are configured in GitHub repository secrets for publish/notification workf
 
 | Secret | Used by | Purpose |
 | --- | --- | --- |
-| `NPM_TOKEN` | `.github/workflows/release.yml` | Publish TypeScript SDK |
 | `ATB_SIGNING_KEY_PEM` | `.github/workflows/release.yml` | Sign the release evidence bundle before publication |
 | `DOCKERHUB_USERNAME` | `.github/workflows/docker-publish.yml` | Push Docker images |
 | `DOCKERHUB_TOKEN` | `.github/workflows/docker-publish.yml` | Push Docker images |
@@ -91,7 +90,7 @@ These are configured in GitHub repository secrets for publish/notification workf
 | `ATB_WORM_S3_ACCESS_KEY_ID` | CI workflows using `atb push` | AWS access key ID for WORM S3 uploads |
 | `ATB_WORM_S3_SECRET_ACCESS_KEY` | CI workflows using `atb push` | AWS secret access key paired with above |
 
-PyPI publishing uses GitHub OIDC trusted publishing through `.github/workflows/release.yml`, so no repository secret is required for PyPI.
+npm and PyPI use OIDC trusted publishing through `.github/workflows/release.yml`, so no npm or PyPI token secret is required.
 
 See [maintainer release guidance](../maintainers/release.md) for the canonical
 inventory, required permissions, and process for adding new secrets.

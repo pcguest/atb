@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -551,6 +552,18 @@ func (p *Proxy) ListenAndServe(ctx context.Context) error {
 		})
 	}
 
+	// Bind synchronously so callers see a listen failure before serving starts.
+	ln, err := net.Listen("tcp", p.cfg.ListenAddr)
+	if err != nil {
+		return fmt.Errorf("proxy listen %s: %w", p.cfg.ListenAddr, err)
+	}
+	return p.serve(ctx, ln)
+}
+
+// serve runs the proxy HTTP server on an already-bound listener.
+func (p *Proxy) serve(ctx context.Context, ln net.Listener) error {
+	defer func() { _ = ln.Close() }()
+
 	server := &http.Server{
 		Addr:    p.cfg.ListenAddr,
 		Handler: &forwarder{proxy: p},
@@ -563,7 +576,7 @@ func (p *Proxy) ListenAndServe(ctx context.Context) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- server.ListenAndServe()
+		errCh <- server.Serve(ln)
 	}()
 
 	select {

@@ -32,17 +32,19 @@ Required events:
 
 Optional evidence:
 
-- `ai.human.approval` — warning; becomes required when `ai.action.executed` is present. Fields: `approval_id`, `approver_id_hash`, `approval_outcome`, `justification_digest`, `action_id`
+- `ai.human.approval` — warning; when `ai.action.executed` is present it becomes required before that execution (critical via `required_when` `before` with `match_field: action_id`) and must record an `approved` outcome. Each execution requires its own distinct approval for that `action_id`; one approval cannot satisfy multiple executions. Ordering is established only from recorded RFC 3339 timestamps, so it does not prove independent human authorisation. Fields: `approval_id`, `approver_id_hash`, `approval_outcome`, `justification_digest`, `action_id`
 
 Relation checks:
 
 - `ai.action.committed` must bind to `ai.action.precommit` by `action_id`.
 - `ai.policy.decision` must bind to `ai.action.precommit` by `action_id`.
 - `ai.action.executed` must bind to an allowing `ai.policy.decision` for the same `action_id`.
+- `ai.human.approval` must bind to `ai.action.precommit` by `action_id` and requires `approval_outcome=approved` (`approval_binds_action`).
 
 Blind spots / out of scope:
 
 - Operator bypass of the ACP gate is not detectable from bundle events alone.
+- Approval ordering is determined only by recorded RFC 3339 timestamps; bundle position and backdating are writer-controlled, and profile success does not prove independent human authorisation or agent non-bypass.
 - Tool provider internal processing is not attested unless tool receipts are cryptographically verifiable.
 - XC credit requires at least one valid `atb.corroboration.external` event.
 

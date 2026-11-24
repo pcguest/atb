@@ -204,7 +204,7 @@ remote `@latest` result; verify the resolved pseudo-version with
 
 ### Source build with the investigation UI
 
-Prerequisites: Git, Go 1.26.10, Node.js 22 and npm. From a checkout, run the
+Prerequisites: Git, Go 1.26.11, Node.js 22 and npm. From a checkout, run the
 actual Makefile target, which installs/builds the web dependencies and then
 embeds the generated assets in the Go binary:
 

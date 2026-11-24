@@ -55,6 +55,14 @@ func runInterceptCommand(args []string, stdout, stderr io.Writer) int {
 		return exitUserError
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := p.Start(ctx); err != nil {
+		fmt.Fprintf(stderr, "atb intercept: %v\n", err)
+		return exitSystemError
+	}
+
 	port := extractPort(cfg.ListenAddr)
 	printInterceptEnvHints(stdout, port)
 
@@ -69,13 +77,6 @@ func runInterceptCommand(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, "Auto-push disabled (--mortise not set)")
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	if err := p.Start(ctx); err != nil {
-		fmt.Fprintf(stderr, "atb intercept: %v\n", err)
-		return exitSystemError
-	}
 	<-ctx.Done()
 	if err := p.Stop(); err != nil {
 		fmt.Fprintf(stderr, "atb intercept: %v\n", err)

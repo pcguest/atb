@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pcguest/atb/v2/internal/bundle"
 	"github.com/pcguest/atb/v2/internal/event"
@@ -155,14 +156,6 @@ func snapshotProfileCases() []snapshotProfileCase {
 					},
 				},
 				{
-					eventType: event.TypeAIActionExecuted,
-					data: map[string]any{
-						"action_id":           "act-1",
-						"execution_outcome":   "success",
-						"tool_receipt_digest": "tool-digest",
-					},
-				},
-				{
 					eventType: event.TypeAIHumanApproval,
 					data: map[string]any{
 						"approval_id":          "appr-1",
@@ -170,6 +163,14 @@ func snapshotProfileCases() []snapshotProfileCase {
 						"approval_outcome":     "approved",
 						"justification_digest": "just-digest",
 						"action_id":            "act-1",
+					},
+				},
+				{
+					eventType: event.TypeAIActionExecuted,
+					data: map[string]any{
+						"action_id":           "act-1",
+						"execution_outcome":   "success",
+						"tool_receipt_digest": "tool-digest",
 					},
 				},
 				{
@@ -540,14 +541,6 @@ func trustReportSnapshotCases() []snapshotProfileCase {
 					},
 				},
 				{
-					eventType: event.TypeAIActionExecuted,
-					data: map[string]any{
-						"action_id":           "act-1",
-						"execution_outcome":   "success",
-						"tool_receipt_digest": "tool-digest",
-					},
-				},
-				{
 					eventType: event.TypeAIHumanApproval,
 					data: map[string]any{
 						"approval_id":          "appr-1",
@@ -555,6 +548,14 @@ func trustReportSnapshotCases() []snapshotProfileCase {
 						"approval_outcome":     "approved",
 						"justification_digest": "just-digest",
 						"action_id":            "act-1",
+					},
+				},
+				{
+					eventType: event.TypeAIActionExecuted,
+					data: map[string]any{
+						"action_id":           "act-1",
+						"execution_outcome":   "success",
+						"tool_receipt_digest": "tool-digest",
 					},
 				},
 				{
@@ -794,17 +795,25 @@ func buildSnapshotBundle(t testing.TB, events []snapshotAppend) string {
 			t.Fatalf("runInit() exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
 		}
 
-		for _, appendEvent := range events {
-			payload, err := json.Marshal(appendEvent.data)
-			if err != nil {
-				t.Fatalf("marshal %s payload: %v", appendEvent.eventType, err)
-			}
+		b, err := bundle.Load(bundle.DefaultPath())
+		if err != nil {
+			t.Fatalf("load bundle: %v", err)
+		}
 
-			stdout.Reset()
-			stderr.Reset()
-			if exitCode := runAppend([]string{appendEvent.eventType, string(payload)}, &stdout, &stderr); exitCode != exitSuccess {
-				t.Fatalf("runAppend(%q) exit code = %d, want %d (stderr=%q)", appendEvent.eventType, exitCode, exitSuccess, stderr.String())
+		// Assign deterministic, strictly increasing timestamps so append order and
+		// timestamp order agree. The CLI append path uses second precision, which
+		// can give consecutive events identical timestamps and defeat strict
+		// temporal ordering checks.
+		baseTimestamp := time.Date(2026, 3, 27, 12, 0, 0, 0, time.UTC)
+		for i, appendEvent := range events {
+			timestamp := baseTimestamp.Add(time.Duration(i) * time.Minute).Format(time.RFC3339)
+			if err := b.AppendWithOptions(appendEvent.eventType, appendEvent.data, &bundle.AppendOptions{Timestamp: timestamp}); err != nil {
+				t.Fatalf("append %s: %v", appendEvent.eventType, err)
 			}
+		}
+
+		if err := b.Save(bundle.DefaultPath()); err != nil {
+			t.Fatalf("save bundle: %v", err)
 		}
 	})
 

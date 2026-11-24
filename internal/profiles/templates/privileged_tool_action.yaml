@@ -1,10 +1,11 @@
 id: atb.profile.privileged_tool_action
-version: 1
+version: 2
 workflow_class: privileged_tool_action
 blind_spots:
   - "Limitation: operator bypass of the ACP gate is not detectable from bundle events alone. | Mitigation: enforce ACP gate at runtime (L5) and/or append atb.corroboration.external (L4). | Residual: actions executed entirely outside the gate remain invisible."
   - "Limitation: tool provider internal processing is not attested unless tool receipts are cryptographically verifiable. | Mitigation: record tool_receipt_digest from verifiable provider receipts (L3). | Residual: provider execution fidelity without receipt verification."
   - "Limitation: XC credit requires at least one valid atb.corroboration.external event. | Mitigation: run atb corroborate with a configured adapter (L4). | Residual: absence of corroboration indicates the adapter was not used, not necessarily a recording failure."
+  - "Limitation: approval ordering is established only from recorded RFC 3339 timestamps; bundle position and backdating are writer-controlled, and profile success does not prove independent human authorisation or agent non-bypass. | Mitigation: verify event timestamps against an independent clock or external corroboration (L4). | Residual: a correctly ordered, correlated approval record can still be fabricated or replayed by the writer."
 weights:
   EC: 0.20
   FC: 0.15
@@ -73,8 +74,9 @@ optional:
     severity: warning
     required_when:
       - when_type: ai.action.executed
-        at_or_after: true
-        message: ai.human.approval required when actions execute
+        before: true
+        match_field: action_id
+        message: ai.human.approval must precede ai.action.executed for the same action_id
 relations:
   - name: commit_requires_precommit
     from: ai.action.committed
@@ -86,6 +88,15 @@ relations:
     to: ai.action.precommit
     field: action_id
     message: "policy_binds_action: ai.policy.decision action_id does not match ai.action.precommit"
+  - name: approval_binds_action
+    from: ai.human.approval
+    to: ai.action.precommit
+    field: action_id
+    message: "approval_binds_action: approval action_id/outcome does not match an approved precommit"
+    predicates:
+      - side: from
+        field: approval_outcome
+        equals: approved
   - name: execution_after_authorization
     from: ai.action.executed
     to: ai.policy.decision

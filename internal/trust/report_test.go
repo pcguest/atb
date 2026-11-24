@@ -196,7 +196,7 @@ func TestBuildReport_WithProfileIncludesCriticalFailures(t *testing.T) {
 	if report.Gate.Status != StatusFail {
 		t.Fatalf("expected failing gate status, got %q", report.Gate.Status)
 	}
-	if !hasCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval required when actions execute") {
+	if !hasCheckDetail(report, "obligation_profile", "missing_event: ai.human.approval must precede ai.action.executed for the same action_id") {
 		t.Fatalf("expected missing approval detail in obligation profile category, got %+v", report.Categories)
 	}
 }

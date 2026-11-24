@@ -74,6 +74,25 @@ describe("MortiseClient", () => {
     await expect(client.ingestBundle(new Uint8Array([1]))).rejects.toThrow("422");
   });
 
+  it("accepts an org-bound custos.receipt.v2 custody receipt", async () => {
+    const client = new MortiseClient("https://mortise.example", {
+      fetch: vi.fn(async () =>
+        Response.json(
+          {
+            receipt_version: "custos.receipt.v2",
+            receipt_id: "receipt-2",
+            bundle_hash: "bundle-hash",
+            org_id: "org-1",
+          },
+          { status: 201 },
+        ),
+      ),
+    });
+    const receipt = await client.ingestBundle(new TextEncoder().encode("bundle"));
+    expect(receipt.receipt_version).toBe("custos.receipt.v2");
+    expect(receipt.org_id).toBe("org-1");
+  });
+
   it("rejects an invalid custody receipt", async () => {
     const client = new MortiseClient("https://mortise.example", {
       fetch: vi.fn(async () => Response.json({ receipt_version: "unknown" })),

@@ -3,6 +3,9 @@ package main
 
 import (
 	"bytes"
+	"net"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -44,6 +47,36 @@ func TestInterceptHelpHasNoBaseURLClaim(t *testing.T) {
 	}
 	if !strings.Contains(out, "HTTPS_PROXY") {
 		t.Errorf("help output does not mention HTTPS_PROXY routing:\n%s", out)
+	}
+}
+
+func TestInterceptStartupFailureDoesNotPrintHints(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	reserved, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Skipf("loopback listener unavailable: %v", err)
+	}
+	defer func() { _ = reserved.Close() }()
+
+	port := reserved.Addr().(*net.TCPAddr).Port
+	bundlePath := filepath.Join(t.TempDir(), "bundle.atb")
+
+	var stdout, stderr bytes.Buffer
+	code := runInterceptCommand([]string{
+		"--port", strconv.Itoa(port),
+		"--bundle", bundlePath,
+	}, &stdout, &stderr)
+	if code != exitSystemError {
+		t.Fatalf("exit = %d, want %d (stderr: %s)", code, exitSystemError, stderr.String())
+	}
+	if out := strings.TrimSpace(stdout.String()); out != "" {
+		t.Fatalf("startup failure wrote stdout:\n%s", out)
+	}
+	for _, forbidden := range []string{"HTTPS_PROXY", "Auto-push"} {
+		if strings.Contains(stdout.String(), forbidden) {
+			t.Errorf("startup failure printed %q to stdout:\n%s", forbidden, stdout.String())
+		}
 	}
 }
 

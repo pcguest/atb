@@ -8,6 +8,7 @@ import (
 
 	"github.com/pcguest/atb/v2/internal/bundle"
 	"github.com/pcguest/atb/v2/internal/event"
+	"github.com/pcguest/atb/v2/internal/verify"
 )
 
 // TestProfileGapsOnIntactButIncompleteBundle is the completeness counterpart to
@@ -70,6 +71,85 @@ func TestProfileGapsOnIntactButIncompleteBundle(t *testing.T) {
 		t.Fatalf("incomplete CAS score %.3f not below complete CAS score %.3f",
 			incompleteReport.CASScore, completeReport.CASScore)
 	}
+}
+
+func TestPrivilegedToolActionAssuranceRequiresApprovalBeforeExecution(t *testing.T) {
+	t.Parallel()
+
+	t.Run("approval before execution passes", func(t *testing.T) {
+		t.Parallel()
+
+		report, err := evaluateBundle(writePrivilegedToolActionBundleWithApproval(t, "act-1", "2026-03-27T12:02:30Z"))
+		if err != nil {
+			t.Fatalf("evaluate bundle: %v", err)
+		}
+		if !report.Pass {
+			t.Fatalf("expected pass, got failures %+v", report.Failures)
+		}
+		if !report.AssuranceValid {
+			t.Fatalf("expected assurance_valid=true for approval before execution")
+		}
+	})
+
+	t.Run("approval after execution fails", func(t *testing.T) {
+		t.Parallel()
+
+		report, err := evaluateBundle(writePrivilegedToolActionBundleWithApproval(t, "act-1", "2026-03-27T12:03:30Z"))
+		if err != nil {
+			t.Fatalf("evaluate bundle: %v", err)
+		}
+		if report.Pass {
+			t.Fatal("expected failure when approval occurs after execution")
+		}
+		if report.AssuranceValid {
+			t.Fatal("expected assurance_valid=false when approval occurs after execution")
+		}
+		if !reportFailureDetailContains(report.Failures, "must occur before") {
+			t.Fatalf("expected failure detail to require approval before execution, got %+v", report.Failures)
+		}
+	})
+
+	t.Run("approval for another action fails", func(t *testing.T) {
+		t.Parallel()
+
+		report, err := evaluateBundle(writePrivilegedToolActionBundleWithApproval(t, "act-other", "2026-03-27T12:02:30Z"))
+		if err != nil {
+			t.Fatalf("evaluate bundle: %v", err)
+		}
+		if report.Pass {
+			t.Fatal("expected failure when approval binds a different action_id")
+		}
+		if report.AssuranceValid {
+			t.Fatal("expected assurance_valid=false when approval binds a different action_id")
+		}
+	})
+
+	t.Run("missing approval timestamp fails", func(t *testing.T) {
+		t.Parallel()
+
+		report, err := evaluateBundle(writePrivilegedToolActionBundleWithApproval(t, "act-1", ""))
+		if err != nil {
+			t.Fatalf("evaluate bundle: %v", err)
+		}
+		if report.Pass {
+			t.Fatal("expected failure when approval timestamp is missing")
+		}
+		if report.AssuranceValid {
+			t.Fatal("expected assurance_valid=false when approval timestamp is missing")
+		}
+		if !reportFailureDetailContains(report.Failures, "timestamps are missing or invalid") {
+			t.Fatalf("expected temporal_unknown failure detail, got %+v", report.Failures)
+		}
+	})
+}
+
+func reportFailureDetailContains(failures []verify.ReportFailure, want string) bool {
+	for _, failure := range failures {
+		if strings.Contains(failure.Detail, want) {
+			return true
+		}
+	}
+	return false
 }
 
 // writeIncompletePrivilegedToolActionBundle builds a byte-valid bundle for the
