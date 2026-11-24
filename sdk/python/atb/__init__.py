@@ -28,6 +28,11 @@ from atb.action_gate import (
 from atb.automation_session import AutomationSession, is_capture_environment
 from atb.background_job_tracker import BackgroundJobScheduleInput, BackgroundJobTracker
 from atb.bundle import Bundle, BundleResourceLimitError
+from atb.canonicalize_strict import (
+    StrictCanonicalizationError,
+    canonicalize_strict,
+    canonicalize_strict_raw,
+)
 from atb.data_export_gate import (
     DataExportApproval,
     DataExportDeniedError,
@@ -172,4 +177,7 @@ __all__ = [
     "decrypt_bundle",
     "compute_hash",
     "genesis_hash",
+    "StrictCanonicalizationError",
+    "canonicalize_strict",
+    "canonicalize_strict_raw",
 ]

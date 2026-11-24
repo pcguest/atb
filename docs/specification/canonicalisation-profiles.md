@@ -145,22 +145,17 @@ together:
 
 ## 5. Conservative safe-integer policy
 
-The strict profile imposes an **ATB interoperability restriction** on
-integer-valued numeric literals:
-
-- Reject any integer-valued numeric literal with an absolute value greater
-  than `2^53 - 1` (9,007,199,254,740,991) with `number_out_of_policy`.
-- Reject non-finite literals (`NaN`, `Infinity`, `-Infinity`) with
-  `non_finite_number`.
-- Reject finite-looking literals that cannot be represented as binary64 with
-  `number_unrepresentable`.
-
-This is a conservative policy for **new strict-profile input**. It is not a
-claim that RFC 8785 universally rejects larger numbers: RFC 8785 permits finite
-binary64 values generally, while RFC 7493 recommends keeping integers within
-the `2^53 - 1` interoperability range. ATB chooses the narrower range so strict
-bundles cannot silently lose integer precision across languages. Bundles under
-the legacy profile are unaffected.
+The strict profile imposes an ATB interoperability restriction on plain integer
+literals: reject a numeric token written without a fraction or exponent (an
+optional minus sign followed only by digits) whose exact integer magnitude is
+greater than 2^53 - 1 with `number_out_of_policy`; reject `NaN`, `Infinity`,
+and `-Infinity` with `non_finite_number`; reject numeric tokens that parse to a
+non-finite binary64 with `number_unrepresentable`. Numbers written with a
+fraction or exponent are binary64 values governed by §4.3; the integer-literal
+restriction does not apply to them. For example, `1e20` is accepted, while
+`9007199254740993` is rejected. This is an ATB interoperability restriction for
+new strict-profile input, not a claim that RFC 8785 universally rejects larger
+numbers.
 
 ---
 
@@ -262,13 +257,18 @@ separately reviewed changes:
 
 In this revision:
 
-- The legacy profile is the only implemented and dispatched profile.
-- The strict profile exists **only as this specification and its authored
-  vectors**.
+- The legacy profile is the only implemented and dispatched production profile.
+- A strict canonicaliser now exists in `internal/canonicalize/strict`, exposed
+  behind the new, non-production entry points `jcs.MarshalRFC8785`,
+  `jcs.MarshalRawRFC8785`, and `jcs.StrictErrorClass`.
+- The strict profile is **not** wired into hashing, manifest-v4 issuance or
+  acceptance, or verifier dispatch.
 - `ManifestVersionMax` is `3`; manifest v4 is not issued or accepted.
 - No production canonicaliser, hasher, manifest writer/parser, or verifier
   dispatch has changed.
+- The conformance tests execute the step-1 positive and negative vectors in
+  [`test/jcs/`](../../test/jcs/README.md) against the strict entry points.
 
-The next step is to implement the strict canonicaliser and a conformance runner
-that executes [`test/jcs/`](../../test/jcs/README.md) without changing legacy
-behaviour.
+The next step is to add the manifest-v4 writer and declaration-only reader
+dispatch, then bump `ManifestVersionMax` and establish cross-language parity,
+without changing legacy behaviour.

@@ -101,6 +101,90 @@
       "input_utf8_hex": "7b2261223a312c7d",
       "expected_error": "invalid_json",
       "notes": "Trailing comma is not valid JSON."
+    },
+    {
+      "id": "neg-top-level-leading-zero",
+      "category": "invalid_json",
+      "input_utf8_hex": "3031",
+      "expected_error": "invalid_json",
+      "notes": "A leading zero at top level is malformed JSON, not trailing data."
+    },
+    {
+      "id": "neg-plain-integer-negative-boundary",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "2d39303037313939323534373430393932",
+      "expected_error": "number_out_of_policy",
+      "notes": "-2^53 exceeds the conservative safe-integer interoperability limit."
+    },
+    {
+      "id": "neg-surrogate-pair-mismatch",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "225c75643830305c756438303022",
+      "expected_error": "lone_surrogate",
+      "notes": "A high surrogate followed by another high surrogate is an unpaired surrogate."
+    },
+    {
+      "id": "neg-unescaped-control",
+      "category": "invalid_json",
+      "input_utf8_hex": "220122",
+      "expected_error": "invalid_json",
+      "notes": "An unescaped U+0001 control character is not valid JSON string content."
+    },
+    {
+      "id": "neg-invalid-escape",
+      "category": "invalid_json",
+      "input_utf8_hex": "225c7822",
+      "expected_error": "invalid_json",
+      "notes": "\\x is not a valid JSON escape sequence."
+    },
+    {
+      "id": "neg-high-then-literal",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "225c75643833644122",
+      "expected_error": "lone_surrogate",
+      "notes": "A high surrogate escape followed by a literal character is unpaired."
+    },
+    {
+      "id": "neg-number-leading-dot",
+      "category": "invalid_json",
+      "input_utf8_hex": "2e35",
+      "expected_error": "invalid_json",
+      "notes": "A leading decimal point is not valid JSON."
+    },
+    {
+      "id": "neg-number-trailing-dot",
+      "category": "invalid_json",
+      "input_utf8_hex": "312e",
+      "expected_error": "invalid_json",
+      "notes": "A trailing decimal point without fraction digits is not valid JSON."
+    },
+    {
+      "id": "neg-number-missing-exponent",
+      "category": "invalid_json",
+      "input_utf8_hex": "3165",
+      "expected_error": "invalid_json",
+      "notes": "An exponent marker without exponent digits is malformed JSON."
+    },
+    {
+      "id": "neg-number-second-value",
+      "category": "trailing_data",
+      "input_utf8_hex": "312d32",
+      "expected_error": "trailing_data",
+      "notes": "A minus sign after a complete top-level number starts trailing data, not a continued token."
+    },
+    {
+      "id": "neg-number-second-dot",
+      "category": "trailing_data",
+      "input_utf8_hex": "312e322e33",
+      "expected_error": "trailing_data",
+      "notes": "A second decimal point after a complete top-level number is trailing data."
+    },
+    {
+      "id": "neg-number-exponent-second",
+      "category": "trailing_data",
+      "input_utf8_hex": "31653565",
+      "expected_error": "trailing_data",
+      "notes": "A second exponent marker after a complete top-level number is trailing data."
     }
   ]
 }

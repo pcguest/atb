@@ -91,6 +91,70 @@
       "canonical_utf8_hex": "7b2261223a66616c73652c2262223a5b7b2263223a747275652c2264223a6e756c6c7d5d7d",
       "legacy_divergence": {"go": false, "python": false, "typescript": false},
       "notes": "Ordering applies recursively in objects inside arrays."
+    },
+    {
+      "id": "pos-number-small-fixed",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a31652d367d",
+      "canonical_utf8_hex": "7b226e223a302e3030303030317d",
+      "legacy_divergence": {"go": false, "python": true, "typescript": false},
+      "notes": "1e-6 uses fixed notation; Python legacy emits 1e-06."
+    },
+    {
+      "id": "pos-number-exponent-large",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a316532337d",
+      "canonical_utf8_hex": "7b226e223a31652b32337d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "1e23 uses exponent notation with an explicit plus sign."
+    },
+    {
+      "id": "pos-string-surrogate-pair",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a225c75643833645c7564653030227d",
+      "canonical_utf8_hex": "7b2273223a22f09f9880227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "A surrogate-pair escape is emitted as the literal UTF-8 code point."
+    },
+    {
+      "id": "pos-string-escaped-solidus",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a22615c2f62227d",
+      "canonical_utf8_hex": "7b2273223a22612f62227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "An escaped solidus is emitted literally as a solidus."
+    },
+    {
+      "id": "pos-string-line-separators",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a225c75323032385c7532303239227d",
+      "canonical_utf8_hex": "7b2273223a22e280a8e280a9227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "U+2028 and U+2029 are emitted literally as UTF-8, not escaped."
+    },
+    {
+      "id": "pos-string-nul-value",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a22615c753030303062227d",
+      "canonical_utf8_hex": "7b2273223a22615c753030303062227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "NUL is escaped as lowercase \\u0000."
+    },
+    {
+      "id": "pos-number-uppercase-exponent",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a31452b327d",
+      "canonical_utf8_hex": "7b226e223a3130307d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "An uppercase exponent marker with a plus sign normalises to 100."
+    },
+    {
+      "id": "pos-number-negative-fraction",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a2d312e357d",
+      "canonical_utf8_hex": "7b226e223a2d312e357d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "A negative fractional value is preserved."
     }
   ]
 }

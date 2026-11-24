@@ -1,8 +1,11 @@
 # JCS canonicalisation-profile fixtures
 
-**Status: specification-only.** The fixtures in this directory describe two
-canonicalisation profiles but do not switch any production behaviour. The
-normative specification is
+**Status: specification plus non-production strict implementation.** The
+fixtures in this directory describe two canonicalisation profiles. A strict
+RFC 8785 implementation and an executable conformance runner now exist, but no
+production behaviour has switched: hashing, manifest-v4 issuance/acceptance,
+and verifier dispatch still use the legacy profile only. The normative
+specification is
 [`docs/specification/canonicalisation-profiles.md`](../../docs/specification/canonicalisation-profiles.md).
 
 ## Profiles
@@ -29,11 +32,11 @@ wire declaration for strict-profile bundles. In this revision
 
 - **Strict expected bytes were authored** against RFC 8785 and ECMA-262
   `Number::toString` with UTF-16 code-unit key ordering. They were **not**
-  produced by any ATB canonicaliser. They are the independent oracle for a
-  future strict implementation.
-- **Negative cases are not executable against a strict parser in this
-  increment** because no strict parser exists. Tests validate only their
-  schema, category coverage, and declared error class.
+  produced by any ATB canonicaliser. They are the independent oracle for the
+  strict implementation.
+- **Negative cases are now executable** against the new, non-production strict
+  canonicaliser via `strict_conformance_test.go`; the declared error class must
+  match the implementation's reported class.
 - **Legacy expectations are frozen** from the implementations at `a7837e2`.
   They must not be regenerated. A change to any legacy expectation is a
   breaking canonicalisation change and requires the manifest-version and
@@ -45,6 +48,8 @@ wire declaration for strict-profile bundles. In this revision
 
 - `test/jcs/vectors_test.go` validates all four files and pins the Go legacy
   behaviour.
+- `test/jcs/strict_conformance_test.go` executes the positive and negative
+  strict vectors against the non-production strict entry points.
 - `internal/bundle/canonical_profile_test.go` pins the current reader's
   fail-closed handling of v3/v4 profile-selection cases.
 - `sdk/python/tests/test_jcs_spec_fixtures.py` validates the fixtures and pins
@@ -54,7 +59,6 @@ wire declaration for strict-profile bundles. In this revision
 
 ## Future work
 
-A later change will add a strict canonicaliser implementation and a conformance
-runner that executes the positive and negative vectors against it, together
-with the manifest-v4 writer and declaration-only dispatch described in the
-specification. That change is explicitly out of scope here.
+A later change will add the manifest-v4 writer and declaration-only reader
+dispatch described in the specification. Production hashing and verification
+stay on the legacy profile until then.

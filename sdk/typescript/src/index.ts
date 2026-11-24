@@ -77,6 +77,11 @@ export {
 export { EncryptError, decryptBundle, decryptRaw, encryptBundle, encryptRaw } from "./encrypt.js";
 export { computeHash, chainEvents, GENESIS_HASH } from "./hash.js";
 export { canonicalize } from "./canonicalize.js";
+export {
+  StrictCanonicalizationError,
+  canonicalizeStrict,
+  canonicalizeStrictRaw,
+} from "./canonicalize-strict.js";
 export { atbMiddleware } from "./vercel-ai-middleware.js";
 export { gateVercelTool } from "./vercel-gate.js";
 export { wrapOpenAI, wrapAnthropic } from "./sdk-capture.js";
