@@ -1,0 +1,106 @@
+{
+  "schema": "atb.jcs.strict-negative-vectors.v1",
+  "profile": "atb-jcs-rfc8785-1",
+  "status": "specification-only",
+  "expectation_source": "Rejection classes defined by the strict profile specification; no strict implementation exists yet, so these are not executed against a strict parser in this increment.",
+  "cases": [
+    {
+      "id": "neg-duplicate-key",
+      "category": "duplicate_key",
+      "input_utf8_hex": "7b2261223a312c2261223a327d",
+      "expected_error": "duplicate_key",
+      "notes": "Identical member names at the same level."
+    },
+    {
+      "id": "neg-duplicate-key-escaped",
+      "category": "duplicate_key",
+      "input_utf8_hex": "7b2261223a312c225c7530303631223a327d",
+      "expected_error": "duplicate_key",
+      "notes": "Escaped member name unescapes to the same name as a literal member."
+    },
+    {
+      "id": "neg-duplicate-key-nested",
+      "category": "duplicate_key",
+      "input_utf8_hex": "7b2278223a7b226b223a312c226b223a327d7d",
+      "expected_error": "duplicate_key",
+      "notes": "Duplicate detection applies at every depth."
+    },
+    {
+      "id": "neg-invalid-utf8",
+      "category": "invalid_utf8",
+      "input_utf8_hex": "7b2273223a22c328227d",
+      "expected_error": "invalid_utf8",
+      "notes": "0xC3 0x28 is not a valid UTF-8 sequence; strict rejects rather than substituting U+FFFD."
+    },
+    {
+      "id": "neg-lone-surrogate-high",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "7b2273223a225c7564383030227d",
+      "expected_error": "lone_surrogate",
+      "notes": "Unpaired high surrogate escape."
+    },
+    {
+      "id": "neg-lone-surrogate-low",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "7b2273223a225c7564633030227d",
+      "expected_error": "lone_surrogate",
+      "notes": "Unpaired low surrogate escape."
+    },
+    {
+      "id": "neg-trailing-data",
+      "category": "trailing_data",
+      "input_utf8_hex": "7b2261223a317d207b2262223a327d",
+      "expected_error": "trailing_data",
+      "notes": "A second JSON value after the top-level value."
+    },
+    {
+      "id": "neg-non-finite-nan",
+      "category": "non_finite_number",
+      "input_utf8_hex": "7b226e223a4e614e7d",
+      "expected_error": "non_finite_number",
+      "notes": "NaN token is not valid JSON; strict names the non-finite rejection."
+    },
+    {
+      "id": "neg-non-finite-infinity",
+      "category": "non_finite_number",
+      "input_utf8_hex": "7b226e223a496e66696e6974797d",
+      "expected_error": "non_finite_number",
+      "notes": "Infinity token is not valid JSON; strict names the non-finite rejection."
+    },
+    {
+      "id": "neg-number-out-of-policy-2p53",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a393030373139393235343734303939327d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2^53 exceeds the conservative safe-integer interoperability limit (max 2^53-1)."
+    },
+    {
+      "id": "neg-number-out-of-policy-big",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a393030373139393235343734303939337d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2^53+1 is not exactly representable as an integer in binary64."
+    },
+    {
+      "id": "neg-number-unrepresentable",
+      "category": "number_unrepresentable",
+      "input_utf8_hex": "7b226e223a31653939397d",
+      "expected_error": "number_unrepresentable",
+      "notes": "Literal 1e999 overflows binary64."
+    },
+    {
+      "id": "neg-leading-zero",
+      "category": "invalid_json",
+      "input_utf8_hex": "7b226e223a30317d",
+      "expected_error": "invalid_json",
+      "notes": "Leading zero is not valid JSON."
+    },
+    {
+      "id": "neg-trailing-comma",
+      "category": "invalid_json",
+      "input_utf8_hex": "7b2261223a312c7d",
+      "expected_error": "invalid_json",
+      "notes": "Trailing comma is not valid JSON."
+    }
+  ]
+}

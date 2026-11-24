@@ -122,6 +122,8 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 - Strings use minimal escaping.
 - No whitespace between tokens.
 
+The normative definitions of the legacy (`atb-jcs-legacy-1`) and strict (`atb-jcs-rfc8785-1`) profiles are in [canonicalisation-profiles.md](./canonicalisation-profiles.md); the strict profile is specification-only in this revision.
+
 This ensures that the same event produces the same hash in every language and runtime.
 
 Unset optional fields are omitted from canonicalisation output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, `parent_span_id`, or `acquisition` are not set, they are excluded from the canonical JSON bytes before hashing.
