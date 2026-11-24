@@ -2,6 +2,7 @@
 package profiles
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -233,8 +234,9 @@ func evaluateRequiredWhenRules(
 					return iTime.Before(jTime)
 				})
 				usedTargets := make(map[int]struct{})
+				usedIdentities := make(map[string]struct{})
 				for _, conditionRecord := range orderedConditions {
-					evaluateRequiredWhenBefore(result, targetType, targetRecords, conditionType, conditionRecord, cond, usedTargets)
+					evaluateRequiredWhenBefore(result, targetType, targetRecords, conditionType, conditionRecord, cond, usedTargets, usedIdentities)
 				}
 				continue
 			}
@@ -287,6 +289,7 @@ func evaluateRequiredWhenBefore(
 	conditionRecord bundle.Record,
 	cond requiredWhenRule,
 	usedTargets map[int]struct{},
+	usedIdentities map[string]struct{},
 ) {
 	matchField := strings.TrimSpace(cond.MatchField)
 	key := fieldString(conditionRecord, matchField)
@@ -334,7 +337,13 @@ func evaluateRequiredWhenBefore(
 	anyUnusedBefore := false
 	chosen := -1
 	for _, index := range correlated {
-		_, used := usedTargets[index]
+		identity := targetRecordIdentity(targetRecords[index])
+		_, indexUsed := usedTargets[index]
+		identityUsed := false
+		if identity != "" {
+			_, identityUsed = usedIdentities[identity]
+		}
+		used := indexUsed || identityUsed
 		if !used {
 			anyUnusedTarget = true
 		}
@@ -357,6 +366,9 @@ func evaluateRequiredWhenBefore(
 
 	if chosen != -1 {
 		usedTargets[chosen] = struct{}{}
+		if identity := targetRecordIdentity(targetRecords[chosen]); identity != "" {
+			usedIdentities[identity] = struct{}{}
+		}
 		return
 	}
 	if !anyValidTargetTS {
@@ -388,6 +400,19 @@ func evaluateRequiredWhenBefore(
 		Kind:   "reused_correlated_event",
 		Detail: fmt.Sprintf("required_when: %s for %s=%s has already been used for another %s", targetType, matchField, key, conditionType),
 	})
+}
+
+// targetRecordIdentity returns a deterministic identity for a target record so
+// that byte-identical records cannot satisfy more than one condition record.
+// Timestamp is included alongside the event type and Data because records that
+// differ only in timestamp are distinct events. An empty identity means the
+// record cannot be identified deterministically and is never treated as reused.
+func targetRecordIdentity(record bundle.Record) string {
+	encoded, err := json.Marshal(record.Event.Data)
+	if err != nil {
+		return ""
+	}
+	return record.Event.Type + "\x00" + record.Event.Timestamp + "\x00" + string(encoded)
 }
 
 func requiredWhenConditionTimestampWarning(targetType string, conditionType string, present bool, err error) string {

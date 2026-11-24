@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Local regression fixtures for verify-release-environment.sh. The verifier is
-# driven through RELEASE_ENV_JSON so these tests never call GitHub.
+# driven through RELEASE_ENV_JSON and ATB_RELEASE_ENV_FIXTURE so these tests
+# never call GitHub. GITHUB_ACTIONS is cleared for fixture cases because the
+# verifier refuses fixture mode inside GitHub Actions.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -13,7 +15,7 @@ run_case() {
   local output status
 
   set +e
-  output="$(RELEASE_ENV_JSON="${json}" bash "${verifier}" docker-release 2>&1)"
+  output="$(env -u GITHUB_ACTIONS ATB_RELEASE_ENV_FIXTURE=1 RELEASE_ENV_JSON="${json}" bash "${verifier}" docker-release 2>&1)"
   status=$?
   set -e
 
@@ -24,6 +26,25 @@ run_case() {
       exit 1
     fi
   elif [ "${status}" -ne 1 ]; then
+    echo "FAIL: ${description} exited ${status}, expected fail-closed exit 1" >&2
+    printf '%s\n' "${output}" >&2
+    exit 1
+  fi
+
+  echo "PASS: ${description}"
+}
+
+run_fixture_guard_case() {
+  local description="$1"
+  local json="$2"
+  local output status
+
+  set +e
+  output="$(GITHUB_ACTIONS=true ATB_RELEASE_ENV_FIXTURE=1 RELEASE_ENV_JSON="${json}" bash "${verifier}" docker-release 2>&1)"
+  status=$?
+  set -e
+
+  if [ "${status}" -ne 1 ]; then
     echo "FAIL: ${description} exited ${status}, expected fail-closed exit 1" >&2
     printf '%s\n' "${output}" >&2
     exit 1
@@ -101,5 +122,6 @@ run_case "empty environment object" failure '{}'
 run_case "missing environment response" failure "${missing_environment}"
 run_case "missing required_reviewers rule" failure "${missing_rule}"
 run_case "malformed JSON" failure "${malformed}"
+run_fixture_guard_case "fixture override rejected when GITHUB_ACTIONS=true" "${valid}"
 
 echo "release-environment protection fixtures passed"

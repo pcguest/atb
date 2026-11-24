@@ -83,6 +83,7 @@ test-go: profile-fixtures
 
 hygiene-quick: check-generated check-versions check-notices
 	@echo "🧹 Running quick hygiene gate..."
+	@$(MAKE) test-release-protection
 	@unformatted="$$(for file in $$(git ls-files -co --exclude-standard '*.go'); do test ! -f "$$file" || gofmt -l "$$file"; done)"; \
 		test -z "$$unformatted" || { printf '❌ Go files require gofmt:\n%s\n' "$$unformatted"; exit 1; }
 	@test -x "$(STATICCHECK)" || { echo "❌ staticcheck $(STATICCHECK_VERSION) is required; run make bootstrap-scanners"; exit 1; }

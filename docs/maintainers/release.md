@@ -326,11 +326,19 @@ Release in draft. After the run, review the staged npm version and approve it
 with 2FA through the npm CLI or UI; the workflow itself never publishes the
 package publicly. Make the GitHub Release public only after the npm version is
 public. If any step fails, leave the draft and registry state intact, record
-which immutable registries accepted the version, fix the workflow without
-changing published bytes, and resume only the incomplete steps. Resuming is
-manual: re-run the failed jobs, or dispatch `docker-publish.yml` again for the
-image, after the workflow fix; GitHub does not automatically retry a partial
-registry publication. If the artefacts must change, cut a new version.
+which immutable registries accepted the version, and fix the workflow without
+changing published bytes. GitHub does not automatically retry a partial registry
+publication, and the resumption boundary depends on how far publication got.
+Re-running a tag-triggered `Release` cannot resume after PyPI has accepted the
+version: the tag push cannot set `skip_pypi`, so the pre-publication existence
+check fails closed. Likewise, once `docker-publish.yml` has created the public
+`vMAJOR.MINOR.PATCH` image tag, re-dispatching it stops at the immutable-tag
+guard, so re-dispatch is not a valid post-promotion recovery; it is only usable
+while that public tag is still absent. For the `Release` registries, the only
+manual resumption is a `workflow_dispatch` of `Release` on the release tag with
+the appropriate skip input, used only after separately verifying that the exact
+version and artefact hashes already exist. Anything that changes published
+bytes, or a promoted image, requires a new version.
 
 Registry publication is serialized per ref: the `Release` workflow keeps its
 workflow-level `release-<ref>` lock for build and validation, and the `publish`
@@ -344,8 +352,11 @@ only to resume a partial publication after manually verifying that the exact
 version and the same artefact hashes already exist in that registry: the input
 removes that registry's publish step and its pre-publication existence check
 for that dispatch. With both `false` (the default, and always on a tag push),
-both registries are checked and published as before. Do not set a skip to work
-around a version collision.
+both registries are checked and published as before. A tag-push re-run
+therefore cannot resume after PyPI publication; it fails the existence check
+because a tag push cannot set `skip_pypi`. Resume by dispatching `Release`
+against the release tag with the appropriate skip input. Do not set a skip to
+work around a version collision.
 
 ## 8. Close tracking issues
 

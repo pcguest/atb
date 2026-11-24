@@ -66,6 +66,21 @@ func TestProfile_PrivilegedToolAction_RequiredWhen(t *testing.T) {
 		}
 	})
 
+	t.Run("duplicate identical approvals cannot satisfy two executions", func(t *testing.T) {
+		identical := approval("act1", "approved", "2026-03-27T12:02:30Z")
+		result := Evaluate(schema, buildWithExecutions(
+			[]string{"2026-03-27T12:03:00Z", "2026-03-27T12:04:00Z"},
+			identical,
+			identical,
+		))
+		if result.Pass {
+			t.Fatal("expected failure because identical approval records were reused")
+		}
+		if !hasFailure(result.CriticalFailures, "reused_correlated_event", "action_id=act1") {
+			t.Fatalf("expected reused_correlated_event, got %+v", result.CriticalFailures)
+		}
+	})
+
 	t.Run("missing approval fails", func(t *testing.T) {
 		result := Evaluate(schema, build("2026-03-27T12:03:00Z"))
 		if result.Pass {

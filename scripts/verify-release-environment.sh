@@ -4,8 +4,9 @@
 #
 # Usage: verify-release-environment.sh ENVIRONMENT_NAME
 #
-# The GitHub API is used in CI. Tests and local checks can inject the response
-# with RELEASE_ENV_JSON so they do not need a token or network access.
+# The GitHub API is used in CI. Tests and local checks may inject a fixture
+# response with RELEASE_ENV_JSON, but only when ATB_RELEASE_ENV_FIXTURE=1 is
+# also set outside GitHub Actions; otherwise the override is ignored.
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
@@ -15,7 +16,15 @@ fi
 
 ENVIRONMENT_NAME="$1"
 
-if [ "${RELEASE_ENV_JSON+x}" = "x" ]; then
+if [ "${ATB_RELEASE_ENV_FIXTURE:-}" = "1" ]; then
+  if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+    echo "ATB_RELEASE_ENV_FIXTURE=1 is not permitted when GITHUB_ACTIONS=true." >&2
+    exit 1
+  fi
+  if [ "${RELEASE_ENV_JSON+x}" != "x" ]; then
+    echo "RELEASE_ENV_JSON is required when ATB_RELEASE_ENV_FIXTURE=1." >&2
+    exit 1
+  fi
   ENVIRONMENT_RESPONSE="${RELEASE_ENV_JSON}"
 else
   if [ -z "${GITHUB_REPOSITORY:-}" ]; then

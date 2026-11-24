@@ -576,6 +576,31 @@ func TestReleaseWorkflowsValidateSourceBeforeEnvironmentProtection(t *testing.T)
 	)
 }
 
+func TestReleaseContractsRequireCentralGateAndEnvironmentProtection(t *testing.T) {
+	release := readRepositoryFile(t, ".github/workflows/release.yml")
+	releasePublish := workflowJobSection(t, release, "publish")
+	for _, required := range []string{
+		"needs: [verify, gate-gold, release_gate]",
+		"bash scripts/verify-release-environment.sh release",
+	} {
+		if !strings.Contains(releasePublish, required) {
+			t.Errorf("release publish job does not enforce %q", required)
+		}
+	}
+
+	// The central gate must fail closed when the repository variable is unset.
+	releaseGate := workflowJobSection(t, release, "release_gate", "build")
+	if !strings.Contains(releaseGate, `if [ "${RELEASE_GATE_ENABLED}" != "true" ]; then`) {
+		t.Error("release gate does not fail closed when RELEASE_GATE_ENABLED is not true")
+	}
+
+	dockerPublish := readRepositoryFile(t, ".github/workflows/docker-publish.yml")
+	dockerPublishJob := workflowJobSection(t, dockerPublish, "publish")
+	if !strings.Contains(dockerPublishJob, "bash scripts/verify-release-environment.sh docker-release") {
+		t.Error("docker publish job does not verify the docker-release environment")
+	}
+}
+
 func TestSecurityScanExcludesRepositoryBuildCaches(t *testing.T) {
 	makefile := readRepositoryFile(t, "Makefile")
 	start := strings.Index(makefile, "\nsecurity-scan:")
