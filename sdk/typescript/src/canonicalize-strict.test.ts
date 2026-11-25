@@ -257,3 +257,179 @@ describe("value mode", () => {
     expect(() => canonicalizeStrict(Symbol("s"))).toThrow(TypeError);
   });
 });
+
+function nestedArrays(depth: number): unknown {
+  let value: unknown = [];
+  for (let i = 1; i < depth; i++) {
+    value = [value];
+  }
+  return value;
+}
+
+function nestedObjects(depth: number): unknown {
+  let value: unknown = {};
+  for (let i = 1; i < depth; i++) {
+    value = { a: value };
+  }
+  return value;
+}
+
+function rawNestedObjects(depth: number): string {
+  return '{"a":'.repeat(depth - 1) + "{}" + "}".repeat(depth - 1);
+}
+
+describe("nesting depth", () => {
+  it("accepts 512 raw nested arrays and rejects 513", () => {
+    const accepted = "[".repeat(512) + "]".repeat(512);
+    expect(canonicalizeStrictRaw(accepted)).toBe(accepted);
+    expectStrictError(
+      () => canonicalizeStrictRaw("[".repeat(513) + "]".repeat(513)),
+      "depth_limit"
+    );
+  });
+
+  it("accepts 512 raw nested objects and rejects 513", () => {
+    const accepted = rawNestedObjects(512);
+    expect(canonicalizeStrictRaw(accepted)).toBe(accepted);
+    expectStrictError(
+      () => canonicalizeStrictRaw(rawNestedObjects(513)),
+      "depth_limit"
+    );
+  });
+
+  it("rejects very deep raw nesting without a stack overflow", () => {
+    expectStrictError(
+      () => canonicalizeStrictRaw("[".repeat(5120) + "]".repeat(5120)),
+      "depth_limit"
+    );
+  });
+
+  it("ignores brackets inside strings during the depth scan", () => {
+    expect(canonicalizeStrictRaw('{"s":"[[[{{{]]]}}}"}')).toBe(
+      '{"s":"[[[{{{]]]}}}"}'
+    );
+  });
+
+  it("accepts 512 value-mode nested arrays and rejects 513", () => {
+    expect(canonicalizeStrict(nestedArrays(512))).toBe(
+      "[".repeat(512) + "]".repeat(512)
+    );
+    expectStrictError(() => canonicalizeStrict(nestedArrays(513)), "depth_limit");
+  });
+
+  it("accepts 512 value-mode nested objects and rejects 513", () => {
+    expect(canonicalizeStrict(nestedObjects(512))).toBe(
+      '{"a":'.repeat(511) + "{}" + "}".repeat(511)
+    );
+    expectStrictError(
+      () => canonicalizeStrict(nestedObjects(513)),
+      "depth_limit"
+    );
+  });
+});
+
+describe("cyclic value safety", () => {
+  it("rejects array cycles as invalid JSON", () => {
+    const cyclic: unknown[] = [];
+    cyclic.push(cyclic);
+    expect(() => canonicalizeStrict(cyclic)).toThrow(
+      StrictCanonicalizationError
+    );
+    try {
+      canonicalizeStrict(cyclic);
+    } catch (err) {
+      expect((err as StrictCanonicalizationError).errorClass).toBe("invalid_json");
+      expect((err as Error).message).toBe("cyclic value");
+      return;
+    }
+    throw new Error("expected cyclic array rejection");
+  });
+
+  it("rejects object cycles as invalid JSON", () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expectStrictError(() => canonicalizeStrict(cyclic), "invalid_json");
+  });
+
+  it("rejects indirect cycles as invalid JSON", () => {
+    const first: unknown[] = [];
+    const second: unknown[] = [first];
+    first.push(second);
+    expectStrictError(() => canonicalizeStrict(first), "invalid_json");
+  });
+
+  it("accepts shared non-cyclic references", () => {
+    const sharedObject = { a: 1 };
+    expect(canonicalizeStrict([sharedObject, sharedObject])).toBe(
+      '[{"a":1},{"a":1}]'
+    );
+    const sharedArray = [1];
+    expect(canonicalizeStrict([sharedArray, sharedArray])).toBe("[[1],[1]]");
+  });
+});
+
+describe("duplicate key precedence", () => {
+  it("reports a value error before a duplicate key", () => {
+    expectStrictError(
+      () => canonicalizeStrictRaw('{"a":1,"a":1e999}'),
+      "number_unrepresentable"
+    );
+    expectStrictError(
+      () => canonicalizeStrictRaw('{"a":1,"a":}'),
+      "invalid_json"
+    );
+  });
+
+  it("reports a lone surrogate before a duplicate key", () => {
+    expectStrictError(
+      () => canonicalizeStrictRaw('{"a":1,"a":"\\uD800"}'),
+      "lone_surrogate"
+    );
+    expectStrictError(
+      () => canonicalizeStrictRaw('{"a":1,"\\uD800":2,"\\uD800":3}'),
+      "lone_surrogate"
+    );
+  });
+
+  it("still rejects a plain duplicate key", () => {
+    expectStrictError(
+      () => canonicalizeStrictRaw('{"a":1,"a":2}'),
+      "duplicate_key"
+    );
+  });
+});
+
+describe("non-finite token boundaries", () => {
+  it("rejects exact non-finite literals", () => {
+    for (const input of [
+      "NaN",
+      "Infinity",
+      "-Infinity",
+      "[NaN]",
+      '{"n":Infinity}',
+    ]) {
+      expectStrictError(
+        () => canonicalizeStrictRaw(input),
+        "non_finite_number"
+      );
+    }
+  });
+
+  it("rejects malformed non-finite tokens as invalid JSON", () => {
+    for (const input of ["NaNx", "Infinityx", "-Infinityx", "NaN1"]) {
+      expectStrictError(() => canonicalizeStrictRaw(input), "invalid_json");
+    }
+  });
+});
+
+describe("underflow", () => {
+  it("canonicalises raw underflow to zero", () => {
+    expect(canonicalizeStrictRaw('{"n":1e-999}')).toBe('{"n":0}');
+    expect(canonicalizeStrictRaw('{"n":-1e-999}')).toBe('{"n":0}');
+    expect(canonicalizeStrictRaw("1e-999")).toBe("0");
+  });
+
+  it("canonicalises value-mode underflow to zero", () => {
+    expect(canonicalizeStrict(1e-999)).toBe("0");
+  });
+});

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-// This file is the executable conformance runner for the authored step-1
-// strict-profile vectors. It does not change production dispatch: it exercises
-// only the new, non-production strict entry points.
+// This file is the executable conformance runner for the authored strict-profile
+// vectors of the current atb-jcs-rfc8785-1 profile. It does not change
+// production dispatch: it exercises only the new, non-production strict entry
+// points.
 package jcs_test
 
 import (

@@ -122,7 +122,7 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 - Strings use minimal escaping.
 - No whitespace between tokens.
 
-The normative definitions of the legacy (`atb-jcs-legacy-1`) and strict (`atb-jcs-rfc8785-1`) profiles are in [canonicalisation-profiles.md](./canonicalisation-profiles.md); the strict profile is specification-only in this revision.
+The normative definitions of the legacy (`atb-jcs-legacy-1`) and strict (`atb-jcs-rfc8785-1`) profiles are in [canonicalisation-profiles.md](./canonicalisation-profiles.md); the strict profile has a non-production implementation and is not dispatched for production bundles in this revision.
 
 This ensures that the same event produces the same hash in every language and runtime.
 

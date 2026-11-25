@@ -41,8 +41,11 @@ wire declaration for strict-profile bundles. In this revision
   They must not be regenerated. A change to any legacy expectation is a
   breaking canonicalisation change and requires the manifest-version and
   migration process in `VERSIONING.md`.
-- The strict and legacy fixtures must keep their existing contents. Tests in
-  Go, Python, and TypeScript load and validate them read-only.
+- **Strict fixtures are executable and may be independently extended.** New
+  strict cases may be appended without changing existing case ids or expected
+  bytes, provided their expected results are authored independently of the
+  implementation. Legacy fixtures remain frozen and must not be regenerated.
+  Tests in Go, Python, and TypeScript load and validate all fixtures read-only.
 
 ## Consumers
 

@@ -32,11 +32,22 @@ _CLASS_NON_FINITE_NUMBER = "non_finite_number"
 _CLASS_NUMBER_OUT_OF_POLICY = "number_out_of_policy"
 _CLASS_NUMBER_UNREPRESENTABLE = "number_unrepresentable"
 _CLASS_INVALID_JSON = "invalid_json"
+_CLASS_DEPTH_LIMIT = "depth_limit"
 
 _MAX_SAFE_INTEGER = 2**53 - 1
 _MAX_SAFE_INTEGER_DIGITS = len(str(_MAX_SAFE_INTEGER))
+_MAX_NESTING_DEPTH = 512
 
 _WHITESPACE = " \t\r\n"
+
+# The non-finite literals Python's decoder recognises via ``parse_constant``.
+# The longer ``-Infinity`` form is checked first so it is not matched as
+# ``Infinity`` when the scan starts on the leading minus.
+_NON_FINITE_LITERALS = ("-Infinity", "Infinity", "NaN")
+
+# Characters that may legally follow a complete non-finite literal. Anything
+# else continues the token (for example ``NaNx``) and is malformed JSON.
+_NON_FINITE_FOLLOWERS = _WHITESPACE + ",]}"
 
 # A well-formed JSON number token, used to decide whether the characters after
 # a parsed top-level number continue that token (malformed JSON) or start a
@@ -63,7 +74,7 @@ class StrictCanonicalizationError(ValueError):
         error_class: Stable machine-readable rejection class. One of
             ``duplicate_key``, ``invalid_utf8``, ``lone_surrogate``,
             ``trailing_data``, ``non_finite_number``, ``number_out_of_policy``,
-            ``number_unrepresentable``, or ``invalid_json``.
+            ``number_unrepresentable``, ``invalid_json``, or ``depth_limit``.
     """
 
     def __init__(self, error_class: str, message: str) -> None:
@@ -122,6 +133,8 @@ def canonicalize_strict_raw(
         TypeError: If ``data`` is neither bytes-like nor a string.
     """
     text = _decode_input(data)
+    _check_nesting_depth(text)
+    _check_non_finite_token_boundaries(text)
     decoder = json.JSONDecoder(
         object_pairs_hook=_object_pairs_hook,
         parse_constant=_reject_constant,
@@ -184,6 +197,85 @@ def _skip_whitespace(text: str, index: int) -> int:
     return index
 
 
+def _check_nesting_depth(text: str) -> None:
+    """Reject raw JSON nested beyond the strict profile limit.
+
+    The scan is intentionally lexical: brackets inside strings, including
+    escaped quotes, are ignored. It runs before the JSON decoder so that very
+    deep documents cannot exhaust the interpreter stack.
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > _MAX_NESTING_DEPTH:
+                raise StrictCanonicalizationError(
+                    _CLASS_DEPTH_LIMIT,
+                    "maximum nesting depth exceeded",
+                )
+        elif char in "]}" and depth > 0:
+            depth -= 1
+
+
+def _check_non_finite_token_boundaries(text: str) -> None:
+    """Reject non-finite literals that are not complete tokens.
+
+    Python's decoder consumes the ``NaN``/``Infinity``/``-Infinity`` prefix
+    and calls ``parse_constant`` before it notices a trailing character, so
+    ``NaNx`` would be reported as a non-finite number rather than malformed
+    JSON. This lexical scan runs before decoding and ignores strings, matching
+    the token-boundary rule enforced by the Go and TypeScript implementations.
+    Exact literals are left for ``parse_constant`` so they still produce
+    ``non_finite_number``.
+    """
+    in_string = False
+    escaped = False
+    index = 0
+    length = len(text)
+    while index < length:
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            index += 1
+            continue
+        if char == '"':
+            in_string = True
+            index += 1
+            continue
+        for literal in _NON_FINITE_LITERALS:
+            if text.startswith(literal, index):
+                next_index = index + len(literal)
+                if (
+                    next_index < length
+                    and text[next_index] not in _NON_FINITE_FOLLOWERS
+                ):
+                    raise StrictCanonicalizationError(
+                        _CLASS_INVALID_JSON,
+                        f"non-finite literal {literal} is not a complete token",
+                    )
+                index = next_index
+                break
+        else:
+            index += 1
+
+
 def _is_number(value: Any) -> bool:
     # ``bool`` is an ``int`` subclass, so exclude it explicitly.
     return isinstance(value, (int, float)) and not isinstance(value, bool)
@@ -208,6 +300,19 @@ def _malformed_number_continuation(text: str, end: int) -> bool:
 def _object_pairs_hook(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     obj: dict[str, Any] = {}
     for key, value in pairs:
+        # JSON parsing rejects unpaired surrogates as it reads them, which is
+        # before duplicate detection runs on the completed member. Mirror that
+        # precedence here because Python's decoder accepts such code points.
+        if _is_lone_surrogate(key):
+            raise StrictCanonicalizationError(
+                _CLASS_LONE_SURROGATE,
+                "unpaired UTF-16 surrogate code unit in member name",
+            )
+        if _contains_lone_surrogate(value):
+            raise StrictCanonicalizationError(
+                _CLASS_LONE_SURROGATE,
+                "unpaired UTF-16 surrogate code unit",
+            )
         if key in obj:
             raise StrictCanonicalizationError(
                 _CLASS_DUPLICATE_KEY,
@@ -266,6 +371,20 @@ def _is_lone_surrogate(text: str) -> bool:
     return any(0xD800 <= ord(char) <= 0xDFFF for char in text)
 
 
+def _contains_lone_surrogate(value: Any) -> bool:
+    if isinstance(value, str):
+        return _is_lone_surrogate(value)
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            if _contains_lone_surrogate(item):
+                return True
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            if _is_lone_surrogate(key) or _contains_lone_surrogate(item):
+                return True
+    return False
+
+
 def _ensure_no_lone_surrogates(value: Any) -> None:
     if isinstance(value, str):
         if _is_lone_surrogate(value):
@@ -286,7 +405,13 @@ def _ensure_no_lone_surrogates(value: Any) -> None:
             _ensure_no_lone_surrogates(item)
 
 
-def _serialize(value: Any) -> str:
+def _serialize(
+    value: Any,
+    depth: int = 0,
+    seen: set[int] | None = None,
+) -> str:
+    if seen is None:
+        seen = set()
     if value is None:
         return "null"
     if isinstance(value, bool):
@@ -303,23 +428,62 @@ def _serialize(value: Any) -> str:
     if isinstance(value, str):
         return _encode_string(value)
     if isinstance(value, (list, tuple)):
-        return "[" + ",".join(_serialize(item) for item in value) + "]"
+        next_depth = _enter_container(value, depth, seen)
+        try:
+            parts: list[str] = []
+            for item in value:
+                parts.append(_serialize(item, next_depth, seen))
+            return "[" + ",".join(parts) + "]"
+        finally:
+            seen.discard(id(value))
     if isinstance(value, dict):
-        return _serialize_object(value)
+        return _serialize_object(value, depth, seen)
     raise TypeError(f"canonicalize_strict: unsupported type {type(value)!r}")
 
 
-def _serialize_object(value: dict[Any, Any]) -> str:
+def _enter_container(value: Any, depth: int, seen: set[int]) -> int:
+    next_depth = depth + 1
+    if next_depth > _MAX_NESTING_DEPTH:
+        raise StrictCanonicalizationError(
+            _CLASS_DEPTH_LIMIT,
+            "maximum nesting depth exceeded",
+        )
+    identity = id(value)
+    if identity in seen:
+        raise StrictCanonicalizationError(
+            _CLASS_INVALID_JSON,
+            "cyclic value",
+        )
+    seen.add(identity)
+    return next_depth
+
+
+def _serialize_object(
+    value: dict[Any, Any],
+    depth: int = 0,
+    seen: set[int] | None = None,
+) -> str:
+    if seen is None:
+        seen = set()
     for key in value:
         if not isinstance(key, str):
             raise TypeError(
                 f"canonicalize_strict: object keys must be strings, got {type(key)!r}"
             )
-    ordered_keys = sorted(value, key=_utf16_units)
-    pairs = ",".join(
-        f"{_encode_string(key)}:{_serialize(value[key])}" for key in ordered_keys
-    )
-    return "{" + pairs + "}"
+    next_depth = _enter_container(value, depth, seen)
+    try:
+        ordered_keys = sorted(value, key=_utf16_units)
+        parts: list[str] = []
+        for key in ordered_keys:
+            prefix = f"{_encode_string(key)}:"
+            item = value[key]
+            if isinstance(item, dict):
+                parts.append(prefix + _serialize_object(item, next_depth, seen))
+            else:
+                parts.append(prefix + _serialize(item, next_depth, seen))
+        return "{" + ",".join(parts) + "}"
+    finally:
+        seen.discard(id(value))
 
 
 def _encode_string(value: str) -> str:

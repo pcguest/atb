@@ -55,6 +55,30 @@ def _error_class(raw: bytes | str) -> str:
     return excinfo.value.error_class
 
 
+def _value_error_class(value: Any) -> str:
+    with pytest.raises(StrictCanonicalizationError) as excinfo:
+        canonicalize_strict(value)
+    return excinfo.value.error_class
+
+
+def _nested_arrays(depth: int) -> Any:
+    value: Any = []
+    for _ in range(1, depth):
+        value = [value]
+    return value
+
+
+def _nested_objects(depth: int) -> Any:
+    value: Any = {}
+    for _ in range(1, depth):
+        value = {"a": value}
+    return value
+
+
+def _raw_nested_objects(depth: int) -> bytes:
+    return b'{"a":' * (depth - 1) + b"{}" + b"}" * (depth - 1)
+
+
 @pytest.mark.parametrize("case", POSITIVE["cases"], ids=lambda case: case["id"])
 def test_strict_positive_vectors(case: dict[str, Any]) -> None:
     got = canonicalize_strict_raw(bytes.fromhex(case["input_utf8_hex"]))
@@ -66,6 +90,71 @@ def test_strict_negative_vectors(case: dict[str, Any]) -> None:
     with pytest.raises(StrictCanonicalizationError) as excinfo:
         canonicalize_strict_raw(bytes.fromhex(case["input_utf8_hex"]))
     assert excinfo.value.error_class == case["expected_error"]
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"NaNx",
+        b"Infinityx",
+        b"-Infinityx",
+        b"NaN1",
+        b'{"n":NaNx}',
+        b"[Infinityx]",
+        b'{"n":-Infinityx}',
+        b"[NaN1]",
+    ],
+    ids=[
+        "nan-prefix",
+        "infinity-prefix",
+        "negative-infinity-prefix",
+        "nan-digit",
+        "object-nan-prefix",
+        "array-infinity-prefix",
+        "object-negative-infinity-prefix",
+        "array-nan-digit",
+    ],
+)
+def test_non_finite_literal_bad_boundary_is_invalid_json(raw: bytes) -> None:
+    assert _error_class(raw) == "invalid_json"
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b"NaN",
+        b"Infinity",
+        b"-Infinity",
+        b'{"n":NaN}',
+        b"[Infinity]",
+        b'{"n":-Infinity}',
+    ],
+    ids=[
+        "nan",
+        "infinity",
+        "negative-infinity",
+        "object-nan",
+        "array-infinity",
+        "object-negative-infinity",
+    ],
+)
+def test_exact_non_finite_literal_is_non_finite_number(raw: bytes) -> None:
+    assert _error_class(raw) == "non_finite_number"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (b'"NaNx"', b'"NaNx"'),
+        (b'{"s":"NaNx"}', b'{"s":"NaNx"}'),
+        (b'["Infinityx","-Infinityx"]', b'["Infinityx","-Infinityx"]'),
+    ],
+    ids=["top-level-string", "object-value", "array-values"],
+)
+def test_non_finite_literal_text_inside_string_is_accepted(
+    raw: bytes, expected: bytes
+) -> None:
+    assert canonicalize_strict_raw(raw) == expected
 
 
 @pytest.mark.parametrize(
@@ -168,3 +257,105 @@ def test_value_mode_rejects_lone_surrogate() -> None:
 def test_value_mode_rejects_unsupported_type() -> None:
     with pytest.raises(TypeError):
         canonicalize_strict(object())
+
+
+def test_raw_depth_limit_arrays() -> None:
+    accepted = b"[" * 512 + b"]" * 512
+    assert canonicalize_strict_raw(accepted) == accepted
+    assert _error_class(b"[" * 513 + b"]" * 513) == "depth_limit"
+    assert _error_class(b"[" * 5120 + b"]" * 5120) == "depth_limit"
+
+
+def test_raw_depth_limit_objects() -> None:
+    accepted = _raw_nested_objects(512)
+    assert canonicalize_strict_raw(accepted) == accepted
+    assert _error_class(_raw_nested_objects(513)) == "depth_limit"
+
+
+def test_depth_scan_ignores_brackets_inside_strings() -> None:
+    raw = b'{"s":"[[[{{{]]]}}}"}'
+    assert canonicalize_strict_raw(raw) == raw
+
+
+def test_value_mode_depth_limit_arrays() -> None:
+    assert canonicalize_strict(_nested_arrays(512)) == b"[" * 512 + b"]" * 512
+    assert _value_error_class(_nested_arrays(513)) == "depth_limit"
+
+
+def test_value_mode_depth_limit_objects() -> None:
+    expected = b'{"a":' * 511 + b"{}" + b"}" * 511
+    assert canonicalize_strict(_nested_objects(512)) == expected
+    assert _value_error_class(_nested_objects(513)) == "depth_limit"
+
+
+def test_value_mode_rejects_list_cycle() -> None:
+    cyclic: list[Any] = []
+    cyclic.append(cyclic)
+    with pytest.raises(StrictCanonicalizationError) as excinfo:
+        canonicalize_strict(cyclic)
+    assert excinfo.value.error_class == "invalid_json"
+    assert "cyclic value" in str(excinfo.value)
+
+
+def test_value_mode_rejects_dict_cycle() -> None:
+    cyclic: dict[str, Any] = {}
+    cyclic["self"] = cyclic
+    with pytest.raises(StrictCanonicalizationError) as excinfo:
+        canonicalize_strict(cyclic)
+    assert excinfo.value.error_class == "invalid_json"
+    assert "cyclic value" in str(excinfo.value)
+
+
+def test_value_mode_rejects_indirect_cycle() -> None:
+    first: list[Any] = []
+    second: list[Any] = [first]
+    first.append(second)
+    assert _value_error_class(first) == "invalid_json"
+
+
+def test_value_mode_accepts_shared_non_cyclic_references() -> None:
+    shared_object = {"a": 1}
+    assert canonicalize_strict([shared_object, shared_object]) == (
+        b'[{"a":1},{"a":1}]'
+    )
+    shared_list = [1]
+    assert canonicalize_strict([shared_list, shared_list]) == b"[[1],[1]]"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (b'{"a":1,"a":1e999}', "number_unrepresentable"),
+        (b'{"a":1,"a":}', "invalid_json"),
+        (b'{"a":1,"a":"\\ud800"}', "lone_surrogate"),
+        (b'{"a":1,"\\ud800":2,"\\ud800":3}', "lone_surrogate"),
+        (b'{"a":1,"a":2}', "duplicate_key"),
+    ],
+    ids=[
+        "unrepresentable-value",
+        "invalid-value",
+        "lone-surrogate-value",
+        "lone-surrogate-duplicate-key",
+        "plain-duplicate",
+    ],
+)
+def test_duplicate_precedence(raw: bytes, expected: str) -> None:
+    assert _error_class(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (b'{"n":1e-999}', b'{"n":0}'),
+        (b'{"n":-1e-999}', b'{"n":0}'),
+        (b"1e-999", b"0"),
+    ],
+    ids=["positive", "negative", "top-level"],
+)
+def test_underflow_is_canonical_zero(raw: bytes, expected: bytes) -> None:
+    assert canonicalize_strict_raw(raw) == expected
+
+
+def test_value_mode_underflow_is_canonical_zero() -> None:
+    assert canonicalize_strict(1e-999) == b"0"
+    assert canonicalize_strict(float("1e-999")) == b"0"

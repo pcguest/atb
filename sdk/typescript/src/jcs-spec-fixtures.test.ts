@@ -1,10 +1,11 @@
 /**
- * Validate the specification-only JCS canonicalisation-profile fixtures.
+ * Validate the executable JCS canonicalisation-profile fixtures.
  *
  * The fixtures describe the frozen legacy profile `atb-jcs-legacy-1` and the
- * not-yet-implemented strict profile `atb-jcs-rfc8785-1`. This test validates
- * the fixtures and pins the TypeScript legacy canonicaliser; the strict
- * negative cases are validated by class only because no strict parser exists.
+ * strict profile `atb-jcs-rfc8785-1`. This test validates the fixtures and pins
+ * the TypeScript legacy canonicaliser. The strict fixtures are executed against
+ * the strict parser by `canonicalize-strict.test.ts`; this test checks their
+ * status, metadata, and declared error classes.
  */
 
 import { readFileSync } from "node:fs";
@@ -115,6 +116,7 @@ const ALLOWED_ERROR_CLASSES = new Set([
   "number_out_of_policy",
   "number_unrepresentable",
   "invalid_json",
+  "depth_limit",
   "missing_profile",
   "unsupported_profile",
 ]);
@@ -166,7 +168,7 @@ describe("JCS specification fixture metadata", () => {
   it("declares the strict positive profile and required categories", () => {
     expect(POSITIVE.schema).toBe(POSITIVE_SCHEMA);
     expect(POSITIVE.profile).toBe(STRICT_PROFILE);
-    expect(POSITIVE.status).toBe("specification-only");
+    expect(POSITIVE.status).toBe("executable");
     expect(new Set(POSITIVE.cases.map((c) => c.id)).size).toBe(
       POSITIVE.cases.length
     );
@@ -178,7 +180,7 @@ describe("JCS specification fixture metadata", () => {
   it("declares the strict negative profile and required categories", () => {
     expect(NEGATIVE.schema).toBe(NEGATIVE_SCHEMA);
     expect(NEGATIVE.profile).toBe(STRICT_PROFILE);
-    expect(NEGATIVE.status).toBe("specification-only");
+    expect(NEGATIVE.status).toBe("executable");
     expect(new Set(NEGATIVE.cases.map((c) => c.id)).size).toBe(
       NEGATIVE.cases.length
     );
@@ -244,7 +246,8 @@ describe("strict positive vectors", () => {
 
 describe("strict negative vectors", () => {
   it.each(NEGATIVE.cases)("$id", (testCase) => {
-    // Do not attempt strict parsing; only validate the declared class.
+    // Fixture-integrity check: canonicalize-strict.test.ts executes these cases
+    // against the strict parser and asserts the reported error class.
     decodeHex(testCase.input_utf8_hex, "input");
     expect(ALLOWED_ERROR_CLASSES.has(testCase.expected_error)).toBe(true);
     expect(REQUIRED_NEGATIVE_CATEGORIES.has(testCase.category)).toBe(true);

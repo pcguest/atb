@@ -1,10 +1,11 @@
-"""Validate the specification-only JCS canonicalisation-profile fixtures.
+"""Validate the executable JCS canonicalisation-profile fixtures.
 
 These fixtures describe two profiles: the frozen legacy profile
-``atb-jcs-legacy-1`` and the not-yet-implemented strict profile
-``atb-jcs-rfc8785-1``. This module only validates the normative fixtures and
-pins the Python legacy canonicaliser against the frozen expectations; it does
-not attempt to run the strict negative cases because no strict parser exists.
+``atb-jcs-legacy-1`` and the strict profile ``atb-jcs-rfc8785-1``. This module
+validates the normative fixtures and pins the Python legacy canonicaliser
+against the frozen expectations. The strict fixtures are executed against the
+strict parser by ``test_jcs_strict_conformance.py``; this module checks their
+status, metadata, and declared error classes.
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ ALLOWED_ERROR_CLASSES = {
     "number_out_of_policy",
     "number_unrepresentable",
     "invalid_json",
+    "depth_limit",
     "missing_profile",
     "unsupported_profile",
 }
@@ -76,7 +78,7 @@ PROFILE_SELECTION = _load(PROFILE_SELECTION_PATH)
 def test_positive_fixture_metadata() -> None:
     assert POSITIVE["schema"] == POSITIVE_SCHEMA
     assert POSITIVE["profile"] == STRICT_PROFILE
-    assert POSITIVE["status"] == "specification-only"
+    assert POSITIVE["status"] == "executable"
 
     ids = [case["id"] for case in POSITIVE["cases"]]
     assert len(ids) == len(set(ids)), "positive case ids must be unique"
@@ -88,7 +90,7 @@ def test_positive_fixture_metadata() -> None:
 def test_negative_fixture_metadata() -> None:
     assert NEGATIVE["schema"] == NEGATIVE_SCHEMA
     assert NEGATIVE["profile"] == STRICT_PROFILE
-    assert NEGATIVE["status"] == "specification-only"
+    assert NEGATIVE["status"] == "executable"
 
     ids = [case["id"] for case in NEGATIVE["cases"]]
     assert len(ids) == len(set(ids)), "negative case ids must be unique"
@@ -152,8 +154,8 @@ def test_strict_positive_vectors(case: dict) -> None:
 
 @pytest.mark.parametrize("case", NEGATIVE["cases"], ids=lambda case: case["id"])
 def test_strict_negative_vectors(case: dict) -> None:
-    # Validate the payload decodes as hex, but do not attempt strict parsing:
-    # no strict implementation exists yet.
+    # Fixture-integrity check: the strict conformance module executes these
+    # cases against the strict parser and asserts the reported error class.
     bytes.fromhex(case["input_utf8_hex"])
     assert case["expected_error"] in ALLOWED_ERROR_CLASSES
     assert case["category"] in REQUIRED_NEGATIVE_CATEGORIES

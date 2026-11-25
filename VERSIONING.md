@@ -13,7 +13,7 @@ ATB has **four** independently-tracked version concepts. Confusing them is the m
 | JSON schema version            | Filename: `schemas/event.v1.json`             | Bumped only when the JSON Schema describing event records gains required fields or removes existing ones. Additive optional fields stay on `v1`. | `event.v1.json`                    |
 | Canonicalisation profile       | Implicit in the canonicaliser's behaviour     | Bumped (de facto) when RFC 8785 implementation rules change in a way that produces different bytes for the same input. Treated as a manifest-version bump for compatibility purposes. | v1.1.2 float profile (current)      |
 
-The normative profile definitions, byte-level guarantees, and migration prerequisites for `atb-jcs-legacy-1` and the specification-only strict profile `atb-jcs-rfc8785-1` are in [docs/specification/canonicalisation-profiles.md](docs/specification/canonicalisation-profiles.md).
+The normative profile definitions, byte-level guarantees, and migration prerequisites for `atb-jcs-legacy-1` and the non-production strict profile `atb-jcs-rfc8785-1` are in [docs/specification/canonicalisation-profiles.md](docs/specification/canonicalisation-profiles.md).
 
 The relationship between them:
 

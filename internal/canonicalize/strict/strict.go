@@ -34,7 +34,13 @@ const (
 	ClassNumberOutOfPolicy     = "number_out_of_policy"
 	ClassNumberUnrepresentable = "number_unrepresentable"
 	ClassInvalidJSON           = "invalid_json"
+	ClassDepthLimit            = "depth_limit"
 )
+
+// maxNestingDepth bounds array/object nesting in both the raw parser and the
+// reflected value walk. It keeps deeply nested or self-referential inputs from
+// exhausting the stack.
+const maxNestingDepth = 512
 
 // maxSafeInteger is 2^53 - 1, the largest plain-integer literal magnitude the
 // strict profile accepts.
@@ -143,17 +149,32 @@ func isNonFiniteMarshalError(err error) bool {
 var (
 	jsonMarshalerType = reflect.TypeOf((*json.Marshaler)(nil)).Elem()
 	textMarshalerType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
+	jsonNumberType    = reflect.TypeOf(json.Number(""))
+	rawMessageType    = reflect.TypeOf(json.RawMessage(nil))
 )
+
+// visit identifies a pointer-like value on the current traversal path. Pointer
+// keys include the pointed-to type so that a pointer to a struct's first field
+// is not mistaken for a cycle with a pointer to the struct itself. The length
+// and capacity are part of the slice identity so that distinct views over one
+// backing array are not mistaken for cycles.
+type visit struct {
+	kind reflect.Kind
+	ptr  uintptr
+	len  int
+	cap  int
+	typ  reflect.Type
+}
 
 // validateValue walks a Go value and enforces the strict profile's numeric
 // policy: integer values must fit the safe-integer range and float values must
-// be finite. Types with custom JSON or text marshalling are left to
-// encoding/json.
+// be finite. Dynamic JSON fragments (json.Number, json.RawMessage and custom
+// marshalers) are validated by re-running the strict parser over their bytes.
 func validateValue(v any) error {
-	return validateReflect(reflect.ValueOf(v), make(map[uintptr]bool))
+	return validateReflect(reflect.ValueOf(v), make(map[visit]bool), 0)
 }
 
-func validateReflect(v reflect.Value, seen map[uintptr]bool) error {
+func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
 	if !v.IsValid() {
 		return nil
 	}
@@ -164,29 +185,54 @@ func validateReflect(v reflect.Value, seen map[uintptr]bool) error {
 		v = v.Elem()
 	}
 
+	switch v.Type() {
+	case jsonNumberType:
+		return validateNumberLiteral(v.String())
+	case rawMessageType:
+		// json.Marshal encodes a nil RawMessage as null, while an empty
+		// non-nil RawMessage is still invalid.
+		if v.IsNil() {
+			return nil
+		}
+		return validateRawFragment(v.Bytes())
+	}
+
 	if v.Kind() == reflect.Pointer {
 		if v.IsNil() {
 			return nil
 		}
 		if hasCustomMarshaler(v) {
-			return nil
+			return validateCustomMarshaler(v)
 		}
-		ptr := v.Pointer()
-		if seen[ptr] {
-			// Defer cyclic structures to encoding/json, which rejects them.
-			return nil
+		key := visit{kind: reflect.Pointer, ptr: v.Pointer(), typ: v.Type()}
+		if seen[key] {
+			return cyclicValueError()
 		}
-		seen[ptr] = true
-		err := validateReflect(v.Elem(), seen)
-		delete(seen, ptr)
+		// Pointer traversal counts towards the nesting bound: without this an
+		// arbitrarily long pointer chain could exhaust the stack even though
+		// arrays, structs, and maps are already bounded.
+		next := depth + 1
+		if next > maxNestingDepth {
+			return depthLimitError()
+		}
+		seen[key] = true
+		err := validateReflect(v.Elem(), seen, next)
+		delete(seen, key)
 		return err
 	}
 
 	if hasCustomMarshaler(v) {
-		return nil
+		return validateCustomMarshaler(v)
 	}
 
 	switch v.Kind() {
+	case reflect.String:
+		if !utf8.ValidString(v.String()) {
+			return &Error{
+				Class:   ClassInvalidUTF8,
+				Message: "string value is not valid UTF-8",
+			}
+		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		x := v.Int()
 		if x > maxSafeIntegerInt64 || x < -maxSafeIntegerInt64 {
@@ -210,32 +256,517 @@ func validateReflect(v reflect.Value, seen map[uintptr]bool) error {
 				Message: "value contains a non-finite number",
 			}
 		}
-	case reflect.Slice, reflect.Array:
+	case reflect.Slice:
+		if v.IsNil() {
+			return nil
+		}
+		next := depth + 1
+		if next > maxNestingDepth {
+			return depthLimitError()
+		}
+		if v.Len() > 0 {
+			key := visit{kind: reflect.Slice, ptr: v.Pointer(), len: v.Len(), cap: v.Cap()}
+			if seen[key] {
+				return cyclicValueError()
+			}
+			seen[key] = true
+			defer delete(seen, key)
+		}
 		for i := 0; i < v.Len(); i++ {
-			if err := validateReflect(v.Index(i), seen); err != nil {
+			if err := validateReflect(v.Index(i), seen, next); err != nil {
+				return err
+			}
+		}
+	case reflect.Array:
+		next := depth + 1
+		if next > maxNestingDepth {
+			return depthLimitError()
+		}
+		for i := 0; i < v.Len(); i++ {
+			if err := validateReflect(v.Index(i), seen, next); err != nil {
 				return err
 			}
 		}
 	case reflect.Map:
+		if v.IsNil() {
+			return nil
+		}
+		next := depth + 1
+		if next > maxNestingDepth {
+			return depthLimitError()
+		}
+		key := visit{kind: reflect.Map, ptr: v.Pointer()}
+		if seen[key] {
+			return cyclicValueError()
+		}
+		seen[key] = true
+		defer delete(seen, key)
 		iter := v.MapRange()
 		for iter.Next() {
-			if err := validateReflect(iter.Value(), seen); err != nil {
+			if err := validateMapKey(iter.Key()); err != nil {
+				return err
+			}
+			if err := validateReflect(iter.Value(), seen, next); err != nil {
 				return err
 			}
 		}
 	case reflect.Struct:
-		t := v.Type()
-		for i := 0; i < v.NumField(); i++ {
-			field := t.Field(i)
-			if field.PkgPath != "" {
-				continue
-			}
-			if field.Tag.Get("json") == "-" {
-				continue
-			}
-			if err := validateReflect(v.Field(i), seen); err != nil {
+		return validateStructFields(v, seen, depth)
+	}
+	return nil
+}
+
+// validateStructFields applies encoding/json's struct-field rules to v, which
+// must be a struct.
+func validateStructFields(v reflect.Value, seen map[visit]bool, depth int) error {
+	next := depth + 1
+	if next > maxNestingDepth {
+		return depthLimitError()
+	}
+	structType := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := structType.Field(i)
+		tag := field.Tag.Get("json")
+		if tag == "-" {
+			continue
+		}
+		embeddedStruct := isEmbeddedStructField(field)
+		if field.PkgPath != "" && !embeddedStruct {
+			// encoding/json ignores unexported non-embedded fields and
+			// embedded fields of unexported non-struct types, but it still
+			// walks the exported fields of an embedded unexported struct.
+			continue
+		}
+		fieldValue := v.Field(i)
+		// omitempty/omitzero only apply when encoding/json emits the field
+		// itself; an untagged embedded struct is flattened into its parent,
+		// so its own options have no effect there.
+		if (!embeddedStruct || jsonTagName(tag) != "") &&
+			((hasJSONOption(tag, "omitempty") && isEmptyValue(fieldValue)) ||
+				(hasJSONOption(tag, "omitzero") && isZeroValue(field.Type, fieldValue))) {
+			continue
+		}
+		if emitsQuotedValue(field, tag, fieldValue) {
+			// The "string" option makes encoding/json emit a quoted JSON string
+			// for bool, string, integer, and float fields, so their underlying
+			// value is not a JSON number and the numeric policy does not apply.
+			continue
+		}
+		if embeddedStruct {
+			// encoding/json may flatten an embedded struct into its parent even
+			// when the embedded type implements a custom marshaler (for example,
+			// when a sibling method makes the parent itself non-Marshaler). It
+			// may also use that marshaler directly. Validate both possibilities
+			// rather than short-circuiting on the embedded field's marshaler.
+			// This can over-reject when the promotion is unused, but it stays
+			// fail-closed: it may never under-reject.
+			if err := validateEmbeddedStructField(fieldValue, seen, next); err != nil {
 				return err
 			}
+			continue
+		}
+		if err := validateReflect(fieldValue, seen, next); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateEmbeddedStructField validates an anonymous embedded struct or
+// pointer-to-struct field. Because encoding/json can either invoke a custom
+// marshaler promoted by the embedded type or flatten the embedded struct's
+// fields into the parent, validate both the marshaler output that could be used
+// and the embedded fields themselves.
+func validateEmbeddedStructField(v reflect.Value, seen map[visit]bool, depth int) error {
+	for v.Kind() == reflect.Interface {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+	}
+	if !v.IsValid() {
+		return nil
+	}
+	if v.Kind() == reflect.Pointer {
+		if v.IsNil() {
+			// encoding/json omits nil embedded pointer-to-struct fields.
+			return nil
+		}
+		if hasCustomMarshaler(v) {
+			if err := validateCustomMarshaler(v); err != nil {
+				return err
+			}
+		}
+		key := visit{kind: reflect.Pointer, ptr: v.Pointer(), typ: v.Type()}
+		if seen[key] {
+			return cyclicValueError()
+		}
+		next := depth + 1
+		if next > maxNestingDepth {
+			return depthLimitError()
+		}
+		seen[key] = true
+		err := validateEmbeddedStructField(v.Elem(), seen, next)
+		delete(seen, key)
+		return err
+	}
+	if v.Kind() != reflect.Struct {
+		return validateReflect(v, seen, depth)
+	}
+	if hasCustomMarshaler(v) {
+		if err := validateCustomMarshaler(v); err != nil {
+			return err
+		}
+	}
+	return validateStructFields(v, seen, depth)
+}
+
+// isEmbeddedStructField reports whether field is an anonymous struct or
+// pointer-to-struct field, which encoding/json flattens rather than skipping
+// when the embedded type itself is unexported.
+func isEmbeddedStructField(field reflect.StructField) bool {
+	if !field.Anonymous {
+		return false
+	}
+	t := field.Type
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t.Kind() == reflect.Struct
+}
+
+// jsonTagName returns the name portion of a JSON struct tag before the first
+// comma.
+func jsonTagName(tag string) string {
+	if i := strings.IndexByte(tag, ','); i >= 0 {
+		return tag[:i]
+	}
+	return tag
+}
+
+// hasJSONOption reports whether a JSON struct tag contains option. The field
+// name before the first comma is not an option.
+func hasJSONOption(tag, option string) bool {
+	i := strings.IndexByte(tag, ',')
+	if i < 0 {
+		return false
+	}
+	for opts := tag[i+1:]; opts != ""; {
+		var opt string
+		if j := strings.IndexByte(opts, ','); j >= 0 {
+			opt, opts = opts[:j], opts[j+1:]
+		} else {
+			opt, opts = opts, ""
+		}
+		if opt == option {
+			return true
+		}
+	}
+	return false
+}
+
+// emitsQuotedValue reports whether encoding/json will encode field as a quoted
+// JSON string because of the "string" tag option. Only bool, string, integer,
+// and float fields support quoting; an unnamed pointer field is followed first.
+// A json.Marshaler takes precedence over the plain kind encoder, so those
+// values are left to the marshaler validator instead of being skipped.
+func emitsQuotedValue(field reflect.StructField, tag string, v reflect.Value) bool {
+	if !hasJSONOption(tag, "string") {
+		return false
+	}
+	t := field.Type
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	switch t.Kind() {
+	case reflect.Bool, reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64:
+	default:
+		return false
+	}
+	return !usesJSONMarshaler(v)
+}
+
+// usesJSONMarshaler reports whether encoding/json will invoke MarshalJSON on v
+// rather than its plain kind encoder. A pointer-receiver MarshalJSON is used
+// only when the value is addressable, mirroring encoding/json's conditional
+// address encoder.
+func usesJSONMarshaler(v reflect.Value) bool {
+	if !v.IsValid() {
+		return false
+	}
+	t := v.Type()
+	if t.Implements(jsonMarshalerType) {
+		return true
+	}
+	return v.CanAddr() && reflect.PointerTo(t).Implements(jsonMarshalerType)
+}
+
+// isEmptyValue mirrors encoding/json's omitempty definition. Unlike
+// reflect.Value.IsZero, it does not treat zero structs as empty, because
+// encoding/json still emits a zero struct field tagged omitempty.
+func isEmptyValue(v reflect.Value) bool {
+	switch v.Kind() {
+	case reflect.Array, reflect.Map, reflect.Slice, reflect.String:
+		return v.Len() == 0
+	case reflect.Bool:
+		return !v.Bool()
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return v.Int() == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return v.Uint() == 0
+	case reflect.Float32, reflect.Float64:
+		return v.Float() == 0
+	case reflect.Interface, reflect.Pointer:
+		return v.IsNil()
+	default:
+		return false
+	}
+}
+
+// isZeroer matches the optional IsZero method encoding/json honours for the
+// omitzero tag option.
+type isZeroer interface {
+	IsZero() bool
+}
+
+var isZeroerType = reflect.TypeOf((*isZeroer)(nil)).Elem()
+
+// isZeroValue mirrors encoding/json's omitzero check for a field with static
+// type t. encoding/json only honours IsZero declared by the field's static
+// type, so an interface field does not inherit IsZero from its dynamic value.
+// It also boxes a non-addressable value when only the pointer type implements
+// IsZero. When no declared IsZero applies, it falls back to reflect's
+// structural zero test.
+func isZeroValue(t reflect.Type, v reflect.Value) bool {
+	if !v.IsValid() {
+		return true
+	}
+	switch {
+	case t.Kind() == reflect.Interface && t.Implements(isZeroerType):
+		// Panic guards mirror encoding/json: a nil interface or an interface
+		// holding a nil pointer is zero without calling IsZero.
+		if v.IsNil() {
+			return true
+		}
+		if elem := v.Elem(); elem.Kind() == reflect.Pointer && elem.IsNil() {
+			return true
+		}
+		return callIsZero(v)
+	case t.Kind() == reflect.Pointer && t.Implements(isZeroerType):
+		return v.IsNil() || callIsZero(v)
+	case t.Implements(isZeroerType):
+		return callIsZero(v)
+	case reflect.PointerTo(t).Implements(isZeroerType):
+		if !v.CanAddr() {
+			// Mirror encoding/json: box a copy so its address can be taken
+			// even when the struct field itself is not addressable.
+			boxed := reflect.New(v.Type()).Elem()
+			boxed.Set(v)
+			v = boxed
+		}
+		return callIsZero(v.Addr())
+	}
+	return v.IsZero()
+}
+
+// callIsZero invokes IsZero when v can be interfaced. Values that cannot be
+// interfaced (for example fields reached through an unexported embedded struct)
+// fail closed: reporting non-zero makes the caller validate the field rather
+// than skip it.
+func callIsZero(v reflect.Value) bool {
+	if !v.CanInterface() {
+		return false
+	}
+	z, ok := v.Interface().(isZeroer)
+	if !ok {
+		return false
+	}
+	return z.IsZero()
+}
+
+func validateMapKey(k reflect.Value) error {
+	for k.Kind() == reflect.Interface {
+		if k.IsNil() {
+			return nil
+		}
+		k = k.Elem()
+	}
+	// encoding/json encodes a nil pointer map key as the empty string without
+	// invoking its TextMarshaler, so mirror that before interfacing or calling
+	// the method.
+	if k.Kind() == reflect.Pointer && k.IsNil() {
+		return nil
+	}
+	// encoding/json uses the raw string for string-kind keys before consulting
+	// any TextMarshaler, so check the underlying string first. A type that
+	// implements TextMarshaler but also has string kind is encoded from its
+	// raw string value, not from MarshalText.
+	if k.Kind() == reflect.String {
+		if !utf8.ValidString(k.String()) {
+			return &Error{
+				Class:   ClassInvalidUTF8,
+				Message: "map key is not valid UTF-8",
+			}
+		}
+		return nil
+	}
+	// encoding/json encodes non-string map keys that implement
+	// encoding.TextMarshaler through the text they emit, not through their
+	// underlying Go kind. Validate that emitted text so an invalid-UTF-8 key
+	// cannot bypass the string check.
+	tm, ok, err := textMarshalerFor(k)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return validateTextMarshaler(tm)
+	}
+	return nil
+}
+
+// textMarshalerFor returns the encoding.TextMarshaler implemented by k, if any.
+// When a TextMarshaler applies but cannot be interfaced, it fails closed rather
+// than panicking on reflect.Value.Interface.
+func textMarshalerFor(k reflect.Value) (encoding.TextMarshaler, bool, error) {
+	if !k.IsValid() {
+		return nil, false, nil
+	}
+	t := k.Type()
+	if t.Implements(textMarshalerType) {
+		if !k.CanInterface() {
+			return nil, false, &Error{
+				Class:   ClassInvalidJSON,
+				Message: fmt.Sprintf("text marshaler %s cannot be interfaced for validation", t),
+			}
+		}
+		return k.Interface().(encoding.TextMarshaler), true, nil
+	}
+	if k.CanAddr() {
+		if pt := reflect.PointerTo(t); pt.Implements(textMarshalerType) {
+			if !k.Addr().CanInterface() {
+				return nil, false, &Error{
+					Class:   ClassInvalidJSON,
+					Message: fmt.Sprintf("text marshaler %s cannot be interfaced for validation", pt),
+				}
+			}
+			return k.Addr().Interface().(encoding.TextMarshaler), true, nil
+		}
+	}
+	return nil, false, nil
+}
+
+func cyclicValueError() error {
+	return &Error{Class: ClassInvalidJSON, Message: "cyclic value"}
+}
+
+func depthLimitError() error {
+	return &Error{Class: ClassDepthLimit, Message: "maximum nesting depth exceeded"}
+}
+
+// validateNumberLiteral enforces the strict numeric policy on a json.Number
+// token. The token must be exactly one JSON number with no surrounding
+// whitespace; Canonicalize is then used to apply the numeric policy.
+func validateNumberLiteral(literal string) error {
+	if literal == "" {
+		return &Error{Class: ClassInvalidJSON, Message: "empty number literal"}
+	}
+	if literal[0] != '-' && !isDigit(literal[0]) {
+		return &Error{Class: ClassInvalidJSON, Message: "invalid number literal"}
+	}
+	for i := 0; i < len(literal); i++ {
+		switch literal[i] {
+		case ' ', '\t', '\n', '\r':
+			return &Error{Class: ClassInvalidJSON, Message: "invalid number literal"}
+		}
+	}
+	_, err := Canonicalize([]byte(literal))
+	if ErrorClass(err) == ClassTrailingData {
+		// A json.Number must be exactly one number token. Trailing junk such as
+		// "1x", "1.2.3", or "1]" is malformed in value mode rather than a
+		// standalone document followed by trailing data.
+		return &Error{Class: ClassInvalidJSON, Message: "invalid number literal"}
+	}
+	return err
+}
+
+// validateRawFragment validates an embedded JSON fragment held in a
+// json.RawMessage. Empty or malformed bytes are reported as invalid_json.
+func validateRawFragment(raw []byte) error {
+	_, err := Canonicalize(raw)
+	return err
+}
+
+// validateCustomMarshaler validates the dynamic JSON/text produced by a type
+// that implements json.Marshaler or encoding.TextMarshaler. Nil pointers are
+// never invoked.
+//
+// A custom marshaler is invoked once here for validation and again by
+// encoding/json when CanonicalizeValue marshals the value, so it must be
+// deterministic. Its result is deliberately not cached or reused: doing so
+// would change encoding/json's public semantics for custom marshalers.
+func validateCustomMarshaler(v reflect.Value) error {
+	if v.Kind() == reflect.Pointer && v.IsNil() {
+		return nil
+	}
+	t := v.Type()
+	pt := reflect.PointerTo(t)
+	valueMarshaler := t.Implements(jsonMarshalerType) || t.Implements(textMarshalerType)
+	pointerMarshaler := pt.Implements(jsonMarshalerType) || pt.Implements(textMarshalerType)
+
+	// Prefer the addressable pointer form when it is interfaceable. A value
+	// reached through an unexported embedded struct can itself be uninterfaceable
+	// while its address is still reachable for validation.
+	if v.CanAddr() && v.Addr().CanInterface() {
+		switch {
+		case pt.Implements(jsonMarshalerType):
+			return validateJSONMarshaler(v.Addr().Interface().(json.Marshaler))
+		case pt.Implements(textMarshalerType):
+			return validateTextMarshaler(v.Addr().Interface().(encoding.TextMarshaler))
+		}
+	}
+
+	if v.CanInterface() {
+		switch {
+		case t.Implements(jsonMarshalerType):
+			return validateJSONMarshaler(v.Interface().(json.Marshaler))
+		case t.Implements(textMarshalerType):
+			return validateTextMarshaler(v.Interface().(encoding.TextMarshaler))
+		}
+	}
+
+	// A custom marshaler applies, but neither the value nor its address can be
+	// interfaced to invoke it. Fail closed rather than skipping the value or
+	// panicking on reflect.Value.Interface.
+	if valueMarshaler || (v.CanAddr() && pointerMarshaler) {
+		return &Error{
+			Class:   ClassInvalidJSON,
+			Message: fmt.Sprintf("custom marshaler %s cannot be interfaced for validation", t),
+		}
+	}
+	return nil
+}
+
+func validateJSONMarshaler(m json.Marshaler) error {
+	raw, err := m.MarshalJSON()
+	if err != nil {
+		return err
+	}
+	_, err = Canonicalize(raw)
+	return err
+}
+
+func validateTextMarshaler(m encoding.TextMarshaler) error {
+	raw, err := m.MarshalText()
+	if err != nil {
+		return err
+	}
+	if !utf8.Valid(raw) {
+		return &Error{
+			Class:   ClassInvalidUTF8,
+			Message: "text marshaler returned invalid UTF-8",
 		}
 	}
 	return nil
@@ -274,6 +805,7 @@ type parser struct {
 	data      []byte
 	pos       int
 	valueMode bool
+	depth     int
 }
 
 func (p *parser) errf(class, message string) error {
@@ -343,7 +875,9 @@ func (p *parser) parseValue(buf *bytes.Buffer) error {
 		return p.parseArray(buf)
 	case c == '{':
 		return p.parseObject(buf)
-	case p.hasPrefix("NaN"), p.hasPrefix("Infinity"), p.hasPrefix("-Infinity"):
+	case p.hasPrefix("NaN") && p.literalBoundary(len("NaN")),
+		p.hasPrefix("Infinity") && p.literalBoundary(len("Infinity")),
+		p.hasPrefix("-Infinity") && p.literalBoundary(len("-Infinity")):
 		return p.errf(ClassNonFiniteNumber, "non-finite number literal")
 	case c == '-' || (c >= '0' && c <= '9'):
 		return p.parseNumber(buf)
@@ -351,7 +885,36 @@ func (p *parser) parseValue(buf *bytes.Buffer) error {
 	return p.errf(ClassInvalidJSON, "unexpected token")
 }
 
+// literalBoundary reports whether the literal of length n starting at the
+// current position ends at a valid JSON token boundary. It prevents NaNx,
+// Infinityx and similar malformed tokens from being classified as non-finite
+// numbers rather than invalid JSON.
+func (p *parser) literalBoundary(n int) bool {
+	i := p.pos + n
+	if i >= len(p.data) {
+		return true
+	}
+	switch p.data[i] {
+	case ' ', '\t', '\n', '\r', ',', ']', '}':
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *parser) enterContainer() error {
+	p.depth++
+	if p.depth > maxNestingDepth {
+		return p.errf(ClassDepthLimit, "maximum nesting depth exceeded")
+	}
+	return nil
+}
+
 func (p *parser) parseArray(buf *bytes.Buffer) error {
+	if err := p.enterContainer(); err != nil {
+		return err
+	}
+	defer func() { p.depth-- }()
 	p.pos++ // '['
 	p.skipWhitespace()
 	buf.WriteByte('[')
@@ -387,6 +950,10 @@ type member struct {
 }
 
 func (p *parser) parseObject(buf *bytes.Buffer) error {
+	if err := p.enterContainer(); err != nil {
+		return err
+	}
+	defer func() { p.depth-- }()
 	p.pos++ // '{'
 	p.skipWhitespace()
 	if p.peekByte() == '}' {
@@ -407,10 +974,6 @@ func (p *parser) parseObject(buf *bytes.Buffer) error {
 		if err != nil {
 			return err
 		}
-		if _, duplicate := seen[key]; duplicate {
-			return p.errf(ClassDuplicateKey, "duplicate object member name")
-		}
-		seen[key] = struct{}{}
 
 		p.skipWhitespace()
 		if p.peekByte() != ':' {
@@ -422,6 +985,13 @@ func (p *parser) parseObject(buf *bytes.Buffer) error {
 		if err := p.parseValue(&value); err != nil {
 			return err
 		}
+		// Duplicate detection runs after the member value has been parsed so
+		// that value errors (malformed JSON, unrepresentable numbers) take
+		// precedence over the duplicate-key rejection, matching Python.
+		if _, duplicate := seen[key]; duplicate {
+			return p.errf(ClassDuplicateKey, "duplicate object member name")
+		}
+		seen[key] = struct{}{}
 		members = append(members, member{key: key, value: value.Bytes()})
 
 		p.skipWhitespace()
@@ -623,7 +1193,14 @@ func (p *parser) parseNumber(buf *bytes.Buffer) error {
 	}
 
 	f, err := strconv.ParseFloat(string(token), 64)
-	if err != nil || math.IsInf(f, 0) || math.IsNaN(f) {
+	if err != nil {
+		// Underflow to zero is a finite binary64 value; only overflow and
+		// genuine parse failures are unrepresentable.
+		if !(f == 0 && errors.Is(err, strconv.ErrRange)) {
+			return p.errf(ClassNumberUnrepresentable, "number cannot be represented as a finite binary64 value")
+		}
+	}
+	if math.IsInf(f, 0) || math.IsNaN(f) {
 		return p.errf(ClassNumberUnrepresentable, "number cannot be represented as a finite binary64 value")
 	}
 	if math.Abs(f) == 0 {

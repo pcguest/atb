@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 
-// Package jcs_test exercises the specification-only canonicalisation-profile
-// vectors in test/jcs. It does not implement or dispatch a strict canonicaliser;
-// it validates the normative fixtures and pins the frozen legacy behaviour.
+// Package jcs_test exercises the canonicalisation-profile vectors in test/jcs.
+// It validates the strict fixtures, executes them through the non-production
+// strict conformance runner, and pins the frozen legacy behaviour. Production
+// dispatch remains on the legacy profile.
 package jcs_test
 
 import (
@@ -29,7 +30,7 @@ const selectionSchema = "atb.jcs.profile-selection-cases.v1"
 const strictProfileID = "atb-jcs-rfc8785-1"
 const legacyProfileID = "atb-jcs-legacy-1"
 
-const specificationOnlyStatus = "specification-only"
+const executableStatus = "executable"
 const frozenStatus = "frozen"
 const selectionStatus = "specification-and-current-reader"
 
@@ -42,6 +43,7 @@ var allowedErrorClasses = []string{
 	"number_out_of_policy",
 	"number_unrepresentable",
 	"invalid_json",
+	"depth_limit",
 	"missing_profile",
 	"unsupported_profile",
 }
@@ -234,8 +236,8 @@ func TestStrictPositiveVectors(t *testing.T) {
 	if file.Profile != strictProfileID {
 		t.Fatalf("profile = %q, want %q", file.Profile, strictProfileID)
 	}
-	if file.Status != specificationOnlyStatus {
-		t.Fatalf("status = %q, want %q", file.Status, specificationOnlyStatus)
+	if file.Status != executableStatus {
+		t.Fatalf("status = %q, want %q", file.Status, executableStatus)
 	}
 	if len(file.Cases) == 0 {
 		t.Fatal("positive vector file has no cases")
@@ -296,8 +298,8 @@ func TestStrictNegativeVectors(t *testing.T) {
 	if file.Profile != strictProfileID {
 		t.Fatalf("profile = %q, want %q", file.Profile, strictProfileID)
 	}
-	if file.Status != specificationOnlyStatus {
-		t.Fatalf("status = %q, want %q", file.Status, specificationOnlyStatus)
+	if file.Status != executableStatus {
+		t.Fatalf("status = %q, want %q", file.Status, executableStatus)
 	}
 	if len(file.Cases) == 0 {
 		t.Fatal("negative vector file has no cases")
@@ -314,9 +316,9 @@ func TestStrictNegativeVectors(t *testing.T) {
 		seenCategories[tc.Category] = true
 
 		t.Run(tc.ID, func(t *testing.T) {
-			// The input is deliberately not parsed as strict JSON: no strict
-			// parser exists in this increment. Only the byte payload and the
-			// declared rejection class are validated.
+			// This fixture-integrity test validates the payload bytes and the
+			// declared rejection class. strict_conformance_test.go executes the
+			// same cases through the strict parser and asserts the class.
 			mustHex(t, tc.InputUTF8Hex)
 			if !isAllowedErrorClass(tc.ExpectedError) {
 				t.Fatalf("expected_error %q is not an allowed error class", tc.ExpectedError)

@@ -9,6 +9,9 @@
 const MAX_SAFE_INTEGER_BIGINT = 9007199254740991n;
 const MIN_SAFE_INTEGER_BIGINT = -9007199254740991n;
 
+/** Maximum array/object nesting accepted by the strict profile. */
+const MAX_NESTING_DEPTH = 512;
+
 /** Stable strict-profile error classes. */
 export class StrictCanonicalizationError extends Error {
   readonly errorClass: string;
@@ -60,6 +63,14 @@ export function canonicalizeStrictRaw(input: string | Uint8Array): string {
  * @throws TypeError for unsupported value types.
  */
 export function canonicalizeStrict(value: unknown): string {
+  return serializeValue(value, 0, new WeakSet<object>());
+}
+
+function serializeValue(
+  value: unknown,
+  depth: number,
+  seen: WeakSet<object>
+): string {
   if (value === null) return "null";
   switch (typeof value) {
     case "boolean":
@@ -71,7 +82,7 @@ export function canonicalizeStrict(value: unknown): string {
     case "string":
       return serializeString(value);
     case "object":
-      return serializeObjectOrArray(value);
+      return serializeObjectOrArray(value, depth, seen);
     default:
       throw new TypeError(`canonicalizeStrict: unsupported type ${typeof value}`);
   }
@@ -128,25 +139,47 @@ function serializeBigInt(n: bigint): string {
   return String(Number(n));
 }
 
-function serializeObjectOrArray(value: object): string {
-  if (Array.isArray(value)) {
-    const parts: string[] = [];
-    for (const item of value as unknown[]) {
-      parts.push(canonicalizeStrict(item));
-    }
-    return "[" + parts.join(",") + "]";
-  }
-
-  if (!isPlainObject(value)) {
+function serializeObjectOrArray(
+  value: object,
+  depth: number,
+  seen: WeakSet<object>
+): string {
+  const isArray = Array.isArray(value);
+  if (!isArray && !isPlainObject(value)) {
     throw new TypeError("canonicalizeStrict: unsupported object type");
   }
 
-  const obj = value as Record<string, unknown>;
-  const keys = Object.keys(obj).sort(utf16Compare);
-  const parts = keys.map(
-    (key) => `${serializeString(key)}:${canonicalizeStrict(obj[key])}`
-  );
-  return "{" + parts.join(",") + "}";
+  const nextDepth = depth + 1;
+  if (nextDepth > MAX_NESTING_DEPTH) {
+    throw new StrictCanonicalizationError(
+      "depth_limit",
+      "maximum nesting depth exceeded"
+    );
+  }
+  if (seen.has(value)) {
+    throw new StrictCanonicalizationError("invalid_json", "cyclic value");
+  }
+  seen.add(value);
+
+  try {
+    if (isArray) {
+      const parts: string[] = [];
+      for (const item of value as unknown[]) {
+        parts.push(serializeValue(item, nextDepth, seen));
+      }
+      return "[" + parts.join(",") + "]";
+    }
+
+    const obj = value as Record<string, unknown>;
+    const keys = Object.keys(obj).sort(utf16Compare);
+    const parts = keys.map(
+      (key) =>
+        `${serializeString(key)}:${serializeValue(obj[key], nextDepth, seen)}`
+    );
+    return "{" + parts.join(",") + "}";
+  } finally {
+    seen.delete(value);
+  }
 }
 
 function isPlainObject(value: object): boolean {
@@ -220,6 +253,7 @@ function isDigit(code: number): boolean {
 
 class StrictParser {
   private pos = 0;
+  private depth = 0;
 
   constructor(private readonly data: string) {}
 
@@ -260,9 +294,11 @@ class StrictParser {
     }
 
     if (
-      this.hasPrefix("NaN") ||
-      this.hasPrefix("Infinity") ||
-      this.hasPrefix("-Infinity")
+      (this.hasPrefix("NaN") && this.literalBoundary("NaN".length)) ||
+      (this.hasPrefix("Infinity") &&
+        this.literalBoundary("Infinity".length)) ||
+      (this.hasPrefix("-Infinity") &&
+        this.literalBoundary("-Infinity".length))
     ) {
       this.fail("non_finite_number", "non-finite number literal");
     }
@@ -272,76 +308,121 @@ class StrictParser {
     this.fail("invalid_json", "unexpected token");
   }
 
-  private parseArray(): string {
-    this.pos++; // '['
-    this.skipWhitespace();
-    if (this.peek() === 0x5d) {
-      this.pos++;
-      return "[]";
+  /**
+   * Report whether a literal of length `n` starting at the current position
+   * ends at a valid JSON token boundary. This keeps `NaNx`, `Infinityx` and
+   * similar malformed tokens classified as invalid JSON rather than as
+   * non-finite number literals.
+   */
+  private literalBoundary(n: number): boolean {
+    const index = this.pos + n;
+    if (index >= this.data.length) return true;
+    const c = this.data.charCodeAt(index);
+    return (
+      c === 0x20 ||
+      c === 0x09 ||
+      c === 0x0a ||
+      c === 0x0d ||
+      c === 0x2c ||
+      c === 0x5d ||
+      c === 0x7d
+    );
+  }
+
+  private enterContainer(): void {
+    this.depth += 1;
+    if (this.depth > MAX_NESTING_DEPTH) {
+      this.fail("depth_limit", "maximum nesting depth exceeded");
     }
+  }
 
-    let output = "[";
-    for (let i = 0; ; i++) {
-      if (i > 0) output += ",";
-      output += this.parseValue();
+  private leaveContainer(): void {
+    this.depth -= 1;
+  }
+
+  private parseArray(): string {
+    this.enterContainer();
+    try {
+      this.pos++; // '['
       this.skipWhitespace();
+      if (this.peek() === 0x5d) {
+        this.pos++;
+        return "[]";
+      }
 
-      const c = this.peek();
-      if (c === 0x2c) {
-        this.pos++;
-        continue;
+      let output = "[";
+      for (let i = 0; ; i++) {
+        if (i > 0) output += ",";
+        output += this.parseValue();
+        this.skipWhitespace();
+
+        const c = this.peek();
+        if (c === 0x2c) {
+          this.pos++;
+          continue;
+        }
+        if (c === 0x5d) {
+          this.pos++;
+          return output + "]";
+        }
+        this.fail("invalid_json", "expected ',' or ']'");
       }
-      if (c === 0x5d) {
-        this.pos++;
-        return output + "]";
-      }
-      this.fail("invalid_json", "expected ',' or ']'");
+    } finally {
+      this.leaveContainer();
     }
   }
 
   private parseObject(): string {
-    this.pos++; // '{'
-    this.skipWhitespace();
-    if (this.peek() === 0x7d) {
-      this.pos++;
-      return "{}";
-    }
-
-    const members: Array<{ key: string; value: string }> = [];
-    const seen = new Set<string>();
-
-    for (;;) {
+    this.enterContainer();
+    try {
+      this.pos++; // '{'
       this.skipWhitespace();
-      if (this.peek() !== 0x22) {
-        this.fail("invalid_json", "expected object member name");
-      }
-
-      const key = this.parseString();
-      if (seen.has(key)) {
-        this.fail("duplicate_key", "duplicate object member name");
-      }
-      seen.add(key);
-
-      this.skipWhitespace();
-      if (this.peek() !== 0x3a) {
-        this.fail("invalid_json", "expected ':' after object member name");
-      }
-      this.pos++;
-
-      const value = this.parseValue();
-      members.push({ key, value });
-
-      this.skipWhitespace();
-      const c = this.peek();
-      if (c === 0x2c) {
+      if (this.peek() === 0x7d) {
         this.pos++;
-        continue;
+        return "{}";
       }
-      if (c === 0x7d) {
+
+      const members: Array<{ key: string; value: string }> = [];
+      const seen = new Set<string>();
+
+      for (;;) {
+        this.skipWhitespace();
+        if (this.peek() !== 0x22) {
+          this.fail("invalid_json", "expected object member name");
+        }
+
+        const key = this.parseString();
+
+        this.skipWhitespace();
+        if (this.peek() !== 0x3a) {
+          this.fail("invalid_json", "expected ':' after object member name");
+        }
         this.pos++;
-        return this.writeObject(members);
+
+        const value = this.parseValue();
+        // Duplicate detection runs after the member value has been parsed so
+        // that value errors (malformed JSON, unrepresentable numbers, lone
+        // surrogates) take precedence, matching Go and Python.
+        if (seen.has(key)) {
+          this.fail("duplicate_key", "duplicate object member name");
+        }
+        seen.add(key);
+        members.push({ key, value });
+
+        this.skipWhitespace();
+        const c = this.peek();
+        if (c === 0x2c) {
+          this.pos++;
+          continue;
+        }
+        if (c === 0x7d) {
+          this.pos++;
+          return this.writeObject(members);
+        }
+        this.fail("invalid_json", "expected ',' or '}'");
       }
-      this.fail("invalid_json", "expected ',' or '}'");
+    } finally {
+      this.leaveContainer();
     }
   }
 

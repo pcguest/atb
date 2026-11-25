@@ -1,10 +1,12 @@
 # Canonicalisation profiles
 
-**Status: specification-only.** This document defines two canonicalisation
-profiles and their wire/versioning contract. It does **not** describe a shipped
-strict canonicaliser. In this revision ATB still produces and verifies bundles
-with the existing legacy serialisers only. See [Status and next
-steps](#status-and-next-steps).
+**Status: specification plus non-production strict implementation.** This
+document defines two canonicalisation profiles and their wire/versioning
+contract. A strict canonicaliser for `atb-jcs-rfc8785-1` now exists and its
+fixtures are executable, but no production writer, reader, verifier, hashing
+path, or manifest parser dispatches to it. In this revision ATB still produces
+and verifies bundles with the existing legacy serialisers only. See [Status and
+next steps](#status-and-next-steps).
 
 ---
 
@@ -15,13 +17,12 @@ This document is normative for:
 - the identity and meaning of the `atb-jcs-legacy-1` and
   `atb-jcs-rfc8785-1` canonicalisation profiles;
 - the byte-level behaviour that each profile guarantees;
-- the rejection taxonomy used when a strict-profile parser is introduced;
+- the rejection taxonomy enforced by the strict-profile parser;
 - the manifest-version and selection contract that will govern strict-profile
   bundles.
 
 This document deliberately does **not**:
 
-- add a strict canonicaliser implementation;
 - switch any production writer, reader, verifier, hashing path, or manifest
   parser to the strict profile;
 - issue manifest version 4, or change `ManifestVersionMax` (still `3` in this
@@ -30,9 +31,10 @@ This document deliberately does **not**:
   fixture;
 - relax the existing legacy behaviour in any language SDK.
 
-The authored fixtures under [`test/jcs/`](../../test/jcs/README.md) are part of
-this specification. They are normative inputs to a future conformance runner;
-they are not executable strict-parser tests yet.
+The fixtures under [`test/jcs/`](../../test/jcs/README.md) are part of this
+specification. The strict positive and negative fixtures are now executed by
+conformance runners against the non-production strict implementation; they
+remain the independent oracle and are not derived from implementation output.
 
 ---
 
@@ -41,7 +43,7 @@ they are not executable strict-parser tests yet.
 | Profile id             | Meaning                                                       | Current status |
 |------------------------|---------------------------------------------------------------|----------------|
 | `atb-jcs-legacy-1`     | Byte-frozen behaviour of the serialisers shipped at `a7837e2`. | In production  |
-| `atb-jcs-rfc8785-1`    | Strict RFC 8785 profile with the ATB restrictions in §5.      | Specification  |
+| `atb-jcs-rfc8785-1`    | Strict RFC 8785 profile with the ATB restrictions in §5.      | Non-production implementation |
 
 The legacy profile id is descriptive: it names the behaviour that existing
 bundles already depend on. It does not imply that the legacy serialisers are
@@ -141,21 +143,43 @@ together:
   - the shortest round-tripping representation.
 - Trailing data after the top-level JSON value is rejected.
 
+### 4.4 Nesting depth
+
+Array, object, struct, map, and pointer nesting is bounded to a maximum depth of
+512. Input that nests more deeply — including through pointer chains in
+value-mode input — is rejected with `depth_limit` rather than risking stack
+exhaustion.
+
 ---
 
 ## 5. Conservative safe-integer policy
 
 The strict profile imposes an ATB interoperability restriction on plain integer
-literals: reject a numeric token written without a fraction or exponent (an
+tokens: reject a numeric token written without a fraction or exponent (an
 optional minus sign followed only by digits) whose exact integer magnitude is
 greater than 2^53 - 1 with `number_out_of_policy`; reject `NaN`, `Infinity`,
 and `-Infinity` with `non_finite_number`; reject numeric tokens that parse to a
 non-finite binary64 with `number_unrepresentable`. Numbers written with a
-fraction or exponent are binary64 values governed by §4.3; the integer-literal
-restriction does not apply to them. For example, `1e20` is accepted, while
-`9007199254740993` is rejected. This is an ATB interoperability restriction for
-new strict-profile input, not a claim that RFC 8785 universally rejects larger
-numbers.
+fraction or exponent are binary64 values governed by §4.3 and are not subject to
+that token restriction; for example, `1e20` is accepted, while the plain integer
+token `9007199254740993` is rejected. This is an ATB interoperability
+restriction for new strict-profile input, not a claim that RFC 8785 universally
+rejects larger numbers. Because accepted fraction/exponent literals are not
+subject to the token restriction, an accepted exponent form such as `1e20` can
+canonicalise to a plain integer token outside the policy
+(`100000000000000000000`), which a fresh strict parse of that output would
+reject as `number_out_of_policy`; strict output is therefore not guaranteed to
+be re-accepted as fresh raw input. This is a known v1 limitation; resolving it
+requires a versioned policy decision, not a silent tightening of the current
+profile.
+
+Value-mode input has parallel distinctions. Dynamic JSON fragments (`json.Number`
+in Go, `json.RawMessage`, and custom `json.Marshaler` or
+`encoding.TextMarshaler` implementations) are strictly validated through the
+same parser, so they cannot smuggle non-finite, out-of-policy, or invalid-UTF-8
+values past the value API. Host-language type differences still remain: integer
+and float types differ between Go, Python, and TypeScript, and a value accepted
+by one language's value API is not automatically accepted by another's.
 
 ---
 
@@ -170,9 +194,10 @@ A strict-profile parser reports exactly one of the following stable classes:
 | `lone_surrogate`        | An escape produces an unpaired UTF-16 surrogate.                          |
 | `trailing_data`         | Non-whitespace data follows the top-level JSON value.                     |
 | `non_finite_number`     | The input denotes `NaN` or an infinity.                                   |
-| `number_out_of_policy`  | Integer-valued literal outside the safe-integer policy in §5.             |
+| `number_out_of_policy`  | Plain integer token outside the safe-integer policy in §5.                |
 | `number_unrepresentable`| Numeric literal that cannot be represented as a finite binary64 value.    |
 | `invalid_json`          | The input is not syntactically valid JSON for another reason.             |
+| `depth_limit`           | Array, object, struct, map, or pointer nesting exceeds 512 levels.        |
 | `missing_profile`       | Manifest v4 does not declare `canonical_profile`.                         |
 | `unsupported_profile`   | Manifest v4 declares an unknown or unsupported profile id.                |
 
@@ -180,9 +205,35 @@ A strict-profile parser reports exactly one of the following stable classes:
 remaining classes are payload validation errors. Both sets are fail-closed.
 
 Negative fixtures for the payload classes are authored in
-[`test/jcs/strict_negative_vectors.json`](../../test/jcs/strict_negative_vectors.json).
-They are not executed against a strict parser in this revision because none
-exists.
+[`test/jcs/strict_negative_vectors.json`](../../test/jcs/strict_negative_vectors.json)
+and are executed by the strict conformance runners in Go, Python, and
+TypeScript. The declared classes are authored independently of the
+implementation and are not derived from implementation output.
+
+### 6.1 Error precedence and cross-language caveats
+
+- Object member-value errors are reported before a duplicate-key rejection for
+  that same member; earlier errors win by left-to-right order.
+- Go and TypeScript generally report the first left-to-right error. Python's
+  stdlib-based parser pre-scans depth and non-finite token boundaries and
+  post-checks lone surrogates, so an input containing multiple independent
+  defects can receive a different class; all such inputs are still rejected
+  fail-closed. Shared vectors pin single-defect cases and the object-member
+  precedence cases.
+- Raw APIs differ by input representation: invalid UTF-8 bytes are
+  `invalid_utf8`; a host string that already contains a lone surrogate can be
+  `lone_surrogate` (TypeScript) or `invalid_json` (Python) depending on the
+  decoder. Cross-language byte comparisons should use byte inputs.
+- Value-mode depth counts pointer/struct levels as well as arrays/objects/maps;
+  raw mode counts only JSON containers. A value exactly at the limit can
+  therefore be rejected in value mode while its marshalled bytes are accepted by
+  raw mode. This is a documented API asymmetry, not a canonical-byte difference
+  for accepted inputs.
+- Custom `json.Marshaler`/`TextMarshaler` implementations are invoked once for
+  validation and again by the host serialiser, so they must be deterministic; a
+  non-deterministic marshaler can otherwise pass validation and emit different
+  bytes. If a custom marshaler cannot be interfaced for validation, the Go value
+  API fails closed with `invalid_json`.
 
 ---
 
@@ -232,24 +283,32 @@ and the current-reader acceptance test in
 
 ---
 
-## 8. Migration acceptance prerequisites
+## 8. Migration acceptance status
 
-Before any production switching, all of the following must land as explicit,
-separately reviewed changes:
+Each item below must land as an explicit, separately reviewed change. Items 1,
+5, and 7 are complete for the isolated non-production increment; items 2, 3, 4,
+and 6 are still required before any production switching.
 
-1. A strict canonicaliser implementing §4–§6, with a conformance runner that
-   executes the positive and negative fixtures in `test/jcs/`.
-2. A manifest-v4 writer path that is opt-in and emits `canonical_profile`.
-3. Reader/verifier dispatch that selects the profile by declaration only and
-   fails closed for missing/unknown profiles.
-4. A deliberate `ManifestVersionMax` bump to `4`, with the forward-compatibility
-   guard updated in the same change.
-5. Cross-language strict-profile parity for Go, Python, and TypeScript, with new
-   strict vectors authored independently of any ATB canonicaliser.
-6. A `CHANGELOG.md` entry and the version-bump treatment required by
-   `VERSIONING.md`.
-7. Confirmation that no existing golden vector, fixture, legacy hash, or
-   signature pre-image changes.
+1. **Complete (isolated increment).** A strict canonicaliser implementing §4–§6,
+   with a conformance runner that executes the positive and negative fixtures in
+   `test/jcs/`.
+2. **Still required before production switching.** A manifest-v4 writer path
+   that is opt-in and emits `canonical_profile`.
+3. **Still required before production switching.** Reader/verifier dispatch that
+   selects the profile by declaration only and fails closed for missing/unknown
+   profiles.
+4. **Still required before production switching.** A deliberate
+   `ManifestVersionMax` bump to `4`, with the forward-compatibility guard
+   updated in the same change.
+5. **Complete (isolated increment).** Cross-language strict-profile parity for
+   Go, Python, and TypeScript across the shared strict vectors and supported byte
+   inputs, with new strict vectors authored independently of any ATB
+   canonicaliser. This is not universal parity: the multi-error and host-string
+   caveats in §6.1 remain.
+6. **Still required before production switching.** A `CHANGELOG.md` entry and
+   the version-bump treatment required by `VERSIONING.md`.
+7. **Complete (isolated increment).** Confirmation that no existing golden
+   vector, fixture, legacy hash, or signature pre-image changes.
 
 ---
 
@@ -263,12 +322,16 @@ In this revision:
   `jcs.MarshalRawRFC8785`, and `jcs.StrictErrorClass`.
 - The strict profile is **not** wired into hashing, manifest-v4 issuance or
   acceptance, or verifier dispatch.
+- The strict implementation bounds nesting depth (including pointer traversal),
+  detects cyclic values, strictly validates dynamic JSON values (`json.Number`,
+  `json.RawMessage`, and custom marshalers), and defines duplicate-key versus
+  member-value error precedence.
 - `ManifestVersionMax` is `3`; manifest v4 is not issued or accepted.
 - No production canonicaliser, hasher, manifest writer/parser, or verifier
   dispatch has changed.
-- The conformance tests execute the step-1 positive and negative vectors in
+- The conformance tests execute the positive and negative vectors in
   [`test/jcs/`](../../test/jcs/README.md) against the strict entry points.
 
 The next step is to add the manifest-v4 writer and declaration-only reader
-dispatch, then bump `ManifestVersionMax` and establish cross-language parity,
-without changing legacy behaviour.
+dispatch, then bump `ManifestVersionMax`, without changing legacy behaviour.
+Production switching remains blocked on the remaining items in §8.
