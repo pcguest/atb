@@ -200,6 +200,19 @@ def test_trailing_data() -> None:
     assert _error_class(b'{"a":1} {"b":2}') == "trailing_data"
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [b"1.5e", b"1.5e+", b"-1.5E"],
+    ids=[
+        "fraction-then-exponent",
+        "fraction-then-signed-exponent",
+        "negative-fraction-then-exponent",
+    ],
+)
+def test_incomplete_fraction_exponent_is_invalid_json(raw: bytes) -> None:
+    assert _error_class(raw) == "invalid_json"
+
+
 def test_overflowing_exponent_is_unrepresentable() -> None:
     assert _error_class(b'{"n":1e999}') == "number_unrepresentable"
 

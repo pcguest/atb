@@ -475,7 +475,7 @@ func emitsQuotedValue(field reflect.StructField, tag string, v reflect.Value) bo
 		return false
 	}
 	t := field.Type
-	if t.Kind() == reflect.Pointer {
+	if t.Kind() == reflect.Pointer && t.Name() == "" {
 		t = t.Elem()
 	}
 	switch t.Kind() {

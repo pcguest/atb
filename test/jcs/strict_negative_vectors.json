@@ -166,6 +166,13 @@
       "notes": "An exponent marker without exponent digits is malformed JSON."
     },
     {
+      "id": "neg-number-incomplete-exponent-fraction",
+      "category": "invalid_json",
+      "input_utf8_hex": "312e3565",
+      "expected_error": "invalid_json",
+      "notes": "A fraction followed by an exponent marker without exponent digits is malformed JSON."
+    },
+    {
       "id": "neg-number-second-value",
       "category": "trailing_data",
       "input_utf8_hex": "312d32",

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -180,6 +181,9 @@ func TestCanonicalizeErrors(t *testing.T) {
 		{"overflowing exponent", []byte(`{"n":1e999}`), ClassNumberUnrepresentable},
 		{"overflowing plain integer exponent", []byte(`{"n":1E999}`), ClassNumberUnrepresentable},
 		{"leading zero", []byte(`{"n":01}`), ClassInvalidJSON},
+		{"incomplete fraction exponent", []byte(`1.5e`), ClassInvalidJSON},
+		{"incomplete fraction exponent sign", []byte(`1.5e+`), ClassInvalidJSON},
+		{"incomplete negative fraction exponent", []byte(`-1.5E`), ClassInvalidJSON},
 		{"trailing comma object", []byte(`{"a":1,}`), ClassInvalidJSON},
 		{"trailing comma array", []byte(`[1,]`), ClassInvalidJSON},
 		{"unquoted key", []byte(`{a:1}`), ClassInvalidJSON},
@@ -561,6 +565,117 @@ func TestCanonicalizeValueStringOptionNumeric(t *testing.T) {
 	}
 	if want := `{"n":"9007199254740993"}`; string(raw) != want {
 		t.Fatalf("encoding/json = %s, want %s", raw, want)
+	}
+
+	got, err := CanonicalizeValue(value)
+	if err != nil {
+		t.Fatalf("CanonicalizeValue: %v", err)
+	}
+	if want := `{"n":"9007199254740993"}`; string(got) != want {
+		t.Fatalf("CanonicalizeValue = %q, want %q", got, want)
+	}
+}
+
+// namedIntPointer is a named pointer type. encoding/json follows a pointer
+// field type for the ",string" option only when the pointer type is unnamed
+// (it gates on the field type's Name() being empty), so a named pointer is not
+// a quoted primitive: it is emitted as a bare number and must still be
+// validated.
+type namedIntPointer *int64
+
+// namedLargeJSONPointer is a named pointer to a type with a custom JSON
+// marshaler. encoding/json invokes the element's marshaler and emits its bare
+// output, so the value must not be skipped as a quoted primitive.
+type namedLargeJSONPointer *largeJSONInt
+
+// largeJSONInt emits a plain integer outside the safe-integer policy through
+// its custom marshaler.
+type largeJSONInt int64
+
+func (largeJSONInt) MarshalJSON() ([]byte, error) {
+	return []byte("9007199254740993"), nil
+}
+
+func TestCanonicalizeValueStringOptionNamedPointer(t *testing.T) {
+	const large = int64(9007199254740993)
+
+	t.Run("named pointer emits bare number", func(t *testing.T) {
+		n := large
+		type payload struct {
+			N namedIntPointer `json:"n,string"`
+		}
+		value := payload{N: namedIntPointer(&n)}
+
+		raw, err := json.Marshal(value)
+		if err != nil {
+			t.Fatalf("encoding/json rejects the fixture: %v", err)
+		}
+		switch string(raw) {
+		case `{"n":"9007199254740993"}`:
+			// Go 1.27's encoding/json/v2 follows the "string" option through the
+			// named pointer type and quotes the value, unlike the pinned Go
+			// 1.26.10 behaviour. The fixture is then a quoted primitive, so this
+			// test does not apply. Skip rather than assert rejection: the strict
+			// walk correctly accepts a quoted value, and the bare-number policy
+			// path remains covered under the pinned toolchain.
+			t.Skip("Go 1.27 jsonv2 quotes named pointers; repository pins Go 1.26.10")
+		case `{"n":9007199254740993}`:
+			// The pinned toolchain follows only an unnamed pointer field type
+			// when applying the "string" option, so the named pointer is emitted
+			// as a bare number and the strict walk must reject the out-of-policy
+			// integer.
+			if emitsQuotedValue(reflect.TypeOf(value).Field(0), "n,string", reflect.ValueOf(value.N)) {
+				t.Fatal("named pointer field must not be treated as a quoted primitive")
+			}
+
+			_, err = CanonicalizeValue(value)
+			if got := ErrorClass(err); got != ClassNumberOutOfPolicy {
+				t.Fatalf("ErrorClass = %q, want %q (%v)", got, ClassNumberOutOfPolicy, err)
+			}
+		default:
+			t.Fatalf("encoding/json = %s, want %s or %s", raw, `{"n":9007199254740993}`, `{"n":"9007199254740993"}`)
+		}
+	})
+
+	t.Run("named pointer to custom marshaler emits bare number", func(t *testing.T) {
+		n := largeJSONInt(large)
+		type payload struct {
+			N namedLargeJSONPointer `json:"n,string"`
+		}
+		value := payload{N: namedLargeJSONPointer(&n)}
+
+		raw, err := json.Marshal(value)
+		if err != nil {
+			t.Fatalf("encoding/json rejects the fixture: %v", err)
+		}
+		if want := `{"n":9007199254740993}`; string(raw) != want {
+			t.Fatalf("encoding/json = %s, want %s", raw, want)
+		}
+
+		_, err = CanonicalizeValue(value)
+		if got := ErrorClass(err); got != ClassNumberOutOfPolicy {
+			t.Fatalf("ErrorClass = %q, want %q (%v)", got, ClassNumberOutOfPolicy, err)
+		}
+	})
+}
+
+func TestCanonicalizeValueStringOptionUnnamedPointer(t *testing.T) {
+	const large = int64(9007199254740993)
+	n := large
+	type payload struct {
+		N *int64 `json:"n,string"`
+	}
+	value := payload{N: &n}
+
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("encoding/json rejects the fixture: %v", err)
+	}
+	if want := `{"n":"9007199254740993"}`; string(raw) != want {
+		t.Fatalf("encoding/json = %s, want %s", raw, want)
+	}
+	if !emitsQuotedValue(reflect.TypeOf(value).Field(0), "n,string", reflect.ValueOf(value.N)) {
+		t.Fatal("unnamed pointer field must be treated as a quoted primitive")
 	}
 
 	got, err := CanonicalizeValue(value)

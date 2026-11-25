@@ -291,8 +291,12 @@ def _malformed_number_continuation(text: str, end: int) -> bool:
     token = match.group(0)
     if token in ("0", "-0") and nxt.isdigit():
         return True
-    if "." not in token and "e" not in token and "E" not in token:
-        if nxt in (".", "e", "E"):
+    if "e" not in token and "E" not in token:
+        if nxt in ("e", "E"):
+            # A fraction followed by an exponent marker without exponent
+            # digits is a continued malformed token, not trailing data.
+            return True
+        if "." not in token and nxt == ".":
             return True
     return False
 
