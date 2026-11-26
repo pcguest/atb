@@ -103,9 +103,7 @@ def _path(tmp_path: Path, records: list[Record], name: str = "bundle.atb") -> Pa
         ),
     ],
 )
-def test_legacy_manifests_are_accepted(
-    tmp_path: Path, manifest_data: object
-) -> None:
+def test_legacy_manifests_are_accepted(tmp_path: Path, manifest_data: object) -> None:
     path = _path(tmp_path, _chain([_manifest(manifest_data), _event()]))
 
     loaded = Bundle.load(path)
@@ -224,9 +222,7 @@ def test_unsupported_version_is_catchable_as_atb_error(tmp_path: Path) -> None:
 def test_v4_decrypt_is_rejected_before_legacy_verification() -> None:
     records = _chain(
         [
-            _manifest(
-                {"version": 4, "created_at": CREATED_AT, "bundle_id": BUNDLE_ID}
-            ),
+            _manifest({"version": 4, "created_at": CREATED_AT, "bundle_id": BUNDLE_ID}),
             _event(),
         ]
     )
@@ -250,9 +246,7 @@ def test_max_manifest_version_matches_go() -> None:
 def test_v4_with_signature_rejects_load_and_signatures(tmp_path: Path) -> None:
     records = _chain(
         [
-            _manifest(
-                {"version": 4, "created_at": CREATED_AT, "bundle_id": BUNDLE_ID}
-            ),
+            _manifest({"version": 4, "created_at": CREATED_AT, "bundle_id": BUNDLE_ID}),
             _event(),
             _signature(),
         ]

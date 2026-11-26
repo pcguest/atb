@@ -22,14 +22,18 @@ def _target_index(with_manifest: bool) -> int:
     return 1 if with_manifest else 0
 
 
-@pytest.mark.parametrize("with_manifest", [True, False], ids=["manifest", "no-manifest"])
+@pytest.mark.parametrize(
+    "with_manifest", [True, False], ids=["manifest", "no-manifest"]
+)
 def test_valid_bundle_still_verifies(with_manifest: bool) -> None:
     bundle = _make_bundle(with_manifest)
 
     assert bundle.verify()["signatures"] == []
 
 
-@pytest.mark.parametrize("with_manifest", [True, False], ids=["manifest", "no-manifest"])
+@pytest.mark.parametrize(
+    "with_manifest", [True, False], ids=["manifest", "no-manifest"]
+)
 @pytest.mark.parametrize("field", ["seq", "prev_hash"])
 def test_mutated_chain_field_is_rejected(with_manifest: bool, field: str) -> None:
     bundle = _make_bundle(with_manifest)
@@ -47,7 +51,9 @@ def test_mutated_chain_field_is_rejected(with_manifest: bool, field: str) -> Non
         bundle.verify()
 
 
-@pytest.mark.parametrize("with_manifest", [True, False], ids=["manifest", "no-manifest"])
+@pytest.mark.parametrize(
+    "with_manifest", [True, False], ids=["manifest", "no-manifest"]
+)
 @pytest.mark.parametrize("field", ["seq", "prev_hash"])
 def test_missing_chain_field_is_rejected(with_manifest: bool, field: str) -> None:
     bundle = _make_bundle(with_manifest)
@@ -59,7 +65,9 @@ def test_missing_chain_field_is_rejected(with_manifest: bool, field: str) -> Non
         bundle.verify()
 
 
-@pytest.mark.parametrize("with_manifest", [True, False], ids=["manifest", "no-manifest"])
+@pytest.mark.parametrize(
+    "with_manifest", [True, False], ids=["manifest", "no-manifest"]
+)
 def test_mutating_both_chain_fields_is_rejected(with_manifest: bool) -> None:
     bundle = _make_bundle(with_manifest)
     event = bundle.records[_target_index(with_manifest)].event
@@ -117,9 +125,7 @@ def test_duplicate_chain_key_is_the_acceptance_delta(
         replacement = f'{needle},"prev_hash":"{duplicate_value}"'
     tampered_event_json = event_json.replace(needle, replacement, 1)
     assert tampered_event_json != event_json
-    lines[1] = (
-        '{"event":' + tampered_event_json + ',"hash":"' + expected_hash + '"}'
-    )
+    lines[1] = '{"event":' + tampered_event_json + ',"hash":"' + expected_hash + '"}'
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     loaded = Bundle.load(path)
