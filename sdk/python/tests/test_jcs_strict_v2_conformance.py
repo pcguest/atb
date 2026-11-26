@@ -62,16 +62,14 @@ def test_v2_positive_vectors(case: dict[str, Any]) -> None:
 @pytest.mark.parametrize("case", V2_NEGATIVE["cases"], ids=lambda case: case["id"])
 def test_v2_negative_vectors(case: dict[str, Any]) -> None:
     assert (
-        _raw_v2_error(bytes.fromhex(case["input_utf8_hex"]))
-        == case["expected_error"]
+        _raw_v2_error(bytes.fromhex(case["input_utf8_hex"])) == case["expected_error"]
     )
 
 
 @pytest.mark.parametrize("case", V1_NEGATIVE["cases"], ids=lambda case: case["id"])
 def test_v1_negative_vectors_remain_rejected_by_v2(case: dict[str, Any]) -> None:
     assert (
-        _raw_v2_error(bytes.fromhex(case["input_utf8_hex"]))
-        == case["expected_error"]
+        _raw_v2_error(bytes.fromhex(case["input_utf8_hex"])) == case["expected_error"]
     )
 
 

@@ -56,9 +56,7 @@ _NON_FINITE_FOLLOWERS = _WHITESPACE + ",]}"
 # A well-formed JSON number token, used to decide whether the characters after
 # a parsed top-level number continue that token (malformed JSON) or start a
 # separate value (trailing data).
-_NUMBER_TOKEN_RE = re.compile(
-    r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$"
-)
+_NUMBER_TOKEN_RE = re.compile(r"-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$")
 
 _ESCAPE_MAP = {
     '"': '\\"',
@@ -493,9 +491,7 @@ def _serialize(
             )
         return str(value)
     if isinstance(value, float):
-        return _format_float(
-            value, enforce_output_policy=enforce_output_policy
-        )
+        return _format_float(value, enforce_output_policy=enforce_output_policy)
     if isinstance(value, str):
         return _encode_string(value)
     if isinstance(value, (list, tuple)):

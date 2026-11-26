@@ -328,9 +328,7 @@ def test_value_mode_rejects_indirect_cycle() -> None:
 
 def test_value_mode_accepts_shared_non_cyclic_references() -> None:
     shared_object = {"a": 1}
-    assert canonicalize_strict([shared_object, shared_object]) == (
-        b'[{"a":1},{"a":1}]'
-    )
+    assert canonicalize_strict([shared_object, shared_object]) == (b'[{"a":1},{"a":1}]')
     shared_list = [1]
     assert canonicalize_strict([shared_list, shared_list]) == b"[[1],[1]]"
 
