@@ -1,0 +1,24 @@
+{
+  "schema": "atb.jcs.numeric-parity-cases.v1",
+  "profile": "atb-jcs-rfc8785-1-and-rfc8785-2",
+  "status": "frozen",
+  "expectation_source": "Authored from the reviewer's F6 finding and the frozen legacy implementations at ATB a7837e2. Legacy values are not regenerated; strict values describe the atb-jcs-rfc8785-1 and atb-jcs-rfc8785-2 shared ES6 number form.",
+  "cases": [
+    {
+      "id": "parity-1e-6-legacy-vs-strict",
+      "profile": "atb-jcs-rfc8785-1-and-rfc8785-2",
+      "input_utf8_hex": "7b226e223a31652d367d",
+      "legacy_expected": {
+        "go": "7b226e223a302e3030303030317d",
+        "python": "7b226e223a31652d30367d",
+        "typescript": "7b226e223a302e3030303030317d"
+      },
+      "strict_expected": {
+        "go": "7b226e223a302e3030303030317d",
+        "python": "7b226e223a302e3030303030317d",
+        "typescript": "7b226e223a302e3030303030317d"
+      },
+      "notes": "Frozen legacy divergence: Go and TypeScript emit fixed notation for one millionth, while Python legacy emits 1e-06. The strict profiles agree on 0.000001 in all three languages. No legacy canonicaliser is changed."
+    }
+  ]
+}

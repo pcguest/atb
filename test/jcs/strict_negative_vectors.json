@@ -1,0 +1,295 @@
+{
+  "schema": "atb.jcs.strict-negative-vectors.v1",
+  "profile": "atb-jcs-rfc8785-1",
+  "status": "executable",
+  "expectation_source": "Rejection classes were authored independently from the strict profile specification, not derived from implementation output. The strict conformance runners now execute every case against the strict entry points.",
+  "cases": [
+    {
+      "id": "neg-duplicate-key",
+      "category": "duplicate_key",
+      "input_utf8_hex": "7b2261223a312c2261223a327d",
+      "expected_error": "duplicate_key",
+      "notes": "Identical member names at the same level."
+    },
+    {
+      "id": "neg-duplicate-key-escaped",
+      "category": "duplicate_key",
+      "input_utf8_hex": "7b2261223a312c225c7530303631223a327d",
+      "expected_error": "duplicate_key",
+      "notes": "Escaped member name unescapes to the same name as a literal member."
+    },
+    {
+      "id": "neg-duplicate-key-nested",
+      "category": "duplicate_key",
+      "input_utf8_hex": "7b2278223a7b226b223a312c226b223a327d7d",
+      "expected_error": "duplicate_key",
+      "notes": "Duplicate detection applies at every depth."
+    },
+    {
+      "id": "neg-invalid-utf8",
+      "category": "invalid_utf8",
+      "input_utf8_hex": "7b2273223a22c328227d",
+      "expected_error": "invalid_utf8",
+      "notes": "0xC3 0x28 is not a valid UTF-8 sequence; strict rejects rather than substituting U+FFFD."
+    },
+    {
+      "id": "neg-lone-surrogate-high",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "7b2273223a225c7564383030227d",
+      "expected_error": "lone_surrogate",
+      "notes": "Unpaired high surrogate escape."
+    },
+    {
+      "id": "neg-lone-surrogate-low",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "7b2273223a225c7564633030227d",
+      "expected_error": "lone_surrogate",
+      "notes": "Unpaired low surrogate escape."
+    },
+    {
+      "id": "neg-trailing-data",
+      "category": "trailing_data",
+      "input_utf8_hex": "7b2261223a317d207b2262223a327d",
+      "expected_error": "trailing_data",
+      "notes": "A second JSON value after the top-level value."
+    },
+    {
+      "id": "neg-non-finite-nan",
+      "category": "non_finite_number",
+      "input_utf8_hex": "7b226e223a4e614e7d",
+      "expected_error": "non_finite_number",
+      "notes": "NaN token is not valid JSON; strict names the non-finite rejection."
+    },
+    {
+      "id": "neg-non-finite-infinity",
+      "category": "non_finite_number",
+      "input_utf8_hex": "7b226e223a496e66696e6974797d",
+      "expected_error": "non_finite_number",
+      "notes": "Infinity token is not valid JSON; strict names the non-finite rejection."
+    },
+    {
+      "id": "neg-number-out-of-policy-2p53",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a393030373139393235343734303939327d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2^53 exceeds the conservative safe-integer interoperability limit (max 2^53-1)."
+    },
+    {
+      "id": "neg-number-out-of-policy-big",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a393030373139393235343734303939337d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2^53+1 is not exactly representable as an integer in binary64."
+    },
+    {
+      "id": "neg-number-unrepresentable",
+      "category": "number_unrepresentable",
+      "input_utf8_hex": "7b226e223a31653939397d",
+      "expected_error": "number_unrepresentable",
+      "notes": "Literal 1e999 overflows binary64."
+    },
+    {
+      "id": "neg-leading-zero",
+      "category": "invalid_json",
+      "input_utf8_hex": "7b226e223a30317d",
+      "expected_error": "invalid_json",
+      "notes": "Leading zero is not valid JSON."
+    },
+    {
+      "id": "neg-trailing-comma",
+      "category": "invalid_json",
+      "input_utf8_hex": "7b2261223a312c7d",
+      "expected_error": "invalid_json",
+      "notes": "Trailing comma is not valid JSON."
+    },
+    {
+      "id": "neg-top-level-leading-zero",
+      "category": "invalid_json",
+      "input_utf8_hex": "3031",
+      "expected_error": "invalid_json",
+      "notes": "A leading zero at top level is malformed JSON, not trailing data."
+    },
+    {
+      "id": "neg-plain-integer-negative-boundary",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "2d39303037313939323534373430393932",
+      "expected_error": "number_out_of_policy",
+      "notes": "-2^53 exceeds the conservative safe-integer interoperability limit."
+    },
+    {
+      "id": "neg-surrogate-pair-mismatch",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "225c75643830305c756438303022",
+      "expected_error": "lone_surrogate",
+      "notes": "A high surrogate followed by another high surrogate is an unpaired surrogate."
+    },
+    {
+      "id": "neg-unescaped-control",
+      "category": "invalid_json",
+      "input_utf8_hex": "220122",
+      "expected_error": "invalid_json",
+      "notes": "An unescaped U+0001 control character is not valid JSON string content."
+    },
+    {
+      "id": "neg-invalid-escape",
+      "category": "invalid_json",
+      "input_utf8_hex": "225c7822",
+      "expected_error": "invalid_json",
+      "notes": "\\x is not a valid JSON escape sequence."
+    },
+    {
+      "id": "neg-high-then-literal",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "225c75643833644122",
+      "expected_error": "lone_surrogate",
+      "notes": "A high surrogate escape followed by a literal character is unpaired."
+    },
+    {
+      "id": "neg-number-leading-dot",
+      "category": "invalid_json",
+      "input_utf8_hex": "2e35",
+      "expected_error": "invalid_json",
+      "notes": "A leading decimal point is not valid JSON."
+    },
+    {
+      "id": "neg-number-trailing-dot",
+      "category": "invalid_json",
+      "input_utf8_hex": "312e",
+      "expected_error": "invalid_json",
+      "notes": "A trailing decimal point without fraction digits is not valid JSON."
+    },
+    {
+      "id": "neg-number-missing-exponent",
+      "category": "invalid_json",
+      "input_utf8_hex": "3165",
+      "expected_error": "invalid_json",
+      "notes": "An exponent marker without exponent digits is malformed JSON."
+    },
+    {
+      "id": "neg-number-incomplete-exponent-fraction",
+      "category": "invalid_json",
+      "input_utf8_hex": "312e3565",
+      "expected_error": "invalid_json",
+      "notes": "A fraction followed by an exponent marker without exponent digits is malformed JSON."
+    },
+    {
+      "id": "neg-number-second-value",
+      "category": "trailing_data",
+      "input_utf8_hex": "312d32",
+      "expected_error": "trailing_data",
+      "notes": "A minus sign after a complete top-level number starts trailing data, not a continued token."
+    },
+    {
+      "id": "neg-number-second-dot",
+      "category": "trailing_data",
+      "input_utf8_hex": "312e322e33",
+      "expected_error": "trailing_data",
+      "notes": "A second decimal point after a complete top-level number is trailing data."
+    },
+    {
+      "id": "neg-number-exponent-second",
+      "category": "trailing_data",
+      "input_utf8_hex": "31653565",
+      "expected_error": "trailing_data",
+      "notes": "A second exponent marker after a complete top-level number is trailing data."
+    },
+    {
+      "id": "neg-lit-surrogate-invalid-utf8",
+      "category": "invalid_utf8",
+      "input_utf8_hex": "7b2273223a22eda080227d",
+      "expected_error": "invalid_utf8",
+      "notes": "UTF-8-encoded surrogate is malformed UTF-8, not an escape."
+    },
+    {
+      "id": "neg-overlong-utf8",
+      "category": "invalid_utf8",
+      "input_utf8_hex": "7b2273223a22c0af227d",
+      "expected_error": "invalid_utf8",
+      "notes": "An overlong UTF-8 encoding is malformed UTF-8."
+    },
+    {
+      "id": "neg-bom-prefix",
+      "category": "invalid_json",
+      "input_utf8_hex": "efbbbf7b2261223a317d",
+      "expected_error": "invalid_json",
+      "notes": "U+FEFF is not JSON whitespace; strict rejection is conservative."
+    },
+    {
+      "id": "neg-negative-infinity",
+      "category": "non_finite_number",
+      "input_utf8_hex": "7b226e223a2d496e66696e6974797d",
+      "expected_error": "non_finite_number",
+      "notes": "-Infinity is a non-finite number literal."
+    },
+    {
+      "id": "neg-low-high-surrogate",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "225c75444330305c754438303022",
+      "expected_error": "lone_surrogate",
+      "notes": "A low surrogate followed by a high surrogate does not form a valid pair."
+    },
+    {
+      "id": "neg-astral-escaped-duplicate",
+      "category": "duplicate_key",
+      "input_utf8_hex": "7b22f09f9880223a312c225c75443833445c7544453030223a327d",
+      "expected_error": "duplicate_key",
+      "notes": "A literal astral key and its escaped surrogate-pair form unescape to the same name."
+    },
+    {
+      "id": "neg-leading-plus",
+      "category": "invalid_json",
+      "input_utf8_hex": "2b31",
+      "expected_error": "invalid_json",
+      "notes": "A leading plus sign is not valid JSON."
+    },
+    {
+      "id": "neg-dup-precedence-unrepresentable",
+      "category": "number_unrepresentable",
+      "input_utf8_hex": "7b2261223a312c2261223a31653939397d",
+      "expected_error": "number_unrepresentable",
+      "notes": "Member value error takes precedence over duplicate key."
+    },
+    {
+      "id": "neg-dup-precedence-nonfinite",
+      "category": "non_finite_number",
+      "input_utf8_hex": "7b2261223a312c2261223a4e614e7d",
+      "expected_error": "non_finite_number",
+      "notes": "A non-finite member value takes precedence over duplicate key."
+    },
+    {
+      "id": "neg-dup-precedence-malformed",
+      "category": "invalid_json",
+      "input_utf8_hex": "7b2261223a312c2261223a7d",
+      "expected_error": "invalid_json",
+      "notes": "A malformed member value takes precedence over duplicate key."
+    },
+    {
+      "id": "neg-dup-precedence-lone-surrogate",
+      "category": "lone_surrogate",
+      "input_utf8_hex": "7b2261223a312c2261223a225c7564383030227d",
+      "expected_error": "lone_surrogate",
+      "notes": "A lone-surrogate member value takes precedence over duplicate key."
+    },
+    {
+      "id": "neg-nan-boundary",
+      "category": "invalid_json",
+      "input_utf8_hex": "4e614e78",
+      "expected_error": "invalid_json",
+      "notes": "NaN prefix with a bad token boundary is invalid JSON."
+    },
+    {
+      "id": "neg-infinity-boundary",
+      "category": "invalid_json",
+      "input_utf8_hex": "496e66696e69747978",
+      "expected_error": "invalid_json",
+      "notes": "Infinity prefix with a bad token boundary is invalid JSON."
+    },
+    {
+      "id": "neg-negative-overflow",
+      "category": "number_unrepresentable",
+      "input_utf8_hex": "2d3165393939",
+      "expected_error": "number_unrepresentable",
+      "notes": "Negative -1e999 overflows binary64."
+    }
+  ]
+}
