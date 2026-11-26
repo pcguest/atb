@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The npm release path now uses staged publishing with GitHub OIDC and npm 11.15.0 instead of a direct `npm publish`. The workflow stages the verified package for maintainer review and 2FA approval against a stage-only trusted publisher, so it no longer publishes the package publicly on its own. Package contents, tag, and version are unchanged.
 
 ### Fixed
+- Python and TypeScript SDKs now reject determinable manifest versions above the supported maximum with a distinct `UnsupportedManifestVersionError`; this includes numeric fractions above the maximum and strings whose leading decimal-digit run exceeds it. Python/TypeScript verification now validates each record's recorded `seq` and `prev_hash` rather than overwriting them, and `atb verify` exits 2 if any recorded signature is invalid, not only the latest. Go was already authoritative for the manifest-version ceiling and per-record chain-field checks.
 - `atb intercept` now binds its TCP listener synchronously before reporting success or printing proxy setup hints. A busy or invalid listen address returns exit code 3 (system error) with an error on stderr, without the stdout setup hints or a misleading "proxy listening" log. `Proxy.ListenAndServe` binds synchronously and shares the same serving path, and port 0 logs the actual bound address. No capture, bundle, or wire-format semantics change.
 
 ### Removed

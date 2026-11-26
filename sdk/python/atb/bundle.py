@@ -18,6 +18,7 @@ import binascii
 import contextlib
 import hashlib
 import json
+import math
 import os
 import re
 import secrets
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from atb.event import Event
-from atb.exceptions import ATBVerificationError
+from atb.exceptions import ATBError, ATBVerificationError
 from atb.hash import GENESIS_HASH, compute_hash
 
 #: Default bundle directory and file name.
@@ -40,6 +41,14 @@ BUNDLE_FILE = "bundle.atb"
 MANIFEST_EVENT_TYPE = "atb.bundle.manifest"
 SIGNATURE_EVENT_TYPE = "atb.bundle.signature"
 MANIFEST_VERSION = "1"
+#: Highest manifest version this SDK can read. Mirrors
+#: ``internal/bundle.ManifestVersionMax``. Versions above this are rejected
+#: before any hash or signature evidence is produced.
+MAX_MANIFEST_VERSION = 3
+# Reported for versions that are known to be unsupported but whose integer part
+# is not meaningful (non-finite numbers, oversized digit strings, or fractions
+# just above the maximum). It must be greater than MAX_MANIFEST_VERSION.
+_UNSUPPORTED_VERSION_SENTINEL = MAX_MANIFEST_VERSION + 1
 MAX_LINE_SIZE_BYTES = 16 * 1024 * 1024
 MAX_BUNDLE_SIZE_BYTES = 512 * 1024 * 1024
 MAX_BUNDLE_RECORDS = 1_000_000
@@ -66,6 +75,32 @@ class UnsupportedAlgorithmError(ValueError):
 
 class BundleResourceLimitError(ValueError):
     """Raised when a bundle exceeds a configured safe-loading limit."""
+
+
+class UnsupportedManifestVersionError(ATBError, ValueError):
+    """Raised when a bundle declares a manifest version this SDK cannot read.
+
+    This is deliberately not an :class:`~atb.exceptions.ATBVerificationError`:
+    the bundle may be intact, but this SDK is too old to interpret it. Callers
+    should upgrade the SDK rather than treat the bundle as tampered. It remains
+    catchable as :class:`~atb.exceptions.ATBError` and as ``ValueError``.
+
+    Args:
+        version: The determinable integer manifest version that is unsupported.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
+
+    def __init__(self, version: int) -> None:
+        self.version = version
+        super().__init__(
+            f"atb: unsupported manifest version {version}: "
+            "this bundle requires a newer version of the SDK"
+        )
 
 
 @dataclass
@@ -193,23 +228,46 @@ class Bundle:
         """Verify the integrity of the entire bundle.
 
         Raises:
+            UnsupportedManifestVersionError: If the manifest declares a version
+                newer than this SDK supports.
             ATBVerificationError: If any event's hash does not match the
-                recomputed value, indicating tampering.
+                recomputed value, indicating tampering, or if a record's stored
+                ``seq``/``prev_hash`` does not match its expected chain value.
         """
+        self._assert_supported_manifest_version()
         prev = GENESIS_HASH
         for i, record in enumerate(self.records):
             event = dict(record.event)
-            event["prev_hash"] = prev
+            stored_seq = record.event.get("seq")
+            stored_prev_hash = record.event.get("prev_hash")
             if i == 0 and self._has_manifest_record:
-                event["seq"] = 0
+                expected_seq = 0
             elif self._has_manifest_record:
-                event["seq"] = i
+                expected_seq = i
             else:
-                event["seq"] = i + 1
+                expected_seq = i + 1
+            event["prev_hash"] = prev
+            event["seq"] = expected_seq
             computed = compute_hash(event, prev)
+            if stored_seq != expected_seq:
+                raise ATBVerificationError(
+                    f"sequence mismatch at index {i}: expected seq "
+                    f"{expected_seq}, got seq {stored_seq!r}",
+                    event_index=i,
+                    expected_hash=record.hash,
+                    computed_hash=computed,
+                )
+            if stored_prev_hash != prev:
+                raise ATBVerificationError(
+                    f"prev_hash mismatch at index {i}: expected {prev}, "
+                    f"got {stored_prev_hash!r}",
+                    event_index=i,
+                    expected_hash=record.hash,
+                    computed_hash=computed,
+                )
             if computed != record.hash:
                 raise ATBVerificationError(
-                    f"Tamper detected at event {i + 1} (seq {event['seq']}): "
+                    f"Tamper detected at event {i + 1} (seq {expected_seq}): "
                     f"expected {record.hash!r}, computed {computed!r}",
                     event_index=i,
                     expected_hash=record.hash,
@@ -228,10 +286,13 @@ class Bundle:
             A list of signature evidence dictionaries.
 
         Raises:
+            UnsupportedManifestVersionError: If the manifest declares a version
+                newer than this SDK supports.
             UnsupportedAlgorithmError: If a signature record declares an
                 unsupported algorithm.
             OSError: If ``path`` is supplied and cannot be read.
         """
+        self._assert_supported_manifest_version()
         raw = self._signature_source_bytes(path)
         results: list[dict[str, Any]] = []
         for index, record in enumerate(self.records):
@@ -386,6 +447,7 @@ class Bundle:
                 )
             obj = json.loads(line.decode("utf-8"))
             bundle.records.append(Record(event=obj["event"], hash=obj["hash"]))
+        bundle._assert_supported_manifest_version()
         object.__setattr__(bundle, "_raw_bytes", raw)
         return bundle
 
@@ -403,10 +465,13 @@ class Bundle:
             Encrypted ATBE wire bytes.
 
         Raises:
+            UnsupportedManifestVersionError: If the manifest declares a version
+                newer than this SDK supports.
             ATBVerificationError: If the bundle does not verify before
                 encryption.
             ATBEncryptionError: If encryption fails.
         """
+        self._assert_supported_manifest_version()
         from atb.encrypt import encrypt_bundle
 
         return encrypt_bundle(self, password)
@@ -423,12 +488,16 @@ class Bundle:
             A verified ``Bundle``.
 
         Raises:
+            UnsupportedManifestVersionError: If the decrypted manifest declares
+                a version newer than this SDK supports.
             ATBDecryptionError: If authentication, decoding, or verification
                 fails.
         """
         from atb.encrypt import decrypt_bundle
 
-        return decrypt_bundle(password, data)
+        bundle = decrypt_bundle(password, data)
+        bundle._assert_supported_manifest_version()
+        return bundle
 
     # ------------------------------------------------------------------
     # Convenience
@@ -454,6 +523,24 @@ class Bundle:
             bool(self.records)
             and self.records[0].event.get("type") == MANIFEST_EVENT_TYPE
         )
+
+    def _assert_supported_manifest_version(self) -> None:
+        """Reject manifests that declare a version newer than this SDK reads.
+
+        A finite numeric version above the maximum, and a string whose leading
+        decimal-digit run is above the maximum, are rejected. A fractional
+        version just above the maximum is rejected even if truncation would be
+        supported. Absent or empty versions are legacy v1. Shapes without a
+        determinable leading integer are left to the existing verification path
+        rather than being reinterpreted here.
+
+        Raises:
+            UnsupportedManifestVersionError: If the version is greater than
+                :data:`MAX_MANIFEST_VERSION`.
+        """
+        version = _recorded_manifest_version(self.records)
+        if version is not None and version > MAX_MANIFEST_VERSION:
+            raise UnsupportedManifestVersionError(version)
 
     def _append_manifest(self) -> None:
         created_at = _now_rfc3339()
@@ -677,6 +764,74 @@ def _serialise_records(records: list[Record]) -> bytes:
         for record in records
     ]
     return b"".join(line + b"\n" for line in lines)
+
+
+def _recorded_manifest_version(records: list[Record]) -> int | None:
+    """Return a comparable manifest version, if one is determinable.
+
+    Returns 1 when there is no manifest record or the version field is absent
+    or empty. Returns a value greater than :data:`MAX_MANIFEST_VERSION` when
+    the recorded shape is determinable as unsupported. Returns ``None`` when
+    the recorded value is not determinable, so callers do not broaden parsing
+    or infer a version from payload shape.
+    """
+    if not records:
+        return 1
+    first = records[0].event
+    if first.get("type") != MANIFEST_EVENT_TYPE:
+        return 1
+
+    data = first.get("data")
+    if isinstance(data, str):
+        try:
+            parsed = json.loads(data)
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(parsed, dict):
+            return None
+        return _coerce_manifest_version(parsed.get("version"))
+    if isinstance(data, dict):
+        return _coerce_manifest_version(data.get("version"))
+    return None
+
+
+def _coerce_manifest_version(value: Any) -> int | None:
+    if value is None:
+        return 1
+    if isinstance(value, bool):
+        return None
+    if value == "":
+        return 1
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return _UNSUPPORTED_VERSION_SENTINEL
+        if value > MAX_MANIFEST_VERSION:
+            truncated = int(value)
+            # A fraction just above the maximum (e.g. 3.5) truncates to a
+            # supported integer, but the recorded value itself is still newer
+            # than this SDK supports, so report the sentinel.
+            if truncated > MAX_MANIFEST_VERSION:
+                return truncated
+            return _UNSUPPORTED_VERSION_SENTINEL
+        if value.is_integer():
+            return int(value)
+        return None
+    if isinstance(value, str):
+        # Mirror Go's Sscanf("%d") behaviour: trim surrounding whitespace and
+        # read the leading decimal-digit run, ignoring any suffix. A missing
+        # digit run remains non-determinable for legacy compatibility.
+        match = re.match(r"[0-9]+", value.strip())
+        if match is None:
+            return None
+        digits = match.group(0)
+        # Avoid Python's int-string conversion limit for pathologically long
+        # versions; any run this long is far above the supported maximum.
+        if len(digits) > 18:
+            return _UNSUPPORTED_VERSION_SENTINEL
+        return int(digits)
+    return None
 
 
 def _string_field(data: dict[str, Any], key: str) -> str:
