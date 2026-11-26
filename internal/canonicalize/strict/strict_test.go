@@ -1231,6 +1231,124 @@ func TestCanonicalizeValueFlattenedEmbeddedMarshaler(t *testing.T) {
 	})
 }
 
+func TestCanonicalizeV2OutputPolicy(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"1e20", `{"n":1e20}`, ClassNumberOutOfPolicy},
+		{"1e16", `{"n":1e16}`, ClassNumberOutOfPolicy},
+		{"2e16", `{"n":2e16}`, ClassNumberOutOfPolicy},
+		{"1e19", `{"n":1e19}`, ClassNumberOutOfPolicy},
+		{"2^53 fraction", `{"n":9007199254740992.0}`, ClassNumberOutOfPolicy},
+		{"2^60 fraction", `{"n":1152921504606846976.0}`, ClassNumberOutOfPolicy},
+		{"plain 10^21", `{"n":1000000000000000000000}`, ClassNumberOutOfPolicy},
+		{"1e21 exponential", `{"n":1e21}`, ""},
+		{"1e-6 fixed", `{"n":1e-6}`, ""},
+		{"safe integer", `{"n":9007199254740991}`, ""},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CanonicalizeV2([]byte(tt.input))
+			if tt.want != "" {
+				if err == nil {
+					t.Fatalf("CanonicalizeV2(%s) = %s, want %s", tt.input, got, tt.want)
+				}
+				if class := ErrorClass(err); class != tt.want {
+					t.Fatalf("ErrorClass = %q, want %q (%v)", class, tt.want, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("CanonicalizeV2(%s): %v", tt.input, err)
+			}
+			t.Logf("CanonicalizeV2(%s) = %s", tt.input, got)
+		})
+	}
+}
+
+func TestCanonicalizeV2ValuePolicy(t *testing.T) {
+	t.Run("v1 still accepts 1e20", func(t *testing.T) {
+		got, err := CanonicalizeValue(1e20)
+		if err != nil {
+			t.Fatalf("CanonicalizeValue(1e20): %v", err)
+		}
+		if want := "100000000000000000000"; string(got) != want {
+			t.Fatalf("CanonicalizeValue(1e20) = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("v2 rejects 1e20", func(t *testing.T) {
+		_, err := CanonicalizeValueV2(1e20)
+		if got := ErrorClass(err); got != ClassNumberOutOfPolicy {
+			t.Fatalf("ErrorClass = %q, want %q (%v)", got, ClassNumberOutOfPolicy, err)
+		}
+	})
+
+	t.Run("v2 accepts 1e21", func(t *testing.T) {
+		got, err := CanonicalizeValueV2(1e21)
+		if err != nil {
+			t.Fatalf("CanonicalizeValueV2(1e21): %v", err)
+		}
+		if want := "1e+21"; string(got) != want {
+			t.Fatalf("CanonicalizeValueV2(1e21) = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("v2 accepts 1e-6", func(t *testing.T) {
+		got, err := CanonicalizeValueV2(1e-6)
+		if err != nil {
+			t.Fatalf("CanonicalizeValueV2(1e-6): %v", err)
+		}
+		if want := "0.000001"; string(got) != want {
+			t.Fatalf("CanonicalizeValueV2(1e-6) = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("v2 accepts max safe integer", func(t *testing.T) {
+		got, err := CanonicalizeValueV2(int64(maxSafeIntegerInt64))
+		if err != nil {
+			t.Fatalf("CanonicalizeValueV2(max safe integer): %v", err)
+		}
+		if want := "9007199254740991"; string(got) != want {
+			t.Fatalf("CanonicalizeValueV2(max safe integer) = %q, want %q", got, want)
+		}
+	})
+}
+
+func TestCheckCanonicalOutputPolicy(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"max safe integer", "9007199254740991", ""},
+		{"negative max safe integer", "-9007199254740991", ""},
+		{"above max safe integer", "9007199254740992", ClassNumberOutOfPolicy},
+		{"below min safe integer", "-9007199254740992", ClassNumberOutOfPolicy},
+		{"fixed fraction", "0.000001", ""},
+		{"exponential", "1e+21", ""},
+		{"positive exponential", "1.5e+21", ""},
+	}
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			err := checkCanonicalOutputPolicy(tt.input)
+			if tt.want == "" {
+				if err != nil {
+					t.Fatalf("checkCanonicalOutputPolicy(%q): %v", tt.input, err)
+				}
+				return
+			}
+			if got := ErrorClass(err); got != tt.want {
+				t.Fatalf("ErrorClass = %q, want %q (%v)", got, tt.want, err)
+			}
+		})
+	}
+}
+
 func TestErrorClassUnknown(t *testing.T) {
 	if got := ErrorClass(nil); got != "" {
 		t.Fatalf("ErrorClass(nil) = %q, want empty", got)

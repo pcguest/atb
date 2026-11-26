@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 
-// Package strict implements the strict atb-jcs-rfc8785-1 canonicalisation
-// profile: RFC 8785 plus the ATB safe-integer interoperability restriction.
+// Package strict implements two strict JCS profiles: the frozen
+// atb-jcs-rfc8785-1 profile and the additive, non-production
+// atb-jcs-rfc8785-2 canonical-output-closed profile. Both apply RFC 8785 plus
+// ATB numerical interoperability restrictions.
 //
-// It is a new, non-production entry point. The legacy canonicaliser in
+// They are non-production entry points. The legacy canonicaliser in
 // internal/canonicalize, the hashing path, bundle issuance/verification, and
 // manifest dispatch do not call this package.
 package strict
@@ -73,12 +75,24 @@ func ErrorClass(err error) string {
 	return ""
 }
 
-// Canonicalize returns the strict canonical form of a single raw JSON value.
+// Canonicalize returns the frozen atb-jcs-rfc8785-1 canonical form of a single
+// raw JSON value.
 func Canonicalize(raw []byte) ([]byte, error) {
-	return canonicalize(raw, false)
+	return canonicalize(raw, false, false)
 }
 
-func canonicalize(raw []byte, valueMode bool) ([]byte, error) {
+// CanonicalizeV2 returns the non-production atb-jcs-rfc8785-2 canonical form
+// of a single raw JSON value. It retains the plain-integer input cap and also
+// rejects a canonical number output that is a plain integer outside
+// ±(2^53 - 1), including fixed-notation results such as 1e20.
+func CanonicalizeV2(raw []byte) ([]byte, error) {
+	return canonicalize(raw, false, true)
+}
+
+// canonicalize performs the shared strict parsing and serialisation. v1 passes
+// enforceOutputPolicy=false and v2 passes true; all other parser behaviour is
+// identical.
+func canonicalize(raw []byte, valueMode, enforceOutputPolicy bool) ([]byte, error) {
 	if !utf8.Valid(raw) {
 		return nil, &Error{
 			Class:   ClassInvalidUTF8,
@@ -87,7 +101,11 @@ func canonicalize(raw []byte, valueMode bool) ([]byte, error) {
 		}
 	}
 
-	p := &parser{data: raw, valueMode: valueMode}
+	p := &parser{
+		data:                raw,
+		valueMode:           valueMode,
+		enforceOutputPolicy: enforceOutputPolicy,
+	}
 	var buf bytes.Buffer
 	if err := p.parseValue(&buf); err != nil {
 		return nil, err
@@ -103,13 +121,25 @@ func canonicalize(raw []byte, valueMode bool) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// CanonicalizeValue marshals v with encoding/json and then strict-canonicalises
-// the result. Go integer values outside the safe-integer policy and non-finite
-// floats are rejected directly, so the plain-integer token policy is not
-// re-applied to the marshalled output (a finite float64 such as 1e20 marshals
-// as a plain integer token but is a valid binary64 value).
+// CanonicalizeValue marshals v with encoding/json and then applies the frozen
+// atb-jcs-rfc8785-1 rules. Go integer values outside the safe-integer policy
+// and non-finite floats are rejected directly, so the plain-integer token
+// policy is not re-applied to the marshalled output (a finite float64 such as
+// 1e20 marshals as a plain integer token but is a valid v1 binary64 value).
 func CanonicalizeValue(v any) ([]byte, error) {
-	if err := validateValue(v); err != nil {
+	return canonicalizeValue(v, false)
+}
+
+// CanonicalizeValueV2 marshals v with encoding/json and then applies the
+// atb-jcs-rfc8785-2 canonical-output-closed policy. Unlike v1, a finite value
+// such as 1e20 is rejected because its canonical output is a plain integer
+// outside ±(2^53 - 1).
+func CanonicalizeValueV2(v any) ([]byte, error) {
+	return canonicalizeValue(v, true)
+}
+
+func canonicalizeValue(v any, enforceOutputPolicy bool) ([]byte, error) {
+	if err := validateValue(v, enforceOutputPolicy); err != nil {
 		return nil, err
 	}
 	raw, err := json.Marshal(v)
@@ -123,7 +153,7 @@ func CanonicalizeValue(v any) ([]byte, error) {
 		}
 		return nil, err
 	}
-	return canonicalize(raw, true)
+	return canonicalize(raw, true, enforceOutputPolicy)
 }
 
 // isNonFiniteMarshalError reports whether err is encoding/json's rejection of a
@@ -170,11 +200,11 @@ type visit struct {
 // policy: integer values must fit the safe-integer range and float values must
 // be finite. Dynamic JSON fragments (json.Number, json.RawMessage and custom
 // marshalers) are validated by re-running the strict parser over their bytes.
-func validateValue(v any) error {
-	return validateReflect(reflect.ValueOf(v), make(map[visit]bool), 0)
+func validateValue(v any, enforceOutputPolicy bool) error {
+	return validateReflect(reflect.ValueOf(v), make(map[visit]bool), 0, enforceOutputPolicy)
 }
 
-func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
+func validateReflect(v reflect.Value, seen map[visit]bool, depth int, enforceOutputPolicy bool) error {
 	if !v.IsValid() {
 		return nil
 	}
@@ -187,14 +217,14 @@ func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
 
 	switch v.Type() {
 	case jsonNumberType:
-		return validateNumberLiteral(v.String())
+		return validateNumberLiteral(v.String(), enforceOutputPolicy)
 	case rawMessageType:
 		// json.Marshal encodes a nil RawMessage as null, while an empty
 		// non-nil RawMessage is still invalid.
 		if v.IsNil() {
 			return nil
 		}
-		return validateRawFragment(v.Bytes())
+		return validateRawFragment(v.Bytes(), enforceOutputPolicy)
 	}
 
 	if v.Kind() == reflect.Pointer {
@@ -202,7 +232,7 @@ func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
 			return nil
 		}
 		if hasCustomMarshaler(v) {
-			return validateCustomMarshaler(v)
+			return validateCustomMarshaler(v, enforceOutputPolicy)
 		}
 		key := visit{kind: reflect.Pointer, ptr: v.Pointer(), typ: v.Type()}
 		if seen[key] {
@@ -216,13 +246,13 @@ func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
 			return depthLimitError()
 		}
 		seen[key] = true
-		err := validateReflect(v.Elem(), seen, next)
+		err := validateReflect(v.Elem(), seen, next, enforceOutputPolicy)
 		delete(seen, key)
 		return err
 	}
 
 	if hasCustomMarshaler(v) {
-		return validateCustomMarshaler(v)
+		return validateCustomMarshaler(v, enforceOutputPolicy)
 	}
 
 	switch v.Kind() {
@@ -273,7 +303,7 @@ func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
 			defer delete(seen, key)
 		}
 		for i := 0; i < v.Len(); i++ {
-			if err := validateReflect(v.Index(i), seen, next); err != nil {
+			if err := validateReflect(v.Index(i), seen, next, enforceOutputPolicy); err != nil {
 				return err
 			}
 		}
@@ -283,7 +313,7 @@ func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
 			return depthLimitError()
 		}
 		for i := 0; i < v.Len(); i++ {
-			if err := validateReflect(v.Index(i), seen, next); err != nil {
+			if err := validateReflect(v.Index(i), seen, next, enforceOutputPolicy); err != nil {
 				return err
 			}
 		}
@@ -306,19 +336,19 @@ func validateReflect(v reflect.Value, seen map[visit]bool, depth int) error {
 			if err := validateMapKey(iter.Key()); err != nil {
 				return err
 			}
-			if err := validateReflect(iter.Value(), seen, next); err != nil {
+			if err := validateReflect(iter.Value(), seen, next, enforceOutputPolicy); err != nil {
 				return err
 			}
 		}
 	case reflect.Struct:
-		return validateStructFields(v, seen, depth)
+		return validateStructFields(v, seen, depth, enforceOutputPolicy)
 	}
 	return nil
 }
 
 // validateStructFields applies encoding/json's struct-field rules to v, which
 // must be a struct.
-func validateStructFields(v reflect.Value, seen map[visit]bool, depth int) error {
+func validateStructFields(v reflect.Value, seen map[visit]bool, depth int, enforceOutputPolicy bool) error {
 	next := depth + 1
 	if next > maxNestingDepth {
 		return depthLimitError()
@@ -360,12 +390,12 @@ func validateStructFields(v reflect.Value, seen map[visit]bool, depth int) error
 			// rather than short-circuiting on the embedded field's marshaler.
 			// This can over-reject when the promotion is unused, but it stays
 			// fail-closed: it may never under-reject.
-			if err := validateEmbeddedStructField(fieldValue, seen, next); err != nil {
+			if err := validateEmbeddedStructField(fieldValue, seen, next, enforceOutputPolicy); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := validateReflect(fieldValue, seen, next); err != nil {
+		if err := validateReflect(fieldValue, seen, next, enforceOutputPolicy); err != nil {
 			return err
 		}
 	}
@@ -377,7 +407,7 @@ func validateStructFields(v reflect.Value, seen map[visit]bool, depth int) error
 // marshaler promoted by the embedded type or flatten the embedded struct's
 // fields into the parent, validate both the marshaler output that could be used
 // and the embedded fields themselves.
-func validateEmbeddedStructField(v reflect.Value, seen map[visit]bool, depth int) error {
+func validateEmbeddedStructField(v reflect.Value, seen map[visit]bool, depth int, enforceOutputPolicy bool) error {
 	for v.Kind() == reflect.Interface {
 		if v.IsNil() {
 			return nil
@@ -393,7 +423,7 @@ func validateEmbeddedStructField(v reflect.Value, seen map[visit]bool, depth int
 			return nil
 		}
 		if hasCustomMarshaler(v) {
-			if err := validateCustomMarshaler(v); err != nil {
+			if err := validateCustomMarshaler(v, enforceOutputPolicy); err != nil {
 				return err
 			}
 		}
@@ -406,19 +436,19 @@ func validateEmbeddedStructField(v reflect.Value, seen map[visit]bool, depth int
 			return depthLimitError()
 		}
 		seen[key] = true
-		err := validateEmbeddedStructField(v.Elem(), seen, next)
+		err := validateEmbeddedStructField(v.Elem(), seen, next, enforceOutputPolicy)
 		delete(seen, key)
 		return err
 	}
 	if v.Kind() != reflect.Struct {
-		return validateReflect(v, seen, depth)
+		return validateReflect(v, seen, depth, enforceOutputPolicy)
 	}
 	if hasCustomMarshaler(v) {
-		if err := validateCustomMarshaler(v); err != nil {
+		if err := validateCustomMarshaler(v, enforceOutputPolicy); err != nil {
 			return err
 		}
 	}
-	return validateStructFields(v, seen, depth)
+	return validateStructFields(v, seen, depth, enforceOutputPolicy)
 }
 
 // isEmbeddedStructField reports whether field is an anonymous struct or
@@ -668,8 +698,9 @@ func depthLimitError() error {
 
 // validateNumberLiteral enforces the strict numeric policy on a json.Number
 // token. The token must be exactly one JSON number with no surrounding
-// whitespace; Canonicalize is then used to apply the numeric policy.
-func validateNumberLiteral(literal string) error {
+// whitespace; the appropriate profile parser is then used to apply the numeric
+// policy.
+func validateNumberLiteral(literal string, enforceOutputPolicy bool) error {
 	if literal == "" {
 		return &Error{Class: ClassInvalidJSON, Message: "empty number literal"}
 	}
@@ -682,7 +713,12 @@ func validateNumberLiteral(literal string) error {
 			return &Error{Class: ClassInvalidJSON, Message: "invalid number literal"}
 		}
 	}
-	_, err := Canonicalize([]byte(literal))
+	var err error
+	if enforceOutputPolicy {
+		_, err = CanonicalizeV2([]byte(literal))
+	} else {
+		_, err = Canonicalize([]byte(literal))
+	}
 	if ErrorClass(err) == ClassTrailingData {
 		// A json.Number must be exactly one number token. Trailing junk such as
 		// "1x", "1.2.3", or "1]" is malformed in value mode rather than a
@@ -694,7 +730,11 @@ func validateNumberLiteral(literal string) error {
 
 // validateRawFragment validates an embedded JSON fragment held in a
 // json.RawMessage. Empty or malformed bytes are reported as invalid_json.
-func validateRawFragment(raw []byte) error {
+func validateRawFragment(raw []byte, enforceOutputPolicy bool) error {
+	if enforceOutputPolicy {
+		_, err := CanonicalizeV2(raw)
+		return err
+	}
 	_, err := Canonicalize(raw)
 	return err
 }
@@ -707,7 +747,7 @@ func validateRawFragment(raw []byte) error {
 // encoding/json when CanonicalizeValue marshals the value, so it must be
 // deterministic. Its result is deliberately not cached or reused: doing so
 // would change encoding/json's public semantics for custom marshalers.
-func validateCustomMarshaler(v reflect.Value) error {
+func validateCustomMarshaler(v reflect.Value, enforceOutputPolicy bool) error {
 	if v.Kind() == reflect.Pointer && v.IsNil() {
 		return nil
 	}
@@ -722,7 +762,7 @@ func validateCustomMarshaler(v reflect.Value) error {
 	if v.CanAddr() && v.Addr().CanInterface() {
 		switch {
 		case pt.Implements(jsonMarshalerType):
-			return validateJSONMarshaler(v.Addr().Interface().(json.Marshaler))
+			return validateJSONMarshaler(v.Addr().Interface().(json.Marshaler), enforceOutputPolicy)
 		case pt.Implements(textMarshalerType):
 			return validateTextMarshaler(v.Addr().Interface().(encoding.TextMarshaler))
 		}
@@ -731,7 +771,7 @@ func validateCustomMarshaler(v reflect.Value) error {
 	if v.CanInterface() {
 		switch {
 		case t.Implements(jsonMarshalerType):
-			return validateJSONMarshaler(v.Interface().(json.Marshaler))
+			return validateJSONMarshaler(v.Interface().(json.Marshaler), enforceOutputPolicy)
 		case t.Implements(textMarshalerType):
 			return validateTextMarshaler(v.Interface().(encoding.TextMarshaler))
 		}
@@ -749,9 +789,13 @@ func validateCustomMarshaler(v reflect.Value) error {
 	return nil
 }
 
-func validateJSONMarshaler(m json.Marshaler) error {
+func validateJSONMarshaler(m json.Marshaler, enforceOutputPolicy bool) error {
 	raw, err := m.MarshalJSON()
 	if err != nil {
+		return err
+	}
+	if enforceOutputPolicy {
+		_, err = CanonicalizeV2(raw)
 		return err
 	}
 	_, err = Canonicalize(raw)
@@ -802,10 +846,11 @@ func firstInvalidUTF8(b []byte) int {
 }
 
 type parser struct {
-	data      []byte
-	pos       int
-	valueMode bool
-	depth     int
+	data                []byte
+	pos                 int
+	valueMode           bool
+	enforceOutputPolicy bool
+	depth               int
 }
 
 func (p *parser) errf(class, message string) error {
@@ -1207,7 +1252,39 @@ func (p *parser) parseNumber(buf *bytes.Buffer) error {
 		// Keep -0 out of the formatter; ES6 serialises both zeros as "0".
 		f = 0
 	}
-	buf.WriteString(formatNumber(f))
+	out := formatNumber(f)
+	if p.enforceOutputPolicy {
+		if err := checkCanonicalOutputPolicy(out); err != nil {
+			return err
+		}
+	}
+	buf.WriteString(out)
+	return nil
+}
+
+// checkCanonicalOutputPolicy implements the atb-jcs-rfc8785-2 output guard: a
+// canonical number written as a plain integer must stay within ±(2^53 - 1).
+// Exponential output is accepted even when its binary64 magnitude is larger
+// (for example 1e+21), because a fresh parse would not treat it as a plain
+// integer token.
+func checkCanonicalOutputPolicy(out string) error {
+	if strings.ContainsAny(out, ".eE") {
+		return nil
+	}
+	digits := strings.TrimPrefix(out, "-")
+	magnitude, ok := new(big.Int).SetString(digits, 10)
+	if !ok {
+		return &Error{
+			Class:   ClassInvalidJSON,
+			Message: "invalid canonical number output",
+		}
+	}
+	if magnitude.Cmp(maxSafeInteger) > 0 {
+		return &Error{
+			Class:   ClassNumberOutOfPolicy,
+			Message: "canonical number output is a plain integer exceeding 2^53 - 1",
+		}
+	}
 	return nil
 }
 

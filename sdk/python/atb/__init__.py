@@ -32,6 +32,8 @@ from atb.canonicalize_strict import (
     StrictCanonicalizationError,
     canonicalize_strict,
     canonicalize_strict_raw,
+    canonicalize_strict_raw_v2,
+    canonicalize_strict_v2,
 )
 from atb.data_export_gate import (
     DataExportApproval,
@@ -180,4 +182,6 @@ __all__ = [
     "StrictCanonicalizationError",
     "canonicalize_strict",
     "canonicalize_strict_raw",
+    "canonicalize_strict_v2",
+    "canonicalize_strict_raw_v2",
 ]

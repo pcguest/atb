@@ -1,0 +1,71 @@
+{
+  "schema": "atb.jcs.strict-negative-vectors.v1",
+  "profile": "atb-jcs-rfc8785-2",
+  "status": "executable",
+  "expectation_source": "Rejection classes were authored independently from the atb-jcs-rfc8785-2 canonical-output-closed specification, not derived from implementation output. Every case must reject with number_out_of_policy.",
+  "cases": [
+    {
+      "id": "neg-v2-1e20",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a316532307d",
+      "expected_error": "number_out_of_policy",
+      "notes": "1e20 is finite binary64, but its fixed-notation canonical output 100000000000000000000 is a plain integer outside ±(2^53-1)."
+    },
+    {
+      "id": "neg-v2-2p53-fraction",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a393030373139393235343734303939322e307d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2^53 written with a fraction is not saved by the input plain-token cap; its canonical output is the plain integer 9007199254740992, one above the policy maximum."
+    },
+    {
+      "id": "neg-v2-2p60-fraction",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a313135323932313530343630363834363937362e307d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2^60 written with a fraction canonicalises to a fixed-notation plain integer outside ±(2^53-1)."
+    },
+    {
+      "id": "neg-v2-2p55-fraction",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a33363032383739373031383936333936382e307d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2^55 written with a fraction canonicalises to the fixed-notation plain integer 36028797018963970, inside [2^53, 1e21) and outside ±(2^53-1)."
+    },
+    {
+      "id": "neg-v2-negative-2p53-fraction",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a2d393030373139393235343734303939322e307d",
+      "expected_error": "number_out_of_policy",
+      "notes": "Negative 2^53 written with a fraction canonicalises to -9007199254740992, pinning the lower side of the [−1e21, −2^53] rejection interval."
+    },
+    {
+      "id": "neg-v2-1e16",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a316531367d",
+      "expected_error": "number_out_of_policy",
+      "notes": "1e16 canonicalises to 10000000000000000, a plain integer outside the policy bound."
+    },
+    {
+      "id": "neg-v2-2e16",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a326531367d",
+      "expected_error": "number_out_of_policy",
+      "notes": "2e16 canonicalises to 20000000000000000, a plain integer outside the policy bound."
+    },
+    {
+      "id": "neg-v2-1e19",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a316531397d",
+      "expected_error": "number_out_of_policy",
+      "notes": "1e19 canonicalises to 10000000000000000000, a plain integer outside the policy bound."
+    },
+    {
+      "id": "neg-v2-plain-10e21",
+      "category": "number_out_of_policy",
+      "input_utf8_hex": "7b226e223a313030303030303030303030303030303030303030307d",
+      "expected_error": "number_out_of_policy",
+      "notes": "Plain 10^21 is rejected by the retained input plain-integer cap. This lexical asymmetry is intentional: 1e21 is accepted because its canonical output is exponential."
+    }
+  ]
+}

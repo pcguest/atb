@@ -1,14 +1,16 @@
-"""Strict ``atb-jcs-rfc8785-1`` JSON canonicalisation for the Python SDK.
+"""Strict JCS canonicalisation for the Python SDK.
 
-This module implements RFC 8785 JSON Canonicalization Scheme followed by ATB's
-safe-integer interoperability restriction. It is a new, non-production entry
-point; the legacy canonicaliser in :mod:`atb.canonicalize` and the hashing path
-do not use it.
+This module implements the frozen ``atb-jcs-rfc8785-1`` profile and the
+additive, non-production ``atb-jcs-rfc8785-2`` canonical-output-closed profile:
+RFC 8785 JSON Canonicalization Scheme followed by ATB's numerical
+interoperability restrictions. The legacy canonicaliser in
+:mod:`atb.canonicalize` and the hashing path do not use either entry point.
 
-The strict profile rejects duplicate object member names, invalid UTF-8,
-unpaired UTF-16 surrogates, trailing data, non-finite numbers, plain integer
-literals whose magnitude exceeds ``2**53 - 1``, and numbers that cannot be
-represented as a finite binary64 value.
+Both profiles reject duplicate object member names, invalid UTF-8, unpaired
+UTF-16 surrogates, trailing data, non-finite numbers, plain integer literals
+whose magnitude exceeds ``2**53 - 1``, and numbers that cannot be represented
+as a finite binary64 value. The v2 profile additionally rejects any finite
+binary64 whose canonical output is a plain integer outside ``±(2**53 - 1)``.
 """
 
 from __future__ import annotations
@@ -22,6 +24,8 @@ __all__ = [
     "StrictCanonicalizationError",
     "canonicalize_strict",
     "canonicalize_strict_raw",
+    "canonicalize_strict_v2",
+    "canonicalize_strict_raw_v2",
 ]
 
 _CLASS_DUPLICATE_KEY = "duplicate_key"
@@ -114,10 +118,34 @@ def canonicalize_strict(value: Any) -> bytes:
     return _serialize(value).encode("utf-8")
 
 
+def canonicalize_strict_v2(value: Any) -> bytes:
+    """Return the canonical ``atb-jcs-rfc8785-2`` encoding of a Python value.
+
+    This is an additive, non-production profile. It retains the v1
+    plain-integer input cap and additionally rejects a finite number whose
+    canonical output is a plain integer outside ``±(2**53 - 1)``.
+
+    Args:
+        value: JSON-compatible Python value. Supported types are ``None``,
+            booleans, safe integers, finite floats, strings without unpaired
+            surrogates, lists/tuples, and dictionaries with string keys.
+
+    Returns:
+        The canonical UTF-8 JSON bytes.
+
+    Raises:
+        StrictCanonicalizationError: If a number violates the v2 numeric
+            policy or a string contains an unpaired surrogate.
+        TypeError: If ``value`` contains an unsupported type or a non-string
+            object key.
+    """
+    return _serialize(value, enforce_output_policy=True).encode("utf-8")
+
+
 def canonicalize_strict_raw(
     data: bytes | bytearray | memoryview | str,
 ) -> bytes:
-    """Return the strict canonical form of one raw JSON document.
+    """Return the frozen ``atb-jcs-rfc8785-1`` canonical form of raw JSON.
 
     Args:
         data: UTF-8 bytes-like data, or an already-decoded string.
@@ -132,6 +160,39 @@ def canonicalize_strict_raw(
             numeric policy.
         TypeError: If ``data`` is neither bytes-like nor a string.
     """
+    return _canonicalize_raw(data, enforce_output_policy=False)
+
+
+def canonicalize_strict_raw_v2(
+    data: bytes | bytearray | memoryview | str,
+) -> bytes:
+    """Return the canonical ``atb-jcs-rfc8785-2`` form of one raw document.
+
+    This is an additive, non-production profile. It retains the v1
+    plain-integer input cap and additionally rejects a finite number whose
+    canonical output is a plain integer outside ``±(2**53 - 1)``.
+
+    Args:
+        data: UTF-8 bytes-like data, or an already-decoded string.
+
+    Returns:
+        The canonical UTF-8 JSON bytes.
+
+    Raises:
+        StrictCanonicalizationError: If the input is invalid UTF-8, is not
+            exactly one JSON value, contains duplicate member names or
+            unpaired surrogates, or contains a number rejected by the v2
+            numeric policy.
+        TypeError: If ``data`` is neither bytes-like nor a string.
+    """
+    return _canonicalize_raw(data, enforce_output_policy=True)
+
+
+def _canonicalize_raw(
+    data: bytes | bytearray | memoryview | str,
+    *,
+    enforce_output_policy: bool,
+) -> bytes:
     text = _decode_input(data)
     _check_nesting_depth(text)
     _check_non_finite_token_boundaries(text)
@@ -171,7 +232,9 @@ def canonicalize_strict_raw(
             "non-whitespace data follows the top-level JSON value",
         )
     _ensure_no_lone_surrogates(value)
-    return _serialize(value).encode("utf-8")
+    return _serialize(value, enforce_output_policy=enforce_output_policy).encode(
+        "utf-8"
+    )
 
 
 def _decode_input(data: bytes | bytearray | memoryview | str) -> str:
@@ -413,6 +476,8 @@ def _serialize(
     value: Any,
     depth: int = 0,
     seen: set[int] | None = None,
+    *,
+    enforce_output_policy: bool = False,
 ) -> str:
     if seen is None:
         seen = set()
@@ -428,7 +493,9 @@ def _serialize(
             )
         return str(value)
     if isinstance(value, float):
-        return _format_float(value)
+        return _format_float(
+            value, enforce_output_policy=enforce_output_policy
+        )
     if isinstance(value, str):
         return _encode_string(value)
     if isinstance(value, (list, tuple)):
@@ -436,12 +503,24 @@ def _serialize(
         try:
             parts: list[str] = []
             for item in value:
-                parts.append(_serialize(item, next_depth, seen))
+                parts.append(
+                    _serialize(
+                        item,
+                        next_depth,
+                        seen,
+                        enforce_output_policy=enforce_output_policy,
+                    )
+                )
             return "[" + ",".join(parts) + "]"
         finally:
             seen.discard(id(value))
     if isinstance(value, dict):
-        return _serialize_object(value, depth, seen)
+        return _serialize_object(
+            value,
+            depth,
+            seen,
+            enforce_output_policy=enforce_output_policy,
+        )
     raise TypeError(f"canonicalize_strict: unsupported type {type(value)!r}")
 
 
@@ -466,6 +545,8 @@ def _serialize_object(
     value: dict[Any, Any],
     depth: int = 0,
     seen: set[int] | None = None,
+    *,
+    enforce_output_policy: bool = False,
 ) -> str:
     if seen is None:
         seen = set()
@@ -482,9 +563,25 @@ def _serialize_object(
             prefix = f"{_encode_string(key)}:"
             item = value[key]
             if isinstance(item, dict):
-                parts.append(prefix + _serialize_object(item, next_depth, seen))
+                parts.append(
+                    prefix
+                    + _serialize_object(
+                        item,
+                        next_depth,
+                        seen,
+                        enforce_output_policy=enforce_output_policy,
+                    )
+                )
             else:
-                parts.append(prefix + _serialize(item, next_depth, seen))
+                parts.append(
+                    prefix
+                    + _serialize(
+                        item,
+                        next_depth,
+                        seen,
+                        enforce_output_policy=enforce_output_policy,
+                    )
+                )
         return "{" + ",".join(parts) + "}"
     finally:
         seen.discard(id(value))
@@ -524,7 +621,7 @@ def _utf16_units(value: str) -> tuple[int, ...]:
     return tuple(units)
 
 
-def _format_float(value: float) -> str:
+def _format_float(value: float, *, enforce_output_policy: bool = False) -> str:
     if not math.isfinite(value):
         raise StrictCanonicalizationError(
             _CLASS_NON_FINITE_NUMBER,
@@ -553,7 +650,21 @@ def _format_float(value: float) -> str:
         sign = "+" if exponent >= 0 else "-"
         out = f"{mantissa}e{sign}{abs(exponent)}"
 
-    return "-" + out if negative else out
+    formatted = "-" + out if negative else out
+    if enforce_output_policy:
+        _check_canonical_output_policy(formatted)
+    return formatted
+
+
+def _check_canonical_output_policy(formatted: str) -> None:
+    """Reject plain-integer canonical output outside the v2 policy bound."""
+    if "." in formatted or "e" in formatted or "E" in formatted:
+        return
+    if abs(int(formatted)) > _MAX_SAFE_INTEGER:
+        raise StrictCanonicalizationError(
+            _CLASS_NUMBER_OUT_OF_POLICY,
+            "canonical number output is a plain integer exceeding 2^53 - 1",
+        )
 
 
 def _shortest_decimal_parts(value: float) -> tuple[str, int]:

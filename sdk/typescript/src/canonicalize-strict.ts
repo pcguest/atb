@@ -1,8 +1,9 @@
 /**
- * Strict `atb-jcs-rfc8785-1` JSON canonicalisation.
+ * Strict JCS canonicalisation.
  *
- * This is a new, non-production entry point. It implements RFC 8785
- * canonicalisation plus the ATB safe-integer interoperability restriction.
+ * This module implements the frozen `atb-jcs-rfc8785-1` profile and the
+ * additive, non-production `atb-jcs-rfc8785-2` canonical-output-closed
+ * profile: RFC 8785 plus the ATB numerical interoperability restrictions.
  * The legacy `canonicalize` function is intentionally unchanged.
  */
 
@@ -24,13 +25,33 @@ export class StrictCanonicalizationError extends Error {
 }
 
 /**
- * Canonicalise a single raw JSON value.
+ * Canonicalise a single raw JSON value with the frozen
+ * `atb-jcs-rfc8785-1` profile.
  *
  * @param input UTF-8 bytes or an already-decoded JavaScript string.
  * @returns the strict canonical JSON string.
  * @throws StrictCanonicalizationError when the input is rejected.
  */
 export function canonicalizeStrictRaw(input: string | Uint8Array): string {
+  return canonicalizeStrictRawWithPolicy(input, false);
+}
+
+/**
+ * Canonicalise a single raw JSON value with the additive, non-production
+ * `atb-jcs-rfc8785-2` canonical-output-closed profile.
+ *
+ * @param input UTF-8 bytes or an already-decoded JavaScript string.
+ * @returns the canonical JSON string.
+ * @throws StrictCanonicalizationError when the input is rejected.
+ */
+export function canonicalizeStrictRawV2(input: string | Uint8Array): string {
+  return canonicalizeStrictRawWithPolicy(input, true);
+}
+
+function canonicalizeStrictRawWithPolicy(
+  input: string | Uint8Array,
+  enforceOutputPolicy: boolean
+): string {
   const text = typeof input === "string" ? input : decodeUtf8(input);
   // Decoding valid UTF-8 bytes can never yield a lone surrogate, but a caller
   // may pass a JavaScript string that contains one directly. Reject it before
@@ -41,7 +62,7 @@ export function canonicalizeStrictRaw(input: string | Uint8Array): string {
       "input contains an unpaired UTF-16 surrogate"
     );
   }
-  const parser = new StrictParser(text);
+  const parser = new StrictParser(text, enforceOutputPolicy);
   const output = parser.parseValue();
   parser.skipWhitespace();
   if (!parser.atEnd()) {
@@ -54,7 +75,8 @@ export function canonicalizeStrictRaw(input: string | Uint8Array): string {
 }
 
 /**
- * Canonicalise an in-memory JavaScript value.
+ * Canonicalise an in-memory JavaScript value with the frozen
+ * `atb-jcs-rfc8785-1` profile.
  *
  * @param value the value to canonicalise.
  * @returns the strict canonical JSON string.
@@ -63,26 +85,41 @@ export function canonicalizeStrictRaw(input: string | Uint8Array): string {
  * @throws TypeError for unsupported value types.
  */
 export function canonicalizeStrict(value: unknown): string {
-  return serializeValue(value, 0, new WeakSet<object>());
+  return serializeValue(value, 0, new WeakSet<object>(), false);
+}
+
+/**
+ * Canonicalise an in-memory JavaScript value with the additive, non-production
+ * `atb-jcs-rfc8785-2` canonical-output-closed profile.
+ *
+ * @param value the value to canonicalise.
+ * @returns the canonical JSON string.
+ * @throws StrictCanonicalizationError for non-finite numbers, out-of-policy
+ *   integers, or strings containing lone surrogates.
+ * @throws TypeError for unsupported value types.
+ */
+export function canonicalizeStrictV2(value: unknown): string {
+  return serializeValue(value, 0, new WeakSet<object>(), true);
 }
 
 function serializeValue(
   value: unknown,
   depth: number,
-  seen: WeakSet<object>
+  seen: WeakSet<object>,
+  enforceOutputPolicy: boolean
 ): string {
   if (value === null) return "null";
   switch (typeof value) {
     case "boolean":
       return value ? "true" : "false";
     case "number":
-      return serializeNumber(value);
+      return serializeNumber(value, enforceOutputPolicy);
     case "bigint":
       return serializeBigInt(value);
     case "string":
       return serializeString(value);
     case "object":
-      return serializeObjectOrArray(value, depth, seen);
+      return serializeObjectOrArray(value, depth, seen, enforceOutputPolicy);
     default:
       throw new TypeError(`canonicalizeStrict: unsupported type ${typeof value}`);
   }
@@ -118,7 +155,7 @@ function hasLoneSurrogate(s: string): boolean {
   return false;
 }
 
-function serializeNumber(n: number): string {
+function serializeNumber(n: number, enforceOutputPolicy: boolean): string {
   if (!Number.isFinite(n)) {
     throw new StrictCanonicalizationError(
       "non_finite_number",
@@ -126,7 +163,31 @@ function serializeNumber(n: number): string {
     );
   }
   // ES6 Number::toString; this already serialises both zeros as "0".
-  return String(n);
+  const output = String(n);
+  if (enforceOutputPolicy) {
+    checkCanonicalOutputPolicy(output);
+  }
+  return output;
+}
+
+function checkCanonicalOutputPolicy(formatted: string): void {
+  if (
+    formatted.includes(".") ||
+    formatted.includes("e") ||
+    formatted.includes("E")
+  ) {
+    return;
+  }
+  const magnitude = BigInt(formatted);
+  if (
+    magnitude > MAX_SAFE_INTEGER_BIGINT ||
+    magnitude < MIN_SAFE_INTEGER_BIGINT
+  ) {
+    throw new StrictCanonicalizationError(
+      "number_out_of_policy",
+      "canonical number output is a plain integer exceeding 2^53 - 1"
+    );
+  }
 }
 
 function serializeBigInt(n: bigint): string {
@@ -142,7 +203,8 @@ function serializeBigInt(n: bigint): string {
 function serializeObjectOrArray(
   value: object,
   depth: number,
-  seen: WeakSet<object>
+  seen: WeakSet<object>,
+  enforceOutputPolicy: boolean
 ): string {
   const isArray = Array.isArray(value);
   if (!isArray && !isPlainObject(value)) {
@@ -165,7 +227,9 @@ function serializeObjectOrArray(
     if (isArray) {
       const parts: string[] = [];
       for (const item of value as unknown[]) {
-        parts.push(serializeValue(item, nextDepth, seen));
+        parts.push(
+          serializeValue(item, nextDepth, seen, enforceOutputPolicy)
+        );
       }
       return "[" + parts.join(",") + "]";
     }
@@ -174,7 +238,12 @@ function serializeObjectOrArray(
     const keys = Object.keys(obj).sort(utf16Compare);
     const parts = keys.map(
       (key) =>
-        `${serializeString(key)}:${serializeValue(obj[key], nextDepth, seen)}`
+        `${serializeString(key)}:${serializeValue(
+          obj[key],
+          nextDepth,
+          seen,
+          enforceOutputPolicy
+        )}`
     );
     return "{" + parts.join(",") + "}";
   } finally {
@@ -255,7 +324,10 @@ class StrictParser {
   private pos = 0;
   private depth = 0;
 
-  constructor(private readonly data: string) {}
+  constructor(
+    private readonly data: string,
+    private readonly enforceOutputPolicy: boolean
+  ) {}
 
   atEnd(): boolean {
     return this.pos >= this.data.length;
@@ -643,7 +715,11 @@ class StrictParser {
         );
       }
       // Within the safe-integer range the conversion is exact.
-      return String(Number(token));
+      const output = String(Number(token));
+      if (this.enforceOutputPolicy) {
+        checkCanonicalOutputPolicy(output);
+      }
+      return output;
     }
 
     const n = Number(token);
@@ -653,7 +729,11 @@ class StrictParser {
         "number cannot be represented as a finite binary64 value"
       );
     }
-    return String(n);
+    const output = String(n);
+    if (this.enforceOutputPolicy) {
+      checkCanonicalOutputPolicy(output);
+    }
+    return output;
   }
 
   private hasPrefix(prefix: string): boolean {

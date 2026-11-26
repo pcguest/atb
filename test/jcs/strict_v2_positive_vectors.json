@@ -1,0 +1,200 @@
+{
+  "schema": "atb.jcs.strict-positive-vectors.v1",
+  "profile": "atb-jcs-rfc8785-2",
+  "status": "executable",
+  "expectation_source": "Authored against RFC 8785, ECMA-262 Number::toString with UTF-16 code-unit key ordering, and the atb-jcs-rfc8785-2 canonical-output-closed policy. Expected bytes were not produced by any ATB canonicaliser; they remain the independent oracle that the v2 conformance runners execute against.",
+  "cases": [
+    {
+      "id": "pos-key-order-basic",
+      "category": "key_ordering",
+      "input_utf8_hex": "7b2262223a312c2261223a322c2243223a332c2263223a347d",
+      "canonical_utf8_hex": "7b2243223a332c2261223a322c2262223a312c2263223a347d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Uppercase C sorts before lowercase a/b/c by UTF-16 code unit."
+    },
+    {
+      "id": "pos-nul-key-order",
+      "category": "key_ordering",
+      "input_utf8_hex": "7b22615c7530303030223a312c2261223a327d",
+      "canonical_utf8_hex": "7b2261223a322c22615c7530303030223a317d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": true},
+      "notes": "NUL-containing key: the shorter prefix key sorts first. The TypeScript legacy comparator treats U+0000 as -1, so its legacy output diverges."
+    },
+    {
+      "id": "pos-astral-key-order",
+      "category": "key_ordering",
+      "input_utf8_hex": "7b227a223a312c225c7566666666223a322c225c75643833645c7564653030223a337d",
+      "canonical_utf8_hex": "7b227a223a312c22f09f9880223a332c22efbfbf223a327d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Astral-plane key sorts by UTF-16 surrogate units before U+FFFF."
+    },
+    {
+      "id": "pos-string-escapes",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a225c225c5c5c625c665c6e5c725c745c75303030315c7530303166227d",
+      "canonical_utf8_hex": "7b2273223a225c225c5c5c625c665c6e5c725c745c75303030315c7530303166227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Short escapes and lowercase \\u00xx for other control characters."
+    },
+    {
+      "id": "pos-unicode-literal",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a22636166c3a920e29883227d",
+      "canonical_utf8_hex": "7b2273223a22636166c3a920e29883227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Non-ASCII characters are emitted literally as UTF-8."
+    },
+    {
+      "id": "pos-solidus",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a22612f62227d",
+      "canonical_utf8_hex": "7b2273223a22612f62227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Solidus is not escaped."
+    },
+    {
+      "id": "pos-number-small-exp",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a31652d377d",
+      "canonical_utf8_hex": "7b226e223a31652d377d",
+      "legacy_divergence": {"go": true, "python": true, "typescript": false},
+      "notes": "ES6 emits 1e-7; Go legacy emits 1e-07 and Python legacy emits 1e-07."
+    },
+    {
+      "id": "pos-number-negative-zero",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a2d307d",
+      "canonical_utf8_hex": "7b226e223a307d",
+      "legacy_divergence": {"go": true, "python": false, "typescript": false},
+      "notes": "ES6 serialises -0 as 0; Go legacy emits -0."
+    },
+    {
+      "id": "pos-number-thresholds-v2",
+      "category": "numbers",
+      "input_utf8_hex": "7b2261223a316532312c2262223a316532322c2263223a312e357d",
+      "canonical_utf8_hex": "7b2261223a31652b32312c2262223a31652b32322c2263223a312e357d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "1e21 and 1e22 use exponent notation and are accepted by v2. The v1 case's 1e20 key was removed because atb-jcs-rfc8785-2 rejects its fixed-notation plain-integer output as number_out_of_policy."
+    },
+    {
+      "id": "pos-number-safe-integer",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a393030373139393235343734303939317d",
+      "canonical_utf8_hex": "7b226e223a393030373139393235343734303939317d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "2^53-1 is the maximum accepted integer by the strict safe-integer policy."
+    },
+    {
+      "id": "pos-nested",
+      "category": "nesting",
+      "input_utf8_hex": "7b2262223a5b7b2264223a6e756c6c2c2263223a747275657d5d2c2261223a66616c73657d",
+      "canonical_utf8_hex": "7b2261223a66616c73652c2262223a5b7b2263223a747275652c2264223a6e756c6c7d5d7d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Ordering applies recursively in objects inside arrays."
+    },
+    {
+      "id": "pos-number-small-fixed",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a31652d367d",
+      "canonical_utf8_hex": "7b226e223a302e3030303030317d",
+      "legacy_divergence": {"go": false, "python": true, "typescript": false},
+      "notes": "1e-6 uses fixed notation; Python legacy emits 1e-06."
+    },
+    {
+      "id": "pos-number-exponent-large",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a316532337d",
+      "canonical_utf8_hex": "7b226e223a31652b32337d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "1e23 uses exponent notation with an explicit plus sign."
+    },
+    {
+      "id": "pos-string-surrogate-pair",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a225c75643833645c7564653030227d",
+      "canonical_utf8_hex": "7b2273223a22f09f9880227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "A surrogate-pair escape is emitted as the literal UTF-8 code point."
+    },
+    {
+      "id": "pos-string-escaped-solidus",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a22615c2f62227d",
+      "canonical_utf8_hex": "7b2273223a22612f62227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "An escaped solidus is emitted literally as a solidus."
+    },
+    {
+      "id": "pos-string-line-separators",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a225c75323032385c7532303239227d",
+      "canonical_utf8_hex": "7b2273223a22e280a8e280a9227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "U+2028 and U+2029 are emitted literally as UTF-8, not escaped."
+    },
+    {
+      "id": "pos-string-nul-value",
+      "category": "string_escaping",
+      "input_utf8_hex": "7b2273223a22615c753030303062227d",
+      "canonical_utf8_hex": "7b2273223a22615c753030303062227d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "NUL is escaped as lowercase \\u0000."
+    },
+    {
+      "id": "pos-number-uppercase-exponent",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a31452b327d",
+      "canonical_utf8_hex": "7b226e223a3130307d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "An uppercase exponent marker with a plus sign normalises to 100."
+    },
+    {
+      "id": "pos-number-negative-fraction",
+      "category": "numbers",
+      "input_utf8_hex": "7b226e223a2d312e357d",
+      "canonical_utf8_hex": "7b226e223a2d312e357d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "A negative fractional value is preserved."
+    },
+    {
+      "id": "pos-bmp-prefix-order",
+      "category": "key_ordering",
+      "input_utf8_hex": "7b226162223a312c2261223a327d",
+      "canonical_utf8_hex": "7b2261223a322c226162223a317d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "A proper BMP prefix sorts before the longer key."
+    },
+    {
+      "id": "pos-empty-key-order",
+      "category": "key_ordering",
+      "input_utf8_hex": "7b2261223a302c22223a317d",
+      "canonical_utf8_hex": "7b22223a312c2261223a307d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "The empty string sorts before a non-empty key."
+    },
+    {
+      "id": "pos-astral-low-surrogate-order",
+      "category": "key_ordering",
+      "input_utf8_hex": "7b225c75443833445c7544453031223a312c225c75443833445c7544453030223a327d",
+      "canonical_utf8_hex": "7b22f09f9880223a322c22f09f9881223a317d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Astral keys order by the low surrogate code unit after a common high surrogate."
+    },
+    {
+      "id": "pos-negative-safe-boundary",
+      "category": "numbers",
+      "input_utf8_hex": "2d39303037313939323534373430393931",
+      "canonical_utf8_hex": "2d39303037313939323534373430393931",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Negative 2^53-1 is the accepted lower policy boundary."
+    },
+    {
+      "id": "pos-trailing-whitespace",
+      "category": "nesting",
+      "input_utf8_hex": "7b2261223a317d0a",
+      "canonical_utf8_hex": "7b2261223a317d",
+      "legacy_divergence": {"go": false, "python": false, "typescript": false},
+      "notes": "Trailing JSON whitespace is accepted and removed."
+    }
+  ]
+}

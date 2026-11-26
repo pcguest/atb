@@ -1,12 +1,13 @@
 # Canonicalisation profiles
 
-**Status: specification plus non-production strict implementation.** This
-document defines two canonicalisation profiles and their wire/versioning
-contract. A strict canonicaliser for `atb-jcs-rfc8785-1` now exists and its
-fixtures are executable, but no production writer, reader, verifier, hashing
-path, or manifest parser dispatches to it. In this revision ATB still produces
-and verifies bundles with the existing legacy serialisers only. See [Status and
-next steps](#status-and-next-steps).
+**Status: specification plus non-production strict implementations.** This
+document defines three canonicalisation profiles and their wire/versioning
+contract. The frozen `atb-jcs-rfc8785-1` strict profile and the additive
+`atb-jcs-rfc8785-2` canonical-output-closed profile both have implementations
+and executable fixtures, but no production writer, reader, verifier, hashing
+path, or manifest parser dispatches to either. In this revision ATB still
+produces and verifies bundles with the existing legacy serialisers only. See
+[Status and next steps](#status-and-next-steps).
 
 ---
 
@@ -14,10 +15,10 @@ next steps](#status-and-next-steps).
 
 This document is normative for:
 
-- the identity and meaning of the `atb-jcs-legacy-1` and
-  `atb-jcs-rfc8785-1` canonicalisation profiles;
+- the identity and meaning of the `atb-jcs-legacy-1`,
+  `atb-jcs-rfc8785-1`, and `atb-jcs-rfc8785-2` canonicalisation profiles;
 - the byte-level behaviour that each profile guarantees;
-- the rejection taxonomy enforced by the strict-profile parser;
+- the rejection taxonomy enforced by the strict-profile parsers;
 - the manifest-version and selection contract that will govern strict-profile
   bundles.
 
@@ -43,12 +44,15 @@ remain the independent oracle and are not derived from implementation output.
 | Profile id             | Meaning                                                       | Current status |
 |------------------------|---------------------------------------------------------------|----------------|
 | `atb-jcs-legacy-1`     | Byte-frozen behaviour of the serialisers shipped at `a7837e2`. | In production  |
-| `atb-jcs-rfc8785-1`    | Strict RFC 8785 profile with the ATB restrictions in §5.      | Non-production implementation |
+| `atb-jcs-rfc8785-1`    | Frozen strict RFC 8785 profile with the ATB restrictions in §5.1. | Non-production, frozen implementation |
+| `atb-jcs-rfc8785-2`    | Canonical-output-closed strict profile defined in §5.         | Non-production implementation, not dispatched |
 
 The legacy profile id is descriptive: it names the behaviour that existing
 bundles already depend on. It does not imply that the legacy serialisers are
-fully RFC 8785 conformant. The strict profile id names the target behaviour for
-future manifest-v4 bundles.
+fully RFC 8785 conformant. The strict profile ids name candidate behaviours for
+future manifest-v4 bundles. `atb-jcs-rfc8785-1` is frozen exactly as shipped;
+`atb-jcs-rfc8785-2` is additive and is not selected by any production path in
+this revision.
 
 Profile selection is **by declaration only** (see §7). A reader must never infer
 the strict profile from the presence of a field, a version, or a payload shape.
@@ -98,9 +102,13 @@ version-bump process in `VERSIONING.md`.
 
 ---
 
-## 4. Strict profile: `atb-jcs-rfc8785-1`
+## 4. Frozen strict profile: `atb-jcs-rfc8785-1`
 
-The strict profile is defined by the following normative sources, applied
+`atb-jcs-rfc8785-1` is frozen exactly as shipped. Its canonical bytes, error
+classes, fixtures, and entry points must not change. The v2 profile in §5 is
+additive; it does not revise v1.
+
+The v1 profile is defined by the following normative sources, applied
 together:
 
 - [RFC 8785 — JSON Canonicalization Scheme (JCS)](https://www.rfc-editor.org/rfc/rfc8785)
@@ -152,26 +160,61 @@ exhaustion.
 
 ---
 
-## 5. Conservative safe-integer policy
+## 5. Canonical-output-closed profile: `atb-jcs-rfc8785-2`
 
-The strict profile imposes an ATB interoperability restriction on plain integer
+`atb-jcs-rfc8785-2` is additive and non-production. It implements the
+canonical-output-closed policy (B2 in the numerical-policy decision record),
+not a claim of universal RFC 8785 input coverage and not a relaxation of any
+v1 restriction.
+
+The v2 profile applies the following rule after formatting **any** finite
+binary64 number:
+
+- If the canonical output is a plain integer — it contains no `.`, `e`, or `E`
+  — and its integer magnitude is greater than 2^53 - 1, reject the input with
+  `number_out_of_policy`.
+- Keep the existing v1 input cap on plain integer tokens: a token written
+  without a fraction or exponent whose exact magnitude exceeds 2^53 - 1 is
+  rejected before formatting.
+- Apply the output rule in both raw and value entry points. Policy failures
+  remain `number_out_of_policy`; they are never reclassified as
+  `non_finite_number`, `number_unrepresentable`, or a tamper/verification
+  error.
+
+This closes canonical-output re-parse. The profile rejects `1e20`, `1e16`,
+`2e16`, `1e19`, `9007199254740992.0` (2^53),
+`1152921504606846976.0` (2^60), and every fixed-notation value in
+`[2^53, 1e21)` and its symmetric negative interval. It accepts `1e21` because
+ECMA-262 emits `1e+21`, which is exponential rather than a plain integer.
+
+The lexical asymmetry is intentional: a plain `10^21` token is rejected by the
+retained input cap, while `1e21` is accepted because its canonical output is
+exponential. This is an ATB policy choice, not a universal RFC 8785
+restriction; RFC 8785 and ECMA-262 can serialise binary64 values beyond the
+safe-integer recommendation.
+
+v2 is defined and tested but is not dispatched. No production hash, bundle,
+manifest, reader, or verifier path selects `atb-jcs-rfc8785-2` in this revision.
+
+### 5.1 Frozen v1 numerical limitation
+
+The v1 profile imposes an ATB interoperability restriction on plain integer
 tokens: reject a numeric token written without a fraction or exponent (an
 optional minus sign followed only by digits) whose exact integer magnitude is
 greater than 2^53 - 1 with `number_out_of_policy`; reject `NaN`, `Infinity`,
 and `-Infinity` with `non_finite_number`; reject numeric tokens that parse to a
 non-finite binary64 with `number_unrepresentable`. Numbers written with a
 fraction or exponent are binary64 values governed by §4.3 and are not subject to
-that token restriction; for example, `1e20` is accepted, while the plain integer
+that token restriction; for example, v1 accepts `1e20`, while the plain integer
 token `9007199254740993` is rejected. This is an ATB interoperability
 restriction for new strict-profile input, not a claim that RFC 8785 universally
 rejects larger numbers. Because accepted fraction/exponent literals are not
 subject to the token restriction, an accepted exponent form such as `1e20` can
 canonicalise to a plain integer token outside the policy
-(`100000000000000000000`), which a fresh strict parse of that output would
-reject as `number_out_of_policy`; strict output is therefore not guaranteed to
-be re-accepted as fresh raw input. This is a known v1 limitation; resolving it
-requires a versioned policy decision, not a silent tightening of the current
-profile.
+(`100000000000000000000`), which a fresh v1 parse of that output rejects as
+`number_out_of_policy`; v1 output is therefore not guaranteed to be re-accepted
+as fresh raw input. This is a known v1 limitation that v2 closes without
+changing v1's bytes or error classes.
 
 Value-mode input has parallel distinctions. Dynamic JSON fragments (`json.Number`
 in Go, `json.RawMessage`, and custom `json.Marshaler` or
@@ -194,7 +237,7 @@ A strict-profile parser reports exactly one of the following stable classes:
 | `lone_surrogate`        | An escape produces an unpaired UTF-16 surrogate.                          |
 | `trailing_data`         | Non-whitespace data follows the top-level JSON value.                     |
 | `non_finite_number`     | The input denotes `NaN` or an infinity.                                   |
-| `number_out_of_policy`  | Plain integer token outside the safe-integer policy in §5.                |
+| `number_out_of_policy`  | Plain integer token outside the safe-integer policy, or a v2 canonical output that is a plain integer outside that policy. |
 | `number_unrepresentable`| Numeric literal that cannot be represented as a finite binary64 value.    |
 | `invalid_json`          | The input is not syntactically valid JSON for another reason.             |
 | `depth_limit`           | Array, object, struct, map, or pointer nesting exceeds 512 levels.        |
@@ -206,20 +249,33 @@ remaining classes are payload validation errors. Both sets are fail-closed.
 
 Negative fixtures for the payload classes are authored in
 [`test/jcs/strict_negative_vectors.json`](../../test/jcs/strict_negative_vectors.json)
-and are executed by the strict conformance runners in Go, Python, and
+for v1 and
+[`test/jcs/strict_v2_negative_vectors.json`](../../test/jcs/strict_v2_negative_vectors.json)
+for v2. They are executed by the strict conformance runners in Go, Python, and
 TypeScript. The declared classes are authored independently of the
 implementation and are not derived from implementation output.
 
 ### 6.1 Error precedence and cross-language caveats
 
-- Object member-value errors are reported before a duplicate-key rejection for
-  that same member; earlier errors win by left-to-right order.
+- In Go and TypeScript, object member-value errors are reported before a
+  duplicate-key rejection for that same member; earlier errors win by
+  left-to-right order. Python's decoder detects duplicate keys before its
+  serialisation and v2 output-policy passes, so the precedence can differ; see
+  the v2 caveat below.
 - Go and TypeScript generally report the first left-to-right error. Python's
   stdlib-based parser pre-scans depth and non-finite token boundaries and
   post-checks lone surrogates, so an input containing multiple independent
   defects can receive a different class; all such inputs are still rejected
   fail-closed. Shared vectors pin single-defect cases and the object-member
   precedence cases.
+- **v2 Python output-policy precedence.** The v2 `number_out_of_policy` check
+  runs after Python decoding. For a multi-error input such as
+  `{"a":1e20,"a":2}`, Python reports `duplicate_key`, while Go and TypeScript
+  report `number_out_of_policy` from the first member value. Likewise, a Python
+  duplicate or lone-surrogate rejection may take precedence over a later
+  output-policy failure. These are documented class-ordering differences for
+  already-invalid input, not accepted output; every case remains fail-closed.
+  v1 error classes are unchanged.
 - Raw APIs differ by input representation: invalid UTF-8 bytes are
   `invalid_utf8`; a host string that already contains a lone surrogate can be
   `lone_surrogate` (TypeScript) or `invalid_json` (Python) depending on the
@@ -251,11 +307,21 @@ Strict-profile bundles will use **manifest version 4** with a new
 }
 ```
 
+This example is illustrative. In this revision no manifest v4 is issued or
+accepted, `ManifestVersionMax` remains `3`, and neither strict profile is
+dispatched. `atb-jcs-rfc8785-2` is defined and tested but has no production
+selection path.
+
 Rules:
 
-- **Selection is by declaration only.** A bundle is strict-profile only when
-  its manifest declares version `4` **and** `canonical_profile` equals
-  `atb-jcs-rfc8785-1`.
+- **Selection is by declaration only.** When a v4 dispatch is introduced, a
+  bundle is strict-profile only when its manifest declares version `4` **and**
+  `canonical_profile` names a strict profile that the reader supports.
+- **v1 is frozen; v2 is additive.** A reader that supports only
+  `atb-jcs-rfc8785-1` must reject a declared
+  `atb-jcs-rfc8785-2` bundle with `unsupported_profile`; it must never
+  downgrade to v1 or legacy. This is the required fail-closed boundary if v2
+  is selected in a future manifest-v4 integration.
 - **Manifest v1, v2, and v3 remain legacy.** Manifest-less legacy bundles also
   remain legacy (implicit version 1).
 - **A v3 manifest carrying `canonical_profile` is not strict.** On v3 the field
@@ -289,8 +355,9 @@ Each item below must land as an explicit, separately reviewed change. Items 1,
 5, and 7 are complete for the isolated non-production increment; items 2, 3, 4,
 and 6 are still required before any production switching.
 
-1. **Complete (isolated increment).** A strict canonicaliser implementing §4–§6,
-   with a conformance runner that executes the positive and negative fixtures in
+1. **Complete (isolated increment).** Strict canonicalisers implementing §4–§6
+   for the frozen v1 profile and the canonical-output-closed v2 profile, with
+   conformance runners that execute their positive and negative fixtures in
    `test/jcs/`.
 2. **Still required before production switching.** A manifest-v4 writer path
    that is opt-in and emits `canonical_profile`.
@@ -300,13 +367,15 @@ and 6 are still required before any production switching.
 4. **Still required before production switching.** A deliberate
    `ManifestVersionMax` bump to `4`, with the forward-compatibility guard
    updated in the same change.
-5. **Complete (isolated increment).** Cross-language strict-profile parity for
-   Go, Python, and TypeScript across the shared strict vectors and supported byte
+5. **Complete (isolated increment).** Cross-language parity for Go, Python, and
+   TypeScript across the shared v1 and v2 strict vectors and supported byte
    inputs, with new strict vectors authored independently of any ATB
    canonicaliser. This is not universal parity: the multi-error and host-string
    caveats in §6.1 remain.
-6. **Still required before production switching.** A `CHANGELOG.md` entry and
-   the version-bump treatment required by `VERSIONING.md`.
+6. **Partly complete; still required before production switching.** An
+   Unreleased `CHANGELOG.md` entry records that v1 is frozen and v2 is additive
+   and non-production. The version-bump and release treatment required by
+   `VERSIONING.md` remains outstanding until a production profile is selected.
 7. **Complete (isolated increment).** Confirmation that no existing golden
    vector, fixture, legacy hash, or signature pre-image changes.
 
@@ -317,11 +386,14 @@ and 6 are still required before any production switching.
 In this revision:
 
 - The legacy profile is the only implemented and dispatched production profile.
-- A strict canonicaliser now exists in `internal/canonicalize/strict`, exposed
-  behind the new, non-production entry points `jcs.MarshalRFC8785`,
-  `jcs.MarshalRawRFC8785`, and `jcs.StrictErrorClass`.
-- The strict profile is **not** wired into hashing, manifest-v4 issuance or
-  acceptance, or verifier dispatch.
+- Strict canonicalisers now exist in `internal/canonicalize/strict`, exposed
+  behind the non-production entry points `jcs.MarshalRFC8785`,
+  `jcs.MarshalRawRFC8785`, `jcs.MarshalRFC8785V2`, `jcs.MarshalRawRFC8785V2`,
+  and `jcs.StrictErrorClass`. The Python and TypeScript SDKs expose matching
+  v1 and v2 functions.
+- Neither strict profile is **wired** into hashing, manifest-v4 issuance or
+  acceptance, or verifier dispatch. v1 is frozen; v2 is defined but not
+  dispatched.
 - The strict implementation bounds nesting depth (including pointer traversal),
   detects cyclic values, strictly validates dynamic JSON values (`json.Number`,
   `json.RawMessage`, and custom marshalers), and defines duplicate-key versus
@@ -329,8 +401,9 @@ In this revision:
 - `ManifestVersionMax` is `3`; manifest v4 is not issued or accepted.
 - No production canonicaliser, hasher, manifest writer/parser, or verifier
   dispatch has changed.
-- The conformance tests execute the positive and negative vectors in
-  [`test/jcs/`](../../test/jcs/README.md) against the strict entry points.
+- The conformance tests execute the v1 and v2 positive and negative vectors in
+  [`test/jcs/`](../../test/jcs/README.md) against the strict entry points, and
+  pin the frozen numeric-parity case without changing any legacy canonicaliser.
 
 The next step is to add the manifest-v4 writer and declaration-only reader
 dispatch, then bump `ManifestVersionMax`, without changing legacy behaviour.

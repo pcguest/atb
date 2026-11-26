@@ -81,6 +81,8 @@ export {
   StrictCanonicalizationError,
   canonicalizeStrict,
   canonicalizeStrictRaw,
+  canonicalizeStrictRawV2,
+  canonicalizeStrictV2,
 } from "./canonicalize-strict.js";
 export { atbMiddleware } from "./vercel-ai-middleware.js";
 export { gateVercelTool } from "./vercel-gate.js";
