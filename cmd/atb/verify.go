@@ -455,6 +455,13 @@ func verificationExitCode(report verifypkg.Report) int {
 	if report.BundleSignature != nil && !report.BundleSignature.Verified {
 		return exitIntegrityFailure
 	}
+	// The latest signature can be valid while an earlier signature record is
+	// not. Every recorded signature must authenticate the prefix it signed.
+	for _, signature := range report.Signatures {
+		if !signature.Valid {
+			return exitIntegrityFailure
+		}
+	}
 	for _, profile := range report.Profiles {
 		if !profile.Pass {
 			return exitVerifyFailure

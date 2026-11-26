@@ -340,10 +340,13 @@ To verify a bundle, a verifier must:
 1. Read all records in order.
 2. Detect whether the first record is the manifest type `atb.bundle.manifest`.
 3. For each record at position `i`:
-   a. Set `event.prev_hash` to the hash of the preceding record (or the genesis hash for the first record).
-   b. Set `event.seq` to `0` for the manifest record, `i` for later records in a manifest-first bundle, or `i + 1` for a legacy manifest-less bundle.
-   c. Compute `hash = SHA256(UTF8(prev_hash) || RFC8785(event))`.
-   d. Assert that the computed hash equals the stored `hash` field.
+   a. Record the stored `event.seq` and `event.prev_hash` values.
+   b. Determine the expected `seq`: `0` for the manifest record, `i` for later records in a manifest-first bundle, or `i + 1` for a legacy manifest-less bundle.
+   c. Determine the expected `prev_hash`: the hash of the preceding record, or the genesis hash for the first record.
+   d. Assert that the **recorded** `event.seq` equals the expected `seq` and the **recorded** `event.prev_hash` equals the expected `prev_hash`. A verifier must reject a mismatch here; it must not simply overwrite these fields and continue.
+   e. Set `event.prev_hash` and `event.seq` to the expected values for hash computation.
+   f. Compute `hash = SHA256(UTF8(prev_hash) || RFC8785(event))`.
+   g. Assert that the computed hash equals the stored `hash` field.
 4. If any assertion fails, the bundle has been tampered with.
 
 ### 5.1 Reader API contract

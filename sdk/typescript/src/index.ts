@@ -46,6 +46,8 @@ export {
   Bundle,
   ATBVerificationError,
   BundleResourceLimitError,
+  UnsupportedManifestVersionError,
+  MAX_MANIFEST_VERSION,
   MAX_BUNDLE_RECORDS,
   MAX_BUNDLE_SIZE_BYTES,
   MAX_LINE_SIZE_BYTES,
