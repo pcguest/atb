@@ -80,6 +80,12 @@ func TestTamperDetection(t *testing.T) {
 func writePrivilegedToolActionBundle(t *testing.T) string {
 	t.Helper()
 
+	return writePrivilegedToolActionBundleWithApproval(t, "act-1", "2026-03-27T12:02:30Z")
+}
+
+func writePrivilegedToolActionBundleWithApproval(t *testing.T, approvalActionID, approvalTimestamp string) string {
+	t.Helper()
+
 	root := t.TempDir()
 	bundlePath := filepath.Join(root, bundle.BundleDir, bundle.BundleFile)
 
@@ -135,8 +141,8 @@ func writePrivilegedToolActionBundle(t *testing.T) string {
 		"approver_id_hash":     "approver-hash",
 		"approval_outcome":     "approved",
 		"justification_digest": "just-digest",
-		"action_id":            "act-1",
-	}, "2026-03-27T12:03:30Z")
+		"action_id":            approvalActionID,
+	}, approvalTimestamp)
 	appendRecord(t, bundlePath, event.TypeAIActionCommitted, map[string]any{
 		"action_id":           "act-1",
 		"commit_outcome":      "success",

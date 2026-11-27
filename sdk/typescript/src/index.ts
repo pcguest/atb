@@ -46,6 +46,8 @@ export {
   Bundle,
   ATBVerificationError,
   BundleResourceLimitError,
+  UnsupportedManifestVersionError,
+  MAX_MANIFEST_VERSION,
   MAX_BUNDLE_RECORDS,
   MAX_BUNDLE_SIZE_BYTES,
   MAX_LINE_SIZE_BYTES,
@@ -77,6 +79,13 @@ export {
 export { EncryptError, decryptBundle, decryptRaw, encryptBundle, encryptRaw } from "./encrypt.js";
 export { computeHash, chainEvents, GENESIS_HASH } from "./hash.js";
 export { canonicalize } from "./canonicalize.js";
+export {
+  StrictCanonicalizationError,
+  canonicalizeStrict,
+  canonicalizeStrictRaw,
+  canonicalizeStrictRawV2,
+  canonicalizeStrictV2,
+} from "./canonicalize-strict.js";
 export { atbMiddleware } from "./vercel-ai-middleware.js";
 export { gateVercelTool } from "./vercel-gate.js";
 export { wrapOpenAI, wrapAnthropic } from "./sdk-capture.js";

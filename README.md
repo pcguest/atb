@@ -3,7 +3,7 @@
 Source version: [`v2.0.0`](CHANGELOG.md) (unreleased; not a publication claim).
 
 [![CI](https://github.com/pcguest/atb/actions/workflows/ci.yml/badge.svg)](https://github.com/pcguest/atb/actions/workflows/ci.yml)
-[![Go version](https://img.shields.io/badge/go-1.26.10-blue)](https://go.dev/)
+[![Go version](https://img.shields.io/badge/go-1.26.11-blue)](https://go.dev/)
 [![MIT licence](https://img.shields.io/badge/licence-MIT-green.svg)](LICENSE)
 
 ATB captures agent and tool activity in portable, tamper-evident bundles that
@@ -101,7 +101,7 @@ make build
 ./atb view run.atb/bundle.atb
 ```
 
-Use Go 1.26.10 and Node.js 22 with npm; dependency downloads require network
+Use Go 1.26.11 and Node.js 22 with npm; dependency downloads require network
 access. `make build` builds the web assets before embedding them in `./atb`.
 `go install` does not embed that UI.
 

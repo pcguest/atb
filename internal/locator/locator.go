@@ -67,23 +67,29 @@ var (
 // Locator is a parsed semantic reference to one evidence record.
 //
 // BundleHeadHash is the bundle's terminal record hash, EventSequence is the
-// value of the target record's `seq` field (0 for the manifest record in
-// bundles that have one; 1-based positions in legacy manifest-less bundles),
-// and RecordHash is an optional integrity cross-check.
+// value of the target record's `seq` field as a signed 64-bit non-negative
+// integer (0 for the manifest record in bundles that have one; 1-based
+// positions in legacy manifest-less bundles), and RecordHash is an optional
+// integrity cross-check.
 type Locator struct {
 	BundleHeadHash string
-	EventSequence  int
+	EventSequence  int64
 	RecordHash     string
 }
 
 // Parse parses and validates a locator string, returning a Locator whose
 // String method emits the canonical serialised form.
 //
-// Parsing is strict: percent-encoding, fragments, unknown query parameters,
-// duplicate parameters, and non-canonical hashes are rejected so that a
-// locator has exactly one canonical representation.
+// Parsing is strict: surrounding whitespace, percent-encoding, fragments,
+// unknown query parameters, duplicate parameters, and non-canonical hashes
+// are rejected so that a locator has exactly one canonical representation.
 func Parse(raw string) (Locator, error) {
-	s := strings.TrimSpace(raw)
+	// Parsing rejects non-canonical forms rather than normalising them, so
+	// surrounding whitespace is an error, not something to trim away.
+	if raw != strings.TrimSpace(raw) {
+		return Locator{}, fmt.Errorf("%w: surrounding whitespace is not permitted", ErrMalformed)
+	}
+	s := raw
 	if s == "" {
 		return Locator{}, fmt.Errorf("%w: empty locator", ErrMalformed)
 	}
@@ -165,7 +171,7 @@ func Parse(raw string) (Locator, error) {
 	if !seqPattern.MatchString(seqValues[0]) {
 		return Locator{}, fmt.Errorf("%w: seq must be a non-negative decimal integer", ErrMalformed)
 	}
-	seq, err := strconv.Atoi(seqValues[0])
+	seq, err := strconv.ParseInt(seqValues[0], 10, 64)
 	if err != nil {
 		return Locator{}, fmt.Errorf("%w: seq is out of range", ErrMalformed)
 	}
@@ -215,7 +221,7 @@ func (l Locator) String() string {
 	b.WriteString("/")
 	b.WriteString(l.BundleHeadHash)
 	b.WriteString("?seq=")
-	b.WriteString(strconv.Itoa(l.EventSequence))
+	b.WriteString(strconv.FormatInt(l.EventSequence, 10))
 	if l.RecordHash != "" {
 		b.WriteString("&record=")
 		b.WriteString(l.RecordHash)
@@ -230,7 +236,7 @@ type Resolution struct {
 	// Index is the 0-based position of the record within the bundle.
 	Index int
 	// Seq is the referenced record's `seq` value (equal to Locator.EventSequence).
-	Seq int
+	Seq int64
 	// RecordHashMatched is true only when the locator supplied an optional
 	// record hash and it matched the referenced record's stored hash. It is
 	// false when no record hash was supplied.
@@ -261,7 +267,7 @@ func Resolve(l Locator, b *bundle.Bundle) (Resolution, error) {
 	}
 	for i := range b.Records {
 		record := b.Records[i]
-		if record.Event.Sequence != l.EventSequence {
+		if int64(record.Event.Sequence) != l.EventSequence {
 			continue
 		}
 		res := Resolution{Locator: l, Index: i, Seq: l.EventSequence}

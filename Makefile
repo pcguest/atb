@@ -1,4 +1,4 @@
-.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-audit-python deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden build
+.PHONY: check-versions hygiene-quick hygiene-full profile-fixtures goldens demo-incident notices check-notices check-generated test-go coverage-check test-embed test-e2e test-all test-performance test-integration quality-evidence gate-gold-release deps-update deps-update-npm deps-audit-go deps-audit-npm deps-audit-python deps-fix-npm deps-audit bootstrap-scanners govuln-scan security-scan install-hooks install-noembed fuzz test-golden test-release-protection build
 
 build:
 	@echo "🔗 Building embedded ATB CLI..."
@@ -13,7 +13,12 @@ test-golden:
 	cd sdk/typescript && npm test -- --run canonical_hash
 	@echo "✅ Golden vectors verified across Go, Python, and TypeScript"
 
-GOTOOLCHAIN ?= go1.26.10
+test-release-protection:
+	@echo "🛡️ Running release-environment protection fixtures..."
+	@bash scripts/test-verify-release-environment.sh
+	@echo "✅ Release-environment protection fixtures passed"
+
+GOTOOLCHAIN ?= go1.26.11
 GOMODCACHE ?= $(CURDIR)/.gomodcache
 GOVERSION := $(shell GOMODCACHE=$(GOMODCACHE) GOTOOLCHAIN=$(GOTOOLCHAIN) go env GOVERSION 2>/dev/null | tr ' ' '_')
 GOCACHE ?= $(CURDIR)/.gocache/$(if $(GOVERSION),$(GOVERSION),default)
@@ -78,6 +83,7 @@ test-go: profile-fixtures
 
 hygiene-quick: check-generated check-versions check-notices
 	@echo "🧹 Running quick hygiene gate..."
+	@$(MAKE) test-release-protection
 	@unformatted="$$(for file in $$(git ls-files -co --exclude-standard '*.go'); do test ! -f "$$file" || gofmt -l "$$file"; done)"; \
 		test -z "$$unformatted" || { printf '❌ Go files require gofmt:\n%s\n' "$$unformatted"; exit 1; }
 	@test -x "$(STATICCHECK)" || { echo "❌ staticcheck $(STATICCHECK_VERSION) is required; run make bootstrap-scanners"; exit 1; }
@@ -146,8 +152,9 @@ test-integration:
 	$(GOENV) go test -tags=integration -count=1 -v ./test/integration/...
 
 fuzz:
-	go test ./internal/canonicalize/... -fuzz=FuzzMarshal -fuzztime=30s
-	go test ./internal/bundle/... -fuzz=FuzzLoad -fuzztime=30s
+	$(GOENV) go test ./internal/canonicalize -fuzz=FuzzMarshal -fuzztime=30s
+	$(GOENV) go test ./internal/canonicalize/strict -fuzz=FuzzCanonicalizeNoPanic -fuzztime=30s
+	$(GOENV) go test ./internal/bundle -fuzz=FuzzLoad -fuzztime=30s
 
 test-all: hygiene-full
 	@echo "✅ All tests passed"
@@ -282,7 +289,7 @@ security-scan:
 		$(GOENV) "$$GOSEC_BIN" $(GOSEC_DIRS); \
 	else \
 		echo "⚠️ local gosec version '$${GOSEC_FOUND_VERSION:-missing}' does not match $(GOSEC_VERSION); using pinned Docker install"; \
-		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.10@sha256:672c944cfd07599b5f1bb179869270cdc94c6254e41db4d431259693cb286b82 sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
+		docker run --rm -e GOFLAGS=-buildvcs=false -v "$$(pwd):/work" -w /work golang:1.26.11@sha256:4165ee6bf3b7811fd7b40373290405c83d0167dcb87ee5f29c427cdcef45ff8f sh -c 'go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION) && /go/bin/gosec $$(go list -f "{{.Dir}}" ./... | grep -v "/node_modules/")'; \
 	fi
 	@$(MAKE) govuln-scan
 	cd web && node ../scripts/npm-audit-gate.mjs runtime

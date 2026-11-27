@@ -28,13 +28,17 @@ printf '✓ Appended event #2 [ai.action.precommit]\n'
   --data '{"policy_id":"pol-01","policy_version":"1.0","decision":"allow","decision_reason_codes":["within_scope"],"subject_id_hash":"hash-user-01","action_id":"act-001"}' >/dev/null
 printf '✓ Appended event #3 [ai.policy.decision]\n'
 
-"$ATB_BIN" append ai.action.executed \
-  --data '{"action_id":"act-001","execution_outcome":"success","tool_receipt_digest":"sha256-receipt-def"}' >/dev/null
-printf '✓ Appended event #4 [ai.action.executed]\n'
-
+# Profile v2 requires approval strictly before execution, with distinct
+# timestamps. Append the approval first (along with a one-second pause so the
+# approval and execution timestamps differ), then record execution.
 "$ATB_BIN" append ai.human.approval \
   --data '{"approval_id":"apr-001","approver_id_hash":"hash-approver-01","approval_outcome":"approved","justification_digest":"sha256-justification-jkl","action_id":"act-001"}' >/dev/null
-printf '✓ Appended event #5 [ai.human.approval]\n'
+printf '✓ Appended event #4 [ai.human.approval]\n'
+sleep 1
+
+"$ATB_BIN" append ai.action.executed \
+  --data '{"action_id":"act-001","execution_outcome":"success","tool_receipt_digest":"sha256-receipt-def"}' >/dev/null
+printf '✓ Appended event #5 [ai.action.executed]\n'
 
 "$ATB_BIN" append ai.action.committed \
   --data '{"action_id":"act-001","commit_outcome":"committed","sink_receipt_digest":"sha256-sink-ghi"}' >/dev/null

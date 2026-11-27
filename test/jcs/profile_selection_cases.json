@@ -1,0 +1,43 @@
+{
+  "schema": "atb.jcs.profile-selection-cases.v1",
+  "status": "specification-and-current-reader",
+  "profiles": {
+    "legacy": "atb-jcs-legacy-1",
+    "strict": "atb-jcs-rfc8785-1"
+  },
+  "manifest_field": "canonical_profile",
+  "manifest_version_strict": 4,
+  "cases": [
+    {
+      "id": "v3-with-strict-profile-field-remains-legacy",
+      "manifest_version": 3,
+      "canonical_profile": "atb-jcs-rfc8785-1",
+      "current_reader": "accepts-as-legacy",
+      "strict_reader": "must-not-treat-v3-as-strict",
+      "notes": "A profile field on v3 has no strict semantics; issuance must use manifest v4."
+    },
+    {
+      "id": "v4-strict-profile",
+      "manifest_version": 4,
+      "canonical_profile": "atb-jcs-rfc8785-1",
+      "current_reader": "rejects",
+      "strict_reader": "accepts",
+      "notes": "Old readers must fail closed on a higher manifest version."
+    },
+    {
+      "id": "v4-missing-profile",
+      "manifest_version": 4,
+      "current_reader": "rejects",
+      "strict_reader": "rejects",
+      "notes": "A v4 manifest without canonical_profile is incomplete and must fail closed."
+    },
+    {
+      "id": "v4-unknown-profile",
+      "manifest_version": 4,
+      "canonical_profile": "atb-jcs-unknown-1",
+      "current_reader": "rejects",
+      "strict_reader": "rejects",
+      "notes": "Unknown profiles are never silently downgraded to legacy."
+    }
+  ]
+}

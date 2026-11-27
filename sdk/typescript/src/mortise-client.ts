@@ -1,5 +1,7 @@
 const MAX_RESPONSE_BYTES = 1 << 20;
-const RECEIPT_VERSION = "custos.receipt.v1";
+// custos.receipt.v2 is org-bound; custos.receipt.v1 remains a frozen historical
+// wire identifier accepted for compatibility.
+const SUPPORTED_RECEIPT_VERSIONS = new Set(["custos.receipt.v1", "custos.receipt.v2"]);
 
 export type MortiseJSON = Record<string, unknown>;
 
@@ -67,7 +69,8 @@ export class MortiseClient {
     }
     const receipt = await this.request("POST", "/ingest", bundle, "application/octet-stream");
     if (
-      receipt.receipt_version !== RECEIPT_VERSION ||
+      typeof receipt.receipt_version !== "string" ||
+      !SUPPORTED_RECEIPT_VERSIONS.has(receipt.receipt_version) ||
       typeof receipt.receipt_id !== "string" ||
       receipt.receipt_id === "" ||
       typeof receipt.bundle_hash !== "string" ||

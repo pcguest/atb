@@ -122,6 +122,8 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 - Strings use minimal escaping.
 - No whitespace between tokens.
 
+The normative definitions of the legacy (`atb-jcs-legacy-1`), frozen strict (`atb-jcs-rfc8785-1`), and additive canonical-output-closed (`atb-jcs-rfc8785-2`) profiles are in [canonicalisation-profiles.md](./canonicalisation-profiles.md). Both strict profiles are non-production and are not dispatched for production bundles in this revision; `atb-jcs-rfc8785-2` is defined but not selected, and no manifest-v4 bundle is issued or accepted.
+
 This ensures that the same event produces the same hash in every language and runtime.
 
 Unset optional fields are omitted from canonicalisation output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, `parent_span_id`, or `acquisition` are not set, they are excluded from the canonical JSON bytes before hashing.
@@ -322,7 +324,7 @@ The following canonical event families are used by obligation profiles and verif
 
 The built-in profile templates currently evaluate the following required event sets:
 
-- `atb.profile.privileged_tool_action` requires `atb.bundle.manifest`, `ai.request.received`, `ai.action.precommit`, `ai.policy.decision`, `ai.action.executed`, and `ai.action.committed`. `ai.human.approval` is warning-level evidence and is evaluated when actions execute.
+- `atb.profile.privileged_tool_action` requires `atb.bundle.manifest`, `ai.request.received`, `ai.action.precommit`, `ai.policy.decision`, `ai.action.executed`, and `ai.action.committed`. `ai.human.approval` is warning-level evidence, but profile v2 requires a distinct approved approval record for each execution, correlated to the same `action_id`, with a strictly earlier RFC 3339 timestamp. Bundle position and backdating are not proof of independent authorization.
 - `atb.profile.rag_answer` requires `atb.bundle.manifest`, `ai.request.received`, `ai.model.invoked`, and `ai.model.output`. `ai.retrieval.executed`, `ai.policy.decision`, and `ai.response.sent` are warning-level evidence only.
 - `atb.profile.data_export` requires `atb.bundle.manifest`, `ai.request.received`, `ai.policy.decision`, `data.export.precommit`, and `data.export.executed` (`internal/profiles/templates/data_export.yaml`). `ai.human.approval` is warning-level evidence and is evaluated when exports execute (`required_when` `data.export.executed`). `ai.action.*` is a distinct privileged-action family and is not this profile's critical path.
 - `atb.profile.policy_decision` requires `atb.bundle.manifest`, `ai.request.received`, and `ai.policy.decision`. `ai.action.precommit` is warning-level evidence only.
@@ -340,11 +342,23 @@ To verify a bundle, a verifier must:
 1. Read all records in order.
 2. Detect whether the first record is the manifest type `atb.bundle.manifest`.
 3. For each record at position `i`:
-   a. Set `event.prev_hash` to the hash of the preceding record (or the genesis hash for the first record).
-   b. Set `event.seq` to `0` for the manifest record, `i` for later records in a manifest-first bundle, or `i + 1` for a legacy manifest-less bundle.
-   c. Compute `hash = SHA256(UTF8(prev_hash) || RFC8785(event))`.
-   d. Assert that the computed hash equals the stored `hash` field.
+   a. Record the stored `event.seq` and `event.prev_hash` values.
+   b. Determine the expected `seq`: `0` for the manifest record, `i` for later records in a manifest-first bundle, or `i + 1` for a legacy manifest-less bundle.
+   c. Determine the expected `prev_hash`: the hash of the preceding record, or the genesis hash for the first record.
+   d. Assert that the **recorded** `event.seq` equals the expected `seq` and the **recorded** `event.prev_hash` equals the expected `prev_hash`. A verifier must reject a mismatch here; it must not simply overwrite these fields and continue.
+   e. Set `event.prev_hash` and `event.seq` to the expected values for hash computation.
+   f. Compute `hash = SHA256(UTF8(prev_hash) || RFC8785(event))`.
+   g. Assert that the computed hash equals the stored `hash` field.
 4. If any assertion fails, the bundle has been tampered with.
+
+### Offline handover: expected signer and final head
+
+For an offline handover, `atb verify` can enforce two values that the recipient obtained through a separate authenticated channel:
+
+- `--expected-signer <base64-std Ed25519 public key>` requires at least one `atb.bundle.signature` record and requires every recorded signature's public key to equal the expected key.
+- `--expected-head <64 lowercase hex>` requires the terminal record hash to equal the expected final head.
+
+Both flags only compare the bundle with the supplied values. They enforce equality and fail closed on any mismatch; they do not establish identity authority, signer intent, or that the expected values were obtained from the right party. Obtaining those values through a separate authenticated channel is the recipient's responsibility. A missing or mismatched signature, or a mismatched final head, exits 2 (integrity/commitment failure) and takes precedence over profile failure (exit 3). The flags are rejected as a user error with `--dry-run`, `--schema`, `--schema-out`, or `--remote`. Machine-readable `verify.report.v1` output is still emitted, and its schema is unchanged.
 
 ### 5.1 Reader API contract
 

@@ -33,6 +33,11 @@ func TestParseValid(t *testing.T) {
 			in:   "atb://evidence/1/" + testHead + "?seq=0",
 			want: Locator{BundleHeadHash: testHead, EventSequence: 0},
 		},
+		{
+			name: "max int64 sequence",
+			in:   "atb://evidence/1/" + testHead + "?seq=9223372036854775807",
+			want: Locator{BundleHeadHash: testHead, EventSequence: 9223372036854775807},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -98,6 +103,8 @@ func TestParseRejects(t *testing.T) {
 		{"bad version text", "atb://evidence/x/" + head + "?seq=1", ErrMalformed},
 		{"extra path segment", "atb://evidence/1/" + head + "/x?seq=1", ErrMalformed},
 		{"seq overflow", "atb://evidence/1/" + head + "?seq=99999999999999999999999", ErrMalformed},
+		{"seq int64 overflow", "atb://evidence/1/" + head + "?seq=9223372036854775808", ErrMalformed},
+		{"seq plus sign", "atb://evidence/1/" + head + "?seq=+1", ErrMalformed},
 		{"bad record", "atb://evidence/1/" + head + "?seq=1&record=nothex", ErrMalformed},
 		{"empty record", "atb://evidence/1/" + head + "?seq=1&record=", ErrMalformed},
 		{"unsupported version", "atb://evidence/2/" + head + "?seq=1", ErrUnsupportedVersion},
@@ -119,6 +126,29 @@ func TestValidateRejectsNegativeSequence(t *testing.T) {
 	loc := Locator{BundleHeadHash: testHead, EventSequence: -1}
 	if err := loc.Validate(); !errors.Is(err, ErrMalformed) {
 		t.Fatalf("Validate(-1) = %v, want ErrMalformed", err)
+	}
+}
+
+func TestParseRejectsFragmentAndSurroundingWhitespace(t *testing.T) {
+	valid := "atb://evidence/1/" + testHead + "?seq=1"
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"bare trailing fragment delimiter", valid + "#"},
+		{"fragment with content", valid + "#section"},
+		{"leading space", " " + valid},
+		{"trailing space", valid + " "},
+		{"surrounding tab", "\t" + valid + "\t"},
+		{"surrounding newline", "\n" + valid + "\n"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Parse(tc.in)
+			if !errors.Is(err, ErrMalformed) {
+				t.Fatalf("Parse(%q) = %v, want ErrMalformed", tc.in, err)
+			}
+		})
 	}
 }
 
@@ -149,12 +179,12 @@ func TestResolve(t *testing.T) {
 	target := b.Records[2]
 
 	t.Run("correct head and seq", func(t *testing.T) {
-		loc := Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence}
+		loc := Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence)}
 		res, err := Resolve(loc, b)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
 		}
-		if res.Seq != target.Event.Sequence || res.Index != 2 {
+		if res.Seq != int64(target.Event.Sequence) || res.Index != 2 {
 			t.Fatalf("resolution = %+v, want seq %d index 2", res, target.Event.Sequence)
 		}
 		if res.RecordHashMatched {
@@ -163,7 +193,7 @@ func TestResolve(t *testing.T) {
 	})
 
 	t.Run("correct optional record hash", func(t *testing.T) {
-		loc := Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence, RecordHash: target.Hash}
+		loc := Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence), RecordHash: target.Hash}
 		res, err := Resolve(loc, b)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)
@@ -174,7 +204,7 @@ func TestResolve(t *testing.T) {
 	})
 
 	t.Run("wrong bundle head", func(t *testing.T) {
-		loc := Locator{BundleHeadHash: strings.Repeat("c", 64), EventSequence: target.Event.Sequence}
+		loc := Locator{BundleHeadHash: strings.Repeat("c", 64), EventSequence: int64(target.Event.Sequence)}
 		_, err := Resolve(loc, b)
 		if !errors.Is(err, ErrBundleUnavailable) {
 			t.Fatalf("Resolve = %v, want ErrBundleUnavailable", err)
@@ -190,7 +220,7 @@ func TestResolve(t *testing.T) {
 	})
 
 	t.Run("incorrect optional record hash", func(t *testing.T) {
-		loc := Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence, RecordHash: strings.Repeat("d", 64)}
+		loc := Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence), RecordHash: strings.Repeat("d", 64)}
 		_, err := Resolve(loc, b)
 		if !errors.Is(err, ErrRecordHashMismatch) {
 			t.Fatalf("Resolve = %v, want ErrRecordHashMismatch", err)
@@ -219,7 +249,7 @@ func TestResolve(t *testing.T) {
 		// resolves deterministically to the first match.
 		dup := buildBundle(t, 3)
 		dup.Records[2].Event.Sequence = dup.Records[1].Event.Sequence
-		loc := Locator{BundleHeadHash: dup.Records[len(dup.Records)-1].Hash, EventSequence: dup.Records[1].Event.Sequence}
+		loc := Locator{BundleHeadHash: dup.Records[len(dup.Records)-1].Hash, EventSequence: int64(dup.Records[1].Event.Sequence)}
 		res, err := Resolve(loc, dup)
 		if err != nil {
 			t.Fatalf("Resolve: %v", err)

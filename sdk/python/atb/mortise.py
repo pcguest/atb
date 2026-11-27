@@ -11,7 +11,9 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from atb.exceptions import ATBError
 
 _MAX_RESPONSE_BYTES = 1 << 20
-_RECEIPT_VERSION = "custos.receipt.v1"
+# custos.receipt.v2 is org-bound; custos.receipt.v1 remains a frozen historical
+# wire identifier accepted for compatibility.
+_SUPPORTED_RECEIPT_VERSIONS = frozenset({"custos.receipt.v1", "custos.receipt.v2"})
 
 
 class MortiseError(ATBError):
@@ -63,8 +65,10 @@ class MortiseClient:
         if not bundle:
             raise ValueError("bundle must not be empty")
         receipt = self._request("POST", "/ingest", bundle, "application/octet-stream")
+        receipt_version = receipt.get("receipt_version")
         if (
-            receipt.get("receipt_version") != _RECEIPT_VERSION
+            not isinstance(receipt_version, str)
+            or receipt_version not in _SUPPORTED_RECEIPT_VERSIONS
             or not receipt.get("receipt_id")
             or not receipt.get("bundle_hash")
         ):

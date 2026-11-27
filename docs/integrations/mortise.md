@@ -41,9 +41,10 @@ ATB custody verifier before persistence; this contract does not attest that an
 external receiver follows that requirement.
 
 The legacy `--custos`, `--custos-endpoint`, and `ATB_CUSTOS_TOKEN` names remain
-compatibility aliases for the documented migration window. The historical
-`custos.receipt.v1` string is a frozen wire identifier, not a current product
-name.
+compatibility aliases for the documented migration window. `custos.receipt.v1`
+remains the frozen historical receipt preimage with no organisation binding;
+`custos.receipt.v2` is the current, org-bound receipt version. ATB clients accept
+both versions and reject unknown receipt versions.
 
 The receiving custody service is responsible for its own persistence,
 retention, receipts, access policy, and operational controls. ATB does not

@@ -241,7 +241,7 @@ func TestTrustReportRenderTextIncludesCheckDetails(t *testing.T) {
 				Key:    "obligation_profile",
 				Status: trust.StatusFail,
 				Checks: []trust.Check{
-					{ID: "profile_failure_1", Title: "Profile Critical Failure", Status: trust.StatusFail, Details: "missing_event: ai.human.approval required when actions execute"},
+					{ID: "profile_failure_1", Title: "Profile Critical Failure", Status: trust.StatusFail, Details: "required_when: ai.human.approval must precede ai.action.executed for the same action_id"},
 					{ID: "profile_warning_1", Title: "Profile Required Warning", Status: trust.StatusWarn, Details: "ai.human.approval required for high-impact action types"},
 				},
 			},
@@ -254,7 +254,7 @@ func TestTrustReportRenderTextIncludesCheckDetails(t *testing.T) {
 
 	for _, want := range []string{
 		"Check Details:",
-		"[FAIL] obligation_profile Profile Critical Failure: missing_event: ai.human.approval required when actions execute",
+		"[FAIL] obligation_profile Profile Critical Failure: required_when: ai.human.approval must precede ai.action.executed for the same action_id",
 		"[WARN] obligation_profile Profile Required Warning: ai.human.approval required for high-impact action types",
 	} {
 		if !strings.Contains(got, want) {

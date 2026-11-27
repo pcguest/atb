@@ -13,12 +13,14 @@ ATB has **four** independently-tracked version concepts. Confusing them is the m
 | JSON schema version            | Filename: `schemas/event.v1.json`             | Bumped only when the JSON Schema describing event records gains required fields or removes existing ones. Additive optional fields stay on `v1`. | `event.v1.json`                    |
 | Canonicalisation profile       | Implicit in the canonicaliser's behaviour     | Bumped (de facto) when RFC 8785 implementation rules change in a way that produces different bytes for the same input. Treated as a manifest-version bump for compatibility purposes. | v1.1.2 float profile (current)      |
 
+The normative profile definitions, byte-level guarantees, and migration prerequisites for `atb-jcs-legacy-1`, the frozen non-production strict profile `atb-jcs-rfc8785-1`, and the additive non-production `atb-jcs-rfc8785-2` are in [docs/specification/canonicalisation-profiles.md](docs/specification/canonicalisation-profiles.md). Neither strict profile is dispatched, and no manifest-v4 bundle is issued or accepted in this revision.
+
 The relationship between them:
 
 - A **CLI MAJOR** bump may but need not change the manifest version.
 - A **manifest version** bump always implies a CLI MINOR bump at minimum (and often MAJOR if existing bundles cease to verify).
 - A **JSON schema filename** bump (`event.v1.json` → `event.v2.json`) implies a manifest version bump and is a CLI MAJOR.
-- A **canonicalisation profile** change is the most contagious of all. It invalidates every existing bundle's hash chain and is treated as a CLI MAJOR plus a manifest version bump plus a fresh golden-vector regeneration plus a synchronised SDK release.
+- A **canonicalisation profile** change is the most contagious of all. It invalidates every existing bundle's hash chain and is treated as a CLI MAJOR plus a manifest version bump plus a fresh golden-vector regeneration plus a synchronised SDK release. Adding a non-production profile definition, such as `atb-jcs-rfc8785-2`, is additive only while no writer, reader, verifier, or hasher dispatches to it; selecting it for production requires the full migration process.
 
 ### The verify.report.v1 automation contract
 

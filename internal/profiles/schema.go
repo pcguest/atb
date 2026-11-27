@@ -32,9 +32,11 @@ type ProfileSchema struct {
 }
 
 type requiredWhenRule struct {
-	WhenType  string `yaml:"when_type"`
-	AtOrAfter bool   `yaml:"at_or_after,omitempty"`
-	Message   string `yaml:"message,omitempty"`
+	WhenType   string `yaml:"when_type"`
+	AtOrAfter  bool   `yaml:"at_or_after,omitempty"`
+	Before     bool   `yaml:"before,omitempty"`
+	MatchField string `yaml:"match_field,omitempty"`
+	Message    string `yaml:"message,omitempty"`
 }
 
 type EventRule struct {
@@ -139,6 +141,17 @@ func validateEventRules(id string, section string, rules []EventRule) error {
 			}
 			if when == ruleType {
 				return fmt.Errorf("profile schema %q: %s rule %q has required_when that references itself", id, section, ruleType)
+			}
+			if r.AtOrAfter && r.Before {
+				return fmt.Errorf("profile schema %q: %s rule %q has required_when with both at_or_after and before", id, section, ruleType)
+			}
+			matchField := strings.TrimSpace(r.MatchField)
+			if r.Before {
+				if matchField == "" {
+					return fmt.Errorf("profile schema %q: %s rule %q has required_when with before but no match_field", id, section, ruleType)
+				}
+			} else if matchField != "" {
+				return fmt.Errorf("profile schema %q: %s rule %q has required_when with match_field but no before", id, section, ruleType)
 			}
 		}
 	}

@@ -4,8 +4,10 @@ package mortise_test
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -33,6 +35,10 @@ func TestMortiseIngestConformance(t *testing.T) {
 
 		t.Run(name, func(t *testing.T) {
 			path := filepath.Join(root, name)
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("read fixture: %v", err)
+			}
 			b, err := bundle.Load(path)
 			if err != nil {
 				t.Fatalf("load: %v", err)
@@ -46,8 +52,29 @@ func TestMortiseIngestConformance(t *testing.T) {
 				t.Fatalf("unknown profile %q", profileID)
 			}
 
-			report := verify.VerifyWithProfile(b, path, profile)
-			vr := verify.ReportFromVerify(report)
+			// The evaluator accumulates the CAS weighted total in Go map
+			// iteration order, so independent evaluations of identical
+			// records can differ in the final float bit. Normalise those
+			// artefacts and compare everything else exactly.
+			result, err := custody.Evaluate(data, profileID, path)
+			if err != nil {
+				t.Fatalf("custody.Evaluate: %v", err)
+			}
+
+			report, err := verify.EvaluateBundle(verify.EvaluateConfig{
+				BundlePath: path,
+				Records:    b.Records,
+				Profiles:   []verify.Profile{profile},
+			})
+			if err != nil {
+				t.Fatalf("verify.EvaluateBundle: %v", err)
+			}
+			want := verify.ReportFromVerifyWithBundle(*report, b)
+
+			if !reflect.DeepEqual(normaliseCASNumbers(result.Report), normaliseCASNumbers(want)) {
+				t.Fatalf("custody.Evaluate report differs from full evaluator\ngot:  %+v\nwant: %+v", result.Report, want)
+			}
+			vr := result.Report
 
 			if vr.ReportVersion != verify.VerifyReportVersion {
 				t.Fatalf("report_version = %q want %q", vr.ReportVersion, verify.VerifyReportVersion)
@@ -71,12 +98,12 @@ func TestMortiseIngestConformance(t *testing.T) {
 				t.Fatalf("expected residual_risk.level")
 			}
 
-			data, err := json.Marshal(vr)
+			encoded, err := json.Marshal(vr)
 			if err != nil {
 				t.Fatalf("marshal: %v", err)
 			}
 			var round map[string]json.RawMessage
-			if err := json.Unmarshal(data, &round); err != nil {
+			if err := json.Unmarshal(encoded, &round); err != nil {
 				t.Fatalf("unmarshal: %v", err)
 			}
 			for _, key := range []string{
@@ -112,4 +139,26 @@ func verifyReportSchemaFields(t *testing.T) map[string]struct{} {
 		fields[key] = struct{}{}
 	}
 	return fields
+}
+
+// normaliseCASNumbers returns a copy of report with only the CAS numeric fields
+// rounded, so the evaluator's map-order float summation noise does not affect
+// the parity comparison.
+func normaliseCASNumbers(report custody.VerifierReport) custody.VerifierReport {
+	out := report
+	out.CASScore = roundCASValue(report.CASScore)
+	out.EffectiveScore = roundCASValue(report.EffectiveScore)
+	out.CorroborationBonus = roundCASValue(report.CorroborationBonus)
+	if report.SubScores != nil {
+		out.SubScores = make(map[string]float64, len(report.SubScores))
+		for key, value := range report.SubScores {
+			out.SubScores[key] = roundCASValue(value)
+		}
+	}
+	return out
+}
+
+func roundCASValue(value float64) float64 {
+	const precision = 1e9
+	return math.Round(value*precision) / precision
 }
