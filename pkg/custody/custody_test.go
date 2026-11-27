@@ -325,6 +325,43 @@ func TestEvaluateNormalisesProfileID(t *testing.T) {
 	}
 }
 
+// TestEvaluateWithoutProfileID asserts that an empty profile ID preserves the
+// previous verify.Verify behaviour: evaluate every applicable profile rather
+// than failing closed on an unknown profile.
+func TestEvaluateWithoutProfileID(t *testing.T) {
+	root := filepath.Join("..", "..", "examples", "bundles", "profiles")
+	path := filepath.Join(root, "rag_answer-pass.atb")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	result, err := custody.Evaluate(data, "", path)
+	if err != nil {
+		t.Fatalf("evaluate without profile: %v", err)
+	}
+	if result.HeadHash == "" {
+		t.Fatal("expected non-empty head hash")
+	}
+	if !result.Report.GateResult.ChainValid {
+		t.Fatal("expected chain valid")
+	}
+
+	// An empty profile ID must reproduce the previous verify.Verify path, which
+	// evaluates every applicable profile instead of failing closed. The
+	// evaluator stamps profile_id from the first matching profile, so parity
+	// with verify.Verify is the compatibility contract, not an empty profile ID.
+	b, err := custody.LoadBundle(data)
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	want := verify.ReportFromVerifyWithBundle(verify.Verify(b, path, ""), b)
+	if !reflect.DeepEqual(normaliseCASNumbers(result.Report), normaliseCASNumbers(want)) {
+		t.Fatalf("custody.Evaluate report differs from verify.Verify\ngot:  %s\nwant: %s",
+			marshalReport(t, result.Report), marshalReport(t, want))
+	}
+}
+
 func TestLoadBundleRejectsEmpty(t *testing.T) {
 	_, err := custody.LoadBundle(nil)
 	if err == nil {

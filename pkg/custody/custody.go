@@ -59,9 +59,12 @@ func LoadBundle(data []byte) (*bundle.Bundle, error) {
 // evaluation implementation. It returns the head hash plus verify.report.v1
 // output.
 //
-// Profile IDs may be given as "atb.profile.<name>" or bare "<name>". An unknown
-// profile fails closed with an error wrapping verify.ErrProfileUnknown instead
-// of producing a report with no selected profile.
+// Profile IDs may be given as "atb.profile.<name>" or bare "<name>". An empty
+// (or whitespace-only) profile ID evaluates every applicable profile, matching
+// the previous verify.Verify behaviour, and produces a report with no selected
+// profile. A non-empty unknown profile fails closed with an error wrapping
+// verify.ErrProfileUnknown instead of producing a report with no selected
+// profile.
 //
 // Custody exposes no anchor, strict-source-signature, or corroboration options.
 // Evaluator-only settings such as EvaluateConfig.AnchorRequired therefore
@@ -77,15 +80,22 @@ func Evaluate(data []byte, profileID, bundlePath string) (EvalResult, error) {
 	if bundlePath == "" {
 		bundlePath = "mortise://ingest"
 	}
-	profile, err := resolveProfile(profileID)
-	if err != nil {
-		return EvalResult{}, err
-	}
-	report, err := verify.EvaluateBundle(verify.EvaluateConfig{
+	cfg := verify.EvaluateConfig{
 		BundlePath: bundlePath,
 		Records:    b.Records,
-		Profiles:   []verify.Profile{profile},
-	})
+	}
+	if strings.TrimSpace(profileID) == "" {
+		// Preserve verify.Verify semantics: no selected profile means evaluate
+		// every applicable profile rather than failing closed.
+		cfg.AllApplicable = true
+	} else {
+		profile, err := resolveProfile(profileID)
+		if err != nil {
+			return EvalResult{}, err
+		}
+		cfg.Profiles = []verify.Profile{profile}
+	}
+	report, err := verify.EvaluateBundle(cfg)
 	if err != nil {
 		return EvalResult{}, fmt.Errorf("custody: evaluate bundle: %w", err)
 	}
