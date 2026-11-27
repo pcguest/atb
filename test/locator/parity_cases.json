@@ -1,0 +1,157 @@
+[
+  {
+    "name": "valid canonical locator",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=3",
+    "ok": true,
+    "canonical": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=3",
+    "seq": 3
+  },
+  {
+    "name": "accepted equivalent query order (record before seq)",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?record=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&seq=2",
+    "ok": true,
+    "canonical": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=2&record=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "seq": 2
+  },
+  {
+    "name": "surrounding space rejected",
+    "input": " atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1 ",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "surrounding tab rejected",
+    "input": "\tatb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1\t",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "surrounding newline rejected",
+    "input": "\natb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1\n",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "bare trailing fragment delimiter rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1#",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "fragment with content rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1#section",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "uppercase scheme rejected",
+    "input": "ATB://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "uppercase authority rejected",
+    "input": "atb://EVIDENCE/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "version 0 unsupported",
+    "input": "atb://evidence/0/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1",
+    "ok": false,
+    "error_class": "unsupported_version"
+  },
+  {
+    "name": "version 2 unsupported",
+    "input": "atb://evidence/2/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1",
+    "ok": false,
+    "error_class": "unsupported_version"
+  },
+  {
+    "name": "version 01 malformed",
+    "input": "atb://evidence/01/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "seq zero accepted",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=0",
+    "ok": true,
+    "canonical": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=0",
+    "seq": 0
+  },
+  {
+    "name": "seq 00 malformed",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=00",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "seq -1 malformed",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=-1",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "seq +1 malformed",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=+1",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "seq max int64 accepted",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=9223372036854775807",
+    "ok": true,
+    "canonical": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=9223372036854775807",
+    "seq": 9223372036854775807
+  },
+  {
+    "name": "seq int64 overflow rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=9223372036854775808",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "record hash uppercase rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&record=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "record hash short rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&record=bbbb",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "record hash valid accepted",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&record=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "ok": true,
+    "canonical": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&record=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "seq": 1
+  },
+  {
+    "name": "percent encoding rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&record=%20",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "unknown parameter rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&foo=bar",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "duplicate parameter rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&seq=2",
+    "ok": false,
+    "error_class": "malformed"
+  },
+  {
+    "name": "empty query component rejected",
+    "input": "atb://evidence/1/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa?seq=1&",
+    "ok": false,
+    "error_class": "malformed"
+  }
+]

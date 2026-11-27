@@ -40,7 +40,11 @@ atb://evidence/1/<bundle_head_hash>?seq=<event_sequence>[&record=<record_hash>]
 Query parameters must be exactly `seq` and (optionally) `record`. Unknown
 parameters, duplicate parameters, empty query components (a trailing, leading,
 or doubled `&`), fragments (including a bare `#`), userinfo, ports, and
-percent-encoding are rejected.
+percent-encoding are rejected. Surrounding whitespace (spaces, tabs, newlines)
+is rejected: `Parse` does not trim input.
+
+`seq` is a signed 64-bit, non-negative integer (`int64`), 0 through
+`9223372036854775807`.
 
 ## 4. Canonical form
 
@@ -61,9 +65,10 @@ so `Parse(String(Parse(x))) == Parse(x)` holds for every accepted locator.
 
 `Parse` rejects forms that are invalid or non-canonical rather than normalising
 them. The grammar-level rejections are catalogued in [§3](#3-grammar);
-additionally, `Parse` rejects a non-lowercase scheme or authority, a
-non-canonical or unsupported version segment (for example the non-canonical
-`01`), malformed hashes, and a `seq` with leading zeros.
+additionally, `Parse` rejects surrounding whitespace (it does not trim), a
+non-lowercase scheme or authority, a non-canonical or unsupported version
+segment (for example the non-canonical `01`), malformed hashes, and a `seq`
+with leading zeros.
 
 ## 5. Field semantics
 
@@ -81,6 +86,8 @@ non-canonical or unsupported version segment (for example the non-canonical
 ### `event_sequence`
 
 - Meaning: the value of the referenced record's `seq` field.
+- Type: a signed 64-bit, non-negative integer (`int64`); the maximum is
+  `9223372036854775807`.
 - Base: bundles that contain a manifest record reserve `seq = 0` for the
   manifest; all subsequent records are numbered `1..N` by their `seq` field
   (which equals the record's 0-based index for manifest bundles). Legacy
@@ -127,7 +134,9 @@ The caller is responsible for supplying the bundle and for any integrity check.
 ## 8. Failure semantics
 
 Errors are typed sentinels (matchable via `errors.Is`) in package
-`internal/locator`, mirroring the `internal/bundle` sentinel style:
+`internal/locator`, mirroring the `internal/bundle` sentinel style. The
+grammar is exposed for external consumers at `pkg/locator`, which re-exports
+the same sentinel values along with `Parse`, `Format`, and the `Locator` type.
 
 | Sentinel / code | Meaning |
 | --- | --- |
