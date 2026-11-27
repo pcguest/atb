@@ -628,7 +628,7 @@ func (s *APIServer) handleBundleLocate(w http.ResponseWriter, r *http.Request) {
 	if !s.requireRole(w, r, atbauth.RoleViewer) {
 		return
 	}
-	raw := strings.TrimSpace(r.URL.Query().Get("locator"))
+	raw := r.URL.Query().Get("locator")
 	if raw == "" {
 		writeJSON(w, http.StatusBadRequest, APIError{Error: "locator query parameter is required"})
 		return

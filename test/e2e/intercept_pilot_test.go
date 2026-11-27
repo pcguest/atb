@@ -151,7 +151,7 @@ func TestInterceptPilotIncident(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse handoff evidence reference %q: %v", h.EvidenceReference, err)
 	}
-	if loc.BundleHeadHash != h.BundleHead || loc.EventSequence != h.Sequence || loc.RecordHash != h.RecordHash {
+	if loc.BundleHeadHash != h.BundleHead || loc.EventSequence != int64(h.Sequence) || loc.RecordHash != h.RecordHash {
 		t.Fatalf("handoff reference does not resolve to the exact record: %+v vs %+v", loc, h)
 	}
 
