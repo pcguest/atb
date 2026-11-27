@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The npm release path now uses staged publishing with GitHub OIDC and npm 11.15.0 instead of a direct `npm publish`. The workflow stages the verified package for maintainer review and 2FA approval against a stage-only trusted publisher, so it no longer publishes the package publicly on its own. Package contents, tag, and version are unchanged.
 
 ### Fixed
+- `pkg/custody.Evaluate` now delegates to the same full evaluator path as `atb verify` (`verify.EvaluateBundle` followed by `ReportFromVerifyWithBundle`) and rejects unknown profile IDs with an error wrapping `verify.ErrProfileUnknown` instead of returning a report with no selected profile. The previously reported report divergence is not reachable through custody's current inputs: `verify.Verify` already delegates to `evaluateLoadedBundle`, and custody exposes no anchor, strict-source-signature, or corroboration options. No bundle, report-schema, or canonicalisation change.
 - `atb intercept` now binds its TCP listener synchronously before reporting success or printing proxy setup hints. A busy or invalid listen address returns exit code 3 (system error) with an error on stderr, without the stdout setup hints or a misleading "proxy listening" log. `Proxy.ListenAndServe` binds synchronously and shares the same serving path, and port 0 logs the actual bound address. No capture, bundle, or wire-format semantics change.
 
 ### Removed
