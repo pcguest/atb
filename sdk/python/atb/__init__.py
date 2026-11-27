@@ -27,7 +27,14 @@ from atb.action_gate import (
 )
 from atb.automation_session import AutomationSession, is_capture_environment
 from atb.background_job_tracker import BackgroundJobScheduleInput, BackgroundJobTracker
-from atb.bundle import Bundle, BundleResourceLimitError
+from atb.bundle import Bundle, BundleResourceLimitError, UnsupportedManifestVersionError
+from atb.canonicalize_strict import (
+    StrictCanonicalizationError,
+    canonicalize_strict,
+    canonicalize_strict_raw,
+    canonicalize_strict_raw_v2,
+    canonicalize_strict_v2,
+)
 from atb.data_export_gate import (
     DataExportApproval,
     DataExportDeniedError,
@@ -133,6 +140,7 @@ __version__ = "2.0.0"
 __all__ = [
     "Bundle",
     "BundleResourceLimitError",
+    "UnsupportedManifestVersionError",
     "event_types",
     "ActionGate",
     "ActionGateDeniedError",
@@ -172,4 +180,9 @@ __all__ = [
     "decrypt_bundle",
     "compute_hash",
     "genesis_hash",
+    "StrictCanonicalizationError",
+    "canonicalize_strict",
+    "canonicalize_strict_raw",
+    "canonicalize_strict_v2",
+    "canonicalize_strict_raw_v2",
 ]

@@ -608,6 +608,52 @@ func TestManifestV2RoundTrip(t *testing.T) {
 	}
 }
 
+func TestManifestV4RejectedWrapsErrMalformed(t *testing.T) {
+	// v4 is the first version beyond this build's support. It must be rejected
+	// as malformed and name the newer-version requirement, matching the v99
+	// forward-compatibility contract without changing ManifestVersionMax.
+	createdAt := time.Now().UTC().Format(time.RFC3339)
+	manifestData := map[string]any{
+		"version":    4,
+		"created_at": createdAt,
+		"bundle_id":  "00112233445566778899aabbccddeeff",
+	}
+	manifestEvent := map[string]any{
+		"seq":       0,
+		"prev_hash": hash.GenesisHash,
+		"type":      bundle.ManifestEventType,
+		"hash_algo": "sha256",
+		"timestamp": createdAt,
+		"data":      manifestData,
+	}
+	record := map[string]any{
+		"event": manifestEvent,
+		"hash":  strings.Repeat("0", 64),
+	}
+	line, err := json.Marshal(record)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "v4.atb")
+	if err := os.WriteFile(path, append(line, '\n'), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	_, err = bundle.Load(context.Background(), path)
+	if err == nil {
+		t.Fatal("expected error loading bundle with manifest version 4")
+	}
+	if !errors.Is(err, bundle.ErrMalformed) {
+		t.Fatalf("expected error wrapping ErrMalformed, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "unsupported manifest version 4") {
+		t.Fatalf("expected manifest version 4 in error, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "newer version") {
+		t.Fatalf("expected newer-version requirement in error, got %v", err)
+	}
+}
+
 func TestManifestUnknownVersionWrapsErrMalformed(t *testing.T) {
 	// Hand-craft a bundle file whose manifest declares an unsupported version 99.
 	createdAt := time.Now().UTC().Format(time.RFC3339)

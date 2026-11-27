@@ -1,0 +1,110 @@
+{
+  "schema": "atb.jcs.legacy-freeze-vectors.v1",
+  "profile": "atb-jcs-legacy-1",
+  "status": "frozen",
+  "expectation_source": "Captured from the existing implementations at ATB a7837e2 and the matching Python/TypeScript SDKs. Do not regenerate; a change is a breaking canonicalisation change.",
+  "raw_cases": [
+    {
+      "id": "legacy-raw-duplicate-last-wins",
+      "input_utf8_hex": "7b2261223a312c2261223a327d",
+      "go_canonical_utf8_hex": "7b2261223a327d",
+      "notes": "Legacy duplicate members: last value wins."
+    },
+    {
+      "id": "legacy-raw-invalid-utf8-replacement",
+      "input_utf8_hex": "7b2273223a22c328227d",
+      "go_canonical_utf8_hex": "7b2273223a22efbfbd28227d",
+      "notes": "Legacy substitutes U+FFFD for the invalid byte sequence."
+    },
+    {
+      "id": "legacy-raw-lone-surrogate",
+      "input_utf8_hex": "7b2273223a225c7564383030227d",
+      "go_canonical_utf8_hex": "7b2273223a22efbfbd227d",
+      "notes": "Legacy substitutes U+FFFD for an unpaired surrogate."
+    },
+    {
+      "id": "legacy-raw-negative-zero",
+      "input_utf8_hex": "7b226e223a2d307d",
+      "go_canonical_utf8_hex": "7b226e223a2d307d",
+      "notes": "Legacy Go emits -0."
+    },
+    {
+      "id": "legacy-raw-small-exp",
+      "input_utf8_hex": "7b226e223a31652d377d",
+      "go_canonical_utf8_hex": "7b226e223a31652d30377d",
+      "notes": "Legacy Go zero-pads the exponent to two digits."
+    },
+    {
+      "id": "legacy-raw-big-int",
+      "input_utf8_hex": "7b226e223a393030373139393235343734303939337d",
+      "go_canonical_utf8_hex": "7b226e223a393030373139393235343734303939327d",
+      "notes": "Legacy Go rounds through float64."
+    },
+    {
+      "id": "legacy-raw-nul-key",
+      "input_utf8_hex": "7b22615c7530303030223a312c2261223a327d",
+      "go_canonical_utf8_hex": "7b2261223a322c22615c7530303030223a317d",
+      "notes": "Legacy Go UTF-16 ordering is correct for NUL-containing keys."
+    },
+    {
+      "id": "legacy-raw-trailing-data",
+      "input_utf8_hex": "7b2261223a317d207b2262223a327d",
+      "go_error": "invalid_json",
+      "notes": "Legacy Go rejects trailing JSON data at decode time."
+    },
+    {
+      "id": "legacy-raw-non-finite",
+      "input_utf8_hex": "7b226e223a4e614e7d",
+      "go_error": "invalid_json",
+      "notes": "Legacy Go rejects the non-JSON NaN token at decode time."
+    }
+  ],
+  "value_cases": [
+    {
+      "id": "legacy-value-simple",
+      "value_json": "{\"b\":1,\"a\":2}",
+      "expected": {"go": "7b2261223a322c2262223a317d", "python": "7b2261223a322c2262223a317d", "typescript": "7b2261223a322c2262223a317d"},
+      "equal_across_languages": true
+    },
+    {
+      "id": "legacy-value-nested",
+      "value_json": "{\"b\":[{\"d\":null,\"c\":true}],\"a\":false}",
+      "expected": {"go": "7b2261223a66616c73652c2262223a5b7b2263223a747275652c2264223a6e756c6c7d5d7d", "python": "7b2261223a66616c73652c2262223a5b7b2263223a747275652c2264223a6e756c6c7d5d7d", "typescript": "7b2261223a66616c73652c2262223a5b7b2263223a747275652c2264223a6e756c6c7d5d7d"},
+      "equal_across_languages": true
+    },
+    {
+      "id": "legacy-value-small-exp",
+      "value_json": "{\"n\":1e-7}",
+      "expected": {"go": "7b226e223a31652d30377d", "python": "7b226e223a31652d30377d", "typescript": "7b226e223a31652d377d"},
+      "equal_across_languages": false,
+      "notes": "Go and Python zero-pad the exponent; TypeScript uses ES6."
+    },
+    {
+      "id": "legacy-value-big-int",
+      "value_json": "{\"n\":9007199254740993}",
+      "expected": {"go": "7b226e223a393030373139393235343734303939327d", "python": "7b226e223a393030373139393235343734303939337d", "typescript": "7b226e223a393030373139393235343734303939327d"},
+      "equal_across_languages": false,
+      "notes": "Python preserves the integer; Go and TypeScript round through binary64."
+    },
+    {
+      "id": "legacy-value-nul-key",
+      "value_json": "{\"a\\u0000\":1,\"a\":2}",
+      "expected": {"go": "7b2261223a322c22615c7530303030223a317d", "python": "7b2261223a322c22615c7530303030223a317d", "typescript": "7b22615c7530303030223a312c2261223a327d"},
+      "equal_across_languages": false,
+      "notes": "The TypeScript legacy comparator treats U+0000 as -1."
+    },
+    {
+      "id": "legacy-value-unicode",
+      "value_json": "{\"s\":\"café ☃\"}",
+      "expected": {"go": "7b2273223a22636166c3a920e29883227d", "python": "7b2273223a22636166c3a920e29883227d", "typescript": "7b2273223a22636166c3a920e29883227d"},
+      "equal_across_languages": true
+    },
+    {
+      "id": "legacy-value-negative-zero",
+      "value_json": "{\"n\":-0}",
+      "expected": {"go": "7b226e223a2d307d", "python": "7b226e223a307d", "typescript": "7b226e223a307d"},
+      "equal_across_languages": false,
+      "notes": "Go preserves negative zero; Python's JSON loader and TypeScript serialise it as 0."
+    }
+  ]
+}

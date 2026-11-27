@@ -299,6 +299,76 @@ func TestRunVerify_InvalidBundleSignatureFails(t *testing.T) {
 	}
 }
 
+func TestRunVerify_EarlierInvalidSignatureFailsExit(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	keyPath := writeSignTestPrivateKey(t, t.TempDir())
+
+	sign := func() {
+		t.Helper()
+		var stdout bytes.Buffer
+		var stderr bytes.Buffer
+		if exitCode := runSign([]string{"--bundle", bundlePath, "--key", keyPath}, &stdout, &stderr); exitCode != exitSuccess {
+			t.Fatalf("sign exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+		}
+	}
+
+	// First signature, then corrupt only that earlier record. Rehashing keeps
+	// the hash chain valid so the failure must come from signature evidence.
+	sign()
+	tampered, err := bundle.Load(bundlePath)
+	if err != nil {
+		t.Fatalf("load signed bundle: %v", err)
+	}
+	corrupted := false
+	for i := range tampered.Records {
+		if tampered.Records[i].Event.Type != event.TypeBundleSignature {
+			continue
+		}
+		data, ok := tampered.Records[i].Event.Data.(map[string]any)
+		if !ok {
+			t.Fatalf("signature record data type = %T, want map[string]any", tampered.Records[i].Event.Data)
+		}
+		data["signature"] = base64.StdEncoding.EncodeToString(bytes.Repeat([]byte{0x7f}, ed25519.SignatureSize))
+		corrupted = true
+		break
+	}
+	if !corrupted {
+		t.Fatal("no signature record to corrupt")
+	}
+	rehashTestBundle(t, tampered)
+	if err := tampered.Save(bundlePath); err != nil {
+		t.Fatalf("save tampered bundle: %v", err)
+	}
+
+	// A later signature over the now-tampered prefix is genuinely valid, so
+	// only a whole-bundle signature check can catch the earlier failure.
+	sign()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--json"}, &stdout, &stderr)
+	if exitCode != exitIntegrityFailure {
+		t.Fatalf("verify exit code = %d, want %d (stderr=%q)", exitCode, exitIntegrityFailure, stderr.String())
+	}
+
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("unmarshal verify report: %v", err)
+	}
+	if report.BundleSignature == nil || !report.BundleSignature.Present || !report.BundleSignature.Verified {
+		t.Fatalf("latest signature should remain valid, got %+v", report.BundleSignature)
+	}
+	if len(report.Signatures) != 2 {
+		t.Fatalf("expected two signature evidence entries, got %d: %+v", len(report.Signatures), report.Signatures)
+	}
+	if report.Signatures[0].Valid {
+		t.Fatalf("earlier signature should be invalid, got %+v", report.Signatures[0])
+	}
+	if !report.Signatures[1].Valid {
+		t.Fatalf("later signature should be valid, got %+v", report.Signatures[1])
+	}
+}
+
 func TestRunVerify_IntegrityFail_ExitCode(t *testing.T) {
 	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"event_id": "evt-1"})

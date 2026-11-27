@@ -152,8 +152,9 @@ test-integration:
 	$(GOENV) go test -tags=integration -count=1 -v ./test/integration/...
 
 fuzz:
-	go test ./internal/canonicalize/... -fuzz=FuzzMarshal -fuzztime=30s
-	go test ./internal/bundle/... -fuzz=FuzzLoad -fuzztime=30s
+	$(GOENV) go test ./internal/canonicalize -fuzz=FuzzMarshal -fuzztime=30s
+	$(GOENV) go test ./internal/canonicalize/strict -fuzz=FuzzCanonicalizeNoPanic -fuzztime=30s
+	$(GOENV) go test ./internal/bundle -fuzz=FuzzLoad -fuzztime=30s
 
 test-all: hygiene-full
 	@echo "✅ All tests passed"

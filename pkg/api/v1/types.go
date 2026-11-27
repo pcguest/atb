@@ -79,7 +79,7 @@ type BundleEventsResponse struct {
 type LocateResponse struct {
 	OK                bool   `json:"ok"`
 	Canonical         string `json:"canonical,omitempty"`
-	Seq               int    `json:"seq"`
+	Seq               int64  `json:"seq"`
 	RecordHashMatched bool   `json:"record_hash_matched"`
 	ErrorCode         string `json:"error_code,omitempty"`
 	Message           string `json:"message,omitempty"`

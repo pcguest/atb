@@ -122,6 +122,8 @@ Before hashing, the event object is serialised using the [RFC 8785 JSON Canonica
 - Strings use minimal escaping.
 - No whitespace between tokens.
 
+The normative definitions of the legacy (`atb-jcs-legacy-1`), frozen strict (`atb-jcs-rfc8785-1`), and additive canonical-output-closed (`atb-jcs-rfc8785-2`) profiles are in [canonicalisation-profiles.md](./canonicalisation-profiles.md). Both strict profiles are non-production and are not dispatched for production bundles in this revision; `atb-jcs-rfc8785-2` is defined but not selected, and no manifest-v4 bundle is issued or accepted.
+
 This ensures that the same event produces the same hash in every language and runtime.
 
 Unset optional fields are omitted from canonicalisation output. For example, if `actor_id`, `org_id`, `workspace_id`, `timestamp`, `trace_id`, `span_id`, `parent_span_id`, or `acquisition` are not set, they are excluded from the canonical JSON bytes before hashing.
@@ -340,10 +342,13 @@ To verify a bundle, a verifier must:
 1. Read all records in order.
 2. Detect whether the first record is the manifest type `atb.bundle.manifest`.
 3. For each record at position `i`:
-   a. Set `event.prev_hash` to the hash of the preceding record (or the genesis hash for the first record).
-   b. Set `event.seq` to `0` for the manifest record, `i` for later records in a manifest-first bundle, or `i + 1` for a legacy manifest-less bundle.
-   c. Compute `hash = SHA256(UTF8(prev_hash) || RFC8785(event))`.
-   d. Assert that the computed hash equals the stored `hash` field.
+   a. Record the stored `event.seq` and `event.prev_hash` values.
+   b. Determine the expected `seq`: `0` for the manifest record, `i` for later records in a manifest-first bundle, or `i + 1` for a legacy manifest-less bundle.
+   c. Determine the expected `prev_hash`: the hash of the preceding record, or the genesis hash for the first record.
+   d. Assert that the **recorded** `event.seq` equals the expected `seq` and the **recorded** `event.prev_hash` equals the expected `prev_hash`. A verifier must reject a mismatch here; it must not simply overwrite these fields and continue.
+   e. Set `event.prev_hash` and `event.seq` to the expected values for hash computation.
+   f. Compute `hash = SHA256(UTF8(prev_hash) || RFC8785(event))`.
+   g. Assert that the computed hash equals the stored `hash` field.
 4. If any assertion fails, the bundle has been tampered with.
 
 ### 5.1 Reader API contract

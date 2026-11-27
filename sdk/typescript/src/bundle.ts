@@ -28,6 +28,14 @@ const DEFAULT_PATH = "run.atb/bundle.atb";
 const MANIFEST_EVENT_TYPE = "atb.bundle.manifest";
 const SIGNATURE_EVENT_TYPE = "atb.bundle.signature";
 const MANIFEST_VERSION = "1";
+// Highest manifest version this SDK can read. Mirrors
+// internal/bundle.ManifestVersionMax. Higher versions are rejected before any
+// hash or signature evidence is produced.
+export const MAX_MANIFEST_VERSION = 3;
+// Reported for versions known to be unsupported whose integer part is not
+// meaningful (non-finite numbers, oversized digit strings, or fractions just
+// above the maximum). It must be greater than MAX_MANIFEST_VERSION.
+const UNSUPPORTED_VERSION_SENTINEL = MAX_MANIFEST_VERSION + 1;
 export const MAX_LINE_SIZE_BYTES = 16 * 1024 * 1024;
 export const MAX_BUNDLE_SIZE_BYTES = 512 * 1024 * 1024;
 export const MAX_BUNDLE_RECORDS = 1_000_000;
@@ -43,6 +51,25 @@ export class BundleResourceLimitError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "BundleResourceLimitError";
+  }
+}
+
+/**
+ * Raised when a bundle declares a manifest version this SDK cannot read.
+ *
+ * This is deliberately not an {@link ATBVerificationError}: the bundle may be
+ * intact, but this SDK is too old to interpret it. Callers should upgrade the
+ * SDK rather than treat the bundle as tampered.
+ */
+export class UnsupportedManifestVersionError extends Error {
+  readonly version: number;
+
+  constructor(version: number) {
+    super(
+      `atb: unsupported manifest version ${version}: this bundle requires a newer version of the SDK`
+    );
+    this.name = "UnsupportedManifestVersionError";
+    this.version = version;
   }
 }
 
@@ -79,6 +106,96 @@ function normalizeOptionalField(
     return undefined;
   }
   return trimmed;
+}
+
+/**
+ * @param records Bundle records in order.
+ * @returns The determinable integer manifest version, or `undefined` when the
+ * recorded value is not determinable as an integer.
+ *
+ * Returns 1 when there is no manifest record or the version is absent/empty.
+ */
+function recordedManifestVersion(records: ATBRecord[]): number | undefined {
+  if (records.length === 0) {
+    return 1;
+  }
+  const first = records[0].event;
+  if (first.type !== MANIFEST_EVENT_TYPE) {
+    return 1;
+  }
+
+  const data = first.data;
+  if (typeof data === "string") {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(data);
+    } catch {
+      return undefined;
+    }
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      return undefined;
+    }
+    return coerceManifestVersion((parsed as Record<string, unknown>).version);
+  }
+  if (data !== null && typeof data === "object" && !Array.isArray(data)) {
+    return coerceManifestVersion((data as Record<string, unknown>).version);
+  }
+  return undefined;
+}
+
+/**
+ * @param value Recorded `version` field.
+ * @returns Supported integer version, 1 for absent/empty, or `undefined` when
+ * no leading integer is determinable. Finite numbers above the maximum and
+ * strings whose leading decimal-digit run is above the maximum are reported as
+ * a sentinel greater than the maximum so the guard rejects them. Booleans and
+ * strings without a leading digit remain non-determinable for legacy
+ * compatibility.
+ */
+function coerceManifestVersion(value: unknown): number | undefined {
+  if (value === undefined || value === null) {
+    return 1;
+  }
+  if (typeof value === "boolean") {
+    return undefined;
+  }
+  if (value === "") {
+    return 1;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      return UNSUPPORTED_VERSION_SENTINEL;
+    }
+    if (value > MAX_MANIFEST_VERSION) {
+      const truncated = Math.trunc(value);
+      // A fraction just above the maximum (e.g. 3.5) truncates to a supported
+      // integer, but the recorded value itself is still newer than this SDK
+      // supports, so report the sentinel.
+      return truncated > MAX_MANIFEST_VERSION
+        ? truncated
+        : UNSUPPORTED_VERSION_SENTINEL;
+    }
+    return Number.isInteger(value) ? value : undefined;
+  }
+  if (typeof value === "string") {
+    // Mirror Go's Sscanf("%d") behaviour: trim surrounding whitespace and read
+    // the leading decimal-digit run, ignoring any suffix. A missing digit run
+    // remains non-determinable for legacy compatibility.
+    const match = /^[0-9]+/.exec(value.trim());
+    if (match === null) {
+      return undefined;
+    }
+    const digits = match[0];
+    if (digits.length > 18) {
+      return UNSUPPORTED_VERSION_SENTINEL;
+    }
+    return Number(digits);
+  }
+  return undefined;
 }
 
 function withDerivedChain(event: Event, seq: number, prevHash: string): Event {
@@ -234,16 +351,42 @@ export class Bundle {
    * Verify the integrity of the entire bundle.
    *
    * @returns Signature evidence gathered while verifying the chain.
-   * @throws ATBVerificationError when a record hash does not match.
+   * @throws UnsupportedManifestVersionError when the manifest version is newer
+   * than this SDK supports.
+   * @throws ATBVerificationError when a record hash, stored `seq`, or stored
+   * `prev_hash` does not match its expected chain value.
    */
   verify(): VerifyResult {
+    this.assertSupportedManifestVersion();
     let prev = GENESIS_HASH;
     const hasManifest = this.hasManifestRecord();
     for (let i = 0; i < this.records.length; i++) {
       const record = this.records[i];
+      const storedSeq = record.event.seq;
+      const storedPrevHash = record.event.prev_hash;
       const seq = hasManifest ? (i === 0 ? 0 : i) : i + 1;
       const event = withDerivedChain(record.event, seq, prev);
       const computed = computeHash(event, prev);
+      if (storedSeq !== seq) {
+        throw new ATBVerificationError(
+          `sequence mismatch at index ${i}: expected seq ${seq}, got seq ${String(
+            storedSeq
+          )}`,
+          i,
+          record.hash,
+          computed
+        );
+      }
+      if (storedPrevHash !== prev) {
+        throw new ATBVerificationError(
+          `prev_hash mismatch at index ${i}: expected ${prev}, got ${String(
+            storedPrevHash
+          )}`,
+          i,
+          record.hash,
+          computed
+        );
+      }
       if (computed !== record.hash) {
         throw new ATBVerificationError(
           `Tamper detected at event ${i + 1}: expected ${record.hash}, computed ${computed}`,
@@ -262,9 +405,12 @@ export class Bundle {
    *
    * @param path Optional bundle path to use as the raw signature source.
    * @returns Signature evidence entries in bundle order.
+   * @throws UnsupportedManifestVersionError when the manifest version is newer
+   * than this SDK supports.
    * @throws Error when a signature record declares an unsupported algorithm.
    */
   signatures(path?: string): SignatureEvidence[] {
+    this.assertSupportedManifestVersion();
     const raw = this.signatureSourceBytes(path);
     const out: SignatureEvidence[] = [];
     for (let i = 0; i < this.records.length; i++) {
@@ -300,9 +446,12 @@ export class Bundle {
    *
    * @param path Optional bundle path to use as the raw signature source.
    * @returns Promise resolving to signature evidence entries in bundle order.
+   * @throws UnsupportedManifestVersionError when the manifest version is newer
+   * than this SDK supports.
    * @throws Error when signature parsing or verification setup fails.
    */
   async signaturesAsync(path?: string): Promise<SignatureEvidence[]> {
+    this.assertSupportedManifestVersion();
     const raw = this.signatureSourceBytes(path);
     const out: SignatureEvidence[] = [];
     for (let i = 0; i < this.records.length; i++) {
@@ -477,6 +626,7 @@ export class Bundle {
         hash: raw.hash,
       });
     }
+    bundle.assertSupportedManifestVersion();
     bundle.rawBytes = raw;
     return bundle;
   }
@@ -486,10 +636,13 @@ export class Bundle {
    *
    * @param password Password used for key derivation.
    * @returns Encrypted ATBE bytes.
+   * @throws UnsupportedManifestVersionError when the manifest version is newer
+   * than this SDK supports.
    * @throws ATBVerificationError when the bundle fails verification first.
    * @throws EncryptError when encryption fails.
    */
   async encrypt(password: string): Promise<Uint8Array> {
+    this.assertSupportedManifestVersion();
     this.verify();
     return encryptBundle(this.records, password);
   }
@@ -500,6 +653,8 @@ export class Bundle {
    * @param password Password used for key derivation.
    * @param data ATBE wire bytes.
    * @returns Verified bundle instance.
+   * @throws UnsupportedManifestVersionError when the decrypted manifest version
+   * is newer than this SDK supports.
    * @throws EncryptError when decryption or payload verification fails.
    * @throws ATBVerificationError when the resulting bundle chain fails.
    */
@@ -508,6 +663,7 @@ export class Bundle {
     const bundle = new Bundle();
     bundle.records.length = 0;
     bundle.records.push(...decoded.records);
+    bundle.assertSupportedManifestVersion();
     bundle.verify();
     return bundle;
   }
@@ -522,6 +678,19 @@ export class Bundle {
       this.records.length > 0 &&
       this.records[0].event.type === MANIFEST_EVENT_TYPE
     );
+  }
+
+  /**
+   * Reject manifests that declare a version newer than this SDK reads.
+   *
+   * @throws UnsupportedManifestVersionError when the determinable recorded
+   * version is greater than the supported maximum.
+   */
+  private assertSupportedManifestVersion(): void {
+    const version = recordedManifestVersion(this.records);
+    if (version !== undefined && version > MAX_MANIFEST_VERSION) {
+      throw new UnsupportedManifestVersionError(version);
+    }
   }
 
   private createManifestRecord(): ATBRecord {

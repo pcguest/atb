@@ -448,7 +448,7 @@ func TestBuildViewServerLocateEndpoint(t *testing.T) {
 
 	head := b.Records[len(b.Records)-1].Hash
 	target := b.Records[1]
-	loc := locator.Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence, RecordHash: target.Hash}
+	loc := locator.Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence), RecordHash: target.Hash}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/bundle/locate?locator="+url.QueryEscape(loc.String()), nil)
 	req.Header.Set(testViewSessionHeader, testViewSessionToken)

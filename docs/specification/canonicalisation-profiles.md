@@ -1,0 +1,410 @@
+# Canonicalisation profiles
+
+**Status: specification plus non-production strict implementations.** This
+document defines three canonicalisation profiles and their wire/versioning
+contract. The frozen `atb-jcs-rfc8785-1` strict profile and the additive
+`atb-jcs-rfc8785-2` canonical-output-closed profile both have implementations
+and executable fixtures, but no production writer, reader, verifier, hashing
+path, or manifest parser dispatches to either. In this revision ATB still
+produces and verifies bundles with the existing legacy serialisers only. See
+[Status and next steps](#status-and-next-steps).
+
+---
+
+## 1. Scope and non-goals
+
+This document is normative for:
+
+- the identity and meaning of the `atb-jcs-legacy-1`,
+  `atb-jcs-rfc8785-1`, and `atb-jcs-rfc8785-2` canonicalisation profiles;
+- the byte-level behaviour that each profile guarantees;
+- the rejection taxonomy enforced by the strict-profile parsers;
+- the manifest-version and selection contract that will govern strict-profile
+  bundles.
+
+This document deliberately does **not**:
+
+- switch any production writer, reader, verifier, hashing path, or manifest
+  parser to the strict profile;
+- issue manifest version 4, or change `ManifestVersionMax` (still `3` in this
+  revision);
+- change the hash formula, genesis hash, or any existing golden vector or
+  fixture;
+- relax the existing legacy behaviour in any language SDK.
+
+The fixtures under [`test/jcs/`](../../test/jcs/README.md) are part of this
+specification. The strict positive and negative fixtures are now executed by
+conformance runners against the non-production strict implementation; they
+remain the independent oracle and are not derived from implementation output.
+
+---
+
+## 2. Profile identifiers
+
+| Profile id             | Meaning                                                       | Current status |
+|------------------------|---------------------------------------------------------------|----------------|
+| `atb-jcs-legacy-1`     | Byte-frozen behaviour of the serialisers shipped at `a7837e2`. | In production  |
+| `atb-jcs-rfc8785-1`    | Frozen strict RFC 8785 profile with the ATB restrictions in §5.1. | Non-production, frozen implementation |
+| `atb-jcs-rfc8785-2`    | Canonical-output-closed strict profile defined in §5.         | Non-production implementation, not dispatched |
+
+The legacy profile id is descriptive: it names the behaviour that existing
+bundles already depend on. It does not imply that the legacy serialisers are
+fully RFC 8785 conformant. The strict profile ids name candidate behaviours for
+future manifest-v4 bundles. `atb-jcs-rfc8785-1` is frozen exactly as shipped;
+`atb-jcs-rfc8785-2` is additive and is not selected by any production path in
+this revision.
+
+Profile selection is **by declaration only** (see §7). A reader must never infer
+the strict profile from the presence of a field, a version, or a payload shape.
+
+---
+
+## 3. Legacy profile: `atb-jcs-legacy-1`
+
+The legacy profile is the **byte-frozen** behaviour of the canonicalisers that
+ship with ATB at commit `a7837e2` (Go runtime, Python SDK, TypeScript SDK). Its
+purpose is to keep every existing bundle verifiable, not to be a clean RFC 8785
+implementation.
+
+Frozen properties:
+
+- **Value-lossy JSON decode.** Input is decoded through each language's generic
+  JSON loader before re-serialisation. Integers outside the exactly
+  representable binary64 range may be rounded (Go, TypeScript) or preserved
+  (Python), depending on the serialiser. This is why the legacy profile is
+  described per implementation rather than as one cross-language byte function.
+- **Duplicate names: last value wins.** Duplicate members are not rejected.
+- **Invalid UTF-8 and lone surrogates are replaced.** Malformed UTF-8 byte
+  sequences and unpaired surrogate escapes become U+FFFD (`EF BF BD`). There is
+  no rejection.
+- **Go number formatting.** Go zero-pads exponents (`1e-07`) and preserves
+  negative zero (`-0`). Python zero-pads exponents; TypeScript follows ES6
+  (`1e-7`, `0` for `-0`).
+- **UTF-16 key ordering.** Object keys are ordered by UTF-16 code units. The
+  Go and Python serialisers order a NUL-containing key correctly; the
+  TypeScript legacy comparator treats U+0000 as `-1` and can preserve insertion
+  order instead. This divergence is frozen, not fixed.
+- **Hash formula and genesis unchanged.** Hashes remain
+  `SHA-256(UTF-8(hex(prev_hash)) || canonical(event))` with the 64-zero genesis
+  hash. The legacy profile does not alter the hash pre-image or chain rules.
+
+Frozen references:
+
+- [`internal/hash/testdata/canonical_vectors.json`](../../internal/hash/testdata/canonical_vectors.json)
+  — the cross-language canonical-hash corpus that existing bundles are pinned
+  to.
+- [`test/jcs/legacy_freeze_vectors.json`](../../test/jcs/legacy_freeze_vectors.json)
+  — raw and value cases captured from the implementations at `a7837e2`.
+
+These expectations must **not** be regenerated. Changing any legacy
+expectation is a breaking canonicalisation change and requires the migration and
+version-bump process in `VERSIONING.md`.
+
+---
+
+## 4. Frozen strict profile: `atb-jcs-rfc8785-1`
+
+`atb-jcs-rfc8785-1` is frozen exactly as shipped. Its canonical bytes, error
+classes, fixtures, and entry points must not change. The v2 profile in §5 is
+additive; it does not revise v1.
+
+The v1 profile is defined by the following normative sources, applied
+together:
+
+- [RFC 8785 — JSON Canonicalization Scheme (JCS)](https://www.rfc-editor.org/rfc/rfc8785)
+- [RFC 7493 — The I-JSON Message Format](https://www.rfc-editor.org/rfc/rfc7493)
+  (for the interoperability constraints that JCS assumes)
+- ECMA-262 `Number::toString` and `JSON.stringify`, as referenced by RFC 8785
+  for number serialisation
+
+### 4.1 Encoding and strings
+
+- The input and output are **UTF-8**. Malformed UTF-8 is rejected, never
+  repaired.
+- Lone or unpaired surrogate escapes (`\uD800`–`\uDFFF` without a valid pair)
+  are rejected. There is **no U+FFFD substitution**.
+- Non-ASCII characters are emitted **literally** as UTF-8, not `\u`-escaped.
+- The short escapes `\"`, `\\`, `\b`, `\f`, `\n`, `\r`, `\t` are used. Other
+  C0 control characters (U+0000–U+001F) are emitted as lowercase `\u00xx`
+  (for example `\u0001`).
+- The solidus `/` is not escaped.
+
+### 4.2 Objects and names
+
+- Member names are sorted by their **UTF-16 code-unit sequence**, matching
+  RFC 8785 §3.2.3. Suffix ordering is by code unit, with correct handling of
+  U+0000 (a NUL is a code unit, not a terminator).
+- Duplicate member names are rejected **after unescaping**, at every depth,
+  including names that are escaped-equivalent to a literal name (for example
+  `"a"` and `"\u0061"` in the same object).
+
+### 4.3 Numbers
+
+- Input numbers must be finite binary64 values. `NaN`, `Infinity`, and
+  `-Infinity` are rejected. A numeric literal that overflows binary64 is
+  rejected as unrepresentable.
+- Finite numbers are serialised per ECMA-262 `Number::toString`, including:
+  - `1e-7` (not `1e-07`);
+  - `0` for negative zero (not `-0`);
+  - fixed notation below the `1e21` threshold and exponent notation at and
+    above it (for example `1e+21`);
+  - the shortest round-tripping representation.
+- Trailing data after the top-level JSON value is rejected.
+
+### 4.4 Nesting depth
+
+Array, object, struct, map, and pointer nesting is bounded to a maximum depth of
+512. Input that nests more deeply — including through pointer chains in
+value-mode input — is rejected with `depth_limit` rather than risking stack
+exhaustion.
+
+---
+
+## 5. Canonical-output-closed profile: `atb-jcs-rfc8785-2`
+
+`atb-jcs-rfc8785-2` is additive and non-production. It implements the
+canonical-output-closed policy (B2 in the numerical-policy decision record),
+not a claim of universal RFC 8785 input coverage and not a relaxation of any
+v1 restriction.
+
+The v2 profile applies the following rule after formatting **any** finite
+binary64 number:
+
+- If the canonical output is a plain integer — it contains no `.`, `e`, or `E`
+  — and its integer magnitude is greater than 2^53 - 1, reject the input with
+  `number_out_of_policy`.
+- Keep the existing v1 input cap on plain integer tokens: a token written
+  without a fraction or exponent whose exact magnitude exceeds 2^53 - 1 is
+  rejected before formatting.
+- Apply the output rule in both raw and value entry points. Policy failures
+  remain `number_out_of_policy`; they are never reclassified as
+  `non_finite_number`, `number_unrepresentable`, or a tamper/verification
+  error.
+
+This closes canonical-output re-parse. The profile rejects `1e20`, `1e16`,
+`2e16`, `1e19`, `9007199254740992.0` (2^53),
+`1152921504606846976.0` (2^60), and every fixed-notation value in
+`[2^53, 1e21)` and its symmetric negative interval. It accepts `1e21` because
+ECMA-262 emits `1e+21`, which is exponential rather than a plain integer.
+
+The lexical asymmetry is intentional: a plain `10^21` token is rejected by the
+retained input cap, while `1e21` is accepted because its canonical output is
+exponential. This is an ATB policy choice, not a universal RFC 8785
+restriction; RFC 8785 and ECMA-262 can serialise binary64 values beyond the
+safe-integer recommendation.
+
+v2 is defined and tested but is not dispatched. No production hash, bundle,
+manifest, reader, or verifier path selects `atb-jcs-rfc8785-2` in this revision.
+
+### 5.1 Frozen v1 numerical limitation
+
+The v1 profile imposes an ATB interoperability restriction on plain integer
+tokens: reject a numeric token written without a fraction or exponent (an
+optional minus sign followed only by digits) whose exact integer magnitude is
+greater than 2^53 - 1 with `number_out_of_policy`; reject `NaN`, `Infinity`,
+and `-Infinity` with `non_finite_number`; reject numeric tokens that parse to a
+non-finite binary64 with `number_unrepresentable`. Numbers written with a
+fraction or exponent are binary64 values governed by §4.3 and are not subject to
+that token restriction; for example, v1 accepts `1e20`, while the plain integer
+token `9007199254740993` is rejected. This is an ATB interoperability
+restriction for new strict-profile input, not a claim that RFC 8785 universally
+rejects larger numbers. Because accepted fraction/exponent literals are not
+subject to the token restriction, an accepted exponent form such as `1e20` can
+canonicalise to a plain integer token outside the policy
+(`100000000000000000000`), which a fresh v1 parse of that output rejects as
+`number_out_of_policy`; v1 output is therefore not guaranteed to be re-accepted
+as fresh raw input. This is a known v1 limitation that v2 closes without
+changing v1's bytes or error classes.
+
+Value-mode input has parallel distinctions. Dynamic JSON fragments (`json.Number`
+in Go, `json.RawMessage`, and custom `json.Marshaler` or
+`encoding.TextMarshaler` implementations) are strictly validated through the
+same parser, so they cannot smuggle non-finite, out-of-policy, or invalid-UTF-8
+values past the value API. Host-language type differences still remain: integer
+and float types differ between Go, Python, and TypeScript, and a value accepted
+by one language's value API is not automatically accepted by another's.
+
+---
+
+## 6. Error taxonomy
+
+A strict-profile parser reports exactly one of the following stable classes:
+
+| Error class             | Condition                                                                 |
+|-------------------------|---------------------------------------------------------------------------|
+| `duplicate_key`         | Duplicate member name after unescaping, at any depth.                     |
+| `invalid_utf8`          | Input bytes are not valid UTF-8.                                          |
+| `lone_surrogate`        | An escape produces an unpaired UTF-16 surrogate.                          |
+| `trailing_data`         | Non-whitespace data follows the top-level JSON value.                     |
+| `non_finite_number`     | The input denotes `NaN` or an infinity.                                   |
+| `number_out_of_policy`  | Plain integer token outside the safe-integer policy, or a v2 canonical output that is a plain integer outside that policy. |
+| `number_unrepresentable`| Numeric literal that cannot be represented as a finite binary64 value.    |
+| `invalid_json`          | The input is not syntactically valid JSON for another reason.             |
+| `depth_limit`           | Array, object, struct, map, or pointer nesting exceeds 512 levels.        |
+| `missing_profile`       | Manifest v4 does not declare `canonical_profile`.                         |
+| `unsupported_profile`   | Manifest v4 declares an unknown or unsupported profile id.                |
+
+`missing_profile` and `unsupported_profile` are manifest-selection errors; the
+remaining classes are payload validation errors. Both sets are fail-closed.
+
+Negative fixtures for the payload classes are authored in
+[`test/jcs/strict_negative_vectors.json`](../../test/jcs/strict_negative_vectors.json)
+for v1 and
+[`test/jcs/strict_v2_negative_vectors.json`](../../test/jcs/strict_v2_negative_vectors.json)
+for v2. They are executed by the strict conformance runners in Go, Python, and
+TypeScript. The declared classes are authored independently of the
+implementation and are not derived from implementation output.
+
+### 6.1 Error precedence and cross-language caveats
+
+- In Go and TypeScript, object member-value errors are reported before a
+  duplicate-key rejection for that same member; earlier errors win by
+  left-to-right order. Python's decoder detects duplicate keys before its
+  serialisation and v2 output-policy passes, so the precedence can differ; see
+  the v2 caveat below.
+- Go and TypeScript generally report the first left-to-right error. Python's
+  stdlib-based parser pre-scans depth and non-finite token boundaries and
+  post-checks lone surrogates, so an input containing multiple independent
+  defects can receive a different class; all such inputs are still rejected
+  fail-closed. Shared vectors pin single-defect cases and the object-member
+  precedence cases.
+- **v2 Python output-policy precedence.** The v2 `number_out_of_policy` check
+  runs after Python decoding. For a multi-error input such as
+  `{"a":1e20,"a":2}`, Python reports `duplicate_key`, while Go and TypeScript
+  report `number_out_of_policy` from the first member value. Likewise, a Python
+  duplicate or lone-surrogate rejection may take precedence over a later
+  output-policy failure. These are documented class-ordering differences for
+  already-invalid input, not accepted output; every case remains fail-closed.
+  v1 error classes are unchanged.
+- Raw APIs differ by input representation: invalid UTF-8 bytes are
+  `invalid_utf8`; a host string that already contains a lone surrogate can be
+  `lone_surrogate` (TypeScript) or `invalid_json` (Python) depending on the
+  decoder. Cross-language byte comparisons should use byte inputs.
+- Value-mode depth counts pointer/struct levels as well as arrays/objects/maps;
+  raw mode counts only JSON containers. A value exactly at the limit can
+  therefore be rejected in value mode while its marshalled bytes are accepted by
+  raw mode. This is a documented API asymmetry, not a canonical-byte difference
+  for accepted inputs.
+- Custom `json.Marshaler`/`TextMarshaler` implementations are invoked once for
+  validation and again by the host serialiser, so they must be deterministic; a
+  non-deterministic marshaler can otherwise pass validation and emit different
+  bytes. If a custom marshaler cannot be interfaced for validation, the Go value
+  API fails closed with `invalid_json`.
+
+---
+
+## 7. Wire and versioning contract
+
+Strict-profile bundles will use **manifest version 4** with a new
+`canonical_profile` field in the structured manifest payload:
+
+```json
+{
+  "version": 4,
+  "created_at": "2026-01-02T03:04:05Z",
+  "bundle_id": "…",
+  "canonical_profile": "atb-jcs-rfc8785-1"
+}
+```
+
+This example is illustrative. In this revision no manifest v4 is issued or
+accepted, `ManifestVersionMax` remains `3`, and neither strict profile is
+dispatched. `atb-jcs-rfc8785-2` is defined and tested but has no production
+selection path.
+
+Rules:
+
+- **Selection is by declaration only.** When a v4 dispatch is introduced, a
+  bundle is strict-profile only when its manifest declares version `4` **and**
+  `canonical_profile` names a strict profile that the reader supports.
+- **v1 is frozen; v2 is additive.** A reader that supports only
+  `atb-jcs-rfc8785-1` must reject a declared
+  `atb-jcs-rfc8785-2` bundle with `unsupported_profile`; it must never
+  downgrade to v1 or legacy. This is the required fail-closed boundary if v2
+  is selected in a future manifest-v4 integration.
+- **Manifest v1, v2, and v3 remain legacy.** Manifest-less legacy bundles also
+  remain legacy (implicit version 1).
+- **A v3 manifest carrying `canonical_profile` is not strict.** On v3 the field
+  has no strict semantics; strict issuance must use v4. A v3 bundle with that
+  field still reads as legacy.
+- **v4 without `canonical_profile` fails closed** with `missing_profile`.
+- **v4 with an unknown `canonical_profile` fails closed** with
+  `unsupported_profile`; it is never downgraded to legacy.
+- **Old readers reject v4.** A reader whose `ManifestVersionMax` is below 4
+  rejects the bundle with an error wrapping `ErrMalformed` ("requires a newer
+  version of atb"). In this revision `ManifestVersionMax` is still `3`.
+- **No in-place rehash.** Introducing the strict profile does not rewrite or
+  re-sign any existing bundle, and does not change the hash of any existing
+  record.
+- **The hash formula and genesis are unchanged.** Strict profile changes the
+  canonicalisation of new input only; hashing remains
+  `SHA-256(UTF-8(hex(prev_hash)) || canonical(event))` over the same genesis.
+- **No automatic fallback.** A declared strict bundle that fails strict
+  validation is never re-read under the legacy profile.
+
+These cases are pinned by
+[`test/jcs/profile_selection_cases.json`](../../test/jcs/profile_selection_cases.json)
+and the current-reader acceptance test in
+`internal/bundle/canonical_profile_test.go`.
+
+---
+
+## 8. Migration acceptance status
+
+Each item below must land as an explicit, separately reviewed change. Items 1,
+5, and 7 are complete for the isolated non-production increment; items 2, 3, 4,
+and 6 are still required before any production switching.
+
+1. **Complete (isolated increment).** Strict canonicalisers implementing §4–§6
+   for the frozen v1 profile and the canonical-output-closed v2 profile, with
+   conformance runners that execute their positive and negative fixtures in
+   `test/jcs/`.
+2. **Still required before production switching.** A manifest-v4 writer path
+   that is opt-in and emits `canonical_profile`.
+3. **Still required before production switching.** Reader/verifier dispatch that
+   selects the profile by declaration only and fails closed for missing/unknown
+   profiles.
+4. **Still required before production switching.** A deliberate
+   `ManifestVersionMax` bump to `4`, with the forward-compatibility guard
+   updated in the same change.
+5. **Complete (isolated increment).** Cross-language parity for Go, Python, and
+   TypeScript across the shared v1 and v2 strict vectors and supported byte
+   inputs, with new strict vectors authored independently of any ATB
+   canonicaliser. This is not universal parity: the multi-error and host-string
+   caveats in §6.1 remain.
+6. **Partly complete; still required before production switching.** An
+   Unreleased `CHANGELOG.md` entry records that v1 is frozen and v2 is additive
+   and non-production. The version-bump and release treatment required by
+   `VERSIONING.md` remains outstanding until a production profile is selected.
+7. **Complete (isolated increment).** Confirmation that no existing golden
+   vector, fixture, legacy hash, or signature pre-image changes.
+
+---
+
+## 9. Status and next steps
+
+In this revision:
+
+- The legacy profile is the only implemented and dispatched production profile.
+- Strict canonicalisers now exist in `internal/canonicalize/strict`, exposed
+  behind the non-production entry points `jcs.MarshalRFC8785`,
+  `jcs.MarshalRawRFC8785`, `jcs.MarshalRFC8785V2`, `jcs.MarshalRawRFC8785V2`,
+  and `jcs.StrictErrorClass`. The Python and TypeScript SDKs expose matching
+  v1 and v2 functions.
+- Neither strict profile is **wired** into hashing, manifest-v4 issuance or
+  acceptance, or verifier dispatch. v1 is frozen; v2 is defined but not
+  dispatched.
+- The strict implementation bounds nesting depth (including pointer traversal),
+  detects cyclic values, strictly validates dynamic JSON values (`json.Number`,
+  `json.RawMessage`, and custom marshalers), and defines duplicate-key versus
+  member-value error precedence.
+- `ManifestVersionMax` is `3`; manifest v4 is not issued or accepted.
+- No production canonicaliser, hasher, manifest writer/parser, or verifier
+  dispatch has changed.
+- The conformance tests execute the v1 and v2 positive and negative vectors in
+  [`test/jcs/`](../../test/jcs/README.md) against the strict entry points, and
+  pin the frozen numeric-parity case without changing any legacy canonicaliser.
+
+The next step is to add the manifest-v4 writer and declaration-only reader
+dispatch, then bump `ManifestVersionMax`, without changing legacy behaviour.
+Production switching remains blocked on the remaining items in §8.

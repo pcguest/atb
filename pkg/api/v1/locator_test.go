@@ -40,12 +40,12 @@ func TestHandleBundleLocate(t *testing.T) {
 	target := b.Records[1]
 
 	t.Run("resolves matching locator", func(t *testing.T) {
-		loc := locator.Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence}
+		loc := locator.Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence)}
 		rr, out := locateRequest(t, handler, loc.String())
 		if rr.Code != http.StatusOK {
 			t.Fatalf("status = %d, want 200 body=%s", rr.Code, rr.Body.String())
 		}
-		if !out.OK || out.Seq != target.Event.Sequence || out.RecordHashMatched {
+		if !out.OK || out.Seq != int64(target.Event.Sequence) || out.RecordHashMatched {
 			t.Fatalf("response = %+v, want ok seq=%d no hash match", out, target.Event.Sequence)
 		}
 		if out.Canonical != loc.String() {
@@ -54,7 +54,7 @@ func TestHandleBundleLocate(t *testing.T) {
 	})
 
 	t.Run("record hash match", func(t *testing.T) {
-		loc := locator.Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence, RecordHash: target.Hash}
+		loc := locator.Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence), RecordHash: target.Hash}
 		_, out := locateRequest(t, handler, loc.String())
 		if !out.OK || !out.RecordHashMatched {
 			t.Fatalf("response = %+v, want ok with record hash matched", out)
@@ -72,7 +72,7 @@ func TestHandleBundleLocate(t *testing.T) {
 	})
 
 	t.Run("unsupported version", func(t *testing.T) {
-		loc := locator.Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence}
+		loc := locator.Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence)}
 		bad := strings.Replace(loc.String(), "/1/", "/2/", 1)
 		_, out := locateRequest(t, handler, bad)
 		if out.OK || out.ErrorCode != "LOCATOR_VERSION_UNSUPPORTED" {
@@ -81,7 +81,7 @@ func TestHandleBundleLocate(t *testing.T) {
 	})
 
 	t.Run("wrong bundle head", func(t *testing.T) {
-		loc := locator.Locator{BundleHeadHash: strings.Repeat("c", 64), EventSequence: target.Event.Sequence}
+		loc := locator.Locator{BundleHeadHash: strings.Repeat("c", 64), EventSequence: int64(target.Event.Sequence)}
 		_, out := locateRequest(t, handler, loc.String())
 		if out.OK || out.ErrorCode != "BUNDLE_NOT_AVAILABLE" {
 			t.Fatalf("out = %+v, want BUNDLE_NOT_AVAILABLE", out)
@@ -97,7 +97,7 @@ func TestHandleBundleLocate(t *testing.T) {
 	})
 
 	t.Run("record hash mismatch", func(t *testing.T) {
-		loc := locator.Locator{BundleHeadHash: head, EventSequence: target.Event.Sequence, RecordHash: strings.Repeat("d", 64)}
+		loc := locator.Locator{BundleHeadHash: head, EventSequence: int64(target.Event.Sequence), RecordHash: strings.Repeat("d", 64)}
 		_, out := locateRequest(t, handler, loc.String())
 		if out.OK || out.ErrorCode != "RECORD_HASH_MISMATCH" {
 			t.Fatalf("out = %+v, want RECORD_HASH_MISMATCH", out)
