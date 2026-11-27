@@ -3,7 +3,9 @@ package main
 
 import (
 	"context"
+	"crypto/ed25519"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -36,6 +38,8 @@ type verifyCLIConfig struct {
 	CorroborationPolicyPath string
 	Schema                  bool
 	SchemaOut               string
+	ExpectedSigner          string // canonical base64-std Ed25519 public key
+	ExpectedHead            string // 64 lowercase hex characters
 }
 
 type verifySelection struct {
@@ -149,6 +153,25 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 		return exitUserError
 	}
 
+	// An expected final head is a commitment check, so a mismatch is an
+	// integrity failure. Record it and keep going long enough to emit the
+	// requested report before returning the fail-closed exit code.
+	expectedHeadFailed := false
+	if cfg.ExpectedHead != "" {
+		actualHead := ""
+		if len(b.Records) > 0 {
+			actualHead = b.Records[len(b.Records)-1].Hash
+		}
+		if len(b.Records) == 0 || actualHead != cfg.ExpectedHead {
+			expectedHeadFailed = true
+			displayHead := actualHead
+			if displayHead == "" {
+				displayHead = "(none)"
+			}
+			fmt.Fprintf(stderr, "atb verify: expected final head %s does not match bundle head %s\n", cfg.ExpectedHead, displayHead)
+		}
+	}
+
 	if cfg.Trace {
 		_ = verifyWithTrace(b, stderr)
 	}
@@ -176,6 +199,10 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 		return exitSystemError
 	}
 	verifyReport := *report
+	expectedEvidenceFailed := expectedHeadFailed
+	if cfg.ExpectedSigner != "" && !verifyExpectedSignerMatches(verifyReport.Signatures, cfg.ExpectedSigner, stderr) {
+		expectedEvidenceFailed = true
+	}
 	snapshotCheckFailed := false
 	if cfg.WithSnapshotCheck {
 		snapshotFailures := verifypkg.VerifySnapshotHashes(b.Records)
@@ -221,7 +248,7 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
 		}
-		if snapshotCheckFailed {
+		if expectedEvidenceFailed || snapshotCheckFailed {
 			return exitIntegrityFailure
 		}
 		return verificationExitCode(verifyReport)
@@ -232,7 +259,7 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 			fmt.Fprintf(stderr, "atb verify: encode json output: %v\n", err)
 			return exitSystemError
 		}
-		if snapshotCheckFailed {
+		if expectedEvidenceFailed || snapshotCheckFailed {
 			return exitIntegrityFailure
 		}
 		return verificationExitCode(verifyReport)
@@ -256,6 +283,9 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 			verifyErr = errors.New(verifyReport.Integrity.Error)
 		}
 		_ = writeLegacyVerifyJSON(stdout, result, verifyErr)
+		if expectedEvidenceFailed {
+			return exitIntegrityFailure
+		}
 		if !verifyReport.Integrity.ChainValid {
 			return exitIntegrityFailure
 		}
@@ -263,7 +293,7 @@ func runVerifyWithConfigContext(ctx context.Context, cfg verifyCLIConfig, dryRun
 	}
 
 	renderVerifyText(stdout, verifyReport)
-	if snapshotCheckFailed {
+	if expectedEvidenceFailed || snapshotCheckFailed {
 		return exitIntegrityFailure
 	}
 	return verificationExitCode(verifyReport)
@@ -281,7 +311,13 @@ func parseVerifyArgsWithDryRun(args []string) (verifyCLIConfig, bool, error) {
 	}
 
 	cfg, err := parseVerifyCommandArgs(filtered)
-	return cfg, dryRun, err
+	if err != nil {
+		return cfg, dryRun, err
+	}
+	if dryRun && (cfg.ExpectedSigner != "" || cfg.ExpectedHead != "") {
+		return cfg, dryRun, fmt.Errorf("--expected-signer and --expected-head cannot be used with --dry-run")
+	}
+	return cfg, dryRun, nil
 }
 
 func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
@@ -382,6 +418,38 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 			cfg.SchemaOut = filepath.Clean(strings.TrimSpace(args[i]))
 		case strings.HasPrefix(arg, "--schema-out="):
 			cfg.SchemaOut = filepath.Clean(strings.TrimSpace(strings.TrimPrefix(arg, "--schema-out=")))
+		case arg == "--expected-signer":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --expected-signer (expected base64-std Ed25519 public key)")
+			}
+			i++
+			signer, err := parseExpectedSigner(args[i])
+			if err != nil {
+				return cfg, err
+			}
+			cfg.ExpectedSigner = signer
+		case strings.HasPrefix(arg, "--expected-signer="):
+			signer, err := parseExpectedSigner(strings.TrimPrefix(arg, "--expected-signer="))
+			if err != nil {
+				return cfg, err
+			}
+			cfg.ExpectedSigner = signer
+		case arg == "--expected-head":
+			if i+1 >= len(args) {
+				return cfg, fmt.Errorf("missing value for --expected-head (expected 64 lowercase hex characters)")
+			}
+			i++
+			head, err := parseExpectedHead(args[i])
+			if err != nil {
+				return cfg, err
+			}
+			cfg.ExpectedHead = head
+		case strings.HasPrefix(arg, "--expected-head="):
+			head, err := parseExpectedHead(strings.TrimPrefix(arg, "--expected-head="))
+			if err != nil {
+				return cfg, err
+			}
+			cfg.ExpectedHead = head
 		case strings.HasPrefix(arg, "-"):
 			return cfg, fmt.Errorf("unknown flag %q", arg)
 		default:
@@ -402,11 +470,42 @@ func parseVerifyCommandArgs(args []string) (verifyCLIConfig, error) {
 	if cfg.RemoteURI != "" && bundlePathSet {
 		return cfg, fmt.Errorf("--remote and --bundle are mutually exclusive")
 	}
+	if cfg.ExpectedSigner != "" || cfg.ExpectedHead != "" {
+		if cfg.Schema || cfg.SchemaOut != "" {
+			return cfg, fmt.Errorf("--expected-signer and --expected-head cannot be used with --schema or --schema-out")
+		}
+		if cfg.RemoteURI != "" {
+			return cfg, fmt.Errorf("--expected-signer and --expected-head cannot be used with --remote")
+		}
+	}
 	return cfg, nil
 }
 
+func parseExpectedSigner(raw string) (string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(raw)
+	if err != nil {
+		return "", fmt.Errorf("invalid --expected-signer: %v", err)
+	}
+	if len(decoded) != ed25519.PublicKeySize {
+		return "", fmt.Errorf("invalid --expected-signer: decoded length %d, want %d bytes (Ed25519 public key)", len(decoded), ed25519.PublicKeySize)
+	}
+	return base64.StdEncoding.EncodeToString(decoded), nil
+}
+
+func parseExpectedHead(raw string) (string, error) {
+	if len(raw) != 64 {
+		return "", fmt.Errorf("invalid --expected-head %q: must be exactly 64 lowercase hex characters", raw)
+	}
+	for _, c := range raw {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return "", fmt.Errorf("invalid --expected-head %q: must be exactly 64 lowercase hex characters", raw)
+		}
+	}
+	return raw, nil
+}
+
 func printVerifyUsage(w io.Writer) {
-	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--remote s3://bucket/key] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--schema [--schema-out <path>]] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>]")
+	fmt.Fprintln(w, "Usage: atb verify [bundle_path] [--bundle path/to/file.atb] [--remote s3://bucket/key] [--profile <id|path>] [--json] [--format text|json] [-f text|json] [--schema [--schema-out <path>]] [--dry-run] [--quiet] [--trace] [--with-anchor] [--with-snapshot-check] [--roots <pem-file>] [--expected-signer <base64-std Ed25519 public key>] [--expected-head <64 lowercase hex>]")
 	fmt.Fprintln(w, "  --format json   stable automation contract: pass/fail, CAS (cas_score, cas_grade, sub_scores EC–GC), critical_failures")
 	fmt.Fprintln(w, "  --schema        print frozen JSON Schema for verify.report.v1 (machine-readable custody contract)")
 	fmt.Fprintln(w, "  --schema-out    write JSON Schema to path instead of stdout")
@@ -416,6 +515,8 @@ func printVerifyUsage(w io.Writer) {
 	fmt.Fprintln(w, "  --with-snapshot-check  verify each atb.snapshot bundle_hash against the recorded bundle prefix")
 	fmt.Fprintln(w, "  --roots <pem-file>   PEM file containing trusted root certificates for TSA chain verification (default: system roots)")
 	fmt.Fprintln(w, "  --corroboration-policy <json-file>   JSON file with CorroborationPolicy overrides (requires --with-anchor; default: built-in policy)")
+	fmt.Fprintln(w, "  --expected-signer <base64-std Ed25519 public key>  fail (exit 2) unless every recorded signature uses this signer")
+	fmt.Fprintln(w, "  --expected-head <64 lowercase hex>  fail (exit 2) unless the terminal record hash equals this expected final head")
 	fmt.Fprintln(w, "")
 	fmt.Fprintln(w, "CAS sub-scores: EC (event coverage), FC (field completeness), RC (relation consistency),")
 	fmt.Fprintln(w, "  TC (temporal consistency), SC (source commitment), XC (external corroboration),")
@@ -468,6 +569,25 @@ func verificationExitCode(report verifypkg.Report) int {
 		}
 	}
 	return exitSuccess
+}
+
+func verifyExpectedSignerMatches(signatures []verifypkg.SignatureProvenance, expected string, stderr io.Writer) bool {
+	if len(signatures) == 0 {
+		fmt.Fprintf(stderr, "atb verify: expected signer %s but bundle has no recorded signatures\n", expected)
+		return false
+	}
+	for _, signature := range signatures {
+		if signature.PubKey == expected {
+			continue
+		}
+		recorded := signature.PubKey
+		if recorded == "" {
+			recorded = "(none)"
+		}
+		fmt.Fprintf(stderr, "atb verify: signer mismatch: recorded signer %s at sequence %d does not match expected signer %s\n", recorded, signature.Sequence, expected)
+		return false
+	}
+	return true
 }
 
 func classifyVerifyBundleLoadError(err error) int {

@@ -351,6 +351,15 @@ To verify a bundle, a verifier must:
    g. Assert that the computed hash equals the stored `hash` field.
 4. If any assertion fails, the bundle has been tampered with.
 
+### Offline handover: expected signer and final head
+
+For an offline handover, `atb verify` can enforce two values that the recipient obtained through a separate authenticated channel:
+
+- `--expected-signer <base64-std Ed25519 public key>` requires at least one `atb.bundle.signature` record and requires every recorded signature's public key to equal the expected key.
+- `--expected-head <64 lowercase hex>` requires the terminal record hash to equal the expected final head.
+
+Both flags only compare the bundle with the supplied values. They enforce equality and fail closed on any mismatch; they do not establish identity authority, signer intent, or that the expected values were obtained from the right party. Obtaining those values through a separate authenticated channel is the recipient's responsibility. A missing or mismatched signature, or a mismatched final head, exits 2 (integrity/commitment failure) and takes precedence over profile failure (exit 3). The flags are rejected as a user error with `--dry-run`, `--schema`, `--schema-out`, or `--remote`. Machine-readable `verify.report.v1` output is still emitted, and its schema is unchanged.
+
 ### 5.1 Reader API contract
 
 The implementation exposes two read contracts:

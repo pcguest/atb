@@ -369,6 +369,186 @@ func TestRunVerify_EarlierInvalidSignatureFailsExit(t *testing.T) {
 	}
 }
 
+func TestRunVerify_ExpectedSignerAndHeadMatch(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	keyPath, publicKey := writeVerifyTestKeypair(t)
+	signVerifyTestBundle(t, bundlePath, keyPath)
+	head := verifyTestBundleHead(t, bundlePath)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{
+		"--bundle=" + bundlePath,
+		"--expected-signer=" + publicKey,
+		"--expected-head=" + head,
+	}, &stdout, &stderr)
+	if exitCode != exitSuccess {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+}
+
+func TestRunVerify_ExpectedSignerMismatchFailsClosed(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	keyPath, _ := writeVerifyTestKeypair(t)
+	signVerifyTestBundle(t, bundlePath, keyPath)
+	_, otherPublicKey := writeVerifyTestKeypair(t)
+	head := verifyTestBundleHead(t, bundlePath)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{
+		"--bundle", bundlePath,
+		"--expected-signer", otherPublicKey,
+		"--expected-head", head,
+		"--json",
+	}, &stdout, &stderr)
+	if exitCode != exitIntegrityFailure {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", exitCode, exitIntegrityFailure, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "signer mismatch") {
+		t.Fatalf("stderr = %q, want signer mismatch", stderr.String())
+	}
+	var report verifypkg.Report
+	if err := json.Unmarshal(stdout.Bytes(), &report); err != nil {
+		t.Fatalf("expected JSON report on expected-signer failure: %v (stdout=%q)", err, stdout.String())
+	}
+}
+
+func TestRunVerify_ExpectedHeadMismatchFailsClosed(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	keyPath, publicKey := writeVerifyTestKeypair(t)
+	signVerifyTestBundle(t, bundlePath, keyPath)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	wrongHead := strings.Repeat("0", 64)
+	exitCode := runVerify([]string{
+		"--bundle", bundlePath,
+		"--expected-signer", publicKey,
+		"--expected-head", wrongHead,
+	}, &stdout, &stderr)
+	if exitCode != exitIntegrityFailure {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", exitCode, exitIntegrityFailure, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "expected final head") || !strings.Contains(stderr.String(), "does not match bundle head") {
+		t.Fatalf("stderr = %q, want expected-final-head mismatch", stderr.String())
+	}
+}
+
+func TestRunVerify_ExpectedSignerOnUnsignedBundleFailsClosed(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	_, publicKey := writeVerifyTestKeypair(t)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{"--bundle", bundlePath, "--expected-signer", publicKey}, &stdout, &stderr)
+	if exitCode != exitIntegrityFailure {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", exitCode, exitIntegrityFailure, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "no recorded signatures") {
+		t.Fatalf("stderr = %q, want missing-signature failure", stderr.String())
+	}
+}
+
+func TestRunVerify_ExpectedEvidenceUnsupportedCombinations(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	_, publicKey := writeVerifyTestKeypair(t)
+	head := strings.Repeat("a", 64)
+	schemaOut := filepath.Join(t.TempDir(), "verify.schema.json")
+
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"dry-run with expected signer", []string{"--bundle", bundlePath, "--dry-run", "--expected-signer", publicKey}},
+		{"dry-run with expected head", []string{"--bundle", bundlePath, "--dry-run", "--expected-head", head}},
+		{"schema with expected signer", []string{"--schema", "--expected-signer", publicKey}},
+		{"schema with expected head", []string{"--schema", "--expected-head", head}},
+		{"schema-out with expected signer", []string{"--schema-out", schemaOut, "--expected-signer", publicKey}},
+		{"schema-out with expected head", []string{"--schema-out", schemaOut, "--expected-head", head}},
+		{"remote with expected signer", []string{"--remote", "s3://bucket/bundle.atb", "--expected-signer", publicKey}},
+		{"remote with expected head", []string{"--remote", "s3://bucket/bundle.atb", "--expected-head", head}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := runVerify(tc.args, &stdout, &stderr)
+			if exitCode != exitUserError {
+				t.Fatalf("exit code = %d, want %d (stderr=%q)", exitCode, exitUserError, stderr.String())
+			}
+			if !strings.Contains(stderr.String(), "cannot be used with") {
+				t.Fatalf("stderr = %q, want unsupported-combination error", stderr.String())
+			}
+		})
+	}
+}
+
+func TestRunVerify_ExpectedEvidenceMatchesProfileFailureStillExitVerify(t *testing.T) {
+	b := newTestBundle(t)
+	appendTestBundleEvent(t, b, "ai.request.received", map[string]any{
+		"request_id":    "req-1",
+		"actor_id_hash": "actor-hash",
+		"purpose_tag":   "approve-change",
+	})
+	appendTestBundleEvent(t, b, "ai.action.precommit", map[string]any{
+		"action_id":                "act-1",
+		"action_type":              "deploy_change",
+		"action_parameters_digest": "params-digest",
+		"target_resource_id":       "svc-1",
+		"intended_effect":          "deploy build 42",
+	})
+	bundlePath := writeVerifyTestBundle(t, b)
+	keyPath, publicKey := writeVerifyTestKeypair(t)
+	signVerifyTestBundle(t, bundlePath, keyPath)
+	head := verifyTestBundleHead(t, bundlePath)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	exitCode := runVerify([]string{
+		"--bundle", bundlePath,
+		"--expected-signer", publicKey,
+		"--expected-head", head,
+	}, &stdout, &stderr)
+	if exitCode != exitVerifyFailure {
+		t.Fatalf("exit code = %d, want %d (stderr=%q)", exitCode, exitVerifyFailure, stderr.String())
+	}
+}
+
+func TestRunVerify_ExpectedSignerRequiresAllRecordedSigners(t *testing.T) {
+	bundlePath := writeVerifyTestBundle(t, buildCLIPrivilegedToolActionBundle(t))
+	firstKeyPath, firstPublicKey := writeVerifyTestKeypair(t)
+	secondKeyPath, secondPublicKey := writeVerifyTestKeypair(t)
+	signVerifyTestBundle(t, bundlePath, firstKeyPath)
+	signVerifyTestBundle(t, bundlePath, secondKeyPath)
+	head := verifyTestBundleHead(t, bundlePath)
+
+	for _, tc := range []struct {
+		name      string
+		publicKey string
+	}{
+		{"first recorded key", firstPublicKey},
+		{"second recorded key", secondPublicKey},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout bytes.Buffer
+			var stderr bytes.Buffer
+			exitCode := runVerify([]string{
+				"--bundle", bundlePath,
+				"--expected-signer", tc.publicKey,
+				"--expected-head", head,
+			}, &stdout, &stderr)
+			if exitCode != exitIntegrityFailure {
+				t.Fatalf("exit code = %d, want %d (stderr=%q)", exitCode, exitIntegrityFailure, stderr.String())
+			}
+			if !strings.Contains(stderr.String(), "signer mismatch") {
+				t.Fatalf("stderr = %q, want signer mismatch", stderr.String())
+			}
+		})
+	}
+}
+
 func TestRunVerify_IntegrityFail_ExitCode(t *testing.T) {
 	b := newTestBundle(t)
 	appendTestBundleEvent(t, b, "dev.session", map[string]any{"event_id": "evt-1"})
@@ -938,6 +1118,47 @@ func TestRunVerify_ManifestOnlyBundle(t *testing.T) {
 	if len(report.Profiles) != 0 {
 		t.Fatalf("expected no matched profiles for manifest-only bundle, got %d", len(report.Profiles))
 	}
+}
+
+func writeVerifyTestKeypair(t testing.TB) (keyPath, publicKeyBase64 string) {
+	t.Helper()
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate Ed25519 keypair: %v", err)
+	}
+	privatePEM, err := marshalEd25519PrivateKeyPEM(privateKey)
+	if err != nil {
+		t.Fatalf("marshal private key: %v", err)
+	}
+	keyPath = filepath.Join(t.TempDir(), "atb-key.pem")
+	if err := os.WriteFile(keyPath, privatePEM, 0600); err != nil {
+		t.Fatalf("write private key: %v", err)
+	}
+	return keyPath, base64.StdEncoding.EncodeToString(publicKey)
+}
+
+func signVerifyTestBundle(t testing.TB, bundlePath, keyPath string) {
+	t.Helper()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	if exitCode := runSign([]string{"--bundle", bundlePath, "--key", keyPath}, &stdout, &stderr); exitCode != exitSuccess {
+		t.Fatalf("sign exit code = %d, want %d (stderr=%q)", exitCode, exitSuccess, stderr.String())
+	}
+}
+
+func verifyTestBundleHead(t testing.TB, bundlePath string) string {
+	t.Helper()
+
+	b, err := bundle.Load(bundlePath)
+	if err != nil {
+		t.Fatalf("load bundle: %v", err)
+	}
+	if len(b.Records) == 0 {
+		t.Fatal("bundle has no records")
+	}
+	return b.Records[len(b.Records)-1].Hash
 }
 
 func writeVerifyTestBundle(t testing.TB, b *bundle.Bundle) string {
